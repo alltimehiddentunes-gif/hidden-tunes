@@ -15,6 +15,8 @@ export const ARTIST_MAX_PAGE_SIZE = 40;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export const ARTIST_BASELINE_SELECT = "id, name, slug, image_url, bio, created_at";
+
 export const ARTIST_PUBLIC_SELECT =
   "id, name, slug, image_url, bio, status, is_verified, is_featured, is_suspended, country_code, hometown, debut_year, website_url, profile_published_at, featured_release_id, merged_into_artist_id, explicit_rating, created_at, updated_at";
 
@@ -51,6 +53,25 @@ export function serializeArtistError(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+export function isMissingArtistSchemaError(error: unknown) {
+  const message = serializeArtistError(error).toLowerCase();
+  const code =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code || "")
+      : "";
+
+  if (code === "42703" || code === "PGRST204" || code === "PGRST205" || code === "42P01") {
+    return true;
+  }
+
+  return (
+    message.includes("does not exist") ||
+    message.includes("could not find the table") ||
+    message.includes("schema cache") ||
+    message.includes("could not find the relationship")
+  );
+}
+
 function cleanText(value: unknown, max = 4000) {
   return String(value || "")
     .replace(/\s+/g, " ")
@@ -58,10 +79,93 @@ function cleanText(value: unknown, max = 4000) {
     .slice(0, max);
 }
 
+function decorateArtistDefaults(row: ArtistRow): ArtistRow {
+  return {
+    status: "published",
+    is_verified: false,
+    is_featured: false,
+    is_suspended: false,
+    explicit_rating: "unknown",
+    country_code: null,
+    hometown: null,
+    debut_year: null,
+    website_url: null,
+    profile_published_at: null,
+    merged_into_artist_id: null,
+    featured_release_id: null,
+    updated_at: row.created_at || null,
+    ...row,
+  };
+}
+
 function isArtistPubliclyVisible(row: ArtistRow) {
   if (row.merged_into_artist_id) return false;
   if (row.is_suspended === true) return false;
   return String(row.status || "published") === "published";
+}
+
+async function selectArtistRow(matcher: { id?: string; slug?: string }) {
+  let extended = supabaseAdmin.from("artists").select(ARTIST_PUBLIC_SELECT);
+  if (matcher.id) extended = extended.eq("id", matcher.id);
+  if (matcher.slug) extended = extended.eq("slug", matcher.slug);
+  const extendedResult = await extended.maybeSingle();
+
+  if (!extendedResult.error) {
+    return extendedResult.data ? decorateArtistDefaults(extendedResult.data as ArtistRow) : null;
+  }
+
+  if (!isMissingArtistSchemaError(extendedResult.error)) {
+    throw new Error(extendedResult.error.message);
+  }
+
+  let baseline = supabaseAdmin.from("artists").select(ARTIST_BASELINE_SELECT);
+  if (matcher.id) baseline = baseline.eq("id", matcher.id);
+  if (matcher.slug) baseline = baseline.eq("slug", matcher.slug);
+  const baselineResult = await baseline.maybeSingle();
+  if (baselineResult.error) throw new Error(baselineResult.error.message);
+  return baselineResult.data ? decorateArtistDefaults(baselineResult.data as ArtistRow) : null;
+}
+
+async function safeExactCount(
+  table: string,
+  filters: Array<{ column: string; value: unknown; op?: "eq" | "is" }>,
+): Promise<number> {
+  try {
+    let query = supabaseAdmin.from(table).select("*", { count: "exact", head: true });
+    for (const filter of filters) {
+      if (filter.op === "is") {
+        query = query.is(filter.column, filter.value as null);
+      } else {
+        query = query.eq(filter.column, filter.value as string | number | boolean);
+      }
+    }
+    const { count, error } = await query;
+    if (error) {
+      if (isMissingArtistSchemaError(error)) return 0;
+      throw new Error(error.message);
+    }
+    return count || 0;
+  } catch (error) {
+    if (isMissingArtistSchemaError(error)) return 0;
+    throw error;
+  }
+}
+
+async function safeOptionalRows<T>(
+  label: string,
+  run: () => PromiseLike<{ data: T[] | null; error: { message?: string; code?: string } | null }>,
+): Promise<T[]> {
+  try {
+    const { data, error } = await run();
+    if (error) {
+      if (isMissingArtistSchemaError(error)) return [];
+      throw new Error(error.message || label);
+    }
+    return data || [];
+  } catch (error) {
+    if (isMissingArtistSchemaError(error)) return [];
+    throw error;
+  }
 }
 
 export function toPublicSong(row: Record<string, unknown>) {
@@ -114,72 +218,88 @@ export async function resolveArtistRef(ref: string) {
   const key = String(ref || "").trim();
   if (!key) return null;
 
-  let query = supabaseAdmin.from("artists").select(ARTIST_PUBLIC_SELECT);
-  query = isArtistUuid(key) ? query.eq("id", key) : query.eq("slug", key);
-  const { data, error } = await query.maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) return null;
+  const row = isArtistUuid(key)
+    ? await selectArtistRow({ id: key })
+    : await selectArtistRow({ slug: key });
+  if (!row) return null;
 
-  const row = data as ArtistRow;
-  if (!isArtistPubliclyVisible(row)) return null;
-
+  // Follow merge redirect before applying public visibility to the source row.
   if (row.merged_into_artist_id) {
-    const { data: canonical } = await supabaseAdmin
-      .from("artists")
-      .select(ARTIST_PUBLIC_SELECT)
-      .eq("id", String(row.merged_into_artist_id))
-      .maybeSingle();
-    return (canonical as ArtistRow | null) || null;
+    const canonical = await selectArtistRow({ id: String(row.merged_into_artist_id) });
+    if (!canonical || !isArtistPubliclyVisible(canonical)) return null;
+    return canonical;
   }
 
+  if (!isArtistPubliclyVisible(row)) return null;
   return row;
 }
 
 async function loadArtistGenres(artistId: string) {
-  const { data } = await supabaseAdmin
-    .from("artist_genres")
-    .select("genre")
-    .eq("artist_id", artistId)
-    .order("sort_order", { ascending: true });
-  return (data || []).map((row) => String(row.genre)).filter(Boolean);
+  const rows = await safeOptionalRows<{ genre?: unknown }>("artist_genres", () =>
+    supabaseAdmin
+      .from("artist_genres")
+      .select("genre")
+      .eq("artist_id", artistId)
+      .order("sort_order", { ascending: true }),
+  );
+  return rows.map((row) => String(row.genre || "")).filter(Boolean);
 }
 
 async function loadArtistStatistics(artistId: string) {
-  const { data } = await supabaseAdmin
-    .from("artist_statistics")
-    .select("*")
-    .eq("artist_id", artistId)
-    .maybeSingle();
-  if (data) return data as Record<string, unknown>;
+  const rows = await safeOptionalRows<Record<string, unknown>>("artist_statistics", () =>
+    supabaseAdmin.from("artist_statistics").select("*").eq("artist_id", artistId).limit(1),
+  );
+  if (rows[0]) return rows[0];
 
-  const [songs, albums, videos, followers, collaborations] = await Promise.all([
-    supabaseAdmin.from("songs").select("id", { count: "exact", head: true }).eq("artist_id", artistId).eq("is_public", true),
-    supabaseAdmin.from("albums").select("id", { count: "exact", head: true }).eq("artist_id", artistId),
-    supabaseAdmin.from("artist_videos").select("id", { count: "exact", head: true }).eq("artist_id", artistId).eq("is_published", true),
-    supabaseAdmin.from("artist_followers").select("user_id", { count: "exact", head: true }).eq("artist_id", artistId),
-    supabaseAdmin.from("artist_collaborations").select("id", { count: "exact", head: true }).eq("artist_id", artistId).eq("is_published", true),
+  const [songCount, albumCount, videoCount, followerCount, collaborationCount] = await Promise.all([
+    safeExactCount("songs", [
+      { column: "artist_id", value: artistId },
+      { column: "is_public", value: true },
+    ]),
+    safeExactCount("albums", [{ column: "artist_id", value: artistId }]),
+    safeExactCount("artist_videos", [
+      { column: "artist_id", value: artistId },
+      { column: "is_published", value: true },
+    ]),
+    safeExactCount("artist_followers", [{ column: "artist_id", value: artistId }]),
+    safeExactCount("artist_collaborations", [
+      { column: "artist_id", value: artistId },
+      { column: "is_published", value: true },
+    ]),
   ]);
 
   return {
-    song_count: songs.count || 0,
-    release_count: albums.count || 0,
+    song_count: songCount,
+    release_count: albumCount,
     single_count: 0,
-    video_count: videos.count || 0,
-    follower_count: followers.count || 0,
+    video_count: videoCount,
+    follower_count: followerCount,
     monthly_listeners: 0,
     total_plays: 0,
-    collaboration_count: collaborations.count || 0,
+    collaboration_count: collaborationCount,
     refreshed_at: new Date().toISOString(),
   };
 }
 
 async function loadSectionCounts(artistId: string, stats: Record<string, unknown>) {
   const [worlds, similar, credits, related, aboutSections] = await Promise.all([
-    supabaseAdmin.from("artist_emotional_worlds").select("id", { count: "exact", head: true }).eq("artist_id", artistId).eq("is_published", true),
-    supabaseAdmin.from("artist_similar_scores").select("similar_artist_id", { count: "exact", head: true }).eq("artist_id", artistId),
-    supabaseAdmin.from("artist_credits").select("id", { count: "exact", head: true }).eq("artist_id", artistId).eq("is_published", true),
-    supabaseAdmin.from("artist_related_content").select("id", { count: "exact", head: true }).eq("artist_id", artistId).eq("is_published", true),
-    supabaseAdmin.from("artist_biography_sections").select("id", { count: "exact", head: true }).eq("artist_id", artistId).eq("is_published", true),
+    safeExactCount("artist_emotional_worlds", [
+      { column: "artist_id", value: artistId },
+      { column: "is_published", value: true },
+    ]),
+    safeExactCount("artist_similar_scores", [{ column: "artist_id", value: artistId }]),
+    safeExactCount("artist_credits", [
+      { column: "artist_id", value: artistId },
+      { column: "is_published", value: true },
+    ]),
+    safeExactCount("artist_related_content", [
+      { column: "artist_id", value: artistId },
+      { column: "is_published", value: true },
+    ]),
+    safeExactCount("artist_biography_sections", [
+      { column: "artist_id", value: artistId },
+      { column: "is_published", value: true },
+    ]),
   ]);
 
   return {
@@ -187,27 +307,28 @@ async function loadSectionCounts(artistId: string, stats: Record<string, unknown
     releases: Number(stats.release_count || 0),
     singles: Number(stats.single_count || 0),
     videos: Number(stats.video_count || 0),
-    emotional_worlds: worlds.count || 0,
-    similar: similar.count || 0,
+    emotional_worlds: worlds,
+    similar,
     collaborations: Number(stats.collaboration_count || 0),
-    credits: credits.count || 0,
-    about: (aboutSections.count || 0) > 0 ? aboutSections.count || 0 : 1,
-    related_content: related.count || 0,
+    credits,
+    about: aboutSections > 0 ? aboutSections : 1,
+    related_content: related,
   } as Record<string, number>;
 }
 
 async function loadProfileSections(artistId: string, stats: Record<string, unknown>) {
-  const { data } = await supabaseAdmin
-    .from("artist_profile_sections")
-    .select("section_key, title_override, display_style, endpoint_path, sort_order, is_enabled")
-    .eq("artist_id", artistId)
-    .eq("is_enabled", true)
-    .order("sort_order", { ascending: true });
+  const configured = await safeOptionalRows<Record<string, unknown>>("artist_profile_sections", () =>
+    supabaseAdmin
+      .from("artist_profile_sections")
+      .select("section_key, title_override, display_style, endpoint_path, sort_order, is_enabled")
+      .eq("artist_id", artistId)
+      .eq("is_enabled", true)
+      .order("sort_order", { ascending: true }),
+  );
 
-  const rows = (data || []) as Array<Record<string, unknown>>;
   const source =
-    rows.length > 0
-      ? rows
+    configured.length > 0
+      ? configured
       : DEFAULT_PROFILE_SECTIONS.map((section, index) => ({
           ...section,
           sort_order: index * 10,
@@ -220,7 +341,13 @@ async function loadProfileSections(artistId: string, stats: Record<string, unkno
   for (const row of source) {
     const key = String(row.section_key);
     const count = countByKey[key];
-    if (key !== "about" && key !== "related_content" && key !== "top_songs" && key !== "releases" && (!count || count <= 0)) {
+    if (
+      key !== "about" &&
+      key !== "related_content" &&
+      key !== "top_songs" &&
+      key !== "releases" &&
+      (!count || count <= 0)
+    ) {
       continue;
     }
     sections.push({
@@ -267,13 +394,15 @@ export async function loadArtistIdentity(artistRow: ArtistRow) {
 
 export async function isViewerFollowingArtist(artistId: string, viewerUserId: string | null) {
   if (!viewerUserId) return false;
-  const { data } = await supabaseAdmin
-    .from("artist_followers")
-    .select("artist_id")
-    .eq("artist_id", artistId)
-    .eq("user_id", viewerUserId)
-    .maybeSingle();
-  return Boolean(data);
+  const rows = await safeOptionalRows<{ artist_id?: unknown }>("artist_followers", () =>
+    supabaseAdmin
+      .from("artist_followers")
+      .select("artist_id")
+      .eq("artist_id", artistId)
+      .eq("user_id", viewerUserId)
+      .limit(1),
+  );
+  return rows.length > 0;
 }
 
 export async function loadArtistProfileShell(ref: string, viewerUserId: string | null = null) {
@@ -321,6 +450,10 @@ export async function loadArtistTopSongs(artistId: string, options: { limit?: nu
     .eq("artist_id", artistId)
     .order("rank_position", { ascending: true })
     .limit(limit + 1);
+
+  if (rankingsError && !isMissingArtistSchemaError(rankingsError)) {
+    throw new Error(rankingsError.message);
+  }
 
   if (!rankingsError && rankings && rankings.length > 0) {
     let rows = rankings;
@@ -457,7 +590,12 @@ export async function loadArtistVideos(artistId: string, options: { limit?: numb
   if (decoded) query = query.gt("sort_order", Number(decoded.sortValue));
 
   const { data, error } = await query;
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) {
+      return { items: [] as Array<Record<string, unknown>>, hasMore: false, nextCursor: null };
+    }
+    throw new Error(error.message);
+  }
   const items = (data || []).map((row) => ({
     id: String(row.id),
     title: cleanText(row.title, 300),
@@ -485,7 +623,10 @@ export async function loadArtistSimilar(artistId: string, limitInput?: number) {
     .eq("artist_id", artistId)
     .order("similarity_score", { ascending: false })
     .limit(limit);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) return [];
+    throw new Error(error.message);
+  }
   return (data || [])
     .map((row) => {
       const artist = row.artists as Record<string, unknown> | Record<string, unknown>[] | null;
@@ -504,7 +645,10 @@ export async function loadArtistCollaborations(artistId: string, limitInput?: nu
     .eq("is_published", true)
     .order("collaboration_score", { ascending: false })
     .limit(limit);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) return [];
+    throw new Error(error.message);
+  }
   return (data || [])
     .map((row) => {
       const artist = row.artists as Record<string, unknown> | Record<string, unknown>[] | null;
@@ -525,17 +669,34 @@ export async function loadArtistCredits(artistId: string, limitInput?: number) {
     .eq("is_published", true)
     .order("sort_order", { ascending: true })
     .limit(limit);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) return [];
+    throw new Error(error.message);
+  }
   return data || [];
 }
 
 export async function loadArtistAbout(artistId: string) {
-  const [{ data: sections }, { data: links }, artistRow] = await Promise.all([
-    supabaseAdmin.from("artist_biography_sections").select("section_key, title, body, sort_order").eq("artist_id", artistId).eq("is_published", true).order("sort_order", { ascending: true }),
-    supabaseAdmin.from("artist_external_links").select("label, url, link_type, sort_order").eq("artist_id", artistId).eq("is_published", true).order("sort_order", { ascending: true }),
+  const [sections, links, artistRow] = await Promise.all([
+    safeOptionalRows<Record<string, unknown>>("artist_biography_sections", () =>
+      supabaseAdmin
+        .from("artist_biography_sections")
+        .select("section_key, title, body, sort_order")
+        .eq("artist_id", artistId)
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true }),
+    ),
+    safeOptionalRows<Record<string, unknown>>("artist_external_links", () =>
+      supabaseAdmin
+        .from("artist_external_links")
+        .select("label, url, link_type, sort_order")
+        .eq("artist_id", artistId)
+        .eq("is_published", true)
+        .order("sort_order", { ascending: true }),
+    ),
     resolveArtistRef(artistId),
   ]);
-  return { bio: artistRow?.bio ? cleanText(artistRow.bio, 8000) : null, sections: sections || [], links: links || [] };
+  return { bio: artistRow?.bio ? cleanText(artistRow.bio, 8000) : null, sections, links };
 }
 
 export async function loadArtistEmotionalWorlds(artistId: string, limitInput?: number) {
@@ -547,7 +708,10 @@ export async function loadArtistEmotionalWorlds(artistId: string, limitInput?: n
     .eq("is_published", true)
     .order("sort_order", { ascending: true })
     .limit(limit);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) return [];
+    throw new Error(error.message);
+  }
   return data || [];
 }
 
@@ -560,7 +724,10 @@ export async function loadArtistEmotionalWorldDetail(artistId: string, worldKey:
     .eq("world_key", worldKey)
     .eq("is_published", true)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) return null;
+    throw new Error(error.message);
+  }
   if (!world) return null;
 
   const { data: songs, error: songsError } = await supabaseAdmin
@@ -584,22 +751,43 @@ export async function loadArtistRelatedContent(artistId: string, limitInput?: nu
     .eq("is_published", true)
     .order("sort_order", { ascending: true })
     .limit(limit);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) return [];
+    throw new Error(error.message);
+  }
   return data || [];
 }
 
 export async function followArtist(artistId: string, userId: string) {
   const artist = await resolveArtistRef(artistId);
-  if (!artist) throw new Error("Artist not found.");
+  if (!artist) {
+    const notFound = new Error("Artist not found.");
+    (notFound as Error & { status?: number }).status = 404;
+    throw notFound;
+  }
   const { error } = await supabaseAdmin.from("artist_followers").upsert({ artist_id: artistId, user_id: userId });
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) {
+      const unavailable = new Error("Artist follow is unavailable until profile infrastructure is applied.");
+      (unavailable as Error & { status?: number }).status = 503;
+      throw unavailable;
+    }
+    throw new Error(error.message);
+  }
   invalidateArtistCache(artistId);
   return { followed: true };
 }
 
 export async function unfollowArtist(artistId: string, userId: string) {
   const { error } = await supabaseAdmin.from("artist_followers").delete().eq("artist_id", artistId).eq("user_id", userId);
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingArtistSchemaError(error)) {
+      const unavailable = new Error("Artist unfollow is unavailable until profile infrastructure is applied.");
+      (unavailable as Error & { status?: number }).status = 503;
+      throw unavailable;
+    }
+    throw new Error(error.message);
+  }
   invalidateArtistCache(artistId);
   return { followed: false };
 }
