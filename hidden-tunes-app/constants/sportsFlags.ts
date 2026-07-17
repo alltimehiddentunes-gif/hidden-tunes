@@ -7,6 +7,7 @@ export const SPORTS_CLIENT_FLAGS = {
   sports_enabled: false,
   sports_home_ia_enabled: false,
   sports_mobile_pilot_enabled: false,
+  sports_personalization_enabled: false,
   sports_native_playback_enabled: false,
   sports_embedded_playback_enabled: false,
   sports_external_watch_enabled: true,

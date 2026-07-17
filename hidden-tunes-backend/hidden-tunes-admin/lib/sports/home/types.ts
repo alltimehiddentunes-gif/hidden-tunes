@@ -84,6 +84,11 @@ export type SportsMatchCard = {
     playbackModeHint?: "embed" | "native" | "webview" | null;
   };
   badges?: string[];
+  /** Safe, non-private reason — only when personalization is enabled. */
+  recommendationReason?: {
+    code: string;
+    label: string;
+  } | null;
 };
 
 export type SportsCompetitionCard = {

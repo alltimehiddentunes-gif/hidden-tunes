@@ -31,6 +31,14 @@ export async function GET(request: NextRequest) {
     const timeZone =
       String(url.searchParams.get("tz") || url.searchParams.get("timezone") || "")
         .trim() || null;
+    const locale =
+      String(
+        url.searchParams.get("locale") ||
+          request.headers.get("accept-language") ||
+          ""
+      )
+        .split(",")[0]
+        ?.trim() || null;
     const userId =
       String(
         request.headers.get("x-ht-user-id") ||
@@ -44,34 +52,42 @@ export async function GET(request: NextRequest) {
       50
     );
 
-    const { response, sectionErrors, homeIaEnabled } =
-      await buildSportsHomeContract({
-        country,
-        platform,
-        userId,
-        timeZone,
-        limits: limitOverride
-          ? {
-              liveNow: limitOverride,
-              startingSoon: limitOverride,
-              featured: limitOverride,
-              becauseYouFollow: limitOverride,
-              continueWatching: limitOverride,
-              popularCompetitions: limitOverride,
-              browseSports: Math.max(limitOverride, 30),
-              browseCountries: Math.max(limitOverride, 30),
-              todaysSchedule: Math.max(limitOverride, 40),
-              trending: limitOverride,
-              recentlyFinished: limitOverride,
-              highlights: limitOverride,
-              replays: limitOverride,
-            }
-          : undefined,
-      });
+    const {
+      response,
+      sectionErrors,
+      homeIaEnabled,
+      personalizationEnabled,
+      personalizationApplied,
+    } = await buildSportsHomeContract({
+      country,
+      platform,
+      userId,
+      timeZone,
+      locale,
+      limits: limitOverride
+        ? {
+            liveNow: limitOverride,
+            startingSoon: limitOverride,
+            featured: limitOverride,
+            becauseYouFollow: limitOverride,
+            continueWatching: limitOverride,
+            popularCompetitions: limitOverride,
+            browseSports: Math.max(limitOverride, 30),
+            browseCountries: Math.max(limitOverride, 30),
+            todaysSchedule: Math.max(limitOverride, 40),
+            trending: limitOverride,
+            recentlyFinished: limitOverride,
+            highlights: limitOverride,
+            replays: limitOverride,
+          }
+        : undefined,
+    });
 
     return jsonSportsOk({
       enabled: true,
       homeIaEnabled,
+      personalizationEnabled,
+      personalizationApplied,
       country,
       platform,
       timeZone: timeZone || "UTC",

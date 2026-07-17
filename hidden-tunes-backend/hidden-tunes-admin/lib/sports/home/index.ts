@@ -20,3 +20,4 @@ export {
   loadHighlights,
   loadReplays,
 } from "./loaders";
+export type { SportsHomeContext } from "./context";

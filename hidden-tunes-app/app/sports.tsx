@@ -1,5 +1,5 @@
 /**
- * Isolated Sports pilot screen — Phase 2B home IA.
+ * Isolated Sports pilot screen — Phase 2C personalized home IA.
  * Not added to bottom tabs. Reachable via /sports while feature flags allow.
  * Does not touch PlayerContext, MiniPlayer, TV, or music queue.
  */
@@ -37,6 +37,9 @@ import type {
 
 const MAX_ITEMS_PER_SHELF = 12;
 
+/** Development-only local ranking demo — never shown in production builds. */
+type DevTestProfile = "anonymous" | "football" | "basketball";
+
 type ShelfRow = {
   key: string;
   sectionId: string;
@@ -46,7 +49,31 @@ type ShelfRow = {
   meta: string;
   kind: "match" | "video" | "other";
   playableHint: string;
+  reason?: string | null;
 };
+
+function applyDevProfileOrder(
+  sections: SportsHomeSection[],
+  profile: DevTestProfile
+): SportsHomeSection[] {
+  if (!__DEV__ || profile === "anonymous") return sections;
+  const prefer = profile === "football" ? "football" : "basketball";
+  return sections.map((section) => {
+    if (section.type !== "fixtures" && section.type !== "live") return section;
+    if (section.id === "continue_watching" || section.id === "trending") {
+      return section;
+    }
+    const items = [...section.items].sort((a, b) => {
+      const ca = a as SportsMatchCard;
+      const cb = b as SportsMatchCard;
+      const sa = ca.sport?.slug === prefer ? 0 : 1;
+      const sb = cb.sport?.slug === prefer ? 0 : 1;
+      if (sa !== sb) return sa - sb;
+      return String(ca.id).localeCompare(String(cb.id));
+    });
+    return { ...section, items };
+  });
+}
 
 function isHomeSectionArray(
   sections: SportsHomeSection[] | Partial<Record<string, unknown[]>> | undefined
@@ -93,6 +120,7 @@ function flattenSections(sections: SportsHomeSection[]): ShelfRow[] {
           playableHint: card.watchability?.playable
             ? "Playable"
             : card.watchability?.state || "Browse",
+          reason: card.recommendationReason?.label || null,
         });
         continue;
       }
@@ -134,6 +162,7 @@ function SportsPilotInner() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sections, setSections] = useState<SportsHomeSection[]>([]);
+  const [devProfile, setDevProfile] = useState<DevTestProfile>("anonymous");
   const [embedPlayback, setEmbedPlayback] = useState<SportsPlaybackResult | null>(
     null
   );
@@ -141,7 +170,14 @@ function SportsPilotInner() {
   const abortRef = useRef<AbortController | null>(null);
   const resolveInflight = useRef(false);
 
-  const rows = useMemo(() => flattenSections(sections), [sections]);
+  const displaySections = useMemo(
+    () => applyDevProfileOrder(sections, devProfile),
+    [sections, devProfile]
+  );
+  const rows = useMemo(
+    () => flattenSections(displaySections),
+    [displaySections]
+  );
 
   const load = useCallback(async () => {
     abortRef.current?.abort();
@@ -348,8 +384,30 @@ function SportsPilotInner() {
               {error ? <Text style={styles.error}>{error}</Text> : null}
               <Text style={styles.hint}>
                 Home IA shelves. Empty sections hidden. No autoplay. No polling.
-                Metadata only on match cards.
+                Same inventory — order may reflect preferences.
               </Text>
+              {__DEV__ ? (
+                <View style={styles.devRow}>
+                  {(
+                    [
+                      ["anonymous", "Anon"],
+                      ["football", "Football"],
+                      ["basketball", "Basketball"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <Pressable
+                      key={id}
+                      onPress={() => setDevProfile(id)}
+                      style={[
+                        styles.devChip,
+                        devProfile === id ? styles.devChipOn : null,
+                      ]}
+                    >
+                      <Text style={styles.devChipText}>{label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
               {sectionHeaders.length ? (
                 <ScrollView
                   horizontal
@@ -393,6 +451,11 @@ function SportsPilotInner() {
                     <Text style={styles.rowMeta} numberOfLines={1}>
                       {item.meta} · {item.playableHint}
                     </Text>
+                    {item.reason ? (
+                      <Text style={styles.rowReason} numberOfLines={1}>
+                        {item.reason}
+                      </Text>
+                    ) : null}
                   </View>
                 </Pressable>
               </View>
@@ -454,6 +517,21 @@ const styles = StyleSheet.create({
   },
   rowTitle: { color: "#fff", fontSize: 15 },
   rowMeta: { color: "#888", fontSize: 12, marginTop: 4 },
+  rowReason: { color: "#6a9", fontSize: 11, marginTop: 2 },
+  devRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  devChip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "#444",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  devChipOn: { borderColor: "#8ab4ff" },
+  devChipText: { color: "#ccc", fontSize: 12 },
   embedBox: { height: 280, borderBottomWidth: 1, borderBottomColor: "#222" },
   embedTitle: { color: "#fff", padding: 8, fontSize: 13 },
   webview: { flex: 1, backgroundColor: "#111" },

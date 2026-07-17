@@ -33,6 +33,7 @@ export type SportsMatchCard = {
     playable: boolean;
   };
   artwork?: { thumbnailUrl?: string | null } | null;
+  recommendationReason?: { code: string; label: string } | null;
 };
 
 export type SportsHomeSection = {
@@ -78,6 +79,8 @@ export type SportsHomeResponse = {
   success: boolean;
   enabled?: boolean;
   homeIaEnabled?: boolean;
+  personalizationEnabled?: boolean;
+  personalizationApplied?: boolean;
   generatedAt?: string;
   /** Phase 2B ordered sections. */
   sections?: SportsHomeSection[] | Partial<Record<string, SportsBrowseItem[]>>;
