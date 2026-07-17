@@ -6,6 +6,7 @@ import {
   encodeContentCursor,
 } from "@/lib/contentEngine/pagination";
 import { invalidateArtistCache, withArtistCache } from "@/lib/artistProfileCache";
+import { ARTIST_SIMILARITY_MIN_SCORE } from "@/lib/artistSimilarScores";
 import { getSupabaseAdminConfig } from "@/lib/supabaseAdmin";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -816,25 +817,187 @@ export async function loadArtistVideos(artistId: string, options: { limit?: numb
   });
 }
 
-export async function loadArtistSimilar(artistId: string, limitInput?: number) {
-  const limit = clampArtistPageSize(limitInput);
+export async function loadArtistSimilar(
+  artistId: string,
+  options: { limit?: number; cursor?: string | null } = {},
+) {
+  const limit = clampArtistPageSize(options.limit);
+  const scope = `artist-similar:${artistId}`;
+  const decoded = decodeContentCursor(options.cursor, scope);
+
   const { data, error } = await supabaseAdmin
     .from("artist_similar_scores")
-    .select("similarity_score, artists:similar_artist_id(id, name, slug, image_url, is_verified)")
+    .select(
+      "similarity_score, similar_artist_id, artists:similar_artist_id(id, name, slug, image_url, is_verified, status, is_suspended, merged_into_artist_id)",
+    )
     .eq("artist_id", artistId)
+    .gte("similarity_score", ARTIST_SIMILARITY_MIN_SCORE)
     .order("similarity_score", { ascending: false })
-    .limit(limit);
+    .order("similar_artist_id", { ascending: true })
+    .limit(Math.min(ARTIST_MAX_PAGE_SIZE * 3, 80));
+
+  let rankingRows = data || [];
   if (error) {
-    if (isMissingArtistSchemaError(error)) return [];
-    throw new Error(error.message);
+    if (isMissingArtistSchemaError(error)) {
+      // Retry with baseline artist embed when extended artist columns are absent.
+      const baseline = await supabaseAdmin
+        .from("artist_similar_scores")
+        .select(
+          "similarity_score, similar_artist_id, artists:similar_artist_id(id, name, slug, image_url, is_verified)",
+        )
+        .eq("artist_id", artistId)
+        .gte("similarity_score", ARTIST_SIMILARITY_MIN_SCORE)
+        .order("similarity_score", { ascending: false })
+        .order("similar_artist_id", { ascending: true })
+        .limit(Math.min(ARTIST_MAX_PAGE_SIZE * 3, 80));
+
+      if (baseline.error) {
+        if (isMissingArtistSchemaError(baseline.error)) {
+          return {
+            items: [] as Array<
+              ReturnType<typeof toPublicArtistCard> & {
+                similarity_score: number;
+                genres: string[];
+                reason: string | null;
+              }
+            >,
+            hasMore: false,
+            nextCursor: null as string | null,
+          };
+        }
+        throw new Error(baseline.error.message);
+      }
+      rankingRows = baseline.data || [];
+    } else {
+      throw new Error(error.message);
+    }
   }
-  return (data || [])
-    .map((row) => {
-      const artist = row.artists as Record<string, unknown> | Record<string, unknown>[] | null;
-      const card = Array.isArray(artist) ? artist[0] : artist;
-      return card ? { ...toPublicArtistCard(card), similarity_score: Number(row.similarity_score || 0) } : null;
-    })
-    .filter(Boolean);
+
+  const sourceGenres = await loadArtistGenres(artistId);
+  const sourceGenreSet = new Set(
+    sourceGenres.map((genre) => genre.trim().toLowerCase()).filter(Boolean),
+  );
+  // Soft fallback: song genres when artist_genres table is empty/absent.
+  if (sourceGenreSet.size === 0) {
+    const songGenres = await supabaseAdmin
+      .from("songs")
+      .select("genre")
+      .eq("artist_id", artistId)
+      .eq("is_public", true)
+      .limit(40);
+    if (!songGenres.error) {
+      for (const row of songGenres.data || []) {
+        for (const part of String(row.genre || "").split(/[,/|]/)) {
+          const token = part.trim().toLowerCase();
+          if (token) sourceGenreSet.add(token);
+        }
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  const mapped: Array<
+    ReturnType<typeof toPublicArtistCard> & {
+      similarity_score: number;
+      genres: string[];
+      reason: string | null;
+      _sortScore: number;
+    }
+  > = [];
+
+  for (const row of rankingRows) {
+    const score = Number(row.similarity_score || 0);
+    if (!(score >= ARTIST_SIMILARITY_MIN_SCORE)) continue;
+
+    const artist = row.artists as Record<string, unknown> | Record<string, unknown>[] | null;
+    const cardRow = Array.isArray(artist) ? artist[0] : artist;
+    if (!cardRow?.id) continue;
+
+    let resolved = cardRow;
+    const mergedInto = cardRow.merged_into_artist_id
+      ? String(cardRow.merged_into_artist_id)
+      : "";
+    if (mergedInto) {
+      const canonical = await selectArtistRow({ id: mergedInto });
+      if (!canonical || !isArtistPubliclyVisible(canonical)) continue;
+      resolved = canonical;
+    } else if (!isArtistPubliclyVisible(cardRow as ArtistRow)) {
+      continue;
+    }
+
+    const similarId = String(resolved.id);
+    if (!similarId || similarId === artistId || seen.has(similarId)) continue;
+    seen.add(similarId);
+
+    const genres = await loadArtistGenres(similarId);
+    const genreSet = new Set(genres.map((genre) => genre.trim().toLowerCase()).filter(Boolean));
+    if (genreSet.size === 0) {
+      const songGenres = await supabaseAdmin
+        .from("songs")
+        .select("genre")
+        .eq("artist_id", similarId)
+        .eq("is_public", true)
+        .limit(20);
+      if (!songGenres.error) {
+        for (const song of songGenres.data || []) {
+          for (const part of String(song.genre || "").split(/[,/|]/)) {
+            const token = part.trim().toLowerCase();
+            if (token) genreSet.add(token);
+          }
+        }
+      }
+    }
+
+    const sharedGenre = [...sourceGenreSet].find((genre) => genreSet.has(genre)) || null;
+    const reason = sharedGenre
+      ? `Shared genre: ${sharedGenre.replace(/\b\w/g, (c) => c.toUpperCase())}`
+      : null;
+
+    mapped.push({
+      ...toPublicArtistCard(resolved),
+      similarity_score: score,
+      genres: [...genreSet].slice(0, 5),
+      reason,
+      _sortScore: score,
+    });
+  }
+
+  mapped.sort(
+    (a, b) => b._sortScore - a._sortScore || a.id.localeCompare(b.id),
+  );
+
+  let startIndex = 0;
+  if (decoded) {
+    const cursorScore = Number(decoded.sortValue);
+    const cursorId = decoded.id;
+    startIndex = mapped.findIndex(
+      (item) =>
+        item._sortScore < cursorScore ||
+        (item._sortScore === cursorScore && item.id > cursorId),
+    );
+    if (startIndex < 0) startIndex = mapped.length;
+  }
+
+  const pageRows = mapped.slice(startIndex, startIndex + limit + 1);
+  const hasMore = pageRows.length > limit;
+  const items = (hasMore ? pageRows.slice(0, limit) : pageRows).map(
+    ({ _sortScore: _ignored, ...item }) => item,
+  );
+  const last = items[items.length - 1];
+
+  return {
+    items,
+    hasMore,
+    nextCursor:
+      hasMore && last
+        ? encodeContentCursor({
+            v: 1,
+            scope,
+            sortValue: String(last.similarity_score),
+            id: last.id,
+          })
+        : null,
+  };
 }
 
 export async function loadArtistCollaborations(artistId: string, limitInput?: number) {

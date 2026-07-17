@@ -41,8 +41,10 @@ import {
   fetchArtistAbout,
   fetchArtistProfileShell,
   fetchArtistReleases,
+  fetchArtistSimilar,
   fetchArtistTopSongs,
   type ArtistProfileShell,
+  type ArtistProfileSimilarArtist,
 } from './services/artistProfileApi'
 import {
   buildPlayerQueueStats,
@@ -6394,11 +6396,13 @@ function ArtistDetailView({
   artist,
   onBack,
   onOpenAlbum,
+  onOpenArtist,
 }: {
   artist: ApiArtist
   onBack: () => void
   onOpenSong: QueueSongHandler
   onOpenAlbum: (album: ApiAlbum) => void
+  onOpenArtist: (artist: ApiArtist) => void
 }) {
   const { playQueue } = useDesktopPlayback()
   const { artistNames, indexes } = useCatalog()
@@ -6409,6 +6413,10 @@ function ArtistDetailView({
   const [releasesCursor, setReleasesCursor] = useState<string | null>(null)
   const [loadingMoreReleases, setLoadingMoreReleases] = useState(false)
   const [trackSectionLabel, setTrackSectionLabel] = useState('Essential tracks')
+  const [similarArtists, setSimilarArtists] = useState<ArtistProfileSimilarArtist[]>([])
+  const [similarHasMore, setSimilarHasMore] = useState(false)
+  const [similarCursor, setSimilarCursor] = useState<string | null>(null)
+  const [loadingMoreSimilar, setLoadingMoreSimilar] = useState(false)
   const [aboutExpanded, setAboutExpanded] = useState(false)
 
   const artistSongs = useMemo(() => {
@@ -6434,6 +6442,9 @@ function ArtistDetailView({
     setReleasesHasMore(false)
     setReleasesCursor(null)
     setTrackSectionLabel('Essential tracks')
+    setSimilarArtists([])
+    setSimilarHasMore(false)
+    setSimilarCursor(null)
     setAboutExpanded(false)
 
     void (async () => {
@@ -6444,7 +6455,7 @@ function ArtistDetailView({
         if (abortController.signal.aborted) return
         setProfileShell(shell)
 
-        const [releasesPage, about, topSongsPage] = await Promise.all([
+        const [releasesPage, about, topSongsPage, similarPage] = await Promise.all([
           fetchArtistReleases(shell.artist.id, {
             limit: 24,
             signal: abortController.signal,
@@ -6454,6 +6465,10 @@ function ArtistDetailView({
           }).catch(() => null),
           fetchArtistTopSongs(shell.artist.id, {
             limit: 5,
+            signal: abortController.signal,
+          }).catch(() => null),
+          fetchArtistSimilar(shell.artist.id, {
+            limit: 12,
             signal: abortController.signal,
           }).catch(() => null),
         ])
@@ -6480,6 +6495,17 @@ function ArtistDetailView({
         if (topSongsPage?.ranking?.label) {
           setTrackSectionLabel(topSongsPage.ranking.label)
         }
+
+        const seen = new Set<string>()
+        const similarItems: ArtistProfileSimilarArtist[] = []
+        for (const item of similarPage?.items || []) {
+          if (!item.id || item.id === shell.artist.id || seen.has(item.id)) continue
+          seen.add(item.id)
+          similarItems.push(item)
+        }
+        setSimilarArtists(similarItems)
+        setSimilarHasMore(similarPage?.pagination.hasMore === true)
+        setSimilarCursor(similarPage?.pagination.nextCursor || null)
       } catch {
         // Keep catalog-backed artist page when profile API is unavailable.
       }
@@ -6527,6 +6553,50 @@ function ArtistDetailView({
     releasesCursor,
     releasesHasMore,
   ])
+
+  const loadMoreSimilar = useCallback(async () => {
+    const artistId = profileShell?.artist.id || artist.id
+    if (!similarHasMore || !similarCursor || loadingMoreSimilar) return
+    setLoadingMoreSimilar(true)
+    try {
+      const page = await fetchArtistSimilar(artistId, {
+        limit: 12,
+        cursor: similarCursor,
+      })
+      setSimilarArtists((previous) => {
+        const seen = new Set(previous.map((item) => item.id))
+        const appended = page.items.filter(
+          (item) => item.id && item.id !== artistId && !seen.has(item.id),
+        )
+        return [...previous, ...appended]
+      })
+      setSimilarHasMore(page.pagination.hasMore)
+      setSimilarCursor(page.pagination.nextCursor)
+    } catch {
+      // Keep already-loaded similar artists when pagination fails.
+    } finally {
+      setLoadingMoreSimilar(false)
+    }
+  }, [
+    artist.id,
+    loadingMoreSimilar,
+    profileShell?.artist.id,
+    similarCursor,
+    similarHasMore,
+  ])
+
+  const openSimilarArtist = useCallback(
+    (similar: ArtistProfileSimilarArtist) => {
+      onOpenArtist({
+        id: similar.id,
+        name: similar.name,
+        artwork: similar.artwork,
+        songCount: 0,
+        tracks: [],
+      })
+    },
+    [onOpenArtist],
+  )
 
   const playArtistSong = useCallback(
     (song: ApiSong, index: number, queue = artistSongs) => {
@@ -6700,6 +6770,60 @@ function ArtistDetailView({
           </>
         )}
       </section>
+
+      {similarArtists.length > 0 ? (
+        <section className="detail-panel">
+          <div className="detail-panel-header">
+            <h3>Similar Artists</h3>
+            <span>Shared catalog signals</span>
+          </div>
+          <div className="card-row card-row--compact card-row--artists">
+            {similarArtists.map((similar) => (
+              <button
+                key={similar.id}
+                type="button"
+                className="discovery-card discovery-card--api discovery-card--artist"
+                onClick={() => openSimilarArtist(similar)}
+              >
+                <div className="card-art card-art--artist">
+                  <ArtistAvatar
+                    artist={{
+                      id: similar.id,
+                      name: similar.name,
+                      artwork: similar.artwork,
+                      songCount: 0,
+                      tracks: [],
+                    }}
+                  />
+                </div>
+                <div className="card-info">
+                  <h3>{similar.name}</h3>
+                  <p className="card-meta-primary">
+                    {similar.reason ||
+                      (similar.genres[0]
+                        ? similar.genres[0].replace(/\b\w/g, (c) => c.toUpperCase())
+                        : 'Artist')}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+          {similarHasMore ? (
+            <div className="detail-panel-footer" style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                disabled={loadingMoreSimilar}
+                onClick={() => {
+                  void loadMoreSimilar()
+                }}
+              >
+                {loadingMoreSimilar ? 'Loading…' : 'See more artists'}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
     </PageFrame>
   )
 }
@@ -6956,6 +7080,7 @@ function CatalogDetailRouter({
         onBack={onBack}
         onOpenSong={onOpenSong}
         onOpenAlbum={onOpenAlbum}
+        onOpenArtist={onOpenArtist}
       />
     )
   }

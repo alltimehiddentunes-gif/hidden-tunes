@@ -57,4 +57,7 @@ next-env.d.ts
 # artist song rankings job checkpoint
 /data/artist-rankings/
 
+# artist similarity job checkpoint
+/data/artist-similarity/
+
 .vercel

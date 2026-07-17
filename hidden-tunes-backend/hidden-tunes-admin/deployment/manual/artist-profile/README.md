@@ -16,11 +16,14 @@ npm run artist:smoke-loaders
 # Optional: only after infrastructure schema is applied. Safe no-op when rankings table is missing.
 npm run artist:rankings:dry
 npm run artist:rankings -- --resume --limit-artists=100
+# Optional: Similar Artists writer. Safe no-op when artist_similar_scores is missing.
+npm run artist:similar:dry
+npm run artist:similar -- --resume --limit-artists=40
 ```
 
 If credentials are unavailable, paste `01_artist_profile_infrastructure.sql` then `04_artist_release_taxonomy.sql` into the Supabase SQL Editor, then run verify/smoke.
 
-Artist Profile pages do **not** require the ranking job. Without ranking rows or play signals, track sections stay labeled **Essential tracks**.
+Artist Profile pages do **not** require the ranking or similarity jobs. Without ranking rows or play signals, track sections stay labeled **Essential tracks**. Without similar rows, the Similar Artists section stays hidden/empty.
 
 ## Schema snapshot
 
