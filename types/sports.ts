@@ -98,7 +98,19 @@ export type SportsMatchCard = {
     state: string;
     playable: boolean;
     playbackModeHint?: "embed" | "native" | "webview" | null;
+    /** access: in_app | external | subscription */
+    access?: "in_app" | "external" | "subscription" | null;
   };
+  /** Explicit availability — preferred over inferred watchability. */
+  availabilityState?:
+    | "live_in_app"
+    | "live_external"
+    | "live_subscription"
+    | "live_unavailable"
+    | "upcoming"
+    | "finished"
+    | "replay_available"
+    | "highlights_available";
   badges?: string[];
   recommendationReason?: { code: string; label: string } | null;
   /** Resume metadata for continue-watching shelves. */
@@ -108,7 +120,7 @@ export type SportsMatchCard = {
     lastWatchedAt?: string | null;
     stillLive?: boolean;
   } | null;
-  /** Development-only editorial marker â€” never from production API. */
+  /** Development-only editorial marker — never from production API. */
   featured?: boolean;
   fixtureOnly?: boolean;
 };
@@ -196,10 +208,54 @@ export type SportsExternalPlayback = {
   fallbackUrl: string;
   accessType: "free" | "registration" | "subscription";
 };
+
+/** Legacy mode-based playback (SportsPlaybackContext). */
 export type SportsPlaybackResult =
   | SportsNativePlayback
   | SportsEmbeddedPlayback
   | SportsExternalPlayback;
+
+/** Provider-neutral tap-to-watch session DTO. */
+export type SportsPlaybackSession =
+  | {
+      status: "ready";
+      fixtureId: string;
+      playbackKind: "embed" | "webview" | "hls" | "dash";
+      playbackToken: string;
+      expiresAt: string;
+      title: string;
+      providerLabel?: string;
+      /** Short-lived embed URL — never from browse APIs. */
+      embedUrl?: string | null;
+      /** Controlled HTML only for __DEV__ fixtures — never production. */
+      fixtureHtml?: string | null;
+      manifestUrl?: string | null;
+    }
+  | {
+      status: "external";
+      fixtureId: string;
+      officialUrl: string;
+      providerLabel: string;
+    }
+  | {
+      status: "subscription_required";
+      fixtureId: string;
+      providerLabel: string;
+      officialUrl?: string;
+    }
+  | {
+      status: "unavailable";
+      fixtureId: string;
+      reason:
+        | "expired"
+        | "geo_blocked"
+        | "provider_disabled"
+        | "not_started"
+        | "finished"
+        | "validation_failed"
+        | "no_broadcast";
+      message?: string;
+    };
 export type SportsHomeResponse = {
   success: boolean;
   enabled?: boolean;

@@ -1,8 +1,6 @@
 /**
  * Sports player route — resolves playback exactly once per fixture on mount.
- * Uses resolveSportsFixturePlayback directly (fixture → watch-options →
- * broadcast) rather than SportsPlaybackContext, since this route owns a
- * single, short-lived playback session and does not need cross-screen state.
+ * One tap → one resolver request → one player mount.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
@@ -13,13 +11,22 @@ import { SportsEmptyState, SportsPlayerShell } from "../../../components/sports"
 import {
   fetchSportsFixtureDetail,
   recordSportsWatchHistory,
-  resolveSportsFixturePlayback,
+  resolveSportsFixturePlaySession,
   upsertSportsContinueWatching,
 } from "../../../services/sports";
 import { formatMatchTitle } from "../../../lib/sports/ui/formatScore";
-import type { SportsFixtureDetail, SportsMatchCard, SportsPlaybackResult } from "../../../types/sports";
+import type {
+  SportsFixtureDetail,
+  SportsMatchCard,
+  SportsPlaybackSession,
+} from "../../../types/sports";
 
-import { SPORTS_COLORS, SportsDisabledState, useSportsFullUiGate, useSportsNowClock } from "../_shared";
+import {
+  SPORTS_COLORS,
+  SportsDisabledState,
+  useSportsFullUiGate,
+  useSportsNowClock,
+} from "../_shared";
 
 export default function SportsPlayerScreen() {
   const gate = useSportsFullUiGate();
@@ -30,28 +37,30 @@ export default function SportsPlayerScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fixture, setFixture] = useState<SportsFixtureDetail | null>(null);
-  const [playback, setPlayback] = useState<SportsPlaybackResult | null>(null);
+  const [session, setSession] = useState<SportsPlaybackSession | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const resolvedOnceRef = useRef(false);
+  const resolvingRef = useRef(false);
 
   const resolve = useCallback(async () => {
-    if (!fixtureId) return;
+    if (!fixtureId || resolvingRef.current) return;
+    resolvingRef.current = true;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     setLoading(true);
     setError(null);
-    setPlayback(null);
+    setSession(null);
 
     try {
-      const [detail, resolved] = await Promise.all([
+      const [detail, playSession] = await Promise.all([
         fetchSportsFixtureDetail(fixtureId, {
           signal: controller.signal,
           country: "ZZ",
           platform: Platform.OS,
         }),
-        resolveSportsFixturePlayback({
+        resolveSportsFixturePlaySession({
           fixtureId,
           platform: Platform.OS,
           country: "ZZ",
@@ -60,34 +69,38 @@ export default function SportsPlayerScreen() {
       ]);
       if (controller.signal.aborted) return;
 
-      if (detail.fixture) {
-        setFixture(detail.fixture);
-      }
+      if (detail.fixture) setFixture(detail.fixture);
+      setSession(playSession);
 
-      if (!resolved.success || !resolved.playback) {
-        setError(resolved.error || "This match is currently unavailable.");
+      if (playSession.status === "unavailable") {
+        setError(playSession.message || "This match is currently unavailable.");
         return;
       }
-      setPlayback(resolved.playback);
 
-      const summaryTitle = detail.fixture ? formatMatchTitle(detail.fixture) : resolved.title || "Match";
-      await recordSportsWatchHistory({
-        id: fixtureId,
-        kind: "broadcast",
-        title: summaryTitle,
-        positionMs: 0,
-      });
-      await upsertSportsContinueWatching({
-        id: fixtureId,
-        kind: "broadcast",
-        title: summaryTitle,
-        positionMs: 0,
-      });
+      if (playSession.status === "ready") {
+        const summaryTitle =
+          detail.fixture ? formatMatchTitle(detail.fixture) : playSession.title || "Match";
+        await recordSportsWatchHistory({
+          id: fixtureId,
+          kind: "broadcast",
+          title: summaryTitle,
+          positionMs: 0,
+        });
+        await upsertSportsContinueWatching({
+          id: fixtureId,
+          kind: "broadcast",
+          title: summaryTitle,
+          positionMs: 0,
+        });
+      }
     } catch (err) {
       if (!controller.signal.aborted) {
-        setError(err instanceof Error ? err.message : "This match could not be loaded right now.");
+        setError(
+          err instanceof Error ? err.message : "This match could not be loaded right now."
+        );
       }
     } finally {
+      resolvingRef.current = false;
       if (!controller.signal.aborted) setLoading(false);
     }
   }, [fixtureId]);
@@ -100,21 +113,13 @@ export default function SportsPlayerScreen() {
     return () => abortRef.current?.abort();
   }, [gate.allowed, fixtureId, resolve]);
 
-  const onClose = useCallback(() => {
-    router.back();
-  }, []);
-
-  const onRetry = useCallback(() => {
-    void resolve();
-  }, [resolve]);
-
   const onSelectRelated = useCallback((card: SportsMatchCard) => {
-    router.replace(`/sports/player/${encodeURIComponent(card.id)}` as any);
+    router.replace(`/sports/player/${encodeURIComponent(card.id)}` as never);
   }, []);
 
   if (!gate.allowed) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
         <Stack.Screen options={{ headerShown: false }} />
         <SportsDisabledState message={gate.reason} />
       </SafeAreaView>
@@ -123,25 +128,34 @@ export default function SportsPlayerScreen() {
 
   if (!fixtureId) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <SportsEmptyState title="Match not found" message="No fixture was specified." />
+        <SportsEmptyState
+          title="Match not found"
+          message="This Sports player link is missing a fixture."
+          actionLabel="Back to Sports"
+          onAction={() => router.replace("/sports" as never)}
+        />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <SportsPlayerShell
         fixture={fixture}
-        playback={playback}
+        session={session}
         loading={loading}
         errorMessage={error}
         relatedFixtures={fixture?.relatedFixtures}
         nowMs={nowMs}
-        onClose={onClose}
-        onRetry={onRetry}
+        onBack={() => router.back()}
+        onClose={() => router.back()}
+        onRetry={() => {
+          resolvedOnceRef.current = false;
+          void resolve();
+        }}
         onSelectRelated={onSelectRelated}
       />
     </SafeAreaView>
@@ -149,5 +163,6 @@ export default function SportsPlayerScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: SPORTS_COLORS.navy },
+  root: { flex: 1, backgroundColor: SPORTS_COLORS.navy },
 });
+

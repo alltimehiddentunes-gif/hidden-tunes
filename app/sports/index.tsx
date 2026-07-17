@@ -55,6 +55,7 @@ import {
   createTapGuardState,
   shouldIgnoreDuplicateTap,
 } from "../../utils/tapPressGuard";
+import { getSportsWatchAction, shouldOpenSportsPlayer } from "../../lib/sports/ui/availability";
 
 import { SPORTS_COLORS, SportsDisabledState, useSportsFullUiGate, useSportsNowClock } from "./_shared";
 
@@ -209,7 +210,18 @@ function SportsHomeInner() {
     },
     [goFixture]
   );
-  const onWatchMatch = useCallback((card: SportsMatchCardType) => goWatch(card.id), [goWatch]);
+  const onWatchMatch = useCallback((card: SportsMatchCardType) => {
+    const action = getSportsWatchAction(card);
+    if (action.kind === "watch_external" || action.kind === "subscription") {
+      // External / subscription — resolve session for official URL labeling on player,
+      // or open detail. Prefer detail so user sees clear non-in-app messaging.
+      if (shouldIgnoreDuplicateTap(watchGuardRef.current, `ext:${card.id}`)) return;
+      goFixture(card.id);
+      return;
+    }
+    if (!shouldOpenSportsPlayer(card)) return;
+    goWatch(card.id);
+  }, [goFixture, goWatch]);
   const onRemindMatch = useCallback(async (card: SportsMatchCardType) => {
     const isReminded = remindedIds.has(card.id);
     if (isReminded) {

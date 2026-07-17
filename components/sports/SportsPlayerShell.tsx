@@ -1,5 +1,12 @@
 import { memo, useCallback, useMemo } from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import WebView from "react-native-webview";
@@ -8,8 +15,11 @@ import { SPORTS_COLORS } from "@/lib/sports/ui/sportsTheme";
 import { formatFinishedTime, formatKickoff } from "@/lib/sports/ui/formatKickoff";
 import { formatMatchTitle, formatScore, participantBySide } from "@/lib/sports/ui/formatScore";
 import { formatMatchMinute } from "@/lib/sports/ui/formatStatus";
-import { boundSectionItems, stableSportsKey } from "@/lib/sports/ui/homeSections";
-import type { SportsMatchCard as SportsMatchCardType, SportsPlaybackResult } from "@/types/sports";
+import { boundSectionItems } from "@/lib/sports/ui/homeSections";
+import type {
+  SportsMatchCard as SportsMatchCardType,
+  SportsPlaybackSession,
+} from "@/types/sports";
 
 import SportsHorizontalShelf from "./SportsHorizontalShelf";
 import SportsMatchCard from "./SportsMatchCard";
@@ -17,7 +27,7 @@ import SportsStatusBadge from "./SportsStatusBadge";
 
 type SportsPlayerShellProps = {
   fixture: SportsMatchCardType | null | undefined;
-  playback?: SportsPlaybackResult | null;
+  session?: SportsPlaybackSession | null;
   loading?: boolean;
   errorMessage?: string | null;
   relatedFixtures?: SportsMatchCardType[];
@@ -31,19 +41,19 @@ type SportsPlayerShellProps = {
 function PlayerSurface({
   loading,
   errorMessage,
-  playback,
+  session,
   onRetry,
 }: {
   loading: boolean;
   errorMessage: string | null | undefined;
-  playback: SportsPlaybackResult | null | undefined;
+  session: SportsPlaybackSession | null | undefined;
   onRetry?: () => void;
 }) {
   if (loading) {
     return (
       <View style={styles.surfaceCenter}>
         <ActivityIndicator color={SPORTS_COLORS.amber} size="large" />
-        <Text style={styles.surfaceText}>Loading match...</Text>
+        <Text style={styles.surfaceText}>Resolving playback...</Text>
       </View>
     );
   }
@@ -64,20 +74,71 @@ function PlayerSurface({
     );
   }
 
-  if (!playback) {
+  if (!session || session.status === "unavailable") {
     return (
       <View style={styles.surfaceCenter}>
         <Ionicons name="tv-outline" size={36} color={SPORTS_COLORS.textDim} />
         <Text style={styles.surfaceTitle}>Playback unavailable</Text>
-        <Text style={styles.surfaceText}>This match does not have a live stream right now.</Text>
+        <Text style={styles.surfaceText}>
+          {session?.status === "unavailable"
+            ? session.message || "This match does not have a playable stream right now."
+            : "This match does not have a live stream right now."}
+        </Text>
       </View>
     );
   }
 
-  if (playback.mode === "embedded" && playback.embedUrl && playback.embedUrl !== "about:blank") {
+  if (session.status === "subscription_required") {
+    return (
+      <View style={styles.surfaceCenter}>
+        <Ionicons name="lock-closed-outline" size={36} color={SPORTS_COLORS.amber} />
+        <Text style={styles.surfaceTitle}>Subscription required</Text>
+        <Text style={styles.surfaceText}>
+          Watch through {session.providerLabel}. Hidden Tunes does not unlock paid streams.
+        </Text>
+        {session.officialUrl ? (
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => void Linking.openURL(session.officialUrl!)}
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${session.providerLabel}`}
+          >
+            <Ionicons name="open-outline" size={14} color={SPORTS_COLORS.text} />
+            <Text style={styles.retryButtonText}>Open official provider</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  }
+
+  if (session.status === "external") {
+    return (
+      <View style={styles.surfaceCenter}>
+        <Ionicons name="open-outline" size={36} color={SPORTS_COLORS.plum} />
+        <Text style={styles.surfaceTitle}>Watch on Official Provider</Text>
+        <Text style={styles.surfaceText}>
+          This event streams on {session.providerLabel}. It is not available as an in-app Hidden
+          Tunes stream.
+        </Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => void Linking.openURL(session.officialUrl)}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${session.providerLabel}`}
+        >
+          <Ionicons name="open-outline" size={14} color={SPORTS_COLORS.text} />
+          <Text style={styles.retryButtonText}>Open official provider</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // ready
+  const embedUrl = session.embedUrl?.trim() || "";
+  if (embedUrl && embedUrl !== "about:blank") {
     return (
       <WebView
-        source={{ uri: playback.embedUrl }}
+        source={{ uri: embedUrl }}
         style={styles.webView}
         allowsInlineMediaPlayback
         allowsFullscreenVideo
@@ -90,28 +151,50 @@ function PlayerSurface({
     );
   }
 
-  if (playback.mode === "native") {
+  if (session.fixtureHtml && __DEV__) {
+    return (
+      <WebView
+        source={{ html: session.fixtureHtml }}
+        style={styles.webView}
+        originWhitelist={["*"]}
+        javaScriptEnabled={false}
+        mediaPlaybackRequiresUserAction
+      />
+    );
+  }
+
+  if (session.manifestUrl) {
     return (
       <View style={styles.surfaceCenter}>
         <Ionicons name="play-circle-outline" size={36} color={SPORTS_COLORS.amber} />
         <Text style={styles.surfaceTitle}>Match ready to play</Text>
-        <Text style={styles.surfaceText}>Native playback session prepared for this fixture.</Text>
+        <Text style={styles.surfaceText}>
+          Authorized stream session prepared. Native Sports player wiring arrives with provider
+          integration.
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.surfaceCenter}>
-      <Ionicons name="open-outline" size={36} color={SPORTS_COLORS.plum} />
-      <Text style={styles.surfaceTitle}>Match ready to play</Text>
-      <Text style={styles.surfaceText}>This match streams through a partner app.</Text>
+      <Ionicons name="alert-circle-outline" size={36} color={SPORTS_COLORS.textMuted} />
+      <Text style={styles.surfaceTitle}>Playback failed</Text>
+      <Text style={styles.surfaceText}>
+        No valid embed or stream was returned for this match.
+      </Text>
+      {onRetry ? (
+        <TouchableOpacity style={styles.retryButton} onPress={onRetry} accessibilityRole="button">
+          <Text style={styles.retryButtonText}>Try again</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
 
 function SportsPlayerShell({
   fixture,
-  playback,
+  session,
   loading = false,
   errorMessage,
   relatedFixtures,
@@ -141,7 +224,9 @@ function SportsPlayerShell({
   const score = fixture ? formatScore(fixture) : null;
   const minute = fixture ? formatMatchMinute(fixture) : null;
   const kickoff = fixture ? formatKickoff(fixture.timing?.startsAt, clockMs) : "";
-  const finishedTime = fixture ? formatFinishedTime(fixture.timing?.endsAt, fixture.timing?.startsAt) : "";
+  const finishedTime = fixture
+    ? formatFinishedTime(fixture.timing?.endsAt, fixture.timing?.startsAt)
+    : "";
   const competitionLabel = fixture?.competition?.name || fixture?.sport?.name || null;
 
   return (
@@ -149,77 +234,78 @@ function SportsPlayerShell({
       <View style={styles.topBar}>
         {onBack ? (
           <TouchableOpacity
-            style={styles.iconButton}
             onPress={handleBack}
+            style={styles.iconBtn}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel="Go back"
           >
             <Ionicons name="chevron-back" size={22} color={SPORTS_COLORS.text} />
           </TouchableOpacity>
         ) : (
-          <View style={styles.iconButtonSpacer} />
+          <View style={styles.iconBtn} />
         )}
         <Text style={styles.topTitle} numberOfLines={1}>
           {title}
         </Text>
         {onClose ? (
           <TouchableOpacity
-            style={styles.iconButton}
             onPress={handleClose}
+            style={styles.iconBtn}
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel="Close player"
           >
-            <Ionicons name="close" size={20} color={SPORTS_COLORS.text} />
+            <Ionicons name="close" size={22} color={SPORTS_COLORS.text} />
           </TouchableOpacity>
         ) : (
-          <View style={styles.iconButtonSpacer} />
+          <View style={styles.iconBtn} />
         )}
       </View>
 
-      <View style={styles.playerShell}>
-        <PlayerSurface loading={loading} errorMessage={errorMessage} playback={playback} onRetry={onRetry} />
+      <View style={styles.playerFrame}>
+        <PlayerSurface
+          loading={loading}
+          errorMessage={errorMessage}
+          session={session}
+          onRetry={onRetry}
+        />
       </View>
 
       {fixture ? (
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryTopRow}>
-            <SportsStatusBadge
-              code={fixture.status?.code}
-              label={fixture.status?.label}
-              minute={minute}
-              size="sm"
-            />
-            {competitionLabel ? (
-              <Text style={styles.summaryCompetition} numberOfLines={1}>
-                {competitionLabel}
-              </Text>
-            ) : null}
+        <View style={styles.summary}>
+          <View style={styles.summaryTop}>
+            <SportsStatusBadge code={fixture.status?.code} label={fixture.status?.label} />
+            {minute ? <Text style={styles.minute}>{minute}</Text> : null}
           </View>
-
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryName} numberOfLines={1}>
-              {home?.name || "TBD"}
+          {competitionLabel ? (
+            <Text style={styles.competition} numberOfLines={1}>
+              {competitionLabel}
             </Text>
-            <Text style={styles.summaryScore}>
-              {score || (fixture.status?.live ? "vs" : kickoff || finishedTime || "vs")}
+          ) : null}
+          <Text style={styles.summaryTitle} numberOfLines={2}>
+            {title}
+          </Text>
+          {score ? <Text style={styles.score}>{score}</Text> : null}
+          {!score && (kickoff || finishedTime) ? (
+            <Text style={styles.meta}>{kickoff || finishedTime}</Text>
+          ) : null}
+          {home?.name && away?.name ? (
+            <Text style={styles.meta} numberOfLines={1}>
+              {home.name} vs {away.name}
             </Text>
-            <Text style={[styles.summaryName, styles.summaryNameRight]} numberOfLines={1}>
-              {away?.name || "TBD"}
-            </Text>
-          </View>
+          ) : null}
         </View>
       ) : null}
 
-      {related.length ? (
-        <View style={styles.relatedSection}>
-          <Text style={styles.relatedTitle}>Related Fixtures</Text>
+      {related.length > 0 ? (
+        <View style={styles.related}>
+          <Text style={styles.relatedTitle}>Related fixtures</Text>
           <SportsHorizontalShelf>
-            {related.map((relatedFixture, index) => (
+            {related.map((card) => (
               <SportsMatchCard
-                key={stableSportsKey("related", relatedFixture, index)}
-                card={relatedFixture}
-                variant="shelf"
-                nowMs={nowMs}
+                key={card.id}
+                card={card}
+                variant="compact"
+                nowMs={clockMs}
                 onPress={onSelectRelated}
               />
             ))}
@@ -233,156 +319,97 @@ function SportsPlayerShell({
 export default memo(SportsPlayerShell);
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: SPORTS_COLORS.background,
-  },
-
+  root: { flex: 1, backgroundColor: SPORTS_COLORS.navy },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 10,
-    gap: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
-
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  iconBtn: {
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: SPORTS_COLORS.surfaceGlass,
   },
-
-  iconButtonSpacer: {
-    width: 40,
-    height: 40,
-  },
-
   topTitle: {
     flex: 1,
     color: SPORTS_COLORS.text,
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: "700",
     textAlign: "center",
   },
-
-  playerShell: {
-    marginHorizontal: 14,
+  playerFrame: {
+    width: "100%",
     aspectRatio: 16 / 9,
-    borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: SPORTS_COLORS.surface,
-    borderWidth: 1,
-    borderColor: SPORTS_COLORS.border,
-  },
-
-  webView: {
-    flex: 1,
     backgroundColor: "#000",
   },
-
+  webView: { flex: 1, backgroundColor: "#000" },
   surfaceCenter: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
-    gap: 8,
+    gap: 10,
+    backgroundColor: "#050B14",
   },
-
   surfaceTitle: {
     color: SPORTS_COLORS.text,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "800",
     textAlign: "center",
   },
-
   surfaceText: {
     color: SPORTS_COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 13,
+    lineHeight: 18,
     textAlign: "center",
-    lineHeight: 17,
   },
-
   retryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    minHeight: 40,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    marginTop: 4,
-    backgroundColor: SPORTS_COLORS.surfaceGlass,
-    borderWidth: 1,
-    borderColor: SPORTS_COLORS.borderStrong,
-  },
-
-  retryButtonText: {
-    color: SPORTS_COLORS.text,
-    fontSize: 12.5,
-    fontWeight: "800",
-  },
-
-  summaryCard: {
-    marginHorizontal: 14,
-    marginTop: 14,
-    borderRadius: 14,
-    padding: 14,
-    backgroundColor: SPORTS_COLORS.surface,
+    marginTop: 8,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: SPORTS_COLORS.surfaceRaised,
     borderWidth: 1,
     borderColor: SPORTS_COLORS.border,
-    gap: 10,
-  },
-
-  summaryTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 6,
   },
-
-  summaryCompetition: {
-    flex: 1,
-    color: SPORTS_COLORS.textMuted,
-    fontSize: 11.5,
-    fontWeight: "700",
-  },
-
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-
-  summaryName: {
-    flex: 1,
+  retryButtonText: {
     color: SPORTS_COLORS.text,
-    fontSize: 13.5,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  summary: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    gap: 4,
+  },
+  summaryTop: { flexDirection: "row", alignItems: "center", gap: 8 },
+  minute: { color: SPORTS_COLORS.amber, fontWeight: "800", fontSize: 12 },
+  competition: { color: SPORTS_COLORS.textDim, fontSize: 12, marginTop: 4 },
+  summaryTitle: {
+    color: SPORTS_COLORS.text,
+    fontSize: 18,
     fontWeight: "800",
+    marginTop: 2,
   },
-
-  summaryNameRight: {
-    textAlign: "right",
-  },
-
-  summaryScore: {
+  score: {
     color: SPORTS_COLORS.amber,
-    fontSize: 14,
+    fontSize: 22,
     fontWeight: "900",
+    marginTop: 4,
   },
-
-  relatedSection: {
-    marginTop: 20,
-    flex: 1,
-  },
-
+  meta: { color: SPORTS_COLORS.textMuted, fontSize: 13 },
+  related: { marginTop: 18 },
   relatedTitle: {
     color: SPORTS_COLORS.text,
-    fontSize: 15,
-    fontWeight: "900",
-    paddingHorizontal: 18,
-    marginBottom: 12,
+    fontSize: 16,
+    fontWeight: "800",
+    paddingHorizontal: 16,
+    marginBottom: 10,
   },
 });
+

@@ -61,7 +61,13 @@ export const DEV_FOOTBALL_LIVE: SportsMatchCard = match({
   status: { code: "live", label: "Live", live: true, finished: false },
   timing: { startsAt: hoursAgo(1), minute: 68, period: "2nd" },
   venue: { name: "Emirates Stadium", city: "London", countryCode: "GB" },
-  watchability: { state: "watch", playable: true, playbackModeHint: "embed" },
+  watchability: {
+    state: "watch",
+    playable: true,
+    playbackModeHint: "embed",
+    access: "in_app",
+  },
+  availabilityState: "live_in_app",
   badges: ["LIVE"],
   featured: true,
 });
@@ -95,7 +101,46 @@ export const DEV_BASKETBALL_LIVE: SportsMatchCard = match({
   ],
   status: { code: "live", label: "Live", live: true, finished: false },
   timing: { startsAt: hoursAgo(1.5), period: "Q3" },
-  watchability: { state: "watch", playable: true },
+  watchability: { state: "watch", playable: true, access: "in_app" },
+  availabilityState: "live_in_app",
+  badges: ["LIVE"],
+});
+export const DEV_LIVE_EXTERNAL: SportsMatchCard = match({
+  id: "dev-fixture-live-external",
+  sport: { id: "football", slug: "football", name: "Football" },
+  competition: {
+    id: "dev-comp-epl",
+    slug: "premier-league",
+    name: "Premier League",
+    countryCode: "GB",
+  },
+  participants: [
+    { id: "dev-team-city", type: "team", name: "Man City", side: "home", score: 1 },
+    { id: "dev-team-united", type: "team", name: "Man United", side: "away", score: 0 },
+  ],
+  status: { code: "live", label: "Live", live: true, finished: false },
+  timing: { startsAt: hoursAgo(0.8), minute: 41 },
+  watchability: { state: "live_external", playable: false, access: "external" },
+  availabilityState: "live_external",
+  badges: ["LIVE"],
+});
+export const DEV_LIVE_SCORE_ONLY: SportsMatchCard = match({
+  id: "dev-fixture-live-score-only",
+  sport: { id: "tennis", slug: "tennis", name: "Tennis" },
+  competition: {
+    id: "dev-comp-wimbledon",
+    slug: "wimbledon",
+    name: "Wimbledon",
+    countryCode: "GB",
+  },
+  participants: [
+    { id: "dev-athlete-c", type: "athlete", name: "Djokovic", side: "home", score: "6-4" },
+    { id: "dev-athlete-d", type: "athlete", name: "Medvedev", side: "away", score: "3-6" },
+  ],
+  status: { code: "live", label: "Live", live: true, finished: false },
+  timing: { startsAt: hoursAgo(1), period: "Set 3" },
+  watchability: { state: "unavailable", playable: false },
+  availabilityState: "live_unavailable",
   badges: ["LIVE"],
 });
 export const DEV_TENNIS_SOON: SportsMatchCard = match({
@@ -207,6 +252,7 @@ export const DEV_FINISHED_HIGHLIGHTS: SportsMatchCard = match({
   },
   timing: { startsAt: hoursAgo(5), endsAt: hoursAgo(3) },
   watchability: { state: "highlights", playable: true },
+  availabilityState: "highlights_available",
 });
 export const DEV_REPLAY_MATCH: SportsMatchCard = match({
   id: "dev-fixture-replay",
@@ -242,6 +288,7 @@ export const DEV_REPLAY_MATCH: SportsMatchCard = match({
   },
   timing: { startsAt: hoursAgo(20), endsAt: hoursAgo(17) },
   watchability: { state: "replay", playable: true },
+  availabilityState: "replay_available",
 });
 export const DEV_POSTPONED: SportsMatchCard = match({
   id: "dev-fixture-postponed",
@@ -286,6 +333,7 @@ export const DEV_UNAVAILABLE: SportsMatchCard = match({
   },
   timing: { startsAt: hoursAgo(0.5), minute: 22 },
   watchability: { state: "unavailable", playable: false },
+  availabilityState: "live_unavailable",
 });
 export const DEV_CONTINUE_LIVE: SportsMatchCard = {
   ...DEV_FOOTBALL_LIVE,
@@ -479,12 +527,19 @@ function preferSport(
 export function buildDevSportsHome(
   profile: DevHomeProfile = "anonymous"
 ): SportsHomeResponse {
-  const live = [DEV_FOOTBALL_LIVE, DEV_BASKETBALL_LIVE];
+  const live = [
+    DEV_FOOTBALL_LIVE,
+    DEV_BASKETBALL_LIVE,
+    DEV_LIVE_EXTERNAL,
+    DEV_LIVE_SCORE_ONLY,
+  ];
   const soon = [DEV_TENNIS_SOON, DEV_MOTORSPORT_FEATURED];
   const featured = [DEV_MOTORSPORT_FEATURED, DEV_FOOTBALL_LIVE];
   const schedule = [
     DEV_FOOTBALL_LIVE,
     DEV_BASKETBALL_LIVE,
+    DEV_LIVE_EXTERNAL,
+    DEV_LIVE_SCORE_ONLY,
     DEV_TENNIS_SOON,
     DEV_CRICKET_UPCOMING,
     DEV_MOTORSPORT_FEATURED,
@@ -561,6 +616,8 @@ export function buildDevSportsHome(
 export const ALL_DEV_FIXTURES: SportsMatchCard[] = [
   DEV_FOOTBALL_LIVE,
   DEV_BASKETBALL_LIVE,
+  DEV_LIVE_EXTERNAL,
+  DEV_LIVE_SCORE_ONLY,
   DEV_TENNIS_SOON,
   DEV_CRICKET_UPCOMING,
   DEV_MOTORSPORT_FEATURED,

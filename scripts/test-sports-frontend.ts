@@ -132,7 +132,7 @@ function main() {
   assert.equal(formatStatusLabel("finished"), "FINAL");
   assert.equal(formatScore(DEV_FOOTBALL_LIVE), "2–1");
   assert.ok(canShowWatchAction(DEV_FOOTBALL_LIVE));
-  assert.equal(primaryActionLabel(DEV_FOOTBALL_LIVE), "Watch");
+  assert.equal(primaryActionLabel(DEV_FOOTBALL_LIVE), "Watch Live");
 
   // Cancelled / postponed — no Watch
   assert.equal(canShowWatchAction(DEV_POSTPONED), false);
@@ -140,13 +140,39 @@ function main() {
   assert.equal(canShowWatchAction(DEV_UNAVAILABLE), false);
   assert.equal(primaryActionLabel(DEV_UNAVAILABLE), null);
 
+  // Live without playable broadcast — no fake Watch Live
+  const liveMetaOnly: SportsMatchCard = {
+    ...DEV_FOOTBALL_LIVE,
+    id: "meta-only-live",
+    watchability: { state: "unavailable", playable: false },
+    availabilityState: "live_unavailable",
+  };
+  assert.equal(canShowWatchAction(liveMetaOnly), false);
+  assert.equal(primaryActionLabel(liveMetaOnly), null);
+
+  // Live + status live but playable false without availabilityState
+  const liveNotPlayable: SportsMatchCard = {
+    id: "live-not-playable",
+    status: { code: "live", label: "Live", live: true, finished: false },
+    watchability: { playable: false, state: "unavailable" },
+    participants: [],
+  };
+  assert.equal(primaryActionLabel(liveNotPlayable), null);
+  assert.equal(canShowWatchAction(liveNotPlayable), false);
+
   // Replay / highlights actions
   const finishedHighlights = ALL_DEV_FIXTURES.find(
     (f) => f.id === "dev-fixture-finished-highlights"
   )!;
-  assert.equal(primaryActionLabel(finishedHighlights), "Highlights");
+  assert.equal(primaryActionLabel(finishedHighlights), "Watch Highlights");
   const replay = ALL_DEV_FIXTURES.find((f) => f.id === "dev-fixture-replay")!;
-  assert.equal(primaryActionLabel(replay), "Replay");
+  assert.equal(primaryActionLabel(replay), "Watch Replay");
+
+  // External / subscription labels
+  const external = ALL_DEV_FIXTURES.find((f) => f.id === "dev-fixture-live-external")!;
+  assert.equal(primaryActionLabel(external), "Watch on Official Provider");
+  const scoreOnly = ALL_DEV_FIXTURES.find((f) => f.id === "dev-fixture-live-score-only")!;
+  assert.equal(primaryActionLabel(scoreOnly), null);
 
   // Accessibility label
   const a11y = buildMatchAccessibilityLabel(DEV_FOOTBALL_LIVE);
@@ -197,4 +223,4 @@ function main() {
 }
 
 main();
-
+

@@ -1,4 +1,18 @@
 import type { SportsMatchCard } from "../../../types/sports";
+
+export {
+  canShowWatchAction,
+  deriveSportsAvailability,
+  getSportsWatchAction,
+  isLiveInAppPlayable,
+  primaryActionLabel,
+  shouldOpenSportsPlayer,
+} from "./availability";
+export type {
+  SportsAvailabilityState,
+  SportsWatchAction,
+} from "./availability";
+
 const STATUS_LABELS: Record<string, string> = {
   live: "LIVE",
   starting_soon: "STARTING SOON",
@@ -15,6 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
   highlights_available: "HIGHLIGHTS",
   unavailable: "UNAVAILABLE",
 };
+
 export type SportsStatusTone =
   | "live"
   | "soon"
@@ -23,12 +38,14 @@ export type SportsStatusTone =
   | "warn"
   | "danger"
   | "replay";
+
 export function normalizeStatusCode(code: string | null | undefined): string {
   return String(code || "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, "_");
 }
+
 export function formatStatusLabel(
   code: string | null | undefined,
   fallback?: string | null
@@ -39,6 +56,7 @@ export function formatStatusLabel(
   if (!normalized) return "";
   return normalized.replace(/_/g, " ").toUpperCase();
 }
+
 export function statusTone(code: string | null | undefined): SportsStatusTone {
   const normalized = normalizeStatusCode(code);
   if (
@@ -62,35 +80,7 @@ export function statusTone(code: string | null | undefined): SportsStatusTone {
   }
   return "neutral";
 }
-export function canShowWatchAction(card: SportsMatchCard): boolean {
-  const code = normalizeStatusCode(card.status?.code);
-  if (code === "cancelled" || code === "postponed" || code === "unavailable") {
-    return false;
-  }
-  if (card.watchability?.playable) return true;
-  const state = String(card.watchability?.state || "").toLowerCase();
-  return state === "watch" || state === "replay" || state === "highlights";
-}
-export function primaryActionLabel(card: SportsMatchCard): string | null {
-  const code = normalizeStatusCode(card.status?.code);
-  if (code === "cancelled" || code === "postponed") return null;
-  if (code === "unavailable") return null;
-  const state = String(card.watchability?.state || "").toLowerCase();
-  if (state === "replay" || code === "replay_available") return "Replay";
-  if (state === "highlights" || code === "highlights_available") {
-    return "Highlights";
-  }
-  if (card.watchability?.playable || state === "watch" || code === "live") {
-    if (card.resume?.stillLive) return "Resume live";
-    if (card.resume?.label) return card.resume.label;
-    return "Watch";
-  }
-  if (code === "starting_soon" || code === "scheduled" || state === "starting_soon") {
-    return "Remind me";
-  }
-  if (code === "finished") return null;
-  return null;
-}
+
 export function formatMatchMinute(card: SportsMatchCard): string | null {
   const minute = card.timing?.minute;
   if (typeof minute === "number" && Number.isFinite(minute) && minute >= 0) {
@@ -100,3 +90,4 @@ export function formatMatchMinute(card: SportsMatchCard): string | null {
   if (period && String(period).trim()) return String(period).trim();
   return null;
 }
+

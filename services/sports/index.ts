@@ -16,6 +16,7 @@ export {
   fetchSportsSportHub,
   searchSportsCatalog,
   resolveSportsFixturePlayback,
+  resolveSportsFixturePlaySession,
 } from "../sportsCatalogApi";
 export { resolveSportsPlayback } from "./sportsPlaybackResolver";
 export {

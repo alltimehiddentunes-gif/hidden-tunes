@@ -21,10 +21,17 @@ import type {
   SportsHomeSection,
   SportsMatchCard,
   SportsPlaybackResult,
+  SportsPlaybackSession,
   SportsSearchResponse,
   SportsVideoCard,
   SportsWorldCard,
 } from "../types/sports";
+import { deriveSportsAvailability } from "../lib/sports/ui/availability";
+import {
+  sessionFromLegacyPlayback,
+  unavailableSession,
+} from "../lib/sports/ui/playbackSession";
+import { formatMatchTitle } from "../lib/sports/ui/formatScore";
 export const SPORTS_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const SPORTS_DEFAULT_PAGE_LIMIT = 20;
 type FetchOptions = {
@@ -587,7 +594,147 @@ export async function resolveSportsBroadcastPlayback(input: {
     }
   );
 }
-/** Resolve fixture → watch-options → first broadcast play, or fixture embed payload. */
+/** Resolve fixture playback into the provider-neutral session DTO. */
+export async function resolveSportsFixturePlaySession(input: {
+  fixtureId: string;
+  platform: string;
+  country: string;
+  signal?: AbortSignal;
+}): Promise<SportsPlaybackSession> {
+  const fixtureId = input.fixtureId;
+
+  if (isSportsDevFixturesEnabled()) {
+    const fixture = getDevFixtureDetail(fixtureId);
+    if (!fixture) {
+      return unavailableSession(fixtureId, "no_broadcast", "This match is currently unavailable.");
+    }
+    const availability = deriveSportsAvailability(fixture);
+    const title = formatMatchTitle(fixture);
+
+    if (availability === "live_external") {
+      return {
+        status: "external",
+        fixtureId,
+        officialUrl: "https://www.example.com/official-sports-broadcast",
+        providerLabel: "Official Provider",
+      };
+    }
+    if (availability === "live_subscription") {
+      return {
+        status: "subscription_required",
+        fixtureId,
+        providerLabel: "Official Broadcaster",
+        officialUrl: "https://www.example.com/subscribe",
+      };
+    }
+    if (
+      availability !== "live_in_app" &&
+      availability !== "replay_available" &&
+      availability !== "highlights_available"
+    ) {
+      return unavailableSession(
+        fixtureId,
+        availability === "upcoming" ? "not_started" : "no_broadcast",
+        "This match is currently unavailable."
+      );
+    }
+
+    // Dev-only controlled HTML surface — clearly labeled, never a fake live stream.
+    const fixtureHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Sports Dev Fixture</title>
+<style>body{margin:0;background:#0A1220;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}h1{font-size:18px;margin:0 0 8px}p{opacity:.75;font-size:14px;line-height:1.4}</style></head>
+<body><div><h1>Development fixture player</h1><p>${title.replace(/[<>&]/g, "")}</p><p>Not a live provider stream. Used only to validate tap-to-watch in __DEV__.</p></div></body></html>`;
+
+    return {
+      status: "ready",
+      fixtureId,
+      playbackKind: "webview",
+      playbackToken: `dev-fixture-${fixtureId}`,
+      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      title,
+      providerLabel: "Dev fixture",
+      fixtureHtml,
+      embedUrl: null,
+    };
+  }
+
+  if (!isSportsClientEnabled("sports_enabled")) {
+    return unavailableSession(fixtureId, "provider_disabled", "Sports is disabled.");
+  }
+
+  // Prefer dedicated fixture play endpoint; fall back to watch-options → broadcast.
+  try {
+    const response = await fetch(
+      `${SPORTS_CATALOG_BASE_URL}/api/sports/fixtures/${encodeURIComponent(fixtureId)}/play`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-ht-platform": input.platform,
+          "x-ht-storefront-country": input.country,
+        },
+        body: JSON.stringify({
+          platform: input.platform,
+          country: input.country,
+        }),
+        signal: input.signal,
+        cache: "no-store",
+      }
+    );
+    if (response.ok) {
+      const json = (await response.json()) as {
+        success?: boolean;
+        session?: SportsPlaybackSession;
+        playback?: SportsPlaybackResult;
+        title?: string;
+        error?: string;
+        code?: string;
+      };
+      if (json.session) return json.session;
+      if (json.playback) {
+        return sessionFromLegacyPlayback(
+          fixtureId,
+          json.title || "Match",
+          json.playback
+        );
+      }
+      if (json.success === false) {
+        return unavailableSession(
+          fixtureId,
+          json.code === "GEO_BLOCKED" ? "geo_blocked" : "validation_failed",
+          json.error || "This match is currently unavailable."
+        );
+      }
+    }
+  } catch {
+    // Fall through to watch-options path.
+  }
+
+  const options = await fetchSportsWatchOptions(fixtureId, {
+    signal: input.signal,
+    country: input.country,
+    platform: input.platform,
+  });
+  const broadcast = options.broadcasts?.[0];
+  if (!broadcast?.id) {
+    return unavailableSession(fixtureId, "no_broadcast", "This match is currently unavailable.");
+  }
+  const legacy = await resolveSportsBroadcastPlayback({
+    broadcastId: broadcast.id,
+    platform: input.platform,
+    country: input.country,
+    signal: input.signal,
+  });
+  if (!legacy.success || !legacy.playback) {
+    return unavailableSession(
+      fixtureId,
+      legacy.code === "GEO_BLOCKED" ? "geo_blocked" : "validation_failed",
+      legacy.error || "This match is currently unavailable."
+    );
+  }
+  return sessionFromLegacyPlayback(fixtureId, broadcast.title || "Match", legacy.playback);
+}
+
+/** Legacy wrapper — prefer resolveSportsFixturePlaySession. */
 export async function resolveSportsFixturePlayback(input: {
   fixtureId: string;
   platform: string;
@@ -596,57 +743,57 @@ export async function resolveSportsFixturePlayback(input: {
 }): Promise<{
   success: boolean;
   playback?: SportsPlaybackResult;
+  session?: SportsPlaybackSession;
   code?: string;
   error?: string;
   title?: string;
 }> {
-  if (isSportsDevFixturesEnabled()) {
-    const fixture = getDevFixtureDetail(input.fixtureId);
-    if (!fixture) {
-      return {
-        success: false,
-        code: "NOT_FOUND",
-        error: "This match is currently unavailable.",
-      };
-    }
-    const code = String(fixture.status?.code || "");
-    if (
-      code === "cancelled" ||
-      code === "postponed" ||
-      code === "unavailable" ||
-      !fixture.watchability?.playable
-    ) {
-      return {
-        success: false,
-        code: "UNAVAILABLE",
-        error: "This match is currently unavailable.",
-      };
-    }
-    const broadcastId = fixture.broadcasts?.[0]?.id || `dev-broadcast-${fixture.id}`;
-    return resolveSportsBroadcastPlayback({
-      broadcastId,
-      platform: input.platform,
-      country: input.country,
-      signal: input.signal,
-    });
-  }
-  const options = await fetchSportsWatchOptions(input.fixtureId, {
-    signal: input.signal,
-    country: input.country,
-    platform: input.platform,
-  });
-  const broadcast = options.broadcasts?.[0];
-  if (!broadcast?.id) {
+  const session = await resolveSportsFixturePlaySession(input);
+  if (session.status === "unavailable") {
     return {
       success: false,
-      code: "NO_AUTHORIZED_SOURCE",
-      error: "This match is currently unavailable.",
+      session,
+      code: session.reason.toUpperCase(),
+      error: session.message || "This match is currently unavailable.",
     };
   }
-  return resolveSportsBroadcastPlayback({
-    broadcastId: broadcast.id,
-    platform: input.platform,
-    country: input.country,
-    signal: input.signal,
-  });
+  if (session.status === "external" || session.status === "subscription_required") {
+    return {
+      success: true,
+      session,
+      title: session.providerLabel,
+      playback: {
+        mode: "external",
+        provider: session.providerLabel,
+        deepLink: null,
+        fallbackUrl: session.officialUrl || "",
+        accessType:
+          session.status === "subscription_required" ? "subscription" : "free",
+      },
+    };
+  }
+  const legacy =
+    session.embedUrl
+      ? ({
+          mode: "embedded" as const,
+          provider: session.providerLabel || "sports",
+          embedUrl: session.embedUrl,
+          expiresAt: session.expiresAt,
+        } satisfies SportsPlaybackResult)
+      : session.manifestUrl
+        ? ({
+            mode: "native" as const,
+            manifestUrl: session.manifestUrl,
+            expiresAt: session.expiresAt,
+            headers: {},
+            drm: null,
+            heartbeatInterval: 30,
+          } satisfies SportsPlaybackResult)
+        : undefined;
+  return {
+    success: true,
+    session,
+    playback: legacy,
+    title: session.title,
+  };
 }
