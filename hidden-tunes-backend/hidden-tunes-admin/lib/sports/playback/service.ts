@@ -101,6 +101,50 @@ export async function playSportsBroadcast(
 
   // Phase 1: never decrypt/return permanent source URLs from browse storage.
   // Native/embed resolution requires an explicit short-lived resolver reference later.
+  let resolvedEmbedUrl: string | null = null;
+  if (loaded.provider?.slug === "scorebat") {
+    const { resolveScoreBatPlayback, recordScoreBatPlayback } = await import(
+      "../providers/scorebat"
+    );
+    const { getScoreBatRuntimeConfig } = await import("../providers/scorebat/config");
+    const sbCfg = getScoreBatRuntimeConfig();
+    const sb = resolveScoreBatPlayback({
+      broadcastId,
+      fixtureId: loaded.broadcast.fixture_id || undefined,
+      embedUrlOrHtml:
+        source?.web_fallback_url ||
+        source?.resolver_reference ||
+        (loaded.broadcast.metadata as { embedUrl?: string } | null)?.embedUrl ||
+        null,
+      lifecycle: (loaded.broadcast.metadata as { lifecycle?: string } | null)
+        ?.lifecycle as import("../providers/scorebat/types").ScoreBatLifecycleState | null,
+      providerEnabled:
+        Boolean(loaded.provider?.is_enabled) && sbCfg.enabled,
+      providerKillSwitch:
+        Boolean(loaded.provider?.kill_switch) || sbCfg.killSwitch,
+      playbackFlagEnabled:
+        sbCfg.playbackEnabled &&
+        (await isSportsFeatureEnabled("sports_scorebat_playback_enabled")),
+    });
+    if (sb.ok) {
+      resolvedEmbedUrl = sb.payload;
+      recordScoreBatPlayback(true);
+    } else {
+      recordScoreBatPlayback(false);
+      return {
+        ok: false as const,
+        code: sb.code as import("../types").SportsResolverErrorCode,
+        message: sb.message,
+        status:
+          sb.code === "FEATURE_DISABLED" || sb.code === "PROVIDER_UNAVAILABLE"
+            ? 503
+            : sb.code === "EVENT_ENDED"
+              ? 409
+              : 404,
+      };
+    }
+  }
+
   const outcome = resolveSportsBroadcastPlayback({
     broadcast: loaded.broadcast,
     source,
@@ -116,7 +160,7 @@ export async function playSportsBroadcast(
       externalEnabled,
     },
     resolvedManifestUrl: null,
-    resolvedEmbedUrl: null,
+    resolvedEmbedUrl,
   });
 
   if (!outcome.ok) {

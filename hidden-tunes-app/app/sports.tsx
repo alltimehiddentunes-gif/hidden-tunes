@@ -1,7 +1,7 @@
 /**
- * Isolated Sports pilot screen — Phase 2C personalized home IA.
- * Not added to bottom tabs. Reachable via /sports while feature flags allow.
- * Does not touch PlayerContext, MiniPlayer, TV, or music queue.
+ * Isolated Sports pilot screen — Phase 3A ScoreBat-ready home IA.
+ * ScoreBat playback uses the same isolated embed WebView after Watch resolve.
+ * Not added to bottom tabs. Does not touch PlayerContext / MiniPlayer / TV / music.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {

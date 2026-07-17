@@ -1,10 +1,15 @@
 import { createOlympicsAdapter } from "./olympics";
+import { createScoreBatAdapter } from "./scorebat";
 import { createPlaceholderAdapter } from "./types";
 import type { SportsProviderAdapter } from "./types";
 
 export const sportsProviderRegistry: Record<string, SportsProviderAdapter> = {
   fifa: createPlaceholderAdapter("fifa", "FIFA"),
   olympics: createOlympicsAdapter({
+    enabled: false,
+    killSwitch: true,
+  }),
+  scorebat: createScoreBatAdapter({
     enabled: false,
     killSwitch: true,
   }),
@@ -36,3 +41,4 @@ export function listSportsProviders(): SportsProviderAdapter[] {
 }
 
 export { createOlympicsAdapter } from "./olympics";
+export { createScoreBatAdapter } from "./scorebat";
