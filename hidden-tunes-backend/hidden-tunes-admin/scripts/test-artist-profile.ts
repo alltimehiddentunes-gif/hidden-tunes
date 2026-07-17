@@ -86,6 +86,7 @@ function main() {
   });
   assert.equal(release.title, "Night Drive");
   assert.equal(release.artwork, "https://cdn.example.com/album.jpg");
+  assert.equal(release.release_type, "unknown");
   assert.equal("audio_url" in release, false);
 
   const cursor = encodeContentCursor({

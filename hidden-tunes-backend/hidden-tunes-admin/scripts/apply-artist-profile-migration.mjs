@@ -18,6 +18,10 @@ const migrationPath = path.join(
   adminRoot,
   "supabase/migrations/20260713150000_artist_profile_infrastructure.sql"
 );
+const releaseTaxonomyPath = path.join(
+  adminRoot,
+  "supabase/migrations/20260717180000_artist_release_taxonomy.sql"
+);
 const verificationSqlPath = path.join(
   adminRoot,
   "deployment/manual/artist-profile/02_artist_verification.sql"
@@ -235,6 +239,9 @@ async function main() {
     );
     process.exit(1);
   }
+
+  const taxonomy = await applySqlFile(releaseTaxonomyPath, "release_taxonomy");
+  applied.push(taxonomy);
 
   if (withVerificationSql) {
     applied.push(await applySqlFile(verificationSqlPath, "verification"));

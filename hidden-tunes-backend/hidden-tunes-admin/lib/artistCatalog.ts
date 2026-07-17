@@ -21,17 +21,55 @@ export const ARTIST_PUBLIC_SELECT =
   "id, name, slug, image_url, bio, status, is_verified, is_featured, is_suspended, country_code, hometown, debut_year, website_url, profile_published_at, featured_release_id, merged_into_artist_id, explicit_rating, created_at, updated_at";
 
 export const DEFAULT_PROFILE_SECTIONS = [
-  { section_key: "top_songs", title_override: null, display_style: "list", endpoint_path: "top-songs" },
-  { section_key: "releases", title_override: null, display_style: "grid", endpoint_path: "releases" },
-  { section_key: "singles", title_override: null, display_style: "list", endpoint_path: "singles" },
-  { section_key: "videos", title_override: null, display_style: "grid", endpoint_path: "videos" },
-  { section_key: "emotional_worlds", title_override: null, display_style: "carousel", endpoint_path: "emotional-worlds" },
-  { section_key: "similar", title_override: null, display_style: "list", endpoint_path: "similar" },
-  { section_key: "collaborations", title_override: null, display_style: "list", endpoint_path: "collaborations" },
-  { section_key: "credits", title_override: null, display_style: "list", endpoint_path: "credits" },
-  { section_key: "about", title_override: null, display_style: "rich_text", endpoint_path: "about" },
-  { section_key: "related_content", title_override: null, display_style: "list", endpoint_path: "related-content" },
+  {
+    section_key: "top_songs",
+    title_override: "Essential tracks",
+    display_style: "list",
+    endpoint_path: "top-songs",
+  },
+  {
+    section_key: "releases",
+    title_override: "Releases",
+    display_style: "grid",
+    endpoint_path: "releases",
+  },
+  { section_key: "singles", title_override: "Singles", display_style: "list", endpoint_path: "singles" },
+  { section_key: "videos", title_override: "Videos", display_style: "grid", endpoint_path: "videos" },
+  {
+    section_key: "emotional_worlds",
+    title_override: "Emotional worlds",
+    display_style: "carousel",
+    endpoint_path: "emotional-worlds",
+  },
+  { section_key: "similar", title_override: "Similar artists", display_style: "list", endpoint_path: "similar" },
+  {
+    section_key: "collaborations",
+    title_override: "Collaborations",
+    display_style: "list",
+    endpoint_path: "collaborations",
+  },
+  { section_key: "credits", title_override: "Credits", display_style: "list", endpoint_path: "credits" },
+  { section_key: "about", title_override: "About", display_style: "rich_text", endpoint_path: "about" },
+  {
+    section_key: "related_content",
+    title_override: "Related content",
+    display_style: "list",
+    endpoint_path: "related-content",
+  },
 ] as const;
+
+const DEFAULT_SECTION_TITLES: Record<string, string> = {
+  top_songs: "Essential tracks",
+  releases: "Releases",
+  singles: "Singles",
+  videos: "Videos",
+  emotional_worlds: "Emotional worlds",
+  similar: "Similar artists",
+  collaborations: "Collaborations",
+  credits: "Credits",
+  about: "About",
+  related_content: "Related content",
+};
 
 export type ArtistRow = Record<string, unknown>;
 
@@ -191,6 +229,7 @@ export function toPublicSong(row: Record<string, unknown>) {
 
 export function toPublicRelease(row: Record<string, unknown>) {
   const artwork = row.artwork_url || row.cover_url || null;
+  const releaseType = normalizeReleaseType(row.release_type);
   return {
     id: String(row.id),
     title: cleanText(row.title, 300) || "Untitled",
@@ -198,11 +237,47 @@ export function toPublicRelease(row: Record<string, unknown>) {
     artist_id: row.artist_id ? String(row.artist_id) : null,
     artwork: artwork ? String(artwork) : null,
     release_year: row.release_year ? Number(row.release_year) : null,
-    release_type: row.release_type ? String(row.release_type) : "album",
+    release_type: releaseType,
     track_count: row.track_count ? Number(row.track_count) : null,
     created_at: row.created_at ? String(row.created_at) : null,
   };
 }
+
+export const ARTIST_RELEASE_TYPES = [
+  "album",
+  "single",
+  "ep",
+  "compilation",
+  "live",
+  "soundtrack",
+  "appearance",
+  "unknown",
+] as const;
+
+export type ArtistReleaseType = (typeof ARTIST_RELEASE_TYPES)[number];
+
+export function normalizeReleaseType(value: unknown): ArtistReleaseType {
+  const key = String(value || "")
+    .trim()
+    .toLowerCase();
+  if ((ARTIST_RELEASE_TYPES as readonly string[]).includes(key)) {
+    return key as ArtistReleaseType;
+  }
+  return "unknown";
+}
+
+export type ArtistTrackRankingMode = "ranked" | "play_count" | "latest";
+
+export type ArtistTrackListResult = {
+  items: ReturnType<typeof toPublicSong>[];
+  hasMore: boolean;
+  nextCursor: string | null;
+  ranking: {
+    mode: ArtistTrackRankingMode;
+    label: "Popular tracks" | "Essential tracks";
+    has_positive_scores: boolean;
+  };
+};
 
 export function toPublicArtistCard(row: Record<string, unknown>) {
   return {
@@ -354,7 +429,8 @@ async function loadProfileSections(artistId: string, stats: Record<string, unkno
       key,
       title: row.title_override
         ? String(row.title_override)
-        : key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        : DEFAULT_SECTION_TITLES[key] ||
+          key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
       display_style: String(row.display_style || "list"),
       endpoint: `/api/artists/${artistId}/${String(row.endpoint_path || key)}`,
     });
@@ -365,11 +441,16 @@ async function loadProfileSections(artistId: string, stats: Record<string, unkno
 async function loadFeaturedRelease(artistRow: ArtistRow) {
   const releaseId = artistRow.featured_release_id ? String(artistRow.featured_release_id) : "";
   if (!releaseId) return null;
-  const { data } = await supabaseAdmin
-    .from("albums")
-    .select("id, title, slug, artwork_url, cover_url, release_year, artist_id, created_at")
-    .eq("id", releaseId)
-    .maybeSingle();
+  const withType =
+    "id, title, slug, artwork_url, cover_url, release_year, release_type, artist_id, created_at";
+  const baseline =
+    "id, title, slug, artwork_url, cover_url, release_year, artist_id, created_at";
+
+  let result = await supabaseAdmin.from("albums").select(withType).eq("id", releaseId).maybeSingle();
+  if (result.error && isMissingArtistSchemaError(result.error)) {
+    result = await supabaseAdmin.from("albums").select(baseline).eq("id", releaseId).maybeSingle();
+  }
+  const { data } = result;
   return data ? toPublicRelease(data as Record<string, unknown>) : null;
 }
 
@@ -439,7 +520,10 @@ export async function loadArtistProfileShell(ref: string, viewerUserId: string |
   });
 }
 
-export async function loadArtistTopSongs(artistId: string, options: { limit?: number; cursor?: string | null } = {}) {
+export async function loadArtistTopSongs(
+  artistId: string,
+  options: { limit?: number; cursor?: string | null } = {},
+): Promise<ArtistTrackListResult> {
   const limit = clampArtistPageSize(options.limit);
   const scope = `artist-top-songs:${artistId}`;
   const decoded = decodeContentCursor(options.cursor, scope);
@@ -485,6 +569,63 @@ export async function loadArtistTopSongs(artistId: string, options: { limit?: nu
               id: String(lastSongRow?.id || last.rank_position),
             })
           : null,
+      ranking: {
+        mode: "ranked",
+        label: "Popular tracks",
+        has_positive_scores: true,
+      },
+    };
+  }
+
+  // Honest live fallback: only label Popular when real play_count > 0 exists.
+  const playCountProbe = await supabaseAdmin
+    .from("songs")
+    .select("id", { count: "exact", head: true })
+    .eq("artist_id", artistId)
+    .eq("is_public", true)
+    .gt("play_count", 0);
+
+  const hasPositivePlayCounts =
+    !playCountProbe.error && Number(playCountProbe.count || 0) > 0;
+
+  if (hasPositivePlayCounts) {
+    let query = supabaseAdmin
+      .from("songs")
+      .select(
+        "id, title, slug, artist_id, album_id, genre, mood, duration, duration_seconds, cover_url, artwork_url, created_at, is_public, play_count",
+      )
+      .eq("artist_id", artistId)
+      .eq("is_public", true)
+      .order("play_count", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit + 1);
+
+    if (decoded) {
+      query = query.or(
+        `play_count.lt.${decoded.sortValue},and(play_count.eq.${decoded.sortValue},id.lt.${decoded.id})`,
+      );
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    const rows = data || [];
+    const playCountById = new Map(
+      rows.map((row) => [String(row.id), Number(row.play_count) || 0] as const),
+    );
+    const page = buildContentCursorPage({
+      items: rows.map((row) => toPublicSong(row as Record<string, unknown>)),
+      limit,
+      scope,
+      getSortValue: (item) => String(playCountById.get(item.id) || 0),
+      getId: (item) => item.id,
+    });
+    return {
+      ...page,
+      ranking: {
+        mode: "play_count",
+        label: "Popular tracks",
+        has_positive_scores: true,
+      },
     };
   }
 
@@ -504,13 +645,21 @@ export async function loadArtistTopSongs(artistId: string, options: { limit?: nu
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   const items = (data || []).map((row) => toPublicSong(row as Record<string, unknown>));
-  return buildContentCursorPage({
+  const page = buildContentCursorPage({
     items,
     limit,
     scope,
     getSortValue: (item) => String(item.created_at || ""),
     getId: (item) => item.id,
   });
+  return {
+    ...page,
+    ranking: {
+      mode: "latest",
+      label: "Essential tracks",
+      has_positive_scores: false,
+    },
+  };
 }
 
 export async function loadArtistSingles(artistId: string, options: { limit?: number; cursor?: string | null } = {}) {
@@ -544,26 +693,78 @@ export async function loadArtistSingles(artistId: string, options: { limit?: num
   });
 }
 
-export async function loadArtistReleases(artistId: string, options: { limit?: number; cursor?: string | null; releaseType?: string | null } = {}) {
+export async function loadArtistReleases(
+  artistId: string,
+  options: { limit?: number; cursor?: string | null; releaseType?: string | null } = {},
+) {
   const limit = clampArtistPageSize(options.limit);
-  const scope = `artist-releases:${artistId}:${options.releaseType || "all"}`;
+  const requestedType = options.releaseType
+    ? normalizeReleaseType(options.releaseType)
+    : null;
+  // "all" means no filter; unknown/null options.releaseType also means no filter.
+  const filterType =
+    options.releaseType && String(options.releaseType).toLowerCase() !== "all"
+      ? requestedType
+      : null;
+  const scope = `artist-releases:${artistId}:${filterType || "all"}`;
   const decoded = decodeContentCursor(options.cursor, scope);
 
-  let query = supabaseAdmin
-    .from("albums")
-    .select("id, title, slug, artist_id, artwork_url, cover_url, release_year, created_at")
-    .eq("artist_id", artistId)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(limit + 1);
+  const selectWithType =
+    "id, title, slug, artist_id, artwork_url, cover_url, release_year, release_type, created_at";
+  const selectBaseline =
+    "id, title, slug, artist_id, artwork_url, cover_url, release_year, created_at";
 
-  if (decoded) {
-    query = query.or(`created_at.lt.${decoded.sortValue},and(created_at.eq.${decoded.sortValue},id.lt.${decoded.id})`);
+  async function runQuery(selectClause: string, includeTypeFilter: boolean) {
+    let query = supabaseAdmin
+      .from("albums")
+      .select(selectClause)
+      .eq("artist_id", artistId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(limit + 1);
+
+    if (includeTypeFilter && filterType && filterType !== "unknown") {
+      query = query.eq("release_type", filterType);
+    } else if (includeTypeFilter && filterType === "unknown") {
+      query = query.or("release_type.eq.unknown,release_type.is.null");
+    }
+
+    if (decoded) {
+      query = query.or(
+        `created_at.lt.${decoded.sortValue},and(created_at.eq.${decoded.sortValue},id.lt.${decoded.id})`,
+      );
+    }
+
+    return query;
   }
 
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  const items = (data || []).map((row) => toPublicRelease({ ...(row as Record<string, unknown>), release_type: options.releaseType || "album" }));
+  let result = await runQuery(selectWithType, Boolean(filterType));
+  let hasReleaseTypeColumn = true;
+
+  if (result.error && isMissingArtistSchemaError(result.error)) {
+    hasReleaseTypeColumn = false;
+    if (filterType && filterType !== "album" && filterType !== "unknown") {
+      // Trusted release_type column absent: cannot honestly filter specialty types.
+      return {
+        items: [] as ReturnType<typeof toPublicRelease>[],
+        hasMore: false,
+        nextCursor: null,
+      };
+    }
+    result = await runQuery(selectBaseline, false);
+  }
+
+  if (result.error) throw new Error(result.error.message);
+
+  const items = (result.data || []).map((row) =>
+    toPublicRelease({
+      ...(row as Record<string, unknown>),
+      release_type: hasReleaseTypeColumn
+        ? (row as Record<string, unknown>).release_type
+        : "unknown",
+    }),
+  );
+
   return buildContentCursorPage({
     items,
     limit,

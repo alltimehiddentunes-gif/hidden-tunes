@@ -37,6 +37,14 @@ import {
 } from './lib/songMetadata'
 import { withDevAudioVersionTestSongs } from './lib/devAudioVersionTestHarness'
 import {
+  artistReleaseTypeLabel,
+  fetchArtistAbout,
+  fetchArtistProfileShell,
+  fetchArtistReleases,
+  fetchArtistTopSongs,
+  type ArtistProfileShell,
+} from './services/artistProfileApi'
+import {
   buildPlayerQueueStats,
 } from './lib/playerQueueDisplay'
 import {
@@ -6227,14 +6235,16 @@ function AlbumDetailView({
   album,
   onBack,
   onOpenSong,
+  onOpenArtist,
   selectedTrackId,
 }: {
   album: ApiAlbum
   onBack: () => void
   onOpenSong: QueueSongHandler
+  onOpenArtist?: (artist: ApiArtist) => void
   selectedTrackId: string | null
 }) {
-  const { artistNames, indexes } = useCatalog()
+  const { artists, artistNames, indexes } = useCatalog()
   const created = formatDateLabel(album.createdAt)
 
   const albumSongs = useMemo(() => {
@@ -6295,7 +6305,20 @@ function AlbumDetailView({
           <p className="detail-eyebrow">Album</p>
           <h1 className="detail-h1">{album.title}</h1>
           <p className="detail-byline">
-            <span className="detail-pill">{artistName || 'Unknown artist'}</span>
+            {album.artistId && onOpenArtist ? (
+              <button
+                type="button"
+                className="detail-pill detail-pill--link"
+                onClick={() => {
+                  const match = artists.find((artist) => artist.id === album.artistId)
+                  if (match) onOpenArtist(match)
+                }}
+              >
+                {artistName || 'Unknown artist'}
+              </button>
+            ) : (
+              <span className="detail-pill">{artistName || 'Unknown artist'}</span>
+            )}
             <span className="detail-pill detail-pill--muted">
               {album.releaseYear ? `Released ${album.releaseYear}` : 'Release year unknown'}
             </span>
@@ -6370,7 +6393,6 @@ function AlbumDetailView({
 function ArtistDetailView({
   artist,
   onBack,
-  onOpenSong,
   onOpenAlbum,
 }: {
   artist: ApiArtist
@@ -6378,7 +6400,16 @@ function ArtistDetailView({
   onOpenSong: QueueSongHandler
   onOpenAlbum: (album: ApiAlbum) => void
 }) {
+  const { playQueue } = useDesktopPlayback()
   const { artistNames, indexes } = useCatalog()
+  const [profileShell, setProfileShell] = useState<ArtistProfileShell | null>(null)
+  const [profileBio, setProfileBio] = useState<string | null>(null)
+  const [profileAlbums, setProfileAlbums] = useState<ApiAlbum[] | null>(null)
+  const [releasesHasMore, setReleasesHasMore] = useState(false)
+  const [releasesCursor, setReleasesCursor] = useState<string | null>(null)
+  const [loadingMoreReleases, setLoadingMoreReleases] = useState(false)
+  const [trackSectionLabel, setTrackSectionLabel] = useState('Essential tracks')
+  const [aboutExpanded, setAboutExpanded] = useState(false)
 
   const artistSongs = useMemo(() => {
     const byArtist = resolveSongsForArtist(
@@ -6394,21 +6425,120 @@ function ArtistDetailView({
     [artistSongs, showAllSongs],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+
+  useEffect(() => {
+    const abortController = new AbortController()
+    setProfileShell(null)
+    setProfileBio(null)
+    setProfileAlbums(null)
+    setReleasesHasMore(false)
+    setReleasesCursor(null)
+    setTrackSectionLabel('Essential tracks')
+    setAboutExpanded(false)
+
+    void (async () => {
+      try {
+        const shell = await fetchArtistProfileShell(artist.id, {
+          signal: abortController.signal,
+        })
+        if (abortController.signal.aborted) return
+        setProfileShell(shell)
+
+        const [releasesPage, about, topSongsPage] = await Promise.all([
+          fetchArtistReleases(shell.artist.id, {
+            limit: 24,
+            signal: abortController.signal,
+          }).catch(() => null),
+          fetchArtistAbout(shell.artist.id, {
+            signal: abortController.signal,
+          }).catch(() => null),
+          fetchArtistTopSongs(shell.artist.id, {
+            limit: 5,
+            signal: abortController.signal,
+          }).catch(() => null),
+        ])
+        if (abortController.signal.aborted) return
+
+        if (releasesPage?.items?.length) {
+          setProfileAlbums(
+            releasesPage.items.map((release) => ({
+              id: release.id,
+              title: release.title,
+              artwork: release.artwork,
+              releaseYear: release.release_year,
+              createdAt: release.created_at,
+              artistId: release.artist_id || artist.id,
+              releaseType: release.release_type || 'unknown',
+            })),
+          )
+          setReleasesHasMore(releasesPage.pagination.hasMore)
+          setReleasesCursor(releasesPage.pagination.nextCursor)
+        }
+
+        const bio = String(about?.bio || shell.artist.bio || '').trim()
+        setProfileBio(bio || null)
+        if (topSongsPage?.ranking?.label) {
+          setTrackSectionLabel(topSongsPage.ranking.label)
+        }
+      } catch {
+        // Keep catalog-backed artist page when profile API is unavailable.
+      }
+    })()
+
+    return () => abortController.abort()
+  }, [artist.id])
+
+  const loadMoreReleases = useCallback(async () => {
+    const artistId = profileShell?.artist.id || artist.id
+    if (!releasesHasMore || !releasesCursor || loadingMoreReleases) return
+    setLoadingMoreReleases(true)
+    try {
+      const page = await fetchArtistReleases(artistId, {
+        limit: 24,
+        cursor: releasesCursor,
+      })
+      setProfileAlbums((previous) => {
+        const base = previous || []
+        const seen = new Set(base.map((item) => item.id))
+        const appended = page.items
+          .filter((release) => !seen.has(release.id))
+          .map((release) => ({
+            id: release.id,
+            title: release.title,
+            artwork: release.artwork,
+            releaseYear: release.release_year,
+            createdAt: release.created_at,
+            artistId: release.artist_id || artist.id,
+            releaseType: release.release_type || 'unknown',
+          }))
+        return [...base, ...appended]
+      })
+      setReleasesHasMore(page.pagination.hasMore)
+      setReleasesCursor(page.pagination.nextCursor)
+    } catch {
+      // Keep already-loaded releases when pagination fails.
+    } finally {
+      setLoadingMoreReleases(false)
+    }
+  }, [
+    artist.id,
+    loadingMoreReleases,
+    profileShell?.artist.id,
+    releasesCursor,
+    releasesHasMore,
+  ])
+
   const playArtistSong = useCallback(
-    (song: ApiSong, index: number, queue = artistSongs) => onOpenSong(
-      song,
-      queue,
-      index,
-      'artist',
-      artist.name,
-      {
+    (song: ApiSong, index: number, queue = artistSongs) => {
+      const safeIndex = Math.max(0, Math.min(index, queue.length - 1))
+      playQueue(queue, safeIndex, 'artist', artist.name, {
         seedType: 'artist',
         seedId: artist.id,
         seedTracks: capSongPool(artistSongs),
         candidatePools: queuePools,
-      },
-    ),
-    [artist.id, artist.name, artistSongs, onOpenSong, queuePools],
+      })
+    },
+    [artist.id, artist.name, artistSongs, playQueue, queuePools],
   )
   const playArtist = useCallback(
     (shuffle: boolean) => {
@@ -6419,10 +6549,13 @@ function ArtistDetailView({
     [artistSongs, playArtistSong],
   )
 
-  const artistAlbums = useMemo(
+  const catalogAlbums = useMemo(
     () => resolveAlbumsForArtist(artist, indexes.albumsByArtistId).slice(0, 12),
     [artist, indexes.albumsByArtistId],
   )
+  const artistAlbums = profileAlbums && profileAlbums.length > 0 ? profileAlbums : catalogAlbums
+  const genreLabel = profileShell?.artist.genres?.slice(0, 3).join(' · ') || null
+  const trackLabel = showAllSongs ? 'All songs' : trackSectionLabel
 
   return (
     <PageFrame>
@@ -6432,13 +6565,33 @@ function ArtistDetailView({
           <ArtistAvatar artist={artist} />
         </div>
         <div className="detail-hero-copy">
-          <p className="detail-eyebrow">Artist</p>
-          <h1 className="detail-h1">{artist.name}</h1>
+          <p className="detail-eyebrow">
+            {profileShell?.artist.is_verified ? 'Verified artist' : 'Artist'}
+          </p>
+          <h1 className="detail-h1">{profileShell?.artist.name || artist.name}</h1>
           <p className="detail-stats">
             {artist.songCount || artistSongs.length}{' '}
-            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}{' '}
-            {artistAlbums.length === 1 ? 'album' : 'albums'}
+            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}
+            {releasesHasMore ? '+' : ''}{' '}
+            {artistAlbums.length === 1 ? 'release' : 'releases'}
+            {genreLabel ? ` · ${genreLabel}` : ''}
           </p>
+          {profileBio ? (
+            <div className="detail-artist-about">
+              <p className={aboutExpanded ? 'detail-artist-about-text is-expanded' : 'detail-artist-about-text'}>
+                {profileBio}
+              </p>
+              {profileBio.length > 180 ? (
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => setAboutExpanded((value) => !value)}
+                >
+                  {aboutExpanded ? 'See less' : 'See more'}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="detail-hero-actions">
             <button
               type="button"
@@ -6462,7 +6615,7 @@ function ArtistDetailView({
 
       <section className="detail-panel">
         <div className="detail-panel-header">
-          <h3>{showAllSongs ? 'All songs' : 'Top songs'}</h3>
+          <h3>{trackLabel}</h3>
           {artistSongs.length > 12 ? (
             <button
               type="button"
@@ -6472,7 +6625,11 @@ function ArtistDetailView({
               {showAllSongs ? 'Show less' : `Show all ${artistSongs.length}`}
             </button>
           ) : (
-            <span>From cached catalog</span>
+            <span>
+              {trackSectionLabel === 'Popular tracks'
+                ? 'Ranked from verified play signals'
+                : 'Latest from catalog'}
+            </span>
           )}
         </div>
         {topSongs.length === 0 ? (
@@ -6493,20 +6650,54 @@ function ArtistDetailView({
 
       <section className="detail-panel">
         <div className="detail-panel-header">
-          <h3>Albums</h3>
-          <span>From cached catalog</span>
+          <h3>Releases</h3>
+          <span>
+            {profileAlbums?.length
+              ? releasesHasMore
+                ? 'Paginated discography'
+                : 'From artist profile'
+              : 'From cached catalog'}
+          </span>
         </div>
         {artistAlbums.length === 0 ? (
           <CatalogEmpty title="No verified albums" detail="Only identity-matched artist albums are shown here." />
         ) : (
-          <ApiAlbumGrid
-            albums={artistAlbums}
-            artistNames={artistNames}
-            indexes={indexes}
-            onSelect={onOpenAlbum}
-            listKey={`artist-albums-${artist.id}`}
-            paginate={false}
-          />
+          <>
+            <ApiAlbumGrid
+              albums={artistAlbums}
+              artistNames={artistNames}
+              indexes={indexes}
+              onSelect={onOpenAlbum}
+              listKey={`artist-albums-${artist.id}`}
+              paginate={false}
+            />
+            {releasesHasMore ? (
+              <div className="detail-panel-footer" style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  disabled={loadingMoreReleases}
+                  onClick={() => {
+                    void loadMoreReleases()
+                  }}
+                >
+                  {loadingMoreReleases ? 'Loading…' : 'See more releases'}
+                </button>
+              </div>
+            ) : null}
+            {profileAlbums?.some((album) => album.releaseType && album.releaseType !== 'unknown') ? (
+              <p className="detail-panel-note" style={{ marginTop: 10, opacity: 0.72 }}>
+                Types:{' '}
+                {[
+                  ...new Set(
+                    profileAlbums
+                      .map((album) => artistReleaseTypeLabel(album.releaseType))
+                      .filter(Boolean),
+                  ),
+                ].join(' · ')}
+              </p>
+            ) : null}
+          </>
         )}
       </section>
     </PageFrame>
@@ -6752,6 +6943,7 @@ function CatalogDetailRouter({
         album={selectedAlbum}
         onBack={onBack}
         onOpenSong={onOpenSong}
+        onOpenArtist={onOpenArtist}
         selectedTrackId={desktopSelectedTrack?.id ?? null}
       />
     )
