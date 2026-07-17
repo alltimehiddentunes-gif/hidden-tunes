@@ -219,11 +219,17 @@ export function groupMotivationItemsIntoPrograms(
 
 export function collectEntitiesFromGroups(
   groups: MotivationGroupedProgram[],
-  options?: { speakersLimit?: number; organizationsLimit?: number; minEpisodesForSpeaker?: number }
+  options?: {
+    speakersLimit?: number;
+    organizationsLimit?: number;
+    minEpisodesForSpeaker?: number;
+    maxItemsPerEntity?: number;
+  }
 ) {
   const speakersLimit = options?.speakersLimit ?? 8;
   const organizationsLimit = options?.organizationsLimit ?? 6;
   const minEpisodesForSpeaker = options?.minEpisodesForSpeaker ?? 2;
+  const maxItemsPerEntity = options?.maxItemsPerEntity ?? 12;
 
   const map = new Map<
     string,
@@ -241,7 +247,10 @@ export function collectEntitiesFromGroups(
       existing.episodeCount += group.episodeCount;
       existing.programCount += 1;
       existing.programIds.add(group.id);
-      existing.items.push(...group.items);
+      if (existing.items.length < maxItemsPerEntity) {
+        const room = maxItemsPerEntity - existing.items.length;
+        existing.items.push(...group.items.slice(0, room));
+      }
       if (!existing.artwork && group.program.artwork_url) {
         existing.artwork = group.program.artwork_url;
       }
@@ -255,7 +264,7 @@ export function collectEntitiesFromGroups(
         programCount: 1,
         artwork: group.program.artwork_url,
         programIds: new Set([group.id]),
-        items: [...group.items],
+        items: group.items.slice(0, maxItemsPerEntity),
       });
     }
   }

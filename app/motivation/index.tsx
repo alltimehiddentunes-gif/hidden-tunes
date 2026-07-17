@@ -1,7 +1,8 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  InteractionManager,
   RefreshControl,
   StyleSheet,
   Text,
@@ -16,7 +17,6 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HTImage from "@/components/HTImage";
-import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";
 import AppShell from "@/components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { useMountedRef } from "@/hooks/useMountedRef";
@@ -46,14 +46,18 @@ import {
 import { playMotivationProgramItem } from "@/utils/MotivationPlaybackController";
 
 const SEARCH_DEBOUNCE_MS = 350;
-const HOME_CACHE_TTL_MS = 90_000;
+const HOME_CACHE_TTL_MS = 120_000;
 const LIMITS = {
   continue: 6,
   featured: 8,
   categories: 8,
-  speakers: 8,
-  organizations: 6,
+  speakers: 6,
+  organizations: 4,
   recent: 8,
+  /** Max raw items processed from home lanes (not full catalog). */
+  primaryLaneItems: 16,
+  secondaryLaneItems: 12,
+  searchPage: 20,
 } as const;
 
 const CATEGORY_PRIORITY = [
@@ -75,6 +79,7 @@ type HomeCache = {
   at: number;
   categories: MotivationCategory[];
   programGroups: MotivationGroupedProgram[];
+  secondaryGroups: MotivationGroupedProgram[];
 };
 
 let homeCache: HomeCache | null = null;
@@ -104,6 +109,55 @@ function sortCategories(categories: MotivationCategory[]) {
       return (b.item_count || 0) - (a.item_count || 0);
     });
 }
+
+function normalizeHomeCategories(raw: MotivationCategory[]) {
+  return sortCategories(
+    (raw || []).map((category) => ({
+      id: String(category.id || category.slug || ""),
+      slug: String(category.slug || ""),
+      name: String(category.name || category.title || category.slug || "Motivation"),
+      item_count: Number(category.item_count || 0),
+    }))
+  );
+}
+
+function dedupeItems(items: MotivationItem[]) {
+  const seen = new Set<string>();
+  const next: MotivationItem[] = [];
+  for (const item of items) {
+    const id = String(item?.id || "");
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    next.push(item);
+  }
+  return next;
+}
+
+/** Bounded 2-column grid — no nested FlatList (avoids virtualization heat). */
+const BoundedTwoColGrid = memo(function BoundedTwoColGrid({
+  children,
+}: {
+  children: ReactNode[];
+}) {
+  const rows: ReactNode[][] = [];
+  for (let i = 0; i < children.length; i += 2) {
+    rows.push(children.slice(i, i + 2));
+  }
+  return (
+    <View style={styles.grid}>
+      {rows.map((row, rowIndex) => (
+        <View key={`row-${rowIndex}`} style={styles.gridRow}>
+          {row.map((cell, cellIndex) => (
+            <View key={`cell-${rowIndex}-${cellIndex}`} style={styles.gridCell}>
+              {cell}
+            </View>
+          ))}
+          {row.length === 1 ? <View style={styles.gridCell} /> : null}
+        </View>
+      ))}
+    </View>
+  );
+});
 
 const SectionHeader = memo(function SectionHeader({
   title,
@@ -150,6 +204,8 @@ const ProgramCard = memo(function ProgramCard({
           uri={group.program.artwork_url || undefined}
           style={styles.cardArt}
           contentFit="cover"
+          maxDecodeWidth={220}
+          maxDecodeHeight={220}
         />
         <Text style={styles.cardTitle} numberOfLines={2}>
           {group.program.title}
@@ -192,7 +248,13 @@ const EntityCard = memo(function EntityCard({
 }) {
   return (
     <TouchableOpacity style={styles.entityCard} activeOpacity={0.88} onPress={onPress}>
-      <HTImage uri={entity.artwork || undefined} style={styles.entityArt} contentFit="cover" />
+      <HTImage
+        uri={entity.artwork || undefined}
+        style={styles.entityArt}
+        contentFit="cover"
+        maxDecodeWidth={200}
+        maxDecodeHeight={140}
+      />
       <Text style={styles.entityName} numberOfLines={2}>
         {entity.displayName}
       </Text>
@@ -222,8 +284,18 @@ const CategoryCard = memo(function CategoryCard({
   );
 });
 
+const SkeletonCards = memo(function SkeletonCards({ count = 4 }: { count?: number }) {
+  return (
+    <BoundedTwoColGrid>
+      {Array.from({ length: count }, (_, index) => (
+        <View key={`sk-${index}`} style={styles.skeletonCard} />
+      ))}
+    </BoundedTwoColGrid>
+  );
+});
+
 type SearchHit =
-  | { type: "Episode"; item: MotivationItem; key: string }
+  | { type: "Episode"; item: MotivationItem; group: MotivationGroupedProgram; key: string }
   | { type: "Program"; group: MotivationGroupedProgram; key: string }
   | { type: "Speaker" | "Organization"; entity: MotivationEntity; key: string }
   | { type: "Category"; category: MotivationCategory; key: string };
@@ -235,9 +307,10 @@ export default function MotivationHomeScreen() {
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playGuardRef = useRef<string | null>(null);
+  const secondaryTaskRef = useRef<{ cancel: () => void } | null>(null);
 
-  const [shellReady, setShellReady] = useState(true);
-  const [sectionsLoading, setSectionsLoading] = useState(!homeCache);
+  const [primaryLoading, setPrimaryLoading] = useState(!homeCache);
+  const [secondaryReady, setSecondaryReady] = useState(Boolean(homeCache));
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [categories, setCategories] = useState<MotivationCategory[]>(
@@ -245,6 +318,9 @@ export default function MotivationHomeScreen() {
   );
   const [programGroups, setProgramGroups] = useState<MotivationGroupedProgram[]>(
     homeCache?.programGroups || []
+  );
+  const [secondaryGroups, setSecondaryGroups] = useState<MotivationGroupedProgram[]>(
+    homeCache?.secondaryGroups || []
   );
   const [continueItems, setContinueItems] = useState<
     Awaited<ReturnType<typeof listContinueMotivationEntries>>
@@ -274,24 +350,112 @@ export default function MotivationHomeScreen() {
     setPlayError(null);
     try {
       stashMotivationGroupedProgram(group);
+      // Cap metadata queue — resolve only the active item on demand.
+      const startIndex = Math.max(
+        0,
+        group.items.findIndex((item) => item.id === startId)
+      );
+      const queueWindow = group.items.slice(startIndex, startIndex + 24);
       await playMotivationProgramItem({
         program: group.program,
-        items: group.items,
+        items: queueWindow,
         startItemId: startId,
-        contextType: group.items.length > 1 ? "program" : "standalone",
+        contextType: queueWindow.length > 1 ? "program" : "standalone",
         contextSlug: group.program.category_slug || undefined,
         page: 1,
-        hasMore: false,
+        hasMore: group.items.length > queueWindow.length,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Couldn't start playback.";
       setPlayError(message);
-      if (__DEV__) console.log("[motivation] play failed", message);
     } finally {
       if (playGuardRef.current === group.id) playGuardRef.current = null;
       setPlayingProgramId(null);
     }
   }, []);
+
+  const scheduleSecondary = useCallback(() => {
+    secondaryTaskRef.current?.cancel();
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (mountedRef.current) setSecondaryReady(true);
+    });
+    secondaryTaskRef.current = task;
+  }, [mountedRef]);
+
+  const applyHomeCache = useCallback(
+    (payload: HomeCache, opts?: { schedule?: boolean }) => {
+      if (!mountedRef.current) return;
+      setCategories(payload.categories);
+      setProgramGroups(payload.programGroups);
+      setSecondaryGroups(payload.secondaryGroups);
+      setPrimaryLoading(false);
+      if (opts?.schedule) scheduleSecondary();
+      else setSecondaryReady(true);
+    },
+    [mountedRef, scheduleSecondary]
+  );
+
+  const hydrateFromHome = useCallback(
+    async (signal?: AbortSignal, force = false) => {
+      const now = Date.now();
+      if (!force && homeCache && now - homeCache.at < HOME_CACHE_TTL_MS) {
+        applyHomeCache(homeCache, { schedule: true });
+        return homeCache;
+      }
+
+      if (!force && homeInFlight) {
+        const cached = await homeInFlight;
+        if (!signal?.aborted) applyHomeCache(cached, { schedule: true });
+        return cached;
+      }
+
+      const task = (async (): Promise<HomeCache> => {
+        const home = await fetchMotivationHome(signal);
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+        const primaryItems = dedupeItems([
+          ...(home.popular || []).slice(0, 12),
+          ...(home.recommended || []).slice(0, 8),
+        ]).slice(0, LIMITS.primaryLaneItems);
+
+        const secondaryItems = dedupeItems([
+          ...(home.new_releases || []).slice(0, 12),
+          ...(home.featured_items || []).slice(0, 8),
+        ]).slice(0, LIMITS.secondaryLaneItems);
+
+        const primaryGroups = groupMotivationItemsIntoPrograms(primaryItems).slice(
+          0,
+          LIMITS.featured
+        );
+        const secondaryGroupsNext = groupMotivationItemsIntoPrograms(secondaryItems).slice(
+          0,
+          LIMITS.recent
+        );
+
+        const payload: HomeCache = {
+          at: Date.now(),
+          categories: normalizeHomeCategories(home.categories || []),
+          programGroups: primaryGroups,
+          secondaryGroups: secondaryGroupsNext,
+        };
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+        homeCache = payload;
+        return payload;
+      })();
+
+      homeInFlight = task.finally(() => {
+        homeInFlight = null;
+      });
+
+      const payload = await task;
+      if (!signal?.aborted) applyHomeCache(payload, { schedule: true });
+      return payload;
+    },
+    [applyHomeCache]
+  );
 
   const loadLocal = useCallback(async () => {
     const [continueRows, recentRows] = await Promise.all([
@@ -303,87 +467,31 @@ export default function MotivationHomeScreen() {
     setRecentItems(recentRows);
   }, [mountedRef]);
 
-  const hydrateFromHome = useCallback(async (signal?: AbortSignal, force = false) => {
-    const now = Date.now();
-    if (!force && homeCache && now - homeCache.at < HOME_CACHE_TTL_MS) {
-      setCategories(homeCache.categories);
-      setProgramGroups(homeCache.programGroups);
-      setSectionsLoading(false);
-      return homeCache;
-    }
-
-    if (!force && homeInFlight) {
-      const cached = await homeInFlight;
-      if (!signal?.aborted && mountedRef.current) {
-        setCategories(cached.categories);
-        setProgramGroups(cached.programGroups);
-        setSectionsLoading(false);
-      }
-      return cached;
-    }
-
-    const task = (async () => {
-      const home = await fetchMotivationHome(signal);
-      const laneItems: MotivationItem[] = [
-        ...(home.popular || []).slice(0, 24),
-        ...(home.recommended || []).slice(0, 24),
-        ...(home.new_releases || []).slice(0, 16),
-        ...(home.featured_items || []).slice(0, 16),
-      ];
-      const groups = groupMotivationItemsIntoPrograms(laneItems);
-      const nextCategories = sortCategories(
-        (home.categories || []).map((category) => ({
-          id: String((category as MotivationCategory).id || (category as MotivationCategory).slug || ""),
-          slug: String((category as MotivationCategory).slug || ""),
-          name: String(
-            (category as MotivationCategory).name ||
-              (category as MotivationCategory).title ||
-              (category as MotivationCategory).slug ||
-              "Motivation"
-          ),
-          item_count: Number((category as MotivationCategory).item_count || 0),
-        }))
-      );
-      const payload: HomeCache = {
-        at: Date.now(),
-        categories: nextCategories,
-        programGroups: groups,
-      };
-      homeCache = payload;
-      return payload;
-    })();
-
-    homeInFlight = task.finally(() => {
-      homeInFlight = null;
-    });
-
-    const payload = await task;
-    if (!signal?.aborted && mountedRef.current) {
-      setCategories(payload.categories);
-      setProgramGroups(payload.programGroups);
-      setSectionsLoading(false);
-    }
-    return payload;
-  }, [mountedRef]);
-
   const loadHome = useCallback(
     async (force = false) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       setError(null);
-      if (!homeCache) setSectionsLoading(true);
+      if (force) {
+        setSecondaryReady(false);
+        if (!homeCache) setPrimaryLoading(true);
+      } else if (!homeCache) {
+        setPrimaryLoading(true);
+      }
+
+      // Local storage must not wait on the slow home API.
+      void loadLocal();
 
       try {
-        await Promise.all([loadLocal(), hydrateFromHome(controller.signal, force)]);
+        await hydrateFromHome(controller.signal, force);
       } catch (err) {
         if (!mountedRef.current || controller.signal.aborted || isAbortError(err)) return;
         if (!homeCache) setError("Couldn't load Motivationals. Pull to retry.");
+        setPrimaryLoading(false);
       } finally {
         if (mountedRef.current && !controller.signal.aborted) {
-          setSectionsLoading(false);
           setRefreshing(false);
-          setShellReady(true);
         }
       }
     },
@@ -395,18 +503,27 @@ export default function MotivationHomeScreen() {
     return () => {
       abortRef.current?.abort();
       searchAbortRef.current?.abort();
+      secondaryTaskRef.current?.cancel();
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-  }, [loadHome]);
+    // Mount-once: in-flight dedupe + AbortController handle revisits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const entitySourceGroups = useMemo(
+    () => [...programGroups, ...(secondaryReady ? secondaryGroups : [])],
+    [programGroups, secondaryGroups, secondaryReady]
+  );
 
   const entities = useMemo(
     () =>
-      collectEntitiesFromGroups(programGroups, {
+      collectEntitiesFromGroups(entitySourceGroups, {
         speakersLimit: LIMITS.speakers,
         organizationsLimit: LIMITS.organizations,
         minEpisodesForSpeaker: 2,
+        maxItemsPerEntity: 12,
       }),
-    [programGroups]
+    [entitySourceGroups]
   );
 
   const featuredPrograms = useMemo(
@@ -414,12 +531,15 @@ export default function MotivationHomeScreen() {
     [programGroups]
   );
   const recentPrograms = useMemo(() => {
+    if (!secondaryReady) return [];
     const fromRecent = groupMotivationItemsIntoPrograms(
-      recentItems.map((entry) => entry.item),
+      recentItems.map((entry) => entry.item).slice(0, LIMITS.recent),
       { excludeMisplacedAudiobooks: false }
     );
-    return fromRecent.slice(0, LIMITS.recent);
-  }, [recentItems]);
+    if (fromRecent.length) return fromRecent.slice(0, LIMITS.recent);
+    return secondaryGroups.slice(0, LIMITS.recent);
+  }, [recentItems, secondaryGroups, secondaryReady]);
+
   const categoryPreview = useMemo(
     () => categories.slice(0, LIMITS.categories),
     [categories]
@@ -442,11 +562,11 @@ export default function MotivationHomeScreen() {
       try {
         const result = await searchMotivationItems(q, {
           page: 1,
-          limit: 24,
+          limit: LIMITS.searchPage,
           signal: controller.signal,
         });
         if (!mountedRef.current || controller.signal.aborted) return;
-        const ranked = rankMotivationSearchResults(result.items, q).slice(0, 24);
+        const ranked = rankMotivationSearchResults(result.items, q).slice(0, LIMITS.searchPage);
         const grouped = groupMotivationItemsIntoPrograms(ranked, {
           excludeMisplacedAudiobooks: false,
         });
@@ -457,6 +577,36 @@ export default function MotivationHomeScreen() {
         const categoryMatches = categories.filter((category) =>
           category.name.toLowerCase().includes(q.toLowerCase())
         );
+
+        const episodeHits: SearchHit[] = ranked.slice(0, 8).map((item) => {
+          const group =
+            groupMotivationItemsIntoPrograms([item], {
+              excludeMisplacedAudiobooks: false,
+            })[0] ||
+            ({
+              id: item.id,
+              program: {
+                id: item.id,
+                slug: item.id,
+                title: extractMotivationProgramTitle(item.title),
+                artwork_url: item.artwork,
+                category_slug: item.category_slug,
+              },
+              items: [item],
+              volumes: [],
+              speakerName: item.speaker_name || null,
+              creditName: item.speaker_name || item.channel_name || null,
+              creditKind: "unknown",
+              episodeCount: 1,
+              isSynthetic: true,
+            } satisfies MotivationGroupedProgram);
+          return {
+            type: "Episode" as const,
+            item,
+            group,
+            key: `episode:${item.id}`,
+          };
+        });
 
         const hits: SearchHit[] = [
           ...grouped.slice(0, 8).map((group) => ({
@@ -476,11 +626,7 @@ export default function MotivationHomeScreen() {
             category,
             key: `category:${category.slug}`,
           })),
-          ...ranked.slice(0, 8).map((item) => ({
-            type: "Episode" as const,
-            item,
-            key: `episode:${item.id}`,
-          })),
+          ...episodeHits,
         ];
         setSearchHits(hits);
       } catch (err) {
@@ -515,18 +661,17 @@ export default function MotivationHomeScreen() {
 
   const sections = useMemo(() => {
     if (isSearching) return [{ key: "search" }];
-    return [
-      { key: "continue" },
-      { key: "featured" },
-      { key: "categories" },
-      { key: "speakers" },
-      { key: "organizations" },
-      { key: "recent" },
-    ];
-  }, [isSearching]);
+    const keys = [{ key: "continue" }, { key: "featured" }, { key: "categories" }];
+    if (secondaryReady) {
+      keys.push({ key: "speakers" }, { key: "organizations" }, { key: "recent" });
+    }
+    return keys;
+  }, [isSearching, secondaryReady]);
 
   const renderSection = useCallback(
-    (key: string) => {
+    ({ item }: { item: { key: string } }) => {
+      const key = item.key;
+
       if (key === "search") {
         return (
           <View style={styles.section}>
@@ -556,16 +701,11 @@ export default function MotivationHomeScreen() {
                 );
               }
               if (hit.type === "Episode") {
-                const group = groupMotivationItemsIntoPrograms([hit.item], {
-                  excludeMisplacedAudiobooks: false,
-                })[0];
                 return (
                   <TouchableOpacity
                     key={hit.key}
                     style={styles.listRow}
-                    onPress={() => {
-                      if (group) void playProgram(group);
-                    }}
+                    onPress={() => void playProgram(hit.group)}
                   >
                     <Text style={styles.hitType}>Episode</Text>
                     <Text style={styles.listTitle} numberOfLines={2}>
@@ -638,6 +778,8 @@ export default function MotivationHomeScreen() {
                   uri={entry.programArtwork || undefined}
                   style={styles.listArt}
                   contentFit="cover"
+                  maxDecodeWidth={96}
+                  maxDecodeHeight={96}
                 />
                 <View style={styles.listCopy}>
                   <Text style={styles.listTitle} numberOfLines={2}>
@@ -656,49 +798,54 @@ export default function MotivationHomeScreen() {
 
       if (key === "featured") {
         if (!featuredPrograms.length) {
-          return sectionsLoading ? (
+          return primaryLoading ? (
             <View style={styles.section}>
               <SectionHeader title="Popular Programs" />
-              <ActivityIndicator color={COLORS.primary} />
+              <SkeletonCards count={4} />
             </View>
           ) : null;
         }
         return (
           <View style={styles.section}>
             <SectionHeader title="Popular Programs" />
-            <PremiumContentGrid
-              data={featuredPrograms}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+            <BoundedTwoColGrid>
+              {featuredPrograms.map((group) => (
                 <ProgramCard
-                  group={item}
-                  onOpen={() => openProgramGroup(item)}
-                  onPlay={() => void playProgram(item)}
-                  playing={playingProgramId === item.id}
+                  key={group.id}
+                  group={group}
+                  onOpen={() => openProgramGroup(group)}
+                  onPlay={() => void playProgram(group)}
+                  playing={playingProgramId === group.id}
                 />
-              )}
-            />
+              ))}
+            </BoundedTwoColGrid>
           </View>
         );
       }
 
       if (key === "categories") {
-        if (!categoryPreview.length) return null;
+        if (!categoryPreview.length) {
+          return primaryLoading ? (
+            <View style={styles.section}>
+              <SectionHeader title="Categories" />
+              <SkeletonCards count={4} />
+            </View>
+          ) : null;
+        }
         return (
           <View style={styles.section}>
             <SectionHeader title="Categories" />
-            <PremiumContentGrid
-              data={categoryPreview}
-              keyExtractor={(item) => item.slug}
-              renderItem={({ item }) => (
+            <BoundedTwoColGrid>
+              {categoryPreview.map((category) => (
                 <CategoryCard
-                  category={item}
+                  key={category.slug}
+                  category={category}
                   onPress={() =>
-                    router.push(`/motivation/category/${encodeURIComponent(item.slug)}` as never)
+                    router.push(`/motivation/category/${encodeURIComponent(category.slug)}` as never)
                   }
                 />
-              )}
-            />
+              ))}
+            </BoundedTwoColGrid>
           </View>
         );
       }
@@ -711,18 +858,17 @@ export default function MotivationHomeScreen() {
               title="Speakers"
               onSeeAll={() => router.push("/motivation/speakers" as never)}
             />
-            <PremiumContentGrid
-              data={entities.speakers}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+            <BoundedTwoColGrid>
+              {entities.speakers.map((entity) => (
                 <EntityCard
-                  entity={item}
+                  key={entity.id}
+                  entity={entity}
                   onPress={() =>
-                    router.push(`/motivation/speaker/${encodeURIComponent(item.id)}` as never)
+                    router.push(`/motivation/speaker/${encodeURIComponent(entity.id)}` as never)
                   }
                 />
-              )}
-            />
+              ))}
+            </BoundedTwoColGrid>
           </View>
         );
       }
@@ -735,20 +881,19 @@ export default function MotivationHomeScreen() {
               title="Organizations & Publishers"
               onSeeAll={() => router.push("/motivation/organizations" as never)}
             />
-            <PremiumContentGrid
-              data={entities.organizations}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+            <BoundedTwoColGrid>
+              {entities.organizations.map((entity) => (
                 <EntityCard
-                  entity={item}
+                  key={entity.id}
+                  entity={entity}
                   onPress={() =>
                     router.push(
-                      `/motivation/organization/${encodeURIComponent(item.id)}` as never
+                      `/motivation/organization/${encodeURIComponent(entity.id)}` as never
                     )
                   }
                 />
-              )}
-            />
+              ))}
+            </BoundedTwoColGrid>
           </View>
         );
       }
@@ -757,18 +902,17 @@ export default function MotivationHomeScreen() {
       return (
         <View style={styles.section}>
           <SectionHeader title="Recently Added" />
-          <PremiumContentGrid
-            data={recentPrograms}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
+          <BoundedTwoColGrid>
+            {recentPrograms.map((group) => (
               <ProgramCard
-                group={item}
-                onOpen={() => openProgramGroup(item)}
-                onPlay={() => void playProgram(item)}
-                playing={playingProgramId === item.id}
+                key={group.id}
+                group={group}
+                onOpen={() => openProgramGroup(group)}
+                onPlay={() => void playProgram(group)}
+                playing={playingProgramId === group.id}
               />
-            )}
-          />
+            ))}
+          </BoundedTwoColGrid>
         </View>
       );
     },
@@ -781,26 +925,14 @@ export default function MotivationHomeScreen() {
       openProgramGroup,
       playProgram,
       playingProgramId,
+      primaryLoading,
       recentPrograms,
       searchError,
       searchHits,
       searchLoading,
       searchQuery,
-      sectionsLoading,
     ]
   );
-
-  if (!shellReady) {
-    return (
-      <AppShell>
-        <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
-          <View style={[styles.hero, { paddingTop: 56 }]}>
-            <ActivityIndicator color={COLORS.primary} />
-          </View>
-        </LinearGradient>
-      </AppShell>
-    );
-  }
 
   return (
     <AppShell>
@@ -808,9 +940,13 @@ export default function MotivationHomeScreen() {
         <FlatList
           data={sections}
           keyExtractor={(item) => item.key}
-          renderItem={({ item }) => renderSection(item.key)}
+          renderItem={renderSection}
           contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
           keyboardShouldPersistTaps="handled"
+          initialNumToRender={4}
+          maxToRenderPerBatch={2}
+          windowSize={5}
+          removeClippedSubviews
           refreshControl={
             isSearching ? undefined : (
               <RefreshControl
@@ -921,6 +1057,15 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { color: COLORS.text, fontSize: 20, fontWeight: "900" },
   seeAll: { color: COLORS.primary, fontSize: 13, fontWeight: "800" },
+  grid: { gap: 12 },
+  gridRow: { flexDirection: "row", gap: 12 },
+  gridCell: { flex: 1, minWidth: 0 },
+  skeletonCard: {
+    flex: 1,
+    minHeight: 160,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
   card: {
     flex: 1,
     backgroundColor: "rgba(255,255,255,0.06)",
@@ -968,41 +1113,42 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.08)",
     justifyContent: "center",
   },
-  categoryTitle: { color: COLORS.text, fontSize: 15, fontWeight: "800" },
-  categoryMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 6 },
+  categoryTitle: { color: COLORS.text, fontWeight: "800", fontSize: 15 },
+  categoryMeta: { color: COLORS.textMuted, marginTop: 8, fontSize: 12 },
   listRow: {
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 10,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
   },
-  listArt: { width: 48, height: 48, borderRadius: 12 },
-  listCopy: { flex: 1, minWidth: 140 },
-  listTitle: { color: COLORS.text, fontSize: 14, fontWeight: "800", width: "100%" },
-  listMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 2, width: "100%" },
+  listArt: { width: 48, height: 48, borderRadius: 10 },
+  listCopy: { flex: 1 },
+  listTitle: { color: COLORS.text, fontWeight: "800", fontSize: 14, flex: 1 },
+  listMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
   hitType: {
     color: COLORS.primary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     textTransform: "uppercase",
-    width: "100%",
+    letterSpacing: 0.8,
+    position: "absolute",
+    top: 8,
+    right: 12,
   },
+  emptyText: { color: COLORS.textMuted, textAlign: "center", marginTop: 24 },
   errorBanner: {
     marginTop: 14,
-    padding: 14,
-    borderRadius: 16,
-    backgroundColor: "rgba(251,146,60,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(251,146,60,0.35)",
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,80,80,0.12)",
   },
-  errorText: { color: COLORS.text, fontSize: 14, fontWeight: "700" },
-  retryText: { color: COLORS.primary, fontSize: 13, fontWeight: "800", marginTop: 6 },
-  emptyText: { color: COLORS.textMuted, textAlign: "center", marginTop: 24 },
-  playError: { color: "#FB923C", marginTop: 12, fontWeight: "700" },
+  errorText: { color: "#FFB4B4", fontSize: 13 },
+  retryText: { color: COLORS.primary, fontWeight: "800", marginTop: 6 },
+  playError: { color: "#FFB4B4", marginTop: 10, fontSize: 13 },
 });

@@ -74,15 +74,25 @@ export const MotivationPlaybackController = {
     const requestId = ++activeRequestId;
     const generation = (getMotivationPlaybackSession()?.queueGeneration || 0) + 1;
     const ordered = orderMotivationItems(input.items);
+    const startIndex = Math.max(
+      0,
+      ordered.findIndex((item) => item.id === input.startItemId)
+    );
+    // Metadata-only window — never preload streams; resolve the active item only.
+    const MAX_METADATA_WINDOW = 32;
+    const windowed =
+      ordered.length <= MAX_METADATA_WINDOW
+        ? ordered
+        : ordered.slice(startIndex, startIndex + MAX_METADATA_WINDOW);
 
     createMotivationPlaybackSession({
       program: input.program,
-      items: ordered,
+      items: windowed,
       startItemId: input.startItemId,
       contextType: input.contextType,
       contextSlug: input.contextSlug,
       nextPage: (input.page || 1) + 1,
-      hasMore: input.hasMore ?? false,
+      hasMore: (input.hasMore ?? false) || ordered.length > windowed.length,
       queueGeneration: generation,
     });
 
