@@ -1,5 +1,3 @@
-import { NextRequest } from "next/server";
-
 import { isSportsFeatureEnabled } from "@/lib/sports/featureFlags";
 import { jsonSportsError, jsonSportsOk } from "@/lib/sports/http";
 
@@ -33,7 +31,7 @@ export async function GET() {
   }
 }
 
-export async function POST(_request: NextRequest) {
+export async function POST() {
   try {
     const enabled = await isSportsFeatureEnabled("sports_enabled");
     if (!enabled) {

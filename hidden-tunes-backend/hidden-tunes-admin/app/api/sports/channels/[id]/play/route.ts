@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { isSportsFeatureEnabled } from "@/lib/sports/featureFlags";
-import { jsonSportsError, jsonSportsOk } from "@/lib/sports/http";
+import { jsonSportsError } from "@/lib/sports/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

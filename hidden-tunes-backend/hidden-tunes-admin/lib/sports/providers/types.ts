@@ -108,10 +108,12 @@ export abstract class BaseSportsProviderAdapter implements SportsProviderAdapter
   async getTerritories(): Promise<TerritoryRule[]> {
     return [];
   }
-  async verifyAvailability(_input: VerifyInput): Promise<VerificationResult> {
+  async verifyAvailability(input: VerifyInput): Promise<VerificationResult> {
+    void input;
     return { ok: false, reasons: ["not_implemented_phase1"] };
   }
-  async resolvePlayback(_input: ResolveInput): Promise<PlaybackResult> {
+  async resolvePlayback(input: ResolveInput): Promise<PlaybackResult> {
+    void input;
     throw new Error("resolvePlayback not implemented in Phase 1");
   }
 }
