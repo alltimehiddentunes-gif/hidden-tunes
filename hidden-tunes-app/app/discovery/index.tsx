@@ -7,6 +7,7 @@ import { router } from "expo-router";
 
 import { HomePremiumShortcut } from "../../components/home/HomePremiumShortcut";
 import {
+  LECTURES_HREF,
   MOTIVATION_HREF,
   MORE_HUB_SHORTCUTS,
 } from "../../constants/discoveryShortcuts";
@@ -24,8 +25,13 @@ export default function DiscoveryHubScreen() {
   const tapGuardRef = useRef(createTapGuardState());
 
   const openShortcut = useCallback((key: string, href?: string) => {
-    // Motivationals must always resolve to the real Expo Router screen.
-    const target = key === "more-motivation" ? MOTIVATION_HREF : href;
+    // Motivationals / Lectures must always resolve to the real Expo Router screens.
+    const target =
+      key === "more-motivation"
+        ? MOTIVATION_HREF
+        : key === "more-lectures"
+          ? LECTURES_HREF
+          : href;
 
     if (!isValidInternalHref(target)) {
       console.warn("[More navigation] Blocked invalid shortcut route", {

@@ -2,9 +2,12 @@ import type { ComponentProps } from "react";
 import type { Ionicons } from "@expo/vector-icons";
 
 import { COLORS } from "./theme";
+import { LECTURES_HREF } from "./lectureCatalog";
 
 /** Canonical Expo Router path for Motivationals (`app/motivation/index.tsx`). */
 export const MOTIVATION_HREF = "/motivation" as const;
+
+export { LECTURES_HREF };
 
 export type DiscoveryShortcut = {
   key: string;
@@ -61,7 +64,7 @@ export const MORE_HUB_SHORTCUTS: DiscoveryShortcut[] = [
     icon: "school-outline",
     title: "Lectures / Tutorials",
     color: "rgba(96,165,250,0.95)",
-    href: "/lectures",
+    href: LECTURES_HREF,
   },
   {
     key: "more-motivation",

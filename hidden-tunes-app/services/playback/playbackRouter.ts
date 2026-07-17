@@ -117,6 +117,8 @@ export async function routePodcastPlayback(
   }
 }
 
+export { routeLecturePlayback } from "./lecturePlaybackRouter";
+
 export function routeYouTubeVideoPlayback(
   video: HiddenTunesTvVideo,
   queueVideos: HiddenTunesTvVideo[],

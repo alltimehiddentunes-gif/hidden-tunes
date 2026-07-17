@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { usePlayerActions } from "../context/PlayerContext";
+import { routeLecturePlayback } from "../services/playback/lecturePlaybackRouter";
 import {
   routePodcastPlayback,
   routeRadioPlayback,
@@ -8,6 +9,7 @@ import {
   routeYouTubeVideoPlayback,
   type PlaybackRouterDeps,
 } from "../services/playback/playbackRouter";
+import type { LecturePlayableItem } from "../services/playback/lecturePlaybackAdapter";
 import { invalidateTvMediaTransitions } from "../services/tv/tvMediaHandoff";
 import { stopTvSession } from "../services/tv/tvSessionController";
 import type { HiddenTunesTvVideo } from "../services/tvCatalogApi";
@@ -46,6 +48,10 @@ export function usePlaybackRouter() {
         routeRadioPlayback(station, deps, stationQueue),
       playPodcastEpisode: (episode: PodcastEpisode, queue: PodcastEpisode[]) =>
         routePodcastPlayback(episode, queue, deps),
+      playLectureSession: (
+        items: LecturePlayableItem[],
+        startCanonicalId: string
+      ) => routeLecturePlayback(items, startCanonicalId, deps),
       playYouTubeVideo: (video: HiddenTunesTvVideo, queue: HiddenTunesTvVideo[]) => {
         routeYouTubeVideoPlayback(video, queue, deps);
       },
