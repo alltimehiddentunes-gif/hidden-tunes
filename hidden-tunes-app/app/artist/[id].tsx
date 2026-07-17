@@ -4,6 +4,7 @@ import {
   Alert,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,6 +14,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ArtistTrackRow from "../../components/catalog/ArtistTrackRow";
 import HTImage from "../../components/HTImage";
@@ -25,8 +27,8 @@ import {
 import {
   extractHiddenTunesArtists,
   getHiddenTunesArtistById,
-  getHiddenTunesCatalogCacheInfo,
   getHiddenTunesCatalogSnapshot,
+  getHiddenTunesSongsPage,
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
@@ -36,7 +38,6 @@ import {
   ArtistProfileApiError,
   artistReleaseTypeLabel,
   fetchArtistAbout,
-  fetchArtistFollowState,
   fetchArtistProfileShell,
   fetchArtistReleases,
   fetchArtistSimilar,
@@ -67,7 +68,6 @@ import {
 import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   createStableKeyExtractor,
-  getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
 } from "../../utils/performanceMode";
@@ -80,6 +80,11 @@ import {
   canOpenArtistProfileById,
   resolveArtistFromList,
 } from "../../utils/artistIdentity";
+
+const INITIAL_TRACK_PAGE_SIZE = 20;
+const INITIAL_RELEASE_PAGE_SIZE = 24;
+const INITIAL_SIMILAR_PAGE_SIZE = 12;
+const ARTIST_MINI_PLAYER_BOTTOM_PADDING = 150;
 
 function getArtwork(item: any) {
   return getArtworkUri(item);
@@ -165,9 +170,11 @@ function mergeArtistWithProfile(
 
 export default function ArtistScreen() {
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const { playSong } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
+  const refreshAbortRef = useRef<AbortController | null>(null);
 
   const [artist, setArtist] = useState<HiddenTunesArtist | null>(null);
   const [loading, setLoading] = useState(true);
@@ -179,6 +186,9 @@ export default function ArtistScreen() {
   const [releasesHasMore, setReleasesHasMore] = useState(false);
   const [releasesCursor, setReleasesCursor] = useState<string | null>(null);
   const [loadingMoreReleases, setLoadingMoreReleases] = useState(false);
+  const [tracksHasMore, setTracksHasMore] = useState(false);
+  const [tracksNextPage, setTracksNextPage] = useState(2);
+  const [loadingMoreTracks, setLoadingMoreTracks] = useState(false);
   const [trackSectionLabel, setTrackSectionLabel] = useState("Essential Tracks");
   const [similarArtists, setSimilarArtists] = useState<ArtistProfileSimilarArtist[]>([]);
   const [similarHasMore, setSimilarHasMore] = useState(false);
@@ -223,17 +233,16 @@ export default function ArtistScreen() {
     () => getListPerformanceSettings(tracks.length),
     [tracks.length]
   );
-  const albumListTuning = useMemo(
-    () => getHorizontalListPerformanceSettings(albums.length),
-    [albums.length]
-  );
-  const similarListTuning = useMemo(
-    () => getHorizontalListPerformanceSettings(similarArtists.length),
-    [similarArtists.length]
-  );
   const trackKeyExtractor = useMemo(
     () => createStableKeyExtractor("artist-track"),
     []
+  );
+  const listBottomPadding = useMemo(
+    () =>
+      ARTIST_MINI_PLAYER_BOTTOM_PADDING +
+      Math.max(insets.bottom, 0) +
+      (currentSong ? 24 : 0),
+    [currentSong, insets.bottom]
   );
 
   useEffect(() => trackRenderProbe("ArtistScreen"), []);
@@ -256,24 +265,31 @@ export default function ArtistScreen() {
         if (showLoader && !artistRef.current) setLoading(true);
 
         const snapshotArtist = await loadArtistDetailSnapshot(artistId);
-        if (requestGeneration !== requestGenerationRef.current) return;
+        if (requestGeneration !== requestGenerationRef.current || signal?.aborted) return;
         if (snapshotArtist) {
-          setArtist(snapshotArtist);
+          // Bound cached tracks so idle open never paints hundreds of rows.
+          const boundedSnapshot = {
+            ...snapshotArtist,
+            tracks: (snapshotArtist.tracks || []).slice(0, INITIAL_TRACK_PAGE_SIZE),
+          };
+          setArtist(boundedSnapshot);
+          setTracksHasMore((snapshotArtist.tracks || []).length > INITIAL_TRACK_PAGE_SIZE);
+          setTracksNextPage(2);
           setLoading(false);
           showedCachedArtist = true;
           logCacheResult("artist", true, {
             id: artistId,
-            tracks: snapshotArtist.tracks.length,
+            tracks: boundedSnapshot.tracks.length,
             snapshot: true,
           });
           logScreenReady("artist", screenStartedAt, {
             cache: "hit",
-            tracks: snapshotArtist.tracks.length,
+            tracks: boundedSnapshot.tracks.length,
           });
           logPerformanceSummary("artist", {
             cache: "hit",
             firstContentMs: Date.now() - screenStartedAt,
-            itemCount: snapshotArtist.tracks.length,
+            itemCount: boundedSnapshot.tracks.length,
           });
         }
 
@@ -286,39 +302,43 @@ export default function ArtistScreen() {
           const cachedSongs = memoryArtist
             ? memorySongs
             : await hydrateHiddenTunesCatalogCache();
-          if (requestGeneration !== requestGenerationRef.current) return;
+          if (requestGeneration !== requestGenerationRef.current || signal?.aborted) return;
           const cachedArtist =
             memoryArtist ||
             findArtistById(extractHiddenTunesArtists(cachedSongs), artistId);
 
           if (cachedArtist) {
-            setArtist(cachedArtist);
+            const boundedCached = {
+              ...cachedArtist,
+              tracks: (cachedArtist.tracks || []).slice(0, INITIAL_TRACK_PAGE_SIZE),
+            };
+            setArtist(boundedCached);
+            setTracksHasMore((cachedArtist.tracks || []).length > INITIAL_TRACK_PAGE_SIZE);
+            setTracksNextPage(2);
             setLoading(false);
             showedCachedArtist = true;
             logCacheResult("artist", true, {
               id: artistId,
-              tracks: cachedArtist.tracks.length,
+              tracks: boundedCached.tracks.length,
               source: memoryArtist ? "memory" : "storage",
             });
             logScreenReady("artist", screenStartedAt, {
               cache: "hit",
-              tracks: cachedArtist.tracks.length,
+              tracks: boundedCached.tracks.length,
             });
             logPerformanceSummary("artist", {
               cache: "hit",
               firstContentMs: Date.now() - screenStartedAt,
-              itemCount: cachedArtist.tracks.length,
+              itemCount: boundedCached.tracks.length,
             });
           } else {
             logCacheResult("artist", false, { id: artistId });
           }
         }
 
-        const cacheInfo = await getHiddenTunesCatalogCacheInfo();
-
-        const applyArtistApiResult = async () => {
+        const applyCatalogFallback = async () => {
           const data = await getHiddenTunesArtistById(artistId);
-          if (requestGeneration !== requestGenerationRef.current) return;
+          if (requestGeneration !== requestGenerationRef.current || signal?.aborted) return false;
           logApiRefresh("artist", refreshStart, {
             id: artistId,
             found: Boolean(data),
@@ -334,26 +354,69 @@ export default function ArtistScreen() {
           });
 
           if (data) {
+            const bounded = {
+              ...data,
+              tracks: (data.tracks || []).slice(0, INITIAL_TRACK_PAGE_SIZE),
+            };
             setArtist((previous) =>
               previous
                 ? {
                     ...previous,
-                    ...data,
-                    tracks: data.tracks,
-                    albums: data.albums,
+                    ...bounded,
+                    tracks: bounded.tracks,
+                    albums: bounded.albums,
                   }
-                : data,
+                : bounded,
             );
-            void saveArtistDetailSnapshot(data);
+            setTracksHasMore((data.tracks || []).length >= INITIAL_TRACK_PAGE_SIZE);
+            setTracksNextPage(2);
+            void saveArtistDetailSnapshot(bounded);
             if (!showedCachedArtist) {
               logScreenReady("artist", screenStartedAt, {
                 cache: "miss",
-                tracks: data.tracks.length,
+                tracks: bounded.tracks.length,
               });
             }
-          } else if (!showedCachedArtist) {
+            return true;
+          }
+
+          if (!showedCachedArtist) {
             setArtist(null);
           }
+          return false;
+        };
+
+        const loadSimilarDeferred = (canonicalId: string) => {
+          scheduleDelayedNonEssentialWork(() => {
+            if (requestGeneration !== requestGenerationRef.current || signal?.aborted) {
+              return;
+            }
+            void fetchArtistSimilar(canonicalId, {
+              limit: INITIAL_SIMILAR_PAGE_SIZE,
+              signal,
+            })
+              .then((similarPage) => {
+                if (requestGeneration !== requestGenerationRef.current || signal?.aborted) {
+                  return;
+                }
+                const similarItems = (similarPage?.items || []).filter(
+                  (item) => item.id && item.id !== canonicalId,
+                );
+                const dedupedSimilar: ArtistProfileSimilarArtist[] = [];
+                const seenSimilar = new Set<string>();
+                for (const item of similarItems) {
+                  if (seenSimilar.has(item.id)) continue;
+                  seenSimilar.add(item.id);
+                  dedupedSimilar.push(item);
+                }
+                setSimilarArtists(dedupedSimilar);
+                setSimilarHasMore(similarPage?.pagination.hasMore === true);
+                setSimilarCursor(similarPage?.pagination.nextCursor || null);
+              })
+              .catch(() => {
+                // Optional section — keep profile usable when similar fails.
+              });
+          });
         };
 
         const applyProfileEnrichment = async () => {
@@ -365,13 +428,30 @@ export default function ArtistScreen() {
               signal,
               token,
             });
-            if (requestGeneration !== requestGenerationRef.current) return;
+            if (requestGeneration !== requestGenerationRef.current || signal?.aborted) {
+              return true;
+            }
 
             setProfileShell(shell);
-            setArtist((previous) =>
-              previous ? mergeArtistWithProfile(previous, shell) : previous,
-            );
+            profileArtistIdRef.current = shell.artist.id;
 
+            setArtist((previous) => {
+              if (previous) return mergeArtistWithProfile(previous, shell);
+              return {
+                id: shell.artist.id,
+                name: shell.artist.name,
+                slug: shell.artist.slug || "",
+                artwork: shell.artist.artwork || "",
+                image_url: shell.artist.artwork || undefined,
+                bio: shell.artist.bio || "",
+                genre: shell.artist.genres[0] || "",
+                tracks: [],
+                albums: [],
+              };
+            });
+            setLoading(false);
+
+            // Follow comes from shell + local cache — no duplicate GET.
             const cachedFollow = getCachedArtistFollowState(shell.artist.id);
             const initialFollowing =
               cachedFollow?.is_following ?? shell.viewer.is_following === true;
@@ -390,9 +470,9 @@ export default function ArtistScreen() {
               available: initialAvailable,
             });
 
-            const [releasesPage, about, topSongsPage, similarPage] = await Promise.all([
+            const [releasesPage, about, topSongsPage, songsPage] = await Promise.all([
               fetchArtistReleases(shell.artist.id, {
-                limit: 24,
+                limit: INITIAL_RELEASE_PAGE_SIZE,
                 signal,
               }).catch(() => null),
               fetchArtistAbout(shell.artist.id, { signal }).catch(() => null),
@@ -400,14 +480,15 @@ export default function ArtistScreen() {
                 limit: 5,
                 signal,
               }).catch(() => null),
-              fetchArtistSimilar(shell.artist.id, {
-                limit: 12,
-                signal,
+              getHiddenTunesSongsPage({
+                page: 1,
+                limit: INITIAL_TRACK_PAGE_SIZE,
+                artistId: shell.artist.id,
               }).catch(() => null),
             ]);
-            if (requestGeneration !== requestGenerationRef.current) return;
-
-            profileArtistIdRef.current = shell.artist.id;
+            if (requestGeneration !== requestGenerationRef.current || signal?.aborted) {
+              return true;
+            }
 
             if (releasesPage?.items?.length) {
               setProfileReleases(
@@ -429,49 +510,47 @@ export default function ArtistScreen() {
               setTrackSectionLabel("Essential Tracks");
             }
 
-            const similarItems = (similarPage?.items || []).filter(
-              (item) => item.id && item.id !== shell.artist.id,
-            );
-            const dedupedSimilar: ArtistProfileSimilarArtist[] = [];
-            const seenSimilar = new Set<string>();
-            for (const item of similarItems) {
-              if (seenSimilar.has(item.id)) continue;
-              seenSimilar.add(item.id);
-              dedupedSimilar.push(item);
+            if (songsPage?.songs?.length) {
+              setArtist((previous) => {
+                const next: HiddenTunesArtist = previous
+                  ? { ...previous, tracks: songsPage.songs }
+                  : {
+                      id: shell.artist.id,
+                      name: shell.artist.name,
+                      slug: shell.artist.slug || "",
+                      artwork: shell.artist.artwork || "",
+                      tracks: songsPage.songs,
+                      albums: [],
+                    };
+                void saveArtistDetailSnapshot(next);
+                return next;
+              });
+              setTracksHasMore(songsPage.hasMore === true);
+              setTracksNextPage(songsPage.nextPage || 2);
             }
-            setSimilarArtists(dedupedSimilar);
-            setSimilarHasMore(similarPage?.pagination.hasMore === true);
-            setSimilarCursor(similarPage?.pagination.nextCursor || null);
 
-            // Follow state refresh must not block shell/content.
-            if (token && canOpenArtistProfileById(shell.artist.id)) {
-              void fetchArtistFollowState(shell.artist.id, { token, signal })
-                .then((state) => {
-                  if (requestGeneration !== requestGenerationRef.current) return;
-                  setIsFollowing(state.is_following);
-                  setFollowAvailable(state.available);
-                  setFollowerCount(state.follower_count);
-                })
-                .catch(() => {
-                  // Keep shell-derived follow state when follow endpoint fails.
-                });
-            }
+            logApiRefresh("artist", refreshStart, {
+              id: artistId,
+              found: true,
+              tracks: songsPage?.songs?.length || 0,
+              profile: true,
+            });
+
+            loadSimilarDeferred(shell.artist.id);
+            return true;
           } catch (error) {
-            if (signal?.aborted) return;
+            if (signal?.aborted) return true;
             if (error instanceof ArtistProfileApiError && __DEV__) {
               console.log("Artist profile enrichment skipped:", error.message);
             }
+            return false;
           }
         };
 
-        if (showedCachedArtist && cacheInfo.isFresh) {
-          scheduleDelayedNonEssentialWork(() => {
-            void applyArtistApiResult();
-            void applyProfileEnrichment();
-          });
-        } else {
-          await applyArtistApiResult();
-          void applyProfileEnrichment();
+        const enriched = await applyProfileEnrichment();
+        if (requestGeneration !== requestGenerationRef.current || signal?.aborted) return;
+        if (!enriched) {
+          await applyCatalogFallback();
         }
       } catch (error) {
         console.log("Load artist error:", error);
@@ -490,12 +569,16 @@ export default function ArtistScreen() {
   );
 
   useEffect(() => {
+    refreshAbortRef.current?.abort();
     const abortController = new AbortController();
+    refreshAbortRef.current = abortController;
     setProfileShell(null);
     setProfileAbout(null);
     setProfileReleases([]);
     setReleasesHasMore(false);
     setReleasesCursor(null);
+    setTracksHasMore(false);
+    setTracksNextPage(2);
     setTrackSectionLabel("Essential Tracks");
     setSimilarArtists([]);
     setSimilarHasMore(false);
@@ -515,8 +598,11 @@ export default function ArtistScreen() {
   }, [id, loadArtist]);
 
   async function onRefresh() {
+    refreshAbortRef.current?.abort();
+    const abortController = new AbortController();
+    refreshAbortRef.current = abortController;
     setRefreshing(true);
-    await loadArtist(false);
+    await loadArtist(false, abortController.signal);
   }
 
   const handlePlay = useCallback(
@@ -594,7 +680,7 @@ export default function ArtistScreen() {
     setLoadingMoreReleases(true);
     try {
       const page = await fetchArtistReleases(artistId, {
-        limit: 24,
+        limit: INITIAL_RELEASE_PAGE_SIZE,
         cursor: releasesCursor,
       });
       const artistName = profileShell?.artist.name || artist?.name || "";
@@ -611,6 +697,37 @@ export default function ArtistScreen() {
       // Keep already-loaded releases when pagination fails.
     } finally {
       setLoadingMoreReleases(false);
+    }
+  }
+
+  async function loadMoreTracks() {
+    const artistId = profileArtistIdRef.current || String(artist?.id || "");
+    if (!artistId || !tracksHasMore || loadingMoreTracks) return;
+    if (tracks.length >= 40) {
+      setTracksHasMore(false);
+      return;
+    }
+    setLoadingMoreTracks(true);
+    try {
+      const page = await getHiddenTunesSongsPage({
+        page: tracksNextPage,
+        limit: INITIAL_TRACK_PAGE_SIZE,
+        artistId,
+      });
+      setArtist((previous) => {
+        if (!previous) return previous;
+        const seen = new Set(previous.tracks.map((item) => item.id));
+        const appended = page.songs.filter((item) => !seen.has(item.id));
+        const merged = [...previous.tracks, ...appended].slice(0, 40);
+        return { ...previous, tracks: merged };
+      });
+      const reachedCap = tracks.length + page.songs.length >= 40;
+      setTracksHasMore(page.hasMore === true && !reachedCap);
+      setTracksNextPage(page.nextPage || tracksNextPage + 1);
+    } catch {
+      // Keep already-loaded tracks when pagination fails.
+    } finally {
+      setLoadingMoreTracks(false);
     }
   }
 
@@ -786,14 +903,17 @@ export default function ArtistScreen() {
 
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.screen}>
-      <View style={styles.glowPurple} />
-      <View style={styles.glowCyan} />
-
       <FlatList
         data={tracks}
         keyExtractor={trackKeyExtractor}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(insets.top, 12) + 12,
+            paddingBottom: listBottomPadding,
+          },
+        ]}
         initialNumToRender={listPerformance.initialNumToRender}
         maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
         windowSize={listPerformance.windowSize}
@@ -813,11 +933,21 @@ export default function ArtistScreen() {
         ListHeaderComponent={
           <>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="chevron-back" size={26} color={COLORS.text} />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onRefresh} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={onRefresh}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh artist profile"
+          >
             <Ionicons name="refresh" size={22} color={COLORS.text} />
           </TouchableOpacity>
         </View>
@@ -842,11 +972,15 @@ export default function ArtistScreen() {
             </Text>
           </View>
 
-          <Text style={styles.name}>{artist.name}</Text>
+          <Text style={styles.name} numberOfLines={2}>
+            {artist.name}
+          </Text>
 
           <Text style={styles.meta}>
-            {tracks.length} song{tracks.length === 1 ? "" : "s"} •{" "}
-            {albums.length} album{albums.length === 1 ? "" : "s"}
+            {tracks.length}
+            {tracksHasMore ? "+" : ""} song{tracks.length === 1 ? "" : "s"} •{" "}
+            {albums.length}
+            {releasesHasMore ? "+" : ""} album{albums.length === 1 ? "" : "s"}
             {genreLabel ? ` • ${genreLabel}` : ""}
             {followerLabel ? ` • ${followerLabel}` : ""}
           </Text>
@@ -863,6 +997,8 @@ export default function ArtistScreen() {
                 <TouchableOpacity
                   onPress={() => setAboutExpanded((value) => !value)}
                   style={styles.aboutToggle}
+                  accessibilityRole="button"
+                  accessibilityLabel={aboutExpanded ? "Show less biography" : "Show more biography"}
                 >
                   <Text style={styles.aboutToggleText}>
                     {aboutExpanded ? "See less" : "See more"}
@@ -946,22 +1082,19 @@ export default function ArtistScreen() {
               </Text>
             </View>
 
-            <FlatList
+            <ScrollView
               horizontal
-              data={albums}
-              keyExtractor={(item) => `artist-album-${item.id}`}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.albumList}
-              initialNumToRender={albumListTuning.initialNumToRender}
-              maxToRenderPerBatch={albumListTuning.maxToRenderPerBatch}
-              windowSize={albumListTuning.windowSize}
-              updateCellsBatchingPeriod={albumListTuning.updateCellsBatchingPeriod}
-              removeClippedSubviews
-              renderItem={({ item }) => (
+            >
+              {albums.map((item) => (
                 <TouchableOpacity
+                  key={`artist-album-${item.id}`}
                   style={styles.albumCard}
                   activeOpacity={0.86}
                   onPress={() => openAlbum(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open release ${item.title}`}
                 >
                   <HTImage
                     source={item}
@@ -979,25 +1112,25 @@ export default function ArtistScreen() {
                       : artistReleaseTypeLabel(item.releaseType)}
                   </Text>
                 </TouchableOpacity>
-              )}
-              ListFooterComponent={
-                releasesHasMore ? (
-                  <TouchableOpacity
-                    style={styles.moreReleasesBtn}
-                    onPress={() => {
-                      void loadMoreReleases();
-                    }}
-                    disabled={loadingMoreReleases}
-                  >
-                    {loadingMoreReleases ? (
-                      <ActivityIndicator color={COLORS.primary} />
-                    ) : (
-                      <Text style={styles.moreReleasesText}>See more</Text>
-                    )}
-                  </TouchableOpacity>
-                ) : null
-              }
-            />
+              ))}
+              {releasesHasMore ? (
+                <TouchableOpacity
+                  style={styles.moreReleasesBtn}
+                  onPress={() => {
+                    void loadMoreReleases();
+                  }}
+                  disabled={loadingMoreReleases}
+                  accessibilityRole="button"
+                  accessibilityLabel="Load more releases"
+                >
+                  {loadingMoreReleases ? (
+                    <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                    <Text style={styles.moreReleasesText}>See more</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
           </>
         )}
 
@@ -1010,22 +1143,19 @@ export default function ArtistScreen() {
               </Text>
             </View>
 
-            <FlatList
+            <ScrollView
               horizontal
-              data={similarArtists}
-              keyExtractor={(item) => `artist-similar-${item.id}`}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.albumList}
-              initialNumToRender={similarListTuning.initialNumToRender}
-              maxToRenderPerBatch={similarListTuning.maxToRenderPerBatch}
-              windowSize={similarListTuning.windowSize}
-              updateCellsBatchingPeriod={similarListTuning.updateCellsBatchingPeriod}
-              removeClippedSubviews
-              renderItem={({ item }) => (
+            >
+              {similarArtists.map((item) => (
                 <TouchableOpacity
+                  key={`artist-similar-${item.id}`}
                   style={styles.similarCard}
                   activeOpacity={0.86}
                   onPress={() => openSimilarArtist(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open similar artist ${item.name}`}
                 >
                   <HTImage
                     source={{ artwork: item.artwork || undefined }}
@@ -1041,25 +1171,25 @@ export default function ArtistScreen() {
                         : "Artist")}
                   </Text>
                 </TouchableOpacity>
-              )}
-              ListFooterComponent={
-                similarHasMore ? (
-                  <TouchableOpacity
-                    style={styles.moreReleasesBtn}
-                    onPress={() => {
-                      void loadMoreSimilar();
-                    }}
-                    disabled={loadingMoreSimilar}
-                  >
-                    {loadingMoreSimilar ? (
-                      <ActivityIndicator color={COLORS.primary} />
-                    ) : (
-                      <Text style={styles.moreReleasesText}>See more</Text>
-                    )}
-                  </TouchableOpacity>
-                ) : null
-              }
-            />
+              ))}
+              {similarHasMore ? (
+                <TouchableOpacity
+                  style={styles.moreReleasesBtn}
+                  onPress={() => {
+                    void loadMoreSimilar();
+                  }}
+                  disabled={loadingMoreSimilar}
+                  accessibilityRole="button"
+                  accessibilityLabel="Load more similar artists"
+                >
+                  {loadingMoreSimilar ? (
+                    <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                    <Text style={styles.moreReleasesText}>See more</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
           </>
         ) : null}
 
@@ -1068,6 +1198,25 @@ export default function ArtistScreen() {
           <Text style={styles.sectionSub}>Start a queue from this artist world</Text>
         </View>
           </>
+        }
+        ListFooterComponent={
+          tracksHasMore ? (
+            <TouchableOpacity
+              style={styles.moreTracksBtn}
+              onPress={() => {
+                void loadMoreTracks();
+              }}
+              disabled={loadingMoreTracks}
+              accessibilityRole="button"
+              accessibilityLabel="Load more tracks"
+            >
+              {loadingMoreTracks ? (
+                <ActivityIndicator color={COLORS.primary} />
+              ) : (
+                <Text style={styles.moreTracksText}>See more tracks</Text>
+              )}
+            </TouchableOpacity>
+          ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyTracks}>
@@ -1090,26 +1239,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  glowPurple: {
-    position: "absolute",
-    top: 40,
-    left: -120,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: "rgba(168,85,247,0.18)",
-  },
-  glowCyan: {
-    position: "absolute",
-    top: 320,
-    right: -145,
-    width: 330,
-    height: 330,
-    borderRadius: 165,
-    backgroundColor: "rgba(34,211,238,0.1)",
-  },
   content: {
-    paddingTop: 55,
     paddingBottom: 150,
   },
   loadingText: {
@@ -1180,6 +1310,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     textAlign: "center",
     letterSpacing: -0.5,
+    paddingHorizontal: 8,
   },
   meta: {
     color: COLORS.textMuted,
@@ -1318,6 +1449,23 @@ const styles = StyleSheet.create({
   moreReleasesText: {
     color: COLORS.primary,
     fontSize: 13,
+    fontWeight: "800",
+  },
+  moreTracksBtn: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 20,
+    minHeight: 46,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  moreTracksText: {
+    color: COLORS.primary,
+    fontSize: 14,
     fontWeight: "800",
   },
   similarCard: {

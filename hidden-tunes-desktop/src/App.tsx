@@ -39,7 +39,6 @@ import { withDevAudioVersionTestSongs } from './lib/devAudioVersionTestHarness'
 import {
   artistReleaseTypeLabel,
   fetchArtistAbout,
-  fetchArtistFollowState,
   fetchArtistProfileShell,
   fetchArtistReleases,
   fetchArtistSimilar,
@@ -6444,7 +6443,7 @@ function ArtistDetailView({
   }, [artist, indexes.songsByArtistId, indexes.songsByArtistName])
   const [showAllSongs, setShowAllSongs] = useState(false)
   const topSongs = useMemo(
-    () => (showAllSongs ? artistSongs : artistSongs.slice(0, 12)),
+    () => (showAllSongs ? artistSongs.slice(0, 40) : artistSongs.slice(0, 12)),
     [artistSongs, showAllSongs],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
@@ -6467,6 +6466,7 @@ function ArtistDetailView({
     setFollowMessage(null)
     followInFlightRef.current = false
     setAboutExpanded(false)
+    setShowAllSongs(false)
 
     void (async () => {
       try {
@@ -6480,6 +6480,7 @@ function ArtistDetailView({
         if (abortController.signal.aborted) return
         setProfileShell(shell)
 
+        // Follow comes from shell + local cache — no duplicate GET.
         const cachedFollow = getCachedArtistFollowState(shell.artist.id)
         const initialFollowing =
           cachedFollow?.is_following ?? shell.viewer.is_following === true
@@ -6497,7 +6498,7 @@ function ArtistDetailView({
           available: initialAvailable,
         })
 
-        const [releasesPage, about, topSongsPage, similarPage] = await Promise.all([
+        const [releasesPage, about, topSongsPage] = await Promise.all([
           fetchArtistReleases(shell.artist.id, {
             limit: 24,
             signal: abortController.signal,
@@ -6507,10 +6508,6 @@ function ArtistDetailView({
           }).catch(() => null),
           fetchArtistTopSongs(shell.artist.id, {
             limit: 5,
-            signal: abortController.signal,
-          }).catch(() => null),
-          fetchArtistSimilar(shell.artist.id, {
-            limit: 12,
             signal: abortController.signal,
           }).catch(() => null),
         ])
@@ -6538,32 +6535,30 @@ function ArtistDetailView({
           setTrackSectionLabel(topSongsPage.ranking.label)
         }
 
-        const seen = new Set<string>()
-        const similarItems: ArtistProfileSimilarArtist[] = []
-        for (const item of similarPage?.items || []) {
-          if (!item.id || item.id === shell.artist.id || seen.has(item.id)) continue
-          seen.add(item.id)
-          similarItems.push(item)
-        }
-        setSimilarArtists(similarItems)
-        setSimilarHasMore(similarPage?.pagination.hasMore === true)
-        setSimilarCursor(similarPage?.pagination.nextCursor || null)
-
-        if (token) {
-          void fetchArtistFollowState(shell.artist.id, {
-            token,
+        // Similar Artists is optional and deferred until core profile is ready.
+        window.setTimeout(() => {
+          if (abortController.signal.aborted) return
+          void fetchArtistSimilar(shell.artist.id, {
+            limit: 12,
             signal: abortController.signal,
           })
-            .then((state) => {
+            .then((similarPage) => {
               if (abortController.signal.aborted) return
-              setIsFollowing(state.is_following)
-              setFollowAvailable(state.available)
-              setFollowerCount(state.follower_count)
+              const seen = new Set<string>()
+              const similarItems: ArtistProfileSimilarArtist[] = []
+              for (const item of similarPage?.items || []) {
+                if (!item.id || item.id === shell.artist.id || seen.has(item.id)) continue
+                seen.add(item.id)
+                similarItems.push(item)
+              }
+              setSimilarArtists(similarItems)
+              setSimilarHasMore(similarPage?.pagination.hasMore === true)
+              setSimilarCursor(similarPage?.pagination.nextCursor || null)
             })
             .catch(() => {
-              // Keep shell-derived follow state when follow endpoint fails.
+              // Optional section — keep profile usable when similar fails.
             })
-        }
+        }, 120)
       } catch {
         // Keep catalog-backed artist page when profile API is unavailable.
       }
@@ -6738,7 +6733,7 @@ function ArtistDetailView({
   )
 
   const playArtistSong = useCallback(
-    (song: ApiSong, index: number, queue = artistSongs) => {
+    (_song: ApiSong, index: number, queue = artistSongs) => {
       const safeIndex = Math.max(0, Math.min(index, queue.length - 1))
       playQueue(queue, safeIndex, 'artist', artist.name, {
         seedType: 'artist',
@@ -6777,7 +6772,9 @@ function ArtistDetailView({
           <p className="detail-eyebrow">
             {profileShell?.artist.is_verified ? 'Verified artist' : 'Artist'}
           </p>
-          <h1 className="detail-h1">{profileShell?.artist.name || artist.name}</h1>
+          <h1 className="detail-h1" title={profileShell?.artist.name || artist.name}>
+            {profileShell?.artist.name || artist.name}
+          </h1>
           <p className="detail-stats">
             {artist.songCount || artistSongs.length}{' '}
             {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}
@@ -6861,7 +6858,9 @@ function ArtistDetailView({
               className="btn-secondary btn-sm"
               onClick={() => setShowAllSongs((value) => !value)}
             >
-              {showAllSongs ? 'Show less' : `Show all ${artistSongs.length}`}
+              {showAllSongs
+                ? 'Show less'
+                : `Show more (${Math.min(artistSongs.length, 40)})`}
             </button>
           ) : (
             <span>

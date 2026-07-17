@@ -5,6 +5,8 @@
 3. `03_artist_statistics_backfill.sql` (optional but recommended)
 4. `04_artist_release_taxonomy.sql` (same as `supabase/migrations/20260717180000_artist_release_taxonomy.sql`)
 
+See **`PHASE-8-PRODUCTION-READY.md`** for the full production apply / verify / smoke / PM2 sequence (do not run without credentials and approval).
+
 ## Apply from this repo
 
 ```bash
