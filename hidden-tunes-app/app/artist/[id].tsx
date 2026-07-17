@@ -37,10 +37,12 @@ import {
   fetchArtistAbout,
   fetchArtistProfileShell,
   fetchArtistReleases,
+  fetchArtistSimilar,
   fetchArtistTopSongs,
   type ArtistProfileAbout,
   type ArtistProfileRelease,
   type ArtistProfileShell,
+  type ArtistProfileSimilarArtist,
 } from "../../services/artistProfileApi";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
 import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
@@ -168,6 +170,10 @@ export default function ArtistScreen() {
   const [releasesCursor, setReleasesCursor] = useState<string | null>(null);
   const [loadingMoreReleases, setLoadingMoreReleases] = useState(false);
   const [trackSectionLabel, setTrackSectionLabel] = useState("Essential Tracks");
+  const [similarArtists, setSimilarArtists] = useState<ArtistProfileSimilarArtist[]>([]);
+  const [similarHasMore, setSimilarHasMore] = useState(false);
+  const [similarCursor, setSimilarCursor] = useState<string | null>(null);
+  const [loadingMoreSimilar, setLoadingMoreSimilar] = useState(false);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const artistRef = useRef<HiddenTunesArtist | null>(null);
   const requestGenerationRef = useRef(0);
@@ -206,6 +212,10 @@ export default function ArtistScreen() {
   const albumListTuning = useMemo(
     () => getHorizontalListPerformanceSettings(albums.length),
     [albums.length]
+  );
+  const similarListTuning = useMemo(
+    () => getHorizontalListPerformanceSettings(similarArtists.length),
+    [similarArtists.length]
   );
   const trackKeyExtractor = useMemo(
     () => createStableKeyExtractor("artist-track"),
@@ -342,7 +352,7 @@ export default function ArtistScreen() {
               previous ? mergeArtistWithProfile(previous, shell) : previous,
             );
 
-            const [releasesPage, about, topSongsPage] = await Promise.all([
+            const [releasesPage, about, topSongsPage, similarPage] = await Promise.all([
               fetchArtistReleases(shell.artist.id, {
                 limit: 24,
                 signal,
@@ -350,6 +360,10 @@ export default function ArtistScreen() {
               fetchArtistAbout(shell.artist.id, { signal }).catch(() => null),
               fetchArtistTopSongs(shell.artist.id, {
                 limit: 5,
+                signal,
+              }).catch(() => null),
+              fetchArtistSimilar(shell.artist.id, {
+                limit: 12,
                 signal,
               }).catch(() => null),
             ]);
@@ -376,6 +390,20 @@ export default function ArtistScreen() {
             } else {
               setTrackSectionLabel("Essential Tracks");
             }
+
+            const similarItems = (similarPage?.items || []).filter(
+              (item) => item.id && item.id !== shell.artist.id,
+            );
+            const dedupedSimilar: ArtistProfileSimilarArtist[] = [];
+            const seenSimilar = new Set<string>();
+            for (const item of similarItems) {
+              if (seenSimilar.has(item.id)) continue;
+              seenSimilar.add(item.id);
+              dedupedSimilar.push(item);
+            }
+            setSimilarArtists(dedupedSimilar);
+            setSimilarHasMore(similarPage?.pagination.hasMore === true);
+            setSimilarCursor(similarPage?.pagination.nextCursor || null);
           } catch (error) {
             if (signal?.aborted) return;
             if (error instanceof ArtistProfileApiError && __DEV__) {
@@ -417,6 +445,9 @@ export default function ArtistScreen() {
     setReleasesHasMore(false);
     setReleasesCursor(null);
     setTrackSectionLabel("Essential Tracks");
+    setSimilarArtists([]);
+    setSimilarHasMore(false);
+    setSimilarCursor(null);
     profileArtistIdRef.current = null;
     setAboutExpanded(false);
     void loadArtist(true, abortController.signal);
@@ -524,6 +555,39 @@ export default function ArtistScreen() {
     } finally {
       setLoadingMoreReleases(false);
     }
+  }
+
+  async function loadMoreSimilar() {
+    const artistId = profileArtistIdRef.current;
+    if (!artistId || !similarHasMore || !similarCursor || loadingMoreSimilar) return;
+    setLoadingMoreSimilar(true);
+    try {
+      const page = await fetchArtistSimilar(artistId, {
+        limit: 12,
+        cursor: similarCursor,
+      });
+      setSimilarArtists((previous) => {
+        const seen = new Set(previous.map((item) => item.id));
+        const appended = page.items.filter(
+          (item) => item.id && item.id !== artistId && !seen.has(item.id),
+        );
+        return [...previous, ...appended];
+      });
+      setSimilarHasMore(page.pagination.hasMore);
+      setSimilarCursor(page.pagination.nextCursor);
+    } catch {
+      // Keep already-loaded similar artists when pagination fails.
+    } finally {
+      setLoadingMoreSimilar(false);
+    }
+  }
+
+  function openSimilarArtist(similar: ArtistProfileSimilarArtist) {
+    if (!canOpenArtistProfileById(similar.id)) return;
+    router.push({
+      pathname: "/artist/[id]",
+      params: { id: similar.id },
+    } as any);
   }
 
   const renderTrackItem = useCallback(
@@ -751,6 +815,68 @@ export default function ArtistScreen() {
             />
           </>
         )}
+
+        {similarArtists.length > 0 ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Similar Artists</Text>
+              <Text style={styles.sectionSub}>
+                Based on shared catalog signals, not name matching
+              </Text>
+            </View>
+
+            <FlatList
+              horizontal
+              data={similarArtists}
+              keyExtractor={(item) => `artist-similar-${item.id}`}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.albumList}
+              initialNumToRender={similarListTuning.initialNumToRender}
+              maxToRenderPerBatch={similarListTuning.maxToRenderPerBatch}
+              windowSize={similarListTuning.windowSize}
+              updateCellsBatchingPeriod={similarListTuning.updateCellsBatchingPeriod}
+              removeClippedSubviews
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.similarCard}
+                  activeOpacity={0.86}
+                  onPress={() => openSimilarArtist(item)}
+                >
+                  <HTImage
+                    source={{ artwork: item.artwork || undefined }}
+                    style={styles.similarAvatar}
+                  />
+                  <Text style={styles.albumTitle} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.albumSub} numberOfLines={1}>
+                    {item.reason ||
+                      (item.genres[0]
+                        ? item.genres[0].replace(/\b\w/g, (c) => c.toUpperCase())
+                        : "Artist")}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListFooterComponent={
+                similarHasMore ? (
+                  <TouchableOpacity
+                    style={styles.moreReleasesBtn}
+                    onPress={() => {
+                      void loadMoreSimilar();
+                    }}
+                    disabled={loadingMoreSimilar}
+                  >
+                    {loadingMoreSimilar ? (
+                      <ActivityIndicator color={COLORS.primary} />
+                    ) : (
+                      <Text style={styles.moreReleasesText}>See more</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null
+              }
+            />
+          </>
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{trackSectionLabel}</Text>
@@ -984,6 +1110,16 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 13,
     fontWeight: "800",
+  },
+  similarCard: {
+    width: 118,
+    marginRight: 14,
+  },
+  similarAvatar: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   trackRow: {
     marginHorizontal: 20,

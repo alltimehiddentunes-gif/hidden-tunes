@@ -390,30 +390,45 @@ export async function fetchArtistReleases(
   return normalizeListPage(payload, normalizeRelease);
 }
 
+export type ArtistProfileSimilarArtist = {
+  id: string;
+  name: string;
+  slug: string | null;
+  artwork: string | null;
+  is_verified: boolean;
+  genres: string[];
+  similarity_score: number;
+  reason: string | null;
+};
+
 export async function fetchArtistSimilar(
   ref: string,
-  options: RequestOptions & { limit?: number } = {},
-) {
+  options: RequestOptions & { limit?: number; cursor?: string | null } = {},
+): Promise<ArtistProfileListPage<ArtistProfileSimilarArtist>> {
   const payload = await artistProfileRequest<Record<string, unknown>>(
     `/api/artists/${encodeURIComponent(ref)}/similar`,
     options,
-    { limit: options.limit ?? ARTIST_PROFILE_DEFAULT_LIMIT },
+    {
+      limit: options.limit ?? ARTIST_PROFILE_DEFAULT_LIMIT,
+      cursor: options.cursor,
+    },
   );
-  const items = Array.isArray(payload.items) ? payload.items : [];
-  return items
-    .map((row) => {
-      const item = asObject(row);
-      if (!item?.id) return null;
-      return {
-        id: String(item.id),
-        name: cleanText(item.name, "Unknown Artist"),
-        slug: item.slug ? String(item.slug) : null,
-        artwork: item.artwork ? String(item.artwork) : null,
-        is_verified: item.is_verified === true,
-        similarity_score: Number(item.similarity_score) || 0,
-      };
-    })
-    .filter(Boolean);
+  return normalizeListPage(payload, (row) => {
+    const item = asObject(row);
+    if (!item?.id) return null;
+    return {
+      id: String(item.id),
+      name: cleanText(item.name, "Unknown Artist"),
+      slug: item.slug ? String(item.slug) : null,
+      artwork: item.artwork ? String(item.artwork) : null,
+      is_verified: item.is_verified === true,
+      genres: Array.isArray(item.genres)
+        ? item.genres.map((genre) => String(genre)).filter(Boolean).slice(0, 5)
+        : [],
+      similarity_score: Number(item.similarity_score) || 0,
+      reason: item.reason ? cleanText(item.reason) : null,
+    };
+  });
 }
 
 export async function fetchArtistAbout(

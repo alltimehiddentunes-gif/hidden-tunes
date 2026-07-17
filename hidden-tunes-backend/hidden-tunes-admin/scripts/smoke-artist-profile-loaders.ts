@@ -49,7 +49,7 @@ async function main() {
   const shell = await loadArtistProfileShell(artistId, null);
   const topSongs = shell ? await loadArtistTopSongs(String(shell.artist.id), { limit: 5 }) : null;
   const releases = shell ? await loadArtistReleases(String(shell.artist.id), { limit: 5 }) : null;
-  const similar = shell ? await loadArtistSimilar(String(shell.artist.id), 5) : null;
+  const similar = shell ? await loadArtistSimilar(String(shell.artist.id), { limit: 5 }) : null;
   const about = shell ? await loadArtistAbout(String(shell.artist.id)) : null;
   const missing = await resolveArtistRef("00000000-0000-0000-0000-000000000000");
 
@@ -62,7 +62,7 @@ async function main() {
     songCount: shell?.statistics?.song_count ?? null,
     topSongs: topSongs?.items?.length ?? 0,
     releases: releases?.items?.length ?? 0,
-    similar: similar?.length ?? 0,
+    similar: similar?.items?.length ?? 0,
     aboutHasBio: Boolean(about?.bio),
     missingIsNull: missing === null,
     hasAudioLeak: JSON.stringify({ shell, topSongs, releases, similar, about }).match(

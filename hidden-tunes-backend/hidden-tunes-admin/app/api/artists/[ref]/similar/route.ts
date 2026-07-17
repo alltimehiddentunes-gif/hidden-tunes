@@ -1,20 +1,34 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import { clampArtistPageSize, jsonArtistError, loadArtistSimilar } from "@/lib/artistCatalog";
-import { artistErrorResponse, ArtistRouteContext, resolvePublicArtist } from "@/lib/artistPublicApi";
+import {
+  artistErrorResponse,
+  artistListResponse,
+  ArtistRouteContext,
+  parseArtistListQuery,
+  resolvePublicArtist,
+  validateArtistRefParam,
+} from "@/lib/artistPublicApi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest, context: ArtistRouteContext) {
   const { ref } = await context.params;
-  const limit = clampArtistPageSize(request.nextUrl.searchParams.get("limit"));
+  const validated = validateArtistRefParam(ref);
+  if (validated.error) return validated.error;
+
+  const query = parseArtistListQuery(request.nextUrl.searchParams);
+  const limit = clampArtistPageSize(query.limit);
 
   try {
-    const resolved = await resolvePublicArtist(ref);
+    const resolved = await resolvePublicArtist(validated.ref);
     if (!resolved) return jsonArtistError("Artist not found.", 404);
-    const items = await loadArtistSimilar(resolved.artistId, limit);
-    return NextResponse.json({ success: true, items });
+    const page = await loadArtistSimilar(resolved.artistId, {
+      limit,
+      cursor: query.cursor,
+    });
+    return artistListResponse(page.items, page);
   } catch (error) {
     return artistErrorResponse(error, "Failed to load similar artists.");
   }
