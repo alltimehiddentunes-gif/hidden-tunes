@@ -62,13 +62,15 @@ export async function recordEducationalRecentlyPlayed(entry: EducationalRecently
 
 export async function listEducationalRecentlyPlayed(limit = 12) {
   const entries = await readRecent();
-  const seen = new Set<string>();
+  // Home rails key cards by programId. Storage may keep multiple sessions per
+  // program; collapse to the newest program occurrence so React keys stay unique.
+  const seenProgramIds = new Set<string>();
   const output: EducationalRecentlyPlayedEntry[] = [];
 
   for (const entry of entries.filter(isValidRecentEntry)) {
-    const key = `${entry.programId}:${entry.sessionId}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const programId = String(entry.programId || "").trim();
+    if (!programId || seenProgramIds.has(programId)) continue;
+    seenProgramIds.add(programId);
     output.push(entry);
     if (output.length >= limit) break;
   }

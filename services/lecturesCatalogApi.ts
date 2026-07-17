@@ -103,16 +103,47 @@ function inferContentFormat(
   return fallback;
 }
 
-function dedupePrograms(items: HiddenTunesLectureItem[]) {
+/**
+ * Keep the first occurrence of each canonical lecture id.
+ * Duplicate ids corrupt React keys in LaneSection / FlatList and can mis-route taps.
+ */
+export function dedupeLectureItemsById(
+  items: HiddenTunesLectureItem[],
+  source = "lectures"
+): HiddenTunesLectureItem[] {
   const seen = new Set<string>();
   const output: HiddenTunesLectureItem[] = [];
+  const duplicateIds: string[] = [];
+
   for (const item of items) {
-    const id = String(item.id || "").trim();
-    if (!id || seen.has(id)) continue;
+    const id = String(item?.id || "").trim();
+    if (!id) continue;
+    if (seen.has(id)) {
+      duplicateIds.push(id);
+      continue;
+    }
     seen.add(id);
     output.push(item);
   }
+
+  if (
+    typeof __DEV__ !== "undefined" &&
+    __DEV__ &&
+    duplicateIds.length > 0
+  ) {
+    const uniqueDupes = Array.from(new Set(duplicateIds));
+    console.warn("[Lectures] duplicate lecture IDs dropped before render", {
+      source,
+      dropped: duplicateIds.length,
+      uniqueDuplicateIds: uniqueDupes.slice(0, 12),
+    });
+  }
+
   return output;
+}
+
+function dedupePrograms(items: HiddenTunesLectureItem[]) {
+  return dedupeLectureItemsById(items, "lecturesCatalogApi");
 }
 
 function assertMetadataOnly(rows: Record<string, unknown>[]) {

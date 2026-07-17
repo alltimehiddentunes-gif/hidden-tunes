@@ -20,6 +20,7 @@ import { LECTURES_DEFAULT_CATEGORY_SLUG } from "@/constants/lecturesCatalog";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { useMountedRef } from "@/hooks/useMountedRef";
 import {
+  dedupeLectureItemsById,
   fetchEducationalCategories,
   fetchEducationalCategoryPage,
   filterEducationalBrowseItems,
@@ -88,13 +89,14 @@ const LaneSection = memo(function LaneSection({
   title: string;
   items: HiddenTunesLectureItem[];
 }) {
-  if (!items.length) return null;
+  const uniqueItems = dedupeLectureItemsById(items, `LaneSection:${title}`);
+  if (!uniqueItems.length) return null;
 
   return (
     <View style={styles.laneSection}>
       <Text style={styles.laneTitle}>{title}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.laneRow}>
-        {items.map((item) => (
+        {uniqueItems.map((item) => (
           <TouchableOpacity
             key={item.id}
             style={styles.laneCard}
@@ -169,7 +171,12 @@ export default function LecturesHomeScreen() {
         const responseItems = filterEducationalBrowseItems(result.items);
 
         if (!mountedRef.current || requestId !== categoryRequestRef.current) return;
-        setItems((current) => (reset ? responseItems : [...current, ...responseItems]));
+        setItems((current) =>
+          dedupeLectureItemsById(
+            reset ? responseItems : [...current, ...responseItems],
+            reset ? "browse:reset" : "browse:append"
+          )
+        );
         setPage(result.pagination.page);
         setHasMore(result.pagination.hasMore);
       } catch (error) {
@@ -205,27 +212,36 @@ export default function LecturesHomeScreen() {
       if (!mountedRef.current || controller.signal.aborted) return;
       setCategories(categoriesResult);
       setFeaturedItems(
-        filterEducationalBrowseItems(featuredResult.items).filter((item) => item.is_featured)
+        dedupeLectureItemsById(
+          filterEducationalBrowseItems(featuredResult.items).filter((item) => item.is_featured),
+          "home:featured"
+        )
       );
       setContinueItems(
-        continueResult.map((entry) => ({
-          id: entry.programId,
-          slug: entry.programId,
-          title: entry.programTitle,
-          artwork_url: entry.programArtwork,
-          instructor_name: entry.educatorName,
-          subtitle: entry.sessionTitle,
-        }))
+        dedupeLectureItemsById(
+          continueResult.map((entry) => ({
+            id: entry.programId,
+            slug: entry.programId,
+            title: entry.programTitle,
+            artwork_url: entry.programArtwork,
+            instructor_name: entry.educatorName,
+            subtitle: entry.sessionTitle,
+          })),
+          "home:continue"
+        )
       );
       setRecentItems(
-        recentResult.map((entry) => ({
-          id: entry.programId,
-          slug: entry.programId,
-          title: entry.programTitle,
-          artwork_url: entry.programArtwork,
-          instructor_name: entry.educatorName,
-          subtitle: entry.sessionTitle,
-        }))
+        dedupeLectureItemsById(
+          recentResult.map((entry) => ({
+            id: entry.programId,
+            slug: entry.programId,
+            title: entry.programTitle,
+            artwork_url: entry.programArtwork,
+            instructor_name: entry.educatorName,
+            subtitle: entry.sessionTitle,
+          })),
+          "home:recent"
+        )
       );
     } catch (error) {
       if (hasAbortError(error)) return;
@@ -255,7 +271,12 @@ export default function LecturesHomeScreen() {
       })
         .then((result) => {
           if (requestId !== searchRequestRef.current) return;
-          setSearchItems(filterEducationalBrowseItems(result.items));
+          setSearchItems(
+            dedupeLectureItemsById(
+              filterEducationalBrowseItems(result.items),
+              "search:reset"
+            )
+          );
           setSearchHasMore(result.pagination.hasMore);
           setSearchPage(result.pagination.page);
         })
@@ -298,7 +319,10 @@ export default function LecturesHomeScreen() {
         .then((result) => {
           if (requestId !== searchPagingRequestRef.current || controller.signal.aborted) return;
           setSearchItems((current) =>
-            filterEducationalBrowseItems([...current, ...result.items])
+            dedupeLectureItemsById(
+              filterEducationalBrowseItems([...current, ...result.items]),
+              "search:append"
+            )
           );
           setSearchHasMore(result.pagination.hasMore);
           setSearchPage(result.pagination.page);
