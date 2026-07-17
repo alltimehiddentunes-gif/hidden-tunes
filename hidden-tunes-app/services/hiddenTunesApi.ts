@@ -431,7 +431,7 @@ function buildArtistsUrl(options?: {
   const page = Math.max(Number(options?.page) || 1, 1);
   const limit = Math.min(
     Math.max(Number(options?.limit) || HIDDEN_TUNES_ARTIST_PAGE_SIZE, 1),
-    500
+    100
   );
   const params = new URLSearchParams({
     limit: String(limit),
@@ -1570,7 +1570,7 @@ export async function getHiddenTunesArtistsPage(options?: {
   const page = Math.max(Number(options?.page) || 1, 1);
   const limit = Math.min(
     Math.max(Number(options?.limit) || HIDDEN_TUNES_ARTIST_PAGE_SIZE, 1),
-    500
+    100
   );
   const query = String(options?.query || "").trim();
   const url = buildArtistsUrl({ page, limit, query });
@@ -1710,27 +1710,14 @@ export async function getHiddenTunesArtistById(id: string) {
   const artistId = cachedArtist?.id || id;
 
   try {
+    // Bounded first page only — never fan out 10×100 song pages on profile open.
     const firstPage = await getHiddenTunesSongsPage({
       page: 1,
-      limit: 100,
+      limit: 20,
       artistId,
     });
 
-    let allTracks = firstPage.songs;
-    let nextPage = firstPage.nextPage;
-    let hasMore = firstPage.hasMore;
-
-    while (hasMore && nextPage <= 10) {
-      const page = await getHiddenTunesSongsPage({
-        page: nextPage,
-        limit: 100,
-        artistId,
-      });
-
-      allTracks = mergeSongPages(allTracks, page.songs);
-      hasMore = page.hasMore;
-      nextPage = page.nextPage;
-    }
+    const allTracks = firstPage.songs;
 
     if (allTracks.length > 0) {
       const [artist] = extractHiddenTunesArtists(allTracks);

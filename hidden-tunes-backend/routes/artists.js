@@ -16,12 +16,18 @@ const router = express.Router();
 const FALLBACK_ARTIST_IMAGE =
   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
 
+/** Max tracks embedded per artist on browse responses (metadata preview only). */
+const MAX_EMBEDDED_TRACKS_PER_ARTIST = 8;
+/** Hard cap on total songs fetched when embedding track previews. */
+const MAX_EMBEDDED_TRACKS_TOTAL = 400;
+
 function asObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
 function normalizeArtist(row, tracks = []) {
   const artwork = row?.image_url || FALLBACK_ARTIST_IMAGE;
+  const safeTracks = Array.isArray(tracks) ? tracks : [];
 
   return {
     id: row.id,
@@ -33,13 +39,17 @@ function normalizeArtist(row, tracks = []) {
     thumbnail: artwork,
     bio: row.bio || "",
     created_at: row.created_at || null,
-    songCount: Array.isArray(tracks) ? tracks.length : 0,
-    tracks: Array.isArray(tracks) ? tracks : [],
+    songCount: Number(row.song_count) > 0 ? Number(row.song_count) : safeTracks.length,
+    tracks: safeTracks,
     albums: [],
   };
 }
 
-function normalizeTrack(row) {
+/**
+ * Browse/list track card — metadata only.
+ * Do not expose stream URLs in artist list payloads; playback uses /api/songs.
+ */
+function normalizeTrackPreview(row) {
   if (!row || typeof row !== "object") return null;
 
   const artists = asObject(row.artists);
@@ -51,8 +61,6 @@ function normalizeTrack(row) {
     albums?.artwork_url ||
     artists?.image_url ||
     FALLBACK_ARTIST_IMAGE;
-
-  const audioUrl = row.audio_url || row.url || null;
 
   return {
     id: row.id,
@@ -67,8 +75,6 @@ function normalizeTrack(row) {
     artwork,
     cover: artwork,
     thumbnail: artwork,
-    url: audioUrl,
-    streamUrl: audioUrl,
     duration: row.duration_seconds || row.duration || null,
     sourceName: "Hidden Tunes",
     type: "r2",
@@ -97,8 +103,6 @@ const TRACK_SELECT_WITH_RELATIONS = `
   mood,
   duration,
   duration_seconds,
-  url,
-  audio_url,
   cover_url,
   artist,
   artist_name,
@@ -130,8 +134,6 @@ const TRACK_SELECT_LITE = `
   mood,
   duration,
   duration_seconds,
-  url,
-  audio_url,
   cover_url,
   artist,
   artist_name,
@@ -150,18 +152,24 @@ async function fetchArtistTracks(artistIds) {
     };
   }
 
+  const fetchLimit = Math.min(
+    MAX_EMBEDDED_TRACKS_TOTAL,
+    Math.max(artistIds.length * MAX_EMBEDDED_TRACKS_PER_ARTIST, MAX_EMBEDDED_TRACKS_PER_ARTIST),
+  );
+
   const relationRequest = supabase
     .from("songs")
     .select(TRACK_SELECT_WITH_RELATIONS)
     .in("artist_id", artistIds)
     .eq("is_public", true)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(fetchLimit);
 
   const relationResult = await relationRequest;
 
   if (!relationResult.error) {
     return {
-      songs: (relationResult.data || []).map(normalizeTrack).filter(Boolean),
+      songs: (relationResult.data || []).map(normalizeTrackPreview).filter(Boolean),
       selectMode: "relations",
       error: null,
     };
@@ -190,11 +198,12 @@ async function fetchArtistTracks(artistIds) {
     .select(TRACK_SELECT_LITE)
     .in("artist_id", artistIds)
     .eq("is_public", true)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(fetchLimit);
 
   if (!liteResult.error) {
     return {
-      songs: (liteResult.data || []).map(normalizeTrack).filter(Boolean),
+      songs: (liteResult.data || []).map(normalizeTrackPreview).filter(Boolean),
       selectMode: "lite",
       error: null,
     };
@@ -267,14 +276,16 @@ router.get("/", async (req, res) => {
       });
     }
 
-    const trackResult = await fetchArtistTracks(artistIds);
-
-    if (trackResult.error) {
-      logApiWarning("GET /api/artists", {
-        warning: "partial_catalog_response_without_tracks",
-        message: trackResult.error.message,
-        selectMode: trackResult.selectMode,
-      });
+    let trackResult = { songs: [], selectMode: "skipped", error: null };
+    if (filters.includeTracks) {
+      trackResult = await fetchArtistTracks(artistIds);
+      if (trackResult.error) {
+        logApiWarning("GET /api/artists", {
+          warning: "partial_catalog_response_without_tracks",
+          message: trackResult.error.message,
+          selectMode: trackResult.selectMode,
+        });
+      }
     }
 
     const songsByArtistId = new Map();
@@ -287,7 +298,10 @@ router.get("/", async (req, res) => {
         songsByArtistId.set(key, []);
       }
 
-      songsByArtistId.get(key).push(song);
+      const bucket = songsByArtistId.get(key);
+      if (bucket.length < MAX_EMBEDDED_TRACKS_PER_ARTIST) {
+        bucket.push(song);
+      }
     });
 
     const normalizedArtists = artists.map((artist) =>
@@ -300,6 +314,7 @@ router.get("/", async (req, res) => {
       trackCount: trackResult.songs.length,
       filters,
       trackSelectMode: trackResult.selectMode,
+      includeTracks: filters.includeTracks,
       partialCatalog: Boolean(trackResult.error),
       cacheState: "live_query",
     });

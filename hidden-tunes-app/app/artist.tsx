@@ -20,6 +20,15 @@ import {
   searchYouTubeBackend,
   BackendYouTubeTrack,
 } from "../services/youtubeBackend";
+import {
+  extractHiddenTunesArtists,
+  getHiddenTunesArtists,
+  getHiddenTunesCatalogSnapshot,
+} from "../services/hiddenTunesApi";
+import {
+  canOpenArtistProfileById,
+  resolveArtistFromList,
+} from "../utils/artistIdentity";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
 
 type AlbumPreview = {
@@ -38,10 +47,49 @@ export default function ArtistScreen() {
 
   const [tracks, setTracks] = useState<BackendYouTubeTrack[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolvingCatalog, setResolvingCatalog] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function resolveCanonicalArtist() {
+      setResolvingCatalog(true);
+      try {
+        const memorySongs = getHiddenTunesCatalogSnapshot();
+        const memoryArtists = memorySongs.length
+          ? extractHiddenTunesArtists(memorySongs)
+          : [];
+        const artists =
+          memoryArtists.length > 0
+            ? memoryArtists
+            : await getHiddenTunesArtists({ forceRefresh: false });
+        if (cancelled) return;
+
+        const match = resolveArtistFromList(artists, artist);
+        if (match?.id && canOpenArtistProfileById(match.id)) {
+          router.replace({
+            pathname: "/artist/[id]",
+            params: { id: String(match.id) },
+          } as any);
+          return;
+        }
+      } catch {
+        // Keep YouTube legacy profile when catalog resolve fails or is ambiguous.
+      } finally {
+        if (!cancelled) setResolvingCatalog(false);
+      }
+    }
+
+    void resolveCanonicalArtist();
+    return () => {
+      cancelled = true;
+    };
+  }, [artist]);
+
+  useEffect(() => {
+    if (resolvingCatalog) return;
     loadArtistTracks();
-  }, [query]);
+  }, [query, resolvingCatalog]);
 
   async function loadArtistTracks() {
     try {
@@ -127,6 +175,17 @@ export default function ArtistScreen() {
         query: `${artist} songs`,
       },
     });
+  }
+
+  if (resolvingCatalog) {
+    return (
+      <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+        <View style={styles.loader}>
+          <ActivityIndicator color={COLORS.primary} />
+          <Text style={styles.loadingText}>Opening artist…</Text>
+        </View>
+      </LinearGradient>
+    );
   }
 
   return (

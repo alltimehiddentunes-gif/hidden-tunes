@@ -46,9 +46,10 @@ export function normalizeSongFilters(query = {}) {
 export function normalizeArtistFilters(query = {}) {
   const search = sanitizeFilterToken(query.q || query.search || "", 80);
 
+  // Align with song pagination: default 48, hard max 100 (was 500).
   const limit = Math.min(
-    Math.max(Number.parseInt(String(query.limit || 100), 10) || 100, 1),
-    500
+    Math.max(Number.parseInt(String(query.limit || 48), 10) || 48, 1),
+    MAX_LIMIT
   );
 
   const page = Math.min(
@@ -56,11 +57,20 @@ export function normalizeArtistFilters(query = {}) {
     MAX_PAGE
   );
 
+  const includeTracksRaw = String(query.includeTracks ?? query.include_tracks ?? "1")
+    .trim()
+    .toLowerCase();
+  const includeTracks =
+    includeTracksRaw === "1" ||
+    includeTracksRaw === "true" ||
+    includeTracksRaw === "yes";
+
   return {
     search,
     limit,
     page,
     offset: (page - 1) * limit,
+    includeTracks,
   };
 }
 

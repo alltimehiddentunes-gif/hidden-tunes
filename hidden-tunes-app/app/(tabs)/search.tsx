@@ -66,6 +66,10 @@ import {
 } from "../../services/hiddenTunesApi";
 import { FALLBACK_ARTWORK, getArtworkUri } from "../../utils/artwork";
 import {
+  canOpenArtistProfileById,
+  resolveArtistFromList,
+} from "../../utils/artistIdentity";
+import {
   logApiRefresh,
   logCacheResult,
   logPerformanceSummary,
@@ -2072,6 +2076,19 @@ export default function SearchScreen() {
         params: {
           id: String((normalized as any).artistId),
         },
+      } as any);
+      return;
+    }
+
+    // Prefer unambiguous catalog UUID over name-only legacy profile.
+    const catalogArtists = extractHiddenTunesArtists(
+      getHiddenTunesCatalogSnapshot(),
+    );
+    const match = resolveArtistFromList(catalogArtists, artist);
+    if (match?.id && canOpenArtistProfileById(match.id)) {
+      router.push({
+        pathname: "/artist/[id]",
+        params: { id: String(match.id) },
       } as any);
       return;
     }

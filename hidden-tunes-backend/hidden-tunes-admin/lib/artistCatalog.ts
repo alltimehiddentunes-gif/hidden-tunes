@@ -889,14 +889,13 @@ export async function loadArtistReleases(
 
   if (result.error) throw new Error(result.error.message);
 
-  const items = (result.data || []).map((row) =>
-    toPublicRelease({
-      ...(row as Record<string, unknown>),
-      release_type: hasReleaseTypeColumn
-        ? (row as Record<string, unknown>).release_type
-        : "unknown",
-    }),
-  );
+  const items = (result.data || []).map((row) => {
+    const record = row as unknown as Record<string, unknown>;
+    return toPublicRelease({
+      ...record,
+      release_type: hasReleaseTypeColumn ? record.release_type : "unknown",
+    });
+  });
 
   return buildContentCursorPage({
     items,
@@ -968,7 +967,15 @@ export async function loadArtistSimilar(
     .order("similar_artist_id", { ascending: true })
     .limit(Math.min(ARTIST_MAX_PAGE_SIZE * 3, 80));
 
-  let rankingRows = data || [];
+  let rankingRows: Array<{
+    similarity_score: unknown;
+    similar_artist_id: unknown;
+    artists: unknown;
+  }> = (data || []) as Array<{
+    similarity_score: unknown;
+    similar_artist_id: unknown;
+    artists: unknown;
+  }>;
   if (error) {
     if (isMissingArtistSchemaError(error)) {
       // Retry with baseline artist embed when extended artist columns are absent.
@@ -999,7 +1006,7 @@ export async function loadArtistSimilar(
         }
         throw new Error(baseline.error.message);
       }
-      rankingRows = baseline.data || [];
+      rankingRows = (baseline.data || []) as typeof rankingRows;
     } else {
       throw new Error(error.message);
     }
