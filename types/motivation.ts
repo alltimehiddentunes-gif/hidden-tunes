@@ -61,6 +61,22 @@ export type MotivationOffsetPagination = {
   hasMore: boolean;
 };
 
+/** Lightweight category-grid card from view=programs. */
+export type MotivationCategoryProgramSummary = {
+  program_id: string | null;
+  title: string;
+  speaker: string | null;
+  organization: string | null;
+  artwork_url: string | null;
+  episode_count: number;
+  category_slug: string | null;
+  first_item_id: string;
+  media_type: string;
+  source: string | null;
+  series_title: string | null;
+  volume_count: number;
+};
+
 export type MotivationCursorPagination = {
   limit: number;
   hasMore: boolean;

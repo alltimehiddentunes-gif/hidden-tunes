@@ -1,6 +1,7 @@
 import { MOTIVATION_CATALOG_BASE_URL } from "@/constants/motivationCatalog";
 import type {
   MotivationCategory,
+  MotivationCategoryProgramSummary,
   MotivationCursorPagination,
   MotivationHomeResponse,
   MotivationItem,
@@ -17,6 +18,7 @@ export const MOTIVATION_PROGRAMS_API_PATH = "/api/motivation/programs";
 export const MOTIVATION_SEARCH_API_PATH = "/api/motivation/search";
 export const MOTIVATION_DEFAULT_PAGE_LIMIT = 40;
 export const MOTIVATION_MAX_PAGE_LIMIT = 40;
+export const MOTIVATION_CATEGORY_PROGRAM_PAGE_LIMIT = 24;
 
 const BLOCKED_BROWSE_KEYS = new Set([
   "audio_url",
@@ -217,6 +219,127 @@ export async function fetchMotivationCategoryPage(
   });
   assertMetadataOnly(body.items || []);
   return { items, pagination: body.pagination };
+}
+
+function normalizeCategoryProgramSummary(
+  raw: Record<string, unknown>
+): MotivationCategoryProgramSummary {
+  const cleaned = stripBrowsableFields(raw);
+  return {
+    program_id: cleanText(cleaned.program_id, 80),
+    title: String(cleaned.title || cleaned.series_title || "Untitled"),
+    speaker: cleanText(cleaned.speaker, 200) || cleanText(cleaned.speaker_name, 200),
+    organization: cleanText(cleaned.organization, 200),
+    artwork_url:
+      cleanText(cleaned.artwork_url, 2000) ||
+      cleanText(cleaned.artwork, 2000) ||
+      cleanText(cleaned.thumbnail_url, 2000),
+    episode_count: Math.max(0, Number(cleaned.episode_count || cleaned.session_count || 0)),
+    category_slug: cleanText(cleaned.category_slug, 120),
+    first_item_id: String(cleaned.first_item_id || cleaned.id || ""),
+    media_type: cleanText(cleaned.media_type, 40) || "audio",
+    source: cleanText(cleaned.source, 80) || cleanText(cleaned.source_type, 80),
+    series_title: cleanText(cleaned.series_title, 240),
+    volume_count: Math.max(1, Number(cleaned.volume_count || 1)),
+  };
+}
+
+function looksLikeProgramSummaryRow(row: Record<string, unknown>) {
+  if (!row || typeof row !== "object") return false;
+  if ("description" in row && String(row.description || "").trim().length > 0) return false;
+  if (Array.isArray(row.items)) return false;
+  const episodeCount = Number(row.episode_count ?? row.session_count);
+  const firstItemId = String(row.first_item_id || "").trim();
+  const title = String(row.title || "").trim();
+  return Number.isFinite(episodeCount) && episodeCount >= 0 && Boolean(title) && Boolean(firstItemId);
+}
+
+/**
+ * Category browse as program summaries (`view=programs`).
+ * Falls back to one bounded legacy episode page when the contract is unavailable.
+ */
+export async function fetchMotivationCategoryPrograms(
+  slug: string,
+  options?: { page?: number; limit?: number; signal?: AbortSignal }
+) {
+  const page = Math.max(1, Number(options?.page || 1));
+  const limit = Math.min(
+    MOTIVATION_CATEGORY_PROGRAM_PAGE_LIMIT,
+    Math.max(1, Number(options?.limit || MOTIVATION_CATEGORY_PROGRAM_PAGE_LIMIT))
+  );
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    view: "programs",
+  });
+  const body = await fetchMotivationJson<{
+    success?: boolean;
+    view?: string;
+    items?: Record<string, unknown>[];
+    pagination?: MotivationOffsetPagination;
+    meta?: { source?: string; rpc_available?: boolean };
+  }>(`${MOTIVATION_CATEGORY_API_PATH}/${encodeURIComponent(slug)}?${params}`, options?.signal);
+
+  const rows = body.items || [];
+  const isProgramView =
+    body.view === "programs" &&
+    (rows.length === 0 || rows.every((row) => looksLikeProgramSummaryRow(row)));
+
+  if (isProgramView) {
+    assertMetadataOnly(rows);
+    return {
+      mode: "programs" as const,
+      items: rows.map(normalizeCategoryProgramSummary),
+      pagination: body.pagination,
+      meta: body.meta || null,
+    };
+  }
+
+  // Older backends ignore view=programs and still return episode rows — reuse them once.
+  const looksLikeEpisodes =
+    rows.length > 0 &&
+    rows.every((row) => {
+      const id = String(row.id || "").trim();
+      const title = String(row.title || "").trim();
+      return Boolean(id && title) && !looksLikeProgramSummaryRow(row);
+    });
+
+  if (looksLikeEpisodes) {
+    if (__DEV__) {
+      console.warn(
+        "[motivation] category view=programs unavailable; using bounded legacy episode page from same response"
+      );
+    }
+    assertMetadataOnly(rows);
+    const items = rows.map((row) => {
+      const item = normalizeItem(row);
+      return item.description ? { ...item, description: null } : item;
+    });
+    return {
+      mode: "legacy" as const,
+      items,
+      pagination: body.pagination,
+      meta: null,
+    };
+  }
+
+  if (__DEV__) {
+    console.warn(
+      "[motivation] category view=programs malformed; requesting bounded legacy episode page"
+    );
+  }
+
+  const legacy = await fetchMotivationCategoryPage(slug, {
+    page,
+    limit: Math.min(MOTIVATION_MAX_PAGE_LIMIT, 40),
+    signal: options?.signal,
+  });
+  return {
+    mode: "legacy" as const,
+    items: legacy.items,
+    pagination: legacy.pagination,
+    meta: null,
+  };
 }
 
 export async function fetchMotivationProgramDetail(

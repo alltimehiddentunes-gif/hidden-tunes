@@ -20,11 +20,11 @@ import AppShell from "@/components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { useMountedRef } from "@/hooks/useMountedRef";
 import {
-  MOTIVATION_DEFAULT_PAGE_LIMIT,
-  fetchMotivationCategoryPage,
+  MOTIVATION_CATEGORY_PROGRAM_PAGE_LIMIT,
+  fetchMotivationCategoryPrograms,
   searchMotivationItems,
 } from "@/services/motivationCatalogApi";
-import type { MotivationItem } from "@/types/motivation";
+import type { MotivationCategoryProgramSummary, MotivationItem } from "@/types/motivation";
 import { formatMotivationCountLabel } from "@/utils/motivationEntity";
 import {
   groupMotivationItemsForCategoryBrowse,
@@ -34,9 +34,13 @@ import {
 } from "@/utils/motivationGrouping";
 
 const SEARCH_DEBOUNCE_MS = 350;
-/** One bounded page — API max is 40 episode rows per request. */
-const PAGE_LIMIT = MOTIVATION_DEFAULT_PAGE_LIMIT;
+const PAGE_LIMIT = MOTIVATION_CATEGORY_PROGRAM_PAGE_LIMIT;
 const CATEGORY_CACHE_TTL_MS = 90_000;
+/** Bump when category cache card shape changes (programs-v1 vs legacy groups). */
+const CATEGORY_CACHE_VERSION = "programs-v1";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type CategoryProgramCard = {
   id: string;
@@ -44,16 +48,18 @@ type CategoryProgramCard = {
   credit: string;
   episodeCount: number;
   artworkUrl: string | null;
+  routeId: string;
 };
 
 type CategoryCacheEntry = {
+  version: string;
   at: number;
   title: string;
-  groups: MotivationGroupedProgram[];
   cards: CategoryProgramCard[];
   page: number;
   hasMore: boolean;
   query: string;
+  mode: "programs" | "legacy";
 };
 
 const categoryUiCache = new Map<string, CategoryCacheEntry>();
@@ -75,21 +81,36 @@ function titleFromSlug(slug: string) {
 }
 
 function cacheKey(slug: string, query: string) {
-  return `${slug}::${query.trim().toLowerCase()}`;
+  return `${CATEGORY_CACHE_VERSION}::${slug}::${query.trim().toLowerCase()}`;
 }
 
-function toProgramCards(groups: MotivationGroupedProgram[]): CategoryProgramCard[] {
+function summaryToCard(summary: MotivationCategoryProgramSummary): CategoryProgramCard {
+  const routeId =
+    (summary.program_id && UUID_RE.test(summary.program_id) && summary.program_id) ||
+    summary.first_item_id;
+  const id = summary.program_id || `item:${summary.first_item_id}`;
+  return {
+    id,
+    title: summary.title,
+    credit:
+      summary.speaker ||
+      summary.organization ||
+      "Hidden Tunes Motivationals",
+    episodeCount: summary.episode_count,
+    artworkUrl: summary.artwork_url,
+    routeId,
+  };
+}
+
+function groupsToCards(groups: MotivationGroupedProgram[]): CategoryProgramCard[] {
   return groups.map((group) => ({
     id: group.id,
     title: group.program.title,
     credit: group.creditName || group.speakerName || "Hidden Tunes Motivationals",
     episodeCount: group.episodeCount,
     artworkUrl: group.program.artwork_url || null,
+    routeId: group.id,
   }));
-}
-
-function groupBrowsePage(items: MotivationItem[]) {
-  return groupMotivationItemsForCategoryBrowse(items);
 }
 
 const ProgramCard = memo(function ProgramCard({
@@ -97,12 +118,9 @@ const ProgramCard = memo(function ProgramCard({
   onPress,
 }: {
   card: CategoryProgramCard;
-  onPress: (id: string) => void;
+  onPress: (routeId: string) => void;
 }) {
-  const meta = [
-    card.credit,
-    formatMotivationCountLabel(card.episodeCount, "episodes"),
-  ]
+  const meta = [card.credit, formatMotivationCountLabel(card.episodeCount, "episodes")]
     .filter(Boolean)
     .join(" · ");
 
@@ -110,7 +128,7 @@ const ProgramCard = memo(function ProgramCard({
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.9}
-      onPress={() => onPress(card.id)}
+      onPress={() => onPress(card.routeId)}
     >
       <HTImage
         uri={card.artworkUrl || undefined}
@@ -152,18 +170,19 @@ export default function MotivationCategoryScreen() {
   const requestTokenRef = useRef(0);
   const skipEmptyBrowseRef = useRef(true);
   const lastAppendPageRef = useRef(0);
-  const groupsRef = useRef<MotivationGroupedProgram[]>([]);
+  const legacyGroupsRef = useRef<MotivationGroupedProgram[]>([]);
   const cardsRef = useRef<CategoryProgramCard[]>([]);
   const pageRef = useRef(1);
   const hasMoreRef = useRef(false);
   const titleRef = useRef("");
   const queryRef = useRef("");
+  const browseModeRef = useRef<"programs" | "legacy">("programs");
 
-  const initialCache = cleanSlug
-    ? categoryUiCache.get(cacheKey(cleanSlug, ""))
-    : undefined;
+  const initialCache = cleanSlug ? categoryUiCache.get(cacheKey(cleanSlug, "")) : undefined;
   const cacheFresh =
-    Boolean(initialCache) && Date.now() - (initialCache?.at || 0) < CATEGORY_CACHE_TTL_MS;
+    Boolean(initialCache) &&
+    initialCache?.version === CATEGORY_CACHE_VERSION &&
+    Date.now() - (initialCache?.at || 0) < CATEGORY_CACHE_TTL_MS;
 
   const [title, setTitle] = useState(
     initialCache?.title || titleFromSlug(cleanSlug) || "Motivation"
@@ -181,9 +200,9 @@ export default function MotivationCategoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (cacheFresh && initialCache && groupsRef.current.length === 0) {
-    groupsRef.current = initialCache.groups;
+  if (cacheFresh && initialCache && cardsRef.current.length === 0) {
     cardsRef.current = initialCache.cards;
+    browseModeRef.current = initialCache.mode;
   }
 
   titleRef.current = title;
@@ -197,48 +216,49 @@ export default function MotivationCategoryScreen() {
 
   const persistCache = useCallback(
     (next: {
-      groups: MotivationGroupedProgram[];
       cards: CategoryProgramCard[];
       page: number;
       hasMore: boolean;
       query: string;
       title: string;
+      mode: "programs" | "legacy";
     }) => {
       if (!cleanSlug) return;
       categoryUiCache.set(cacheKey(cleanSlug, next.query), {
+        version: CATEGORY_CACHE_VERSION,
         at: Date.now(),
         title: next.title,
-        groups: next.groups,
         cards: next.cards,
         page: next.page,
         hasMore: next.hasMore,
         query: next.query,
+        mode: next.mode,
       });
     },
     [cleanSlug]
   );
 
-  const applyGroups = useCallback(
+  const applyCards = useCallback(
     (
-      nextGroups: MotivationGroupedProgram[],
+      nextCards: CategoryProgramCard[],
       nextPage: number,
       nextHasMore: boolean,
       nextQuery: string,
-      nextTitle: string
+      nextTitle: string,
+      mode: "programs" | "legacy"
     ) => {
-      const nextCards = toProgramCards(nextGroups);
-      groupsRef.current = nextGroups;
       cardsRef.current = nextCards;
+      browseModeRef.current = mode;
       setCards(nextCards);
       setPage(nextPage);
       setHasMore(nextHasMore);
       persistCache({
-        groups: nextGroups,
         cards: nextCards,
         page: nextPage,
         hasMore: nextHasMore,
         query: nextQuery,
         title: nextTitle,
+        mode,
       });
     },
     [persistCache]
@@ -265,7 +285,7 @@ export default function MotivationCategoryScreen() {
       const token = ++requestTokenRef.current;
 
       try {
-        const result = await fetchMotivationCategoryPage(cleanSlug, {
+        const result = await fetchMotivationCategoryPrograms(cleanSlug, {
           page: nextPage,
           limit: PAGE_LIMIT,
           signal: controller.signal,
@@ -276,21 +296,43 @@ export default function MotivationCategoryScreen() {
 
         const nextTitle = titleFromSlug(cleanSlug);
         setTitle(nextTitle);
-        const pageGroups = groupBrowsePage(result.items);
         const nextHasMore = Boolean(result.pagination?.hasMore);
-        const merged =
+
+        if (result.mode === "programs") {
+          const pageCards = result.items.map(summaryToCard);
+          const merged =
+            mode === "append" ? [...cardsRef.current, ...pageCards] : pageCards;
+          // Deduplicate by id while preserving order.
+          const seen = new Set<string>();
+          const unique = merged.filter((card) => {
+            if (seen.has(card.id)) return false;
+            seen.add(card.id);
+            return true;
+          });
+          applyCards(unique, nextPage, nextHasMore, "", nextTitle, "programs");
+          return;
+        }
+
+        const pageGroups = groupMotivationItemsForCategoryBrowse(result.items as MotivationItem[]);
+        const mergedGroups =
           mode === "append"
-            ? mergeMotivationProgramGroups(groupsRef.current, pageGroups, { resort: false })
+            ? mergeMotivationProgramGroups(legacyGroupsRef.current, pageGroups, {
+                resort: false,
+              })
             : pageGroups;
-        applyGroups(merged, nextPage, nextHasMore, "", nextTitle);
+        legacyGroupsRef.current = mergedGroups;
+        applyCards(
+          groupsToCards(mergedGroups),
+          nextPage,
+          nextHasMore,
+          "",
+          nextTitle,
+          "legacy"
+        );
       } catch (err) {
         if (!mountedRef.current || token !== requestTokenRef.current || isAbortError(err)) return;
-        if (mode === "append") {
-          lastAppendPageRef.current = 0;
-        }
-        if (mode === "replace") {
-          setError("Couldn't load this category. Pull to retry.");
-        }
+        if (mode === "append") lastAppendPageRef.current = 0;
+        if (mode === "replace") setError("Couldn't load this category. Pull to retry.");
       } finally {
         if (mountedRef.current && token === requestTokenRef.current) {
           setLoading(false);
@@ -300,7 +342,7 @@ export default function MotivationCategoryScreen() {
         }
       }
     },
-    [applyGroups, cleanSlug, mountedRef]
+    [applyCards, cleanSlug, mountedRef]
   );
 
   const loadSearchPage = useCallback(
@@ -335,26 +377,34 @@ export default function MotivationCategoryScreen() {
           return;
         }
 
-        const pageGroups = groupBrowsePage(result.items);
+        const pageGroups = groupMotivationItemsForCategoryBrowse(result.items);
         const nextHasMore = Boolean(
           result.pagination && "hasMore" in result.pagination
             ? result.pagination.hasMore
             : result.items.length >= PAGE_LIMIT
         );
         const nextTitle = titleFromSlug(cleanSlug);
-        const merged =
+        const mergedGroups =
           mode === "append"
-            ? mergeMotivationProgramGroups(groupsRef.current, pageGroups, { resort: false })
+            ? mergeMotivationProgramGroups(legacyGroupsRef.current, pageGroups, {
+                resort: false,
+              })
             : pageGroups;
-        applyGroups(merged, nextPage, nextHasMore, trimmed, nextTitle);
+        legacyGroupsRef.current = mergedGroups;
+        applyCards(
+          groupsToCards(mergedGroups),
+          nextPage,
+          nextHasMore,
+          trimmed,
+          nextTitle,
+          "legacy"
+        );
       } catch (err) {
         if (!mountedRef.current || token !== requestTokenRef.current || isAbortError(err)) return;
-        if (mode === "append") {
-          lastAppendPageRef.current = 0;
-        }
+        if (mode === "append") lastAppendPageRef.current = 0;
         if (mode === "replace") {
           setError("Search failed. Try again.");
-          groupsRef.current = [];
+          legacyGroupsRef.current = [];
           setCards([]);
         }
       } finally {
@@ -365,25 +415,28 @@ export default function MotivationCategoryScreen() {
         }
       }
     },
-    [applyGroups, cleanSlug, mountedRef]
+    [applyCards, cleanSlug, mountedRef]
   );
 
-  // Mount / slug change: restore cache or fetch browse page once.
   useEffect(() => {
     if (!cleanSlug) return;
     skipEmptyBrowseRef.current = true;
     lastAppendPageRef.current = 0;
 
     for (const [key, entry] of categoryUiCache.entries()) {
-      if (!key.startsWith(`${cleanSlug}::`)) continue;
-      if (entry.query.trim().length >= 2 && Date.now() - entry.at < CATEGORY_CACHE_TTL_MS) {
+      if (!key.startsWith(`${CATEGORY_CACHE_VERSION}::${cleanSlug}::`)) continue;
+      if (
+        entry.version === CATEGORY_CACHE_VERSION &&
+        entry.query.trim().length >= 2 &&
+        Date.now() - entry.at < CATEGORY_CACHE_TTL_MS
+      ) {
         setQuery(entry.query);
         setDebouncedQuery(entry.query);
         setTitle(entry.title);
-        groupsRef.current = entry.groups;
         setCards(entry.cards);
         setPage(entry.page);
         setHasMore(entry.hasMore);
+        browseModeRef.current = entry.mode;
         setLoading(false);
         return () => abortRef.current?.abort();
       }
@@ -392,21 +445,21 @@ export default function MotivationCategoryScreen() {
     const browseCached = categoryUiCache.get(cacheKey(cleanSlug, ""));
     if (
       browseCached &&
+      browseCached.version === CATEGORY_CACHE_VERSION &&
       Date.now() - browseCached.at < CATEGORY_CACHE_TTL_MS &&
       browseCached.cards.length
     ) {
       setTitle(browseCached.title);
-      groupsRef.current = browseCached.groups;
       setCards(browseCached.cards);
       setPage(browseCached.page);
       setHasMore(browseCached.hasMore);
+      browseModeRef.current = browseCached.mode;
       setLoading(false);
       return () => abortRef.current?.abort();
     }
 
     void loadBrowsePage(1, "replace");
     return () => abortRef.current?.abort();
-    // Intentionally once per slug.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanSlug]);
 
@@ -428,11 +481,11 @@ export default function MotivationCategoryScreen() {
         return;
       }
       const cached = categoryUiCache.get(cacheKey(cleanSlug, ""));
-      if (cached?.cards.length) {
-        groupsRef.current = cached.groups;
+      if (cached?.cards.length && cached.version === CATEGORY_CACHE_VERSION) {
         setCards(cached.cards);
         setPage(cached.page);
         setHasMore(cached.hasMore);
+        browseModeRef.current = cached.mode;
         setError(null);
         setSearchLoading(false);
         return;
@@ -445,20 +498,20 @@ export default function MotivationCategoryScreen() {
   }, [cleanSlug, debouncedQuery]);
 
   const openProgram = useCallback(
-    (id: string) => {
-      const group = groupsRef.current.find((entry) => entry.id === id);
+    (routeId: string) => {
+      const group = legacyGroupsRef.current.find((entry) => entry.id === routeId);
       if (group) stashMotivationGroupedProgram(group);
       if (cleanSlug) {
         persistCache({
-          groups: groupsRef.current,
           cards: cardsRef.current,
           page: pageRef.current,
           hasMore: hasMoreRef.current,
           query: queryRef.current.trim(),
           title: titleRef.current,
+          mode: browseModeRef.current,
         });
       }
-      router.push(`/motivation/program/${encodeURIComponent(id)}` as never);
+      router.push(`/motivation/program/${encodeURIComponent(routeId)}` as never);
     },
     [cleanSlug, persistCache]
   );
