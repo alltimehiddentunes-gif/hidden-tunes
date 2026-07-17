@@ -305,20 +305,39 @@ export default function MotivationCategoryScreen() {
   );
 
   // Mount / slug change: restore cache or fetch browse page once.
+  // Do not auto-refresh on every visit — that caused duplicate category requests.
   useEffect(() => {
     if (!cleanSlug) return;
     skipEmptyBrowseRef.current = true;
-    const cached = categoryUiCache.get(cacheKey(cleanSlug, ""));
-    if (cached && Date.now() - cached.at < CATEGORY_CACHE_TTL_MS && cached.groups.length) {
-      setTitle(cached.title);
-      setGroups(cached.groups);
-      setPage(cached.page);
-      setHasMore(cached.hasMore);
+
+    for (const [key, entry] of categoryUiCache.entries()) {
+      if (!key.startsWith(`${cleanSlug}::`)) continue;
+      if (entry.query.trim().length >= 2 && Date.now() - entry.at < CATEGORY_CACHE_TTL_MS) {
+        setQuery(entry.query);
+        setDebouncedQuery(entry.query);
+        setTitle(entry.title);
+        setGroups(entry.groups);
+        setPage(entry.page);
+        setHasMore(entry.hasMore);
+        setLoading(false);
+        return () => abortRef.current?.abort();
+      }
+    }
+
+    const browseCached = categoryUiCache.get(cacheKey(cleanSlug, ""));
+    if (
+      browseCached &&
+      Date.now() - browseCached.at < CATEGORY_CACHE_TTL_MS &&
+      browseCached.groups.length
+    ) {
+      setTitle(browseCached.title);
+      setGroups(browseCached.groups);
+      setPage(browseCached.page);
+      setHasMore(browseCached.hasMore);
       setLoading(false);
-      // Quiet background refresh while showing cache.
-      void loadBrowsePage(1, "replace");
       return () => abortRef.current?.abort();
     }
+
     void loadBrowsePage(1, "replace");
     return () => abortRef.current?.abort();
     // Intentionally once per slug.
@@ -400,87 +419,74 @@ export default function MotivationCategoryScreen() {
     [openProgram]
   );
 
-  const listHeader = useMemo(
-    () => (
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={goBackWithinMotivation}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>Programs and series in this category</Text>
-        <View style={styles.searchWrap}>
-          <Ionicons name="search" size={18} color={COLORS.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder={`Search within ${title}`}
-            placeholderTextColor={COLORS.textMuted}
-            style={styles.searchInput}
-            autoCorrect={false}
-            returnKeyType="search"
-            accessibilityLabel={`Search within ${title}`}
-          />
-          {query ? (
-            <TouchableOpacity
-              onPress={() => {
-                setQuery("");
-                setDebouncedQuery("");
-              }}
-              hitSlop={8}
-              accessibilityLabel="Clear search"
-            >
-              <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          ) : null}
-          {searchLoading ? <ActivityIndicator size="small" color={COLORS.primary} /> : null}
-        </View>
-        {error ? (
-          <TouchableOpacity
-            style={styles.errorBanner}
-            onPress={() => {
-              if (isSearching) void loadSearchPage(1, "replace", debouncedQuery);
-              else {
-                setRefreshing(true);
-                void loadBrowsePage(1, "replace");
-              }
-            }}
-          >
-            <Text style={styles.errorText}>{error}</Text>
-            <Text style={styles.retryText}>Tap to retry</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
-    ),
-    [
-      debouncedQuery,
-      error,
-      isSearching,
-      loadBrowsePage,
-      loadSearchPage,
-      query,
-      searchLoading,
-      title,
-    ]
-  );
-
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
+        {/* Fixed shell — search must never depend on list scroll position. */}
+        <View style={styles.shell}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={goBackWithinMotivation}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>Programs and series in this category</Text>
+          <View style={styles.searchWrap}>
+            <Ionicons name="search" size={18} color={COLORS.textMuted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={`Search within ${title}`}
+              placeholderTextColor={COLORS.textMuted}
+              style={styles.searchInput}
+              autoCorrect={false}
+              returnKeyType="search"
+              accessibilityLabel={`Search within ${title}`}
+            />
+            {query ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setQuery("");
+                  setDebouncedQuery("");
+                }}
+                hitSlop={8}
+                accessibilityLabel="Clear search"
+              >
+                <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+              </TouchableOpacity>
+            ) : null}
+            {searchLoading ? <ActivityIndicator size="small" color={COLORS.primary} /> : null}
+          </View>
+          {error ? (
+            <TouchableOpacity
+              style={styles.errorBanner}
+              onPress={() => {
+                if (isSearching) void loadSearchPage(1, "replace", debouncedQuery);
+                else {
+                  setRefreshing(true);
+                  void loadBrowsePage(1, "replace");
+                }
+              }}
+            >
+              <Text style={styles.errorText}>{error}</Text>
+              <Text style={styles.retryText}>Tap to retry</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
         <FlatList
           data={groups}
           numColumns={2}
           key="motivation-category-programs"
+          style={styles.list}
           columnWrapperStyle={styles.columnWrap}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
           renderItem={renderItem}
-          ListHeaderComponent={listHeader}
           refreshControl={
             isSearching ? undefined : (
               <RefreshControl
@@ -529,9 +535,14 @@ export default function MotivationCategoryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: 12 },
+  shell: {
+    paddingTop: 56,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
+  list: { flex: 1 },
+  content: { paddingHorizontal: 12, paddingTop: 6 },
   columnWrap: { gap: 12, marginBottom: 12 },
-  header: { paddingTop: 56, paddingHorizontal: 4, paddingBottom: 16 },
   backButton: {
     width: 44,
     height: 44,
