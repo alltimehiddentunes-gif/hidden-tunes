@@ -5,10 +5,12 @@ import {
   ARTIST_MAX_PAGE_SIZE,
   clampArtistPageSize,
   isArtistUuid,
+  isMissingArtistSchemaError,
   toPublicRelease,
   toPublicSong,
 } from "../lib/artistCatalog";
 import { decodeContentCursor, encodeContentCursor } from "../lib/contentEngine/pagination";
+import { validateArtistRefParam } from "../lib/artistPublicApi";
 
 function main() {
   assert.equal(isArtistUuid(""), false);
@@ -19,6 +21,38 @@ function main() {
   assert.equal(clampArtistPageSize(0), ARTIST_DEFAULT_PAGE_SIZE);
   assert.equal(clampArtistPageSize(100), ARTIST_MAX_PAGE_SIZE);
   assert.equal(clampArtistPageSize(25), 25);
+
+  assert.equal(
+    isMissingArtistSchemaError({
+      code: "42703",
+      message: "column artists.status does not exist",
+    }),
+    true,
+  );
+  assert.equal(
+    isMissingArtistSchemaError({
+      code: "PGRST205",
+      message: "Could not find the table",
+    }),
+    true,
+  );
+  assert.equal(
+    isMissingArtistSchemaError({
+      code: "22P02",
+      message: "invalid input",
+    }),
+    false,
+  );
+
+  const validRef = validateArtistRefParam("550e8400-e29b-41d4-a716-446655440000");
+  assert.equal(validRef.ref, "550e8400-e29b-41d4-a716-446655440000");
+  assert.equal(validRef.error, undefined);
+
+  const emptyRef = validateArtistRefParam("   ");
+  assert.ok(emptyRef.error);
+
+  const malformedUuid = validateArtistRefParam("550e8400-e29b-61d4-a716-446655440000");
+  assert.ok(malformedUuid.error);
 
   const song = toPublicSong({
     id: "song-1",

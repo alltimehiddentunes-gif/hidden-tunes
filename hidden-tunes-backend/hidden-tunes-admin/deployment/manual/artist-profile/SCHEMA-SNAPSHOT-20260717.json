@@ -1,0 +1,66 @@
+{
+  "captured_at": "2026-07-17T13:45:00.000Z",
+  "workspace": "C:\\Users\\Wills\\Desktop\\HiddenTunes",
+  "branch": "artist-profile-completion",
+  "head": "0b8d788419d038ad9a49343e88f957c980430086",
+  "supabase_host": "kojcyswxfuikxmqntwye.supabase.co",
+  "root_cause": "Artist Profile migration 20260713150000 was not applied. Extended artists columns and all artist_* profile tables are missing.",
+  "artists_baseline_columns_ok": [
+    "id",
+    "name",
+    "slug",
+    "image_url",
+    "bio",
+    "created_at"
+  ],
+  "artists_extended_columns_missing": [
+    "status",
+    "is_verified",
+    "is_featured",
+    "is_suspended",
+    "explicit_rating",
+    "country_code",
+    "hometown",
+    "debut_year",
+    "website_url",
+    "profile_published_at",
+    "merged_into_artist_id",
+    "featured_release_id",
+    "updated_at"
+  ],
+  "artist_profile_tables_missing": [
+    "artist_aliases",
+    "artist_external_ids",
+    "artist_images",
+    "artist_genres",
+    "artist_statistics",
+    "artist_followers",
+    "artist_biography_sections",
+    "artist_external_links",
+    "artist_profile_sections",
+    "artist_collaborations",
+    "artist_relationships",
+    "artist_similar_scores",
+    "artist_song_rankings",
+    "artist_videos",
+    "artist_credits",
+    "artist_emotional_worlds",
+    "artist_related_content",
+    "artist_merges",
+    "artist_claims",
+    "artist_audit_logs",
+    "artist_rights_availability"
+  ],
+  "existing_catalog_tables_ok": ["artists", "songs", "albums"],
+  "production_admin_api_before_fix": {
+    "host": "https://admin.hiddentunes.com",
+    "shell": "HTTP 500 Failed to load artist profile.",
+    "sections": "HTTP 500",
+    "invalid_or_follow": "HTTP 500 (incorrect; should be 404/401)"
+  },
+  "notes": [
+    "Read-only probe only. No schema writes were performed during snapshot capture.",
+    "Apply supabase/migrations/20260713150000_artist_profile_infrastructure.sql via scripts/apply-artist-profile-migration.mjs when DATABASE_URL or SUPABASE_ACCESS_TOKEN is available.",
+    "Code hardening in lib/artistCatalog.ts allows degraded 200 responses using baseline artists + songs/albums even before migration."
+  ]
+}

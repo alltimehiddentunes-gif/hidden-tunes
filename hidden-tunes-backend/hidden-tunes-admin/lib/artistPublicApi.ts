@@ -56,6 +56,34 @@ export function artistListResponse(items: unknown[], pagination: { hasMore: bool
 }
 
 export function artistErrorResponse(error: unknown, fallback: string, status = 500) {
-  console.error(`[artists] ${fallback}`, serializeArtistError(error));
-  return jsonArtistError(fallback, status, error);
+  const message = serializeArtistError(error);
+  console.error(`[artists] ${fallback}`, message);
+
+  const statusFromError =
+    error && typeof error === "object" && "status" in error
+      ? Number((error as { status?: unknown }).status)
+      : NaN;
+  const resolvedStatus = Number.isFinite(statusFromError) && statusFromError >= 400
+    ? statusFromError
+    : status;
+
+  return jsonArtistError(fallback, resolvedStatus, {
+    message,
+  });
+}
+
+export function validateArtistRefParam(ref: string) {
+  const key = String(ref || "").trim();
+  if (!key) {
+    return { error: jsonArtistError("Artist reference is required.", 400) };
+  }
+
+  // UUID-shaped but not a valid RFC UUID → 400 (do not treat as slug).
+  const looseUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+  if (looseUuid && !isArtistUuid(key)) {
+    return { error: jsonArtistError("Invalid artist UUID.", 400) };
+  }
+
+  return { ref: key };
 }
