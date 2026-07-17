@@ -10,6 +10,8 @@ export type HomeMoreHubShortcut = {
   subtitle: string;
   route: string;
   color: string;
+  /** When true, card stays visible but must not navigate (no route screen yet). */
+  disabled?: boolean;
 };
 
 export const HOME_MORE_HUB_SHORTCUTS: HomeMoreHubShortcut[] = [
