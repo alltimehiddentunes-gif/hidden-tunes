@@ -305,10 +305,14 @@ export async function playMotivationProgramItem(input: {
   page?: number;
   hasMore?: boolean;
 }) {
-  return MotivationPlaybackController.playItem({
+  const ok = await MotivationPlaybackController.playItem({
     ...input,
     contextType: input.contextType || "program",
   });
+  if (!ok) {
+    throw new Error("Couldn't resolve a playable Motivationals stream.");
+  }
+  return ok;
 }
 
 export function motivationSongNeedsResolve(song?: AppSong | null) {

@@ -23,8 +23,15 @@ export function isMotivationItemAppSong(song?: AppSong | null) {
 }
 
 export function isMotivationAudioPlayback(mediaType: string, playableUrl: string) {
-  if (String(mediaType || "").toLowerCase() === "audio") return true;
-  return /^https:\/\/.+\.(mp3|m4a|aac|wav|ogg)(?:\?|$)/i.test(String(playableUrl || ""));
+  const type = String(mediaType || "").toLowerCase();
+  const url = String(playableUrl || "");
+  if (!url.startsWith("http")) return false;
+  // Shared HiddenAudio path can play progressive audio and progressive mp4 audio tracks.
+  if (type === "audio") return true;
+  if (/\.(mp3|m4a|aac|wav|ogg|flac)(?:\?|$)/i.test(url)) return true;
+  if (/\.(mp4|m4v)(?:\?|$)/i.test(url)) return true;
+  if (type === "video" && /archive\.org\/download\//i.test(url)) return true;
+  return false;
 }
 
 export function motivationItemToAppSong(

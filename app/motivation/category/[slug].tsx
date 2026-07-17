@@ -21,6 +21,7 @@ import {
   fetchMotivationCategoryPage,
   MOTIVATION_DEFAULT_PAGE_LIMIT,
 } from "@/services/motivationCatalogApi";
+import { formatMotivationCountLabel } from "@/utils/motivationEntity";
 import {
   groupMotivationItemsIntoPrograms,
   stashMotivationGroupedProgram,
@@ -47,8 +48,8 @@ const ProgramCard = memo(function ProgramCard({
   onPress: () => void;
 }) {
   const meta = [
-    group.speakerName,
-    group.episodeCount > 1 ? `${group.episodeCount} episodes` : "1 episode",
+    group.creditName || group.speakerName || "Hidden Tunes Motivationals",
+    formatMotivationCountLabel(group.episodeCount, "episodes"),
   ]
     .filter(Boolean)
     .join(" · ");

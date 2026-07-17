@@ -43,6 +43,7 @@ const MINI_PLAYER_ROUTES = [
   "/lyrics",
   "/player",
   "/cloud-playlists",
+  "/motivation",
 ] as const;
 
 function isActiveRoute(pathname: string, item: AppNavigationItem) {

@@ -1,5 +1,12 @@
 import type { MotivationItem, MotivationProgram } from "@/types/motivation";
 import {
+  classifyMotivationEntityName,
+  entityIdForName,
+  isOrganizationEntityKind,
+  isSpeakerEntityKind,
+  type MotivationEntity,
+} from "@/utils/motivationEntity";
+import {
   extractEpisodeNumberFromTitle,
   extractMotivationProgramTitle,
   extractVolumeNumberFromTitle,
@@ -23,11 +30,14 @@ export type MotivationGroupedProgram = {
   items: MotivationItem[];
   volumes: MotivationVolumeGroup[];
   speakerName: string | null;
+  creditName: string | null;
+  creditKind: "speaker" | "organization" | "unknown";
   episodeCount: number;
   isSynthetic: boolean;
 };
 
 const programStash = new Map<string, MotivationGroupedProgram>();
+const entityStash = new Map<string, MotivationEntity & { programIds: string[]; items: MotivationItem[] }>();
 
 export function stashMotivationGroupedProgram(group: MotivationGroupedProgram) {
   programStash.set(group.id, group);
@@ -35,6 +45,22 @@ export function stashMotivationGroupedProgram(group: MotivationGroupedProgram) {
 
 export function takeMotivationGroupedProgram(id: string) {
   return programStash.get(id) || null;
+}
+
+export function stashMotivationEntity(
+  entity: MotivationEntity & { programIds: string[]; items: MotivationItem[] }
+) {
+  entityStash.set(entity.id, entity);
+}
+
+export function takeMotivationEntity(id: string) {
+  return entityStash.get(id) || null;
+}
+
+export function listStashedMotivationEntities(kind: "speaker" | "organization") {
+  return [...entityStash.values()].filter((entity) =>
+    kind === "speaker" ? isSpeakerEntityKind(entity.kind) : isOrganizationEntityKind(entity.kind)
+  );
 }
 
 export function enrichMotivationItem(item: MotivationItem): MotivationItem {
@@ -133,12 +159,21 @@ export function groupMotivationItemsIntoPrograms(
     const seed = ordered[0];
     if (!seed) continue;
     const programTitle = extractMotivationProgramTitle(seed.title);
-    const speaker = seed.speaker_name || seed.channel_name || null;
+    const rawCredit = seed.speaker_name || seed.channel_name || null;
+    const classified = classifyMotivationEntityName(rawCredit);
+    const creditKind =
+      classified.kind === "speaker"
+        ? ("speaker" as const)
+        : classified.displayName
+          ? ("organization" as const)
+          : ("unknown" as const);
+    const creditName =
+      creditKind === "unknown" ? null : classified.displayName || rawCredit;
     const isSynthetic = !seed.program_id || !key.startsWith("program:");
-    const id = seed.program_id && key.startsWith("program:")
-      ? seed.program_id
-      : syntheticProgramId(programTitle, speaker, seed.id);
-
+    const id =
+      seed.program_id && key.startsWith("program:")
+        ? seed.program_id
+        : syntheticProgramId(programTitle, creditName || rawCredit, seed.id);
     const totalDuration = ordered.reduce(
       (sum, item) => sum + Math.max(0, Number(item.duration_seconds || 0)),
       0
@@ -148,7 +183,7 @@ export function groupMotivationItemsIntoPrograms(
       id,
       slug: slugifyMotivationKey(programTitle) || id,
       title: programTitle,
-      subtitle: speaker,
+      subtitle: creditName,
       description: seed.description || null,
       category_slug: seed.category_slug || null,
       artwork_url: seed.artwork || null,
@@ -166,7 +201,9 @@ export function groupMotivationItemsIntoPrograms(
       program,
       items: ordered,
       volumes: buildVolumes(ordered),
-      speakerName: speaker,
+      speakerName: creditKind === "speaker" ? creditName : null,
+      creditName,
+      creditKind,
       episodeCount: ordered.length,
       isSynthetic,
     };
@@ -178,6 +215,98 @@ export function groupMotivationItemsIntoPrograms(
     if (b.episodeCount !== a.episodeCount) return b.episodeCount - a.episodeCount;
     return naturalCompareMotivation(a.program.title, b.program.title);
   });
+}
+
+export function collectEntitiesFromGroups(
+  groups: MotivationGroupedProgram[],
+  options?: { speakersLimit?: number; organizationsLimit?: number; minEpisodesForSpeaker?: number }
+) {
+  const speakersLimit = options?.speakersLimit ?? 8;
+  const organizationsLimit = options?.organizationsLimit ?? 6;
+  const minEpisodesForSpeaker = options?.minEpisodesForSpeaker ?? 2;
+
+  const map = new Map<
+    string,
+    MotivationEntity & { programIds: Set<string>; items: MotivationItem[] }
+  >();
+
+  for (const group of groups) {
+    const raw = group.creditName || group.speakerName;
+    if (!raw) continue;
+    const classified = classifyMotivationEntityName(raw);
+    if (classified.kind === "unknown" || !classified.displayName) continue;
+    const id = entityIdForName(classified.displayName, classified.kind);
+    const existing = map.get(id);
+    if (existing) {
+      existing.episodeCount += group.episodeCount;
+      existing.programCount += 1;
+      existing.programIds.add(group.id);
+      existing.items.push(...group.items);
+      if (!existing.artwork && group.program.artwork_url) {
+        existing.artwork = group.program.artwork_url;
+      }
+    } else {
+      map.set(id, {
+        id,
+        name: raw,
+        displayName: classified.displayName,
+        kind: classified.kind,
+        episodeCount: group.episodeCount,
+        programCount: 1,
+        artwork: group.program.artwork_url,
+        programIds: new Set([group.id]),
+        items: [...group.items],
+      });
+    }
+  }
+
+  const all = [...map.values()].map((entry) => {
+    const entity = {
+      id: entry.id,
+      name: entry.name,
+      displayName: entry.displayName,
+      kind: entry.kind,
+      episodeCount: entry.episodeCount,
+      programCount: entry.programCount,
+      artwork: entry.artwork,
+      programIds: [...entry.programIds],
+      items: entry.items,
+    };
+    stashMotivationEntity(entity);
+    return entity;
+  });
+
+  const speakers = all
+    .filter((entity) => isSpeakerEntityKind(entity.kind))
+    .filter((entity) => entity.episodeCount >= minEpisodesForSpeaker || entity.programCount >= 2)
+    .sort(
+      (a, b) =>
+        b.programCount - a.programCount ||
+        b.episodeCount - a.episodeCount ||
+        naturalCompareMotivation(a.displayName, b.displayName)
+    );
+
+  const organizations = all
+    .filter((entity) => isOrganizationEntityKind(entity.kind))
+    .sort(
+      (a, b) =>
+        b.episodeCount - a.episodeCount ||
+        naturalCompareMotivation(a.displayName, b.displayName)
+    );
+
+  return {
+    speakers: speakers.slice(0, speakersLimit),
+    organizations: organizations.slice(0, organizationsLimit),
+    allSpeakers: speakers,
+    allOrganizations: organizations,
+    stats: {
+      humanSpeakers: speakers.length,
+      organizations: organizations.length,
+      oneItemSpeakers: all.filter(
+        (entity) => isSpeakerEntityKind(entity.kind) && entity.episodeCount === 1
+      ).length,
+    },
+  };
 }
 
 export function rankMotivationSearchResults(items: MotivationItem[], query: string) {
@@ -212,23 +341,11 @@ export function rankMotivationSearchResults(items: MotivationItem[], query: stri
     .map((row) => row.item);
 }
 
+/** @deprecated Use collectEntitiesFromGroups */
 export function collectSpeakersFromGroups(groups: MotivationGroupedProgram[], limit = 24) {
-  const counts = new Map<string, { name: string; count: number; artwork?: string | null }>();
-  for (const group of groups) {
-    const name = group.speakerName?.trim();
-    if (!name) continue;
-    const existing = counts.get(name.toLowerCase());
-    if (existing) {
-      existing.count += group.episodeCount;
-    } else {
-      counts.set(name.toLowerCase(), {
-        name,
-        count: group.episodeCount,
-        artwork: group.program.artwork_url,
-      });
-    }
-  }
-  return [...counts.values()]
-    .sort((a, b) => b.count - a.count || naturalCompareMotivation(a.name, b.name))
-    .slice(0, limit);
+  return collectEntitiesFromGroups(groups, { speakersLimit: limit }).speakers.map((speaker) => ({
+    name: speaker.displayName,
+    count: speaker.episodeCount,
+    artwork: speaker.artwork,
+  }));
 }
