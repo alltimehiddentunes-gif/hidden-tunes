@@ -53,25 +53,26 @@ export function isSportsClientEnabled(
   return SPORTS_CLIENT_FLAGS[key];
 }
 
-/**
- * Full Sports UI is available only when the pilot stack is explicitly enabled.
- * Never auto-enables in production builds.
- */
+/** Named flag readers for hub visibility / diagnostics. Defaults remain false. */
+export const sportsEnabled = isSportsClientEnabled("sports_enabled");
+export const sportsMobilePilotEnabled = isSportsClientEnabled(
+  "sports_mobile_pilot_enabled"
+);
+export const sportsFullUiEnabled = isSportsClientEnabled("sports_full_ui_enabled");
+
 export function isSportsFullUiEnabled(): boolean {
-  return (
-    isSportsClientEnabled("sports_enabled") &&
-    isSportsClientEnabled("sports_mobile_pilot_enabled") &&
-    isSportsClientEnabled("sports_full_ui_enabled")
-  );
+  return sportsEnabled && sportsMobilePilotEnabled && sportsFullUiEnabled;
 }
 
 /**
  * Development fixture mode — impossible outside __DEV__.
- * Also requires EXPO_PUBLIC_SPORTS_USE_DEV_FIXTURES=true.
+ * Controls fixture data only, not whether Sports Preview is shown.
  */
 export function isSportsDevFixturesEnabled(): boolean {
   if (typeof __DEV__ === "undefined" || !__DEV__) return false;
   const envVal = process.env.EXPO_PUBLIC_SPORTS_USE_DEV_FIXTURES;
   return envVal === "1" || envVal === "true";
 }
+
+export const sportsUseDevFixtures = isSportsDevFixturesEnabled();
 

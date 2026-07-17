@@ -33,19 +33,25 @@ import {
 } from "../constants/theme";
 import AppShell from "../components/navigation/AppShell";
 import { HOME_MORE_HUB_SHORTCUTS } from "../constants/homeMoreHub";
-import { isSportsClientEnabled } from "../constants/sportsFlags";
+import {
+  sportsEnabled,
+  sportsFullUiEnabled,
+  sportsMobilePilotEnabled,
+  sportsUseDevFixtures,
+} from "../constants/sportsFlags";
 import { useLocalization } from "../localization";
 import type { TranslationKey } from "../localization";
 
 /**
  * Dev-only Sports Preview entry. Never added to HOME_MORE_HUB_SHORTCUTS.
- * Visible only when mobile pilot + full UI flags are explicitly enabled in __DEV__.
+ * Fixture flag controls data only — not whether this navigation card appears.
  */
 function isSportsPreviewVisible(): boolean {
   return (
     __DEV__ &&
-    isSportsClientEnabled("sports_mobile_pilot_enabled") &&
-    isSportsClientEnabled("sports_full_ui_enabled")
+    sportsEnabled &&
+    sportsMobilePilotEnabled &&
+    sportsFullUiEnabled
   );
 }
 
@@ -229,6 +235,17 @@ function LibraryRecentLink({ label }: { label: string }) {
 
 export default function LibraryScreen() {
   const { t } = useLocalization();
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    console.log("[Sports Preview flags]", {
+      sportsEnabled,
+      sportsMobilePilotEnabled,
+      sportsFullUiEnabled,
+      sportsUseDevFixtures,
+      showSportsPreview: isSportsPreviewVisible(),
+    });
+  }, []);
 
   const libraryGroups = useMemo<LibraryGroup[]>(
     () => [
