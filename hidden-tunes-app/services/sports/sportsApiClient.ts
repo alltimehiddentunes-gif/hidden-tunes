@@ -72,6 +72,77 @@ export async function fetchSportsHome(
   );
 }
 
+export async function fetchSportsVideos(
+  options: FetchOptions & { page?: number; limit?: number } = {}
+): Promise<{
+  success: boolean;
+  enabled?: boolean;
+  items?: Array<Record<string, unknown>>;
+  pagination?: { page: number; limit: number; hasMore: boolean };
+}> {
+  const page = options.page || 1;
+  const limit = options.limit || SPORTS_DEFAULT_PAGE_LIMIT;
+  const country = options.country || "ZZ";
+  const platform = options.platform || "ios";
+  return dedupe(`videos:${page}:${limit}:${country}:${platform}`, () =>
+    sportsFetch(`/api/sports/videos?page=${page}&limit=${limit}`, {
+      signal: options.signal,
+      country,
+      platform,
+    })
+  );
+}
+
+export async function resolveSportsVideoPlayback(input: {
+  videoId: string;
+  platform: string;
+  country: string;
+  signal?: AbortSignal;
+}): Promise<{
+  success: boolean;
+  playback?: SportsPlaybackResult;
+  code?: string;
+  error?: string;
+  title?: string;
+}> {
+  if (!isSportsClientEnabled("sports_enabled")) {
+    return {
+      success: false,
+      code: "FEATURE_DISABLED",
+      error: "Sports is disabled.",
+    };
+  }
+
+  return dedupe(
+    `video-play:${input.videoId}:${input.platform}:${input.country}`,
+    async () => {
+      const response = await fetch(
+        `${SPORTS_CATALOG_BASE_URL}/api/sports/videos/${encodeURIComponent(input.videoId)}/play`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-ht-platform": input.platform,
+          },
+          body: JSON.stringify({
+            platform: input.platform,
+            country: input.country,
+          }),
+          signal: input.signal,
+          cache: "no-store",
+        }
+      );
+      return (await response.json()) as {
+        success: boolean;
+        playback?: SportsPlaybackResult;
+        code?: string;
+        error?: string;
+        title?: string;
+      };
+    }
+  );
+}
+
 export async function resolveSportsBroadcastPlayback(input: {
   broadcastId: string;
   platform: string;
@@ -79,9 +150,18 @@ export async function resolveSportsBroadcastPlayback(input: {
   deviceId?: string;
   appVersion?: string;
   signal?: AbortSignal;
-}): Promise<{ success: boolean; playback?: SportsPlaybackResult; code?: string; error?: string }> {
+}): Promise<{
+  success: boolean;
+  playback?: SportsPlaybackResult;
+  code?: string;
+  error?: string;
+}> {
   if (!isSportsClientEnabled("sports_enabled")) {
-    return { success: false, code: "FEATURE_DISABLED", error: "Sports is disabled." };
+    return {
+      success: false,
+      code: "FEATURE_DISABLED",
+      error: "Sports is disabled.",
+    };
   }
 
   return dedupe(

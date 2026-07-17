@@ -1,7 +1,8 @@
-export { sportsQueryKeys } from "./sportsQueryKeys";
 export {
   fetchSportsHome,
+  fetchSportsVideos,
   resolveSportsBroadcastPlayback,
+  resolveSportsVideoPlayback,
   SPORTS_CATALOG_BASE_URL,
 } from "./sportsApiClient";
 export { resolveSportsPlayback } from "./sportsPlaybackResolver";
@@ -11,3 +12,4 @@ export {
   upsertSportsContinueWatching,
   getSportsContinueWatching,
 } from "./sportsWatchHistory";
+export { sportsQueryKeys } from "./sportsQueryKeys";
