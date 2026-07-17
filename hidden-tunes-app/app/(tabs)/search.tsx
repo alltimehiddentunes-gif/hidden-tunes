@@ -2370,12 +2370,19 @@ export default function SearchScreen() {
                       key={String(artist.id || artist.name)}
                       activeOpacity={0.86}
                       style={styles.premiumEmptyChip}
-                      onPress={() =>
+                      onPress={() => {
+                        if (artist.id) {
+                          router.push({
+                            pathname: "/artist/[id]",
+                            params: { id: String(artist.id) },
+                          } as any);
+                          return;
+                        }
                         router.push({
-                          pathname: "/artist/[id]",
-                          params: { id: String(artist.id || artist.name) },
-                        } as any)
-                      }
+                          pathname: "/artist",
+                          params: { artist: String(artist.name || "") },
+                        } as any);
+                      }}
                     >
                       <Text style={styles.premiumEmptyChipText}>
                         {artist.name}
@@ -2588,14 +2595,16 @@ export default function SearchScreen() {
                 <TouchableOpacity
                   key={String(artist.id || artist.artistId || index)}
                   style={styles.cloudCard}
-                  onPress={() =>
+                  onPress={() => {
+                    const artistId = String(artist.id || artist.artistId || "").trim();
+                    if (!artistId) return;
                     router.push({
                       pathname: "/artist/[id]",
                       params: {
-                        id: String(artist.id || artist.artistId || index),
+                        id: artistId,
                       },
-                    } as any)
-                  }
+                    } as any);
+                  }}
                 >
                   <MediaCard
                     title={artist.name || "Artist"}

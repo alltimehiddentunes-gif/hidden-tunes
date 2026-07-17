@@ -474,14 +474,16 @@ export default function AlbumScreen() {
 
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() =>
+                disabled={!album.artistId}
+                onPress={() => {
+                  if (!album.artistId) return;
                   router.push({
                     pathname: "/artist/[id]",
                     params: {
-                      id: album.artistId || album.artist,
+                      id: String(album.artistId),
                     },
-                  } as any)
-                }
+                  } as any);
+                }}
               >
                 <Text style={styles.artist}>{album.artist}</Text>
               </TouchableOpacity>

@@ -53,6 +53,10 @@ import {
   loadArtistDetailSnapshot,
   saveArtistDetailSnapshot,
 } from "../../utils/detailSnapshots";
+import {
+  canOpenArtistProfileById,
+  resolveArtistFromList,
+} from "../../utils/artistIdentity";
 
 function getArtwork(item: any) {
   return getArtworkUri(item);
@@ -99,27 +103,9 @@ function safeSong(song: HiddenTunesNormalizedSong): HiddenTunesNormalizedSong {
   };
 }
 
-function normalizeLookup(value: unknown) {
-  return String(value || "")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
 function findArtistById(artists: HiddenTunesArtist[], id: string) {
-  const cleanId = normalizeLookup(id);
-
-  return (
-    artists.find(
-      (artist) =>
-        artist.id === id ||
-        normalizeLookup(artist.id) === cleanId ||
-        normalizeLookup(artist.slug) === cleanId ||
-        normalizeLookup(artist.name) === cleanId
-    ) || null
-  );
+  if (!canOpenArtistProfileById(id)) return null;
+  return resolveArtistFromList(artists, id);
 }
 
 export default function ArtistScreen() {

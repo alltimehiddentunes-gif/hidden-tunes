@@ -2976,6 +2976,16 @@
   color: var(--text-primary);
 }
 
+.detail-pill--link {
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.detail-pill--link:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .detail-pill--muted {
   color: var(--text-secondary);
 }

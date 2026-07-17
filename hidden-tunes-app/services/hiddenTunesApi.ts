@@ -19,6 +19,7 @@ import {
 } from "../utils/backgroundWork";
 import { isAppActiveForWork } from "../utils/performanceMode";
 import { scheduleStartupTask } from "../utils/startupScheduler";
+import { resolveArtistFromList } from "../utils/artistIdentity";
 
 function logHiddenTunesDev(message: string, ...details: unknown[]) {
   if (typeof __DEV__ !== "undefined" && __DEV__) {
@@ -1697,16 +1698,10 @@ export async function searchHiddenTunesSongsPage(
 
 export async function getHiddenTunesArtistById(id: string) {
   const artists = await getHiddenTunesArtists({ forceRefresh: false });
-  const cleanId = slugify(id);
-  const cachedArtist =
-    artists.find(
-      (artist) =>
-        artist.id === id ||
-        slugify(artist.id) === cleanId ||
-        artist.slug === cleanId ||
-        slugify(artist.name) === cleanId
-    ) || null;
-  const artistId = cachedArtist?.id || id;
+  const cachedArtist = resolveArtistFromList(artists, id);
+  // Only query songs by a resolved UUID/id. Never send a display name as artistId.
+  const artistId = cachedArtist?.id || (String(id || "").trim() || null);
+  if (!artistId) return null;
 
   try {
     const firstPage = await getHiddenTunesSongsPage({
@@ -1732,7 +1727,12 @@ export async function getHiddenTunesArtistById(id: string) {
     }
 
     if (allTracks.length > 0) {
-      const [artist] = extractHiddenTunesArtists(allTracks);
+      const rebuilt = extractHiddenTunesArtists(allTracks);
+      const artist =
+        resolveArtistFromList(rebuilt, artistId) ||
+        rebuilt.find((entry) => entry.id === artistId) ||
+        rebuilt[0] ||
+        null;
 
       if (artist) {
         return {
@@ -1751,9 +1751,7 @@ export async function getHiddenTunesArtistById(id: string) {
     logHiddenTunesDev("Hidden Tunes artist page fallback:", error);
   }
 
-  return (
-    cachedArtist || null
-  );
+  return cachedArtist || null;
 }
 
 function buildHiddenTunesCloudPlaylistsFromSongs(

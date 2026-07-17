@@ -6227,14 +6227,16 @@ function AlbumDetailView({
   album,
   onBack,
   onOpenSong,
+  onOpenArtist,
   selectedTrackId,
 }: {
   album: ApiAlbum
   onBack: () => void
   onOpenSong: QueueSongHandler
+  onOpenArtist?: (artist: ApiArtist) => void
   selectedTrackId: string | null
 }) {
-  const { artistNames, indexes } = useCatalog()
+  const { artists, artistNames, indexes } = useCatalog()
   const created = formatDateLabel(album.createdAt)
 
   const albumSongs = useMemo(() => {
@@ -6295,7 +6297,20 @@ function AlbumDetailView({
           <p className="detail-eyebrow">Album</p>
           <h1 className="detail-h1">{album.title}</h1>
           <p className="detail-byline">
-            <span className="detail-pill">{artistName || 'Unknown artist'}</span>
+            {album.artistId && onOpenArtist ? (
+              <button
+                type="button"
+                className="detail-pill detail-pill--link"
+                onClick={() => {
+                  const match = artists.find((artist) => artist.id === album.artistId)
+                  if (match) onOpenArtist(match)
+                }}
+              >
+                {artistName || 'Unknown artist'}
+              </button>
+            ) : (
+              <span className="detail-pill">{artistName || 'Unknown artist'}</span>
+            )}
             <span className="detail-pill detail-pill--muted">
               {album.releaseYear ? `Released ${album.releaseYear}` : 'Release year unknown'}
             </span>
@@ -6752,6 +6767,7 @@ function CatalogDetailRouter({
         album={selectedAlbum}
         onBack={onBack}
         onOpenSong={onOpenSong}
+        onOpenArtist={onOpenArtist}
         selectedTrackId={desktopSelectedTrack?.id ?? null}
       />
     )
