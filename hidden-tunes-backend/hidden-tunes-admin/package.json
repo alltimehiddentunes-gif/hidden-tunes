@@ -122,6 +122,8 @@
     "test:motivation-expansion-safety": "tsx scripts/test-motivation-expansion-safety.ts",
     "verify:motivation-catalog": "tsx scripts/verify-motivation-catalog.ts",
     "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts",
+    "test:sports-foundation": "tsx scripts/test-sports-foundation.ts",
+    "sports:validate-migration": "tsx scripts/validate-sports-migration.ts",
     "test:artist-profile": "tsx scripts/test-artist-profile.ts",
     "artist:apply-migration": "node scripts/apply-artist-profile-migration.mjs",
     "artist:verify-schema": "node scripts/apply-artist-profile-migration.mjs --verify-only",
