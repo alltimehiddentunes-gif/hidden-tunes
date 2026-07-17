@@ -81,7 +81,7 @@ async function resolveShowIdsForCategory(
  * PostgREST `in.(...)` filter — that produces ~15KB request URLs and fails
  * with undici `TypeError: fetch failed`. Filter via an inner join instead.
  */
-const EPISODE_LIST_WITH_PUBLIC_SHOW_SELECT = `${PODCAST_PUBLIC_EPISODE_LIST_SELECT}, show:podcast_shows!inner(id, status, is_active, feed_status, is_mature)`;
+const EPISODE_LIST_WITH_PUBLIC_SHOW_SELECT = `${PODCAST_PUBLIC_EPISODE_LIST_SELECT},show:podcast_shows!inner(id,status,is_active,feed_status,is_mature)`;
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -139,7 +139,8 @@ export async function GET(request: NextRequest) {
         useShowJoin
           ? EPISODE_LIST_WITH_PUBLIC_SHOW_SELECT
           : PODCAST_PUBLIC_EPISODE_LIST_SELECT
-      )
+      ) as any;
+    query = query
       .order("published_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
 
@@ -170,7 +171,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const rows = (data || []) as Record<string, unknown>[];
+    const rows = (data || []) as unknown as Record<string, unknown>[];
     const hasMore = rows.length > limit;
     const pageRows = hasMore ? rows.slice(0, limit) : rows;
     const episodes = pageRows.map((row) => toPodcastPublicEpisode(row));
