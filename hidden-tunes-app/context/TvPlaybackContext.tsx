@@ -26,6 +26,11 @@ import {
   type HiddenTunesTvPlayback,
   type HiddenTunesTvVideo,
 } from "../services/tvCatalogApi";
+import {
+  beginTvMediaTransition,
+  invalidateTvMediaTransitions,
+  isCurrentTvMediaTransition,
+} from "../services/tv/tvMediaHandoff";
 
 type TvPlaybackResult =
   | { ok: true }
@@ -285,6 +290,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       queue: HiddenTunesTvVideo[] = []
     ): Promise<TvPlaybackResult> => {
       const requestId = ++requestRef.current;
+      const { transitionId } = beginTvMediaTransition();
       const nextQueue = dedupeQueue(queue.length ? queue : [channel]);
       const nextIndex = Math.max(
         0,
@@ -297,6 +303,13 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         await stopPlayback();
       } catch {
         // Music playback owns its own failure handling.
+      }
+
+      if (
+        requestId !== requestRef.current ||
+        !isCurrentTvMediaTransition(transitionId)
+      ) {
+        return { ok: false, error: "TV request was replaced." };
       }
 
       const fetchedPlayback = await fetchTvPlayback(channel);
@@ -312,7 +325,10 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
                 embed_url: null,
               }
             : null;
-      if (requestId !== requestRef.current) {
+      if (
+        requestId !== requestRef.current ||
+        !isCurrentTvMediaTransition(transitionId)
+      ) {
         return { ok: false, error: "TV request was replaced." };
       }
 
@@ -339,6 +355,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
   const stopTv = useCallback(() => {
     requestRef.current += 1;
+    invalidateTvMediaTransitions();
     setCurrentTvChannel(null);
     setCurrentPlayback(null);
     setTvQueue([]);

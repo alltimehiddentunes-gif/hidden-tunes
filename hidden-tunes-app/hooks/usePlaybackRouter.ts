@@ -8,6 +8,7 @@ import {
   routeYouTubeVideoPlayback,
   type PlaybackRouterDeps,
 } from "../services/playback/playbackRouter";
+import { invalidateTvMediaTransitions } from "../services/tv/tvMediaHandoff";
 import type { HiddenTunesTvVideo } from "../services/tvCatalogApi";
 import type { PodcastEpisode } from "../types/podcast";
 import type { RadioStation } from "../types/radio";
@@ -17,9 +18,23 @@ export function usePlaybackRouter() {
   const { playSong, playQueue, stopPlayback } = usePlayerActions();
 
   return useMemo(() => {
+    const guardedPlaySong: PlaybackRouterDeps["playSong"] = async (
+      ...args
+    ) => {
+      invalidateTvMediaTransitions();
+      return playSong(...args);
+    };
+
+    const guardedPlayQueue: PlaybackRouterDeps["playQueue"] = async (
+      ...args
+    ) => {
+      invalidateTvMediaTransitions();
+      return playQueue(...args);
+    };
+
     const deps: PlaybackRouterDeps = {
-      playSong,
-      playQueue,
+      playSong: guardedPlaySong,
+      playQueue: guardedPlayQueue,
       stopPlayback,
     };
 

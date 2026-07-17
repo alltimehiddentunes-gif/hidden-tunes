@@ -38,7 +38,7 @@ const VideoLaneRow = memo(function VideoLaneRow({
       <TvVideoCard
         video={item}
         loading={openingStationId === item.id}
-        disabled={Boolean(openingStationId)}
+        disabled={openingStationId === item.id}
         onPress={(video) => onPressVideo(video, lane.videos)}
       />
     ),

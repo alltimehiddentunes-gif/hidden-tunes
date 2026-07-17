@@ -158,23 +158,27 @@ export default function HiddenTunesTVScreen() {
   );
   const openTvVideo = useCallback(
     async (video: HiddenTunesTvVideo, queueVideos: HiddenTunesTvVideo[]) => {
-      if (openingStationId) return;
-
       setOpeningStationId(video.id);
       setStatusMessage(TESTER_COPY.tvStationOpening);
 
       const result = await playTvChannel(video, queueVideos);
 
-      setOpeningStationId(null);
+      setOpeningStationId((current) =>
+        current === video.id ? null : current
+      );
 
       if (result.ok) {
         setStatusMessage(null);
         return;
       }
 
+      if (result.error === "TV request was replaced.") {
+        return;
+      }
+
       setStatusMessage(result.error || TESTER_COPY.tvStationUnavailable);
     },
-    [openingStationId, playTvChannel]
+    [playTvChannel]
   );
 
   const applyHomeCache = useCallback((cache: TvHomeCachePayload | null) => {
@@ -382,7 +386,7 @@ export default function HiddenTunesTVScreen() {
           video={item}
           width={searchCardWidth}
           loading={openingStationId === item.id}
-          disabled={Boolean(openingStationId)}
+          disabled={openingStationId === item.id}
           onPress={(video) => {
             void openTvVideo(video, searchResults);
           }}
@@ -571,7 +575,7 @@ export default function HiddenTunesTVScreen() {
                         video={item}
                         width={searchCardWidth}
                         loading={openingStationId === item.id}
-                        disabled={Boolean(openingStationId)}
+                        disabled={openingStationId === item.id}
                         onPress={(video) => {
                           void openTvVideo(video, categoryResults);
                         }}

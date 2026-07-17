@@ -7,6 +7,11 @@ import {
   fetchTvPlayback,
   type HiddenTunesTvVideo,
 } from "../services/tvCatalogApi";
+import {
+  beginTvMediaTransition,
+  isCurrentTvMediaTransition,
+  isTvMediaHandoffAbortError,
+} from "../services/tv/tvMediaHandoff";
 import { HIDDEN_TUNES_VIDEOS_LABEL } from "./launchVideoCategories";
 
 const HIDDEN_PROVIDER_PATTERN = /\byoutube\b|youtu\.be|google\s*play/i;
@@ -148,13 +153,35 @@ export async function openHiddenTunesTvStation(
   queueVideos: HiddenTunesTvVideo[],
   options?: { stopPlayback?: () => Promise<void> }
 ): Promise<TvStationOpenResult> {
+  const { transitionId } = beginTvMediaTransition();
+
   try {
     await options?.stopPlayback?.();
   } catch {
     // Non-fatal — TV playback owns the surface.
   }
 
-  const playback = await fetchTvPlayback(video);
+  if (!isCurrentTvMediaTransition(transitionId)) {
+    return { ok: false, error: "TV request was replaced." };
+  }
+
+  let playback: HiddenTunesTvPlayback | null = null;
+  try {
+    playback = await fetchTvPlayback(video);
+  } catch (error) {
+    if (
+      isTvMediaHandoffAbortError(error) ||
+      !isCurrentTvMediaTransition(transitionId)
+    ) {
+      return { ok: false, error: "TV request was replaced." };
+    }
+    throw error;
+  }
+
+  if (!isCurrentTvMediaTransition(transitionId)) {
+    return { ok: false, error: "TV request was replaced." };
+  }
+
   if (!playback?.stream_url) {
     if (video.source_id && !isHlsLikeSource(video.source_type || "")) {
       return navigateToYoutubePlayerLegacy(video, queueVideos);

@@ -5,6 +5,7 @@ import {
   isTvChannelPlayable,
   resolveTvPlaybackQueue,
 } from "@/services/tv/tvChannelService";
+import { invalidateTvMediaTransitions } from "@/services/tv/tvMediaHandoff";
 import {
   clearTvPlaybackSession,
   setTvPlaybackSession,
@@ -60,6 +61,7 @@ export function openTvChannelPlayer(
 }
 
 export function closeTvPlayer() {
+  invalidateTvMediaTransitions();
   clearTvPlaybackSession();
   if (router.canGoBack()) {
     router.back();

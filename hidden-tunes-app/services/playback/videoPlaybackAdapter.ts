@@ -19,7 +19,7 @@ export function routeVideoPlayback(
   queueVideos: HiddenTunesTvVideo[],
   deps: { stopPlayback?: () => Promise<void> }
 ) {
-  void deps.stopPlayback?.();
+  // Handoff + stopPlayback owned by openHiddenTunesTvStation transition tokens.
   void openHiddenTunesTvStation(video, queueVideos, deps);
 }
 
