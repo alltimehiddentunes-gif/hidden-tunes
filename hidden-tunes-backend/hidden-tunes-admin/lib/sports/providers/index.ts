@@ -1,9 +1,13 @@
+import { createOlympicsAdapter } from "./olympics";
 import { createPlaceholderAdapter } from "./types";
 import type { SportsProviderAdapter } from "./types";
 
 export const sportsProviderRegistry: Record<string, SportsProviderAdapter> = {
   fifa: createPlaceholderAdapter("fifa", "FIFA"),
-  olympics: createPlaceholderAdapter("olympics", "Olympics"),
+  olympics: createOlympicsAdapter({
+    enabled: false,
+    killSwitch: true,
+  }),
   federation: createPlaceholderAdapter("federation", "Federation"),
   clubTv: createPlaceholderAdapter("club_tv", "Club TV"),
   league: createPlaceholderAdapter("league", "League"),
@@ -30,3 +34,5 @@ export function getSportsProvider(slug: string): SportsProviderAdapter | null {
 export function listSportsProviders(): SportsProviderAdapter[] {
   return Object.values(sportsProviderRegistry);
 }
+
+export { createOlympicsAdapter } from "./olympics";
