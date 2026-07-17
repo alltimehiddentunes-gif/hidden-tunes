@@ -10,6 +10,7 @@ import {
   resolveMotivationCategoryName,
   serializeMotivationError,
 } from "@/lib/motivationCatalog";
+import { listMotivationCategoryProgramSummaries } from "@/lib/motivationPrograms";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,8 +33,32 @@ export async function GET(request: NextRequest, context: RouteContext) {
     MOTIVATION_DEFAULT_PAGE_SIZE,
     MOTIVATION_MAX_PAGE_SIZE
   );
+  const view = String(params.get("view") || "")
+    .trim()
+    .toLowerCase();
 
   try {
+    if (view === "programs") {
+      const result = await listMotivationCategoryProgramSummaries({
+        categorySlug,
+        page,
+        limit: Math.min(limit, 24),
+      });
+
+      return NextResponse.json({
+        success: true,
+        view: "programs",
+        category: categorySlug,
+        title: resolveMotivationCategoryName(categorySlug),
+        items: result.items,
+        pagination: result.pagination,
+        meta: {
+          source: result.source,
+          rpc_available: result.source === "rpc",
+        },
+      });
+    }
+
     const result = await listMotivationItems({
       page,
       limit,
