@@ -70,7 +70,11 @@ export function enrichMotivationItem(item: MotivationItem): MotivationItem {
   return {
     ...item,
     title: displayTitle,
-    description: sanitizeMotivationDescription(item.description),
+    // Skip HTML/decode work when description was already stripped for browse grids.
+    description:
+      item.description == null || item.description === ""
+        ? null
+        : sanitizeMotivationDescription(item.description),
     episode_number: item.episode_number ?? episodeFromTitle,
     season_number: item.season_number ?? seasonFromTitle,
   };
@@ -132,9 +136,10 @@ function syntheticProgramId(title: string, speaker: string | null, fallbackId: s
 
 export function groupMotivationItemsIntoPrograms(
   items: MotivationItem[],
-  options?: { excludeMisplacedAudiobooks?: boolean }
+  options?: { excludeMisplacedAudiobooks?: boolean; skipVolumes?: boolean }
 ): MotivationGroupedProgram[] {
   const exclude = options?.excludeMisplacedAudiobooks !== false;
+  const skipVolumes = options?.skipVolumes === true;
   const filtered = exclude ? items.filter((item) => !isLikelyMisplacedAudiobook(item)) : items;
   const buckets = new Map<string, MotivationItem[]>();
 
@@ -184,7 +189,7 @@ export function groupMotivationItemsIntoPrograms(
       slug: slugifyMotivationKey(programTitle) || id,
       title: programTitle,
       subtitle: creditName,
-      description: seed.description || null,
+      description: skipVolumes ? null : seed.description || null,
       category_slug: seed.category_slug || null,
       artwork_url: seed.artwork || null,
       language_code: seed.language || null,
@@ -200,7 +205,7 @@ export function groupMotivationItemsIntoPrograms(
       id,
       program,
       items: ordered,
-      volumes: buildVolumes(ordered),
+      volumes: skipVolumes ? [] : buildVolumes(ordered),
       speakerName: creditKind === "speaker" ? creditName : null,
       creditName,
       creditKind,
@@ -220,18 +225,31 @@ export function groupMotivationItemsIntoPrograms(
 /** Merge newly grouped programs into an existing list without regrouping the full catalog. */
 export function mergeMotivationProgramGroups(
   existing: MotivationGroupedProgram[],
-  incoming: MotivationGroupedProgram[]
+  incoming: MotivationGroupedProgram[],
+  options?: { resort?: boolean }
 ): MotivationGroupedProgram[] {
   if (!incoming.length) return existing;
-  if (!existing.length) return incoming;
+  if (!existing.length) {
+    return options?.resort === false
+      ? incoming
+      : [...incoming].sort((a, b) => {
+          if (b.episodeCount !== a.episodeCount) return b.episodeCount - a.episodeCount;
+          return naturalCompareMotivation(a.program.title, b.program.title);
+        });
+  }
 
   const map = new Map<string, MotivationGroupedProgram>();
-  for (const group of existing) map.set(group.id, group);
+  const order: string[] = [];
+  for (const group of existing) {
+    map.set(group.id, group);
+    order.push(group.id);
+  }
 
   for (const group of incoming) {
     const prev = map.get(group.id);
     if (!prev) {
       map.set(group.id, group);
+      order.push(group.id);
       continue;
     }
     const seen = new Set(prev.items.map((item) => item.id));
@@ -242,15 +260,17 @@ export function mergeMotivationProgramGroups(
       mergedItems.push(item);
     }
     const ordered = orderMotivationEpisodes(mergedItems);
+    const keepVolumesLight = prev.volumes.length === 0 && group.volumes.length === 0;
     const next: MotivationGroupedProgram = {
       ...prev,
       items: ordered,
-      volumes: buildVolumes(ordered),
+      volumes: keepVolumesLight ? [] : buildVolumes(ordered),
       episodeCount: ordered.length,
       program: {
         ...prev.program,
         session_count: ordered.length,
         artwork_url: prev.program.artwork_url || group.program.artwork_url,
+        description: keepVolumesLight ? null : prev.program.description || group.program.description,
       },
       creditName: prev.creditName || group.creditName,
       speakerName: prev.speakerName || group.speakerName,
@@ -260,9 +280,26 @@ export function mergeMotivationProgramGroups(
     stashMotivationGroupedProgram(next);
   }
 
-  return [...map.values()].sort((a, b) => {
+  const merged = order.map((id) => map.get(id)!).filter(Boolean);
+  if (options?.resort === false) return merged;
+
+  return merged.sort((a, b) => {
     if (b.episodeCount !== a.episodeCount) return b.episodeCount - a.episodeCount;
     return naturalCompareMotivation(a.program.title, b.program.title);
+  });
+}
+
+/** Lightweight browse grouping — skips volume builds and description sanitization. */
+export function groupMotivationItemsForCategoryBrowse(
+  items: MotivationItem[]
+): MotivationGroupedProgram[] {
+  const light = items.map((item) => ({
+    ...item,
+    description: null,
+  }));
+  return groupMotivationItemsIntoPrograms(light, {
+    excludeMisplacedAudiobooks: true,
+    skipVolumes: true,
   });
 }
 

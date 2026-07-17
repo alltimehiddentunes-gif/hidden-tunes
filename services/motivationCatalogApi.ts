@@ -210,7 +210,11 @@ export async function fetchMotivationCategoryPage(
     items?: Record<string, unknown>[];
     pagination?: MotivationOffsetPagination;
   }>(`${MOTIVATION_CATEGORY_API_PATH}/${encodeURIComponent(slug)}?${params}`, options?.signal);
-  const items = (body.items || []).map(normalizeItem);
+  // Category grid only needs program identity fields — drop heavy descriptions early.
+  const items = (body.items || []).map((row) => {
+    const item = normalizeItem(row);
+    return item.description ? { ...item, description: null } : item;
+  });
   assertMetadataOnly(body.items || []);
   return { items, pagination: body.pagination };
 }
@@ -282,6 +286,8 @@ export async function searchMotivationItems(
       const name = String(item.category || "").trim().toLowerCase().replace(/\s+/g, "-");
       return slug === categorySlug || name === categorySlug;
     });
+    // Category UI only — drop description payload before grouping.
+    items = items.map((item) => (item.description ? { ...item, description: null } : item));
   }
   assertMetadataOnly(body.items || []);
   return { items, pagination: body.pagination };

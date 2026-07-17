@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -20,26 +20,37 @@ import AppShell from "@/components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { useMountedRef } from "@/hooks/useMountedRef";
 import {
+  MOTIVATION_DEFAULT_PAGE_LIMIT,
   fetchMotivationCategoryPage,
   searchMotivationItems,
 } from "@/services/motivationCatalogApi";
 import type { MotivationItem } from "@/types/motivation";
 import { formatMotivationCountLabel } from "@/utils/motivationEntity";
 import {
-  groupMotivationItemsIntoPrograms,
+  groupMotivationItemsForCategoryBrowse,
   mergeMotivationProgramGroups,
   stashMotivationGroupedProgram,
   type MotivationGroupedProgram,
 } from "@/utils/motivationGrouping";
 
 const SEARCH_DEBOUNCE_MS = 350;
-const PAGE_LIMIT = 24;
+/** One bounded page — API max is 40 episode rows per request. */
+const PAGE_LIMIT = MOTIVATION_DEFAULT_PAGE_LIMIT;
 const CATEGORY_CACHE_TTL_MS = 90_000;
+
+type CategoryProgramCard = {
+  id: string;
+  title: string;
+  credit: string;
+  episodeCount: number;
+  artworkUrl: string | null;
+};
 
 type CategoryCacheEntry = {
   at: number;
   title: string;
   groups: MotivationGroupedProgram[];
+  cards: CategoryProgramCard[];
   page: number;
   hasMore: boolean;
   query: string;
@@ -67,31 +78,49 @@ function cacheKey(slug: string, query: string) {
   return `${slug}::${query.trim().toLowerCase()}`;
 }
 
+function toProgramCards(groups: MotivationGroupedProgram[]): CategoryProgramCard[] {
+  return groups.map((group) => ({
+    id: group.id,
+    title: group.program.title,
+    credit: group.creditName || group.speakerName || "Hidden Tunes Motivationals",
+    episodeCount: group.episodeCount,
+    artworkUrl: group.program.artwork_url || null,
+  }));
+}
+
+function groupBrowsePage(items: MotivationItem[]) {
+  return groupMotivationItemsForCategoryBrowse(items);
+}
+
 const ProgramCard = memo(function ProgramCard({
-  group,
+  card,
   onPress,
 }: {
-  group: MotivationGroupedProgram;
-  onPress: () => void;
+  card: CategoryProgramCard;
+  onPress: (id: string) => void;
 }) {
   const meta = [
-    group.creditName || group.speakerName || "Hidden Tunes Motivationals",
-    formatMotivationCountLabel(group.episodeCount, "episodes"),
+    card.credit,
+    formatMotivationCountLabel(card.episodeCount, "episodes"),
   ]
     .filter(Boolean)
     .join(" · ");
 
   return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={onPress}>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.9}
+      onPress={() => onPress(card.id)}
+    >
       <HTImage
-        uri={group.program.artwork_url || undefined}
+        uri={card.artworkUrl || undefined}
         style={styles.cardArt}
         contentFit="cover"
         maxDecodeWidth={220}
         maxDecodeHeight={220}
       />
       <Text style={styles.cardTitle} numberOfLines={2}>
-        {group.program.title}
+        {card.title}
       </Text>
       {meta ? (
         <Text style={styles.cardMeta} numberOfLines={2}>
@@ -122,28 +151,46 @@ export default function MotivationCategoryScreen() {
   const loadingMoreLockRef = useRef(false);
   const requestTokenRef = useRef(0);
   const skipEmptyBrowseRef = useRef(true);
+  const lastAppendPageRef = useRef(0);
+  const groupsRef = useRef<MotivationGroupedProgram[]>([]);
+  const cardsRef = useRef<CategoryProgramCard[]>([]);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(false);
+  const titleRef = useRef("");
+  const queryRef = useRef("");
 
   const initialCache = cleanSlug
     ? categoryUiCache.get(cacheKey(cleanSlug, ""))
     : undefined;
+  const cacheFresh =
+    Boolean(initialCache) && Date.now() - (initialCache?.at || 0) < CATEGORY_CACHE_TTL_MS;
 
   const [title, setTitle] = useState(
     initialCache?.title || titleFromSlug(cleanSlug) || "Motivation"
   );
   const [query, setQuery] = useState(initialCache?.query || "");
   const [debouncedQuery, setDebouncedQuery] = useState(initialCache?.query || "");
-  const [groups, setGroups] = useState<MotivationGroupedProgram[]>(
-    initialCache && Date.now() - initialCache.at < CATEGORY_CACHE_TTL_MS
-      ? initialCache.groups
-      : []
+  const [cards, setCards] = useState<CategoryProgramCard[]>(
+    cacheFresh ? initialCache!.cards : []
   );
-  const [page, setPage] = useState(initialCache?.page || 1);
-  const [hasMore, setHasMore] = useState(Boolean(initialCache?.hasMore));
-  const [loading, setLoading] = useState(!initialCache?.groups.length);
+  const [page, setPage] = useState(cacheFresh ? initialCache!.page : 1);
+  const [hasMore, setHasMore] = useState(cacheFresh ? Boolean(initialCache!.hasMore) : false);
+  const [loading, setLoading] = useState(!(cacheFresh && initialCache!.cards.length));
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (cacheFresh && initialCache && groupsRef.current.length === 0) {
+    groupsRef.current = initialCache.groups;
+    cardsRef.current = initialCache.cards;
+  }
+
+  titleRef.current = title;
+  queryRef.current = query;
+  pageRef.current = page;
+  hasMoreRef.current = hasMore;
+  cardsRef.current = cards;
 
   const isSearching = debouncedQuery.trim().length >= 2;
   const bottomPad = 120 + Math.max(insets.bottom, 8);
@@ -151,6 +198,7 @@ export default function MotivationCategoryScreen() {
   const persistCache = useCallback(
     (next: {
       groups: MotivationGroupedProgram[];
+      cards: CategoryProgramCard[];
       page: number;
       hasMore: boolean;
       query: string;
@@ -161,6 +209,7 @@ export default function MotivationCategoryScreen() {
         at: Date.now(),
         title: next.title,
         groups: next.groups,
+        cards: next.cards,
         page: next.page,
         hasMore: next.hasMore,
         query: next.query,
@@ -169,27 +218,51 @@ export default function MotivationCategoryScreen() {
     [cleanSlug]
   );
 
-  const groupPage = useCallback((items: MotivationItem[]) => {
-    return groupMotivationItemsIntoPrograms(items);
-  }, []);
+  const applyGroups = useCallback(
+    (
+      nextGroups: MotivationGroupedProgram[],
+      nextPage: number,
+      nextHasMore: boolean,
+      nextQuery: string,
+      nextTitle: string
+    ) => {
+      const nextCards = toProgramCards(nextGroups);
+      groupsRef.current = nextGroups;
+      cardsRef.current = nextCards;
+      setCards(nextCards);
+      setPage(nextPage);
+      setHasMore(nextHasMore);
+      persistCache({
+        groups: nextGroups,
+        cards: nextCards,
+        page: nextPage,
+        hasMore: nextHasMore,
+        query: nextQuery,
+        title: nextTitle,
+      });
+    },
+    [persistCache]
+  );
 
   const loadBrowsePage = useCallback(
     async (nextPage: number, mode: "replace" | "append") => {
       if (!cleanSlug) return;
-      if (mode === "append" && loadingMoreLockRef.current) return;
+      if (mode === "append") {
+        if (loadingMoreLockRef.current) return;
+        if (lastAppendPageRef.current === nextPage) return;
+        lastAppendPageRef.current = nextPage;
+        loadingMoreLockRef.current = true;
+        setLoadingMore(true);
+      } else {
+        lastAppendPageRef.current = 0;
+        setLoading((was) => was || cardsRef.current.length === 0);
+        setError(null);
+      }
 
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       const token = ++requestTokenRef.current;
-
-      if (mode === "append") {
-        loadingMoreLockRef.current = true;
-        setLoadingMore(true);
-      } else {
-        setLoading((wasLoading) => wasLoading || groups.length === 0);
-        setError(null);
-      }
 
       try {
         const result = await fetchMotivationCategoryPage(cleanSlug, {
@@ -203,25 +276,18 @@ export default function MotivationCategoryScreen() {
 
         const nextTitle = titleFromSlug(cleanSlug);
         setTitle(nextTitle);
-        const pageGroups = groupPage(result.items);
+        const pageGroups = groupBrowsePage(result.items);
         const nextHasMore = Boolean(result.pagination?.hasMore);
-        setPage(nextPage);
-        setHasMore(nextHasMore);
-
-        setGroups((current) => {
-          const merged =
-            mode === "append" ? mergeMotivationProgramGroups(current, pageGroups) : pageGroups;
-          persistCache({
-            groups: merged,
-            page: nextPage,
-            hasMore: nextHasMore,
-            query: "",
-            title: nextTitle,
-          });
-          return merged;
-        });
+        const merged =
+          mode === "append"
+            ? mergeMotivationProgramGroups(groupsRef.current, pageGroups, { resort: false })
+            : pageGroups;
+        applyGroups(merged, nextPage, nextHasMore, "", nextTitle);
       } catch (err) {
         if (!mountedRef.current || token !== requestTokenRef.current || isAbortError(err)) return;
+        if (mode === "append") {
+          lastAppendPageRef.current = 0;
+        }
         if (mode === "replace") {
           setError("Couldn't load this category. Pull to retry.");
         }
@@ -234,27 +300,29 @@ export default function MotivationCategoryScreen() {
         }
       }
     },
-    [cleanSlug, groupPage, groups.length, mountedRef, persistCache]
+    [applyGroups, cleanSlug, mountedRef]
   );
 
   const loadSearchPage = useCallback(
     async (nextPage: number, mode: "replace" | "append", q: string) => {
       const trimmed = q.trim();
       if (!cleanSlug || trimmed.length < 2) return;
-      if (mode === "append" && loadingMoreLockRef.current) return;
+      if (mode === "append") {
+        if (loadingMoreLockRef.current) return;
+        if (lastAppendPageRef.current === nextPage) return;
+        lastAppendPageRef.current = nextPage;
+        loadingMoreLockRef.current = true;
+        setLoadingMore(true);
+      } else {
+        lastAppendPageRef.current = 0;
+        setSearchLoading(true);
+        setError(null);
+      }
 
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       const token = ++requestTokenRef.current;
-
-      if (mode === "append") {
-        loadingMoreLockRef.current = true;
-        setLoadingMore(true);
-      } else {
-        setSearchLoading(true);
-        setError(null);
-      }
 
       try {
         const result = await searchMotivationItems(trimmed, {
@@ -267,31 +335,27 @@ export default function MotivationCategoryScreen() {
           return;
         }
 
-        const pageGroups = groupPage(result.items);
-        setPage(nextPage);
-        setHasMore(Boolean(result.pagination && "hasMore" in result.pagination
-          ? result.pagination.hasMore
-          : result.items.length >= PAGE_LIMIT));
-
-        setGroups((current) => {
-          const merged =
-            mode === "append" ? mergeMotivationProgramGroups(current, pageGroups) : pageGroups;
-          persistCache({
-            groups: merged,
-            page: nextPage,
-            hasMore: Boolean(result.pagination && "hasMore" in result.pagination
-              ? result.pagination.hasMore
-              : result.items.length >= PAGE_LIMIT),
-            query: trimmed,
-            title: titleFromSlug(cleanSlug),
-          });
-          return merged;
-        });
+        const pageGroups = groupBrowsePage(result.items);
+        const nextHasMore = Boolean(
+          result.pagination && "hasMore" in result.pagination
+            ? result.pagination.hasMore
+            : result.items.length >= PAGE_LIMIT
+        );
+        const nextTitle = titleFromSlug(cleanSlug);
+        const merged =
+          mode === "append"
+            ? mergeMotivationProgramGroups(groupsRef.current, pageGroups, { resort: false })
+            : pageGroups;
+        applyGroups(merged, nextPage, nextHasMore, trimmed, nextTitle);
       } catch (err) {
         if (!mountedRef.current || token !== requestTokenRef.current || isAbortError(err)) return;
+        if (mode === "append") {
+          lastAppendPageRef.current = 0;
+        }
         if (mode === "replace") {
           setError("Search failed. Try again.");
-          setGroups([]);
+          groupsRef.current = [];
+          setCards([]);
         }
       } finally {
         if (mountedRef.current && token === requestTokenRef.current) {
@@ -301,14 +365,14 @@ export default function MotivationCategoryScreen() {
         }
       }
     },
-    [cleanSlug, groupPage, mountedRef, persistCache]
+    [applyGroups, cleanSlug, mountedRef]
   );
 
   // Mount / slug change: restore cache or fetch browse page once.
-  // Do not auto-refresh on every visit — that caused duplicate category requests.
   useEffect(() => {
     if (!cleanSlug) return;
     skipEmptyBrowseRef.current = true;
+    lastAppendPageRef.current = 0;
 
     for (const [key, entry] of categoryUiCache.entries()) {
       if (!key.startsWith(`${cleanSlug}::`)) continue;
@@ -316,7 +380,8 @@ export default function MotivationCategoryScreen() {
         setQuery(entry.query);
         setDebouncedQuery(entry.query);
         setTitle(entry.title);
-        setGroups(entry.groups);
+        groupsRef.current = entry.groups;
+        setCards(entry.cards);
         setPage(entry.page);
         setHasMore(entry.hasMore);
         setLoading(false);
@@ -328,10 +393,11 @@ export default function MotivationCategoryScreen() {
     if (
       browseCached &&
       Date.now() - browseCached.at < CATEGORY_CACHE_TTL_MS &&
-      browseCached.groups.length
+      browseCached.cards.length
     ) {
       setTitle(browseCached.title);
-      setGroups(browseCached.groups);
+      groupsRef.current = browseCached.groups;
+      setCards(browseCached.cards);
       setPage(browseCached.page);
       setHasMore(browseCached.hasMore);
       setLoading(false);
@@ -344,7 +410,6 @@ export default function MotivationCategoryScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanSlug]);
 
-  // Debounced search query → category-scoped search.
   useEffect(() => {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
@@ -363,8 +428,9 @@ export default function MotivationCategoryScreen() {
         return;
       }
       const cached = categoryUiCache.get(cacheKey(cleanSlug, ""));
-      if (cached?.groups.length) {
-        setGroups(cached.groups);
+      if (cached?.cards.length) {
+        groupsRef.current = cached.groups;
+        setCards(cached.cards);
         setPage(cached.page);
         setHasMore(cached.hasMore);
         setError(null);
@@ -378,28 +444,34 @@ export default function MotivationCategoryScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cleanSlug, debouncedQuery]);
 
-  const openProgram = useCallback((group: MotivationGroupedProgram) => {
-    stashMotivationGroupedProgram(group);
-    // Preserve query for return navigation.
-    if (cleanSlug) {
-      persistCache({
-        groups,
-        page,
-        hasMore,
-        query: query.trim(),
-        title,
-      });
-    }
-    router.push(`/motivation/program/${encodeURIComponent(group.id)}` as never);
-  }, [cleanSlug, groups, hasMore, page, persistCache, query, title]);
+  const openProgram = useCallback(
+    (id: string) => {
+      const group = groupsRef.current.find((entry) => entry.id === id);
+      if (group) stashMotivationGroupedProgram(group);
+      if (cleanSlug) {
+        persistCache({
+          groups: groupsRef.current,
+          cards: cardsRef.current,
+          page: pageRef.current,
+          hasMore: hasMoreRef.current,
+          query: queryRef.current.trim(),
+          title: titleRef.current,
+        });
+      }
+      router.push(`/motivation/program/${encodeURIComponent(id)}` as never);
+    },
+    [cleanSlug, persistCache]
+  );
 
   const onEndReached = useCallback(() => {
     if (loading || searchLoading || loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    if (lastAppendPageRef.current === nextPage) return;
     if (isSearching) {
-      void loadSearchPage(page + 1, "append", debouncedQuery);
+      void loadSearchPage(nextPage, "append", debouncedQuery);
       return;
     }
-    void loadBrowsePage(page + 1, "append");
+    void loadBrowsePage(nextPage, "append");
   }, [
     debouncedQuery,
     hasMore,
@@ -413,16 +485,30 @@ export default function MotivationCategoryScreen() {
   ]);
 
   const renderItem = useCallback(
-    ({ item }: { item: MotivationGroupedProgram }) => (
-      <ProgramCard group={item} onPress={() => openProgram(item)} />
+    ({ item }: { item: CategoryProgramCard }) => (
+      <ProgramCard card={item} onPress={openProgram} />
     ),
     [openProgram]
   );
 
+  const keyExtractor = useCallback((item: CategoryProgramCard) => item.id, []);
+
+  const listEmpty = useMemo(() => {
+    if (loading || searchLoading) return <SkeletonGrid />;
+    return (
+      <Text style={styles.emptyText}>
+        {isSearching
+          ? `No matches for “${debouncedQuery.trim()}” in ${title}.`
+          : error
+            ? "Pull to retry."
+            : "No programs in this category yet."}
+      </Text>
+    );
+  }, [debouncedQuery, error, isSearching, loading, searchLoading, title]);
+
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
-        {/* Fixed shell — search must never depend on list scroll position. */}
         <View style={styles.shell}>
           <TouchableOpacity
             style={styles.backButton}
@@ -479,12 +565,12 @@ export default function MotivationCategoryScreen() {
         </View>
 
         <FlatList
-          data={groups}
+          data={cards}
           numColumns={2}
           key="motivation-category-programs"
           style={styles.list}
           columnWrapperStyle={styles.columnWrap}
-          keyExtractor={(item) => item.id}
+          keyExtractor={keyExtractor}
           contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
           renderItem={renderItem}
           refreshControl={
@@ -500,11 +586,11 @@ export default function MotivationCategoryScreen() {
             )
           }
           onEndReached={onEndReached}
-          onEndReachedThreshold={0.35}
+          onEndReachedThreshold={0.4}
           initialNumToRender={6}
           maxToRenderPerBatch={4}
-          windowSize={7}
-          updateCellsBatchingPeriod={50}
+          windowSize={5}
+          updateCellsBatchingPeriod={60}
           removeClippedSubviews
           keyboardShouldPersistTaps="handled"
           ListFooterComponent={
@@ -514,19 +600,7 @@ export default function MotivationCategoryScreen() {
               <View style={styles.footerSpacer} />
             )
           }
-          ListEmptyComponent={
-            loading || searchLoading ? (
-              <SkeletonGrid />
-            ) : (
-              <Text style={styles.emptyText}>
-                {isSearching
-                  ? `No matches for “${debouncedQuery.trim()}” in ${title}.`
-                  : error
-                    ? "Pull to retry."
-                    : "No programs in this category yet."}
-              </Text>
-            )
-          }
+          ListEmptyComponent={listEmpty}
         />
       </LinearGradient>
     </AppShell>
