@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, type ReactNode } from "react";
 import { FlatList, StyleSheet, Text, View } from "react-native";
 
 import { COLORS } from "@/constants/theme";
@@ -12,6 +12,12 @@ type TvChannelRailProps = {
   channels: TVChannel[];
   onPressChannel: (channel: TVChannel) => void;
   countLabel?: string;
+  headerAction?: ReactNode;
+  showFavorite?: boolean;
+  showRemove?: boolean;
+  onRemoveChannel?: (channel: TVChannel) => void;
+  connectingChannelId?: string | null;
+  progressByChannelId?: Record<string, number>;
 };
 
 function TvChannelRail({
@@ -19,14 +25,35 @@ function TvChannelRail({
   channels,
   onPressChannel,
   countLabel,
+  headerAction,
+  showFavorite = true,
+  showRemove = false,
+  onRemoveChannel,
+  connectingChannelId = null,
+  progressByChannelId,
 }: TvChannelRailProps) {
   const listSettings = getHorizontalListPerformanceSettings(channels.length);
 
   const renderItem = useCallback(
     ({ item }: { item: TVChannel }) => (
-      <TvChannelCard channel={item} onPress={onPressChannel} />
+      <TvChannelCard
+        channel={item}
+        onPress={onPressChannel}
+        showFavorite={showFavorite}
+        showRemove={showRemove}
+        onRemove={onRemoveChannel}
+        connecting={connectingChannelId === item.id}
+        progressRatio={progressByChannelId?.[item.id] ?? null}
+      />
     ),
-    [onPressChannel]
+    [
+      connectingChannelId,
+      onPressChannel,
+      onRemoveChannel,
+      progressByChannelId,
+      showFavorite,
+      showRemove,
+    ]
   );
 
   if (!channels.length) return null;
@@ -34,10 +61,13 @@ function TvChannelRail({
   return (
     <View style={styles.section}>
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.count}>
-          {countLabel || `${channels.length} channels`}
-        </Text>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.count}>
+            {countLabel || `${channels.length} channels`}
+          </Text>
+        </View>
+        {headerAction}
       </View>
 
       <FlatList
@@ -68,6 +98,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 12,
+    gap: 12,
+  },
+
+  headerText: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
   },
 
   title: {

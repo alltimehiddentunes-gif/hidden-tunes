@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   InteractionManager,
   StyleSheet,
   Text,
@@ -12,6 +13,7 @@ import { useFocusEffect } from "expo-router";
 import TvChannelRail from "@/components/tv/TvChannelRail";
 import TvMatureGateSection from "@/components/tv/TvMatureGateSection";
 import { COLORS } from "@/constants/theme";
+import { usePlayerActions } from "@/context/playerContextSlices";
 import { getTvChannelById } from "@/data/tvChannelSeedCatalog";
 import { getMatureTvEnabled } from "@/services/matureTvPreferences";
 import {
@@ -23,12 +25,28 @@ import {
   hasActiveMatureTvChannels,
 } from "@/services/tv/tvChannelService";
 import { isMatureTvTestModeEnabled } from "@/services/tv/matureTvTestMode";
+import {
+  beginTvMediaTransition,
+  isCurrentTvMediaTransition,
+} from "@/services/tv/tvMediaHandoff";
 import { loadTvChannelRuntimeStatus } from "@/services/tv/tvChannelRuntimeStatus";
 import { runTvChannelVerificationIfDue } from "@/services/tv/tvChannelVerification";
 import { setTvTabFocused } from "@/services/tv/tvPlaybackActivity";
-import { loadTvFavorites } from "@/services/tv/tvFavorites";
-import { loadTvRecentlyWatched } from "@/services/tv/tvRecentlyWatched";
-import type { TVChannel, TvLiveSectionId } from "@/types/tv";
+import {
+  loadTvFavorites,
+  subscribeTvFavorites,
+} from "@/services/tv/tvFavorites";
+import {
+  clearTvRecentlyWatched,
+  getContinueWatchingEntries,
+  loadTvRecentlyWatched,
+  removeTvRecentlyWatched,
+} from "@/services/tv/tvRecentlyWatched";
+import type {
+  TVChannel,
+  TvLiveSectionId,
+  TvRecentlyWatchedEntry,
+} from "@/types/tv";
 import { openTvChannelPlayer } from "@/utils/tvNavigation";
 import { useMountedRef } from "@/utils/useMountedRef";
 
@@ -37,13 +55,31 @@ type TvLiveHomeSectionsProps = {
   onMatureEnabledChange: (enabled: boolean) => void;
 };
 
+function mapEntriesToChannels(
+  entries: TvRecentlyWatchedEntry[],
+  matureEnabled: boolean,
+  limit = 16
+) {
+  return filterPlayableTvChannels(
+    entries
+      .map((entry) => getTvChannelById(entry.channelId))
+      .filter((channel): channel is TVChannel => channel !== null),
+    matureEnabled
+  ).slice(0, limit);
+}
+
 function TvLiveHomeSections({
   matureEnabled,
   onMatureEnabledChange,
 }: TvLiveHomeSectionsProps) {
   const mountedRef = useMountedRef();
+  const { stopPlayback } = usePlayerActions();
   const [loading, setLoading] = useState(true);
+  const [recentEntries, setRecentEntries] = useState<TvRecentlyWatchedEntry[]>(
+    []
+  );
   const [recentChannels, setRecentChannels] = useState<TVChannel[]>([]);
+  const [continueChannels, setContinueChannels] = useState<TVChannel[]>([]);
   const [favoriteChannels, setFavoriteChannels] = useState<TVChannel[]>([]);
   const [matureChannels, setMatureChannels] = useState<TVChannel[]>([]);
   const [sectionChannels, setSectionChannels] = useState<
@@ -55,6 +91,7 @@ function TvLiveHomeSections({
   const [loadingMoreSection, setLoadingMoreSection] = useState<string | null>(
     null
   );
+  const [openingChannelId, setOpeningChannelId] = useState<string | null>(null);
   const sectionChannelsRef = useRef<Record<string, TVChannel[]>>({});
   const matureEnabledRef = useRef(matureEnabled);
 
@@ -62,6 +99,53 @@ function TvLiveHomeSections({
 
   const activeMatureChannels = useMemo(
     () => hasActiveMatureTvChannels(matureEnabled),
+    [matureEnabled]
+  );
+
+  const progressByChannelId = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const entry of recentEntries) {
+      if (
+        entry.isLive === true ||
+        entry.completed ||
+        typeof entry.positionSeconds !== "number" ||
+        typeof entry.durationSeconds !== "number" ||
+        entry.durationSeconds <= 0
+      ) {
+        continue;
+      }
+      map[entry.channelId] = Math.min(
+        1,
+        Math.max(0, entry.positionSeconds / entry.durationSeconds)
+      );
+    }
+    return map;
+  }, [recentEntries]);
+
+  const applyRecentEntries = useCallback(
+    (recent: TvRecentlyWatchedEntry[]) => {
+      setRecentEntries(recent);
+      setRecentChannels(mapEntriesToChannels(recent, matureEnabled, 24));
+      setContinueChannels(
+        mapEntriesToChannels(getContinueWatchingEntries(recent), matureEnabled, 16)
+      );
+    },
+    [matureEnabled]
+  );
+
+  const applyFavoriteEntries = useCallback(
+    (
+      favorites: Awaited<ReturnType<typeof loadTvFavorites>>
+    ) => {
+      setFavoriteChannels(
+        filterPlayableTvChannels(
+          favorites
+            .map((entry) => getTvChannelById(entry.channelId))
+            .filter((channel): channel is TVChannel => channel !== null),
+          matureEnabled
+        ).slice(0, 24)
+      );
+    },
     [matureEnabled]
   );
 
@@ -100,29 +184,22 @@ function TvLiveHomeSections({
 
     if (!mountedRef.current) return;
 
-    setRecentChannels(
-      filterPlayableTvChannels(
-        recent
-          .map((entry) => getTvChannelById(entry.channelId))
-          .filter((channel): channel is TVChannel => channel !== null),
-        matureEnabled
-      ).slice(0, 16)
-    );
-    setFavoriteChannels(
-      filterPlayableTvChannels(
-        favorites
-          .map((entry) => getTvChannelById(entry.channelId))
-          .filter((channel): channel is TVChannel => channel !== null),
-        matureEnabled
-      ).slice(0, 16)
-    );
-  }, [matureEnabled, mountedRef]);
+    applyRecentEntries(recent);
+    applyFavoriteEntries(favorites);
+  }, [applyFavoriteEntries, applyRecentEntries, matureEnabled, mountedRef]);
 
   useEffect(() => {
     if (matureEnabledRef.current === matureEnabled) return;
     matureEnabledRef.current = matureEnabled;
     void hydrateSections();
   }, [hydrateSections, matureEnabled]);
+
+  useEffect(() => {
+    return subscribeTvFavorites((favorites) => {
+      if (!mountedRef.current) return;
+      applyFavoriteEntries(favorites);
+    });
+  }, [applyFavoriteEntries, mountedRef]);
 
   useFocusEffect(
     useCallback(() => {
@@ -151,15 +228,78 @@ function TvLiveHomeSections({
   );
 
   const openFromSection = useCallback(
-    (sectionId: TvLiveSectionId, channel: TVChannel, channelIds: string[]) => {
+    async (
+      sectionId: TvLiveSectionId,
+      channel: TVChannel,
+      channelIds: string[]
+    ) => {
+      setOpeningChannelId(channel.id);
+      const { transitionId } = beginTvMediaTransition();
+
+      try {
+        await stopPlayback();
+      } catch {
+        // Audio owns its failure handling.
+      }
+
+      if (!isCurrentTvMediaTransition(transitionId)) {
+        if (mountedRef.current) {
+          setOpeningChannelId((current) =>
+            current === channel.id ? null : current
+          );
+        }
+        return;
+      }
+
       openTvChannelPlayer(channel, {
         sectionId,
         channelIds,
         matureEnabled,
       });
+
+      if (mountedRef.current) {
+        setOpeningChannelId((current) =>
+          current === channel.id ? null : current
+        );
+      }
     },
-    [matureEnabled]
+    [matureEnabled, mountedRef, stopPlayback]
   );
+
+  const handleRemoveHistory = useCallback(
+    async (channel: TVChannel) => {
+      const previous = recentEntries;
+      const next = previous.filter((entry) => entry.channelId !== channel.id);
+      applyRecentEntries(next);
+      try {
+        await removeTvRecentlyWatched(channel.id);
+      } catch {
+        if (mountedRef.current) applyRecentEntries(previous);
+      }
+    },
+    [applyRecentEntries, mountedRef, recentEntries]
+  );
+
+  const handleClearHistory = useCallback(() => {
+    Alert.alert(
+      "Clear watch history?",
+      "This removes all Previously Watched channels from this device.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: () => {
+            const previous = recentEntries;
+            applyRecentEntries([]);
+            void clearTvRecentlyWatched().catch(() => {
+              if (mountedRef.current) applyRecentEntries(previous);
+            });
+          },
+        },
+      ]
+    );
+  }, [applyRecentEntries, mountedRef, recentEntries]);
 
   const loadMoreForSection = useCallback(
     async (sectionId: TvLiveSectionId) => {
@@ -202,6 +342,67 @@ function TvLiveHomeSections({
 
   return (
     <View>
+      {continueChannels.length ? (
+        <TvChannelRail
+          title="Continue Watching"
+          channels={continueChannels}
+          countLabel={`${continueChannels.length}`}
+          connectingChannelId={openingChannelId}
+          progressByChannelId={progressByChannelId}
+          onPressChannel={(channel) =>
+            void openFromSection(
+              "recent",
+              channel,
+              continueChannels.map((entry) => entry.id)
+            )
+          }
+        />
+      ) : null}
+
+      {recentChannels.length ? (
+        <TvChannelRail
+          title="Previously Watched"
+          channels={recentChannels}
+          countLabel={`${recentChannels.length}`}
+          connectingChannelId={openingChannelId}
+          showRemove
+          onRemoveChannel={(channel) => void handleRemoveHistory(channel)}
+          headerAction={
+            <TouchableOpacity
+              onPress={handleClearHistory}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear watch history"
+            >
+              <Text style={styles.clearHistoryText}>Clear</Text>
+            </TouchableOpacity>
+          }
+          onPressChannel={(channel) =>
+            void openFromSection(
+              "recent",
+              channel,
+              recentChannels.map((entry) => entry.id)
+            )
+          }
+        />
+      ) : null}
+
+      {favoriteChannels.length ? (
+        <TvChannelRail
+          title="Favorite Channels"
+          channels={favoriteChannels}
+          countLabel={`${favoriteChannels.length}`}
+          connectingChannelId={openingChannelId}
+          onPressChannel={(channel) =>
+            void openFromSection(
+              "favorites",
+              channel,
+              favoriteChannels.map((entry) => entry.id)
+            )
+          }
+        />
+      ) : null}
+
       {LIVE_TV_HOME_SECTIONS.map((section) => {
         const channels = sectionChannels[section.id] || [];
         if (!channels.length) return null;
@@ -213,8 +414,9 @@ function TvLiveHomeSections({
             <TvChannelRail
               title={section.title}
               channels={channels}
+              connectingChannelId={openingChannelId}
               onPressChannel={(channel) =>
-                openFromSection(section.id, channel, channelIds)
+                void openFromSection(section.id, channel, channelIds)
               }
             />
 
@@ -235,43 +437,16 @@ function TvLiveHomeSections({
         );
       })}
 
-      {recentChannels.length ? (
-        <TvChannelRail
-          title="Recently Watched"
-          channels={recentChannels}
-          onPressChannel={(channel) =>
-            openFromSection(
-              "recent",
-              channel,
-              recentChannels.map((entry) => entry.id)
-            )
-          }
-        />
-      ) : null}
-
       {recommendedChannels.length ? (
         <TvChannelRail
           title="Recommended"
           channels={recommendedChannels}
+          connectingChannelId={openingChannelId}
           onPressChannel={(channel) =>
-            openFromSection(
+            void openFromSection(
               "recommended",
               channel,
               recommendedChannels.map((entry) => entry.id)
-            )
-          }
-        />
-      ) : null}
-
-      {favoriteChannels.length ? (
-        <TvChannelRail
-          title="Favorite Channels"
-          channels={favoriteChannels}
-          onPressChannel={(channel) =>
-            openFromSection(
-              "favorites",
-              channel,
-              favoriteChannels.map((entry) => entry.id)
             )
           }
         />
@@ -292,8 +467,9 @@ function TvLiveHomeSections({
               : "Mature TV"
           }
           channels={matureChannels}
+          connectingChannelId={openingChannelId}
           onPressChannel={(channel) =>
-            openFromSection(
+            void openFromSection(
               "mature",
               channel,
               matureChannels.map((entry) => entry.id)
@@ -339,6 +515,12 @@ const styles = StyleSheet.create({
   loadMoreText: {
     color: COLORS.text,
     fontSize: 11,
+    fontWeight: "800",
+  },
+
+  clearHistoryText: {
+    color: COLORS.primary,
+    fontSize: 12,
     fontWeight: "800",
   },
 });

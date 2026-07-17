@@ -26,6 +26,7 @@ import { markTvChannelTemporarilyUnavailable } from "@/services/tv/tvChannelVeri
 import { getRelatedTvChannels } from "@/services/tv/tvChannelService";
 import {
   isTvChannelFavorite,
+  subscribeTvFavorites,
   toggleTvChannelFavorite,
 } from "@/services/tv/tvFavorites";
 import {
@@ -185,6 +186,14 @@ export default function TvPlayerScreen() {
       setIsFavorite(favorited);
     }
   }, [mountedRef]);
+
+  useEffect(() => {
+    if (!channel) return;
+    return subscribeTvFavorites((entries) => {
+      if (!mountedRef.current) return;
+      setIsFavorite(entries.some((entry) => entry.channelId === channel.id));
+    });
+  }, [channel, mountedRef]);
 
   const loadRelated = useCallback(async (target: TVChannel) => {
     const matureEnabled = await getMatureTvEnabled();
@@ -346,11 +355,22 @@ export default function TvPlayerScreen() {
 
   const handleToggleFavorite = useCallback(async () => {
     if (!channel) return;
-    const result = await toggleTvChannelFavorite(channel);
-    if (mountedRef.current) {
-      setIsFavorite(result.favorited);
+    const previous = isFavorite;
+    setIsFavorite(!previous);
+    try {
+      const result = await toggleTvChannelFavorite(channel);
+      if (mountedRef.current) {
+        setIsFavorite(result.favorited);
+        if (!result.persisted) {
+          setIsFavorite(previous);
+        }
+      }
+    } catch {
+      if (mountedRef.current) {
+        setIsFavorite(previous);
+      }
     }
-  }, [channel, mountedRef]);
+  }, [channel, isFavorite, mountedRef]);
 
   const handleReportBroken = useCallback(() => {
     reportStreamFailure("playback_failed");

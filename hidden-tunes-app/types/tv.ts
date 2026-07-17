@@ -105,4 +105,9 @@ export type TvRecentlyWatchedEntry = {
   category: TvChannelCategory;
   country?: string;
   watchedAt: string;
+  /** Optional VOD fields — absent on existing live v1 records. */
+  positionSeconds?: number;
+  durationSeconds?: number;
+  completed?: boolean;
+  isLive?: boolean;
 };
