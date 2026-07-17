@@ -124,12 +124,12 @@ function mapProfileReleaseToAlbum(
   return {
     id: release.id,
     title: release.title,
+    slug: release.slug || release.id,
     artist: artistName,
     artistId: release.artist_id || undefined,
     artwork: release.artwork || "",
-    cover: release.artwork || "",
     tracks: [],
-  } as HiddenTunesAlbum;
+  };
 }
 
 function mergeArtistWithProfile(
