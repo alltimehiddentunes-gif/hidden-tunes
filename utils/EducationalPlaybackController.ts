@@ -13,6 +13,7 @@ import {
   isEducationalAudioPlayback,
   parseEducationalSessionSongId,
 } from "@/utils/educationalPlaybackAdapter";
+import { lectureTrace, lectureUrlDiagnostics } from "@/utils/lectureTapTrace";
 import {
   appendEducationalSessionPage,
   bumpEducationalQueueGeneration,
@@ -226,9 +227,11 @@ export const EducationalPlaybackController = {
     startPositionMillis?: number;
     signal?: AbortSignal;
     playGeneration?: number;
+    tapId?: string;
   }) {
     const requestId = ++activePlayRequestId;
     const generation = input.playGeneration ?? nextEducationalPlayGeneration();
+    const tapId = input.tapId || `lecture-${Date.now()}`;
 
     createEducationalPlaybackSession({
       program: input.program,
@@ -246,9 +249,11 @@ export const EducationalPlaybackController = {
       startPositionMillis: input.startPositionMillis,
       signal: input.signal,
       playGeneration: generation,
+      tapId,
     });
 
     if (requestId !== activePlayRequestId) {
+      lectureTrace("LECTURE_ERROR", tapId, { error: "Playback request was superseded." });
       return { ok: false as const, error: "Playback request was superseded." };
     }
 
@@ -262,12 +267,16 @@ export const EducationalPlaybackController = {
       startPositionMillis?: number;
       signal?: AbortSignal;
       playGeneration?: number;
+      tapId?: string;
     }
   ): Promise<
     | { ok: true; session: EducationalSessionPlayItem; song: AppSong }
     | { ok: false; error: string; requiresVideo?: boolean; session?: EducationalSession }
   > {
+    const tapId = options?.tapId || `lecture-${Date.now()}`;
+
     if (navigationInFlight && requestId !== activePlayRequestId) {
+      lectureTrace("LECTURE_ERROR", tapId, { error: "Playback request was superseded." });
       return { ok: false, error: "Playback request was superseded." };
     }
 
@@ -278,10 +287,20 @@ export const EducationalPlaybackController = {
       const bindings = playerBindings;
 
       if (!session || !bindings?.playSong) {
-        return { ok: false, error: "Educational session unavailable." };
+        lectureTrace("LECTURE_ERROR", tapId, {
+          error: "Educational session unavailable.",
+          hasSession: Boolean(session),
+          hasBindings: Boolean(bindings?.playSong),
+        });
+        return {
+          ok: false,
+          error:
+            "Educational session unavailable. Lectures playback binding is not active.",
+        };
       }
 
       if (index < 0 || index >= session.loadedSessions.length) {
+        lectureTrace("LECTURE_ERROR", tapId, { error: "This lesson is unavailable.", index });
         return { ok: false, error: "This lesson is unavailable." };
       }
 
@@ -293,8 +312,15 @@ export const EducationalPlaybackController = {
         queueGeneration: generation,
         requestId,
       })) {
+        lectureTrace("LECTURE_ERROR", tapId, { error: "Playback request was superseded." });
         return { ok: false, error: "Playback request was superseded." };
       }
+
+      lectureTrace("LECTURE_RESOLVE_START", tapId, {
+        lectureId: session.program.id,
+        sessionId: metadata.id,
+        mediaType: metadata.contentFormat,
+      });
 
       const resolved = await fetchEducationalSessionPlayback(
         session.program.id,
@@ -302,15 +328,30 @@ export const EducationalPlaybackController = {
         options?.signal
       );
 
+      lectureTrace("LECTURE_RESOLVE_RESULT", tapId, {
+        lectureId: resolved.programId,
+        sessionId: resolved.sessionId,
+        mediaType: resolved.mediaType,
+        mimeType: resolved.mimeType,
+        duration: resolved.durationSeconds,
+        ...lectureUrlDiagnostics(resolved.playableUrl),
+      });
+
       if (isSessionGuardStale({
         programId: session.programId,
         queueGeneration: generation,
         requestId,
       })) {
+        lectureTrace("LECTURE_SOURCE_REPLACED", tapId, { reason: "stale_after_resolve" });
         return { ok: false, error: "Playback request was superseded." };
       }
 
       if (!isEducationalAudioPlayback(resolved.mediaType, resolved.playableUrl)) {
+        lectureTrace("LECTURE_ERROR", tapId, {
+          error: "requires_video_player",
+          mediaType: resolved.mediaType,
+          ...lectureUrlDiagnostics(resolved.playableUrl),
+        });
         return {
           ok: false,
           error: "This lesson requires the video player.",
@@ -327,6 +368,14 @@ export const EducationalPlaybackController = {
       };
 
       const activeSong = educationalSessionToAppSong(session.program, playable);
+      lectureTrace("LECTURE_ITEM_MAPPED", tapId, {
+        canonicalId: activeSong.id,
+        playerKind: activeSong.type,
+        source: activeSong.source,
+        duration: activeSong.duration,
+        ...lectureUrlDiagnostics(activeSong.audioUrl || activeSong.streamUrl),
+      });
+
       const queueContext = buildEducationalQueueContext(session.program);
       const queueSongs = buildEducationalSessionQueueSongs(
         session.program,
@@ -335,13 +384,34 @@ export const EducationalPlaybackController = {
         activeSong
       );
 
+      lectureTrace("LECTURE_PLAYER_CALL", tapId, {
+        canonicalId: activeSong.id,
+        queueLength: queueSongs.length,
+        startIndex: index,
+      });
+
+      lectureTrace("LECTURE_NATIVE_LOAD_START", tapId, {
+        canonicalId: activeSong.id,
+        ...lectureUrlDiagnostics(activeSong.audioUrl || activeSong.streamUrl),
+      });
+
       await bindings.playSong(activeSong, queueSongs, index, queueContext, "standard");
+
+      lectureTrace("LECTURE_PLAYER_RECEIVED", tapId, {
+        canonicalId: activeSong.id,
+        result: "playSong_resolved",
+      });
+      lectureTrace("LECTURE_NATIVE_STATUS", tapId, {
+        canonicalId: activeSong.id,
+        status: "playSong_completed",
+      });
 
       if (isSessionGuardStale({
         programId: session.programId,
         queueGeneration: generation,
         requestId,
       })) {
+        lectureTrace("LECTURE_SOURCE_REPLACED", tapId, { reason: "stale_after_playSong" });
         return { ok: false, error: "Playback request was superseded." };
       }
 
@@ -363,9 +433,14 @@ export const EducationalPlaybackController = {
 
       return { ok: true, session: playable, song: activeSong };
     } catch (error) {
+      const message = String((error as Error)?.message || "This lesson is unavailable.");
+      lectureTrace("LECTURE_ERROR", tapId, {
+        error: message,
+        errorName: error instanceof Error ? error.name : "Error",
+      });
       return {
         ok: false,
-        error: String((error as Error)?.message || "This lesson is unavailable."),
+        error: message,
       };
     } finally {
       navigationInFlight = false;

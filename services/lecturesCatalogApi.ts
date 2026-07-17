@@ -383,7 +383,7 @@ export async function fetchEducationalSessionPlayback(
   const params = new URLSearchParams();
   if (sessionId) params.set("lessonId", sessionId);
 
-  const body = await fetchLectureJson<{
+  const body = await fetchLectureJson<Record<string, unknown> & {
     programId?: string;
     sessionId?: string;
     title?: string;
@@ -411,20 +411,56 @@ export async function fetchEducationalSessionPlayback(
     signal
   );
 
-  const media = body.media || {};
-  const directPlayableUrl = String(body.playableUrl || "").trim();
-  const directMediaType = String(body.mediaType || "").trim().toLowerCase();
-  const audioUrl = String(
-    directMediaType === "audio" ? directPlayableUrl : media.audio_url || body.audio_url || ""
-  ).trim();
-  const videoUrl = String(
-    directMediaType === "video" ? directPlayableUrl : media.video_url || body.video_url || ""
-  ).trim();
-  const resolvedSessionId = String(body.sessionId || media.id || sessionId || "").trim();
+  const readString = (...candidates: unknown[]) => {
+    for (const value of candidates) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return "";
+  };
+
+  const media = (body.media && typeof body.media === "object" ? body.media : {}) as Record<
+    string,
+    unknown
+  >;
+  const directPlayableUrl = readString(
+    body.playableUrl,
+    body.playback_url,
+    body.playbackUrl,
+    body.playable_url,
+    body.stream_url,
+    body.streamUrl
+  );
+  const directMediaType = readString(body.mediaType, body.media_type).toLowerCase();
+  const mediaAudioUrl = readString(media.audio_url, body.audio_url);
+  const mediaVideoUrl = readString(media.video_url, body.video_url);
+
+  const audioUrl =
+    directMediaType === "audio"
+      ? directPlayableUrl || mediaAudioUrl
+      : mediaAudioUrl || (directMediaType !== "video" ? directPlayableUrl : "");
+  const videoUrl =
+    directMediaType === "video"
+      ? directPlayableUrl || mediaVideoUrl
+      : mediaVideoUrl || (/\.mp4(?:\?|$)/i.test(directPlayableUrl) ? directPlayableUrl : "");
+
+  const resolvedSessionId = readString(
+    body.sessionId,
+    body.session_id,
+    body.item_id,
+    media.id,
+    sessionId
+  );
 
   if (sessionId && resolvedSessionId && resolvedSessionId !== sessionId) {
     throw new Error("This lesson is not yet available for playback.");
   }
+
+  const durationRaw = body.durationSeconds ?? body.duration_seconds ?? media.duration_seconds;
+  const durationSeconds = Number.isFinite(Number(durationRaw))
+    ? Math.max(0, Number(durationRaw))
+    : null;
+  const mimeType =
+    readString(body.mimeType, body.mime_type, media.mime_type) || null;
 
   if (audioUrl) {
     return {
@@ -432,8 +468,8 @@ export async function fetchEducationalSessionPlayback(
       sessionId: resolvedSessionId || sessionId || cleanProgramId,
       mediaType: "audio",
       playableUrl: audioUrl,
-      mimeType: body.mimeType || media.mime_type || "audio/mpeg",
-      durationSeconds: body.durationSeconds ?? media.duration_seconds ?? null,
+      mimeType: mimeType || "audio/mpeg",
+      durationSeconds,
     };
   }
 
@@ -443,8 +479,8 @@ export async function fetchEducationalSessionPlayback(
       sessionId: resolvedSessionId || sessionId || cleanProgramId,
       mediaType: "video",
       playableUrl: videoUrl,
-      mimeType: body.mimeType || media.mime_type || "video/mp4",
-      durationSeconds: body.durationSeconds ?? media.duration_seconds ?? null,
+      mimeType: mimeType || "video/mp4",
+      durationSeconds,
     };
   }
 

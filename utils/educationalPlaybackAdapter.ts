@@ -23,8 +23,12 @@ export function isEducationalSessionAppSong(song?: AppSong | null) {
 }
 
 export function isEducationalAudioPlayback(mediaType: string, playableUrl: string) {
-  if (String(mediaType || "").toLowerCase() === "audio") return true;
-  return /^https:\/\/.+\.(mp3|m4a|aac|wav|ogg)(?:\?|$)/i.test(String(playableUrl || ""));
+  const type = String(mediaType || "").toLowerCase();
+  const url = String(playableUrl || "").trim();
+  if (type === "audio") return true;
+  // Progressive lecture MP4s are playable as shared-audio sources on HiddenAudio.
+  if (type === "video" && /^https:\/\/.+\.mp4(?:\?|$)/i.test(url)) return true;
+  return /^https:\/\/.+\.(mp3|m4a|aac|wav|ogg|mp4)(?:\?|$)/i.test(url);
 }
 
 export function isEducationalVideoPlayback(mediaType: string, playableUrl: string) {

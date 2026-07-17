@@ -12,8 +12,9 @@ import {
 import { recordEducationalRecentlyPlayed } from "@/services/educationalRecentlyPlayed";
 
 export function openEducationalProgramDetail(item: HiddenTunesLectureItem | EducationalProgram) {
-  const slug = String(item.slug || item.id || "").trim();
-  router.push(`/lectures/${encodeURIComponent(slug)}` as never);
+  // Prefer stable catalog id (UUID) so /api/lectures/items/[id] resolves.
+  const id = String(item.id || item.slug || "").trim();
+  router.push(`/lectures/${encodeURIComponent(id)}` as never);
 }
 
 export async function openEducationalVideoSession(

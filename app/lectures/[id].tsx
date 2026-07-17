@@ -35,6 +35,7 @@ import {
 } from "@/utils/educationalPlayback";
 import { mergeEducationalSessions } from "@/utils/educationalOrdering";
 import { openEducationalVideoSession } from "@/utils/educationalVideoPlayback";
+import { lectureTrace } from "@/utils/lectureTapTrace";
 
 function hasAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
@@ -100,6 +101,7 @@ export default function EducationalProgramDetailScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
   const [playError, setPlayError] = useState(false);
+  const [playErrorText, setPlayErrorText] = useState<string | null>(null);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
   const [savedProgress, setSavedProgress] = useState<EducationalProgressEntry | null>(null);
   const [loadedPageNumbers, setLoadedPageNumbers] = useState<number[]>([1]);
@@ -225,12 +227,20 @@ export default function EducationalProgramDetailScreen() {
 
       setLoadingSessionId(sessionId);
       setPlayError(false);
+      setPlayErrorText(null);
+
+      const tapId = `lecture-${Date.now()}-${sessionId.slice(0, 8)}`;
+      lectureTrace("LECTURE_TAP", tapId, {
+        lectureId: program.id,
+        sessionId,
+        source: "detail_session_row",
+      });
 
       try {
         const session = sessions.find((entry) => entry.id === sessionId);
         if (!session) return;
 
-    const result = await EducationalPlaybackController.playSessionFromProgram({
+        const result = await EducationalPlaybackController.playSessionFromProgram({
           program,
           sessions,
           startSessionId: sessionId,
@@ -241,6 +251,7 @@ export default function EducationalProgramDetailScreen() {
           startPositionMillis,
           signal: controller.signal,
           playGeneration: generation,
+          tapId,
         });
 
         if (controller.signal.aborted || isEducationalPlayGenerationStale(generation)) return;
@@ -251,6 +262,7 @@ export default function EducationalProgramDetailScreen() {
             return;
           }
           setPlayError(true);
+          setPlayErrorText(result.error || "This lesson could not start right now.");
           return;
         }
 
@@ -258,6 +270,11 @@ export default function EducationalProgramDetailScreen() {
       } catch (loadError) {
         if (hasAbortError(loadError) || isEducationalPlayGenerationStale(generation)) return;
         setPlayError(true);
+        setPlayErrorText(
+          loadError instanceof Error
+            ? loadError.message
+            : "This lesson could not start right now."
+        );
       } finally {
         if (!controller.signal.aborted && playGenerationRef.current === generation) {
           setLoadingSessionId(null);
@@ -370,7 +387,9 @@ export default function EducationalProgramDetailScreen() {
             </View>
 
             {playError ? (
-              <Text style={styles.playError}>This lesson could not start right now.</Text>
+              <Text style={styles.playError}>
+                {playErrorText || "This lesson could not start right now."}
+              </Text>
             ) : null}
 
             <Text style={styles.sectionTitle}>Lessons</Text>
