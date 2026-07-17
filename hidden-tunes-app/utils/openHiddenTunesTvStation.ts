@@ -1,24 +1,14 @@
 import { router } from "expo-router";
 
-import type { HiddenTunesTvPlayback } from "../services/tvCatalogApi";
-import {
-  buildTvPlayerQueue,
-  buildTvPlayerQueueItem,
-  fetchTvPlayback,
-  type HiddenTunesTvVideo,
-} from "../services/tvCatalogApi";
-import {
-  beginTvMediaTransition,
-  isCurrentTvMediaTransition,
-  isTvMediaHandoffAbortError,
-} from "../services/tv/tvMediaHandoff";
+import type { HiddenTunesTvVideo } from "../services/tvCatalogApi";
+import { getTvSessionController } from "../services/tv/tvSessionController";
 import { HIDDEN_TUNES_VIDEOS_LABEL } from "./launchVideoCategories";
-
-const HIDDEN_PROVIDER_PATTERN = /\byoutube\b|youtu\.be|google\s*play/i;
 
 export type TvStationOpenResult =
   | { ok: true }
   | { ok: false; error: string };
+
+const HIDDEN_PROVIDER_PATTERN = /\byoutube\b|youtu\.be|google\s*play/i;
 
 export function sanitizeVideoDiscoveryText(value?: string | null) {
   const text = String(value || "").trim();
@@ -37,167 +27,47 @@ export function videoDiscoveryDisplayName(value?: string | null) {
   return cleaned || HIDDEN_TUNES_VIDEOS_LABEL;
 }
 
-function isHlsLikeSource(sourceType: string) {
-  const normalized = sourceType.trim().toLowerCase();
-  return (
-    normalized === "hls_stream" ||
-    normalized === "m3u_playlist" ||
-    normalized.endsWith("_stream")
-  );
-}
-
-function buildHiddenTunesVideoQueue(videos: HiddenTunesTvVideo[]) {
-  return buildTvPlayerQueue(videos).map((item) => ({
-    ...item,
-    title: videoDiscoveryDisplayName(item.title),
-    artist: videoDiscoveryDisplayName(
-      item.artist === "Hidden Tunes TV" ? null : item.artist
-    ),
-    channelTitle: videoDiscoveryDisplayName(
-      item.channelTitle === "Hidden Tunes TV" ? null : item.channelTitle
-    ),
-  }));
-}
-
-function navigateToYoutubePlayer(
-  video: HiddenTunesTvVideo,
-  queueVideos: HiddenTunesTvVideo[],
-  playback: HiddenTunesTvPlayback
-): TvStationOpenResult {
-  const queue = buildHiddenTunesVideoQueue(queueVideos);
-  const tappedItem = buildTvPlayerQueueItem(video, playback);
-  const sourceId = playback.source_id || tappedItem.videoId;
-  const foundIndex = queue.findIndex((item) => item.videoId === sourceId);
-  const displayTappedItem = {
-    ...tappedItem,
-    videoId: sourceId,
-    id: sourceId,
-    title: videoDiscoveryDisplayName(tappedItem.title),
-    artist: videoDiscoveryDisplayName(
-      tappedItem.artist === "Hidden Tunes TV" ? null : tappedItem.artist
-    ),
-    channelTitle: videoDiscoveryDisplayName(
-      tappedItem.channelTitle === "Hidden Tunes TV" ? null : tappedItem.channelTitle
-    ),
-  };
-
-  if (foundIndex >= 0) {
-    queue[foundIndex] = displayTappedItem;
-  } else {
-    queue.unshift(displayTappedItem);
-  }
-
-  router.push({
-    pathname: "/youtube-player",
-    params: {
-      id: sourceId,
-      videoId: sourceId,
-      title: videoDiscoveryDisplayName(video.title),
-      artist: videoDiscoveryDisplayName(video.channel_name),
-      channelTitle: videoDiscoveryDisplayName(video.channel_name),
-      thumbnail:
-        video.logo ||
-        video.thumbnail_url ||
-        `https://i.ytimg.com/vi/${sourceId}/hqdefault.jpg`,
-      queue: JSON.stringify(queue),
-      startIndex: String(foundIndex >= 0 ? foundIndex : 0),
-    },
-  } as any);
-
-  return { ok: true };
-}
-
-function navigateToHlsPlayer(
-  video: HiddenTunesTvVideo,
-  playback: HiddenTunesTvPlayback
-): TvStationOpenResult {
-  router.push({
-    pathname: "/tv-player",
-    params: {
-      channelId: `backend-${video.id}`,
-      streamUrl: playback.stream_url,
-      title: video.title,
-      logo: video.logo || video.thumbnail_url || "",
-      sourceType: playback.source_type,
-    },
-  } as any);
-
-  return { ok: true };
-}
-
-function navigateToYoutubePlayerLegacy(
-  video: HiddenTunesTvVideo,
-  queueVideos: HiddenTunesTvVideo[]
-): TvStationOpenResult {
-  const sourceId = String(video.source_id || "").trim();
-  if (!sourceId) {
-    return {
-      ok: false,
-      error: "This TV station isn't playable right now. Try another channel.",
-    };
-  }
-
-  const playback: HiddenTunesTvPlayback = {
-    id: video.id,
-    source_type: video.source_type || "youtube_video",
-    source_id: sourceId,
-    stream_url: `https://www.youtube.com/watch?v=${sourceId}`,
-    embed_url: null,
-  };
-
-  return navigateToYoutubePlayer(video, queueVideos, playback);
-}
-
+/**
+ * Opens TV catalog playback through the single TV session owner.
+ * Resolves the stream once inside TvPlaybackContext — does not mount a
+ * second player or re-resolve on `/tv-player`.
+ */
 export async function openHiddenTunesTvStation(
   video: HiddenTunesTvVideo,
   queueVideos: HiddenTunesTvVideo[],
   options?: { stopPlayback?: () => Promise<void> }
 ): Promise<TvStationOpenResult> {
-  const { transitionId } = beginTvMediaTransition();
+  const controller = getTvSessionController();
 
-  try {
-    await options?.stopPlayback?.();
-  } catch {
-    // Non-fatal — TV playback owns the surface.
-  }
-
-  if (!isCurrentTvMediaTransition(transitionId)) {
-    return { ok: false, error: "TV request was replaced." };
-  }
-
-  let playback: HiddenTunesTvPlayback | null = null;
-  try {
-    playback = await fetchTvPlayback(video);
-  } catch (error) {
-    if (
-      isTvMediaHandoffAbortError(error) ||
-      !isCurrentTvMediaTransition(transitionId)
-    ) {
-      return { ok: false, error: "TV request was replaced." };
-    }
-    throw error;
-  }
-
-  if (!isCurrentTvMediaTransition(transitionId)) {
-    return { ok: false, error: "TV request was replaced." };
-  }
-
-  if (!playback?.stream_url) {
-    if (video.source_id && !isHlsLikeSource(video.source_type || "")) {
-      return navigateToYoutubePlayerLegacy(video, queueVideos);
-    }
-
+  if (!controller) {
     return {
       ok: false,
-      error: "This TV station isn't playable right now. Try another channel.",
+      error: "TV playback is not ready yet. Try again.",
     };
   }
 
-  if (isHlsLikeSource(playback.source_type)) {
-    return navigateToHlsPlayer(video, playback);
+  // stopPlayback is owned by the session starter; optional pre-stop is ignored
+  // to avoid double audio teardown races.
+  void options;
+
+  const result = await controller.startCatalogSession({
+    video,
+    queue: queueVideos,
+    presentation: "fullPlayer",
+  });
+
+  if (!result.ok) {
+    return { ok: false, error: result.error };
   }
 
-  return navigateToYoutubePlayer(video, queueVideos, playback);
+  router.push({
+    pathname: "/tv-player",
+    params: {
+      channelId: video.id,
+    },
+  } as any);
+
+  return { ok: true };
 }
 
 /** @deprecated Use openHiddenTunesTvStation — kept for video category screens. */

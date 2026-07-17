@@ -13,7 +13,6 @@ import { useFocusEffect } from "expo-router";
 import TvChannelRail from "@/components/tv/TvChannelRail";
 import TvMatureGateSection from "@/components/tv/TvMatureGateSection";
 import { COLORS } from "@/constants/theme";
-import { usePlayerActions } from "@/context/playerContextSlices";
 import { getTvChannelById } from "@/data/tvChannelSeedCatalog";
 import { getMatureTvEnabled } from "@/services/matureTvPreferences";
 import {
@@ -25,10 +24,6 @@ import {
   hasActiveMatureTvChannels,
 } from "@/services/tv/tvChannelService";
 import { isMatureTvTestModeEnabled } from "@/services/tv/matureTvTestMode";
-import {
-  beginTvMediaTransition,
-  isCurrentTvMediaTransition,
-} from "@/services/tv/tvMediaHandoff";
 import { loadTvChannelRuntimeStatus } from "@/services/tv/tvChannelRuntimeStatus";
 import { runTvChannelVerificationIfDue } from "@/services/tv/tvChannelVerification";
 import { setTvTabFocused } from "@/services/tv/tvPlaybackActivity";
@@ -73,7 +68,6 @@ function TvLiveHomeSections({
   onMatureEnabledChange,
 }: TvLiveHomeSectionsProps) {
   const mountedRef = useMountedRef();
-  const { stopPlayback } = usePlayerActions();
   const [loading, setLoading] = useState(true);
   const [recentEntries, setRecentEntries] = useState<TvRecentlyWatchedEntry[]>(
     []
@@ -234,24 +228,8 @@ function TvLiveHomeSections({
       channelIds: string[]
     ) => {
       setOpeningChannelId(channel.id);
-      const { transitionId } = beginTvMediaTransition();
 
-      try {
-        await stopPlayback();
-      } catch {
-        // Audio owns its failure handling.
-      }
-
-      if (!isCurrentTvMediaTransition(transitionId)) {
-        if (mountedRef.current) {
-          setOpeningChannelId((current) =>
-            current === channel.id ? null : current
-          );
-        }
-        return;
-      }
-
-      openTvChannelPlayer(channel, {
+      await openTvChannelPlayer(channel, {
         sectionId,
         channelIds,
         matureEnabled,
@@ -263,7 +241,7 @@ function TvLiveHomeSections({
         );
       }
     },
-    [matureEnabled, mountedRef, stopPlayback]
+    [matureEnabled, mountedRef]
   );
 
   const handleRemoveHistory = useCallback(

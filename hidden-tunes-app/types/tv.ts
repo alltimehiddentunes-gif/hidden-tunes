@@ -98,6 +98,9 @@ export type TvPlaybackContext = {
   startIndex: number;
 };
 
+/** Presentation of the single TV playback session. `closed` = no session. */
+export type TvPresentationMode = "closed" | "floating" | "fullPlayer";
+
 export type TvRecentlyWatchedEntry = {
   channelId: string;
   name: string;

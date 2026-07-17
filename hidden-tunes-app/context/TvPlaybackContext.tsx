@@ -1,26 +1,19 @@
 import {
   createContext,
-  memo,
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { usePathname } from "expo-router";
+import { router } from "expo-router";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
-import { COLORS } from "../constants/theme";
+import TvPlayerHost from "../components/tv/TvPlayerHost";
 import { usePlayerActions } from "./PlayerContext";
+import { getTvChannelById } from "../data/tvChannelSeedCatalog";
 import {
   fetchTvPlayback,
   type HiddenTunesTvPlayback,
@@ -31,16 +24,34 @@ import {
   invalidateTvMediaTransitions,
   isCurrentTvMediaTransition,
 } from "../services/tv/tvMediaHandoff";
+import { setTvSessionActive } from "../services/tv/tvPlaybackActivity";
+import { clearTvPlaybackSession } from "../services/tv/tvPlaybackSession";
+import { recordTvRecentlyWatched } from "../services/tv/tvRecentlyWatched";
+import {
+  registerTvSessionController,
+  type StartCatalogTvSessionInput,
+  type StartResolvedTvSessionInput,
+  type StartSeedTvSessionInput,
+  type TvSessionStartResult,
+} from "../services/tv/tvSessionController";
+import type {
+  TVChannel,
+  TvLiveSectionId,
+  TvPresentationMode,
+} from "../types/tv";
+import {
+  getNowPlayingSnapshot,
+  subscribeNowPlaying,
+} from "../utils/nowPlayingStore";
 
-type TvPlaybackResult =
-  | { ok: true }
-  | { ok: false; error: string };
+type TvPlaybackResult = TvSessionStartResult;
 
 type TvPlaybackContextValue = {
   currentTvChannel: HiddenTunesTvVideo | null;
   isTvPlaying: boolean;
   tvQueue: HiddenTunesTvVideo[];
   isTvMinimized: boolean;
+  presentationMode: TvPresentationMode;
   playTvChannel: (
     channel: HiddenTunesTvVideo,
     queue?: HiddenTunesTvVideo[]
@@ -50,6 +61,7 @@ type TvPlaybackContextValue = {
   previousTvChannel: () => void;
   minimizeTv: () => void;
   restoreTv: () => void;
+  setPresentationMode: (mode: TvPresentationMode) => void;
 };
 
 const TvPlaybackContext = createContext<TvPlaybackContextValue | null>(null);
@@ -59,7 +71,9 @@ function isHlsLikeSource(sourceType: string) {
   return (
     normalized === "hls_stream" ||
     normalized === "m3u_playlist" ||
-    normalized.endsWith("_stream")
+    normalized.endsWith("_stream") ||
+    normalized === "official_stream" ||
+    normalized === "mp4"
   );
 }
 
@@ -72,7 +86,9 @@ function sanitizeYouTubeVideoId(value: unknown) {
     const watchId = url.searchParams.get("v") || "";
     if (/^[a-zA-Z0-9_-]{11}$/.test(watchId)) return watchId;
 
-    const pathMatch = url.pathname.match(/\/(?:embed|shorts)\/([a-zA-Z0-9_-]{11})/);
+    const pathMatch = url.pathname.match(
+      /\/(?:embed|shorts)\/([a-zA-Z0-9_-]{11})/
+    );
     if (pathMatch?.[1]) return pathMatch[1];
 
     if (url.hostname.includes("youtu.be")) {
@@ -118,6 +134,14 @@ function buildHlsPlayerHtml(streamUrl: string) {
         } catch (error) {
           post("error");
         }
+        window.togglePlayback = function (shouldPlay) {
+          if (!video) return;
+          if (shouldPlay) {
+            video.play().catch(function () { post("error"); });
+          } else {
+            video.pause();
+          }
+        };
         window.stopTv = function () {
           try {
             video.pause();
@@ -125,6 +149,11 @@ function buildHlsPlayerHtml(streamUrl: string) {
             video.load();
           } catch (error) {}
         };
+        setTimeout(function () {
+          if (video && video.readyState < 2 && !video.error) {
+            post("timeout");
+          }
+        }, 12000);
       })();
     </script>
   </body>
@@ -161,8 +190,12 @@ function playbackToHtml(playback: HiddenTunesTvPlayback) {
     return buildHlsPlayerHtml(playback.stream_url);
   }
 
-  const videoId = sanitizeYouTubeVideoId(playback.source_id || playback.stream_url);
-  return videoId ? buildYouTubePlayerHtml(videoId) : buildHlsPlayerHtml(playback.stream_url);
+  const videoId = sanitizeYouTubeVideoId(
+    playback.source_id || playback.stream_url
+  );
+  return videoId
+    ? buildYouTubePlayerHtml(videoId)
+    : buildHlsPlayerHtml(playback.stream_url);
 }
 
 function dedupeQueue(queue: HiddenTunesTvVideo[]) {
@@ -178,202 +211,353 @@ function dedupeQueue(queue: HiddenTunesTvVideo[]) {
   return deduped;
 }
 
-function FloatingTvPlayer({
-  channel,
-  html,
-  isPlaying,
-  loading,
-  minimized,
-  onMessage,
-  onStop,
-  onNext,
-  onPrevious,
-  onMinimize,
-  onRestore,
-}: {
-  channel: HiddenTunesTvVideo | null;
-  html: string;
-  isPlaying: boolean;
-  loading: boolean;
-  minimized: boolean;
-  onMessage: (event: WebViewMessageEvent) => void;
-  onStop: () => void;
-  onNext: () => void;
-  onPrevious: () => void;
-  onMinimize: () => void;
-  onRestore: () => void;
-}) {
-  const pathname = usePathname();
-  if (!channel || !html) return null;
+function seedChannelToVideo(channel: TVChannel): HiddenTunesTvVideo {
+  return {
+    id: channel.id,
+    title: channel.name,
+    description: channel.description || null,
+    logo: channel.logoUrl || null,
+    thumbnail_url: channel.logoUrl || null,
+    country: channel.country || null,
+    language: channel.language || null,
+    categories: [channel.category],
+    source_type: "hls_stream",
+    channel_name: channel.name,
+  };
+}
 
-  const compact = minimized || pathname !== "/tv";
-
-  return (
-    <View style={[styles.floating, compact && styles.floatingCompact]}>
-      <View style={styles.floatingHeader}>
-        <View style={styles.floatingCopy}>
-          <Text numberOfLines={1} style={styles.floatingTitle}>
-            {channel.title}
-          </Text>
-          <Text numberOfLines={1} style={styles.floatingSub}>
-            {isPlaying ? "Live TV playing" : "Live TV paused"}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          activeOpacity={0.86}
-          style={styles.headerIcon}
-          onPress={compact ? onRestore : onMinimize}
-        >
-          <Ionicons
-            name={compact ? "expand-outline" : "contract-outline"}
-            size={17}
-            color={COLORS.text}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.86} style={styles.headerIcon} onPress={onStop}>
-          <Ionicons name="close" size={18} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.videoWrap, compact && styles.videoWrapCompact]}>
-        <WebView
-          source={{ html }}
-          style={styles.webView}
-          allowsInlineMediaPlayback
-          allowsFullscreenVideo
-          mediaPlaybackRequiresUserAction={false}
-          javaScriptEnabled
-          domStorageEnabled={false}
-          cacheEnabled={false}
-          incognito
-          onMessage={onMessage}
-        />
-        {loading ? (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator color={COLORS.primary} />
-          </View>
-        ) : null}
-      </View>
-
-      <View style={styles.controls}>
-        <TouchableOpacity activeOpacity={0.86} style={styles.controlButton} onPress={onPrevious}>
-          <Ionicons name="play-skip-back" size={17} color={COLORS.text} />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.86} style={styles.stopButton} onPress={onStop}>
-          <Ionicons name="stop" size={17} color="#000" />
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.86} style={styles.controlButton} onPress={onNext}>
-          <Ionicons name="play-skip-forward" size={17} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+function seedPlayback(channel: TVChannel): HiddenTunesTvPlayback {
+  return {
+    id: channel.id,
+    source_type:
+      channel.streamType === "web" ? "youtube_video" : "hls_stream",
+    source_id: "",
+    stream_url: channel.streamUrl,
+    embed_url: null,
+  };
 }
 
 export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const { stopPlayback } = usePlayerActions();
-  const [currentTvChannel, setCurrentTvChannel] =
-    useState<HiddenTunesTvVideo | null>(null);
+  const webViewRef = useRef<WebView | null>(null);
+  const sessionIdRef = useRef(0);
+  const watchedSavedRef = useRef<string | null>(null);
+  const isPlayingRef = useRef(false);
+
+  const [currentItem, setCurrentItem] = useState<HiddenTunesTvVideo | null>(
+    null
+  );
   const [currentPlayback, setCurrentPlayback] =
     useState<HiddenTunesTvPlayback | null>(null);
   const [tvQueue, setTvQueue] = useState<HiddenTunesTvVideo[]>([]);
   const [queueIndex, setQueueIndex] = useState(0);
+  const [seedChannel, setSeedChannel] = useState<TVChannel | null>(null);
+  const [seedQueueIds, setSeedQueueIds] = useState<string[]>([]);
+  const [sectionId, setSectionId] = useState<TvLiveSectionId | null>(null);
+  const [presentationMode, setPresentationModeState] =
+    useState<TvPresentationMode>("closed");
   const [isTvPlaying, setIsTvPlaying] = useState(false);
   const [isTvLoading, setIsTvLoading] = useState(false);
-  const [isTvMinimized, setIsTvMinimized] = useState(true);
-  const requestRef = useRef(0);
+  const [hasError, setHasError] = useState(false);
+  const [playerGeneration, setPlayerGeneration] = useState(0);
 
-  const playTvChannel = useCallback(
-    async (
-      channel: HiddenTunesTvVideo,
-      queue: HiddenTunesTvVideo[] = []
-    ): Promise<TvPlaybackResult> => {
-      const requestId = ++requestRef.current;
-      const { transitionId } = beginTvMediaTransition();
-      const nextQueue = dedupeQueue(queue.length ? queue : [channel]);
-      const nextIndex = Math.max(
-        0,
-        nextQueue.findIndex((item) => item.id === channel.id)
+  const activeItemIdRef = useRef<string | null>(null);
+  activeItemIdRef.current = currentItem?.id ?? null;
+  const sessionActiveRef = useRef(false);
+  sessionActiveRef.current = Boolean(currentItem && currentPlayback);
+  isPlayingRef.current = isTvPlaying;
+
+  const unloadWebView = useCallback(() => {
+    try {
+      webViewRef.current?.injectJavaScript(
+        `try { window.stopTv && window.stopTv(); } catch (e) {} true;`
       );
+      webViewRef.current?.stopLoading?.();
+    } catch {
+      // Best-effort unload.
+    }
+  }, []);
 
+  const stopTv = useCallback(() => {
+    sessionIdRef.current += 1;
+    invalidateTvMediaTransitions();
+    unloadWebView();
+    setCurrentItem(null);
+    setCurrentPlayback(null);
+    setTvQueue([]);
+    setQueueIndex(0);
+    setSeedChannel(null);
+    setSeedQueueIds([]);
+    setSectionId(null);
+    setPresentationModeState("closed");
+    setIsTvPlaying(false);
+    setIsTvLoading(false);
+    setHasError(false);
+    setTvSessionActive(false);
+    clearTvPlaybackSession();
+    watchedSavedRef.current = null;
+    sessionActiveRef.current = false;
+    activeItemIdRef.current = null;
+  }, [unloadWebView]);
+
+  const setPresentationMode = useCallback((mode: TvPresentationMode) => {
+    if (mode === "closed") return;
+    setPresentationModeState(mode);
+  }, []);
+
+  const applyResolvedSession = useCallback(
+    (input: {
+      item: HiddenTunesTvVideo;
+      playback: HiddenTunesTvPlayback;
+      queue: HiddenTunesTvVideo[];
+      index: number;
+      presentation: Exclude<TvPresentationMode, "closed">;
+      seed?: TVChannel | null;
+      seedIds?: string[];
+      section?: TvLiveSectionId | null;
+    }) => {
+      unloadWebView();
+      setCurrentItem(input.item);
+      setCurrentPlayback(input.playback);
+      setTvQueue(input.queue);
+      setQueueIndex(input.index);
+      setSeedChannel(input.seed ?? null);
+      setSeedQueueIds(input.seedIds ?? []);
+      setSectionId(input.section ?? null);
+      setPresentationModeState(input.presentation);
+      setIsTvPlaying(true);
       setIsTvLoading(true);
+      setHasError(false);
+      setPlayerGeneration((value) => value + 1);
+      setTvSessionActive(true);
+      sessionActiveRef.current = true;
+      activeItemIdRef.current = input.item.id;
+
+      if (input.seed && watchedSavedRef.current !== input.seed.id) {
+        watchedSavedRef.current = input.seed.id;
+        void recordTvRecentlyWatched(input.seed);
+      }
+    },
+    [unloadWebView]
+  );
+
+  const startResolvedSession = useCallback(
+    async (
+      input: StartResolvedTvSessionInput
+    ): Promise<TvSessionStartResult> => {
+      const { transitionId } = beginTvMediaTransition();
+      const sessionId = ++sessionIdRef.current;
+      const presentation =
+        input.presentation === "fullPlayer" ? "fullPlayer" : "floating";
 
       try {
         await stopPlayback();
       } catch {
-        // Music playback owns its own failure handling.
+        // Music owns its failure handling.
       }
 
       if (
-        requestId !== requestRef.current ||
+        sessionId !== sessionIdRef.current ||
         !isCurrentTvMediaTransition(transitionId)
       ) {
         return { ok: false, error: "TV request was replaced." };
       }
 
-      const fetchedPlayback = await fetchTvPlayback(channel);
-      const playback =
-        fetchedPlayback?.stream_url
-          ? fetchedPlayback
-          : channel.source_id
-            ? {
-                id: channel.id,
-                source_type: channel.source_type || "youtube_video",
-                source_id: channel.source_id,
-                stream_url: `https://www.youtube.com/watch?v=${channel.source_id}`,
-                embed_url: null,
-              }
-            : null;
-      if (
-        requestId !== requestRef.current ||
-        !isCurrentTvMediaTransition(transitionId)
-      ) {
-        return { ok: false, error: "TV request was replaced." };
-      }
-
-      if (!playback?.stream_url) {
-        setIsTvLoading(false);
+      if (!input.playback?.stream_url) {
         return {
           ok: false,
           error: "This TV channel is not playable right now.",
         };
       }
 
-      setTvQueue(nextQueue);
-      setQueueIndex(nextIndex);
-      setCurrentTvChannel(channel);
-      setCurrentPlayback(playback);
-      setIsTvPlaying(true);
-      setIsTvLoading(false);
-      setIsTvMinimized(false);
+      const queue = dedupeQueue(
+        input.queue?.length ? input.queue : [input.item]
+      );
+      const index = Math.max(
+        0,
+        queue.findIndex((entry) => entry.id === input.item.id)
+      );
+
+      applyResolvedSession({
+        item: input.item,
+        playback: input.playback,
+        queue,
+        index,
+        presentation,
+        seed: input.seedChannel ?? null,
+        seedIds: input.seedQueueIds,
+        section: input.sectionId ?? null,
+      });
 
       return { ok: true };
     },
-    [stopPlayback]
+    [applyResolvedSession, stopPlayback]
   );
 
-  const stopTv = useCallback(() => {
-    requestRef.current += 1;
-    invalidateTvMediaTransitions();
-    setCurrentTvChannel(null);
-    setCurrentPlayback(null);
-    setTvQueue([]);
-    setQueueIndex(0);
-    setIsTvPlaying(false);
-    setIsTvLoading(false);
-    setIsTvMinimized(true);
-  }, []);
+  const startCatalogSession = useCallback(
+    async (
+      input: StartCatalogTvSessionInput
+    ): Promise<TvSessionStartResult> => {
+      const { transitionId } = beginTvMediaTransition();
+      const sessionId = ++sessionIdRef.current;
+      const presentation =
+        input.presentation === "fullPlayer" ? "fullPlayer" : "floating";
+
+      setIsTvLoading(true);
+
+      try {
+        await stopPlayback();
+      } catch {
+        // Music owns its failure handling.
+      }
+
+      if (
+        sessionId !== sessionIdRef.current ||
+        !isCurrentTvMediaTransition(transitionId)
+      ) {
+        return { ok: false, error: "TV request was replaced." };
+      }
+
+      let playback = input.playback ?? null;
+      if (!playback?.stream_url) {
+        try {
+          playback = await fetchTvPlayback(input.video);
+        } catch {
+          if (
+            sessionId !== sessionIdRef.current ||
+            !isCurrentTvMediaTransition(transitionId)
+          ) {
+            return { ok: false, error: "TV request was replaced." };
+          }
+          playback = null;
+        }
+      }
+
+      if (
+        sessionId !== sessionIdRef.current ||
+        !isCurrentTvMediaTransition(transitionId)
+      ) {
+        return { ok: false, error: "TV request was replaced." };
+      }
+
+      if (!playback?.stream_url) {
+        if (input.video.source_id && !isHlsLikeSource(input.video.source_type || "")) {
+          playback = {
+            id: input.video.id,
+            source_type: input.video.source_type || "youtube_video",
+            source_id: input.video.source_id,
+            stream_url: `https://www.youtube.com/watch?v=${input.video.source_id}`,
+            embed_url: null,
+          };
+        } else {
+          setIsTvLoading(false);
+          return {
+            ok: false,
+            error: "This TV channel is not playable right now.",
+          };
+        }
+      }
+
+      const queue = dedupeQueue(
+        input.queue?.length ? input.queue : [input.video]
+      );
+      const index = Math.max(
+        0,
+        queue.findIndex((entry) => entry.id === input.video.id)
+      );
+
+      applyResolvedSession({
+        item: input.video,
+        playback,
+        queue,
+        index,
+        presentation,
+      });
+
+      return { ok: true };
+    },
+    [applyResolvedSession, stopPlayback]
+  );
+
+  const startSeedSession = useCallback(
+    async (input: StartSeedTvSessionInput): Promise<TvSessionStartResult> => {
+      if (!input.channel.streamUrl || input.channel.streamType === "web") {
+        return {
+          ok: false,
+          error: "This TV channel is not playable right now.",
+        };
+      }
+
+      return startResolvedSession({
+        item: seedChannelToVideo(input.channel),
+        playback: seedPlayback(input.channel),
+        queue: input.channelIds
+          .map((id) => getTvChannelById(id))
+          .filter((entry): entry is TVChannel => Boolean(entry))
+          .map(seedChannelToVideo),
+        presentation: input.presentation || "fullPlayer",
+        seedChannel: input.channel,
+        sectionId: input.sectionId,
+        seedQueueIds: input.channelIds,
+      });
+    },
+    [startResolvedSession]
+  );
+
+  const playTvChannel = useCallback(
+    async (
+      channel: HiddenTunesTvVideo,
+      queue: HiddenTunesTvVideo[] = []
+    ): Promise<TvPlaybackResult> => {
+      return startCatalogSession({
+        video: channel,
+        queue,
+        presentation: "floating",
+      });
+    },
+    [startCatalogSession]
+  );
 
   const playQueueIndex = useCallback(
     (nextIndex: number) => {
+      if (seedQueueIds.length && seedChannel) {
+        const bounded =
+          ((nextIndex % seedQueueIds.length) + seedQueueIds.length) %
+          seedQueueIds.length;
+        const nextId = seedQueueIds[bounded];
+        const next = nextId ? getTvChannelById(nextId) : null;
+        if (!next) return;
+        void startSeedSession({
+          channel: next,
+          sectionId: sectionId || "related",
+          channelIds: seedQueueIds,
+          presentation:
+            presentationMode === "fullPlayer" ? "fullPlayer" : "floating",
+        });
+        return;
+      }
+
       if (!tvQueue.length) return;
-      const bounded = ((nextIndex % tvQueue.length) + tvQueue.length) % tvQueue.length;
+      const bounded =
+        ((nextIndex % tvQueue.length) + tvQueue.length) % tvQueue.length;
       const channel = tvQueue[bounded];
       if (!channel) return;
-      void playTvChannel(channel, tvQueue);
+      void startCatalogSession({
+        video: channel,
+        queue: tvQueue,
+        presentation:
+          presentationMode === "fullPlayer" ? "fullPlayer" : "floating",
+      });
     },
-    [playTvChannel, tvQueue]
+    [
+      presentationMode,
+      sectionId,
+      seedChannel,
+      seedQueueIds,
+      startCatalogSession,
+      startSeedSession,
+      tvQueue,
+    ]
   );
 
   const nextTvChannel = useCallback(() => {
@@ -385,27 +569,71 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   }, [playQueueIndex, queueIndex]);
 
   const minimizeTv = useCallback(() => {
-    setIsTvMinimized(true);
-  }, []);
+    if (presentationMode === "closed") return;
+    setPresentationMode("floating");
+  }, [presentationMode, setPresentationMode]);
 
   const restoreTv = useCallback(() => {
-    setIsTvMinimized(false);
+    if (presentationMode === "closed") return;
+    setPresentationMode("fullPlayer");
+    router.push("/tv-player" as any);
+  }, [presentationMode, setPresentationMode]);
+
+  const handleTogglePlayback = useCallback(() => {
+    const nextPlaying = !isPlayingRef.current;
+    setIsTvPlaying(nextPlaying);
+    webViewRef.current?.injectJavaScript(
+      `window.togglePlayback && window.togglePlayback(${
+        nextPlaying ? "true" : "false"
+      }); true;`
+    );
   }, []);
+
+  const handleRetry = useCallback(() => {
+    setHasError(false);
+    setIsTvLoading(true);
+    setIsTvPlaying(true);
+    setPlayerGeneration((value) => value + 1);
+  }, []);
+
+  const handleSelectSeedChannel = useCallback(
+    (channel: TVChannel) => {
+      const ids = seedQueueIds.length
+        ? seedQueueIds
+        : relatedIdsFallback(channel, seedQueueIds);
+      void startSeedSession({
+        channel,
+        sectionId: "related",
+        channelIds: ids.length ? ids : [channel.id],
+        presentation: "fullPlayer",
+      });
+    },
+    [seedQueueIds, startSeedSession]
+  );
 
   const handleMessage = useCallback((event: WebViewMessageEvent) => {
     const message = String(event.nativeEvent.data || "");
     if (message === "playing") {
       setIsTvPlaying(true);
       setIsTvLoading(false);
+      setHasError(false);
       return;
     }
     if (message === "paused") {
       setIsTvPlaying(false);
       return;
     }
-    if (message === "error") {
+    if (message === "error" || message === "timeout") {
       setIsTvLoading(false);
+      setHasError(true);
+      setIsTvPlaying(false);
     }
+  }, []);
+
+  const handleReportError = useCallback(() => {
+    setIsTvLoading(false);
+    setHasError(true);
+    setIsTvPlaying(false);
   }, []);
 
   const html = useMemo(
@@ -413,51 +641,112 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     [currentPlayback]
   );
 
+  useEffect(() => {
+    registerTvSessionController({
+      startCatalogSession,
+      startSeedSession,
+      startResolvedSession,
+      stopSession: stopTv,
+      setPresentationMode,
+      isSessionActive: () => sessionActiveRef.current,
+      getActiveItemId: () => activeItemIdRef.current,
+    });
+
+    return () => {
+      registerTvSessionController(null);
+    };
+  }, [
+    setPresentationMode,
+    startCatalogSession,
+    startResolvedSession,
+    startSeedSession,
+    stopTv,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      // Provider unmount (rare): ensure session flag clears.
+      setTvSessionActive(false);
+    };
+  }, []);
+
+  // Direct playSong/playQueue paths bypass usePlaybackRouter — stop TV when
+  // the shared now-playing snapshot shows audio becoming active.
+  useEffect(() => {
+    return subscribeNowPlaying(() => {
+      if (!sessionActiveRef.current) return;
+      const snap = getNowPlayingSnapshot();
+      if (!snap.isPlaying || !snap.currentSongId) return;
+      stopTv();
+    });
+  }, [stopTv]);
+
   const value = useMemo<TvPlaybackContextValue>(
     () => ({
-      currentTvChannel,
+      currentTvChannel: currentItem,
       isTvPlaying,
       tvQueue,
-      isTvMinimized,
+      isTvMinimized: presentationMode === "floating",
+      presentationMode,
       playTvChannel,
       stopTv,
       nextTvChannel,
       previousTvChannel,
       minimizeTv,
       restoreTv,
+      setPresentationMode,
     }),
     [
-      currentTvChannel,
-      isTvMinimized,
+      currentItem,
       isTvPlaying,
       minimizeTv,
       nextTvChannel,
       playTvChannel,
+      presentationMode,
       previousTvChannel,
       restoreTv,
+      setPresentationMode,
       stopTv,
       tvQueue,
     ]
   );
 
+  const showHost =
+    presentationMode !== "closed" && currentItem && currentPlayback;
+
   return (
     <TvPlaybackContext.Provider value={value}>
       {children}
-      <FloatingTvPlayer
-        channel={currentTvChannel}
-        html={html}
-        isPlaying={isTvPlaying}
-        loading={isTvLoading}
-        minimized={isTvMinimized}
-        onMessage={handleMessage}
-        onStop={stopTv}
-        onNext={nextTvChannel}
-        onPrevious={previousTvChannel}
-        onMinimize={minimizeTv}
-        onRestore={restoreTv}
-      />
+      {showHost ? (
+        <TvPlayerHost
+          html={html}
+          playerGeneration={playerGeneration}
+          presentationMode={presentationMode}
+          item={currentItem}
+          seedChannel={seedChannel}
+          isPlaying={isTvPlaying}
+          isLoading={isTvLoading}
+          hasError={hasError}
+          webViewRef={webViewRef}
+          onMessage={handleMessage}
+          onStop={stopTv}
+          onNext={nextTvChannel}
+          onPrevious={previousTvChannel}
+          onTogglePlayback={handleTogglePlayback}
+          onMinimize={minimizeTv}
+          onExpand={restoreTv}
+          onRetry={handleRetry}
+          onSelectSeedChannel={handleSelectSeedChannel}
+          onReportError={handleReportError}
+        />
+      ) : null}
     </TvPlaybackContext.Provider>
   );
+}
+
+function relatedIdsFallback(channel: TVChannel, existing: string[]) {
+  if (existing.length) return existing;
+  return [channel.id];
 }
 
 export function useTvPlayback() {
@@ -467,94 +756,3 @@ export function useTvPlayback() {
   }
   return context;
 }
-
-const styles = StyleSheet.create({
-  floating: {
-    position: "absolute",
-    left: 14,
-    right: 14,
-    bottom: 22,
-    borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: "rgba(8,8,12,0.96)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
-    zIndex: 200,
-    elevation: 20,
-  },
-  floatingCompact: {
-    left: 16,
-    right: 16,
-  },
-  floatingHeader: {
-    minHeight: 46,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  floatingCopy: {
-    flex: 1,
-  },
-  floatingTitle: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  floatingSub: {
-    color: COLORS.textMuted,
-    fontSize: 10,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  headerIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
-  videoWrap: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    backgroundColor: "#000",
-  },
-  videoWrapCompact: {
-    height: 78,
-    aspectRatio: undefined,
-  },
-  webView: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.35)",
-  },
-  controls: {
-    minHeight: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  controlButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
-  stopButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.primary,
-  },
-});

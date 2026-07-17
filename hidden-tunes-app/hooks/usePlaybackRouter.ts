@@ -9,6 +9,7 @@ import {
   type PlaybackRouterDeps,
 } from "../services/playback/playbackRouter";
 import { invalidateTvMediaTransitions } from "../services/tv/tvMediaHandoff";
+import { stopTvSession } from "../services/tv/tvSessionController";
 import type { HiddenTunesTvVideo } from "../services/tvCatalogApi";
 import type { PodcastEpisode } from "../types/podcast";
 import type { RadioStation } from "../types/radio";
@@ -22,6 +23,7 @@ export function usePlaybackRouter() {
       ...args
     ) => {
       invalidateTvMediaTransitions();
+      stopTvSession();
       return playSong(...args);
     };
 
@@ -29,6 +31,7 @@ export function usePlaybackRouter() {
       ...args
     ) => {
       invalidateTvMediaTransitions();
+      stopTvSession();
       return playQueue(...args);
     };
 

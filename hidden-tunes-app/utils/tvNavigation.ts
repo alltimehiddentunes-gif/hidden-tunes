@@ -10,6 +10,10 @@ import {
   clearTvPlaybackSession,
   setTvPlaybackSession,
 } from "@/services/tv/tvPlaybackSession";
+import {
+  getTvSessionController,
+  stopTvSession,
+} from "@/services/tv/tvSessionController";
 import type { TVChannel, TvLiveSectionId } from "@/types/tv";
 
 type OpenTvChannelOptions = {
@@ -18,7 +22,7 @@ type OpenTvChannelOptions = {
   matureEnabled?: boolean;
 };
 
-export function openTvChannelPlayer(
+export async function openTvChannelPlayer(
   channel: TVChannel | string,
   options: OpenTvChannelOptions
 ) {
@@ -52,6 +56,16 @@ export function openTvChannelPlayer(
     startIndex: startIndex >= 0 ? startIndex : 0,
   });
 
+  const controller = getTvSessionController();
+  const result = await controller?.startSeedSession({
+    channel: resolved,
+    sectionId: options.sectionId,
+    channelIds,
+    presentation: "fullPlayer",
+  });
+
+  if (!result?.ok) return;
+
   router.push({
     pathname: "/tv-player",
     params: {
@@ -62,6 +76,7 @@ export function openTvChannelPlayer(
 
 export function closeTvPlayer() {
   invalidateTvMediaTransitions();
+  stopTvSession();
   clearTvPlaybackSession();
   if (router.canGoBack()) {
     router.back();
