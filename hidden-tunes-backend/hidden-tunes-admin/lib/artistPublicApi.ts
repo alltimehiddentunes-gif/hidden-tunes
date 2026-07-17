@@ -43,7 +43,11 @@ export async function getOptionalViewerUserId(request: Request) {
   return viewer?.id || null;
 }
 
-export function artistListResponse(items: unknown[], pagination: { hasMore: boolean; nextCursor: string | null }) {
+export function artistListResponse(
+  items: unknown[],
+  pagination: { hasMore: boolean; nextCursor: string | null },
+  extra?: Record<string, unknown>,
+) {
   return NextResponse.json({
     success: true,
     items,
@@ -52,7 +56,14 @@ export function artistListResponse(items: unknown[], pagination: { hasMore: bool
       hasMore: pagination.hasMore,
       nextCursor: pagination.nextCursor,
     },
+    ...(extra || {}),
   });
+}
+
+export function parseArtistReleaseType(searchParams: URLSearchParams) {
+  const raw = searchParams.get("type") || searchParams.get("releaseType") || searchParams.get("release_type");
+  if (!raw || String(raw).trim().toLowerCase() === "all") return null;
+  return String(raw).trim().toLowerCase();
 }
 
 export function artistErrorResponse(error: unknown, fallback: string, status = 500) {

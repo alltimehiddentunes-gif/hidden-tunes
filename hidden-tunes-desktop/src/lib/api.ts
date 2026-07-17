@@ -61,6 +61,7 @@ export type ApiAlbum = {
   releaseYear: number | null
   createdAt: string | null
   artistId: string | null
+  releaseType?: string | null
 }
 
 export type SongSort = 'latest' | 'az'

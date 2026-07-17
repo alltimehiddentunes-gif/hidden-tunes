@@ -54,4 +54,7 @@ next-env.d.ts
 /data/podcast-pending-promotion/final-report.json
 /data/podcast-pending-promotion/batch-reports/
 
+# artist song rankings job checkpoint
+/data/artist-rankings/
+
 .vercel

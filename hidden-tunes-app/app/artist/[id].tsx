@@ -33,9 +33,11 @@ import {
 } from "../../services/hiddenTunesApi";
 import {
   ArtistProfileApiError,
+  artistReleaseTypeLabel,
   fetchArtistAbout,
   fetchArtistProfileShell,
   fetchArtistReleases,
+  fetchArtistTopSongs,
   type ArtistProfileAbout,
   type ArtistProfileRelease,
   type ArtistProfileShell,
@@ -128,6 +130,7 @@ function mapProfileReleaseToAlbum(
     artist: artistName,
     artistId: release.artist_id || undefined,
     artwork: release.artwork || "",
+    releaseType: release.release_type || "unknown",
     tracks: [],
   };
 }
@@ -161,9 +164,14 @@ export default function ArtistScreen() {
   const [profileShell, setProfileShell] = useState<ArtistProfileShell | null>(null);
   const [profileAbout, setProfileAbout] = useState<ArtistProfileAbout | null>(null);
   const [profileReleases, setProfileReleases] = useState<HiddenTunesAlbum[]>([]);
+  const [releasesHasMore, setReleasesHasMore] = useState(false);
+  const [releasesCursor, setReleasesCursor] = useState<string | null>(null);
+  const [loadingMoreReleases, setLoadingMoreReleases] = useState(false);
+  const [trackSectionLabel, setTrackSectionLabel] = useState("Essential Tracks");
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const artistRef = useRef<HiddenTunesArtist | null>(null);
   const requestGenerationRef = useRef(0);
+  const profileArtistIdRef = useRef<string | null>(null);
 
   const tracks = useMemo(
     () => (artist?.tracks || []).map(safeSong),
@@ -334,14 +342,20 @@ export default function ArtistScreen() {
               previous ? mergeArtistWithProfile(previous, shell) : previous,
             );
 
-            const [releasesPage, about] = await Promise.all([
+            const [releasesPage, about, topSongsPage] = await Promise.all([
               fetchArtistReleases(shell.artist.id, {
                 limit: 24,
                 signal,
               }).catch(() => null),
               fetchArtistAbout(shell.artist.id, { signal }).catch(() => null),
+              fetchArtistTopSongs(shell.artist.id, {
+                limit: 5,
+                signal,
+              }).catch(() => null),
             ]);
             if (requestGeneration !== requestGenerationRef.current) return;
+
+            profileArtistIdRef.current = shell.artist.id;
 
             if (releasesPage?.items?.length) {
               setProfileReleases(
@@ -349,8 +363,19 @@ export default function ArtistScreen() {
                   mapProfileReleaseToAlbum(release, shell.artist.name),
                 ),
               );
+              setReleasesHasMore(releasesPage.pagination.hasMore);
+              setReleasesCursor(releasesPage.pagination.nextCursor);
+            } else {
+              setProfileReleases([]);
+              setReleasesHasMore(false);
+              setReleasesCursor(null);
             }
             if (about) setProfileAbout(about);
+            if (topSongsPage?.ranking?.label) {
+              setTrackSectionLabel(topSongsPage.ranking.label);
+            } else {
+              setTrackSectionLabel("Essential Tracks");
+            }
           } catch (error) {
             if (signal?.aborted) return;
             if (error instanceof ArtistProfileApiError && __DEV__) {
@@ -389,6 +414,10 @@ export default function ArtistScreen() {
     setProfileShell(null);
     setProfileAbout(null);
     setProfileReleases([]);
+    setReleasesHasMore(false);
+    setReleasesCursor(null);
+    setTrackSectionLabel("Essential Tracks");
+    profileArtistIdRef.current = null;
     setAboutExpanded(false);
     void loadArtist(true, abortController.signal);
     return () => {
@@ -469,6 +498,32 @@ export default function ArtistScreen() {
       pathname: "/album/[id]",
       params: { id: album.id },
     } as any);
+  }
+
+  async function loadMoreReleases() {
+    const artistId = profileArtistIdRef.current;
+    if (!artistId || !releasesHasMore || !releasesCursor || loadingMoreReleases) return;
+    setLoadingMoreReleases(true);
+    try {
+      const page = await fetchArtistReleases(artistId, {
+        limit: 24,
+        cursor: releasesCursor,
+      });
+      const artistName = profileShell?.artist.name || artist?.name || "";
+      setProfileReleases((previous) => {
+        const seen = new Set(previous.map((item) => item.id));
+        const appended = page.items
+          .map((release) => mapProfileReleaseToAlbum(release, artistName))
+          .filter((item) => !seen.has(item.id));
+        return [...previous, ...appended];
+      });
+      setReleasesHasMore(page.pagination.hasMore);
+      setReleasesCursor(page.pagination.nextCursor);
+    } catch {
+      // Keep already-loaded releases when pagination fails.
+    } finally {
+      setLoadingMoreReleases(false);
+    }
   }
 
   const renderTrackItem = useCallback(
@@ -637,7 +692,9 @@ export default function ArtistScreen() {
           <>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Releases</Text>
-              <Text style={styles.sectionSub}>Albums and projects from this creator</Text>
+              <Text style={styles.sectionSub}>
+                Albums, EPs, singles, and appearances when taxonomy is available
+              </Text>
             </View>
 
             <FlatList
@@ -670,16 +727,33 @@ export default function ArtistScreen() {
                   <Text style={styles.albumSub} numberOfLines={1}>
                     {Array.isArray(item.tracks) && item.tracks.length > 0
                       ? `${item.tracks.length} track${item.tracks.length === 1 ? "" : "s"}`
-                      : "Release"}
+                      : artistReleaseTypeLabel(item.releaseType)}
                   </Text>
                 </TouchableOpacity>
               )}
+              ListFooterComponent={
+                releasesHasMore ? (
+                  <TouchableOpacity
+                    style={styles.moreReleasesBtn}
+                    onPress={() => {
+                      void loadMoreReleases();
+                    }}
+                    disabled={loadingMoreReleases}
+                  >
+                    {loadingMoreReleases ? (
+                      <ActivityIndicator color={COLORS.primary} />
+                    ) : (
+                      <Text style={styles.moreReleasesText}>See more</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null
+              }
             />
           </>
         )}
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Essential Tracks</Text>
+          <Text style={styles.sectionTitle}>{trackSectionLabel}</Text>
           <Text style={styles.sectionSub}>Start a queue from this artist world</Text>
         </View>
           </>
@@ -894,6 +968,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     marginTop: 4,
+  },
+  moreReleasesBtn: {
+    width: 108,
+    height: 148,
+    borderRadius: 18,
+    marginRight: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  moreReleasesText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800",
   },
   trackRow: {
     marginHorizontal: 20,

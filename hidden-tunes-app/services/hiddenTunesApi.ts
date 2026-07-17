@@ -198,6 +198,7 @@ export type HiddenTunesAlbum = {
   artistId?: string;
   artwork: string;
   genre?: string;
+  releaseType?: string;
   tracks: HiddenTunesNormalizedSong[];
 };
 

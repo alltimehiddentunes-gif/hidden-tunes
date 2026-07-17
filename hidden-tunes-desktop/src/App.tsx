@@ -37,9 +37,11 @@ import {
 } from './lib/songMetadata'
 import { withDevAudioVersionTestSongs } from './lib/devAudioVersionTestHarness'
 import {
+  artistReleaseTypeLabel,
   fetchArtistAbout,
   fetchArtistProfileShell,
   fetchArtistReleases,
+  fetchArtistTopSongs,
   type ArtistProfileShell,
 } from './services/artistProfileApi'
 import {
@@ -6403,6 +6405,10 @@ function ArtistDetailView({
   const [profileShell, setProfileShell] = useState<ArtistProfileShell | null>(null)
   const [profileBio, setProfileBio] = useState<string | null>(null)
   const [profileAlbums, setProfileAlbums] = useState<ApiAlbum[] | null>(null)
+  const [releasesHasMore, setReleasesHasMore] = useState(false)
+  const [releasesCursor, setReleasesCursor] = useState<string | null>(null)
+  const [loadingMoreReleases, setLoadingMoreReleases] = useState(false)
+  const [trackSectionLabel, setTrackSectionLabel] = useState('Essential tracks')
   const [aboutExpanded, setAboutExpanded] = useState(false)
 
   const artistSongs = useMemo(() => {
@@ -6425,6 +6431,9 @@ function ArtistDetailView({
     setProfileShell(null)
     setProfileBio(null)
     setProfileAlbums(null)
+    setReleasesHasMore(false)
+    setReleasesCursor(null)
+    setTrackSectionLabel('Essential tracks')
     setAboutExpanded(false)
 
     void (async () => {
@@ -6435,12 +6444,16 @@ function ArtistDetailView({
         if (abortController.signal.aborted) return
         setProfileShell(shell)
 
-        const [releasesPage, about] = await Promise.all([
+        const [releasesPage, about, topSongsPage] = await Promise.all([
           fetchArtistReleases(shell.artist.id, {
             limit: 24,
             signal: abortController.signal,
           }).catch(() => null),
           fetchArtistAbout(shell.artist.id, {
+            signal: abortController.signal,
+          }).catch(() => null),
+          fetchArtistTopSongs(shell.artist.id, {
+            limit: 5,
             signal: abortController.signal,
           }).catch(() => null),
         ])
@@ -6455,12 +6468,18 @@ function ArtistDetailView({
               releaseYear: release.release_year,
               createdAt: release.created_at,
               artistId: release.artist_id || artist.id,
+              releaseType: release.release_type || 'unknown',
             })),
           )
+          setReleasesHasMore(releasesPage.pagination.hasMore)
+          setReleasesCursor(releasesPage.pagination.nextCursor)
         }
 
         const bio = String(about?.bio || shell.artist.bio || '').trim()
         setProfileBio(bio || null)
+        if (topSongsPage?.ranking?.label) {
+          setTrackSectionLabel(topSongsPage.ranking.label)
+        }
       } catch {
         // Keep catalog-backed artist page when profile API is unavailable.
       }
@@ -6468,6 +6487,46 @@ function ArtistDetailView({
 
     return () => abortController.abort()
   }, [artist.id])
+
+  const loadMoreReleases = useCallback(async () => {
+    const artistId = profileShell?.artist.id || artist.id
+    if (!releasesHasMore || !releasesCursor || loadingMoreReleases) return
+    setLoadingMoreReleases(true)
+    try {
+      const page = await fetchArtistReleases(artistId, {
+        limit: 24,
+        cursor: releasesCursor,
+      })
+      setProfileAlbums((previous) => {
+        const base = previous || []
+        const seen = new Set(base.map((item) => item.id))
+        const appended = page.items
+          .filter((release) => !seen.has(release.id))
+          .map((release) => ({
+            id: release.id,
+            title: release.title,
+            artwork: release.artwork,
+            releaseYear: release.release_year,
+            createdAt: release.created_at,
+            artistId: release.artist_id || artist.id,
+            releaseType: release.release_type || 'unknown',
+          }))
+        return [...base, ...appended]
+      })
+      setReleasesHasMore(page.pagination.hasMore)
+      setReleasesCursor(page.pagination.nextCursor)
+    } catch {
+      // Keep already-loaded releases when pagination fails.
+    } finally {
+      setLoadingMoreReleases(false)
+    }
+  }, [
+    artist.id,
+    loadingMoreReleases,
+    profileShell?.artist.id,
+    releasesCursor,
+    releasesHasMore,
+  ])
 
   const playArtistSong = useCallback(
     (song: ApiSong, index: number, queue = artistSongs) => {
@@ -6496,7 +6555,7 @@ function ArtistDetailView({
   )
   const artistAlbums = profileAlbums && profileAlbums.length > 0 ? profileAlbums : catalogAlbums
   const genreLabel = profileShell?.artist.genres?.slice(0, 3).join(' · ') || null
-  const trackLabel = showAllSongs ? 'All songs' : 'Essential tracks'
+  const trackLabel = showAllSongs ? 'All songs' : trackSectionLabel
 
   return (
     <PageFrame>
@@ -6512,8 +6571,9 @@ function ArtistDetailView({
           <h1 className="detail-h1">{profileShell?.artist.name || artist.name}</h1>
           <p className="detail-stats">
             {artist.songCount || artistSongs.length}{' '}
-            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}{' '}
-            {artistAlbums.length === 1 ? 'album' : 'albums'}
+            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}
+            {releasesHasMore ? '+' : ''}{' '}
+            {artistAlbums.length === 1 ? 'release' : 'releases'}
             {genreLabel ? ` · ${genreLabel}` : ''}
           </p>
           {profileBio ? (
@@ -6565,7 +6625,11 @@ function ArtistDetailView({
               {showAllSongs ? 'Show less' : `Show all ${artistSongs.length}`}
             </button>
           ) : (
-            <span>Latest from catalog</span>
+            <span>
+              {trackSectionLabel === 'Popular tracks'
+                ? 'Ranked from verified play signals'
+                : 'Latest from catalog'}
+            </span>
           )}
         </div>
         {topSongs.length === 0 ? (
@@ -6586,20 +6650,54 @@ function ArtistDetailView({
 
       <section className="detail-panel">
         <div className="detail-panel-header">
-          <h3>Albums</h3>
-          <span>{profileAlbums?.length ? 'From artist profile' : 'From cached catalog'}</span>
+          <h3>Releases</h3>
+          <span>
+            {profileAlbums?.length
+              ? releasesHasMore
+                ? 'Paginated discography'
+                : 'From artist profile'
+              : 'From cached catalog'}
+          </span>
         </div>
         {artistAlbums.length === 0 ? (
           <CatalogEmpty title="No verified albums" detail="Only identity-matched artist albums are shown here." />
         ) : (
-          <ApiAlbumGrid
-            albums={artistAlbums}
-            artistNames={artistNames}
-            indexes={indexes}
-            onSelect={onOpenAlbum}
-            listKey={`artist-albums-${artist.id}`}
-            paginate={false}
-          />
+          <>
+            <ApiAlbumGrid
+              albums={artistAlbums}
+              artistNames={artistNames}
+              indexes={indexes}
+              onSelect={onOpenAlbum}
+              listKey={`artist-albums-${artist.id}`}
+              paginate={false}
+            />
+            {releasesHasMore ? (
+              <div className="detail-panel-footer" style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  disabled={loadingMoreReleases}
+                  onClick={() => {
+                    void loadMoreReleases()
+                  }}
+                >
+                  {loadingMoreReleases ? 'Loading…' : 'See more releases'}
+                </button>
+              </div>
+            ) : null}
+            {profileAlbums?.some((album) => album.releaseType && album.releaseType !== 'unknown') ? (
+              <p className="detail-panel-note" style={{ marginTop: 10, opacity: 0.72 }}>
+                Types:{' '}
+                {[
+                  ...new Set(
+                    profileAlbums
+                      .map((album) => artistReleaseTypeLabel(album.releaseType))
+                      .filter(Boolean),
+                  ),
+                ].join(' · ')}
+              </p>
+            ) : null}
+          </>
         )}
       </section>
     </PageFrame>

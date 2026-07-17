@@ -90,7 +90,31 @@ export type ArtistProfileListPage<T> = {
     hasMore: boolean;
     nextCursor: string | null;
   };
+  ranking?: {
+    mode: "ranked" | "play_count" | "latest";
+    label: "Popular tracks" | "Essential tracks";
+    has_positive_scores: boolean;
+  };
+  release_filter?: string;
 };
+
+export const ARTIST_RELEASE_TYPE_LABELS: Record<string, string> = {
+  album: "Album",
+  single: "Single",
+  ep: "EP",
+  compilation: "Compilation",
+  live: "Live",
+  soundtrack: "Soundtrack",
+  appearance: "Appearance",
+  unknown: "Release",
+};
+
+export function artistReleaseTypeLabel(value: unknown) {
+  const key = String(value || "")
+    .trim()
+    .toLowerCase();
+  return ARTIST_RELEASE_TYPE_LABELS[key] || ARTIST_RELEASE_TYPE_LABELS.unknown;
+}
 
 export class ArtistProfileApiError extends Error {
   status: number;
@@ -228,7 +252,7 @@ function normalizeRelease(row: unknown): ArtistProfileRelease | null {
     artist_id: item.artist_id ? String(item.artist_id) : null,
     artwork: item.artwork ? String(item.artwork) : null,
     release_year: Number(item.release_year) > 0 ? Number(item.release_year) : null,
-    release_type: cleanText(item.release_type, "album"),
+    release_type: cleanText(item.release_type, "unknown"),
     track_count: Number(item.track_count) > 0 ? Number(item.track_count) : null,
     created_at: item.created_at ? String(item.created_at) : null,
   };
@@ -239,9 +263,12 @@ function normalizeListPage<T>(
   mapItem: (row: unknown) => T | null,
 ): ArtistProfileListPage<T> {
   const items = Array.isArray(payload.items)
-    ? payload.items.map(mapItem).filter(Boolean) as T[]
+    ? (payload.items.map(mapItem).filter(Boolean) as T[])
     : [];
   const pagination = asObject(payload.pagination) || {};
+  const ranking = asObject(payload.ranking);
+  const mode = String(ranking?.mode || "");
+  const label = String(ranking?.label || "");
   return {
     items,
     pagination: {
@@ -249,6 +276,21 @@ function normalizeListPage<T>(
       hasMore: pagination.hasMore === true,
       nextCursor: pagination.nextCursor ? String(pagination.nextCursor) : null,
     },
+    ...(ranking
+      ? {
+          ranking: {
+            mode:
+              mode === "ranked" || mode === "play_count" || mode === "latest"
+                ? mode
+                : "latest",
+            label: label === "Popular tracks" ? "Popular tracks" : "Essential tracks",
+            has_positive_scores: ranking.has_positive_scores === true,
+          },
+        }
+      : {}),
+    ...(payload.release_filter
+      ? { release_filter: String(payload.release_filter) }
+      : {}),
   };
 }
 
@@ -330,12 +372,20 @@ export async function fetchArtistTopSongs(
 
 export async function fetchArtistReleases(
   ref: string,
-  options: RequestOptions & { limit?: number; cursor?: string | null } = {},
+  options: RequestOptions & {
+    limit?: number;
+    cursor?: string | null;
+    releaseType?: string | null;
+  } = {},
 ) {
   const payload = await artistProfileRequest<Record<string, unknown>>(
     `/api/artists/${encodeURIComponent(ref)}/releases`,
     options,
-    { limit: options.limit ?? ARTIST_PROFILE_DEFAULT_LIMIT, cursor: options.cursor },
+    {
+      limit: options.limit ?? ARTIST_PROFILE_DEFAULT_LIMIT,
+      cursor: options.cursor,
+      type: options.releaseType || undefined,
+    },
   );
   return normalizeListPage(payload, normalizeRelease);
 }

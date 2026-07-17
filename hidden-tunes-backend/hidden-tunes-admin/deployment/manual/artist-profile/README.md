@@ -3,6 +3,7 @@
 1. `01_artist_profile_infrastructure.sql` (same as `supabase/migrations/20260713150000_artist_profile_infrastructure.sql`)
 2. `02_artist_verification.sql`
 3. `03_artist_statistics_backfill.sql` (optional but recommended)
+4. `04_artist_release_taxonomy.sql` (same as `supabase/migrations/20260717180000_artist_release_taxonomy.sql`)
 
 ## Apply from this repo
 
@@ -12,9 +13,14 @@ cd hidden-tunes-backend/hidden-tunes-admin
 npm run artist:apply-migration
 npm run artist:verify-schema
 npm run artist:smoke-loaders
+# Optional: only after infrastructure schema is applied. Safe no-op when rankings table is missing.
+npm run artist:rankings:dry
+npm run artist:rankings -- --resume --limit-artists=100
 ```
 
-If credentials are unavailable, paste `01_artist_profile_infrastructure.sql` into the Supabase SQL Editor, then run verify/smoke.
+If credentials are unavailable, paste `01_artist_profile_infrastructure.sql` then `04_artist_release_taxonomy.sql` into the Supabase SQL Editor, then run verify/smoke.
+
+Artist Profile pages do **not** require the ranking job. Without ranking rows or play signals, track sections stay labeled **Essential tracks**.
 
 ## Schema snapshot
 
