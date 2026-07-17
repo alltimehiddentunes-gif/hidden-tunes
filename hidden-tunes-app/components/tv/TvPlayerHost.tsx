@@ -31,9 +31,15 @@ import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
 import { useMountedRef } from "@/utils/useMountedRef";
 
 import TvChannelCard from "./TvChannelCard";
+import TvNativeVideoSurface, {
+  type TvNativeVideoHandle,
+} from "./TvNativeVideoSurface";
+import type { TvPlaybackSurface } from "@/services/tv/tvPlaybackSurface";
 
 type TvPlayerHostProps = {
   html: string;
+  streamUrl: string;
+  surface: TvPlaybackSurface;
   playerGeneration: number;
   presentationMode: Exclude<TvPresentationMode, "closed">;
   item: HiddenTunesTvVideo;
@@ -42,7 +48,10 @@ type TvPlayerHostProps = {
   isLoading: boolean;
   hasError: boolean;
   webViewRef: RefObject<WebView | null>;
+  nativePlayerRef: RefObject<TvNativeVideoHandle | null>;
   onMessage: (event: WebViewMessageEvent) => void;
+  onNativePlaying: () => void;
+  onNativePaused: () => void;
   onStop: () => void;
   onNext: () => void;
   onPrevious: () => void;
@@ -64,6 +73,8 @@ function formatCategoryLabel(category: string) {
  */
 function TvPlayerHost({
   html,
+  streamUrl,
+  surface,
   playerGeneration,
   presentationMode,
   item,
@@ -72,7 +83,10 @@ function TvPlayerHost({
   isLoading,
   hasError,
   webViewRef,
+  nativePlayerRef,
   onMessage,
+  onNativePlaying,
+  onNativePaused,
   onStop,
   onNext,
   onPrevious,
@@ -244,7 +258,16 @@ function TvPlayerHost({
               </TouchableOpacity>
             </View>
           </View>
-        ) : html ? (
+        ) : surface === "native" && streamUrl ? (
+          <TvNativeVideoSurface
+            key={`tv-native-${playerGeneration}`}
+            ref={nativePlayerRef}
+            streamUrl={streamUrl}
+            onPlaying={onNativePlaying}
+            onPaused={onNativePaused}
+            onError={onReportError}
+          />
+        ) : surface === "webview" && html ? (
           <WebView
             key={`tv-session-${playerGeneration}`}
             ref={webViewRef}

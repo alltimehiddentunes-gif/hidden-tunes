@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
 import TvPlayerHost from "../components/tv/TvPlayerHost";
+import type { TvNativeVideoHandle } from "../components/tv/TvNativeVideoSurface";
 import { usePlayerActions } from "./PlayerContext";
 import { getTvChannelById } from "../data/tvChannelSeedCatalog";
 import {
@@ -25,6 +26,10 @@ import {
   isCurrentTvMediaTransition,
 } from "../services/tv/tvMediaHandoff";
 import { setTvSessionActive } from "../services/tv/tvPlaybackActivity";
+import {
+  resolveTvPlaybackSurface,
+  type TvPlaybackSurface,
+} from "../services/tv/tvPlaybackSurface";
 import { clearTvPlaybackSession } from "../services/tv/tvPlaybackSession";
 import { recordTvRecentlyWatched } from "../services/tv/tvRecentlyWatched";
 import {
@@ -240,9 +245,11 @@ function seedPlayback(channel: TVChannel): HiddenTunesTvPlayback {
 export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const { stopPlayback } = usePlayerActions();
   const webViewRef = useRef<WebView | null>(null);
+  const nativePlayerRef = useRef<TvNativeVideoHandle | null>(null);
   const sessionIdRef = useRef(0);
   const watchedSavedRef = useRef<string | null>(null);
   const isPlayingRef = useRef(false);
+  const surfaceRef = useRef<TvPlaybackSurface>("native");
 
   const [currentItem, setCurrentItem] = useState<HiddenTunesTvVideo | null>(
     null
@@ -260,28 +267,35 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const [isTvLoading, setIsTvLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [playerGeneration, setPlayerGeneration] = useState(0);
+  const [surface, setSurface] = useState<TvPlaybackSurface>("native");
 
   const activeItemIdRef = useRef<string | null>(null);
   activeItemIdRef.current = currentItem?.id ?? null;
   const sessionActiveRef = useRef(false);
   sessionActiveRef.current = Boolean(currentItem && currentPlayback);
   isPlayingRef.current = isTvPlaying;
+  surfaceRef.current = surface;
 
-  const unloadWebView = useCallback(() => {
+  const unloadSurface = useCallback(() => {
+    try {
+      nativePlayerRef.current?.unload();
+    } catch {
+      // Best-effort native unload.
+    }
     try {
       webViewRef.current?.injectJavaScript(
         `try { window.stopTv && window.stopTv(); } catch (e) {} true;`
       );
       webViewRef.current?.stopLoading?.();
     } catch {
-      // Best-effort unload.
+      // Best-effort WebView unload.
     }
   }, []);
 
   const stopTv = useCallback(() => {
     sessionIdRef.current += 1;
     invalidateTvMediaTransitions();
-    unloadWebView();
+    unloadSurface();
     setCurrentItem(null);
     setCurrentPlayback(null);
     setTvQueue([]);
@@ -298,7 +312,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     watchedSavedRef.current = null;
     sessionActiveRef.current = false;
     activeItemIdRef.current = null;
-  }, [unloadWebView]);
+  }, [unloadSurface]);
 
   const setPresentationMode = useCallback((mode: TvPresentationMode) => {
     if (mode === "closed") return;
@@ -316,7 +330,10 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       seedIds?: string[];
       section?: TvLiveSectionId | null;
     }) => {
-      unloadWebView();
+      unloadSurface();
+      const nextSurface = resolveTvPlaybackSurface(input.playback);
+      setSurface(nextSurface);
+      surfaceRef.current = nextSurface;
       setCurrentItem(input.item);
       setCurrentPlayback(input.playback);
       setTvQueue(input.queue);
@@ -338,7 +355,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         void recordTvRecentlyWatched(input.seed);
       }
     },
-    [unloadWebView]
+    [unloadSurface]
   );
 
   const startResolvedSession = useCallback(
@@ -582,6 +599,11 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const handleTogglePlayback = useCallback(() => {
     const nextPlaying = !isPlayingRef.current;
     setIsTvPlaying(nextPlaying);
+    if (surfaceRef.current === "native") {
+      if (nextPlaying) nativePlayerRef.current?.play();
+      else nativePlayerRef.current?.pause();
+      return;
+    }
     webViewRef.current?.injectJavaScript(
       `window.togglePlayback && window.togglePlayback(${
         nextPlaying ? "true" : "false"
@@ -630,16 +652,29 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const handleNativePlaying = useCallback(() => {
+    setIsTvPlaying(true);
+    setIsTvLoading(false);
+    setHasError(false);
+  }, []);
+
+  const handleNativePaused = useCallback(() => {
+    setIsTvPlaying(false);
+  }, []);
+
   const handleReportError = useCallback(() => {
     setIsTvLoading(false);
     setHasError(true);
     setIsTvPlaying(false);
   }, []);
 
-  const html = useMemo(
-    () => (currentPlayback ? playbackToHtml(currentPlayback) : ""),
-    [currentPlayback]
-  );
+  const html = useMemo(() => {
+    if (!currentPlayback) return "";
+    if (resolveTvPlaybackSurface(currentPlayback) !== "webview") return "";
+    return playbackToHtml(currentPlayback);
+  }, [currentPlayback]);
+
+  const streamUrl = currentPlayback?.stream_url || "";
 
   useEffect(() => {
     registerTvSessionController({
@@ -720,6 +755,8 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       {showHost ? (
         <TvPlayerHost
           html={html}
+          streamUrl={streamUrl}
+          surface={surface}
           playerGeneration={playerGeneration}
           presentationMode={presentationMode}
           item={currentItem}
@@ -728,7 +765,10 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
           isLoading={isTvLoading}
           hasError={hasError}
           webViewRef={webViewRef}
+          nativePlayerRef={nativePlayerRef}
           onMessage={handleMessage}
+          onNativePlaying={handleNativePlaying}
+          onNativePaused={handleNativePaused}
           onStop={stopTv}
           onNext={nextTvChannel}
           onPrevious={previousTvChannel}
