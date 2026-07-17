@@ -124,6 +124,7 @@
     "verify:motivation-play-sample": "tsx scripts/verify-motivation-play-sample.ts",
     "test:sports-foundation": "tsx scripts/test-sports-foundation.ts",
     "test:sports-provider": "tsx scripts/test-sports-olympics-provider.ts",
+    "test:sports-home-ia": "tsx scripts/test-sports-home-ia.ts",
     "sports:smoke-olympics": "tsx scripts/smoke-sports-olympics-staging.ts",
     "sports:validate-migration": "tsx scripts/validate-sports-migration.ts",
     "sports:import-provider": "tsx scripts/run-sports-import-provider.ts",

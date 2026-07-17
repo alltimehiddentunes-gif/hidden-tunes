@@ -45,6 +45,8 @@ export const SPORTS_FEATURE_FLAG_KEYS = [
   "sports_live_scores_enabled",
   "sports_notifications_enabled",
   "sports_provider_imports_enabled",
+  "sports_home_ia_enabled",
+  "sports_mobile_pilot_enabled",
 ] as const;
 
 export type SportsFeatureFlagKey = (typeof SPORTS_FEATURE_FLAG_KEYS)[number];
@@ -60,6 +62,8 @@ export const SPORTS_FEATURE_FLAG_DEFAULTS: Record<SportsFeatureFlagKey, boolean>
     sports_live_scores_enabled: false,
     sports_notifications_enabled: false,
     sports_provider_imports_enabled: false,
+    sports_home_ia_enabled: false,
+    sports_mobile_pilot_enabled: false,
   };
 
 export const SPORTS_PLATFORM_RIGHTS_FIELD: Record<

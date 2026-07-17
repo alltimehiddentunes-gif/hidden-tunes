@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { listPaginated } from "@/lib/sports/catalog";
-import { SPORTS_PUBLIC_CATALOG_STATUSES } from "@/lib/sports/constants";
+import { listSportsFixturesFiltered } from "@/lib/sports/fixtures/listFixtures";
 import { isSportsFeatureEnabled } from "@/lib/sports/featureFlags";
 import {
   jsonSportsError,
@@ -19,35 +18,48 @@ export async function GET(request: NextRequest) {
       return jsonSportsOk({
         enabled: false,
         items: [],
+        nextCursor: null,
         pagination: { page: 1, limit: 20, hasMore: false },
       });
     }
 
     const url = new URL(request.url);
-    const q = String(url.searchParams.get("q") || "").trim();
-    const { page, limit, from, to } = parseSportsPageLimit(request);
-    const { items, pagination } = await listPaginated(
-      "sports_fixtures",
-      "id, title, sport_id, competition_id, season_id, starts_at, ends_at, status, venue_id, country_code",
-      {
-        statusIn: [
-          ...SPORTS_PUBLIC_CATALOG_STATUSES,
-          "completed",
-          "postponed",
-          "geo_blocked",
-        ],
-        q: q || undefined,
-        qColumns: q ? ["title"] : undefined,
-        from,
-        to,
-        order: { column: "starts_at", ascending: false },
-      }
-    );
+    const { page, limit } = parseSportsPageLimit(request);
+    const cursor =
+      String(url.searchParams.get("cursor") || "").trim() ||
+      (page > 1
+        ? Buffer.from(JSON.stringify({ o: (page - 1) * limit }), "utf8").toString(
+            "base64url"
+          )
+        : null);
+
+    const { items, nextCursor } = await listSportsFixturesFiltered({
+      sportId: url.searchParams.get("sportId"),
+      sportSlug: url.searchParams.get("sport") || url.searchParams.get("sportSlug"),
+      competitionId: url.searchParams.get("competition") || url.searchParams.get("competitionId"),
+      country: url.searchParams.get("country"),
+      date: url.searchParams.get("date"),
+      status: url.searchParams.get("status"),
+      live: url.searchParams.get("live") === "1" || url.searchParams.get("live") === "true",
+      upcoming:
+        url.searchParams.get("upcoming") === "1" ||
+        url.searchParams.get("upcoming") === "true",
+      finished:
+        url.searchParams.get("finished") === "1" ||
+        url.searchParams.get("finished") === "true",
+      cursor,
+      limit,
+    });
 
     return jsonSportsOk({
       enabled: true,
       items,
-      pagination: { ...pagination, page, limit },
+      nextCursor,
+      pagination: {
+        page,
+        limit,
+        hasMore: Boolean(nextCursor),
+      },
     });
   } catch (err) {
     return jsonSportsError(

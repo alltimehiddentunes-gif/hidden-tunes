@@ -16,6 +16,35 @@ export type SportsBrowseItem = {
   regionMessage?: string | null;
 };
 
+export type SportsMatchCard = {
+  id: string;
+  sport?: { id: string; slug: string; name: string };
+  competition?: { id: string; name: string; shortName?: string | null } | null;
+  participants?: Array<{ id: string; name: string; side?: string | null }>;
+  status?: {
+    code: string;
+    label: string;
+    live: boolean;
+    finished: boolean;
+  };
+  timing?: { startsAt: string | null; endsAt?: string | null };
+  watchability?: {
+    state: string;
+    playable: boolean;
+  };
+  artwork?: { thumbnailUrl?: string | null } | null;
+};
+
+export type SportsHomeSection = {
+  id: string;
+  type: string;
+  title: string;
+  subtitle?: string;
+  rank: number;
+  items: unknown[];
+  nextCursor?: string | null;
+};
+
 export type SportsNativePlayback = {
   mode: "native";
   manifestUrl: string;
@@ -48,6 +77,10 @@ export type SportsPlaybackResult =
 export type SportsHomeResponse = {
   success: boolean;
   enabled?: boolean;
-  sections?: Partial<Record<string, SportsBrowseItem[]>>;
+  homeIaEnabled?: boolean;
+  generatedAt?: string;
+  /** Phase 2B ordered sections. */
+  sections?: SportsHomeSection[] | Partial<Record<string, SportsBrowseItem[]>>;
   sectionErrors?: Array<{ section: string; error: string }>;
+  message?: string;
 };

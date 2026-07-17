@@ -3,6 +3,12 @@ export * from "./constants";
 export * from "./featureFlags";
 export * from "./http";
 export * from "./catalog";
+export { buildSportsHomeContract } from "./home/buildHome";
+export {
+  mapSportsPublicEventStatus,
+  toSportsMatchCard,
+  getCalendarDayBounds,
+} from "./home";
 export { resolveSportsBroadcastPlayback } from "./playback/resolver";
 export { playSportsBroadcast, getBroadcastWatchOptions } from "./playback/service";
 export { evaluateSportsRights, selectPreferredPlaybackMode } from "./rights/evaluate";

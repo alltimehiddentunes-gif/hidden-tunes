@@ -1,9 +1,6 @@
 import { NextRequest } from "next/server";
 
-import {
-  getSportsHome,
-  omitEmptyHomeSections,
-} from "@/lib/sports/catalog";
+import { buildSportsHomeContract } from "@/lib/sports/home";
 import { isSportsFeatureEnabled } from "@/lib/sports/featureFlags";
 import {
   jsonSportsError,
@@ -23,30 +20,67 @@ export async function GET(request: NextRequest) {
       return jsonSportsOk({
         enabled: false,
         message: "Sports is disabled by feature flag.",
-        sections: {},
+        generatedAt: new Date().toISOString(),
+        sections: [],
       });
     }
 
     const url = new URL(request.url);
     const country = parseSportsCountry(request);
     const platform = parseSportsPlatform(request);
-    const limitPerSection = Math.min(
-      20,
-      Math.max(10, parsePositiveInt(url.searchParams.get("limitPerSection"), 16, 20))
+    const timeZone =
+      String(url.searchParams.get("tz") || url.searchParams.get("timezone") || "")
+        .trim() || null;
+    const userId =
+      String(
+        request.headers.get("x-ht-user-id") ||
+          url.searchParams.get("userId") ||
+          ""
+      ).trim() || null;
+
+    const limitOverride = parsePositiveInt(
+      url.searchParams.get("limitPerSection"),
+      0,
+      50
     );
 
-    const { sections, sectionErrors, featureEnabled } = await getSportsHome({
-      country,
-      platform,
-      limitPerSection,
-    });
+    const { response, sectionErrors, homeIaEnabled } =
+      await buildSportsHomeContract({
+        country,
+        platform,
+        userId,
+        timeZone,
+        limits: limitOverride
+          ? {
+              liveNow: limitOverride,
+              startingSoon: limitOverride,
+              featured: limitOverride,
+              becauseYouFollow: limitOverride,
+              continueWatching: limitOverride,
+              popularCompetitions: limitOverride,
+              browseSports: Math.max(limitOverride, 30),
+              browseCountries: Math.max(limitOverride, 30),
+              todaysSchedule: Math.max(limitOverride, 40),
+              trending: limitOverride,
+              recentlyFinished: limitOverride,
+              highlights: limitOverride,
+              replays: limitOverride,
+            }
+          : undefined,
+      });
 
     return jsonSportsOk({
-      enabled: featureEnabled,
+      enabled: true,
+      homeIaEnabled,
       country,
       platform,
-      sections: omitEmptyHomeSections(sections),
+      timeZone: timeZone || "UTC",
+      generatedAt: response.generatedAt,
+      sections: response.sections,
       sectionErrors,
+      message: homeIaEnabled
+        ? undefined
+        : "Sports home IA is disabled by feature flag.",
     });
   } catch (err) {
     return jsonSportsError(
