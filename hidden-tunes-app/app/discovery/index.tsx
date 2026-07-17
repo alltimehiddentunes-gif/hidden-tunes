@@ -11,11 +11,28 @@ import {
   MOTIVATION_HREF,
   MORE_HUB_SHORTCUTS,
 } from "../../constants/discoveryShortcuts";
+import { isSportsClientEnabled } from "../../constants/sportsFlags";
 import { COLORS } from "../../constants/theme";
 import {
   createTapGuardState,
   shouldIgnoreDuplicateTap,
 } from "../../utils/tapPressGuard";
+
+const SPORTS_HREF = "/sports";
+
+/**
+ * Sports Preview is a dev-only entry point into the isolated Sports pilot.
+ * It never appears in production builds and is never added to
+ * MORE_HUB_SHORTCUTS — it's rendered as an extra shortcut only while both
+ * the mobile pilot and full UI flags are explicitly enabled in __DEV__.
+ */
+function isSportsPreviewVisible(): boolean {
+  return (
+    __DEV__ &&
+    isSportsClientEnabled("sports_mobile_pilot_enabled") &&
+    isSportsClientEnabled("sports_full_ui_enabled")
+  );
+}
 
 function isValidInternalHref(href?: string | null): href is `/${string}` {
   return typeof href === "string" && href.startsWith("/") && href.length > 1;
@@ -23,6 +40,7 @@ function isValidInternalHref(href?: string | null): href is `/${string}` {
 
 export default function DiscoveryHubScreen() {
   const tapGuardRef = useRef(createTapGuardState());
+  const showSportsPreview = isSportsPreviewVisible();
 
   const openShortcut = useCallback((key: string, href?: string) => {
     // Motivationals / Lectures must always resolve to the real Expo Router screens.
@@ -31,7 +49,9 @@ export default function DiscoveryHubScreen() {
         ? MOTIVATION_HREF
         : key === "more-lectures"
           ? LECTURES_HREF
-          : href;
+          : key === "sports-preview"
+            ? SPORTS_HREF
+            : href;
 
     if (!isValidInternalHref(target)) {
       console.warn("[More navigation] Blocked invalid shortcut route", {
@@ -84,6 +104,16 @@ export default function DiscoveryHubScreen() {
               onPress={() => openShortcut(shortcut.key, shortcut.href)}
             />
           ))}
+          {showSportsPreview ? (
+            <HomePremiumShortcut
+              key="sports-preview"
+              layout="half"
+              icon="football-outline"
+              title="Sports Preview"
+              color={COLORS.cyan}
+              onPress={() => openShortcut("sports-preview", SPORTS_HREF)}
+            />
+          ) : null}
         </View>
       </ScrollView>
     </LinearGradient>

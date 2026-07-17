@@ -29,6 +29,7 @@
     "web": "node --max-old-space-size=4096 ./node_modules/expo/bin/cli start --web --max-workers 1",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "test:sports-frontend": "npx tsx scripts/test-sports-frontend.ts",
     "eas-build-post-install": "node ./scripts/eas-prebuild-standalone.js"
   },
   "dependencies": {

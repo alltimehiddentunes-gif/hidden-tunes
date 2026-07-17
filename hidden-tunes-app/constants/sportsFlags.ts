@@ -19,13 +19,37 @@ export const SPORTS_CLIENT_FLAGS = {
 
 export type SportsClientFlagKey = keyof typeof SPORTS_CLIENT_FLAGS;
 
+/** Static env reads — Expo forbids dynamic process.env access. */
+const SPORTS_ENV_OVERRIDES: Record<SportsClientFlagKey, string | undefined> = {
+  sports_enabled: process.env.EXPO_PUBLIC_SPORTS_ENABLED,
+  sports_home_ia_enabled: process.env.EXPO_PUBLIC_SPORTS_HOME_IA_ENABLED,
+  sports_mobile_pilot_enabled: process.env.EXPO_PUBLIC_SPORTS_MOBILE_PILOT_ENABLED,
+  sports_full_ui_enabled: process.env.EXPO_PUBLIC_SPORTS_FULL_UI_ENABLED,
+  sports_personalization_enabled:
+    process.env.EXPO_PUBLIC_SPORTS_PERSONALIZATION_ENABLED,
+  sports_scorebat_enabled: process.env.EXPO_PUBLIC_SPORTS_SCOREBAT_ENABLED,
+  sports_native_playback_enabled:
+    process.env.EXPO_PUBLIC_SPORTS_NATIVE_PLAYBACK_ENABLED,
+  sports_embedded_playback_enabled:
+    process.env.EXPO_PUBLIC_SPORTS_EMBEDDED_PLAYBACK_ENABLED,
+  sports_external_watch_enabled:
+    process.env.EXPO_PUBLIC_SPORTS_EXTERNAL_WATCH_ENABLED,
+  sports_live_scores_enabled: process.env.EXPO_PUBLIC_SPORTS_LIVE_SCORES_ENABLED,
+  sports_notifications_enabled:
+    process.env.EXPO_PUBLIC_SPORTS_NOTIFICATIONS_ENABLED,
+};
+
+function parseEnvFlag(raw: string | undefined): boolean | null {
+  if (raw === "1" || raw === "true") return true;
+  if (raw === "0" || raw === "false") return false;
+  return null;
+}
+
 export function isSportsClientEnabled(
   key: SportsClientFlagKey = "sports_enabled"
 ): boolean {
-  const envKey = `EXPO_PUBLIC_${key.toUpperCase()}`;
-  const envVal = process.env[envKey];
-  if (envVal === "1" || envVal === "true") return true;
-  if (envVal === "0" || envVal === "false") return false;
+  const parsed = parseEnvFlag(SPORTS_ENV_OVERRIDES[key]);
+  if (parsed !== null) return parsed;
   return SPORTS_CLIENT_FLAGS[key];
 }
 
