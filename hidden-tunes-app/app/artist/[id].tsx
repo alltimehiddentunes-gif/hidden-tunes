@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -35,15 +36,24 @@ import {
   ArtistProfileApiError,
   artistReleaseTypeLabel,
   fetchArtistAbout,
+  fetchArtistFollowState,
   fetchArtistProfileShell,
   fetchArtistReleases,
   fetchArtistSimilar,
   fetchArtistTopSongs,
+  followArtistProfile,
+  getCachedArtistFollowState,
+  setCachedArtistFollowState,
+  unfollowArtistProfile,
   type ArtistProfileAbout,
   type ArtistProfileRelease,
   type ArtistProfileShell,
   type ArtistProfileSimilarArtist,
 } from "../../services/artistProfileApi";
+import {
+  getCurrentSupabaseAccessToken,
+  getCurrentSupabaseSessionSummary,
+} from "../../services/mobileSupabaseAuth";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
 import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
 import {
@@ -174,10 +184,15 @@ export default function ArtistScreen() {
   const [similarHasMore, setSimilarHasMore] = useState(false);
   const [similarCursor, setSimilarCursor] = useState<string | null>(null);
   const [loadingMoreSimilar, setLoadingMoreSimilar] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followAvailable, setFollowAvailable] = useState(true);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followBusy, setFollowBusy] = useState(false);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const artistRef = useRef<HiddenTunesArtist | null>(null);
   const requestGenerationRef = useRef(0);
   const profileArtistIdRef = useRef<string | null>(null);
+  const followInFlightRef = useRef(false);
 
   const tracks = useMemo(
     () => (artist?.tracks || []).map(safeSong),
@@ -201,10 +216,9 @@ export default function ArtistScreen() {
   }, [artist?.bio, profileAbout?.bio, profileShell?.artist.bio]);
 
   const followerLabel = useMemo(() => {
-    const count = profileShell?.statistics?.follower_count;
-    if (!count || count <= 0) return null;
-    return `${count} follower${count === 1 ? "" : "s"}`;
-  }, [profileShell?.statistics?.follower_count]);
+    if (!followerCount || followerCount <= 0) return null;
+    return `${followerCount} follower${followerCount === 1 ? "" : "s"}`;
+  }, [followerCount]);
   const listPerformance = useMemo(
     () => getListPerformanceSettings(tracks.length),
     [tracks.length]
@@ -344,13 +358,37 @@ export default function ArtistScreen() {
 
         const applyProfileEnrichment = async () => {
           try {
-            const shell = await fetchArtistProfileShell(artistId, { signal });
+            const tokenResult = await getCurrentSupabaseAccessToken();
+            const token = tokenResult.accessToken;
+
+            const shell = await fetchArtistProfileShell(artistId, {
+              signal,
+              token,
+            });
             if (requestGeneration !== requestGenerationRef.current) return;
 
             setProfileShell(shell);
             setArtist((previous) =>
               previous ? mergeArtistWithProfile(previous, shell) : previous,
             );
+
+            const cachedFollow = getCachedArtistFollowState(shell.artist.id);
+            const initialFollowing =
+              cachedFollow?.is_following ?? shell.viewer.is_following === true;
+            const initialAvailable =
+              cachedFollow?.available ?? shell.viewer.follow_available !== false;
+            const initialFollowers =
+              cachedFollow?.follower_count ??
+              (Number(shell.statistics.follower_count) || 0);
+            setIsFollowing(initialFollowing);
+            setFollowAvailable(initialAvailable);
+            setFollowerCount(initialFollowers);
+            setCachedArtistFollowState({
+              artist_id: shell.artist.id,
+              is_following: initialFollowing,
+              follower_count: initialFollowers,
+              available: initialAvailable,
+            });
 
             const [releasesPage, about, topSongsPage, similarPage] = await Promise.all([
               fetchArtistReleases(shell.artist.id, {
@@ -404,6 +442,20 @@ export default function ArtistScreen() {
             setSimilarArtists(dedupedSimilar);
             setSimilarHasMore(similarPage?.pagination.hasMore === true);
             setSimilarCursor(similarPage?.pagination.nextCursor || null);
+
+            // Follow state refresh must not block shell/content.
+            if (token && canOpenArtistProfileById(shell.artist.id)) {
+              void fetchArtistFollowState(shell.artist.id, { token, signal })
+                .then((state) => {
+                  if (requestGeneration !== requestGenerationRef.current) return;
+                  setIsFollowing(state.is_following);
+                  setFollowAvailable(state.available);
+                  setFollowerCount(state.follower_count);
+                })
+                .catch(() => {
+                  // Keep shell-derived follow state when follow endpoint fails.
+                });
+            }
           } catch (error) {
             if (signal?.aborted) return;
             if (error instanceof ArtistProfileApiError && __DEV__) {
@@ -448,6 +500,11 @@ export default function ArtistScreen() {
     setSimilarArtists([]);
     setSimilarHasMore(false);
     setSimilarCursor(null);
+    setIsFollowing(false);
+    setFollowAvailable(true);
+    setFollowerCount(0);
+    setFollowBusy(false);
+    followInFlightRef.current = false;
     profileArtistIdRef.current = null;
     setAboutExpanded(false);
     void loadArtist(true, abortController.signal);
@@ -588,6 +645,89 @@ export default function ArtistScreen() {
       pathname: "/artist/[id]",
       params: { id: similar.id },
     } as any);
+  }
+
+  async function toggleFollow() {
+    const artistUuid = profileArtistIdRef.current || String(artist?.id || "");
+    if (!canOpenArtistProfileById(artistUuid)) return;
+    if (!followAvailable) {
+      Alert.alert(
+        "Follow unavailable",
+        "Artist follow is not available yet on this server.",
+      );
+      return;
+    }
+    if (followInFlightRef.current || followBusy) return;
+
+    const session = await getCurrentSupabaseSessionSummary();
+    if (!session.isSignedIn) {
+      Alert.alert("Sign in to follow", "Sign in to follow artists and sync across devices.", [
+        { text: "Not now", style: "cancel" },
+        {
+          text: "Sign in",
+          onPress: () => router.push("/artist-submissions" as any),
+        },
+      ]);
+      return;
+    }
+
+    const tokenResult = await getCurrentSupabaseAccessToken();
+    if (!tokenResult.accessToken) {
+      Alert.alert("Sign in to follow", tokenResult.error || "Sign in to follow artists.");
+      return;
+    }
+
+    const previousFollowing = isFollowing;
+    const previousCount = followerCount;
+    const nextFollowing = !previousFollowing;
+    const nextCount = Math.max(0, previousCount + (nextFollowing ? 1 : -1));
+
+    followInFlightRef.current = true;
+    setFollowBusy(true);
+    setIsFollowing(nextFollowing);
+    setFollowerCount(nextCount);
+    setCachedArtistFollowState({
+      artist_id: artistUuid,
+      is_following: nextFollowing,
+      follower_count: nextCount,
+      available: true,
+    });
+
+    try {
+      const result = nextFollowing
+        ? await followArtistProfile(artistUuid, { token: tokenResult.accessToken })
+        : await unfollowArtistProfile(artistUuid, { token: tokenResult.accessToken });
+      setIsFollowing(result.is_following);
+      setFollowerCount(result.follower_count);
+      setFollowAvailable(result.available);
+    } catch (error) {
+      setIsFollowing(previousFollowing);
+      setFollowerCount(previousCount);
+      setCachedArtistFollowState({
+        artist_id: artistUuid,
+        is_following: previousFollowing,
+        follower_count: previousCount,
+        available: followAvailable,
+      });
+      const status = error instanceof ArtistProfileApiError ? error.status : 0;
+      if (status === 503) {
+        setFollowAvailable(false);
+        Alert.alert(
+          "Follow unavailable",
+          "Artist follow is not available yet on this server.",
+        );
+      } else if (status === 401) {
+        Alert.alert("Sign in to follow", "Your session expired. Sign in again to follow artists.");
+      } else {
+        Alert.alert(
+          "Could not update follow",
+          error instanceof Error ? error.message : "Please try again.",
+        );
+      }
+    } finally {
+      followInFlightRef.current = false;
+      setFollowBusy(false);
+    }
   }
 
   const renderTrackItem = useCallback(
@@ -737,15 +877,60 @@ export default function ArtistScreen() {
               style={[styles.playButton, !tracks.length && styles.disabledButton]}
               onPress={playArtist}
               disabled={!tracks.length}
+              accessibilityRole="button"
+              accessibilityLabel={`Play artist ${artist.name}`}
             >
               <Ionicons name="play" size={20} color="#000" />
               <Text style={styles.playText}>Play Artist</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={[
+                styles.followButton,
+                isFollowing && styles.followButtonActive,
+                (!followAvailable || followBusy) && styles.disabledButton,
+              ]}
+              onPress={() => {
+                void toggleFollow();
+              }}
+              disabled={followBusy}
+              accessibilityRole="button"
+              accessibilityLabel={
+                !followAvailable
+                  ? "Follow unavailable"
+                  : isFollowing
+                    ? `Unfollow ${artist.name}`
+                    : `Follow ${artist.name}`
+              }
+              accessibilityState={{ disabled: followBusy, selected: isFollowing }}
+            >
+              {followBusy ? (
+                <ActivityIndicator color={isFollowing ? COLORS.text : "#000"} />
+              ) : (
+                <>
+                  <Ionicons
+                    name={isFollowing ? "checkmark" : "person-add-outline"}
+                    size={18}
+                    color={isFollowing ? COLORS.text : "#000"}
+                  />
+                  <Text
+                    style={[
+                      styles.followButtonText,
+                      isFollowing && styles.followButtonTextActive,
+                    ]}
+                  >
+                    {!followAvailable ? "Unavailable" : isFollowing ? "Following" : "Follow"}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.shuffleButton, !tracks.length && styles.disabledButton]}
               onPress={playShuffle}
               disabled={!tracks.length}
+              accessibilityRole="button"
+              accessibilityLabel={`Shuffle artist ${artist.name}`}
             >
               <Ionicons name="shuffle" size={20} color={COLORS.text} />
             </TouchableOpacity>
@@ -1041,6 +1226,30 @@ const styles = StyleSheet.create({
   playText: {
     color: "#000",
     fontWeight: "900",
+  },
+  followButton: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: 999,
+    minWidth: 118,
+    justifyContent: "center",
+  },
+  followButtonActive: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  followButtonText: {
+    color: "#000",
+    fontWeight: "900",
+    fontSize: 13,
+  },
+  followButtonTextActive: {
+    color: COLORS.text,
   },
   shuffleButton: {
     width: 48,

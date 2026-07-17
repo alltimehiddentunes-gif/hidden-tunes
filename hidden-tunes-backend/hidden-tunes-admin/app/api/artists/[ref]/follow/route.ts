@@ -4,12 +4,35 @@ import {
   followArtist,
   getViewerFromAuthorizationHeader,
   jsonArtistError,
+  loadArtistFollowState,
   unfollowArtist,
 } from "@/lib/artistCatalog";
-import { artistErrorResponse, ArtistRouteContext, requireArtistUuid } from "@/lib/artistPublicApi";
+import {
+  artistErrorResponse,
+  ArtistRouteContext,
+  requireArtistUuid,
+} from "@/lib/artistPublicApi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+export async function GET(request: NextRequest, context: ArtistRouteContext) {
+  const { ref } = await context.params;
+
+  try {
+    const resolved = await requireArtistUuid(ref);
+    if (resolved.error) return resolved.error;
+
+    const viewer = await getViewerFromAuthorizationHeader(request.headers.get("authorization"));
+    const state = await loadArtistFollowState(resolved.artistId, viewer?.id || null);
+    return NextResponse.json({
+      success: true,
+      follow: state,
+    });
+  } catch (error) {
+    return artistErrorResponse(error, "Failed to load artist follow state.");
+  }
+}
 
 export async function POST(request: NextRequest, context: ArtistRouteContext) {
   const { ref } = await context.params;

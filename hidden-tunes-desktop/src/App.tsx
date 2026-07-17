@@ -39,13 +39,22 @@ import { withDevAudioVersionTestSongs } from './lib/devAudioVersionTestHarness'
 import {
   artistReleaseTypeLabel,
   fetchArtistAbout,
+  fetchArtistFollowState,
   fetchArtistProfileShell,
   fetchArtistReleases,
   fetchArtistSimilar,
   fetchArtistTopSongs,
+  followArtistProfile,
+  getCachedArtistFollowState,
+  setCachedArtistFollowState,
+  unfollowArtistProfile,
   type ArtistProfileShell,
   type ArtistProfileSimilarArtist,
 } from './services/artistProfileApi'
+import {
+  getDesktopSupabaseAccessToken,
+  getDesktopSupabaseSessionSummary,
+} from './services/desktopSupabaseAuth'
 import {
   buildPlayerQueueStats,
 } from './lib/playerQueueDisplay'
@@ -6417,7 +6426,13 @@ function ArtistDetailView({
   const [similarHasMore, setSimilarHasMore] = useState(false)
   const [similarCursor, setSimilarCursor] = useState<string | null>(null)
   const [loadingMoreSimilar, setLoadingMoreSimilar] = useState(false)
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followAvailable, setFollowAvailable] = useState(true)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followBusy, setFollowBusy] = useState(false)
+  const [followMessage, setFollowMessage] = useState<string | null>(null)
   const [aboutExpanded, setAboutExpanded] = useState(false)
+  const followInFlightRef = useRef(false)
 
   const artistSongs = useMemo(() => {
     const byArtist = resolveSongsForArtist(
@@ -6445,15 +6460,42 @@ function ArtistDetailView({
     setSimilarArtists([])
     setSimilarHasMore(false)
     setSimilarCursor(null)
+    setIsFollowing(false)
+    setFollowAvailable(true)
+    setFollowerCount(0)
+    setFollowBusy(false)
+    setFollowMessage(null)
+    followInFlightRef.current = false
     setAboutExpanded(false)
 
     void (async () => {
       try {
+        const tokenResult = await getDesktopSupabaseAccessToken()
+        const token = tokenResult.accessToken
+
         const shell = await fetchArtistProfileShell(artist.id, {
           signal: abortController.signal,
+          token,
         })
         if (abortController.signal.aborted) return
         setProfileShell(shell)
+
+        const cachedFollow = getCachedArtistFollowState(shell.artist.id)
+        const initialFollowing =
+          cachedFollow?.is_following ?? shell.viewer.is_following === true
+        const initialAvailable =
+          cachedFollow?.available ?? shell.viewer.follow_available !== false
+        const initialFollowers =
+          cachedFollow?.follower_count ?? (Number(shell.statistics.follower_count) || 0)
+        setIsFollowing(initialFollowing)
+        setFollowAvailable(initialAvailable)
+        setFollowerCount(initialFollowers)
+        setCachedArtistFollowState({
+          artist_id: shell.artist.id,
+          is_following: initialFollowing,
+          follower_count: initialFollowers,
+          available: initialAvailable,
+        })
 
         const [releasesPage, about, topSongsPage, similarPage] = await Promise.all([
           fetchArtistReleases(shell.artist.id, {
@@ -6506,6 +6548,22 @@ function ArtistDetailView({
         setSimilarArtists(similarItems)
         setSimilarHasMore(similarPage?.pagination.hasMore === true)
         setSimilarCursor(similarPage?.pagination.nextCursor || null)
+
+        if (token) {
+          void fetchArtistFollowState(shell.artist.id, {
+            token,
+            signal: abortController.signal,
+          })
+            .then((state) => {
+              if (abortController.signal.aborted) return
+              setIsFollowing(state.is_following)
+              setFollowAvailable(state.available)
+              setFollowerCount(state.follower_count)
+            })
+            .catch(() => {
+              // Keep shell-derived follow state when follow endpoint fails.
+            })
+        }
       } catch {
         // Keep catalog-backed artist page when profile API is unavailable.
       }
@@ -6513,6 +6571,87 @@ function ArtistDetailView({
 
     return () => abortController.abort()
   }, [artist.id])
+
+  const toggleFollow = useCallback(async () => {
+    const artistUuid = profileShell?.artist.id || artist.id
+    if (!artistUuid) return
+    if (!followAvailable) {
+      setFollowMessage('Follow is unavailable until artist infrastructure is applied.')
+      return
+    }
+    if (followInFlightRef.current || followBusy) return
+
+    const session = await getDesktopSupabaseSessionSummary()
+    if (!session.isSignedIn) {
+      setFollowMessage('Sign in to follow artists.')
+      return
+    }
+
+    const tokenResult = await getDesktopSupabaseAccessToken()
+    if (!tokenResult.accessToken) {
+      setFollowMessage(tokenResult.error || 'Sign in to follow artists.')
+      return
+    }
+
+    const previousFollowing = isFollowing
+    const previousCount = followerCount
+    const nextFollowing = !previousFollowing
+    const nextCount = Math.max(0, previousCount + (nextFollowing ? 1 : -1))
+
+    followInFlightRef.current = true
+    setFollowBusy(true)
+    setFollowMessage(null)
+    setIsFollowing(nextFollowing)
+    setFollowerCount(nextCount)
+    setCachedArtistFollowState({
+      artist_id: artistUuid,
+      is_following: nextFollowing,
+      follower_count: nextCount,
+      available: true,
+    })
+
+    try {
+      const result = nextFollowing
+        ? await followArtistProfile(artistUuid, { token: tokenResult.accessToken })
+        : await unfollowArtistProfile(artistUuid, { token: tokenResult.accessToken })
+      setIsFollowing(result.is_following)
+      setFollowerCount(result.follower_count)
+      setFollowAvailable(result.available)
+    } catch (error) {
+      setIsFollowing(previousFollowing)
+      setFollowerCount(previousCount)
+      setCachedArtistFollowState({
+        artist_id: artistUuid,
+        is_following: previousFollowing,
+        follower_count: previousCount,
+        available: followAvailable,
+      })
+      const status =
+        error && typeof error === 'object' && 'status' in error
+          ? Number((error as { status?: unknown }).status)
+          : 0
+      if (status === 503) {
+        setFollowAvailable(false)
+        setFollowMessage('Follow is unavailable until artist infrastructure is applied.')
+      } else if (status === 401) {
+        setFollowMessage('Sign in to follow artists.')
+      } else {
+        setFollowMessage(
+          error instanceof Error ? error.message : 'Could not update follow. Try again.',
+        )
+      }
+    } finally {
+      followInFlightRef.current = false
+      setFollowBusy(false)
+    }
+  }, [
+    artist.id,
+    followAvailable,
+    followBusy,
+    followerCount,
+    isFollowing,
+    profileShell?.artist.id,
+  ])
 
   const loadMoreReleases = useCallback(async () => {
     const artistId = profileShell?.artist.id || artist.id
@@ -6644,6 +6783,7 @@ function ArtistDetailView({
             {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}
             {releasesHasMore ? '+' : ''}{' '}
             {artistAlbums.length === 1 ? 'release' : 'releases'}
+            {followerCount > 0 ? ` · ${followerCount} follower${followerCount === 1 ? '' : 's'}` : ''}
             {genreLabel ? ` · ${genreLabel}` : ''}
           </p>
           {profileBio ? (
@@ -6679,7 +6819,36 @@ function ArtistDetailView({
             >
               Shuffle
             </button>
+            <button
+              type="button"
+              className={isFollowing ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
+              disabled={followBusy || !followAvailable}
+              aria-label={
+                !followAvailable
+                  ? 'Follow unavailable'
+                  : isFollowing
+                    ? `Unfollow ${profileShell?.artist.name || artist.name}`
+                    : `Follow ${profileShell?.artist.name || artist.name}`
+              }
+              aria-pressed={isFollowing}
+              onClick={() => {
+                void toggleFollow()
+              }}
+            >
+              {followBusy
+                ? 'Updating…'
+                : !followAvailable
+                  ? 'Unavailable'
+                  : isFollowing
+                    ? 'Following'
+                    : 'Follow'}
+            </button>
           </div>
+          {followMessage ? (
+            <p className="detail-panel-note" style={{ marginTop: 10, opacity: 0.8 }}>
+              {followMessage}
+            </p>
+          ) : null}
         </div>
       </section>
 
