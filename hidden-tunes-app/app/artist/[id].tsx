@@ -31,6 +31,15 @@ import {
   type HiddenTunesArtist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
+import {
+  ArtistProfileApiError,
+  fetchArtistAbout,
+  fetchArtistProfileShell,
+  fetchArtistReleases,
+  type ArtistProfileAbout,
+  type ArtistProfileRelease,
+  type ArtistProfileShell,
+} from "../../services/artistProfileApi";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
 import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
 import {
@@ -108,6 +117,37 @@ function findArtistById(artists: HiddenTunesArtist[], id: string) {
   return resolveArtistFromList(artists, id);
 }
 
+function mapProfileReleaseToAlbum(
+  release: ArtistProfileRelease,
+  artistName: string,
+): HiddenTunesAlbum {
+  return {
+    id: release.id,
+    title: release.title,
+    artist: artistName,
+    artistId: release.artist_id || undefined,
+    artwork: release.artwork || "",
+    cover: release.artwork || "",
+    tracks: [],
+  } as HiddenTunesAlbum;
+}
+
+function mergeArtistWithProfile(
+  base: HiddenTunesArtist,
+  shell: ArtistProfileShell,
+): HiddenTunesArtist {
+  return {
+    ...base,
+    id: shell.artist.id || base.id,
+    name: shell.artist.name || base.name,
+    slug: shell.artist.slug || base.slug,
+    artwork: shell.artist.artwork || base.artwork,
+    image_url: shell.artist.artwork || base.image_url,
+    bio: shell.artist.bio || base.bio,
+    genre: shell.artist.genres[0] || base.genre,
+  };
+}
+
 export default function ArtistScreen() {
   const { id } = useLocalSearchParams();
   const { playSong } = usePlayerActions();
@@ -118,14 +158,39 @@ export default function ArtistScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+  const [profileShell, setProfileShell] = useState<ArtistProfileShell | null>(null);
+  const [profileAbout, setProfileAbout] = useState<ArtistProfileAbout | null>(null);
+  const [profileReleases, setProfileReleases] = useState<HiddenTunesAlbum[]>([]);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
   const artistRef = useRef<HiddenTunesArtist | null>(null);
+  const requestGenerationRef = useRef(0);
 
   const tracks = useMemo(
     () => (artist?.tracks || []).map(safeSong),
     [artist?.tracks]
   );
 
-  const albums = useMemo(() => artist?.albums || [], [artist?.albums]);
+  const albums = useMemo(() => {
+    if (profileReleases.length > 0) return profileReleases;
+    return artist?.albums || [];
+  }, [artist?.albums, profileReleases]);
+
+  const genreLabel = useMemo(() => {
+    if (profileShell?.artist.genres?.length) {
+      return profileShell.artist.genres.slice(0, 3).join(" · ");
+    }
+    return artist?.genre || "";
+  }, [artist?.genre, profileShell?.artist.genres]);
+
+  const bioText = useMemo(() => {
+    return String(profileAbout?.bio || profileShell?.artist.bio || artist?.bio || "").trim();
+  }, [artist?.bio, profileAbout?.bio, profileShell?.artist.bio]);
+
+  const followerLabel = useMemo(() => {
+    const count = profileShell?.statistics?.follower_count;
+    if (!count || count <= 0) return null;
+    return `${count} follower${count === 1 ? "" : "s"}`;
+  }, [profileShell?.statistics?.follower_count]);
   const listPerformance = useMemo(
     () => getListPerformanceSettings(tracks.length),
     [tracks.length]
@@ -146,8 +211,9 @@ export default function ArtistScreen() {
   }, [artist]);
 
   const loadArtist = useCallback(
-    async (showLoader = true, allowClearOnMiss = false) => {
+    async (showLoader = true, signal?: AbortSignal) => {
       const artistId = String(id || "");
+      const requestGeneration = ++requestGenerationRef.current;
       let showedCachedArtist = false;
       const refreshStart = startPerformanceTimer();
 
@@ -158,6 +224,7 @@ export default function ArtistScreen() {
         if (showLoader && !artistRef.current) setLoading(true);
 
         const snapshotArtist = await loadArtistDetailSnapshot(artistId);
+        if (requestGeneration !== requestGenerationRef.current) return;
         if (snapshotArtist) {
           setArtist(snapshotArtist);
           setLoading(false);
@@ -187,6 +254,7 @@ export default function ArtistScreen() {
           const cachedSongs = memoryArtist
             ? memorySongs
             : await hydrateHiddenTunesCatalogCache();
+          if (requestGeneration !== requestGenerationRef.current) return;
           const cachedArtist =
             memoryArtist ||
             findArtistById(extractHiddenTunesArtists(cachedSongs), artistId);
@@ -218,6 +286,7 @@ export default function ArtistScreen() {
 
         const applyArtistApiResult = async () => {
           const data = await getHiddenTunesArtistById(artistId);
+          if (requestGeneration !== requestGenerationRef.current) return;
           logApiRefresh("artist", refreshStart, {
             id: artistId,
             found: Boolean(data),
@@ -233,7 +302,16 @@ export default function ArtistScreen() {
           });
 
           if (data) {
-            setArtist(data);
+            setArtist((previous) =>
+              previous
+                ? {
+                    ...previous,
+                    ...data,
+                    tracks: data.tracks,
+                    albums: data.albums,
+                  }
+                : data,
+            );
             void saveArtistDetailSnapshot(data);
             if (!showedCachedArtist) {
               logScreenReady("artist", screenStartedAt, {
@@ -246,27 +324,77 @@ export default function ArtistScreen() {
           }
         };
 
+        const applyProfileEnrichment = async () => {
+          try {
+            const shell = await fetchArtistProfileShell(artistId, { signal });
+            if (requestGeneration !== requestGenerationRef.current) return;
+
+            setProfileShell(shell);
+            setArtist((previous) =>
+              previous ? mergeArtistWithProfile(previous, shell) : previous,
+            );
+
+            const [releasesPage, about] = await Promise.all([
+              fetchArtistReleases(shell.artist.id, {
+                limit: 24,
+                signal,
+              }).catch(() => null),
+              fetchArtistAbout(shell.artist.id, { signal }).catch(() => null),
+            ]);
+            if (requestGeneration !== requestGenerationRef.current) return;
+
+            if (releasesPage?.items?.length) {
+              setProfileReleases(
+                releasesPage.items.map((release) =>
+                  mapProfileReleaseToAlbum(release, shell.artist.name),
+                ),
+              );
+            }
+            if (about) setProfileAbout(about);
+          } catch (error) {
+            if (signal?.aborted) return;
+            if (error instanceof ArtistProfileApiError && __DEV__) {
+              console.log("Artist profile enrichment skipped:", error.message);
+            }
+          }
+        };
+
         if (showedCachedArtist && cacheInfo.isFresh) {
           scheduleDelayedNonEssentialWork(() => {
             void applyArtistApiResult();
+            void applyProfileEnrichment();
           });
         } else {
           await applyArtistApiResult();
+          void applyProfileEnrichment();
         }
       } catch (error) {
         console.log("Load artist error:", error);
-        if (!showedCachedArtist) setArtist(null);
+        if (!showedCachedArtist && requestGeneration === requestGenerationRef.current) {
+          setArtist(null);
+        }
       } finally {
-        setHasCheckedFallbacks(true);
-        setLoading(false);
-        setRefreshing(false);
+        if (requestGeneration === requestGenerationRef.current) {
+          setHasCheckedFallbacks(true);
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
     [id, screenStartedAt]
   );
 
   useEffect(() => {
-    loadArtist(true);
+    const abortController = new AbortController();
+    setProfileShell(null);
+    setProfileAbout(null);
+    setProfileReleases([]);
+    setAboutExpanded(false);
+    void loadArtist(true, abortController.signal);
+    return () => {
+      requestGenerationRef.current += 1;
+      abortController.abort();
+    };
   }, [id, loadArtist]);
 
   async function onRefresh() {
@@ -445,8 +573,14 @@ export default function ArtistScreen() {
           </View>
 
           <View style={styles.artistBadge}>
-            <Ionicons name="cloud-done" size={14} color={COLORS.primary} />
-            <Text style={styles.artistBadgeText}>CREATOR WORLD</Text>
+            <Ionicons
+              name={profileShell?.artist.is_verified ? "checkmark-circle" : "cloud-done"}
+              size={14}
+              color={COLORS.primary}
+            />
+            <Text style={styles.artistBadgeText}>
+              {profileShell?.artist.is_verified ? "VERIFIED ARTIST" : "CREATOR WORLD"}
+            </Text>
           </View>
 
           <Text style={styles.name}>{artist.name}</Text>
@@ -454,8 +588,30 @@ export default function ArtistScreen() {
           <Text style={styles.meta}>
             {tracks.length} song{tracks.length === 1 ? "" : "s"} •{" "}
             {albums.length} album{albums.length === 1 ? "" : "s"}
-            {artist.genre ? ` • ${artist.genre}` : ""}
+            {genreLabel ? ` • ${genreLabel}` : ""}
+            {followerLabel ? ` • ${followerLabel}` : ""}
           </Text>
+
+          {bioText ? (
+            <View style={styles.aboutBlock}>
+              <Text
+                style={styles.aboutText}
+                numberOfLines={aboutExpanded ? undefined : 3}
+              >
+                {bioText}
+              </Text>
+              {bioText.length > 140 ? (
+                <TouchableOpacity
+                  onPress={() => setAboutExpanded((value) => !value)}
+                  style={styles.aboutToggle}
+                >
+                  <Text style={styles.aboutToggleText}>
+                    {aboutExpanded ? "See less" : "See more"}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : null}
 
           <View style={styles.actionRow}>
             <TouchableOpacity
@@ -512,7 +668,9 @@ export default function ArtistScreen() {
                   </Text>
 
                   <Text style={styles.albumSub} numberOfLines={1}>
-                    {item.tracks.length} track{item.tracks.length === 1 ? "" : "s"}
+                    {Array.isArray(item.tracks) && item.tracks.length > 0
+                      ? `${item.tracks.length} track${item.tracks.length === 1 ? "" : "s"}`
+                      : "Release"}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -643,6 +801,27 @@ const styles = StyleSheet.create({
     marginTop: 7,
     textAlign: "center",
     fontWeight: "700",
+  },
+  aboutBlock: {
+    marginTop: 14,
+    width: "100%",
+    paddingHorizontal: 8,
+  },
+  aboutText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  aboutToggle: {
+    marginTop: 8,
+    alignSelf: "center",
+  },
+  aboutToggleText: {
+    color: COLORS.primary,
+    fontWeight: "800",
+    fontSize: 13,
   },
   actionRow: {
     marginTop: 22,
