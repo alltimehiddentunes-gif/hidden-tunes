@@ -60,7 +60,12 @@ export function createTranslateFunction(
     }
 
     logMissingKeyOnce(key);
-    return key;
+    // Never surface namespace paths like "home.hero.play" in production UI.
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      return key;
+    }
+    const leaf = String(key).split(".").pop() || "Hidden Tunes";
+    return leaf.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
   };
 }
 

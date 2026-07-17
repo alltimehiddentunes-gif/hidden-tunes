@@ -10,6 +10,8 @@ import LocalizationProvider from "../localization/LocalizationProvider";
 import { markAppMounted } from "../utils/startupDiagnostics";
 import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
 
+// Keep the native splash visible until LocalizationProvider finishes bootstrap
+// and hides it. Prevents a frame of raw translation keys on Home.
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Splash may already be hidden on fast reload — safe to ignore.
 });
@@ -46,16 +48,6 @@ function RootLayout() {
     if (__DEV__) {
       startRuntimeInstrumentation();
     }
-
-    const hideSplash = async () => {
-      try {
-        await SplashScreen.hideAsync();
-      } catch {
-        // Non-fatal — app content is already mounting.
-      }
-    };
-
-    void hideSplash();
   }, []);
 
   const stack = <RootStack memoizedScreenOptions={memoizedScreenOptions} />;

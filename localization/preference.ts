@@ -37,9 +37,12 @@ export async function persistLocale(locale: SupportedLocale): Promise<void> {
 
 /**
  * Priority: saved user selection → supported device language → English.
+ * Invalid / unsupported saved codes never propagate.
  */
 export async function resolveInitialLocale(): Promise<SupportedLocale> {
   const saved = await readStoredLocale();
-  if (saved) return saved;
-  return detectDeviceLocale();
+  if (saved && isSupportedLocale(saved)) return saved;
+  const detected = detectDeviceLocale();
+  if (isSupportedLocale(detected)) return detected;
+  return "en";
 }
