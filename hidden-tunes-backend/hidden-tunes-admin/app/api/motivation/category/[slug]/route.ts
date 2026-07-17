@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         pagination: result.pagination,
         meta: {
           source: result.source,
-          rpc_available: "rpcAvailable" in result ? result.rpcAvailable : result.source === "rpc",
+          rpc_available: result.source === "rpc",
         },
       });
     }
