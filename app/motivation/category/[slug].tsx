@@ -5,6 +5,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -12,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HTImage from "@/components/HTImage";
 import AppShell from "@/components/navigation/AppShell";
@@ -19,14 +21,31 @@ import { COLORS, GRADIENTS } from "@/constants/theme";
 import { useMountedRef } from "@/hooks/useMountedRef";
 import {
   fetchMotivationCategoryPage,
-  MOTIVATION_DEFAULT_PAGE_LIMIT,
+  searchMotivationItems,
 } from "@/services/motivationCatalogApi";
+import type { MotivationItem } from "@/types/motivation";
 import { formatMotivationCountLabel } from "@/utils/motivationEntity";
 import {
   groupMotivationItemsIntoPrograms,
+  mergeMotivationProgramGroups,
   stashMotivationGroupedProgram,
   type MotivationGroupedProgram,
 } from "@/utils/motivationGrouping";
+
+const SEARCH_DEBOUNCE_MS = 350;
+const PAGE_LIMIT = 24;
+const CATEGORY_CACHE_TTL_MS = 90_000;
+
+type CategoryCacheEntry = {
+  at: number;
+  title: string;
+  groups: MotivationGroupedProgram[];
+  page: number;
+  hasMore: boolean;
+  query: string;
+};
+
+const categoryUiCache = new Map<string, CategoryCacheEntry>();
 
 function isAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
@@ -38,6 +57,14 @@ function goBackWithinMotivation() {
     return;
   }
   router.replace("/motivation" as never);
+}
+
+function titleFromSlug(slug: string) {
+  return slug.replace(/-/g, " ");
+}
+
+function cacheKey(slug: string, query: string) {
+  return `${slug}::${query.trim().toLowerCase()}`;
 }
 
 const ProgramCard = memo(function ProgramCard({
@@ -60,6 +87,8 @@ const ProgramCard = memo(function ProgramCard({
         uri={group.program.artwork_url || undefined}
         style={styles.cardArt}
         contentFit="cover"
+        maxDecodeWidth={220}
+        maxDecodeHeight={220}
       />
       <Text style={styles.cardTitle} numberOfLines={2}>
         {group.program.title}
@@ -73,153 +102,422 @@ const ProgramCard = memo(function ProgramCard({
   );
 });
 
+const SkeletonGrid = memo(function SkeletonGrid() {
+  return (
+    <View style={styles.skeletonWrap}>
+      {Array.from({ length: 6 }, (_, index) => (
+        <View key={`sk-${index}`} style={styles.skeletonCard} />
+      ))}
+    </View>
+  );
+});
+
 export default function MotivationCategoryScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
+  const cleanSlug = String(slug || "").trim();
   const mountedRef = useMountedRef();
-  const requestRef = useRef(0);
+  const insets = useSafeAreaInsets();
   const abortRef = useRef<AbortController | null>(null);
-  const [groups, setGroups] = useState<MotivationGroupedProgram[]>([]);
-  const [rawItems, setRawItems] = useState<
-    Awaited<ReturnType<typeof fetchMotivationCategoryPage>>["items"]
-  >([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadingMoreLockRef = useRef(false);
+  const requestTokenRef = useRef(0);
+  const skipEmptyBrowseRef = useRef(true);
+
+  const initialCache = cleanSlug
+    ? categoryUiCache.get(cacheKey(cleanSlug, ""))
+    : undefined;
+
+  const [title, setTitle] = useState(
+    initialCache?.title || titleFromSlug(cleanSlug) || "Motivation"
+  );
+  const [query, setQuery] = useState(initialCache?.query || "");
+  const [debouncedQuery, setDebouncedQuery] = useState(initialCache?.query || "");
+  const [groups, setGroups] = useState<MotivationGroupedProgram[]>(
+    initialCache && Date.now() - initialCache.at < CATEGORY_CACHE_TTL_MS
+      ? initialCache.groups
+      : []
+  );
+  const [page, setPage] = useState(initialCache?.page || 1);
+  const [hasMore, setHasMore] = useState(Boolean(initialCache?.hasMore));
+  const [loading, setLoading] = useState(!initialCache?.groups.length);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [title, setTitle] = useState("Motivation");
 
-  const rebuildGroups = useCallback((items: typeof rawItems) => {
-    setGroups(groupMotivationItemsIntoPrograms(items));
+  const isSearching = debouncedQuery.trim().length >= 2;
+  const bottomPad = 120 + Math.max(insets.bottom, 8);
+
+  const persistCache = useCallback(
+    (next: {
+      groups: MotivationGroupedProgram[];
+      page: number;
+      hasMore: boolean;
+      query: string;
+      title: string;
+    }) => {
+      if (!cleanSlug) return;
+      categoryUiCache.set(cacheKey(cleanSlug, next.query), {
+        at: Date.now(),
+        title: next.title,
+        groups: next.groups,
+        page: next.page,
+        hasMore: next.hasMore,
+        query: next.query,
+      });
+    },
+    [cleanSlug]
+  );
+
+  const groupPage = useCallback((items: MotivationItem[]) => {
+    return groupMotivationItemsIntoPrograms(items);
   }, []);
 
-  const loadPage = useCallback(
-    async (nextPage: number, mode: "replace" | "append" = "replace") => {
-      const cleanSlug = String(slug || "").trim();
+  const loadBrowsePage = useCallback(
+    async (nextPage: number, mode: "replace" | "append") => {
       if (!cleanSlug) return;
+      if (mode === "append" && loadingMoreLockRef.current) return;
 
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
-      const requestId = ++requestRef.current;
+      const token = ++requestTokenRef.current;
 
-      if (mode === "append") setLoadingMore(true);
-      else if (nextPage === 1 && !refreshing) setLoading(true);
-      if (mode === "replace") setError(null);
+      if (mode === "append") {
+        loadingMoreLockRef.current = true;
+        setLoadingMore(true);
+      } else {
+        setLoading((wasLoading) => wasLoading || groups.length === 0);
+        setError(null);
+      }
 
       try {
         const result = await fetchMotivationCategoryPage(cleanSlug, {
           page: nextPage,
-          limit: MOTIVATION_DEFAULT_PAGE_LIMIT,
+          limit: PAGE_LIMIT,
           signal: controller.signal,
         });
-        if (!mountedRef.current || requestId !== requestRef.current || controller.signal.aborted) {
+        if (!mountedRef.current || token !== requestTokenRef.current || controller.signal.aborted) {
           return;
         }
-        setTitle(cleanSlug.replace(/-/g, " "));
+
+        const nextTitle = titleFromSlug(cleanSlug);
+        setTitle(nextTitle);
+        const pageGroups = groupPage(result.items);
+        const nextHasMore = Boolean(result.pagination?.hasMore);
         setPage(nextPage);
-        setHasMore(Boolean(result.pagination?.hasMore));
-        setRawItems((current) => {
-          const next = mode === "append" ? [...current, ...result.items] : result.items;
-          rebuildGroups(next);
-          return next;
+        setHasMore(nextHasMore);
+
+        setGroups((current) => {
+          const merged =
+            mode === "append" ? mergeMotivationProgramGroups(current, pageGroups) : pageGroups;
+          persistCache({
+            groups: merged,
+            page: nextPage,
+            hasMore: nextHasMore,
+            query: "",
+            title: nextTitle,
+          });
+          return merged;
         });
       } catch (err) {
-        if (!mountedRef.current || requestId !== requestRef.current || isAbortError(err)) return;
+        if (!mountedRef.current || token !== requestTokenRef.current || isAbortError(err)) return;
         if (mode === "replace") {
           setError("Couldn't load this category. Pull to retry.");
-          setRawItems([]);
-          setGroups([]);
         }
       } finally {
-        if (mountedRef.current && requestId === requestRef.current) {
+        if (mountedRef.current && token === requestTokenRef.current) {
           setLoading(false);
           setLoadingMore(false);
           setRefreshing(false);
+          loadingMoreLockRef.current = false;
         }
       }
     },
-    [mountedRef, rebuildGroups, refreshing, slug]
+    [cleanSlug, groupPage, groups.length, mountedRef, persistCache]
   );
 
+  const loadSearchPage = useCallback(
+    async (nextPage: number, mode: "replace" | "append", q: string) => {
+      const trimmed = q.trim();
+      if (!cleanSlug || trimmed.length < 2) return;
+      if (mode === "append" && loadingMoreLockRef.current) return;
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      const token = ++requestTokenRef.current;
+
+      if (mode === "append") {
+        loadingMoreLockRef.current = true;
+        setLoadingMore(true);
+      } else {
+        setSearchLoading(true);
+        setError(null);
+      }
+
+      try {
+        const result = await searchMotivationItems(trimmed, {
+          page: nextPage,
+          limit: PAGE_LIMIT,
+          signal: controller.signal,
+          categorySlug: cleanSlug,
+        });
+        if (!mountedRef.current || token !== requestTokenRef.current || controller.signal.aborted) {
+          return;
+        }
+
+        const pageGroups = groupPage(result.items);
+        setPage(nextPage);
+        setHasMore(Boolean(result.pagination && "hasMore" in result.pagination
+          ? result.pagination.hasMore
+          : result.items.length >= PAGE_LIMIT));
+
+        setGroups((current) => {
+          const merged =
+            mode === "append" ? mergeMotivationProgramGroups(current, pageGroups) : pageGroups;
+          persistCache({
+            groups: merged,
+            page: nextPage,
+            hasMore: Boolean(result.pagination && "hasMore" in result.pagination
+              ? result.pagination.hasMore
+              : result.items.length >= PAGE_LIMIT),
+            query: trimmed,
+            title: titleFromSlug(cleanSlug),
+          });
+          return merged;
+        });
+      } catch (err) {
+        if (!mountedRef.current || token !== requestTokenRef.current || isAbortError(err)) return;
+        if (mode === "replace") {
+          setError("Search failed. Try again.");
+          setGroups([]);
+        }
+      } finally {
+        if (mountedRef.current && token === requestTokenRef.current) {
+          setSearchLoading(false);
+          setLoadingMore(false);
+          loadingMoreLockRef.current = false;
+        }
+      }
+    },
+    [cleanSlug, groupPage, mountedRef, persistCache]
+  );
+
+  // Mount / slug change: restore cache or fetch browse page once.
   useEffect(() => {
-    void loadPage(1, "replace");
+    if (!cleanSlug) return;
+    skipEmptyBrowseRef.current = true;
+    const cached = categoryUiCache.get(cacheKey(cleanSlug, ""));
+    if (cached && Date.now() - cached.at < CATEGORY_CACHE_TTL_MS && cached.groups.length) {
+      setTitle(cached.title);
+      setGroups(cached.groups);
+      setPage(cached.page);
+      setHasMore(cached.hasMore);
+      setLoading(false);
+      // Quiet background refresh while showing cache.
+      void loadBrowsePage(1, "replace");
+      return () => abortRef.current?.abort();
+    }
+    void loadBrowsePage(1, "replace");
     return () => abortRef.current?.abort();
-  }, [loadPage]);
+    // Intentionally once per slug.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleanSlug]);
+
+  // Debounced search query → category-scoped search.
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, [query]);
+
+  useEffect(() => {
+    const trimmed = debouncedQuery.trim();
+    if (trimmed.length < 2) {
+      if (skipEmptyBrowseRef.current) {
+        skipEmptyBrowseRef.current = false;
+        return;
+      }
+      const cached = categoryUiCache.get(cacheKey(cleanSlug, ""));
+      if (cached?.groups.length) {
+        setGroups(cached.groups);
+        setPage(cached.page);
+        setHasMore(cached.hasMore);
+        setError(null);
+        setSearchLoading(false);
+        return;
+      }
+      void loadBrowsePage(1, "replace");
+      return;
+    }
+    void loadSearchPage(1, "replace", trimmed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleanSlug, debouncedQuery]);
 
   const openProgram = useCallback((group: MotivationGroupedProgram) => {
     stashMotivationGroupedProgram(group);
+    // Preserve query for return navigation.
+    if (cleanSlug) {
+      persistCache({
+        groups,
+        page,
+        hasMore,
+        query: query.trim(),
+        title,
+      });
+    }
     router.push(`/motivation/program/${encodeURIComponent(group.id)}` as never);
-  }, []);
+  }, [cleanSlug, groups, hasMore, page, persistCache, query, title]);
 
-  const listData = useMemo(() => groups, [groups]);
+  const onEndReached = useCallback(() => {
+    if (loading || searchLoading || loadingMore || !hasMore) return;
+    if (isSearching) {
+      void loadSearchPage(page + 1, "append", debouncedQuery);
+      return;
+    }
+    void loadBrowsePage(page + 1, "append");
+  }, [
+    debouncedQuery,
+    hasMore,
+    isSearching,
+    loadBrowsePage,
+    loadSearchPage,
+    loading,
+    loadingMore,
+    page,
+    searchLoading,
+  ]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: MotivationGroupedProgram }) => (
+      <ProgramCard group={item} onPress={() => openProgram(item)} />
+    ),
+    [openProgram]
+  );
+
+  const listHeader = useMemo(
+    () => (
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={goBackWithinMotivation}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>Programs and series in this category</Text>
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={18} color={COLORS.textMuted} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={`Search within ${title}`}
+            placeholderTextColor={COLORS.textMuted}
+            style={styles.searchInput}
+            autoCorrect={false}
+            returnKeyType="search"
+            accessibilityLabel={`Search within ${title}`}
+          />
+          {query ? (
+            <TouchableOpacity
+              onPress={() => {
+                setQuery("");
+                setDebouncedQuery("");
+              }}
+              hitSlop={8}
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+          {searchLoading ? <ActivityIndicator size="small" color={COLORS.primary} /> : null}
+        </View>
+        {error ? (
+          <TouchableOpacity
+            style={styles.errorBanner}
+            onPress={() => {
+              if (isSearching) void loadSearchPage(1, "replace", debouncedQuery);
+              else {
+                setRefreshing(true);
+                void loadBrowsePage(1, "replace");
+              }
+            }}
+          >
+            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.retryText}>Tap to retry</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    ),
+    [
+      debouncedQuery,
+      error,
+      isSearching,
+      loadBrowsePage,
+      loadSearchPage,
+      query,
+      searchLoading,
+      title,
+    ]
+  );
 
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
         <FlatList
-          data={listData}
+          data={groups}
           numColumns={2}
           key="motivation-category-programs"
           columnWrapperStyle={styles.columnWrap}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: bottomPad }]}
+          renderItem={renderItem}
+          ListHeaderComponent={listHeader}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                void loadPage(1, "replace");
-              }}
-              tintColor={COLORS.primary}
-            />
+            isSearching ? undefined : (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  void loadBrowsePage(1, "replace");
+                }}
+                tintColor={COLORS.primary}
+              />
+            )
           }
-          onEndReached={() => {
-            if (!loadingMore && hasMore) void loadPage(page + 1, "append");
-          }}
-          onEndReachedThreshold={0.4}
-          ListHeaderComponent={
-            <View style={styles.header}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={goBackWithinMotivation}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="chevron-back" size={24} color={COLORS.text} />
-              </TouchableOpacity>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.subtitle}>Programs and series in this category</Text>
-              {error ? (
-                <TouchableOpacity
-                  style={styles.errorBanner}
-                  onPress={() => {
-                    setRefreshing(true);
-                    void loadPage(1, "replace");
-                  }}
-                >
-                  <Text style={styles.errorText}>{error}</Text>
-                  <Text style={styles.retryText}>Tap to retry</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          }
-          renderItem={({ item }) => (
-            <ProgramCard group={item} onPress={() => openProgram(item)} />
-          )}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.35}
+          initialNumToRender={6}
+          maxToRenderPerBatch={4}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews
+          keyboardShouldPersistTaps="handled"
           ListFooterComponent={
             loadingMore ? (
               <ActivityIndicator style={styles.footerLoader} color={COLORS.primary} />
-            ) : null
+            ) : (
+              <View style={styles.footerSpacer} />
+            )
           }
           ListEmptyComponent={
-            loading ? (
-              <ActivityIndicator color={COLORS.primary} style={styles.emptyLoader} />
+            loading || searchLoading ? (
+              <SkeletonGrid />
             ) : (
               <Text style={styles.emptyText}>
-                {error ? "Pull to retry." : "No programs in this category yet."}
+                {isSearching
+                  ? `No matches for “${debouncedQuery.trim()}” in ${title}.`
+                  : error
+                    ? "Pull to retry."
+                    : "No programs in this category yet."}
               </Text>
             )
           }
@@ -231,7 +529,7 @@ export default function MotivationCategoryScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: 12, paddingBottom: 120 },
+  content: { paddingHorizontal: 12 },
   columnWrap: { gap: 12, marginBottom: 12 },
   header: { paddingTop: 56, paddingHorizontal: 4, paddingBottom: 16 },
   backButton: {
@@ -245,6 +543,20 @@ const styles = StyleSheet.create({
   },
   title: { color: COLORS.text, fontSize: 28, fontWeight: "900", textTransform: "capitalize" },
   subtitle: { color: COLORS.textMuted, fontSize: 13, marginTop: 8 },
+  searchWrap: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+    minHeight: 48,
+  },
+  searchInput: { flex: 1, color: COLORS.text, fontSize: 15, padding: 0 },
   errorBanner: {
     marginTop: 14,
     padding: 14,
@@ -267,6 +579,19 @@ const styles = StyleSheet.create({
   cardTitle: { color: COLORS.text, fontSize: 14, fontWeight: "800" },
   cardMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
   footerLoader: { marginVertical: 18 },
-  emptyLoader: { marginTop: 40 },
-  emptyText: { color: COLORS.textMuted, textAlign: "center", marginTop: 40 },
+  footerSpacer: { height: 8 },
+  emptyText: { color: COLORS.textMuted, textAlign: "center", marginTop: 40, paddingHorizontal: 16 },
+  skeletonWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    paddingTop: 8,
+  },
+  skeletonCard: {
+    width: "47%",
+    flexGrow: 1,
+    minHeight: 180,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
 });

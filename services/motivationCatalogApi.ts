@@ -246,21 +246,43 @@ export async function fetchMotivationProgramDetail(
 
 export async function searchMotivationItems(
   query: string,
-  options?: { page?: number; limit?: number; signal?: AbortSignal }
+  options?: {
+    page?: number;
+    limit?: number;
+    signal?: AbortSignal;
+    categorySlug?: string;
+  }
 ) {
   const q = String(query || "").trim();
-  if (q.length < 2) return { items: [], pagination: { page: 1, limit: 40, total: 0, totalPages: 0, hasMore: false } };
+  if (q.length < 2) {
+    return {
+      items: [],
+      pagination: { page: 1, limit: 40, total: 0, totalPages: 0, hasMore: false },
+    };
+  }
   const page = Math.max(1, Number(options?.page || 1));
   const limit = Math.min(
     MOTIVATION_MAX_PAGE_LIMIT,
     Math.max(1, Number(options?.limit || MOTIVATION_DEFAULT_PAGE_LIMIT))
   );
   const params = new URLSearchParams({ q, page: String(page), limit: String(limit) });
+  const categorySlug = String(options?.categorySlug || "").trim();
+  if (categorySlug) params.set("category", categorySlug);
+
   const body = await fetchMotivationJson<{
     items?: Record<string, unknown>[];
     pagination?: MotivationOffsetPagination | MotivationCursorPagination;
   }>(`${MOTIVATION_SEARCH_API_PATH}?${params}`, options?.signal);
-  const items = (body.items || []).map(normalizeItem);
+
+  let items = (body.items || []).map(normalizeItem);
+  // Hard gate: backend category filter is soft — keep only the active Motivationals category.
+  if (categorySlug) {
+    items = items.filter((item) => {
+      const slug = String(item.category_slug || "").trim();
+      const name = String(item.category || "").trim().toLowerCase().replace(/\s+/g, "-");
+      return slug === categorySlug || name === categorySlug;
+    });
+  }
   assertMetadataOnly(body.items || []);
   return { items, pagination: body.pagination };
 }

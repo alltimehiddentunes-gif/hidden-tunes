@@ -217,6 +217,55 @@ export function groupMotivationItemsIntoPrograms(
   });
 }
 
+/** Merge newly grouped programs into an existing list without regrouping the full catalog. */
+export function mergeMotivationProgramGroups(
+  existing: MotivationGroupedProgram[],
+  incoming: MotivationGroupedProgram[]
+): MotivationGroupedProgram[] {
+  if (!incoming.length) return existing;
+  if (!existing.length) return incoming;
+
+  const map = new Map<string, MotivationGroupedProgram>();
+  for (const group of existing) map.set(group.id, group);
+
+  for (const group of incoming) {
+    const prev = map.get(group.id);
+    if (!prev) {
+      map.set(group.id, group);
+      continue;
+    }
+    const seen = new Set(prev.items.map((item) => item.id));
+    const mergedItems = [...prev.items];
+    for (const item of group.items) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      mergedItems.push(item);
+    }
+    const ordered = orderMotivationEpisodes(mergedItems);
+    const next: MotivationGroupedProgram = {
+      ...prev,
+      items: ordered,
+      volumes: buildVolumes(ordered),
+      episodeCount: ordered.length,
+      program: {
+        ...prev.program,
+        session_count: ordered.length,
+        artwork_url: prev.program.artwork_url || group.program.artwork_url,
+      },
+      creditName: prev.creditName || group.creditName,
+      speakerName: prev.speakerName || group.speakerName,
+      creditKind: prev.creditKind !== "unknown" ? prev.creditKind : group.creditKind,
+    };
+    map.set(group.id, next);
+    stashMotivationGroupedProgram(next);
+  }
+
+  return [...map.values()].sort((a, b) => {
+    if (b.episodeCount !== a.episodeCount) return b.episodeCount - a.episodeCount;
+    return naturalCompareMotivation(a.program.title, b.program.title);
+  });
+}
+
 export function collectEntitiesFromGroups(
   groups: MotivationGroupedProgram[],
   options?: {
