@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -8,13 +8,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import Constants from "expo-constants";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, usePathname, useSegments } from "expo-router";
 
 import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
-import { getMobileScrollTailPadding } from "../components/navigation/navigationConfig";
+import { getMobileShellContentPaddingBottom } from "../components/navigation/navigationConfig";
 import NeonEQ from "../components/NeonEQ";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
@@ -65,6 +66,11 @@ function getArtist(song: AppSong) {
   return song.artist || song.user?.name || "Hidden Tunes";
 }
 
+/** Display-only title cleanup (does not mutate playback metadata). */
+function formatQueueTitle(title: string) {
+  return clean(title).replace(/\bEoisode\b/gi, "Episode");
+}
+
 function formatDuration(value: AppSong["duration"]) {
   if (value == null || value === "") return "";
   const raw = typeof value === "number" ? value : Number(String(value).trim());
@@ -90,6 +96,13 @@ function looksLikePodcastSong(song?: AppSong | null) {
   const genre = clean(song.genre).toLowerCase();
   if (genre === "podcast" || genre === "podcasts") return true;
   return false;
+}
+
+function looksLikeMotivationSong(song?: AppSong | null) {
+  if (!song) return false;
+  const id = clean(song.id).toLowerCase();
+  if (id.startsWith("motivation-item-")) return true;
+  return clean(song.sourceName).toLowerCase() === "motivationals";
 }
 
 function isMotivationContext(context: PlaybackQueueContext) {
@@ -126,10 +139,24 @@ function resolveQueueContentKind(
   ) {
     return "lecture";
   }
-  if (isMotivationContext(context)) {
+  if (isMotivationContext(context) || looksLikeMotivationSong(currentSong)) {
     return "motivation";
   }
   return "music";
+}
+
+function songBelongsToKind(song: AppSong, kind: QueueContentKind) {
+  if (kind === "music") return true;
+  if (kind === "podcast") return looksLikePodcastSong(song);
+  if (kind === "audiobook") {
+    return (
+      isAudiobookChapterAppSong(song) ||
+      clean(song.sourceName).toLowerCase() === "audiobook"
+    );
+  }
+  if (kind === "lecture") return isEducationalSessionAppSong(song);
+  if (kind === "motivation") return looksLikeMotivationSong(song);
+  return true;
 }
 
 /** Human session title — never expose raw "unknown" / debug sources. */
@@ -180,8 +207,13 @@ function buildFallbackQueue(
   return queue;
 }
 
+const QUEUE_PROBE_HEAD = "eaac165";
+
 export default function QueueScreen() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
+  const segments = useSegments();
+  const probeLoggedRef = useRef(false);
   const { playSong } = usePlayerActions();
   const {
     songs,
@@ -199,6 +231,14 @@ export default function QueueScreen() {
       ? activeQueue
       : buildFallbackQueue(currentSong, onlineSongs, songs);
   }, [activeQueue, currentSong, onlineSongs, songs]);
+
+  const queueContext = activeQueueContext || { source: "queue" as const };
+  const contentKind = resolveQueueContentKind(
+    queueContext,
+    currentSong,
+    queueSongs
+  );
+  const labels = getQueueLabels(contentKind);
 
   const currentIndex = useMemo(() => {
     if (currentSong?.id && queueSongs.length) {
@@ -220,29 +260,39 @@ export default function QueueScreen() {
     );
   }, [activeQueue.length, activeQueueIndex, currentSong, queueSongs]);
 
-  const rows = useMemo<QueueRow[]>(() => {
-    return queueSongs.map((song, queueIndex) => ({
-      song,
-      queueIndex,
-      isCurrent:
-        queueIndex === currentIndex ||
-        (Boolean(currentSong?.id) &&
-          String(song.id) === String(currentSong?.id)),
-    }));
-  }, [currentIndex, currentSong?.id, queueSongs]);
+  /**
+   * Presentation filter only: when a vertical session is active, hide foreign
+   * Smart Queue / catalog bleed from the episode list. Does not mutate PlayerContext.
+   */
+  const displayRows = useMemo<QueueRow[]>(() => {
+    return queueSongs
+      .map((song, queueIndex) => ({
+        song,
+        queueIndex,
+        isCurrent:
+          queueIndex === currentIndex ||
+          (Boolean(currentSong?.id) &&
+            String(song.id) === String(currentSong?.id)),
+      }))
+      .filter((row) => songBelongsToKind(row.song, contentKind));
+  }, [contentKind, currentIndex, currentSong?.id, queueSongs]);
 
-  const currentRow = useMemo(
-    () => rows.find((row) => row.isCurrent) || null,
-    [rows]
+  const foreignHiddenCount = Math.max(
+    0,
+    queueSongs.length - displayRows.length
   );
-  const upNextRows = useMemo(
-    () => rows.filter((row) => row.queueIndex > Math.max(currentIndex, -1)),
-    [currentIndex, rows]
-  );
-  const previousRows = useMemo(
-    () => rows.filter((row) => row.queueIndex < Math.max(currentIndex, 0)),
-    [currentIndex, rows]
-  );
+
+  const displayCurrentIndex = useMemo(() => {
+    const idx = displayRows.findIndex((row) => row.isCurrent);
+    return idx;
+  }, [displayRows]);
+
+  const listRows = useMemo(() => {
+    if (displayCurrentIndex < 0) return displayRows;
+    return displayRows.slice(displayCurrentIndex);
+  }, [displayCurrentIndex, displayRows]);
+
+  const upNextCount = Math.max(0, listRows.length - (displayCurrentIndex >= 0 ? 1 : 0));
 
   useEffect(() => {
     if (!currentSong?.id || currentIndex < 0) return;
@@ -254,53 +304,56 @@ export default function QueueScreen() {
     });
   }, [activeQueueIndex, currentIndex, currentSong?.id, queueSongs.length]);
 
-  const queueContext = activeQueueContext || { source: "queue" as const };
-  const contentKind = resolveQueueContentKind(
-    queueContext,
-    currentSong,
-    queueSongs
-  );
-  const labels = getQueueLabels(contentKind);
   const sessionContextLabel = getSessionContextLabel(
     queueContext,
     currentSong,
     contentKind
   );
-  const sessionCount = queueSongs.length;
+  const sessionCount = displayRows.length;
   const smartOn = smartAutoplayEnabled || activeQueueMode === "smart";
   const positionText =
-    currentIndex >= 0 && sessionCount > 0
-      ? labels.positionLabel(currentIndex + 1, sessionCount)
+    displayCurrentIndex >= 0 && sessionCount > 0
+      ? labels.positionLabel(displayCurrentIndex + 1, sessionCount)
       : `${sessionCount} ${
           sessionCount === 1
             ? labels.singular.toLowerCase()
             : labels.plural.toLowerCase()
         }`;
-  // Extra room so last rows clear MiniPlayer + bottom nav on device.
-  const scrollTail = getMobileScrollTailPadding(insets.bottom) + 28;
+  // AppShell already reserves MiniPlayer + nav; add extra so last rows clear the pill.
+  const scrollTail =
+    getMobileShellContentPaddingBottom(insets.bottom, true) + 24;
 
   useEffect(() => {
-    if (!__DEV__) return;
-    console.log("[QUEUE_UI]", {
+    if (!__DEV__ || probeLoggedRef.current) return;
+    probeLoggedRef.current = true;
+    console.log("[QUEUE_PROBE]", {
+      pathname,
+      segments,
+      component: "QueueScreen",
+      head: QUEUE_PROBE_HEAD,
       contentKind,
-      sessionLabel: labels.sessionLabel,
-      sessionTitle: sessionContextLabel,
-      source: queueContext.source,
-      queueType: queueContext.queueType,
-      contextType: queueContext.contextType,
-      currentId: currentSong?.id || null,
+      queueItemCount: queueSongs.length,
+      displayItemCount: sessionCount,
+      foreignHiddenCount,
+      currentItemTitle: currentSong?.title || null,
+      source: queueContext.source || null,
       sourceName: currentSong?.sourceName || null,
-      queueLength: sessionCount,
+      queueType: queueContext.queueType || null,
+      sessionLabel: labels.sessionLabel,
+      executionEnvironment: Constants.executionEnvironment || null,
+      appOwnership: Constants.appOwnership || null,
     });
   }, [
     contentKind,
-    currentSong?.id,
     currentSong?.sourceName,
+    currentSong?.title,
+    foreignHiddenCount,
     labels.sessionLabel,
-    queueContext.contextType,
+    pathname,
     queueContext.queueType,
     queueContext.source,
-    sessionContextLabel,
+    queueSongs.length,
+    segments,
     sessionCount,
   ]);
 
@@ -323,30 +376,23 @@ export default function QueueScreen() {
     router.push("/player" as any);
   }
 
-  function renderQueueRow(
-    row: QueueRow,
-    displayIndex: number,
-    section: "current" | "next" | "previous"
-  ) {
-    const tag = row.isCurrent
-      ? "NOW"
-      : section === "next"
-        ? String(displayIndex + 1).padStart(2, "0")
-        : String(row.queueIndex + 1).padStart(2, "0");
+  function renderQueueRow(row: QueueRow, displayIndex: number) {
+    const tag = row.isCurrent ? "NOW" : String(displayIndex).padStart(2, "0");
     const durationText = formatDuration(row.song.duration);
     const subtitle =
       contentKind === "podcast" || contentKind === "audiobook"
         ? row.song.album || getArtist(row.song)
         : getArtist(row.song);
+    const title = formatQueueTitle(row.song.title || "");
 
     return (
       <TouchableOpacity
-        key={`${section}-${row.song.id}-${row.queueIndex}`}
+        key={`row-${row.song.id}-${row.queueIndex}`}
         style={[styles.queueItem, row.isCurrent && styles.queueItemActive]}
         activeOpacity={0.86}
         onPress={() => playQueueRow(row)}
         accessibilityRole="button"
-        accessibilityLabel={`${row.song.title}, ${subtitle}`}
+        accessibilityLabel={`${title}, ${subtitle}`}
       >
         <Text
           style={[styles.queueNumber, row.isCurrent && styles.queueNumberActive]}
@@ -369,7 +415,7 @@ export default function QueueScreen() {
 
         <View style={styles.queueInfo}>
           <Text numberOfLines={2} style={styles.queueTitle}>
-            {row.song.title}
+            {title}
           </Text>
           <Text numberOfLines={1} style={styles.queueArtist}>
             {subtitle}
@@ -377,22 +423,22 @@ export default function QueueScreen() {
           </Text>
         </View>
 
-        <View
-          style={[
-            styles.queuePlayButton,
-            row.isCurrent && styles.queuePlayButtonActive,
-          ]}
-        >
-          {row.isCurrent && isPlaying ? (
-            <NeonEQ isPlaying={isPlaying} size="small" />
-          ) : (
-            <Ionicons
-              name={row.isCurrent ? "pause" : "play"}
-              size={14}
-              color={row.isCurrent ? "#000" : COLORS.text}
-            />
-          )}
-        </View>
+        {row.isCurrent ? (
+          <View style={[styles.queuePlayButton, styles.queuePlayButtonActive]}>
+            {isPlaying ? (
+              <NeonEQ isPlaying={isPlaying} size="small" />
+            ) : (
+              <Ionicons name="pause" size={14} color="#000" />
+            )}
+          </View>
+        ) : (
+          <Ionicons
+            name="play"
+            size={16}
+            color={COLORS.textMuted}
+            style={styles.queuePlayIcon}
+          />
+        )}
       </TouchableOpacity>
     );
   }
@@ -424,7 +470,6 @@ export default function QueueScreen() {
             </Text>
           </View>
 
-          {/* Spacer keeps title centered and clears floating settings/dev controls. */}
           <View style={styles.headerSpacer} />
         </View>
 
@@ -436,61 +481,50 @@ export default function QueueScreen() {
           ]}
         >
           <View style={styles.sessionStrip}>
-            <View style={styles.sessionCopy}>
-              <Text numberOfLines={1} style={styles.sessionTitle}>
-                {sessionContextLabel}
+            <Text numberOfLines={1} style={styles.sessionTitle}>
+              {sessionContextLabel}
+            </Text>
+            <Text numberOfLines={2} style={styles.sessionMeta}>
+              {positionText}
+              {"  ·  "}
+              {sessionCount}{" "}
+              {sessionCount === 1
+                ? labels.singular.toLowerCase()
+                : labels.plural.toLowerCase()}
+              {"  ·  "}
+              Smart Queue {smartOn ? "On" : "Off"}
+            </Text>
+            {foreignHiddenCount > 0 ? (
+              <Text numberOfLines={1} style={styles.sessionHint}>
+                Hiding {foreignHiddenCount} non-
+                {labels.singular.toLowerCase()} item
+                {foreignHiddenCount === 1 ? "" : "s"} from this list
               </Text>
-              <Text numberOfLines={1} style={styles.sessionMeta}>
-                {positionText}
-                {"  ·  "}
-                {sessionCount}{" "}
-                {sessionCount === 1
-                  ? labels.singular.toLowerCase()
-                  : labels.plural.toLowerCase()}
-                {"  ·  "}
-                Smart Queue {smartOn ? "On" : "Off"}
-              </Text>
-            </View>
+            ) : null}
           </View>
-
-          {currentRow ? (
-            <View style={styles.nowPlayingBlock}>
-              <Text style={styles.sectionLabel}>{labels.currentLabel}</Text>
-              {renderQueueRow(currentRow, 0, "current")}
-            </View>
-          ) : (
-            <View style={styles.emptyCard}>
-              <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
-              <Text style={styles.emptyText}>{labels.emptyCurrent}</Text>
-            </View>
-          )}
 
           <View style={styles.sectionHeaderRow}>
             <Text style={[styles.sectionLabel, styles.sectionLabelFlush]}>
-              {labels.upNext}
+              {labels.plural}
             </Text>
             <Text style={styles.sectionSubLabel}>
-              {labels.remainingLabel(upNextRows.length)}
+              {upNextCount > 0
+                ? labels.remainingLabel(upNextCount)
+                : labels.currentLabel}
             </Text>
           </View>
 
-          {upNextRows.length === 0 ? (
+          {listRows.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>{labels.emptyNext}</Text>
+              <Ionicons name="list" size={24} color={COLORS.cyan} />
+              <Text style={styles.emptyText}>{labels.emptyCurrent}</Text>
               <Text style={styles.emptySubtext}>{labels.emptyNextHint}</Text>
             </View>
           ) : (
-            upNextRows.map((row, index) => renderQueueRow(row, index, "next"))
+            listRows.map((row, index) =>
+              renderQueueRow(row, row.isCurrent ? 0 : index)
+            )
           )}
-
-          {previousRows.length > 0 ? (
-            <View style={styles.previousSection}>
-              <Text style={styles.sectionLabel}>{labels.playedEarlier}</Text>
-              {previousRows
-                .slice(-4)
-                .map((row, index) => renderQueueRow(row, index, "previous"))}
-            </View>
-          ) : null}
         </ScrollView>
       </LinearGradient>
     </AppShell>
@@ -503,8 +537,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 14,
-    paddingBottom: 8,
-    paddingRight: 56,
+    paddingBottom: 6,
+    paddingRight: 72,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -515,8 +549,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   headerSpacer: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
   },
   iconButton: {
     width: 40,
@@ -544,16 +578,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   sessionStrip: {
-    marginBottom: 10,
+    marginBottom: 12,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.07)",
-  },
-  sessionCopy: {
-    minWidth: 0,
   },
   sessionTitle: {
     color: COLORS.text,
@@ -565,12 +596,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "600",
     marginTop: 3,
+    lineHeight: 15,
   },
-  nowPlayingBlock: {
-    marginBottom: 4,
+  sessionHint: {
+    color: COLORS.cyan,
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 5,
   },
   sectionHeaderRow: {
-    marginTop: 10,
     marginBottom: 6,
     flexDirection: "row",
     alignItems: "baseline",
@@ -594,8 +628,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   queueItem: {
-    marginBottom: 6,
-    paddingVertical: 6,
+    marginBottom: 5,
+    paddingVertical: 5,
     paddingHorizontal: 6,
     borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.04)",
@@ -603,7 +637,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.06)",
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 56,
+    minHeight: 52,
   },
   queueItemActive: {
     backgroundColor: "rgba(168,85,247,0.12)",
@@ -621,8 +655,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   queueCoverWrap: {
-    width: 42,
-    height: 42,
+    width: 40,
+    height: 40,
     borderRadius: 10,
     overflow: "hidden",
     backgroundColor: COLORS.card,
@@ -654,9 +688,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   queuePlayButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.07)",
@@ -667,9 +701,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.cyan,
     borderColor: "rgba(255,255,255,0.28)",
   },
-  previousSection: {
-    marginTop: 12,
-    opacity: 0.68,
+  queuePlayIcon: {
+    marginRight: 6,
   },
   emptyCard: {
     borderRadius: 12,
