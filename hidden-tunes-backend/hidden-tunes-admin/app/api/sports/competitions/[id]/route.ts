@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { SPORTS_PUBLIC_CATALOG_STATUSES } from "@/lib/sports/constants";
 import { isSportsFeatureEnabled } from "@/lib/sports/featureFlags";
 import { jsonSportsError, jsonSportsOk } from "@/lib/sports/http";
+import { resolveSportsBrowseAccess } from "@/lib/sports/pilotAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,16 +13,18 @@ const COMPETITION_SELECT =
   "id, name, slug, short_name, sport_id, country_code, competition_type, gender, age_group, artwork_url, status, created_at, updated_at";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const enabled = await isSportsFeatureEnabled("sports_enabled");
-    if (!enabled) {
+    const access = await resolveSportsBrowseAccess(request, () =>
+      isSportsFeatureEnabled("sports_enabled")
+    );
+    if (!access.enabled) {
       return jsonSportsOk({
         enabled: false,
         competition: null,
-        message: "Sports is disabled by feature flag.",
+        message: "Sports preview is unavailable.",
       });
     }
 
@@ -35,15 +38,19 @@ export async function GET(
       .from("sports_competitions")
       .select(COMPETITION_SELECT)
       .eq("id", competitionId)
-      .in("status", [...SPORTS_PUBLIC_CATALOG_STATUSES, "active"])
-      .maybeSingle();
+    .in("status", [...SPORTS_PUBLIC_CATALOG_STATUSES, "active", "verified"])
+    .maybeSingle();
 
     if (error) throw new Error(error.message);
     if (!data) {
       return jsonSportsError("Competition not found.", 404, null, "INVALID_REQUEST");
     }
 
-    return jsonSportsOk({ enabled: true, competition: data });
+    return jsonSportsOk({
+      enabled: true,
+      privatePilot: access.privatePilot || undefined,
+      competition: data,
+    });
   } catch (err) {
     return jsonSportsError(
       "Failed to load competition.",
