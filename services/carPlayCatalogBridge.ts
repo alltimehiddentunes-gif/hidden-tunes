@@ -16,6 +16,7 @@ import { loadRecentlyPlayed } from "./recentlyPlayedEngine";
 import { loadRecentlyPlayedRadioItems } from "./radio/recentlyPlayedRadio";
 import { readCachedRadioStations } from "./radio/radioCache";
 import { normalizeRadioStation } from "./radio/radioNormalizer";
+import { runInstantCatalogSearch } from "./instantCatalogSearch";
 import { radioStationToAppSong } from "./playback/radioPlaybackAdapter";
 import { syncHiddenAudioCarPlayCatalog } from "../src/hidden-audio/hiddenAudioBridge";
 import type { HiddenTunesStation, RadioStation } from "../types/radio";
@@ -386,12 +387,18 @@ export function searchCarPlayCatalog(query: string): CarPlayBrowseItem[] {
 
   const catalog = getCachedHiddenTunesCatalog();
   if (catalog?.songs?.length) {
-    const normalizedQuery = trimmed.toLowerCase();
-    return catalog.songs
-      .filter((song) => {
-        const haystack = `${song.title} ${song.artist} ${song.album || ""}`.toLowerCase();
-        return haystack.includes(normalizedQuery);
-      })
+    const grouped = runInstantCatalogSearch(
+      {
+        songs: catalog.songs as any,
+        albums: catalog.albums || [],
+        artists: catalog.artists || [],
+        genres: catalog.genres || [],
+        playlists: catalog.playlists,
+        tvVideos: [],
+      },
+      trimmed
+    );
+    return (grouped.songs || [])
       .slice(0, CARPLAY_CATALOG_LIMITS.search)
       .map((song) => ({
         mediaId: songMediaId(String(song.id)),

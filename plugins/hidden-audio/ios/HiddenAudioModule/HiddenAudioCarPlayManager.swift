@@ -18,6 +18,8 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var isConnected = false
   private var hasInstalledRoot = false
 
+  // Named distinctly from CPSearchTemplateDelegate.searchTemplate(_:...)
+  // so Swift can witness the protocol methods correctly.
   private lazy var searchTabTemplate: CPSearchTemplate = {
     let template = CPSearchTemplate()
     template.delegate = self
@@ -269,23 +271,37 @@ extension HiddenAudioCarPlayManager: CPSearchTemplateDelegate {
   ) {
     let matches = HiddenAudioCarPlayCatalog.updateSearchResults(query: searchText)
     if matches.isEmpty {
+      if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        completionHandler([])
+        return
+      }
       let empty = CPListItem(
         text: HiddenAudioCarPlayCatalog.emptyMessageTitle,
         detailText: HiddenAudioCarPlayCatalog.emptyMessageSubtitle
       )
-      completionHandler(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? [] : [empty])
+      completionHandler([empty])
       return
     }
 
-    let items = matches.map { node -> CPListItem in
+    let items: [CPListItem] = matches.map { node in
       let item = CPListItem(text: node.title, detailText: node.subtitle)
-      item.handler = { [weak self] _, completion in
-        self?.selectPlayable(mediaId: node.mediaId)
-        completion()
-      }
+      item.userInfo = ["mediaId": node.mediaId]
       return item
     }
     completionHandler(items)
+  }
+
+  func searchTemplate(
+    _ searchTemplate: CPSearchTemplate,
+    selectedResult item: CPListItem,
+    completionHandler: @escaping () -> Void
+  ) {
+    defer { completionHandler() }
+    if let info = item.userInfo as? [String: Any],
+       let mediaId = info["mediaId"] as? String,
+       !mediaId.isEmpty {
+      selectPlayable(mediaId: mediaId)
+    }
   }
 
   func searchTemplateSearchButtonPressed(_ searchTemplate: CPSearchTemplate) {
