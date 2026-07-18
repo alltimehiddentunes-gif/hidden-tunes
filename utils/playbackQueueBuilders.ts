@@ -102,6 +102,24 @@ function isEducationalQueueContext(context: PlaybackQueueContext) {
   return false;
 }
 
+/** Podcasts: active row is playable; siblings are metadata-only until resolve. */
+function isPodcastDomainSong(song: QueueBuildSong) {
+  const id = text(song.id);
+  if (id.startsWith("podcast-")) return true;
+  return lower(song.sourceName) === "podcast" || lower(song.sourceName) === "podcasts";
+}
+
+function isPodcastQueueContext(context: PlaybackQueueContext) {
+  const typed = context as PlaybackQueueContext & {
+    queueType?: string;
+    contextType?: string;
+  };
+  if (typed.queueType === "podcast") return true;
+  if (typed.contextType === "podcast-show") return true;
+  if (lower(context.label) === "podcasts") return true;
+  return false;
+}
+
 /** Live Radio stations: never expand into Music catalog. */
 function isLiveRadioDomainSong(song: QueueBuildSong) {
   const id = text(song.id);
@@ -454,6 +472,42 @@ export function buildContextualPlaybackQueue(options: {
         discovery_catalog_size: catalog.length,
       },
     });
+  }
+
+  // Podcasts must never expand into Music discovery. Keep same-show metadata siblings.
+  if (
+    isPodcastQueueContext(context) ||
+    isPodcastDomainSong(seed) ||
+    (providedQueue || []).some(isPodcastDomainSong)
+  ) {
+    const result = preserveStrictDomainQueue({
+      seed,
+      providedQueue,
+      requestedIndex,
+      isDomainSong: isPodcastDomainSong,
+      builtFrom: "podcast_domain_preserved",
+      diagnostics: {
+        podcast_domain_guard: true,
+        discovery_catalog_size: catalog.length,
+        show_id: text(
+          (context as PlaybackQueueContext & { contextId?: string; albumId?: string })
+            .contextId || context.albumId
+        ),
+      },
+    });
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[PODCAST_QUEUE] accepted", {
+        providedLength: (providedQueue || []).length,
+        finalLength: result.queue.length,
+        activeIndex: result.activeIndex,
+        showId: result.diagnostics.show_id || null,
+        expanded: false,
+        foreignItemCount: 0,
+      });
+    }
+
+    return result;
   }
 
   // Lectures must never expand into Music discovery. Keep the supplied course queue.

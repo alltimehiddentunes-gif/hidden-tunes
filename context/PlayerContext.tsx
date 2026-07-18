@@ -5730,12 +5730,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (!current) return false;
 
       const context = activeQueueContextRef.current;
-      // Music Smart continuation must never append into Motivationals (or other vertical) sessions.
+      // Music Smart continuation must never append into Motivationals / Podcasts (or other vertical) sessions.
       if (isMotivationPlaybackDomain(context, current)) {
         logLockscreenPlaybackDiagnostic("smart_continuation_blocked_domain", {
           contextSource: context.source,
           queueType: context.queueType || null,
           currentSongId: current.id,
+        });
+        return false;
+      }
+
+      const podcastDomain =
+        context.queueType === "podcast" ||
+        context.contextType === "podcast-show" ||
+        String(current.id || "").startsWith("podcast-") ||
+        String(current.sourceName || "").toLowerCase() === "podcast" ||
+        String(current.sourceName || "").toLowerCase() === "podcasts";
+      if (podcastDomain) {
+        logLockscreenPlaybackDiagnostic("smart_continuation_blocked_domain", {
+          contextSource: context.source,
+          queueType: context.queueType || null,
+          currentSongId: current.id,
+          reason: "podcast_domain",
         });
         return false;
       }

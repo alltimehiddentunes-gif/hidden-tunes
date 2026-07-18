@@ -30,6 +30,7 @@ import { COLORS } from "../../../constants/theme";
 import {
   fetchPodcastEpisodePlay,
   fetchPodcastEpisodesByCategory,
+  fetchPodcastShowById,
   getBackendPodcastCategoryLabel,
   PODCAST_CATALOG_PAGE_LIMIT,
   resolveBackendPodcastCategorySlug,
@@ -348,26 +349,36 @@ export default function PodcastCategoryScreen() {
         );
 
         const showId = String(playable.showId || metadata.showId || "").trim();
+        let showTitle = categoryLabel;
+        if (showId) {
+          const showResponse = await fetchPodcastShowById(showId);
+          if (showResponse.show?.title) {
+            showTitle = showResponse.show.title;
+          }
+        }
+
+        const playableWithShow: PodcastEpisode = {
+          ...playable,
+          showId,
+          showTitle,
+        };
+
         const sameShow = episodes
           .filter((entry) => String(entry.showId || "").trim() === showId)
           .map((entry) =>
             entry.id === metadata.id
-              ? playable
-              : metadataToQueueEpisode(entry, categoryLabel)
+              ? playableWithShow
+              : metadataToQueueEpisode(entry, showTitle)
           );
-        const categoryOthers = episodes
-          .filter((entry) => String(entry.showId || "").trim() !== showId)
-          .map((entry) => metadataToQueueEpisode(entry, categoryLabel));
 
-        await runWithMaturePodcastConsent(playable, () =>
+        await runWithMaturePodcastConsent(playableWithShow, () =>
           playPodcastEpisodeFromShow(
-            playable,
-            sameShow.length ? sameShow : [playable],
+            playableWithShow,
+            sameShow.length ? sameShow : [playableWithShow],
             undefined,
             {
-              categoryEpisodes: categoryOthers,
               categoryId: backendSlug,
-              creatorId: playable.publisher,
+              creatorId: playableWithShow.publisher,
             }
           ).then((result) => {
             if (!result.ok) {
