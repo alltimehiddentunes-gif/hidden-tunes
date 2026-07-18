@@ -161,7 +161,7 @@ function PlayerSurface({
         style={styles.webView}
         originWhitelist={["*"]}
         javaScriptEnabled={false}
-        mediaPlaybackRequiresUserAction
+        mediaPlaybackRequiresUserAction={false}
       />
     );
   }

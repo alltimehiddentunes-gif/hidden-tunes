@@ -58,6 +58,8 @@ export type SportsMatchParticipant = {
 export type SportsMatchCard = {
   id: string;
   slug?: string | null;
+  /** Official broadcast/event title when participants are unknown. */
+  title?: string | null;
   sport?: {
     id: string;
     slug: string;

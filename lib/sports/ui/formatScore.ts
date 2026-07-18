@@ -34,6 +34,10 @@ export function formatMatchTitle(card: SportsMatchCard): string {
   if (names.length === 1) return names[0];
   const title = String((card as SportsMatchCard & { title?: string }).title || "").trim();
   if (title) return title;
+  const competition = card.competition?.name?.trim();
+  if (competition) return competition;
+  const sport = card.sport?.name?.trim();
+  if (sport) return sport;
   return "Match";
 }
 export function participantInitials(name: string | null | undefined): string {

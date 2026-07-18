@@ -976,10 +976,13 @@ export async function resolveSportsFixturePlaySession(input: {
         return await hydrateSportsPlaybackSessionEmbed(json.session, input.signal);
       }
       if (json.playback) {
-        return sessionFromLegacyPlayback(
-          fixtureId,
-          json.title || "Match",
-          json.playback
+        return await hydrateSportsPlaybackSessionEmbed(
+          sessionFromLegacyPlayback(
+            fixtureId,
+            json.title || "Match",
+            json.playback
+          ),
+          input.signal
         );
       }
       if (json.success === false) {
@@ -1016,7 +1019,10 @@ export async function resolveSportsFixturePlaySession(input: {
       legacy.error || "This match is currently unavailable."
     );
   }
-  return sessionFromLegacyPlayback(fixtureId, broadcast.title || "Match", legacy.playback);
+  return await hydrateSportsPlaybackSessionEmbed(
+    sessionFromLegacyPlayback(fixtureId, broadcast.title || "Match", legacy.playback),
+    input.signal
+  );
 }
 
 /** Legacy wrapper — prefer resolveSportsFixturePlaySession. */
