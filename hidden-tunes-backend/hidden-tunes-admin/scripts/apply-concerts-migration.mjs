@@ -23,6 +23,7 @@ const MIGRATIONS = [
   "supabase/migrations/20260718192000_concerts_source_registry_columns.sql",
   "supabase/migrations/20260718193000_concerts_scale_hardening.sql",
   "supabase/migrations/20260718194000_concerts_multiprovider_expansion.sql",
+  "supabase/migrations/20260718194100_concerts_service_role_grants.sql",
 ];
 
 function loadEnvFile(filePath) {

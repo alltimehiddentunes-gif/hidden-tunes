@@ -92,3 +92,33 @@ create trigger concert_discovery_seeds_touch_updated_at
   for each row execute function public.concerts_touch_updated_at();
 
 notify pgrst, 'reload schema';
+
+-- Expand media provider vocabulary for multi-provider catalogue
+do $$
+begin
+  if exists (
+    select 1 from pg_constraint where conname = 'concert_sources_provider_check'
+  ) then
+    alter table public.concert_sources drop constraint concert_sources_provider_check;
+  end if;
+
+  alter table public.concert_sources
+    add constraint concert_sources_provider_check
+    check (
+      provider in (
+        'youtube',
+        'vimeo',
+        'dailymotion',
+        'twitch',
+        'hls',
+        'dash',
+        'iframe',
+        'official_website',
+        'authorized_platform',
+        'public_broadcaster_player',
+        'festival_player',
+        'venue_player',
+        'other'
+      )
+    );
+end $$;

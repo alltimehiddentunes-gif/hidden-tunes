@@ -14,6 +14,10 @@ import {
   resolveYouTubeChannelIdForHandle,
   type ConcertYouTubeVideoCandidate,
 } from "../providers/youtubeClient";
+import {
+  discoverYouTubeChannelPageViaRss,
+  resolveYouTubeChannelIdFromPage,
+} from "../providers/youtubeRss";
 import { isValidYouTubeChannelId } from "../providers/youtubeOfficial";
 import { normalizeYouTubeChannelUrl } from "../providers/youtubeOfficial";
 import type { ConcertSourceSeed } from "../types";
@@ -43,6 +47,10 @@ import {
   type ConcertRejectionRecord,
 } from "./rejectionMemory";
 import { isConcertSourceImportEligible } from "./sourceEligibility";
+import { validateConcertAppPlayback } from "../playback/validatePlayback";
+import { decideConcertCatalogueVisibility } from "../playback/publish";
+import { toConcertMediaCandidate } from "../candidate";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const CONCERTS_ADMIN_ROOT = path.resolve(__dirname, "../../..");
@@ -55,6 +63,8 @@ export type ConcertImportRunOptions = {
   dryRun?: boolean;
   resume?: boolean;
   skipPlaybackProbe?: boolean;
+  /** When true, validate app playback path and publish passing items. */
+  publishOnPlayable?: boolean;
   fixtures?: Record<string, ConcertYouTubeVideoCandidate[]>;
   adminRoot?: string;
   rejectionMemory?: Map<string, ConcertRejectionRecord>;
@@ -73,6 +83,7 @@ export type ConcertImportSourceReport = {
   probableDuplicates: number;
   skippedRejections: number;
   inserted: number;
+  published: number;
   probeFailed: number;
   retries: number;
   errors: string[];
@@ -95,10 +106,12 @@ export type ConcertImportRunReport = {
     probable_duplicates: number;
     skipped_rejections: number;
     inserted: number;
+    published: number;
     probe_failed: number;
     retries: number;
   };
   sources: ConcertImportSourceReport[];
+  discovery_method?: string;
 };
 
 function extractHandle(mediaChannelUrl: string): string | null {
@@ -124,7 +137,15 @@ async function resolveChannelId(source: ConcertSourceSeed): Promise<string | nul
   const handleOrId = extractHandle(source.mediaChannelUrl);
   if (handleOrId && isValidYouTubeChannelId(handleOrId)) return handleOrId;
   if (handleOrId && hasConcertYouTubeApiKey()) {
-    return resolveYouTubeChannelIdForHandle(handleOrId);
+    const viaApi = await resolveYouTubeChannelIdForHandle(handleOrId);
+    if (viaApi) return viaApi;
+  }
+  // Public channel page HTML (no Data API key) — never invents IDs.
+  if (handleOrId || source.mediaChannelUrl) {
+    const viaPage = await resolveYouTubeChannelIdFromPage(
+      handleOrId ? `@${handleOrId}` : source.mediaChannelUrl
+    );
+    if (viaPage) return viaPage;
   }
   return null;
 }
@@ -183,6 +204,7 @@ export async function runConcertsImport(
       probableDuplicates: 0,
       skippedRejections: 0,
       inserted: 0,
+      published: 0,
       probeFailed: 0,
       retries: 0,
       errors: [],
@@ -218,11 +240,7 @@ export async function runConcertsImport(
           candidates =
             pagesThisRun === 0 ? options.fixtures[source.stableKey] : [];
           nextPageToken = null;
-        } else {
-          if (!hasConcertYouTubeApiKey()) {
-            throw new Error("youtube_api_key_missing");
-          }
-
+        } else if (hasConcertYouTubeApiKey()) {
           let attempt = 0;
           // Provider retry with backoff; failure stays isolated to this source.
           // eslint-disable-next-line no-constant-condition
@@ -253,6 +271,16 @@ export async function runConcertsImport(
               attempt += 1;
               await sleep(decision.delayMs);
             }
+          }
+        } else {
+          // No Data API key: Atom RSS for recent uploads (single page, ~15 items).
+          if (pagesThisRun > 0 || pageToken) {
+            candidates = [];
+            nextPageToken = null;
+          } else {
+            const page = await discoverYouTubeChannelPageViaRss({ channelId });
+            candidates = page.candidates;
+            nextPageToken = null;
           }
         }
 
@@ -359,7 +387,45 @@ export async function runConcertsImport(
           }
           if (skipAsDuplicate) continue;
 
-          if (!options.skipPlaybackProbe) {
+          if (options.publishOnPlayable) {
+            const media = toConcertMediaCandidate({
+              provider: "youtube",
+              providerContentId: candidate.providerContentId,
+              title: candidate.title,
+              description: candidate.description,
+              channelId: candidate.channelId,
+              channelTitle: candidate.channelTitle,
+              publishedAt: candidate.publishedAt,
+              durationSeconds: candidate.durationSeconds,
+              thumbnailUrl: candidate.thumbnailUrl,
+              tags: candidate.tags,
+              liveBroadcastContent: candidate.liveBroadcastContent,
+              embeddable: candidate.embeddable,
+              regionRestriction: candidate.regionRestriction,
+              officialWatchUrl: candidate.officialWatchUrl,
+              embedUrl: candidate.embedUrl,
+              playbackMethod: "youtube_embed",
+            });
+            const validation = await validateConcertAppPlayback(media);
+            if (!validation.playable) {
+              sourceReport.probeFailed += 1;
+              sourceReport.rejected += 1;
+              checkpoint.rejected += 1;
+              rejectionMemory.set(rejectionKey, {
+                provider: "youtube",
+                providerContentId: candidate.providerContentId,
+                reasonCode: validation.signals.removed_or_private
+                  ? "private"
+                  : validation.signals.embed_allowed === false
+                    ? "embed_disabled"
+                    : "dead",
+                metadataHash,
+                embedStatus: String(candidate.embeddable),
+                lastSeenAt: new Date().toISOString(),
+              });
+              continue;
+            }
+          } else if (!options.skipPlaybackProbe) {
             const probe = await probeYouTubeConcertPlayability(candidate);
             if (!probe.ok) {
               sourceReport.probeFailed += 1;
@@ -393,6 +459,14 @@ export async function runConcertsImport(
           if (dryRun) continue;
 
           if (!checkpoint.source_id) {
+            const { data: srcRow } = await supabaseAdmin
+              .from("concert_sources")
+              .select("id")
+              .eq("stable_key", source.stableKey)
+              .maybeSingle();
+            if (srcRow?.id) checkpoint.source_id = String(srcRow.id);
+          }
+          if (!checkpoint.source_id) {
             sourceReport.errors.push("source_id_missing_upsert_sources_first");
             continue;
           }
@@ -412,6 +486,41 @@ export async function runConcertsImport(
           } else if (result.inserted) {
             sourceReport.inserted += 1;
             checkpoint.inserted += 1;
+
+            if (options.publishOnPlayable && result.concertItemId) {
+              const publish = decideConcertCatalogueVisibility({
+                playable: true,
+                isLive: classification.isLive,
+                isUpcoming: classification.isUpcoming,
+                isReplay: classification.isReplay,
+              });
+              const { error: pubError } = await supabaseAdmin
+                .from("concert_items")
+                .update({
+                  is_public: publish.isPublic,
+                  visibility_status: publish.visibilityStatus,
+                  playback_status: publish.playbackStatus,
+                  rights_status: publish.rightsStatus,
+                  published_at: publish.publishedAt,
+                  last_verified_at: new Date().toISOString(),
+                  health_score: 50,
+                })
+                .eq("id", result.concertItemId);
+              if (!pubError && publish.isPublic) {
+                sourceReport.published += 1;
+                await supabaseAdmin
+                  .from("concert_streams")
+                  .update({
+                    playback_status: "playable",
+                    last_verified_at: new Date().toISOString(),
+                    playback_method: "youtube_embed",
+                    app_embed_url: candidate.embedUrl,
+                    last_playback_validation_ok: true,
+                    last_playback_validation_at: new Date().toISOString(),
+                  })
+                  .eq("concert_item_id", result.concertItemId);
+              }
+            }
           }
         }
 
@@ -459,6 +568,7 @@ export async function runConcertsImport(
       acc.probable_duplicates += row.probableDuplicates;
       acc.skipped_rejections += row.skippedRejections;
       acc.inserted += row.inserted;
+      acc.published += row.published;
       acc.probe_failed += row.probeFailed;
       acc.retries += row.retries;
       return acc;
@@ -471,6 +581,7 @@ export async function runConcertsImport(
       probable_duplicates: 0,
       skipped_rejections: 0,
       inserted: 0,
+      published: 0,
       probe_failed: 0,
       retries: 0,
     }
@@ -486,5 +597,8 @@ export async function runConcertsImport(
     sources_failed: reports.filter((r) => r.errors.length > 0 && r.eligible).length,
     totals,
     sources: reports,
+    discovery_method: hasConcertYouTubeApiKey()
+      ? "youtube_data_api"
+      : "youtube_atom_rss_fallback",
   };
 }

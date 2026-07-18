@@ -68,7 +68,7 @@ export async function upsertConcertSource(source: ConcertSourceSeed) {
     .select(SOURCE_SELECT)
     .single();
   if (error) throw new Error(error.message);
-  return data as ConcertSourceRow;
+  return data as unknown as ConcertSourceRow;
 }
 
 export async function fetchConcertSourceByStableKey(stableKey: string) {
@@ -78,7 +78,7 @@ export async function fetchConcertSourceByStableKey(stableKey: string) {
     .eq("stable_key", stableKey)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data as ConcertSourceRow | null) || null;
+  return (data as unknown as ConcertSourceRow | null) || null;
 }
 
 export async function listEnabledConcertSources() {
@@ -88,7 +88,7 @@ export async function listEnabledConcertSources() {
     .eq("enabled", true)
     .order("reliability_score", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data || []) as ConcertSourceRow[];
+  return (data || []) as unknown as ConcertSourceRow[];
 }
 
 export async function listImportEnabledConcertSources() {
@@ -99,7 +99,7 @@ export async function listImportEnabledConcertSources() {
     .eq("import_enabled", true)
     .order("reliability_score", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data || []) as ConcertSourceRow[];
+  return (data || []) as unknown as ConcertSourceRow[];
 }
 
 export async function listConcertSourcesNeedingReview() {
@@ -115,7 +115,7 @@ export async function listConcertSourcesNeedingReview() {
     )
     .order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
-  return (data || []) as ConcertSourceRow[];
+  return (data || []) as unknown as ConcertSourceRow[];
 }
 
 export async function disableConcertSource(stableKey: string, reason?: string) {
@@ -130,7 +130,7 @@ export async function disableConcertSource(stableKey: string, reason?: string) {
     .select(SOURCE_SELECT)
     .single();
   if (error) throw new Error(error.message);
-  return data as ConcertSourceRow;
+  return data as unknown as ConcertSourceRow;
 }
 
 export async function updateConcertSourceReliabilityScore(
@@ -147,7 +147,7 @@ export async function updateConcertSourceReliabilityScore(
     .select(SOURCE_SELECT)
     .single();
   if (error) throw new Error(error.message);
-  return data as ConcertSourceRow;
+  return data as unknown as ConcertSourceRow;
 }
 
 export async function recordConcertSourceValidationSuccess(stableKey: string) {
@@ -158,7 +158,7 @@ export async function recordConcertSourceValidationSuccess(stableKey: string) {
     .select(SOURCE_SELECT)
     .single();
   if (error) throw new Error(error.message);
-  return data as ConcertSourceRow;
+  return data as unknown as ConcertSourceRow;
 }
 
 export async function recordConcertSourceValidationFailure(stableKey: string) {
@@ -169,7 +169,7 @@ export async function recordConcertSourceValidationFailure(stableKey: string) {
     .select(SOURCE_SELECT)
     .single();
   if (error) throw new Error(error.message);
-  return data as ConcertSourceRow;
+  return data as unknown as ConcertSourceRow;
 }
 
 export async function updateConcertSourceAuthorization(
@@ -188,7 +188,7 @@ export async function updateConcertSourceAuthorization(
     .select(SOURCE_SELECT)
     .single();
   if (error) throw new Error(error.message);
-  return data as ConcertSourceRow;
+  return data as unknown as ConcertSourceRow;
 }
 
 export async function updateConcertSourceEmbedPolicy(
@@ -213,5 +213,5 @@ export async function updateConcertSourceEmbedPolicy(
     .select(SOURCE_SELECT)
     .single();
   if (error) throw new Error(error.message);
-  return data as ConcertSourceRow;
+  return data as unknown as ConcertSourceRow;
 }

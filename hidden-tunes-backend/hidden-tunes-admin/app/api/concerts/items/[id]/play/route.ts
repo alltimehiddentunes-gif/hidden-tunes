@@ -12,10 +12,10 @@ export const runtime = "nodejs";
  */
 export async function GET(
   _request: NextRequest,
-  context: { params: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const params = await Promise.resolve(context.params);
+    const params = await context.params;
     const id = String(params.id || "").trim();
     if (!id) {
       return NextResponse.json({ ok: false, error: "missing_id" }, { status: 400 });

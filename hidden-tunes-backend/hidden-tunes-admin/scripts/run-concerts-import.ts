@@ -34,6 +34,7 @@ async function main() {
     dryRun,
     resume,
     skipPlaybackProbe: process.argv.includes("--skip-probe"),
+    publishOnPlayable: process.argv.includes("--publish"),
   });
 
   console.log(JSON.stringify(report, null, 2));
