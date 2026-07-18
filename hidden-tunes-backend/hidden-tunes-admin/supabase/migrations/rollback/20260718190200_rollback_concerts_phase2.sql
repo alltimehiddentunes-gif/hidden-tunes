@@ -1,4 +1,4 @@
--- ROLLBACK: Verified Live Concerts Phase 2 database foundation.
+-- ROLLBACK: Verified Live Concerts Phase 2 database foundation + Phase 3 registry columns.
 -- REVIEW BEFORE RUNNING. Destructive. Drops only concert_* / concerts user tables.
 -- Does not touch TV, Sports, Motivation, Lectures, Radio, Podcast, or music tables.
 -- Prefer applying via: node scripts/rollback-concerts-migration.mjs --dry-run
