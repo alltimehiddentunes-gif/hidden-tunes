@@ -18,7 +18,7 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var isConnected = false
   private var hasInstalledRoot = false
 
-  private lazy var searchTemplate: CPSearchTemplate = {
+  private lazy var searchTabTemplate: CPSearchTemplate = {
     let template = CPSearchTemplate()
     template.delegate = self
     template.tabTitle = "Search"
@@ -102,7 +102,7 @@ final class HiddenAudioCarPlayManager: NSObject {
     let music = makeListTemplate(title: "Music", parentId: "music")
     let radio = makeListTemplate(title: "Radio", parentId: "radio")
 
-    let tabs = [home, playlists, music, radio, searchTemplate]
+    let tabs = [home, playlists, music, radio, searchTabTemplate]
     let tabBar = CPTabBarTemplate(templates: tabs)
     tabBarTemplate = tabBar
     hasInstalledRoot = true
