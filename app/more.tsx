@@ -33,9 +33,28 @@ import {
 import AppShell from "../components/navigation/AppShell";
 import { useAppActiveState } from "../utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
+import { HOME_MORE_HUB_SHORTCUTS } from "../constants/homeMoreHub";
+import {
+  sportsEnabled,
+  sportsFullUiEnabled,
+  sportsMobilePilotEnabled,
+  sportsUseDevFixtures,
+} from "../constants/sportsFlags";
 import { useLocalization } from "../localization";
+import type { TranslationKey } from "../localization";
 
-type LibrarySection = {
+/**
+ * Sports Preview entry in More → Discovery.
+ * Never added to HOME_MORE_HUB_SHORTCUTS — only shown when the pilot flags
+ * are explicitly enabled (Metro .env and Preview eas.json env).
+ * Fixture flag controls data only — not whether this navigation card appears.
+ * Must NOT require __DEV__: Preview/standalone builds set __DEV__=false.
+ */
+function isSportsPreviewVisible(): boolean {
+  return sportsEnabled && sportsMobilePilotEnabled && sportsFullUiEnabled;
+}
+
+type HubSection = {
   id: string;
   title: string;
   eyebrow: string;
@@ -44,13 +63,48 @@ type LibrarySection = {
   accent: string;
 };
 
-type LibraryGroup = {
+type HubGroup = {
   id: string;
   label: string;
-  sections: LibrarySection[];
+  sections: HubSection[];
 };
 
-const LibraryHeroGlow = memo(function LibraryHeroGlow() {
+const HUB_TRANSLATION_KEYS: Record<
+  string,
+  { title: TranslationKey; subtitle: TranslationKey }
+> = {
+  "more-tv": { title: "library.hub.tv", subtitle: "library.hub.tvSubtitle" },
+  "more-worlds": {
+    title: "library.hub.feelings",
+    subtitle: "library.hub.feelingsSubtitle",
+  },
+  "more-motivation": {
+    title: "library.hub.motivationals",
+    subtitle: "library.hub.motivationalsSubtitle",
+  },
+  "more-lectures": {
+    title: "library.hub.lectures",
+    subtitle: "library.hub.lecturesSubtitle",
+  },
+  "more-search": {
+    title: "library.hub.search",
+    subtitle: "library.hub.searchSubtitle",
+  },
+  "more-queue": {
+    title: "library.hub.queue",
+    subtitle: "library.hub.queueSubtitle",
+  },
+  "more-library": {
+    title: "library.hub.library",
+    subtitle: "library.hub.librarySubtitle",
+  },
+  "more-playlists": {
+    title: "library.hub.playlists",
+    subtitle: "library.hub.playlistsSubtitle",
+  },
+};
+
+const MoreHeroGlow = memo(function MoreHeroGlow() {
   const appActive = useAppActiveState();
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
@@ -61,7 +115,7 @@ const LibraryHeroGlow = memo(function LibraryHeroGlow() {
       cancelAnimation(scale);
       opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
       scale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
-      logPerformanceOffscreenWorkPaused("library_hero_glow", { reason: "app_inactive" });
+      logPerformanceOffscreenWorkPaused("more_hero_glow", { reason: "app_inactive" });
       return;
     }
 
@@ -112,7 +166,7 @@ const LibraryHeroGlow = memo(function LibraryHeroGlow() {
   );
 });
 
-const LibrarySectionCard = memo(function LibrarySectionCard({ section }: { section: LibrarySection }) {
+const HubSectionCard = memo(function HubSectionCard({ section }: { section: HubSection }) {
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -140,7 +194,7 @@ const LibrarySectionCard = memo(function LibrarySectionCard({ section }: { secti
   );
 });
 
-function LibraryHero({
+function MoreHero({
   eyebrow,
   title,
   subtitle,
@@ -151,7 +205,7 @@ function LibraryHero({
 }) {
   return (
     <LinearGradient colors={GRADIENTS.cardElevated} style={styles.hero}>
-      <LibraryHeroGlow />
+      <MoreHeroGlow />
 
       <View style={styles.logoFrame}>
         <Image
@@ -172,94 +226,50 @@ function LibraryHero({
   );
 }
 
-function LibraryRecentLink({ label }: { label: string }) {
-  return (
-    <TouchableOpacity
-      activeOpacity={0.88}
-      style={styles.recentLink}
-      onPress={() => router.push("/recently-played" as any)}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Ionicons name="time" size={18} color={COLORS.cyan} />
-      <Text style={styles.recentLinkText}>{label}</Text>
-      <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-    </TouchableOpacity>
-  );
-}
-
-/** Dedicated Library — collection only (More / Discovery lives on /more). */
-export default function LibraryScreen() {
+/** Dedicated More / Discovery hub — separate from Library collection. */
+export default function MoreScreen() {
   const { t } = useLocalization();
 
-  const libraryGroups = useMemo<LibraryGroup[]>(
+  useEffect(() => {
+    if (!__DEV__) return;
+    console.log("[Sports Preview flags]", {
+      sportsEnabled,
+      sportsMobilePilotEnabled,
+      sportsFullUiEnabled,
+      sportsUseDevFixtures,
+      showSportsPreview: isSportsPreviewVisible(),
+    });
+  }, []);
+
+  const hubGroups = useMemo<HubGroup[]>(
     () => [
       {
-        id: "your-music",
-        label: t("library.yourMusic"),
+        id: "more",
+        label: t("library.more"),
         sections: [
-          {
-            id: "favorites",
-            title: t("library.favorites"),
-            eyebrow: t("library.favoritesEyebrow"),
-            icon: "heart",
-            href: "/favorites",
-            accent: "#F472B6",
-          },
-          {
-            id: "downloads",
-            title: t("library.downloads"),
-            eyebrow: t("library.downloadsEyebrow"),
-            icon: "cloud-download",
-            href: "/downloads",
-            accent: COLORS.blue,
-          },
-        ],
-      },
-      {
-        id: "collection",
-        label: t("library.collection"),
-        sections: [
-          {
-            id: "podcasts",
-            title: t("library.podcasts"),
-            eyebrow: t("library.podcastsEyebrow"),
-            icon: "mic",
-            href: "/podcasts",
-            accent: COLORS.cyan,
-          },
-          {
-            id: "personal-radio",
-            title: t("library.personalRadio"),
-            eyebrow: t("library.personalRadioEyebrow"),
-            icon: "infinite-outline",
-            href: "/radio",
-            accent: COLORS.pink,
-          },
-          {
-            id: "live-radio",
-            title: t("library.liveRadio"),
-            eyebrow: t("library.liveRadioEyebrow"),
-            icon: "radio",
-            href: "/stations",
-            accent: COLORS.primary,
-          },
-          {
-            id: "albums",
-            title: t("library.albums"),
-            eyebrow: t("library.albumsEyebrow"),
-            icon: "albums",
-            href: "/music-feed",
-            accent: COLORS.primaryGlow,
-          },
-          {
-            id: "artists",
-            title: t("library.artists"),
-            eyebrow: t("library.artistsEyebrow"),
-            icon: "people",
-            href: "/music-feed",
-            accent: COLORS.cyan,
-          },
+          ...HOME_MORE_HUB_SHORTCUTS.map((shortcut) => {
+            const keys = HUB_TRANSLATION_KEYS[shortcut.key];
+            return {
+              id: shortcut.key,
+              title: keys ? t(keys.title) : shortcut.title,
+              eyebrow: keys ? t(keys.subtitle) : shortcut.subtitle,
+              icon: shortcut.icon,
+              href: shortcut.route,
+              accent: shortcut.color,
+            };
+          }),
+          ...(isSportsPreviewVisible()
+            ? [
+                {
+                  id: "sports-preview",
+                  title: "Sports Preview",
+                  eyebrow: "Live Sports pilot",
+                  icon: "football-outline" as keyof typeof Ionicons.glyphMap,
+                  href: "/sports",
+                  accent: COLORS.cyan,
+                },
+              ]
+            : []),
         ],
       },
     ],
@@ -269,21 +279,19 @@ export default function LibraryScreen() {
   const heroCopy = useMemo(
     () => ({
       eyebrow: t("library.heroEyebrow"),
-      title: t("library.heroTitle"),
-      subtitle: t("library.heroSubtitle"),
+      title: t("home.shortcuts.more"),
+      subtitle: t("library.hub.librarySubtitle"),
     }),
     [t]
   );
 
-  const recentLinkLabel = t("library.recentlyPlayedLink");
-
   const renderGroup = useCallback(
-    ({ item: group }: { item: LibraryGroup }) => (
+    ({ item: group }: { item: HubGroup }) => (
       <View style={styles.groupBlock}>
         <Text style={styles.gridLabel}>{group.label}</Text>
         <View style={styles.grid}>
           {group.sections.map((section) => (
-            <LibrarySectionCard key={section.id} section={section} />
+            <HubSectionCard key={section.id} section={section} />
           ))}
         </View>
       </View>
@@ -291,11 +299,11 @@ export default function LibraryScreen() {
     []
   );
 
-  const keyExtractor = useCallback((group: LibraryGroup) => group.id, []);
+  const keyExtractor = useCallback((group: HubGroup) => group.id, []);
 
   const listHeader = useMemo(
     () => (
-      <LibraryHero
+      <MoreHero
         eyebrow={heroCopy.eyebrow}
         title={heroCopy.title}
         subtitle={heroCopy.subtitle}
@@ -304,22 +312,16 @@ export default function LibraryScreen() {
     [heroCopy.eyebrow, heroCopy.subtitle, heroCopy.title]
   );
 
-  const listFooter = useMemo(
-    () => <LibraryRecentLink label={recentLinkLabel} />,
-    [recentLinkLabel]
-  );
-
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <FlatList
-          data={libraryGroups}
+          data={hubGroups}
           keyExtractor={keyExtractor}
           renderItem={renderGroup}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           ListHeaderComponent={listHeader}
-          ListFooterComponent={listFooter}
           initialNumToRender={2}
           maxToRenderPerBatch={2}
           windowSize={3}
@@ -458,22 +460,5 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginTop: 6,
     lineHeight: TYPOGRAPHY.cardTitle + 4,
-  },
-  recentLink: {
-    minHeight: 54,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  recentLinkText: {
-    flex: 1,
-    color: COLORS.text,
-    fontSize: TYPOGRAPHY.cardTitle,
-    fontWeight: "800",
   },
 });

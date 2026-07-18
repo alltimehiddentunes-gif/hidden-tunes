@@ -39,6 +39,6 @@ export const HOME_DISCOVERY_SHORTCUTS: DiscoveryShortcut[] = [
     icon: "grid-outline",
     title: "More",
     color: COLORS.cyan,
-    route: "/library",
+    route: "/more",
   },
 ];

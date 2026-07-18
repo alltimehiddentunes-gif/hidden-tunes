@@ -35,6 +35,7 @@ const MINI_PLAYER_ROUTES = [
   "/worlds",
   "/queue",
   "/library",
+  "/more",
   "/favorites",
   "/playlists",
   "/recently-played",
