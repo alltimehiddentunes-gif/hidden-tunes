@@ -20,6 +20,7 @@ import {
   getNestedSongListLayout,
   LIST_ITEM_HEIGHTS,
 } from "../utils/performanceMode";
+import { formatTvChannelTitle } from "../utils/formatTvChannelDisplay";
 
 type Props = {
   grouped: GroupedResults;
@@ -190,6 +191,8 @@ function UniversalSearchGroupedResults({
             if (hit.id.startsWith("tv:")) {
               const video = hit.payload as any;
               const item = normalizeVideoItem(video);
+              const displayTitle =
+                formatTvChannelTitle(item.title) || item.title;
               return (
                 <TouchableOpacity
                   key={hit.id}
@@ -198,7 +201,7 @@ function UniversalSearchGroupedResults({
                   onPress={() => onTvPress(video)}
                 >
                   <MediaCard
-                    title={item.title}
+                    title={displayTitle}
                     subtitle={getVideoDisplayCategory(item) || getVideoDisplayCreator(item)}
                     image={{ uri: item.thumbnailUrl || "" }}
                     type="radio"
@@ -555,6 +558,8 @@ function UniversalSearchGroupedResults({
           {display.tv.map((hit) => {
             const video = hit.payload as any;
             const item = normalizeVideoItem(video);
+            const displayTitle =
+              formatTvChannelTitle(item.title) || item.title;
             return (
               <TouchableOpacity
                 key={hit.id}
@@ -563,7 +568,7 @@ function UniversalSearchGroupedResults({
                 onPress={() => onTvPress(video)}
               >
                 <MediaCard
-                  title={item.title}
+                  title={displayTitle}
                   subtitle={getVideoDisplayCategory(item) || getVideoDisplayCreator(item)}
                   image={{ uri: item.thumbnailUrl || "" }}
                   type="radio"

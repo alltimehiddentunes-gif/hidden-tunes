@@ -18,6 +18,7 @@ import {
   toggleTvChannelFavorite,
 } from "@/services/tv/tvFavorites";
 import type { TVChannel } from "@/types/tv";
+import { formatTvChannelTitle } from "@/utils/formatTvChannelDisplay";
 
 type TvChannelCardProps = {
   channel: TVChannel;
@@ -44,6 +45,7 @@ function TvChannelCard({
   onRemove,
   progressRatio = null,
 }: TvChannelCardProps) {
+  const displayName = formatTvChannelTitle(channel.name) || channel.name;
   const [favorited, setFavorited] = useState(() =>
     readTvFavoritesSync().some((entry) => entry.channelId === channel.id)
   );
@@ -86,7 +88,7 @@ function TvChannelCard({
       disabled={connecting}
       style={[styles.card, { width }, connecting && styles.cardConnecting]}
       accessibilityRole="button"
-      accessibilityLabel={`Play ${channel.name}`}
+      accessibilityLabel={`Play ${displayName}`}
     >
       <View style={styles.logoWrap}>
         {channel.logoUrl ? (
@@ -134,8 +136,8 @@ function TvChannelCard({
             accessibilityRole="button"
             accessibilityLabel={
               favorited
-                ? `Remove ${channel.name} from favorites`
-                : `Add ${channel.name} to favorites`
+                ? `Remove ${displayName} from favorites`
+                : `Add ${displayName} to favorites`
             }
             disabled={favoriteBusy}
           >
@@ -156,7 +158,7 @@ function TvChannelCard({
             hitSlop={10}
             style={styles.removeButton}
             accessibilityRole="button"
-            accessibilityLabel={`Remove ${channel.name} from watch history`}
+            accessibilityLabel={`Remove ${displayName} from watch history`}
           >
             <Ionicons name="close" size={16} color="#fff" />
           </Pressable>
@@ -175,7 +177,7 @@ function TvChannelCard({
       </View>
 
       <Text numberOfLines={2} style={styles.title}>
-        {channel.name}
+        {displayName}
       </Text>
 
       <Text numberOfLines={1} style={styles.meta}>

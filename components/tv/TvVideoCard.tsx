@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { COLORS } from "@/constants/theme";
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
 import { normalizeVideoItem } from "@/services/videos/videoNormalizer";
+import { formatTvChannelTitle } from "@/utils/formatTvChannelDisplay";
 import {
   getTvChannelInitials,
   getTvDisplayChannelName,
@@ -30,7 +31,11 @@ function TvVideoCard({ video, width = 168, fillWidth = false, onPress }: TvVideo
   const channelName = useMemo(() => getTvDisplayChannelName(video), [video]);
   const subtitle = useMemo(() => getTvDisplaySubtitle(video), [video]);
   const showVerified = useMemo(() => shouldShowTvVerifiedBadge(video), [video]);
-  const initials = useMemo(() => getTvChannelInitials(item.title), [item.title]);
+  const displayName = useMemo(
+    () => formatTvChannelTitle(item.title) || item.title,
+    [item.title]
+  );
+  const initials = useMemo(() => getTvChannelInitials(displayName), [displayName]);
   const showArtwork = Boolean(artworkUrl) && !artworkFailed;
 
   return (
@@ -70,7 +75,7 @@ function TvVideoCard({ video, width = 168, fillWidth = false, onPress }: TvVideo
       </View>
 
       <Text numberOfLines={2} style={styles.title}>
-        {item.title}
+        {displayName}
       </Text>
 
       {channelName ? (

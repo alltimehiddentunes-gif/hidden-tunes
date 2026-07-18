@@ -1,4 +1,5 @@
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
+import { formatTvChannelTitle } from "@/utils/formatTvChannelDisplay";
 import { isStationEligible, TV_VERIFIED_RELIABILITY_THRESHOLD } from "@/utils/tvPlayabilityGate";
 import { isArtworkUrlFailed, isRemoteArtworkUrl, markArtworkUrlFailed } from "./artwork";
 
@@ -156,8 +157,8 @@ export function resolveTvArtworkUrl(video: HiddenTunesTvVideo): string {
 
 export function getTvDisplayChannelName(video: HiddenTunesTvVideo) {
   const name = cleanText(video.channel_name, 200);
-  if (name) return name;
-  return "";
+  if (!name) return "";
+  return formatTvChannelTitle(name) || name;
 }
 
 export function getTvDisplaySubtitle(video: HiddenTunesTvVideo) {

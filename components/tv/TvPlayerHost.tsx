@@ -28,6 +28,7 @@ import {
 } from "@/services/tv/tvFavorites";
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
 import type { TVChannel, TvPresentationMode } from "@/types/tv";
+import { formatTvChannelTitle } from "@/utils/formatTvChannelDisplay";
 import {
   getTvChannelInitials,
   getTvDisplaySubtitle,
@@ -206,7 +207,8 @@ function TvPlayerHost({
   const [relatedChannels, setRelatedChannels] = useState<TVChannel[]>([]);
   const full = presentationMode === "fullPlayer";
   const displayChannel = seedChannel;
-  const title = displayChannel?.name || item.title || "Hidden Tunes TV";
+  const rawTitle = displayChannel?.name || item.title || "Hidden Tunes TV";
+  const title = formatTvChannelTitle(rawTitle) || rawTitle;
   const artworkUri = useMemo(
     () => resolveStationArtworkUri(displayChannel, item),
     [displayChannel, item]

@@ -64,6 +64,7 @@ import type { PodcastEpisode } from "../types/podcast";
 import { openVideoItem } from "../services/videos/openVideoItem";
 import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "../services/videos/videoNormalizer";
 import { buildTvDiscoveryLaunchContext } from "../utils/tvDiscoveryLaunchContext";
+import { formatTvChannelTitle } from "../utils/formatTvChannelDisplay";
 import type { InstantSearchCatalog } from "../services/instantCatalogSearch";
 import {
   buildTrustedBackendSongHits,
@@ -2011,6 +2012,8 @@ export default function SearchScreen() {
                     {apkTvResults.map((hit, index) => {
                       const video = hit.payload as HiddenTunesTvVideo;
                       const item = normalizeVideoItem(video);
+                      const displayTitle =
+                        formatTvChannelTitle(item.title) || item.title;
                       const creator = getVideoDisplayCreator(item);
                       const category =
                         getVideoDisplayCategory(item) ||
@@ -2031,7 +2034,7 @@ export default function SearchScreen() {
                             />
                           </LinearGradient>
                           <View style={styles.songCopy}>
-                            <Text numberOfLines={1} style={styles.songTitle}>{item.title}</Text>
+                            <Text numberOfLines={1} style={styles.songTitle}>{displayTitle}</Text>
                             <Text numberOfLines={1} style={styles.songArtist}>
                               {creator}
                             </Text>
