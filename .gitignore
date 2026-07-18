@@ -55,3 +55,11 @@ android/app/build/
 android/build/
 ios/Pods/
 ios/build/
+
+# local radio commit scratch (never ship)
+_tmp-radio-commit-backup/
+_eas_preview_config.json
+_eas_config_err.txt
+
+_tmp_playercontext.diff
+

@@ -206,8 +206,8 @@ export default function ProfileScreen() {
   const discoveryShortcuts = useMemo<ProfileShortcut[]>(
     () =>
       DISCOVERY_SHORTCUT_DEFS.map((item) => ({
-        title: t(`profile.${item.key}Title`),
-        subtitle: t(`profile.${item.key}Subtitle`),
+        title: t(`profile.${item.key}Title` as "profile.libraryTitle"),
+        subtitle: t(`profile.${item.key}Subtitle` as "profile.librarySubtitle"),
         icon: item.icon,
         href: item.href,
       })),

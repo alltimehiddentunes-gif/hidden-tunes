@@ -18,6 +18,8 @@
     "navigation-old",
     "hidden-tunes-desktop",
     "node_modules",
-    "scripts/test-sports-frontend.ts"
+    "scripts/test-sports-frontend.ts",
+    "_tmp-radio-commit-backup",
+    "build-preparation"
   ]
 }

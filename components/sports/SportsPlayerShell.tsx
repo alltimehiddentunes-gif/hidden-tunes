@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from "react";
+﻿import { memo, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -145,7 +145,7 @@ function PlayerSurface({
         style={styles.webView}
         allowsInlineMediaPlayback
         allowsFullscreenVideo
-        mediaPlaybackRequiresUserAction
+        mediaPlaybackRequiresUserAction={false}
         javaScriptEnabled
         domStorageEnabled={false}
         cacheEnabled={false}

@@ -805,6 +805,70 @@ export async function resolveSportsBroadcastPlayback(input: {
     }
   );
 }
+/**
+ * Play endpoint returns an opaque playbackToken; embedUrl is resolved only
+ * via the short-lived session endpoint (never from browse APIs).
+ */
+async function hydrateSportsPlaybackSessionEmbed(
+  session: SportsPlaybackSession,
+  signal?: AbortSignal
+): Promise<SportsPlaybackSession> {
+  if (session.status !== "ready") return session;
+  const existing = session.embedUrl?.trim();
+  if (existing && existing !== "about:blank") return session;
+  const token = String(session.playbackToken || "").trim();
+  if (!token || token.startsWith("dev-") || token.startsWith("legacy-")) {
+    return session;
+  }
+  try {
+    const response = await fetch(
+      `${SPORTS_CATALOG_BASE_URL}/api/sports/playback-sessions/${encodeURIComponent(token)}`,
+      {
+        method: "GET",
+        headers: sportsRequestHeaders({
+          "x-ht-platform": "ios",
+        }),
+        signal,
+        cache: "no-store",
+      }
+    );
+    if (!response.ok) return session;
+    const json = (await response.json()) as {
+      success?: boolean;
+      embedUrl?: string | null;
+      title?: string;
+      providerLabel?: string;
+      playbackKind?: string;
+      expiresAt?: string;
+    };
+    const embedUrl = String(json.embedUrl || "").trim();
+    if (!embedUrl || embedUrl === "about:blank") return session;
+    const kindRaw = String(json.playbackKind || session.playbackKind || "iframe")
+      .trim()
+      .toLowerCase();
+    const playbackKind =
+      kindRaw === "webview"
+        ? "webview"
+        : kindRaw === "hls"
+          ? "hls"
+          : kindRaw === "dash"
+            ? "dash"
+            : kindRaw === "embed" || kindRaw === "iframe"
+              ? "embed"
+              : session.playbackKind;
+    return {
+      ...session,
+      playbackKind,
+      title: json.title || session.title,
+      providerLabel: json.providerLabel || session.providerLabel,
+      expiresAt: json.expiresAt || session.expiresAt,
+      embedUrl,
+    };
+  } catch {
+    return session;
+  }
+}
+
 /** Resolve fixture playback into the provider-neutral session DTO. */
 export async function resolveSportsFixturePlaySession(input: {
   fixtureId: string;
@@ -908,7 +972,9 @@ export async function resolveSportsFixturePlaySession(input: {
         error?: string;
         code?: string;
       };
-      if (json.session) return json.session;
+      if (json.session) {
+        return await hydrateSportsPlaybackSessionEmbed(json.session, input.signal);
+      }
       if (json.playback) {
         return sessionFromLegacyPlayback(
           fixtureId,

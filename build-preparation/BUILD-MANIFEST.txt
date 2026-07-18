@@ -1,0 +1,23 @@
+﻿# Preview build preparation manifest
+date: 2026-07-18
+workspace: C:\Users\Wills\Desktop\HiddenTunes-CLEAN-1.0.142
+metro_pid: 13368
+metro_cmd: node .../expo/bin/cli start --dev-client --clear
+metro_status: packager-status:running
+source_branch: feature/sports-recovery
+source_HEAD: 007a03afebb65770b0e3a68212f7f4c9050584bc
+build_branch: build/preview-from-current-metro
+sdk: 56.0.0
+expo: ~56.0.8 (install.exclude patch-skew freeze)
+rn: 0.85.3
+app_version: 1.0.1
+ios_buildNumber: 1.0.0 (autoIncrement on EAS)
+bundle_id: com.hiddentunes.app
+preview_profile: developmentClient=false distribution=internal credentialsSource=remote
+api_music_host: hidden-tunes-api.onrender.com
+api_catalog_host: admin.hiddentunes.com
+api_site_host: hiddentunes.com
+sports_pilot_token_in_preview_bundle: false (__DEV__ gated)
+eas_preview_env: EXPO_PUBLIC_BUILD_PROFILE, EXPO_PUBLIC_SPORTS_* flags, SHARP_*
+secrets_policy: .env/.env.local gitignored; no service-role/youtube/api-sports keys
+native_ios_android_dirs: absent (CNG/prebuild on EAS)

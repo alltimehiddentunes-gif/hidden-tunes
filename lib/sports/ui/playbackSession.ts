@@ -4,7 +4,7 @@
 import type {
   SportsPlaybackResult,
   SportsPlaybackSession,
-} from "../../types/sports";
+} from "../../../types/sports";
 
 export function sessionFromLegacyPlayback(
   fixtureId: string,

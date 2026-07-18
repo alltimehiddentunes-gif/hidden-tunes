@@ -11,25 +11,48 @@ export type LocaleLoader = () => Promise<{ default: TranslationDictionary }>;
  */
 export const localeLoaders: Record<SupportedLocale, LocaleLoader> = {
   en: async () => ({ default: en }),
-  es: () => import("./locales/es"),
-  fr: () => import("./locales/fr"),
-  de: () => import("./locales/de"),
-  pt: () => import("./locales/pt"),
-  it: () => import("./locales/it"),
-  nl: () => import("./locales/nl"),
-  pl: () => import("./locales/pl"),
-  ru: () => import("./locales/ru"),
-  tr: () => import("./locales/tr"),
-  ar: () => import("./locales/ar"),
-  hi: () => import("./locales/hi"),
-  "zh-CN": () => import("./locales/zh-CN"),
-  "zh-TW": () => import("./locales/zh-TW"),
-  ja: () => import("./locales/ja"),
-  ko: () => import("./locales/ko"),
-  id: () => import("./locales/id"),
-  vi: () => import("./locales/vi"),
-  th: () => import("./locales/th"),
-  fil: () => import("./locales/fil"),
+  es: () =>
+    import("./locales/es") as unknown as Promise<{ default: TranslationDictionary }>,
+  fr: () =>
+    import("./locales/fr") as unknown as Promise<{ default: TranslationDictionary }>,
+  de: () =>
+    import("./locales/de") as unknown as Promise<{ default: TranslationDictionary }>,
+  pt: () =>
+    import("./locales/pt") as unknown as Promise<{ default: TranslationDictionary }>,
+  it: () =>
+    import("./locales/it") as unknown as Promise<{ default: TranslationDictionary }>,
+  nl: () =>
+    import("./locales/nl") as unknown as Promise<{ default: TranslationDictionary }>,
+  pl: () =>
+    import("./locales/pl") as unknown as Promise<{ default: TranslationDictionary }>,
+  ru: () =>
+    import("./locales/ru") as unknown as Promise<{ default: TranslationDictionary }>,
+  tr: () =>
+    import("./locales/tr") as unknown as Promise<{ default: TranslationDictionary }>,
+  ar: () =>
+    import("./locales/ar") as unknown as Promise<{ default: TranslationDictionary }>,
+  hi: () =>
+    import("./locales/hi") as unknown as Promise<{ default: TranslationDictionary }>,
+  "zh-CN": () =>
+    import("./locales/zh-CN") as unknown as Promise<{
+      default: TranslationDictionary;
+    }>,
+  "zh-TW": () =>
+    import("./locales/zh-TW") as unknown as Promise<{
+      default: TranslationDictionary;
+    }>,
+  ja: () =>
+    import("./locales/ja") as unknown as Promise<{ default: TranslationDictionary }>,
+  ko: () =>
+    import("./locales/ko") as unknown as Promise<{ default: TranslationDictionary }>,
+  id: () =>
+    import("./locales/id") as unknown as Promise<{ default: TranslationDictionary }>,
+  vi: () =>
+    import("./locales/vi") as unknown as Promise<{ default: TranslationDictionary }>,
+  th: () =>
+    import("./locales/th") as unknown as Promise<{ default: TranslationDictionary }>,
+  fil: () =>
+    import("./locales/fil") as unknown as Promise<{ default: TranslationDictionary }>,
 };
 
 export async function loadLocaleDictionary(
