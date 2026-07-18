@@ -34,6 +34,7 @@ import {
 } from "@/services/tvCatalogApi";
 import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
 import { buildTvDiscoveryLaunchContext } from "@/utils/tvDiscoveryLaunchContext";
+import { navigateTvHomeBack } from "@/utils/tvNavigation";
 import { warmTvPlaybackFailureStore } from "@/utils/tvPlaybackFailureStore";
 
 type TvLane = TvHomeLane;
@@ -162,6 +163,26 @@ export default function YouTubeFeedScreen() {
     );
   }, []);
 
+  const clearTvBrowseState = useCallback(() => {
+    categoryRequestRef.current += 1;
+    setActiveCategorySlug(null);
+    setCategoryLane(null);
+    setCategoryLaneLoading(false);
+    setCategoryLaneError(null);
+    setQuery("");
+    setSearchResults([]);
+    setSearching(false);
+  }, []);
+
+  const handleTvHomeBack = useCallback(() => {
+    // In-page TV sub-browse returns to TV Home first — only the root exits the section.
+    if (query.trim().length > 0 || activeCategorySlug) {
+      clearTvBrowseState();
+      return;
+    }
+    navigateTvHomeBack();
+  }, [activeCategorySlug, clearTvBrowseState, query]);
+
   const handleSelectCategory = useCallback((category: TvBrowseCategory) => {
     const requestId = ++categoryRequestRef.current;
     setActiveCategorySlug(category.slug);
@@ -261,6 +282,17 @@ export default function YouTubeFeedScreen() {
     () => (
       <>
         <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={handleTvHomeBack}
+            activeOpacity={0.85}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            testID="tv-home-back-button"
+          >
+            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+          </TouchableOpacity>
           <View style={styles.headerIcon}>
             <Ionicons name="tv" size={23} color={COLORS.primaryGlow} />
           </View>
@@ -289,7 +321,7 @@ export default function YouTubeFeedScreen() {
         </View>
       </>
     ),
-    [query]
+    [handleTvHomeBack, query]
   );
 
   const activeCategory = useMemo(
@@ -502,7 +534,17 @@ const styles = StyleSheet.create({
     borderRadius: 120,
     backgroundColor: "rgba(34,211,238,0.07)",
   },
-  header: { flexDirection: "row", alignItems: "center", gap: 13, marginBottom: 16 },
+  header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.11)",
+  },
   headerIcon: {
     width: 44,
     height: 44,

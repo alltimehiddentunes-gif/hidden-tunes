@@ -63,6 +63,7 @@ import type { RadioStationListItem } from "../types/radio";
 import type { PodcastEpisode } from "../types/podcast";
 import { openVideoItem } from "../services/videos/openVideoItem";
 import { getVideoDisplayCategory, getVideoDisplayCreator, normalizeVideoItem } from "../services/videos/videoNormalizer";
+import { buildTvDiscoveryLaunchContext } from "../utils/tvDiscoveryLaunchContext";
 import type { InstantSearchCatalog } from "../services/instantCatalogSearch";
 import {
   buildTrustedBackendSongHits,
@@ -1576,9 +1577,16 @@ export default function SearchScreen() {
   );
 
 
-  const openTv = useCallback((video: HiddenTunesTvVideo) => {
-    openVideoItem(video);
-  }, []);
+  const openTv = useCallback(
+    (video: HiddenTunesTvVideo) => {
+      const discoveryContext = buildTvDiscoveryLaunchContext(video, {
+        query: cleanSubmittedSearchQuery || undefined,
+        browseReturnPath: "/search",
+      });
+      void openVideoItem(video, { discoveryContext });
+    },
+    [cleanSubmittedSearchQuery]
+  );
 
   const playSearchRadioStation = useCallback(
     (item: RadioStationListItem) => {

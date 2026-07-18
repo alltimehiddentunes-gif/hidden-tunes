@@ -13,7 +13,6 @@ import {
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
@@ -37,6 +36,7 @@ import {
   shouldShowTvVerifiedBadge,
 } from "@/utils/tvArtwork";
 import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
+import { navigateTvPlayerBack } from "@/utils/tvNavigation";
 import { useMountedRef } from "@/utils/useMountedRef";
 
 import TvChannelCard from "./TvChannelCard";
@@ -247,7 +247,7 @@ function TvPlayerHost({
 
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       onMinimize();
-      if (router.canGoBack()) router.back();
+      navigateTvPlayerBack();
       return true;
     });
 
@@ -297,7 +297,7 @@ function TvPlayerHost({
 
   const handleBack = useCallback(() => {
     onMinimize();
-    if (router.canGoBack()) router.back();
+    navigateTvPlayerBack();
   }, [onMinimize]);
 
   const handleReportBroken = useCallback(() => {

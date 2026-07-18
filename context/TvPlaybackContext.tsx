@@ -624,7 +624,8 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const restoreTv = useCallback(() => {
     if (presentationMode === "closed") return;
     setPresentationMode("fullPlayer");
-    router.push("/tv-player" as any);
+    // Replace (not push) so PiP restore does not stack duplicate /tv-player routes.
+    router.replace("/tv-player" as any);
   }, [presentationMode, setPresentationMode]);
 
   const handleTogglePlayback = useCallback(() => {
