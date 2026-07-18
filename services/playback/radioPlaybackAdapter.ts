@@ -24,5 +24,14 @@ export function radioStationToAppSong(station: RadioStation): AppSong {
 }
 
 export function isRadioStreamSong(song?: AppSong | null) {
-  return song?.source === "radio" || song?.type === "live_stream";
+  if (!song) return false;
+  if (song.type === "live_stream") return true;
+  return String(song.id || "").startsWith("radio-");
+}
+
+/** Stable song id for a radio station uuid / id. */
+export function radioStationSongId(stationId: string) {
+  const id = String(stationId || "").trim();
+  if (!id) return "";
+  return id.startsWith("radio-") ? id : `radio-${id}`;
 }

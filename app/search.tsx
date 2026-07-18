@@ -1578,11 +1578,34 @@ export default function SearchScreen() {
         void (async () => {
           let station = deferredMedia.resolveRadioStation(item.id);
           if (!station || !mountedRef.current) return;
-          await playRadioStation(normalizeRadioStation(station));
+          const sessionStations = deferredMedia.radioStations
+            .map((entry) => deferredMedia.resolveRadioStation(entry.id))
+            .filter(Boolean);
+          await playRadioStation(normalizeRadioStation(station), {
+            session: sessionStations.map((entry) => normalizeRadioStation(entry!)),
+            startIndex: Math.max(
+              0,
+              sessionStations.findIndex((entry) => entry?.id === station!.id)
+            ),
+            label: cleanSubmittedSearchQuery
+              ? `Search: ${cleanSubmittedSearchQuery}`
+              : "Radio Search",
+            searchQuery: cleanSubmittedSearchQuery || undefined,
+            cacheKey: cleanSubmittedSearchQuery
+              ? `search:${cleanSubmittedSearchQuery}`
+              : undefined,
+          });
         })();
       });
     },
-    [deferredMedia.resolveRadioStation, mountedRef, playRadioStation, runWithMatureConsent]
+    [
+      cleanSubmittedSearchQuery,
+      deferredMedia.radioStations,
+      deferredMedia.resolveRadioStation,
+      mountedRef,
+      playRadioStation,
+      runWithMatureConsent,
+    ]
   );
 
   const playSearchPodcastEpisode = useCallback(

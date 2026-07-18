@@ -28,6 +28,9 @@ import {
 import type { PodcastEpisode } from "../../../types/podcast";
 import { shouldIncludeMaturePodcasts } from "../../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../../utils/safeNavigation";
+import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../../utils/tapPressGuard";
+
+const playEpisodeTapGuard = createTapGuardState();
 
 export default function PodcastEpisodeScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
@@ -74,6 +77,7 @@ export default function PodcastEpisodeScreen() {
 
   const play = useCallback(() => {
     if (!episode) return;
+    if (shouldIgnoreDuplicateTap(playEpisodeTapGuard, `podcast-play:${episode.id}`)) return;
     const startIndex = episodes.findIndex((item) => item.id === episode.id);
     runWithMaturePodcastConsent(episode, () => {
       void playPodcastEpisodeFromShow(episode, episodes, startIndex >= 0 ? startIndex : 0).then(

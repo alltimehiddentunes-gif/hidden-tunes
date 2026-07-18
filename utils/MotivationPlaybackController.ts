@@ -6,13 +6,19 @@ import {
 import { recordMotivationRecentlyPlayed } from "@/services/motivationRecentlyPlayed";
 import type { MotivationItem, MotivationProgram } from "@/types/motivation";
 import {
+  assertMotivationQueueIntegrity,
+  buildHierarchicalMotivationItems,
   buildMotivationQueueContext,
+  filterMotivationDomainSongs,
   isMotivationAudioPlayback,
+  isMotivationItemAppSong,
   motivationItemSongId,
   motivationItemToAppSong,
   motivationItemToMetadataAppSong,
+  motivationQueueLog,
+  motivationTrace,
   MOTIVATION_MAX_AUTO_NEXT_FAILURES,
-  assertMotivationQueueIntegrity,
+  MOTIVATION_PROGRAM_CONTEXT_TYPE,
   orderMotivationItems,
 } from "@/utils/motivationPlaybackAdapter";
 import {
@@ -52,6 +58,15 @@ function dedupeSongsById(songs: AppSong[]) {
   return next;
 }
 
+function resolveSpeakerName(program: MotivationProgram, items: MotivationItem[]) {
+  return (
+    items.find((item) => item.speaker_name || item.channel_name)?.speaker_name ||
+    items.find((item) => item.channel_name)?.channel_name ||
+    program.subtitle ||
+    null
+  );
+}
+
 export const MotivationPlaybackController = {
   bindPlayerActions(next: PlayerBindings | null) {
     bindings = next;
@@ -74,33 +89,71 @@ export const MotivationPlaybackController = {
 
     const requestId = ++activeRequestId;
     const generation = (getMotivationPlaybackSession()?.queueGeneration || 0) + 1;
-    const ordered = orderMotivationItems(input.items);
-    const startIndex = Math.max(
-      0,
-      ordered.findIndex((item) => item.id === input.startItemId)
-    );
-    // Metadata-only window — never preload streams; resolve the active item only.
-    const MAX_METADATA_WINDOW = 32;
-    const windowed =
-      ordered.length <= MAX_METADATA_WINDOW
-        ? ordered
-        : ordered.slice(startIndex, startIndex + MAX_METADATA_WINDOW);
+    const speakerName = resolveSpeakerName(input.program, input.items);
+    const categorySlug = input.contextSlug || input.program.category_slug || null;
+
+    motivationTrace("TAP", {
+      selectedItemId: input.startItemId,
+      programId: input.program.id,
+      speakerId: speakerName,
+      categoryId: categorySlug,
+      providedLength: input.items.length,
+    });
+
+    const hierarchical = await buildHierarchicalMotivationItems({
+      program: input.program,
+      programItems: input.items,
+      startItemId: input.startItemId,
+      speakerName,
+      categorySlug,
+    });
+
+    motivationTrace("QUEUE_PROVIDED", {
+      selectedItemId: input.startItemId,
+      programId: hierarchical.programId,
+      speakerId: hierarchical.speakerId,
+      categoryId: hierarchical.categoryId,
+      providedLength: input.items.length,
+      finalLength: hierarchical.items.length,
+      activeIndex: hierarchical.startIndex,
+      continuationSource: hierarchical.continuationSource,
+      expanded: false,
+    });
 
     createMotivationPlaybackSession({
       program: input.program,
-      items: windowed,
+      items: hierarchical.items,
       startItemId: input.startItemId,
-      contextType: input.contextType,
-      contextSlug: input.contextSlug,
+      contextType:
+        hierarchical.items.length > 1 ? MOTIVATION_PROGRAM_CONTEXT_TYPE : input.contextType,
+      contextSlug: categorySlug || undefined,
       nextPage: (input.page || 1) + 1,
-      hasMore: (input.hasMore ?? false) || ordered.length > windowed.length,
+      hasMore: Boolean(input.hasMore),
       queueGeneration: generation,
     });
 
-    return this.playCurrentItem(requestId, generation);
+    // Align session index with hierarchical start (selected item).
+    setMotivationActiveItem(
+      hierarchical.items[hierarchical.startIndex]?.id || input.startItemId,
+      hierarchical.startIndex
+    );
+
+    return this.playCurrentItem(requestId, generation, {
+      continuationSource: hierarchical.continuationSource,
+      speakerId: hierarchical.speakerId,
+      categoryId: hierarchical.categoryId,
+    });
   },
 
-  async playCurrentItem(requestId = activeRequestId, generation?: number): Promise<boolean> {
+  async playCurrentItem(
+    requestId = activeRequestId,
+    generation?: number,
+    diagnostics?: {
+      continuationSource?: string;
+      speakerId?: string | null;
+      categoryId?: string | null;
+    }
+  ): Promise<boolean> {
     const session = getMotivationPlaybackSession();
     if (!session || !bindings) return false;
     if (requestId !== activeRequestId) return false;
@@ -131,28 +184,56 @@ export const MotivationPlaybackController = {
         return this.skipToNext("unsupported_media", requestId, generation);
       }
 
-      const queueSongs = session.loadedItems.map((entry) =>
-        entry.id === item.id
-          ? motivationItemToAppSong(session.program, entry, resolved.playableUrl)
-          : motivationItemToMetadataAppSong(session.program, entry)
+      const queueSongs = assertMotivationQueueIntegrity(
+        session.loadedItems.map((entry) =>
+          entry.id === item.id
+            ? motivationItemToAppSong(session.program, entry, resolved.playableUrl)
+            : motivationItemToMetadataAppSong(session.program, entry)
+        )
       );
       const playableSong = motivationItemToAppSong(session.program, item, resolved.playableUrl);
+      const activeIndex = Math.max(
+        0,
+        queueSongs.findIndex((song) => song.id === playableSong.id)
+      );
       const queueContext = buildMotivationQueueContext({
-        contextType: session.contextType,
+        contextType:
+          queueSongs.length > 1 ? MOTIVATION_PROGRAM_CONTEXT_TYPE : session.contextType,
         contextId: session.programId,
         contextTitle: session.program.title,
         label: session.program.title || "Motivationals",
         artistName: item.speaker_name || item.channel_name || session.program.subtitle,
+        categorySlug: session.contextSlug || session.program.category_slug,
+        speakerId: diagnostics?.speakerId || item.speaker_name || item.channel_name,
       });
-      assertMotivationQueueIntegrity(queueSongs, queueContext);
 
+      motivationTrace("QUEUE_BUILT", {
+        selectedItemId: item.id,
+        programId: session.programId,
+        speakerId: diagnostics?.speakerId || item.speaker_name || null,
+        categoryId: session.contextSlug || session.program.category_slug || null,
+        providedLength: session.loadedItems.length,
+        finalLength: queueSongs.length,
+        activeIndex,
+        expanded: false,
+        foreignItemCount: 0,
+        continuationSource: diagnostics?.continuationSource || "session",
+      });
+
+      motivationQueueLog("accepted", {
+        providedLength: session.loadedItems.length,
+        finalLength: queueSongs.length,
+        activeIndex,
+        programId: session.programId,
+        speakerId: diagnostics?.speakerId || item.speaker_name || null,
+        categoryId: session.contextSlug || session.program.category_slug || null,
+        expanded: false,
+        foreignItemCount: 0,
+      });
+
+      // Single public playback entry: playSong only (PlayerContext may delegate to playQueue).
       try {
-        await bindings.playSong(
-          playableSong,
-          queueSongs,
-          session.currentItemIndex,
-          queueContext
-        );
+        await bindings.playSong(playableSong, queueSongs, activeIndex, queueContext);
       } catch (error) {
         if (__DEV__) {
           console.warn("[motivation] playSong failed", {
@@ -166,7 +247,7 @@ export const MotivationPlaybackController = {
       }
 
       void recordMotivationRecentlyPlayed(item);
-      setMotivationActiveItem(item.id, session.currentItemIndex);
+      setMotivationActiveItem(item.id, activeIndex);
       return true;
     } finally {
       if (resolveInFlightId === item.id) resolveInFlightId = null;
@@ -189,7 +270,21 @@ export const MotivationPlaybackController = {
     if (!session || requestId !== activeRequestId) return false;
     if (generation != null && session.queueGeneration !== generation) return false;
 
-    if (session.skipFailures >= MOTIVATION_MAX_AUTO_NEXT_FAILURES) return false;
+    motivationTrace("NEXT_RESOLVE", {
+      reason,
+      programId: session.programId,
+      providedLength: session.loadedItems.length,
+      activeIndex: session.currentItemIndex,
+      skipFailures: session.skipFailures,
+    });
+
+    if (session.skipFailures >= MOTIVATION_MAX_AUTO_NEXT_FAILURES) {
+      console.log("[motivation] playback stopped: max_invalid_next_skips", {
+        reason,
+        skips: session.skipFailures,
+      });
+      return false;
+    }
 
     const nextIndex = session.currentItemIndex + 1;
     if (nextIndex < session.loadedItems.length) {
@@ -233,6 +328,12 @@ export const MotivationPlaybackController = {
   async nextItem() {
     const session = getMotivationPlaybackSession();
     if (!session) return false;
+    motivationTrace("NEXT_RESOLVE", {
+      reason: "manual_next",
+      programId: session.programId,
+      activeIndex: session.currentItemIndex,
+      providedLength: session.loadedItems.length,
+    });
     const nextIndex = session.currentItemIndex + 1;
     if (nextIndex >= session.loadedItems.length) {
       return this.skipToNext("manual_next");
@@ -251,78 +352,93 @@ export const MotivationPlaybackController = {
     return this.playCurrentItem();
   },
 
-  /** Insert metadata-only songs after the current track. */
+  /** Insert metadata-only songs after the current track — Motivationals domain only. */
   async playNext(items: MotivationItem[], program: MotivationProgram) {
     if (!bindings?.playSong || !bindings.getActiveQueue || !bindings.getActiveQueueIndex) {
       throw new Error("Queue actions unavailable.");
     }
-    const queue = bindings.getActiveQueue();
+    const queue = filterMotivationDomainSongs(bindings.getActiveQueue());
     const index = Math.max(0, bindings.getActiveQueueIndex());
-    const current = queue[index] || bindings.getCurrentSongId();
-    if (!current || !queue.length) {
+    const liveQueue = bindings.getActiveQueue();
+    const liveCurrent = liveQueue[Math.max(0, Math.min(index, liveQueue.length - 1))];
+
+    if (!queue.length || !liveCurrent || !isMotivationItemAppSong(liveCurrent)) {
       if (!items[0]) return false;
       return this.playItem({
         program,
         items,
         startItemId: items[0].id,
-        contextType: "program",
+        contextType: MOTIVATION_PROGRAM_CONTEXT_TYPE,
+        contextSlug: program.category_slug || undefined,
       });
     }
-    const currentSong = typeof current === "string" ? queue[index] : current;
-    if (!currentSong) return false;
+
+    const currentSong =
+      queue.find((song) => song.id === liveCurrent.id) || queue[0];
+    const currentIndex = Math.max(
+      0,
+      queue.findIndex((song) => song.id === currentSong.id)
+    );
     const additions = orderMotivationItems(items).map((item) =>
       motivationItemToMetadataAppSong(program, item)
     );
-    const nextQueue = dedupeSongsById([
-      ...queue.slice(0, index + 1),
-      ...additions,
-      ...queue.slice(index + 1),
-    ]);
+    const nextQueue = assertMotivationQueueIntegrity(
+      dedupeSongsById([...queue.slice(0, currentIndex + 1), ...additions, ...queue.slice(currentIndex + 1)])
+    );
     const queueContext = buildMotivationQueueContext({
-      contextType: "program",
+      contextType: MOTIVATION_PROGRAM_CONTEXT_TYPE,
       contextId: program.id,
       contextTitle: program.title,
       label: program.title || "Motivationals",
       artistName: program.subtitle,
+      categorySlug: program.category_slug,
     });
-    assertMotivationQueueIntegrity(nextQueue, queueContext);
-    await bindings.playSong(currentSong, nextQueue, index, queueContext);
+    await bindings.playSong(currentSong, nextQueue, currentIndex, queueContext);
     return true;
   },
 
-  /** Append metadata-only songs to the end of the active queue. */
+  /** Append metadata-only songs to the end of the active Motivationals queue. */
   async addToQueue(items: MotivationItem[], program: MotivationProgram) {
     if (!bindings?.playSong || !bindings.getActiveQueue || !bindings.getActiveQueueIndex) {
       throw new Error("Queue actions unavailable.");
     }
-    const queue = bindings.getActiveQueue();
+    const queue = filterMotivationDomainSongs(bindings.getActiveQueue());
+    const liveQueue = bindings.getActiveQueue();
     const index = Math.max(0, bindings.getActiveQueueIndex());
-    if (!queue.length) {
+    const liveCurrent = liveQueue[Math.max(0, Math.min(index, liveQueue.length - 1))];
+
+    if (!queue.length || !liveCurrent || !isMotivationItemAppSong(liveCurrent)) {
       if (!items[0]) return false;
       return this.playItem({
         program,
         items,
         startItemId: items[0].id,
-        contextType: "program",
+        contextType: MOTIVATION_PROGRAM_CONTEXT_TYPE,
+        contextSlug: program.category_slug || undefined,
       });
     }
-    const currentSong = queue[index];
-    if (!currentSong) return false;
+
+    const currentSong =
+      queue.find((song) => song.id === liveCurrent.id) || queue[0];
+    const currentIndex = Math.max(
+      0,
+      queue.findIndex((song) => song.id === currentSong.id)
+    );
     const existing = new Set(queue.map((song) => song.id));
     const additions = orderMotivationItems(items)
       .map((item) => motivationItemToMetadataAppSong(program, item))
       .filter((song) => !existing.has(song.id));
     if (!additions.length) return true;
-    const nextQueue = [...queue, ...additions];
+    const nextQueue = assertMotivationQueueIntegrity([...queue, ...additions]);
     const queueContext = buildMotivationQueueContext({
-      contextType: "program",
+      contextType: MOTIVATION_PROGRAM_CONTEXT_TYPE,
       contextId: program.id,
       contextTitle: program.title,
       label: program.title || "Motivationals",
       artistName: program.subtitle,
+      categorySlug: program.category_slug,
     });
-    assertMotivationQueueIntegrity(nextQueue, queueContext);
-    await bindings.playSong(currentSong, nextQueue, index, queueContext);
+    await bindings.playSong(currentSong, nextQueue, currentIndex, queueContext);
     return true;
   },
 };
@@ -338,7 +454,7 @@ export async function playMotivationProgramItem(input: {
 }) {
   const ok = await MotivationPlaybackController.playItem({
     ...input,
-    contextType: input.contextType || "program",
+    contextType: input.contextType || MOTIVATION_PROGRAM_CONTEXT_TYPE,
   });
   if (!ok) {
     throw new Error("Couldn't resolve a playable Motivationals stream.");

@@ -32,7 +32,6 @@ import { EmotionalDiscoveryChips } from "@/components/EmotionalDiscoveryChips";
 import { HomeHeroCard, type HomeHeroCardData } from "@/components/home/HomeHeroCard";
 import { usePlayerFeedSnapshot } from "@/utils/playerFeedStore";
 import HTImage from "@/components/HTImage";
-import LiveWaveform from "@/components/LiveWaveform";
 import UnifiedMediaCard from "@/components/UnifiedMediaCard";
 import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
 import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";

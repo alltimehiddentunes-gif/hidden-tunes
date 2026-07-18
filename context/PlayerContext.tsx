@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+﻿import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ReactNode,
   useCallback,
@@ -21,6 +21,24 @@ import {
   RadioTrack,
   saveRadioQueue,
 } from "../services/radioEngine";
+import {
+  RADIO_ALL_FAILED_MESSAGE,
+  RADIO_SKIP_MESSAGE,
+  canNavigateLiveRadioSession,
+  createLiveRadioSkipCycle,
+  isLiveRadioQueueContext,
+  isLiveRadioSessionQueue,
+  liveRadioStationHasPlayableStream,
+  pickNextEligibleLiveRadioIndex,
+  type LiveRadioSkipCycle,
+} from "../services/radio/radioPlaybackSession";
+import { notifyRadioPlaybackMessage } from "../services/radio/radioPlaybackFeedback";
+import {
+  isRadioStreamSong,
+  radioStationToAppSong,
+} from "../services/playback/radioPlaybackAdapter";
+import { loadRadioCategoryPage, loadRadioSearchPage } from "../services/radio/radioBrowserApi";
+import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 
 import {
   addToRecentlyPlayed,
@@ -554,6 +572,17 @@ function isMotivationPlaybackDomain(
   return false;
 }
 
+function isLiveRadioPlaybackDomain(
+  context?: PlaybackQueueContext | null,
+  song?: AppSong | null,
+  mode?: string | null
+): boolean {
+  if (mode === "live_stream" && isLiveRadioQueueContext(context)) return true;
+  if (isLiveRadioQueueContext(context)) return true;
+  if (isRadioStreamSong(song)) return true;
+  return false;
+}
+
 function contextMatchesSong(song: AppSong, context: PlaybackQueueContext) {
   const artist = String(song.artist || song.user?.name || "").toLowerCase();
   const genre = String(song.genre || "").toLowerCase();
@@ -835,7 +864,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     userInterruptDone?: boolean;
     /** Queue auto-advance after track end; keeps advance guards active through native reload. */
     autoAdvance?: boolean;
+    /** Live Radio station change — on failure, skip to the next eligible station. */
+    liveRadioSkipOnFailure?: boolean;
   };
+
+  const liveRadioSkipCycleRef = useRef<LiveRadioSkipCycle | null>(null);
+  const liveRadioNavigateInFlightRef = useRef(false);
 
   const loadAndPlayRef = useRef<
     ((song: AppSong, options?: LoadAndPlayOptions) => Promise<void>) | null
@@ -3762,6 +3796,202 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [clearFinishWatchdog, clearPreloadedSound, getPlayableUri, setIsPlaying]
   );
 
+  const navigateLiveRadioStationRef = useRef<
+    | ((
+        direction: "next" | "previous",
+        options?: {
+          source?: "remote" | "app" | "auto" | "failure";
+          failedSongId?: string;
+        }
+      ) => Promise<void>)
+    | null
+  >(null);
+
+  const navigateLiveRadioStation = useCallback(
+    async (
+      direction: "next" | "previous",
+      options?: {
+        source?: "remote" | "app" | "auto" | "failure";
+        failedSongId?: string;
+      }
+    ) => {
+      const fromFailure = options?.source === "failure";
+      const context = activeQueueContextRef.current;
+
+      if (
+        !isLiveRadioSessionQueue(
+          activeQueueRef.current,
+          context,
+          activeQueueModeRef.current
+        )
+      ) {
+        return;
+      }
+
+      if (!fromFailure) {
+        liveRadioSkipCycleRef.current = createLiveRadioSkipCycle(direction);
+      } else if (!liveRadioSkipCycleRef.current) {
+        liveRadioSkipCycleRef.current = createLiveRadioSkipCycle(direction);
+      }
+
+      const cycle = liveRadioSkipCycleRef.current;
+      if (!cycle) return;
+      if (options?.failedSongId) {
+        cycle.failedIds.add(options.failedSongId);
+      }
+
+      const generation = cycle.generation;
+      liveRadioNavigateInFlightRef.current = true;
+
+      try {
+        await runQueueTransition(async () => {
+          if (liveRadioSkipCycleRef.current?.generation !== generation) {
+            return;
+          }
+
+          let queue = activeQueueRef.current.filter((song) => isRadioStreamSong(song));
+          if (!queue.length) {
+            logAutoNextSkipped("live_stream", { source: "navigateLiveRadio_empty" });
+            return;
+          }
+
+          // Bounded pagination: pull the next page when approaching the end.
+          if (
+            direction === "next" &&
+            !fromFailure &&
+            context.railId &&
+            queue.length > 0 &&
+            activeQueueIndexRef.current >= queue.length - 2
+          ) {
+            try {
+              const page = context.searchQuery
+                ? await loadRadioSearchPage(context.searchQuery, {
+                    offset: queue.length,
+                    limit: 40,
+                    append: true,
+                  })
+                : await loadRadioCategoryPage(String(context.railId), {
+                    offset: queue.length,
+                    limit: 40,
+                    append: true,
+                  });
+              if (
+                liveRadioSkipCycleRef.current?.generation === generation &&
+                page?.stations?.length
+              ) {
+                const existingIds = new Set(queue.map((song) => song.id));
+                const appended = page.stations
+                  .map((station) => radioStationToAppSong(normalizeRadioStation(station)))
+                  .filter((song) => !existingIds.has(song.id));
+                if (appended.length) {
+                  queue = [...queue, ...appended];
+                  activeQueueRef.current = queue;
+                  setActiveQueue(queue);
+                  persistActiveQueueDeferred(
+                    queue,
+                    activeQueueIndexRef.current,
+                    "live_stream",
+                    context,
+                    "live_radio_page_append"
+                  );
+                }
+              }
+            } catch {
+              // Pagination is best-effort; navigation still uses the loaded session.
+            }
+          }
+
+          if (liveRadioSkipCycleRef.current?.generation !== generation) {
+            return;
+          }
+
+          let nextIndex = pickNextEligibleLiveRadioIndex({
+            currentIndex: activeQueueIndexRef.current,
+            queue,
+            direction: cycle.direction,
+            failedIds: cycle.failedIds,
+          });
+
+          while (nextIndex !== null) {
+            const candidate = queue[nextIndex];
+            if (candidate && liveRadioStationHasPlayableStream(candidate)) {
+              break;
+            }
+            if (candidate) {
+              cycle.failedIds.add(candidate.id);
+            }
+            nextIndex = pickNextEligibleLiveRadioIndex({
+              currentIndex: nextIndex ?? activeQueueIndexRef.current,
+              queue,
+              direction: cycle.direction,
+              failedIds: cycle.failedIds,
+            });
+          }
+
+          if (nextIndex === null) {
+            notifyRadioPlaybackMessage(RADIO_ALL_FAILED_MESSAGE);
+            setIsPlaying(false);
+            setPositionMillis(0);
+            setDurationMillis(0);
+            return;
+          }
+
+          if (fromFailure) {
+            notifyRadioPlaybackMessage(RADIO_SKIP_MESSAGE);
+          }
+
+          const song = normalizeSong(queue[nextIndex]);
+          setActiveQueueIndex(nextIndex);
+          activeQueueIndexRef.current = nextIndex;
+          setCurrentSong(song);
+          currentSongRef.current = song;
+
+          await removeStoredValues([POSITION_KEY]);
+
+          if (liveRadioSkipCycleRef.current?.generation !== generation) {
+            return;
+          }
+
+          logQueuePlaybackEvent("live_radio_navigate", {
+            direction: cycle.direction,
+            songId: song.id,
+            queueIndex: nextIndex,
+            queueLength: queue.length,
+            fromFailure,
+            source: options?.source || "app",
+          });
+
+          await loadAndPlayRef.current?.(song, {
+            userInitiated: !fromFailure,
+            liveRadioSkipOnFailure: true,
+          });
+
+          if (liveRadioSkipCycleRef.current?.generation === generation) {
+            // Successful start of a station ends the failure-skip cycle.
+            if (!fromFailure) {
+              liveRadioSkipCycleRef.current = null;
+            }
+          }
+        });
+      } finally {
+        if (liveRadioSkipCycleRef.current?.generation === generation || !liveRadioSkipCycleRef.current) {
+          liveRadioNavigateInFlightRef.current = false;
+        }
+      }
+    },
+    [
+      normalizeSong,
+      persistActiveQueueDeferred,
+      removeStoredValues,
+      runQueueTransition,
+      setIsPlaying,
+    ]
+  );
+
+  useEffect(() => {
+    navigateLiveRadioStationRef.current = navigateLiveRadioStation;
+  }, [navigateLiveRadioStation]);
+
   const nextSong = useCallback(async (options?: { source?: "remote" | "app" | "auto" }) => {
     const isAutoAdvance = options?.source === "auto";
     if (
@@ -3784,8 +4014,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queueLength: activeQueueRef.current.length,
       });
     }
+    const liveRadioActive = isLiveRadioSessionQueue(
+      activeQueueRef.current,
+      activeQueueContextRef.current,
+      activeQueueModeRef.current
+    );
     if (activeQueueModeRef.current === "live_stream") {
-      logAutoNextSkipped("live_stream", { source: "nextSong" });
+      if (!liveRadioActive || !canNavigateLiveRadioSession(activeQueueRef.current)) {
+        logAutoNextSkipped("live_stream", { source: "nextSong" });
+        return;
+      }
+      await navigateLiveRadioStation("next", { source: options?.source || "app" });
       return;
     }
 
@@ -3972,6 +4211,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     normalizeSong,
     persistActiveQueueDeferred,
     removeStoredValues,
+    navigateLiveRadioStation,
   ]);
 
   const handleTrackFinished = useCallback(async () => {
@@ -4826,8 +5066,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 reason: "missing_audio_source",
                 engine: "hidden_audio",
               });
-              restorePreviousPlaybackState("missing_audio_source");
-              setIsPlaying(false);
+              const shouldSkipLiveRadio =
+                Boolean(options?.liveRadioSkipOnFailure) &&
+                isLiveRadioPlaybackDomain(
+                  activeQueueContextRef.current,
+                  normalizedSong,
+                  activeQueueModeRef.current
+                ) &&
+                canNavigateLiveRadioSession(activeQueueRef.current);
+              if (shouldSkipLiveRadio) {
+                setIsPlaying(false);
+                void navigateLiveRadioStationRef.current?.("next", {
+                  source: "failure",
+                  failedSongId: normalizedSong.id,
+                });
+              } else {
+                restorePreviousPlaybackState("missing_audio_source");
+                setIsPlaying(false);
+              }
               return;
             }
 
@@ -5193,6 +5449,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               requestId,
               engine: "hidden_audio",
             });
+            if (options?.liveRadioSkipOnFailure) {
+              liveRadioSkipCycleRef.current = null;
+            }
             if (autoAdvanceRef.current && isBackgroundAppState(appStateRef.current)) {
               logLockscreenPlaybackDiagnostic("background_auto_next_play_confirmed", {
                 songId: normalizedSong.id,
@@ -5223,8 +5482,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               requestId,
               error: String((error as Error)?.message || error),
             });
-            restorePreviousPlaybackState("hidden_audio_load_play_failed");
-            setIsPlaying(false);
+
+            const shouldSkipLiveRadio =
+              Boolean(options?.liveRadioSkipOnFailure) &&
+              isLiveRadioPlaybackDomain(
+                activeQueueContextRef.current,
+                normalizedSong,
+                activeQueueModeRef.current
+              ) &&
+              canNavigateLiveRadioSession(activeQueueRef.current);
+
+            if (shouldSkipLiveRadio && loadRequestIdRef.current === requestId) {
+              setIsPlaying(false);
+              void navigateLiveRadioStationRef.current?.("next", {
+                source: "failure",
+                failedSongId: normalizedSong.id,
+              });
+            } else {
+              restorePreviousPlaybackState("hidden_audio_load_play_failed");
+              setIsPlaying(false);
+            }
           } finally {
             if (loadRequestIdRef.current === requestId) {
               clearLoadingRecoveryTimeout();
@@ -5580,10 +5857,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const previousSong = useCallback(async (options?: { source?: "remote" | "app" }) => {
     if (options?.source !== "remote" && !queueControlTapGuardRef.current("previous_song")) return;
+
+    const liveRadioActive = isLiveRadioSessionQueue(
+      activeQueueRef.current,
+      activeQueueContextRef.current,
+      activeQueueModeRef.current
+    );
     if (activeQueueModeRef.current === "live_stream") {
-      logAutoNextSkipped("live_stream", { source: "previousSong" });
+      if (!liveRadioActive || !canNavigateLiveRadioSession(activeQueueRef.current)) {
+        logAutoNextSkipped("live_stream", { source: "previousSong" });
+        return;
+      }
+      // Live radio has no meaningful track position — always go to the previous station.
+      await navigateLiveRadioStation("previous", { source: options?.source || "app" });
       return;
     }
+
     logLockscreenPlaybackDiagnostic("app_previous_pressed", {
       songId: currentSongRef.current?.id || null,
       queueIndex: activeQueueIndexRef.current,
@@ -5667,6 +5956,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDurationMillis,
     clearLoadingRecoveryTimeout,
     clearFinishWatchdog,
+    navigateLiveRadioStation,
   ]);
 
 
@@ -7199,6 +7489,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           case "next": {
             logLockscreenPlaybackDiagnostic("remote_next_received", data);
             if (activeQueueModeRef.current === "live_stream") {
+              const liveRadioActive = isLiveRadioSessionQueue(
+                activeQueueRef.current,
+                activeQueueContextRef.current,
+                activeQueueModeRef.current
+              );
+              if (
+                liveRadioActive &&
+                canNavigateLiveRadioSession(activeQueueRef.current)
+              ) {
+                await nextSong({ source: "remote" });
+                await syncNativeRemoteQueueAvailability();
+                break;
+              }
               logLockscreenPlaybackDiagnostic("remote_next_blocked_live_stream", data);
               break;
             }
@@ -7232,6 +7535,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           case "previous": {
             logLockscreenPlaybackDiagnostic("remote_previous_received", data);
             if (activeQueueModeRef.current === "live_stream") {
+              const liveRadioActive = isLiveRadioSessionQueue(
+                activeQueueRef.current,
+                activeQueueContextRef.current,
+                activeQueueModeRef.current
+              );
+              if (
+                liveRadioActive &&
+                canNavigateLiveRadioSession(activeQueueRef.current)
+              ) {
+                await previousSong({ source: "remote" });
+                await syncNativeRemoteQueueAvailability();
+                break;
+              }
               logLockscreenPlaybackDiagnostic("remote_previous_blocked_live_stream", data);
               break;
             }

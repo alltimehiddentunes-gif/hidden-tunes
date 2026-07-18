@@ -45,6 +45,7 @@ import { cleanPodcastDescription } from "../../../utils/podcastDescription";
 import { isPlayablePodcastAudioUrl } from "../../../utils/podcastPlaybackAdapter";
 import { shouldIncludeMaturePodcasts } from "../../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../../utils/safeNavigation";
+import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../../utils/tapPressGuard";
 
 function shuffleEpisodes<T>(items: T[]): T[] {
   const copy = [...items];
@@ -58,6 +59,8 @@ function shuffleEpisodes<T>(items: T[]): T[] {
 function isEpisodePlayable(episode: PodcastEpisode) {
   return Boolean(episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl));
 }
+
+const playEpisodeTapGuard = createTapGuardState();
 
 function catalogEpisodeToDisplayEpisode(
   metadata: PodcastCatalogEpisodeMetadata,
@@ -271,6 +274,7 @@ export default function PodcastShowScreen() {
   const playResolvedEpisode = useCallback(
     async (metadata: PodcastCatalogEpisodeMetadata) => {
       if (!show) return;
+      if (shouldIgnoreDuplicateTap(playEpisodeTapGuard, `podcast-play:${metadata.id}`)) return;
 
       setResolvingEpisodeId(metadata.id);
       try {
@@ -281,8 +285,18 @@ export default function PodcastShowScreen() {
         }
 
         const playable = catalogEpisodeToPlayableEpisode(metadata, resolved.play, show.title);
+        // Same-show queue: preserve catalog API order; only the selected row has audio yet.
+        const showQueue = catalogEpisodes.map((entry) =>
+          entry.id === metadata.id
+            ? playable
+            : catalogEpisodeToDisplayEpisode(entry, show.title)
+        );
         await runWithMaturePodcastConsent(playable, () =>
-          playPodcastEpisodeFromShow(playable, [playable]).then((result) => {
+          playPodcastEpisodeFromShow(playable, showQueue.length ? showQueue : [playable], undefined, {
+            creatorId: show.publisher,
+            categoryId: show.categories?.[0],
+            feedId: show.feedUrl || show.id,
+          }).then((result) => {
             if (!result.ok) Alert.alert("Unavailable", result.error);
           })
         );
@@ -290,18 +304,23 @@ export default function PodcastShowScreen() {
         setResolvingEpisodeId(null);
       }
     },
-    [playPodcastEpisodeFromShow, runWithMaturePodcastConsent, show]
+    [catalogEpisodes, playPodcastEpisodeFromShow, runWithMaturePodcastConsent, show]
   );
 
   const playEpisode = useCallback(
     (episode: PodcastEpisode) => {
+      if (shouldIgnoreDuplicateTap(playEpisodeTapGuard, `podcast-play:${episode.id}`)) return;
       runWithMaturePodcastConsent(episode, () => {
-        void playPodcastEpisodeFromShow(episode, episodes).then((result) => {
+        void playPodcastEpisodeFromShow(episode, episodes, undefined, {
+          creatorId: show?.publisher,
+          categoryId: show?.categories?.[0],
+          feedId: show?.feedUrl || show?.id,
+        }).then((result) => {
           if (!result.ok) Alert.alert("Unavailable", result.error);
         });
       });
     },
-    [episodes, playPodcastEpisodeFromShow, runWithMaturePodcastConsent]
+    [episodes, playPodcastEpisodeFromShow, runWithMaturePodcastConsent, show]
   );
 
   const playLatest = useCallback(() => {

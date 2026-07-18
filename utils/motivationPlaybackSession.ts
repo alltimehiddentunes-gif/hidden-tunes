@@ -17,6 +17,18 @@ export type MotivationPlaybackSession = {
 
 let activeSession: MotivationPlaybackSession | null = null;
 
+function dedupePreserveOrder(items: MotivationItem[]) {
+  const seen = new Set<string>();
+  const next: MotivationItem[] = [];
+  for (const item of items) {
+    const id = String(item?.id || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    next.push(item);
+  }
+  return next;
+}
+
 export function getMotivationPlaybackSession() {
   return activeSession;
 }
@@ -35,7 +47,8 @@ export function createMotivationPlaybackSession(input: {
   hasMore: boolean;
   queueGeneration: number;
 }) {
-  const loadedItems = orderMotivationItems(input.items);
+  // Preserve caller order (program → speaker → category). Do not re-sort.
+  const loadedItems = dedupePreserveOrder(input.items);
   const startIndex = Math.max(
     0,
     loadedItems.findIndex((item) => item.id === input.startItemId)
@@ -49,7 +62,7 @@ export function createMotivationPlaybackSession(input: {
     nextPage: input.nextPage,
     hasMore: input.hasMore,
     currentItemId: loadedItems[startIndex]?.id || input.startItemId,
-    currentItemIndex: startIndex,
+    currentItemIndex: Math.max(0, startIndex),
     queueGeneration: input.queueGeneration,
     skipFailures: 0,
   };
@@ -64,10 +77,16 @@ export function appendMotivationItemPage(
 ) {
   if (!activeSession || activeSession.programId !== programId) return activeSession;
   if (activeSession.queueGeneration !== queueGeneration) return activeSession;
-  const merged = orderMotivationItems([...activeSession.loadedItems, ...items]);
+  const seen = new Set(activeSession.loadedItems.map((item) => item.id));
+  const additions = orderMotivationItems(items).filter((item) => {
+    const id = String(item.id || "").trim();
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
   activeSession = {
     ...activeSession,
-    loadedItems: merged,
+    loadedItems: [...activeSession.loadedItems, ...additions],
     nextPage: pagination.nextPage,
     hasMore: pagination.hasMore,
   };

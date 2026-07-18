@@ -21,7 +21,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-
 import {
   COLORS,
   GRADIENTS,
@@ -32,6 +31,8 @@ import {
   TYPOGRAPHY,
 } from "../constants/theme";
 import AppShell from "../components/navigation/AppShell";
+import { useAppActiveState } from "../utils/performanceMode";
+import { logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
 import { HOME_MORE_HUB_SHORTCUTS } from "../constants/homeMoreHub";
 import {
   sportsEnabled,
@@ -106,10 +107,20 @@ const HUB_TRANSLATION_KEYS: Record<
 };
 
 const LibraryHeroGlow = memo(function LibraryHeroGlow() {
+  const appActive = useAppActiveState();
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
   useEffect(() => {
+    if (!appActive) {
+      cancelAnimation(opacity);
+      cancelAnimation(scale);
+      opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
+      scale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
+      logPerformanceOffscreenWorkPaused("library_hero_glow", { reason: "app_inactive" });
+      return;
+    }
+
     opacity.value = withRepeat(
       withSequence(
         withTiming(LUXURY_GLOW.opacityMax, {
@@ -143,7 +154,7 @@ const LibraryHeroGlow = memo(function LibraryHeroGlow() {
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [opacity, scale]);
+  }, [appActive, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

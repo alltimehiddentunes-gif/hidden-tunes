@@ -1,7 +1,12 @@
-import type { PlaybackQueueContext } from "../../context/PlayerContext";
-import type { AppSong } from "../../context/PlayerContext";
+import type { AppSong, PlaybackQueueContext } from "../../context/PlayerContext";
 import type { PlaybackRouteResult } from "../../types/media";
 import type { RadioStation } from "../../types/radio";
+import {
+  buildLiveRadioQueueContext,
+  buildLiveRadioSessionSongs,
+  isPlayableLiveRadioStreamUrl,
+  type LiveRadioSessionOptions,
+} from "../radio/radioPlaybackSession";
 import {
   isRadioStreamSong,
   radioStationToAppSong,
@@ -29,25 +34,31 @@ export type PlaybackRouterDeps = {
 
 export async function routeRadioPlayback(
   station: RadioStation,
-  deps: PlaybackRouterDeps
+  deps: PlaybackRouterDeps,
+  sessionOptions?: LiveRadioSessionOptions
 ): Promise<PlaybackRouteResult> {
   const streamUrl = String(station.streamUrl || "").trim();
 
-  if (!streamUrl.startsWith("https://")) {
+  if (!isPlayableLiveRadioStreamUrl(streamUrl)) {
     return {
       ok: false,
       error: "This station is unavailable right now.",
     };
   }
 
-  const song = radioStationToAppSong(station);
+  const { songs, activeIndex } = buildLiveRadioSessionSongs(
+    station,
+    sessionOptions?.session
+  );
+  const activeSong = songs[activeIndex] || radioStationToAppSong(station);
+  const context = buildLiveRadioQueueContext(sessionOptions);
 
   try {
     await deps.playSong(
-      song,
-      [song],
-      0,
-      { source: "radio", label: station.title },
+      activeSong,
+      songs,
+      activeIndex,
+      context,
       "live_stream"
     );
     return { ok: true };

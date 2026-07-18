@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -49,6 +48,32 @@ import {
   subscribeMaturePodcastSettings,
 } from "../../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../../utils/safeNavigation";
+import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../../utils/tapPressGuard";
+
+const playEpisodeTapGuard = createTapGuardState();
+
+function metadataToQueueEpisode(
+  metadata: PodcastCatalogEpisodeMetadata,
+  showTitle: string,
+  audioUrl = ""
+): PodcastEpisode {
+  return {
+    id: metadata.id,
+    showId: metadata.showId,
+    showTitle,
+    title: metadata.title,
+    description: metadata.description || "",
+    artworkUrl: metadata.artworkUrl || "",
+    audioUrl,
+    durationSeconds: metadata.durationSeconds,
+    publishedAt: metadata.publishedAt,
+    language: "unknown",
+    categories: [],
+    isExplicit: false,
+    matureLevel: "safe",
+    source: "podcast_rss",
+  };
+}
 
 function CategoryPodcastHeader({
   title,
@@ -306,6 +331,7 @@ export default function PodcastCategoryScreen() {
 
   const playEpisode = useCallback(
     async (metadata: PodcastCatalogEpisodeMetadata) => {
+      if (shouldIgnoreDuplicateTap(playEpisodeTapGuard, `podcast-play:${metadata.id}`)) return;
       setPlayingEpisodeId(metadata.id);
       try {
         const resolved = await fetchPodcastEpisodePlay(metadata.id);
@@ -314,14 +340,36 @@ export default function PodcastCategoryScreen() {
           return;
         }
 
+        const categoryLabel = getBackendPodcastCategoryLabel(backendSlug!);
         const playable = catalogEpisodeToPodcastEpisode(
           metadata,
           resolved.play,
-          getBackendPodcastCategoryLabel(backendSlug!)
+          categoryLabel
         );
 
+        const showId = String(playable.showId || metadata.showId || "").trim();
+        const sameShow = episodes
+          .filter((entry) => String(entry.showId || "").trim() === showId)
+          .map((entry) =>
+            entry.id === metadata.id
+              ? playable
+              : metadataToQueueEpisode(entry, categoryLabel)
+          );
+        const categoryOthers = episodes
+          .filter((entry) => String(entry.showId || "").trim() !== showId)
+          .map((entry) => metadataToQueueEpisode(entry, categoryLabel));
+
         await runWithMaturePodcastConsent(playable, () =>
-          playPodcastEpisodeFromShow(playable, [playable]).then((result) => {
+          playPodcastEpisodeFromShow(
+            playable,
+            sameShow.length ? sameShow : [playable],
+            undefined,
+            {
+              categoryEpisodes: categoryOthers,
+              categoryId: backendSlug,
+              creatorId: playable.publisher,
+            }
+          ).then((result) => {
             if (!result.ok) {
               Alert.alert("Unavailable", result.error || "This episode is unavailable.");
             }
@@ -331,7 +379,7 @@ export default function PodcastCategoryScreen() {
         setPlayingEpisodeId(null);
       }
     },
-    [backendSlug, playPodcastEpisodeFromShow, runWithMaturePodcastConsent]
+    [backendSlug, episodes, playPodcastEpisodeFromShow, runWithMaturePodcastConsent]
   );
 
   const onRefresh = useCallback(() => {
@@ -460,7 +508,7 @@ export default function PodcastCategoryScreen() {
         {!hasQuery && parentSection && nonEmptyChildren.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Browse</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.chipWrap}>
               {nonEmptyChildren.map((child: PodcastCategoryDef) => (
                 <PodcastCategoryCard
                   key={child.id}
@@ -473,7 +521,7 @@ export default function PodcastCategoryScreen() {
                   }
                 />
               ))}
-            </ScrollView>
+            </View>
           </View>
         ) : null}
 
@@ -556,6 +604,11 @@ const styles = StyleSheet.create({
   },
   content: { paddingHorizontal: 18, paddingBottom: 120, gap: 12 },
   section: { gap: 8 },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
   sectionTitleWrap: { marginTop: 4 },
   sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800", marginBottom: 8 },
   fallback: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24 },

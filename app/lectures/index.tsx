@@ -3,11 +3,11 @@ import {
   ActivityIndicator,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -34,15 +34,18 @@ import { listEducationalRecentlyPlayed } from "@/services/educationalRecentlyPla
 import type { EducationalCategory } from "@/types/education";
 import { openEducationalProgramDetail } from "@/utils/educationalVideoPlayback";
 import { goBackWithinLectures } from "@/utils/lectureNavigation";
-import { joinLectureRequest, lecturePageTrace } from "@/utils/lectureRequestJoin";
 import {
-  createStableKeyExtractor,
-  getListPerformanceSettings,
-} from "@/utils/performanceMode";
+  joinLectureRequest,
+  lecturePageTrace,
+} from "@/utils/lectureRequestJoin";
+import { getPremiumGridLayout } from "@/utils/premiumGridLayout";
+import { getListPerformanceSettings } from "@/utils/performanceMode";
 import { createTapGuardState, shouldIgnoreDuplicateTap } from "@/utils/tapPressGuard";
 
 const SEARCH_DEBOUNCE_MS = 350;
 const LANE_LIMIT = 12;
+const GRID_GUTTER = 12;
+const GRID_PADDING = 18;
 const openProgramTapGuard = createTapGuardState();
 
 function hasAbortError(error: unknown) {
@@ -55,7 +58,46 @@ function openLectureProgram(item: HiddenTunesLectureItem) {
   openEducationalProgramDetail(item);
 }
 
-const ProgramRow = memo(function ProgramRow({ item }: { item: HiddenTunesLectureItem }) {
+type LecturePageRow =
+  | { type: "section-header"; id: string; title: string }
+  | {
+      type: "grid-row";
+      id: string;
+      items: [HiddenTunesLectureItem] | [HiddenTunesLectureItem, HiddenTunesLectureItem];
+    };
+
+function chunkPairs(items: HiddenTunesLectureItem[]): LecturePageRow[] {
+  const rows: LecturePageRow[] = [];
+  for (let index = 0; index < items.length; index += 2) {
+    const left = items[index];
+    const right = items[index + 1];
+    rows.push({
+      type: "grid-row",
+      id: `grid-${left.id}-${right?.id || "solo"}`,
+      items: right ? [left, right] : [left],
+    });
+  }
+  return rows;
+}
+
+function appendSection(
+  rows: LecturePageRow[],
+  title: string,
+  sectionId: string,
+  items: HiddenTunesLectureItem[]
+) {
+  if (!items.length) return;
+  rows.push({ type: "section-header", id: `section-${sectionId}`, title });
+  rows.push(...chunkPairs(items));
+}
+
+const LectureGridCard = memo(function LectureGridCard({
+  item,
+  width,
+}: {
+  item: HiddenTunesLectureItem;
+  width: number;
+}) {
   const meta = [
     item.instructor_name || item.speaker_name || item.creator_name,
     formatEducationalDuration(item.duration_seconds),
@@ -66,73 +108,45 @@ const ProgramRow = memo(function ProgramRow({ item }: { item: HiddenTunesLecture
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.gridCard, { width }]}
       activeOpacity={0.9}
       onPress={() => openLectureProgram(item)}
     >
       <HTImage
         uri={item.artwork_url || item.cover_url || undefined}
-        style={styles.artwork}
+        style={[styles.gridArt, { width, height: width }]}
         contentFit="cover"
-        maxDecodeWidth={144}
-        maxDecodeHeight={144}
+        maxDecodeWidth={220}
+        maxDecodeHeight={220}
       />
-      <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {item.title}
+      <Text style={styles.gridTitle} numberOfLines={2}>
+        {item.title}
+      </Text>
+      {meta ? (
+        <Text style={styles.gridMeta} numberOfLines={2}>
+          {meta}
         </Text>
-        {meta ? (
-          <Text style={styles.cardMeta} numberOfLines={1}>
-            {meta}
-          </Text>
-        ) : null}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
+      ) : null}
     </TouchableOpacity>
-  );
-});
-
-const LaneSection = memo(function LaneSection({
-  title,
-  items,
-}: {
-  title: string;
-  items: HiddenTunesLectureItem[];
-}) {
-  const uniqueItems = dedupeLectureItemsById(items, `LaneSection:${title}`);
-  if (!uniqueItems.length) return null;
-
-  return (
-    <View style={styles.laneSection}>
-      <Text style={styles.laneTitle}>{title}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.laneRow}>
-        {uniqueItems.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.laneCard}
-            activeOpacity={0.9}
-            onPress={() => openLectureProgram(item)}
-          >
-            <HTImage
-              uri={item.artwork_url || item.cover_url || undefined}
-              style={styles.laneArt}
-              contentFit="cover"
-              maxDecodeWidth={120}
-              maxDecodeHeight={120}
-            />
-            <Text style={styles.laneCardTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
   );
 });
 
 export default function LecturesHomeScreen() {
   const mountedRef = useMountedRef();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const gridLayout = useMemo(
+    () =>
+      getPremiumGridLayout({
+        windowWidth,
+        columns: 2,
+        gutter: GRID_GUTTER,
+        horizontalPadding: GRID_PADDING,
+      }),
+    [windowWidth]
+  );
+  const cardWidth = gridLayout.itemWidth;
+
   const [categories, setCategories] = useState<EducationalCategory[]>([]);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>(LECTURES_DEFAULT_CATEGORY_SLUG);
   const [items, setItems] = useState<HiddenTunesLectureItem[]>([]);
@@ -155,18 +169,26 @@ export default function LecturesHomeScreen() {
   const searchRequestRef = useRef(0);
   const searchPagingRequestRef = useRef(0);
   const browseAbortRef = useRef<AbortController | null>(null);
-  const railsAbortRef = useRef<AbortController | null>(null);
   const searchPagingAbortRef = useRef<AbortController | null>(null);
   const hasBrowseContentRef = useRef(false);
   const browseKeyRef = useRef<string | null>(null);
+  const landingGenerationRef = useRef(0);
 
   const isSearching = searchQuery.trim().length > 0;
   const listItems = isSearching ? searchItems : items;
   const canLoadMore = isSearching ? searchHasMore : hasMore;
+  const bottomPad = 120 + Math.max(insets.bottom, 8);
 
   useEffect(() => {
-    lecturePageTrace("mount", { screen: "lectures/index" });
-    return () => lecturePageTrace("unmount", { screen: "lectures/index" });
+    lecturePageTrace("landing_mount", {
+      route: "/lectures",
+      hasCachedBrowse: hasBrowseContentRef.current,
+    });
+    return () =>
+      lecturePageTrace("landing_unmount", {
+        route: "/lectures",
+        hasCachedBrowse: hasBrowseContentRef.current,
+      });
   }, []);
 
   const loadBrowsePage = useCallback(
@@ -176,8 +198,9 @@ export default function LecturesHomeScreen() {
       const nextPage = reset ? 1 : options?.page ?? 1;
       const requestId = ++categoryRequestRef.current;
       const requestKey = `lecture-category:${categorySlug}:${nextPage}`;
+      const generation = landingGenerationRef.current;
 
-      // Abort only when the resource key changes — same-key callers join the in-flight promise.
+      // Abort only when the resource key changes — never on Strict Mode remount.
       if (browseKeyRef.current && browseKeyRef.current !== requestKey) {
         browseAbortRef.current?.abort();
       }
@@ -187,21 +210,39 @@ export default function LecturesHomeScreen() {
 
       try {
         setLoadError(null);
-        // Keep cached browse rows visible during refresh — no full-list spinner flash.
+        // Keep cached cards visible during refresh; skeleton only on first paint.
         if (reset && !hasBrowseContentRef.current) {
           setLoading(true);
         }
 
-        const result = await joinLectureRequest(requestKey, () =>
-          fetchEducationalCategoryPage(categorySlug, {
-            page: nextPage,
-            limit: LECTURES_DEFAULT_PAGE_LIMIT,
-            signal: controller.signal,
-          })
+        const result = await joinLectureRequest(
+          requestKey,
+          () =>
+            fetchEducationalCategoryPage(categorySlug, {
+              page: nextPage,
+              limit: LECTURES_DEFAULT_PAGE_LIMIT,
+              signal: controller.signal,
+            }),
+          {
+            tracePrefix: "landing_fetch",
+            payload: {
+              route: "/lectures",
+              categoryId: categorySlug,
+              generation,
+              hasCachedData: hasBrowseContentRef.current,
+            },
+          }
         );
+        // Preserve API order — only drop duplicate ids, never shuffle.
         const responseItems = filterEducationalBrowseItems(result.items);
 
-        if (!mountedRef.current || requestId !== categoryRequestRef.current) return;
+        if (
+          !mountedRef.current ||
+          requestId !== categoryRequestRef.current ||
+          generation !== landingGenerationRef.current
+        ) {
+          return;
+        }
         setItems((current) =>
           dedupeLectureItemsById(
             reset ? responseItems : [...current, ...responseItems],
@@ -212,7 +253,6 @@ export default function LecturesHomeScreen() {
         setPage(result.pagination.page);
         setHasMore(result.pagination.hasMore);
 
-        // Featured rail reuses default-category browse — avoid a second network fetch.
         if (reset && categorySlug === LECTURES_DEFAULT_CATEGORY_SLUG) {
           setFeaturedItems(
             dedupeLectureItemsById(
@@ -223,13 +263,25 @@ export default function LecturesHomeScreen() {
         }
       } catch (error) {
         if (hasAbortError(error)) {
-          lecturePageTrace("fetch_aborted", { key: requestKey });
+          lecturePageTrace("landing_fetch_aborted", { key: requestKey, generation });
           return;
         }
-        if (!mountedRef.current || requestId !== categoryRequestRef.current) return;
+        if (
+          !mountedRef.current ||
+          requestId !== categoryRequestRef.current ||
+          generation !== landingGenerationRef.current
+        ) {
+          return;
+        }
         setLoadError("Lectures could not be loaded right now.");
       } finally {
-        if (!mountedRef.current || requestId !== categoryRequestRef.current) return;
+        if (
+          !mountedRef.current ||
+          requestId !== categoryRequestRef.current ||
+          generation !== landingGenerationRef.current
+        ) {
+          return;
+        }
         setLoading(false);
         setRefreshing(false);
         setLoadingMore(false);
@@ -239,20 +291,27 @@ export default function LecturesHomeScreen() {
   );
 
   const loadHomeRails = useCallback(async () => {
-    railsAbortRef.current?.abort();
-    const controller = new AbortController();
-    railsAbortRef.current = controller;
+    const generation = landingGenerationRef.current;
     try {
-      // Categories + local rails only. Featured comes from browse (same default slug).
+      // Join shared category request — do not abort on remount; local lists are cheap.
       const [categoriesResult, continueResult, recentResult] = await Promise.all([
-        joinLectureRequest("lecture:categories", () =>
-          fetchEducationalCategories({ signal: controller.signal })
+        joinLectureRequest(
+          "lecture:categories",
+          () => fetchEducationalCategories(),
+          {
+            tracePrefix: "landing_fetch",
+            payload: {
+              route: "/lectures",
+              generation,
+              hasCachedData: hasBrowseContentRef.current,
+            },
+          }
         ),
         listContinueLearningEntries(8),
         listEducationalRecentlyPlayed(8),
       ]);
 
-      if (!mountedRef.current || controller.signal.aborted) return;
+      if (!mountedRef.current || generation !== landingGenerationRef.current) return;
       setCategories(categoriesResult);
       setContinueItems(
         dedupeLectureItemsById(
@@ -282,19 +341,16 @@ export default function LecturesHomeScreen() {
       );
     } catch (error) {
       if (hasAbortError(error)) return;
-      // Optional home rails.
     }
   }, [mountedRef]);
 
   useEffect(() => {
+    // Mount-only. Category changes load via onSelectCategory — do not also
+    // depend on loadBrowsePage or selecting a chip starts a second full fetch.
     void loadHomeRails();
     void loadBrowsePage({ reset: true });
-    return () => {
-      browseAbortRef.current?.abort();
-      railsAbortRef.current?.abort();
-      searchPagingAbortRef.current?.abort();
-    };
-  }, [loadBrowsePage, loadHomeRails]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only
+  }, []);
 
   useEffect(() => {
     if (!isSearching) return undefined;
@@ -383,19 +439,30 @@ export default function LecturesHomeScreen() {
       setSearchQuery("");
       setPage(1);
       setHasMore(false);
-      // Keep previous rows visible until the new category page arrives.
       void loadBrowsePage({ reset: true, categorySlug: slug });
     },
     [isSearching, loadBrowsePage, selectedCategorySlug]
   );
 
+  const pageRows = useMemo(() => {
+    const rows: LecturePageRow[] = [];
+    if (!isSearching) {
+      appendSection(rows, "Continue Learning", "continue", continueItems);
+      appendSection(rows, "Recently Played", "recent", recentItems);
+      appendSection(rows, "Featured Courses", "featured", featuredItems);
+    }
+    appendSection(
+      rows,
+      isSearching ? "Search Results" : "Browse Courses",
+      isSearching ? "search" : "browse",
+      listItems
+    );
+    return rows;
+  }, [continueItems, featuredItems, isSearching, listItems, recentItems]);
+
   const listPerformance = useMemo(
-    () => getListPerformanceSettings(listItems.length),
-    [listItems.length]
-  );
-  const keyExtractor = useMemo(
-    () => createStableKeyExtractor("hidden-tunes-educational-program"),
-    []
+    () => getListPerformanceSettings(pageRows.length),
+    [pageRows.length]
   );
 
   const listHeader = useMemo(
@@ -432,11 +499,7 @@ export default function LecturesHomeScreen() {
           />
         </View>
 
-        {continueItems.length ? <LaneSection title="Continue Learning" items={continueItems} /> : null}
-        {recentItems.length ? <LaneSection title="Recently Played" items={recentItems} /> : null}
-        <LaneSection title="Featured Courses" items={featuredItems} />
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+        <View style={styles.chipWrap}>
           {categories.map((category) => (
             <TouchableOpacity
               key={category.slug}
@@ -453,37 +516,50 @@ export default function LecturesHomeScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
-
-        <Text style={styles.browseTitle}>{isSearching ? "Search Results" : "Browse Courses"}</Text>
+        </View>
       </View>
     ),
-    [
-      categories,
-      continueItems,
-      featuredItems,
-      insets.top,
-      isSearching,
-      onSelectCategory,
-      recentItems,
-      searchQuery,
-      selectedCategorySlug,
-    ]
+    [categories, insets.top, onSelectCategory, searchQuery, selectedCategorySlug]
   );
+
+  const renderRow = useCallback(
+    ({ item }: { item: LecturePageRow }) => {
+      if (item.type === "section-header") {
+        return (
+          <Text style={styles.sectionTitle} accessibilityRole="header">
+            {item.title}
+          </Text>
+        );
+      }
+
+      return (
+        <View style={[styles.gridRow, { gap: GRID_GUTTER, paddingHorizontal: GRID_PADDING }]}>
+          {item.items.map((card) => (
+            <LectureGridCard key={card.id} item={card} width={cardWidth} />
+          ))}
+          {item.items.length === 1 ? <View style={{ width: cardWidth }} /> : null}
+        </View>
+      );
+    },
+    [cardWidth]
+  );
+
+  const keyExtractor = useCallback((row: LecturePageRow) => row.id, []);
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <FlatList
-        data={listItems}
+        data={pageRows}
         keyExtractor={keyExtractor}
-        renderItem={({ item }) => <ProgramRow item={item} />}
+        renderItem={renderRow}
         ListHeaderComponent={listHeader}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: bottomPad }]}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
         onEndReached={onEndReached}
         onEndReachedThreshold={0.4}
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
           loading || searchLoading ? (
             <View style={styles.center}>
@@ -503,7 +579,9 @@ export default function LecturesHomeScreen() {
             <View style={styles.footerLoader}>
               <ActivityIndicator color={COLORS.primary} />
             </View>
-          ) : null
+          ) : (
+            <View style={styles.footerSpacer} />
+          )
         }
         {...listPerformance}
       />
@@ -551,7 +629,13 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.06)",
   },
   searchInput: { flex: 1, color: COLORS.text, fontSize: 15 },
-  chipRow: { paddingHorizontal: 18, gap: 8, paddingBottom: 12 },
+  chipWrap: {
+    paddingHorizontal: 18,
+    paddingBottom: 8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
   chip: {
     borderRadius: 999,
     paddingHorizontal: 12,
@@ -561,47 +645,39 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: "rgba(56,189,248,0.18)" },
   chipText: { color: COLORS.textMuted, fontSize: 12, fontWeight: "700" },
   chipTextActive: { color: COLORS.text },
-  browseTitle: {
+  sectionTitle: {
     color: COLORS.text,
     fontSize: 18,
     fontWeight: "900",
     paddingHorizontal: 18,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 10,
   },
-  laneSection: { marginBottom: 14 },
-  laneTitle: {
-    color: COLORS.text,
-    fontSize: 16,
-    fontWeight: "800",
-    paddingHorizontal: 18,
-    marginBottom: 8,
+  gridRow: {
+    flexDirection: "row",
+    marginBottom: GRID_GUTTER,
   },
-  laneRow: { paddingHorizontal: 18, gap: 10 },
-  laneCard: { width: 132 },
-  laneArt: {
-    width: 132,
-    height: 132,
+  gridCard: {
+    overflow: "hidden",
+  },
+  gridArt: {
     borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.08)",
   },
-  laneCardTitle: { color: COLORS.text, fontSize: 12, fontWeight: "700", marginTop: 8 },
-  listContent: { paddingBottom: 120 },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+  gridTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "800",
+    marginTop: 8,
+    minHeight: 36,
   },
-  artwork: {
-    width: 72,
-    height: 72,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.08)",
+  gridMeta: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    minHeight: 32,
   },
-  cardBody: { flex: 1 },
-  cardTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800" },
-  cardMeta: { color: COLORS.textMuted, fontSize: 12, marginTop: 4 },
+  listContent: { flexGrow: 1 },
   center: { paddingVertical: 48, alignItems: "center", gap: 8 },
   emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: "800", textAlign: "center" },
   emptyText: {
@@ -612,4 +688,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   footerLoader: { paddingVertical: 18, alignItems: "center" },
+  footerSpacer: { height: 8 },
 });

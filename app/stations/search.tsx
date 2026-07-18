@@ -27,6 +27,7 @@ import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { loadRadioSearchPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioSearchCacheKey } from "../../services/radio/radioCache";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
+import { buildRadioSessionFromListItems } from "../../services/radio/buildRadioPlaybackSession";
 import type { RadioStationListItem } from "../../types/radio";
 import {
   createStableKeyExtractor,
@@ -84,7 +85,14 @@ export default function RadioSearchScreen() {
         return;
       }
 
-      const result = await playRadioStation(normalizeRadioStation(station));
+      const session = buildRadioSessionFromListItems(listItems, resolveStation, {
+        startStationId: station.id,
+        label: debouncedQuery ? `Search: ${debouncedQuery}` : "Radio Search",
+        cacheKey,
+        searchQuery: debouncedQuery,
+      });
+
+      const result = await playRadioStation(normalizeRadioStation(station), session);
 
       if (!result.ok) {
         Alert.alert(
@@ -93,7 +101,7 @@ export default function RadioSearchScreen() {
         );
       }
     },
-    [playRadioStation, resolveStation]
+    [cacheKey, debouncedQuery, listItems, playRadioStation, resolveStation]
   );
 
   const handleStationPress = useCallback(

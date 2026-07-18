@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   memo,
   useCallback,
   useEffect,
@@ -7,6 +7,7 @@ import React, {
   useState,
 } from "react";
 import {
+  DeviceEventEmitter,
   LayoutChangeEvent,
   Pressable,
   StyleSheet,
@@ -47,6 +48,12 @@ import {
 import {
   isRadioStreamSong,
 } from "../services/playback/playbackRouter";
+import {
+  canNavigateLiveRadioSession,
+} from "../services/radio/radioPlaybackSession";
+import {
+  RADIO_PLAYBACK_MESSAGE_EVENT,
+} from "../services/radio/radioPlaybackFeedback";
 import HTImage from "./HTImage";
 import FavoriteButton from "./FavoriteButton";
 import { buildSongFavoriteItem } from "../services/favorites/favoriteItemBuilders";
@@ -128,12 +135,14 @@ const MiniControlButton = memo(function MiniControlButton({
   children,
   accessibilityLabel,
   buttonId,
+  testID,
 }: {
   onPress: () => void | Promise<void>;
   style?: object;
   children: React.ReactNode;
   accessibilityLabel?: string;
   buttonId: string;
+  testID?: string;
 }) {
   const scale = useSharedValue(1);
 
@@ -159,6 +168,7 @@ const MiniControlButton = memo(function MiniControlButton({
     <Animated.View style={animatedStyle}>
       <Pressable
         accessibilityLabel={accessibilityLabel}
+        testID={testID}
         hitSlop={MINI_CONTROL_HIT_SLOP}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -417,10 +427,12 @@ function MiniPlayer() {
     radioMode,
     youtubeQueue,
     radioQueue,
+    activeQueue,
   } = usePlayerState();
   const { togglePlayPause, nextSong, previousSong } = usePlayerActions();
 
   const [youtubeVideo, setYoutubeVideo] = useState<YouTubeMini | null>(null);
+  const [radioStatusMessage, setRadioStatusMessage] = useState<string | null>(null);
 
   const mountedRef = useRef(true);
   const tapGuardRef = useRef(createTapGuard(420));
@@ -516,10 +528,33 @@ function MiniPlayer() {
 
   const isYoutubeMode = !currentSong && hasLoadedYoutubeMini(youtubeVideo);
   const isLiveRadioMode = isRadioStreamSong(currentSong);
+  const canSkipLiveRadio =
+    isLiveRadioMode && canNavigateLiveRadioSession(activeQueue);
+  const showQueueSkipControls = !isYoutubeMode && (!isLiveRadioMode || canSkipLiveRadio);
   const hasLoadedSong = hasLoadedCurrentSong(currentSong);
 
   const radioQueueLength = radioQueue?.length || 0;
   const youtubeQueueLength = youtubeQueue?.length || 0;
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      RADIO_PLAYBACK_MESSAGE_EVENT,
+      (message: string) => {
+        const text = String(message || "").trim();
+        if (!text) return;
+        setRadioStatusMessage(text);
+      }
+    );
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!radioStatusMessage) return;
+    const timer = setTimeout(() => {
+      if (mountedRef.current) setRadioStatusMessage(null);
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, [radioStatusMessage]);
 
   const queueLabel = useMemo(() => {
     if (isLiveRadioMode) return "Live Radio";
@@ -745,30 +780,35 @@ function MiniPlayer() {
               {!isYoutubeMode && !isLiveRadioMode && currentSong?.id ? (
                 <FavoriteButton item={buildSongFavoriteItem(currentSong)} size={18} />
               ) : null}
-              {!isYoutubeMode && !isLiveRadioMode && (
+              {showQueueSkipControls ? (
                 <MiniControlButton
-                  accessibilityLabel="Previous track"
+                  accessibilityLabel={
+                    isLiveRadioMode ? "Previous station" : "Previous track"
+                  }
+                  testID={isLiveRadioMode ? "radio-previous-button" : undefined}
                   buttonId="previous"
                   onPress={handlePrevious}
                   style={styles.skipButton}
                 >
                   <Ionicons name="play-skip-back" size={18} color={COLORS.text} />
                 </MiniControlButton>
-              )}
+              ) : null}
 
-              {!isYoutubeMode && !isLiveRadioMode && (
+              {showQueueSkipControls ? (
                 <MiniControlButton
-                  accessibilityLabel="Next track"
+                  accessibilityLabel={isLiveRadioMode ? "Next station" : "Next track"}
+                  testID={isLiveRadioMode ? "radio-next-button" : undefined}
                   buttonId="next"
                   onPress={handleNext}
                   style={styles.skipButton}
                 >
                   <Ionicons name="play-skip-forward" size={18} color={COLORS.text} />
                 </MiniControlButton>
-              )}
+              ) : null}
 
               <MiniControlButton
                 accessibilityLabel={isYoutubeMode ? "Open video" : "Play or pause"}
+                testID={isLiveRadioMode ? "radio-play-pause-button" : undefined}
                 buttonId="play_pause"
                 onPress={handleMainButton}
                 style={playButtonStyle}
@@ -780,6 +820,11 @@ function MiniPlayer() {
                 />
               </MiniControlButton>
             </View>
+            {radioStatusMessage && isLiveRadioMode ? (
+              <Text style={styles.radioStatusMessage} numberOfLines={1}>
+                {radioStatusMessage}
+              </Text>
+            ) : null}
           </BlurView>
         </LinearGradient>
       </Animated.View>
@@ -836,6 +881,17 @@ const styles = StyleSheet.create({
   controlsCluster: {
     flexDirection: "row",
     alignItems: "center",
+  },
+
+  radioStatusMessage: {
+    position: "absolute",
+    left: 14,
+    right: 14,
+    bottom: 4,
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 10,
+    fontWeight: "600",
+    textAlign: "center",
   },
 
   sheen: {

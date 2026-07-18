@@ -24,6 +24,7 @@ import { useMatureContentGate } from "../../hooks/useMatureContentGate";
 import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
+import { buildRadioSessionFromListItems } from "../../services/radio/buildRadioPlaybackSession";
 import type { RadioStationListItem } from "../../types/radio";
 import { logRadioDiscoveryRender } from "../../utils/radioDiscoveryDiagnostics";
 import {
@@ -74,7 +75,13 @@ export default function RadioCategoryScreen() {
         return;
       }
 
-      const result = await playRadioStation(normalizeRadioStation(station));
+      const session = buildRadioSessionFromListItems(listItems, resolveStation, {
+        startStationId: station.id,
+        label: category?.title || "Live Radio",
+        cacheKey: categoryId,
+      });
+
+      const result = await playRadioStation(normalizeRadioStation(station), session);
 
       if (!result.ok) {
         Alert.alert(
@@ -83,7 +90,7 @@ export default function RadioCategoryScreen() {
         );
       }
     },
-    [playRadioStation, resolveStation]
+    [category?.title, categoryId, listItems, playRadioStation, resolveStation]
   );
 
   const handleStationPress = useCallback(

@@ -38,6 +38,7 @@ import {
   usePlayerState,
 } from "../context/PlayerContext";
 import { isRadioStreamSong } from "../services/playback/playbackRouter";
+import { canNavigateLiveRadioSession } from "../services/radio/radioPlaybackSession";
 import { buildSongFavoriteItem } from "../services/favorites/favoriteItemBuilders";
 import { openGenreCatalog, openMoodCatalog } from "../utils/catalogNavigation";
 import { normalizeGenreName } from "../utils/genreNormalization";
@@ -138,10 +139,14 @@ const PremiumIconButton = memo(function PremiumIconButton({
   children,
   onPress,
   disabled,
+  accessibilityLabel,
+  testID,
 }: {
   children: React.ReactNode;
   onPress?: () => void;
   disabled?: boolean;
+  accessibilityLabel?: string;
+  testID?: string;
 }) {
   const scale = useSharedValue(1);
 
@@ -169,6 +174,8 @@ const PremiumIconButton = memo(function PremiumIconButton({
   return (
     <Animated.View style={animatedStyle}>
       <Pressable
+        accessibilityLabel={accessibilityLabel}
+        testID={testID}
         disabled={disabled}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -186,11 +193,15 @@ const PremiumPlayButton = memo(function PremiumPlayButton({
   isLoading,
   disabled,
   onPress,
+  accessibilityLabel,
+  testID,
 }: {
   isPlaying: boolean;
   isLoading: boolean;
   disabled?: boolean;
   onPress: () => void;
+  accessibilityLabel?: string;
+  testID?: string;
 }) {
   const scale = useSharedValue(1);
   const ringOpacity = useSharedValue(0.24);
@@ -238,6 +249,8 @@ const PremiumPlayButton = memo(function PremiumPlayButton({
       <Animated.View style={[styles.playButtonRing, ringStyle]} pointerEvents="none" />
       <Animated.View style={buttonStyle}>
         <Pressable
+          accessibilityLabel={accessibilityLabel}
+          testID={testID}
           disabled={disabled}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
@@ -300,6 +313,7 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
   compactLayout,
   disabled,
   hideQueueSkipControls,
+  isLiveRadioMode,
   shuffle,
   repeatMode,
   isPlaying,
@@ -313,6 +327,7 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
   compactLayout: boolean;
   disabled: boolean;
   hideQueueSkipControls?: boolean;
+  isLiveRadioMode?: boolean;
   shuffle: boolean;
   repeatMode: string;
   isPlaying: boolean;
@@ -331,7 +346,12 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
         </PremiumIconButton>
 
         {!hideQueueSkipControls ? (
-          <PremiumIconButton disabled={disabled} onPress={onPrevious}>
+          <PremiumIconButton
+            disabled={disabled}
+            onPress={onPrevious}
+            accessibilityLabel={isLiveRadioMode ? "Previous station" : "Previous track"}
+            testID={isLiveRadioMode ? "radio-previous-button" : undefined}
+          >
             <Ionicons name="play-skip-back" size={27} color={COLORS.text} />
           </PremiumIconButton>
         ) : null}
@@ -341,10 +361,17 @@ const PlayerControlsDock = memo(function PlayerControlsDock({
           isLoading={isLoading}
           disabled={disabled}
           onPress={onTogglePlayPause}
+          accessibilityLabel="Play or pause"
+          testID={isLiveRadioMode ? "radio-play-pause-button" : undefined}
         />
 
         {!hideQueueSkipControls ? (
-          <PremiumIconButton disabled={disabled} onPress={onNext}>
+          <PremiumIconButton
+            disabled={disabled}
+            onPress={onNext}
+            accessibilityLabel={isLiveRadioMode ? "Next station" : "Next track"}
+            testID={isLiveRadioMode ? "radio-next-button" : undefined}
+          >
             <Ionicons name="play-skip-forward" size={27} color={COLORS.text} />
           </PremiumIconButton>
         ) : null}
@@ -434,6 +461,8 @@ export default function PlayerScreen() {
 
   const isLiveRadioMode =
     isRadioStreamSong(currentSong) || activeQueueMode === "live_stream";
+  const canSkipLiveRadio =
+    isLiveRadioMode && canNavigateLiveRadioSession(activeQueue);
   const title = isLiveRadioMode
     ? currentSong?.title || "Live station"
     : currentSong?.title || "No track selected";
@@ -931,7 +960,8 @@ export default function PlayerScreen() {
           <PlayerControlsDock
             compactLayout={compactLayout}
             disabled={!currentSong}
-            hideQueueSkipControls={isLiveRadioMode}
+            hideQueueSkipControls={isLiveRadioMode && !canSkipLiveRadio}
+            isLiveRadioMode={isLiveRadioMode}
             shuffle={shuffle}
             repeatMode={repeatMode}
             isPlaying={isPlaying}

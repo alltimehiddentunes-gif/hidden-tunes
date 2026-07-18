@@ -1,4 +1,4 @@
-import type { PlaybackQueueContext } from "../context/PlayerContext";
+﻿import type { PlaybackQueueContext } from "../context/PlayerContext";
 import { getDiscoveryPlayableSongs } from "../services/hiddenTunes";
 import {
   buildCatalogTarget,
@@ -102,6 +102,23 @@ function isEducationalQueueContext(context: PlaybackQueueContext) {
   return false;
 }
 
+/** Live Radio stations: never expand into Music catalog. */
+function isLiveRadioDomainSong(song: QueueBuildSong) {
+  const id = text(song.id);
+  if (id.startsWith("radio-")) return true;
+  return song.type === "live_stream";
+}
+
+function isLiveRadioQueueContext(context: PlaybackQueueContext) {
+  const typed = context as PlaybackQueueContext & {
+    queueType?: string;
+    contextType?: string;
+  };
+  if (typed.queueType === "live_radio") return true;
+  if (typed.contextType === "live-radio-session") return true;
+  return false;
+}
+
 function preserveStrictDomainQueue(input: {
   seed: QueueBuildSong;
   providedQueue?: QueueBuildSong[];
@@ -111,7 +128,9 @@ function preserveStrictDomainQueue(input: {
   diagnostics: Record<string, unknown>;
 }): QueueBuildResult {
   const domainProvided = dedupeSongs(
-    (input.providedQueue || []).filter((entry) => !isYouTubeSong(entry))
+    (input.providedQueue || []).filter(
+      (entry) => !isYouTubeSong(entry) && input.isDomainSong(entry)
+    )
   );
   const placed = ensureSongInQueue(
     domainProvided.length
@@ -506,6 +525,73 @@ export function buildContextualPlaybackQueue(options: {
         diagnostics: {
           educational_domain_guard: true,
           educational_validation_failed: true,
+          discovery_catalog_size: catalog.length,
+        },
+      };
+    }
+
+    return result;
+  }
+
+  // Live Radio must never expand into Music discovery. Keep the supplied station session.
+  if (
+    isLiveRadioQueueContext(context) ||
+    isLiveRadioDomainSong(seed) ||
+    (providedQueue || []).some(isLiveRadioDomainSong)
+  ) {
+    const result = preserveStrictDomainQueue({
+      seed,
+      providedQueue,
+      requestedIndex,
+      isDomainSong: isLiveRadioDomainSong,
+      builtFrom: "live_radio_domain_preserved",
+      diagnostics: {
+        live_radio_domain_guard: true,
+        discovery_catalog_size: catalog.length,
+        cache_key: text(context.railId),
+        search_query: text(context.searchQuery),
+        label: text(context.label),
+      },
+    });
+
+    const active = result.queue[result.activeIndex];
+    const invalid =
+      result.queue.length === 0 ||
+      result.activeIndex < 0 ||
+      result.activeIndex >= result.queue.length ||
+      !active ||
+      text(active.id) !== text(seed.id) ||
+      result.queue.some((item) => !isLiveRadioDomainSong(item));
+
+    if (invalid) {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.warn("[LIVE_RADIO_QUEUE] validation_failed_fallback_to_provided", {
+          seedId: seed.id,
+          providedLength: (providedQueue || []).length,
+          finalLength: result.queue.length,
+          activeIndex: result.activeIndex,
+        });
+      }
+      const fallback = dedupeSongs(
+        (providedQueue || []).filter(
+          (entry) => !isYouTubeSong(entry) && isLiveRadioDomainSong(entry)
+        )
+      );
+      const placed = ensureSongInQueue(
+        fallback.length ? fallback : isLiveRadioDomainSong(seed) ? [seed] : [],
+        seed
+      );
+      return {
+        queue: placed.queue,
+        activeIndex:
+          requestedIndex === undefined
+            ? placed.activeIndex
+            : Math.max(0, Math.min(requestedIndex, placed.queue.length - 1)),
+        builtFrom: "live_radio_domain_fallback_provided",
+        expanded: false,
+        diagnostics: {
+          live_radio_domain_guard: true,
+          live_radio_validation_failed: true,
           discovery_catalog_size: catalog.length,
         },
       };

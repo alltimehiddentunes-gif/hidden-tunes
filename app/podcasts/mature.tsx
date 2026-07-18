@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { FlatList, StyleSheet, Switch, Text, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -125,7 +125,7 @@ export default function MaturePodcastsScreen() {
             {!hasQuery && pageData.categories.length > 0 ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Mature Categories</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.chipWrap}>
                   {pageData.categories.map((child) => (
                     <PodcastCategoryCard
                       key={child.id}
@@ -138,7 +138,7 @@ export default function MaturePodcastsScreen() {
                       }
                     />
                   ))}
-                </ScrollView>
+                </View>
               </View>
             ) : null}
           </>
@@ -208,6 +208,11 @@ const styles = StyleSheet.create({
   lockedTitle: { color: COLORS.text, fontWeight: "800", fontSize: 16 },
   lockedText: { color: COLORS.textMuted, textAlign: "center", lineHeight: 18 },
   section: { gap: 10 },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
   sectionTitleWrap: { marginTop: 4 },
   sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800" },
 });

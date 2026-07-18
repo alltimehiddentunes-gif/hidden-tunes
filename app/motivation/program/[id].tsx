@@ -43,6 +43,7 @@ import {
   MotivationPlaybackController,
   playMotivationProgramItem,
 } from "@/utils/MotivationPlaybackController";
+import { createTapGuardState, shouldIgnoreDuplicateTap } from "@/utils/tapPressGuard";
 
 function isAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
@@ -57,6 +58,8 @@ function goBackWithinMotivation() {
 }
 
 const DESCRIPTION_PREVIEW = 220;
+const playSessionTapGuard = createTapGuardState();
+const queueActionTapGuard = createTapGuardState();
 
 const SessionRow = memo(function SessionRow({
   item,
@@ -273,6 +276,9 @@ export default function MotivationProgramScreen() {
   const playFrom = useCallback(
     async (startItemId: string) => {
       if (!program) return;
+      if (shouldIgnoreDuplicateTap(playSessionTapGuard, `motivation-play:${startItemId}`)) {
+        return;
+      }
       setPlayingItemId(startItemId);
       setPlayError(null);
       try {
@@ -280,7 +286,7 @@ export default function MotivationProgramScreen() {
           program,
           items,
           startItemId,
-          contextType: items.length > 1 ? "program" : "standalone",
+          contextType: items.length > 1 ? "motivational-program" : "standalone",
           contextSlug: program.category_slug || undefined,
           page: 1,
           hasMore: false,
@@ -297,6 +303,9 @@ export default function MotivationProgramScreen() {
   const queueProgram = useCallback(
     async (mode: "next" | "queue") => {
       if (!program || !items.length) return;
+      if (shouldIgnoreDuplicateTap(queueActionTapGuard, `motivation-queue:${mode}:${program.id}`)) {
+        return;
+      }
       setQueueMessage(null);
       try {
         if (mode === "next") {

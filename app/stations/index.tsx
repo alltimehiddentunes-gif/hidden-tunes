@@ -31,6 +31,7 @@ import { usePlaybackRouter } from "../../hooks/usePlaybackRouter";
 import { useRadioHomeDiscovery } from "../../hooks/useRadioHomeDiscovery";
 import { loadRadioCategoryPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
+import { buildRadioSessionFromListItems } from "../../services/radio/buildRadioPlaybackSession";
 import type { RadioStationListItem } from "../../types/radio";
 import { logVisibleFeatureChecklist } from "../../utils/visibleFeatureDiagnostics";
 
@@ -38,7 +39,7 @@ type StationSectionProps = {
   title: string;
   eyebrow: string;
   stations: RadioStationListItem[];
-  onPressStation: (item: RadioStationListItem) => void;
+  onPressStation: (item: RadioStationListItem, railStations: RadioStationListItem[]) => void;
   seeAllCategoryId?: string;
 };
 
@@ -87,7 +88,10 @@ function StationRailSection({
         contentContainerStyle={styles.railContent}
         {...railPerformance}
         renderItem={({ item }) => (
-          <RadioStationRailCard item={item} onPress={() => onPressStation(item)} />
+          <RadioStationRailCard
+            item={item}
+            onPress={() => onPressStation(item, stations)}
+          />
         )}
       />
     </View>
@@ -157,7 +161,12 @@ export default function RadioStationsHomeScreen() {
   }, []);
 
   const playStation = useCallback(
-    async (item: RadioStationListItem) => {
+    async (
+      item: RadioStationListItem,
+      railStations: RadioStationListItem[],
+      label: string,
+      cacheKey?: string
+    ) => {
       let station = resolveStation(item.id);
 
       if (!station) {
@@ -172,7 +181,13 @@ export default function RadioStationsHomeScreen() {
         return;
       }
 
-      const result = await playRadioStation(normalizeRadioStation(station));
+      const session = buildRadioSessionFromListItems(railStations, resolveStation, {
+        startStationId: station.id,
+        label,
+        cacheKey,
+      });
+
+      const result = await playRadioStation(normalizeRadioStation(station), session);
       if (!result.ok) {
         Alert.alert("Unavailable", result.error || "This station is unavailable right now.");
       }
@@ -181,9 +196,14 @@ export default function RadioStationsHomeScreen() {
   );
 
   const handleStationPress = useCallback(
-    (item: RadioStationListItem) => {
+    (
+      item: RadioStationListItem,
+      railStations: RadioStationListItem[],
+      label: string,
+      cacheKey?: string
+    ) => {
       runWithMatureConsent(item, () => {
-        void playStation(item);
+        void playStation(item, railStations, label, cacheKey);
       });
     },
     [playStation, runWithMatureConsent]
@@ -237,34 +257,44 @@ export default function RadioStationsHomeScreen() {
               eyebrow="FEATURED"
               title="Featured Stations"
               stations={featured}
-              onPressStation={handleStationPress}
+              onPressStation={(item, rail) =>
+                handleStationPress(item, rail, "Featured Stations", "featured")
+              }
               seeAllCategoryId="featured"
             />
             <StationRailSection
               eyebrow="TRENDING"
               title="Trending Now"
               stations={trending}
-              onPressStation={handleStationPress}
+              onPressStation={(item, rail) =>
+                handleStationPress(item, rail, "Trending Now", "trending")
+              }
               seeAllCategoryId="trending"
             />
             <StationRailSection
               eyebrow="POPULAR"
               title="Most Popular"
               stations={popular}
-              onPressStation={handleStationPress}
+              onPressStation={(item, rail) =>
+                handleStationPress(item, rail, "Most Popular", "popular")
+              }
               seeAllCategoryId="popular"
             />
             <StationRailSection
               eyebrow="RECENT"
               title="Recently Played"
               stations={recentlyPlayed}
-              onPressStation={handleStationPress}
+              onPressStation={(item, rail) =>
+                handleStationPress(item, rail, "Recently Played", "recent")
+              }
             />
             <StationRailSection
               eyebrow="FOR YOU"
               title="Recommended For You"
               stations={recommended}
-              onPressStation={handleStationPress}
+              onPressStation={(item, rail) =>
+                handleStationPress(item, rail, "Recommended For You", "recommended")
+              }
               seeAllCategoryId="recommended"
             />
 

@@ -132,8 +132,23 @@ export default function FavoritesScreen() {
             params: { id: item.id },
           } as any);
           return;
-        case "radio_station":
-          void playRadioStation({
+        case "radio_station": {
+          const radioFavorites = visibleFavorites.filter(
+            (entry) => entry.type === "radio_station"
+          );
+          const sessionStations = radioFavorites.map((entry) => ({
+            id: entry.id,
+            title: entry.title,
+            streamUrl: String(entry.metadata?.streamUrl || ""),
+            artworkUrl: entry.artwork,
+            country: entry.metadata?.stationCountry,
+            genre: entry.metadata?.stationGenre,
+            tags: entry.metadata?.stationGenre
+              ? [String(entry.metadata.stationGenre)]
+              : [],
+            source: "radio" as const,
+          }));
+          const active = sessionStations.find((entry) => entry.id === item.id) || {
             id: item.id,
             title: item.title,
             streamUrl: String(item.metadata?.streamUrl || ""),
@@ -141,14 +156,24 @@ export default function FavoritesScreen() {
             country: item.metadata?.stationCountry,
             genre: item.metadata?.stationGenre,
             tags: item.metadata?.stationGenre ? [String(item.metadata.stationGenre)] : [],
-            source: "radio",
+            source: "radio" as const,
+          };
+          void playRadioStation(active, {
+            session: sessionStations,
+            startIndex: Math.max(
+              0,
+              sessionStations.findIndex((entry) => entry.id === item.id)
+            ),
+            label: "Radio Favorites",
+            cacheKey: "favorites",
           });
           return;
+        }
         default:
           return;
       }
     },
-    [playFavoriteSong, playRadioStation]
+    [playFavoriteSong, playRadioStation, visibleFavorites]
   );
 
   const typeIcon = (type: FavoriteItemType) => {

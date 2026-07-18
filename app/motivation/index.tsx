@@ -44,9 +44,11 @@ import {
   sanitizeMotivationTitle,
 } from "@/utils/motivationPresentation";
 import { playMotivationProgramItem } from "@/utils/MotivationPlaybackController";
+import { createTapGuardState, shouldIgnoreDuplicateTap } from "@/utils/tapPressGuard";
 
 const SEARCH_DEBOUNCE_MS = 350;
 const HOME_CACHE_TTL_MS = 120_000;
+const playProgramTapGuard = createTapGuardState();
 const LIMITS = {
   continue: 6,
   featured: 8,
@@ -344,26 +346,24 @@ export default function MotivationHomeScreen() {
   const playProgram = useCallback(async (group: MotivationGroupedProgram) => {
     const startId = group.items[0]?.id;
     if (!startId) return;
+    if (shouldIgnoreDuplicateTap(playProgramTapGuard, `motivation-open:${group.id}`)) return;
     if (playGuardRef.current === group.id) return;
     playGuardRef.current = group.id;
     setPlayingProgramId(group.id);
     setPlayError(null);
     try {
       stashMotivationGroupedProgram(group);
-      // Cap metadata queue — resolve only the active item on demand.
-      const startIndex = Math.max(
-        0,
-        group.items.findIndex((item) => item.id === startId)
-      );
-      const queueWindow = group.items.slice(startIndex, startIndex + 24);
+      // Full program order (capped) so Previous/Next stay in-series; hierarchy
+      // expansion (speaker/category) happens inside MotivationPlaybackController.
+      const queueItems = group.items.slice(0, 40);
       await playMotivationProgramItem({
         program: group.program,
-        items: queueWindow,
+        items: queueItems,
         startItemId: startId,
-        contextType: queueWindow.length > 1 ? "program" : "standalone",
+        contextType: queueItems.length > 1 ? "motivational-program" : "standalone",
         contextSlug: group.program.category_slug || undefined,
         page: 1,
-        hasMore: group.items.length > queueWindow.length,
+        hasMore: group.items.length > queueItems.length,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Couldn't start playback.";

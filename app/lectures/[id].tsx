@@ -116,20 +116,35 @@ export default function EducationalProgramDetailScreen() {
   const loadMoreControllerRef = useRef<AbortController | null>(null);
   const playGenerationRef = useRef(0);
   const hasDetailContentRef = useRef(false);
+  const detailGenerationRef = useRef(0);
 
   const loadDetail = useCallback(
     async (options?: { page?: number; reset?: boolean; signal?: AbortSignal }) => {
       const page = options?.page || 1;
       const reset = options?.reset === true;
       const requestKey = `lecture:${programId}:page:${page}`;
+      const generation = detailGenerationRef.current;
 
-      const detail = await joinLectureRequest(requestKey, () =>
-        fetchEducationalProgramDetail(programId, {
-          sessionPage: page,
-          sessionLimit: 40,
-          signal: options?.signal,
-        })
+      const detail = await joinLectureRequest(
+        requestKey,
+        () =>
+          fetchEducationalProgramDetail(programId, {
+            sessionPage: page,
+            sessionLimit: 40,
+            signal: options?.signal,
+          }),
+        {
+          tracePrefix: "detail_fetch",
+          payload: {
+            route: `/lectures/${programId}`,
+            courseId: programId,
+            generation,
+            hasCachedData: hasDetailContentRef.current,
+          },
+        }
       );
+
+      if (generation !== detailGenerationRef.current) return;
 
       setProgram(detail.program);
       setSessions((current) => {
@@ -156,9 +171,16 @@ export default function EducationalProgramDetailScreen() {
   );
 
   useEffect(() => {
-    lecturePageTrace("mount", { screen: "lectures/detail", programId });
-    hasDetailContentRef.current = false;
-    return () => lecturePageTrace("unmount", { screen: "lectures/detail", programId });
+    lecturePageTrace("detail_mount", {
+      route: `/lectures/${programId}`,
+      courseId: programId,
+      hasCachedData: hasDetailContentRef.current,
+    });
+    return () =>
+      lecturePageTrace("detail_unmount", {
+        route: `/lectures/${programId}`,
+        courseId: programId,
+      });
   }, [programId]);
 
   useEffect(() => {
@@ -168,9 +190,9 @@ export default function EducationalProgramDetailScreen() {
       return undefined;
     }
 
-    const controller = new AbortController();
-    playControllerRef.current?.abort();
+    const generation = ++detailGenerationRef.current;
     // Keep rendered course content visible while refreshing the same program.
+    // Do not abort on remount — remounted effects join the in-flight request.
     if (!hasDetailContentRef.current) {
       setLoading(true);
     }
@@ -179,12 +201,17 @@ export default function EducationalProgramDetailScreen() {
     setLoadedPageNumbers([1]);
     setNextSessionPage(2);
 
-    void loadDetail({ page: 1, reset: true, signal: controller.signal })
+    void loadDetail({ page: 1, reset: true })
       .catch((loadError) => {
         if (hasAbortError(loadError)) {
-          lecturePageTrace("fetch_aborted", { key: `lecture:${programId}` });
+          lecturePageTrace("detail_fetch_aborted", {
+            key: `lecture:${programId}`,
+            courseId: programId,
+            generation,
+          });
           return;
         }
+        if (generation !== detailGenerationRef.current) return;
         if (!hasDetailContentRef.current) {
           setProgram(null);
           setSessions([]);
@@ -192,10 +219,11 @@ export default function EducationalProgramDetailScreen() {
         }
       })
       .finally(() => {
+        if (generation !== detailGenerationRef.current) return;
         setLoading(false);
       });
 
-    return () => controller.abort();
+    return undefined;
   }, [loadDetail, programId]);
 
   useEffect(

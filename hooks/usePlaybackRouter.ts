@@ -1,21 +1,21 @@
 import { useMemo } from "react";
 
-import { usePlayerActions, type AppSong } from "../context/PlayerContext";
+import { usePlayerActions } from "../context/PlayerContext";
 import {
   routeRadioPlayback,
   type PlaybackRouterDeps,
 } from "../services/playback/playbackRouter";
+import type { LiveRadioSessionOptions } from "../services/radio/radioPlaybackSession";
 import { addPodcastRecentlyPlayed } from "../services/podcastRecentlyPlayed";
 import type { PodcastEpisode } from "../types/podcast";
 import type { RadioStation } from "../types/radio";
 import { logPodcastDiagnostic } from "../utils/podcastDiagnostics";
 import {
+  buildPodcastQueueContext,
   isPlayablePodcastAudioUrl,
   podcastEpisodeToAppSong,
 } from "../utils/podcastPlaybackAdapter";
 import { playPodcastEpisodeFromShow } from "../utils/podcastPlayback";
-
-const PODCAST_QUEUE_CONTEXT = { source: "unknown" as const, label: "Podcasts" };
 
 export function usePlaybackRouter() {
   const { playSong, playQueue, stopPlayback } = usePlayerActions();
@@ -30,13 +30,23 @@ export function usePlaybackRouter() {
     const playPodcastEpisodeFromShowWithRecent = async (
       episode: PodcastEpisode,
       episodes: PodcastEpisode[],
-      startIndex?: number
+      startIndex?: number,
+      extras?: {
+        categoryEpisodes?: PodcastEpisode[];
+        feedId?: string | null;
+        creatorId?: string | null;
+        categoryId?: string | null;
+      }
     ) => {
       const result = await playPodcastEpisodeFromShow({
         episode,
         episodes,
         startIndex,
         playSong,
+        categoryEpisodes: extras?.categoryEpisodes,
+        feedId: extras?.feedId,
+        creatorId: extras?.creatorId,
+        categoryId: extras?.categoryId,
       });
 
       if (result.ok) {
@@ -48,7 +58,10 @@ export function usePlaybackRouter() {
     };
 
     return {
-      playRadioStation: (station: RadioStation) => routeRadioPlayback(station, deps),
+      playRadioStation: (
+        station: RadioStation,
+        sessionOptions?: LiveRadioSessionOptions
+      ) => routeRadioPlayback(station, deps, sessionOptions),
       playPodcastEpisodeFromShow: playPodcastEpisodeFromShowWithRecent,
       playPodcastEpisode: async (
         episode: PodcastEpisode,
@@ -71,13 +84,16 @@ export function usePlaybackRouter() {
         logPodcastDiagnostic("podcast_episode_play_start", { episodeId: episode.id });
 
         try {
-          await playSong(
-            podcastEpisodeToAppSong(episode),
-            [podcastEpisodeToAppSong(episode)],
-            0,
-            PODCAST_QUEUE_CONTEXT,
-            "standard"
-          );
+          // Single-episode entry still carries Podcast domain context so the
+          // shared queue builder cannot expand into Music discovery.
+          const song = podcastEpisodeToAppSong(episode);
+          const context = buildPodcastQueueContext({
+            showId: episode.showId,
+            showTitle: episode.showTitle,
+            creatorId: episode.publisher,
+            categoryId: episode.categories?.[0],
+          });
+          await playSong(song, [song], 0, context, "standard");
           await addPodcastRecentlyPlayed(episode);
           logPodcastDiagnostic("podcast_episode_play_success", { episodeId: episode.id });
           return { ok: true as const };

@@ -1,17 +1,8 @@
-import { memo, useEffect, useMemo } from "react";
+import { memo, useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, {
-  Easing,
-  cancelAnimation,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
 
 import { COLORS, GRADIENTS, LUXURY_GLOW, SHADOWS, TYPOGRAPHY } from "../constants/theme";
 import HTImage from "./HTImage";
@@ -31,36 +22,15 @@ type Props = {
   onRightPress?: () => void;
 };
 
+/** Static aura only — continuous per-card withRepeat heated Home genre grids. */
 const CardArtGlow = memo(function CardArtGlow() {
-  const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
-
-  useEffect(() => {
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(LUXURY_GLOW.opacityMax, {
-          duration: LUXURY_GLOW.pulseDurationMs / 2,
-          easing: Easing.inOut(Easing.sin),
-        }),
-        withTiming(LUXURY_GLOW.opacityMin, {
-          duration: LUXURY_GLOW.pulseDurationMs / 2,
-          easing: Easing.inOut(Easing.sin),
-        })
-      ),
-      -1,
-      false
-    );
-
-    return () => cancelAnimation(opacity);
-  }, [opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
   return (
-    <Animated.View pointerEvents="none" style={[styles.artGlow, animatedStyle]}>
+    <View
+      pointerEvents="none"
+      style={[styles.artGlow, { opacity: (LUXURY_GLOW.opacityMin + LUXURY_GLOW.opacityMax) / 2 }]}
+    >
       <LinearGradient colors={GRADIENTS.heroAura} style={StyleSheet.absoluteFill} />
-    </Animated.View>
+    </View>
   );
 });
 
