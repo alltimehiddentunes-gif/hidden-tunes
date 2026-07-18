@@ -1,4 +1,5 @@
 import type { HiddenTunesTvPlayback } from "../tvCatalogApi";
+import { isExpoVideoNativeAvailable } from "./expoVideoAvailability";
 
 export type TvPlaybackSurface = "native" | "webview";
 
@@ -27,10 +28,15 @@ function isYouTubeSource(sourceType: string, sourceId: string, streamUrl: string
 /**
  * Exclusive surface selection for the single TV session.
  * Native and WebView must never be active together.
+ * Without ExpoVideo in the binary, force WebView so app boot does not crash.
  */
 export function resolveTvPlaybackSurface(
   playback: HiddenTunesTvPlayback
 ): TvPlaybackSurface {
+  if (!isExpoVideoNativeAvailable()) {
+    return "webview";
+  }
+
   const sourceType = String(playback.source_type || "");
   const sourceId = String(playback.source_id || "");
   const streamUrl = String(playback.stream_url || "");

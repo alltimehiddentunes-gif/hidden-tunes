@@ -2,10 +2,11 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
-  useRef,
+  type ComponentType,
+  type Ref,
 } from "react";
-import { StyleSheet, View } from "react-native";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { View } from "react-native";
+import { isExpoVideoNativeAvailable } from "../../services/tv/expoVideoAvailability";
 
 export type TvNativeVideoHandle = {
   play: () => void;
@@ -20,121 +21,62 @@ type TvNativeVideoSurfaceProps = {
   onError: () => void;
 };
 
-/**
- * Single expo-video instance for HLS / direct MP4 TV streams.
- * Owned by the TV session host ÔÇö never mounted alongside the TV WebView.
- */
-const TvNativeVideoSurface = forwardRef<
-  TvNativeVideoHandle,
-  TvNativeVideoSurfaceProps
->(function TvNativeVideoSurface(
-  { streamUrl, onPlaying, onPaused, onError },
-  ref
-) {
-  const loadGenerationRef = useRef(0);
-  const player = useVideoPlayer(null, (instance) => {
-    instance.loop = false;
-    instance.timeUpdateEventInterval = 0;
-    instance.audioMixingMode = "doNotMix";
-  });
+type ImplComponent = ComponentType<
+  TvNativeVideoSurfaceProps & { ref?: Ref<TvNativeVideoHandle> }
+>;
 
+/**
+ * Safe entry for the native TV surface.
+ * Never import expo-video at module scope — that crashes binaries without ExpoVideo.
+ * Surface selection already forces WebView when native is missing; this is defense-in-depth.
+ */
+let Impl: ImplComponent | null | undefined;
+
+function getImpl(): ImplComponent | null {
+  if (Impl !== undefined) return Impl;
+  if (!isExpoVideoNativeAvailable()) {
+    Impl = null;
+    return null;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Impl = require("./TvNativeVideoSurfaceImpl").default;
+  } catch {
+    Impl = null;
+  }
+  return Impl;
+}
+
+const UnavailableNativeSurface = forwardRef<
+  TvNativeVideoHandle,
+  { onError: () => void }
+>(function UnavailableNativeSurface({ onError }, ref) {
   useImperativeHandle(
     ref,
     () => ({
-      play: () => {
-        try {
-          player.play();
-        } catch {
-          onError();
-        }
-      },
-      pause: () => {
-        try {
-          player.pause();
-        } catch {
-          // Best-effort.
-        }
-      },
-      unload: () => {
-        loadGenerationRef.current += 1;
-        try {
-          player.pause();
-          player.replace(null);
-        } catch {
-          // Best-effort release before unmount.
-        }
-      },
+      play: () => {},
+      pause: () => {},
+      unload: () => {},
     }),
-    [onError, player]
+    []
   );
 
   useEffect(() => {
-    const generation = ++loadGenerationRef.current;
-    let cancelled = false;
+    onError();
+  }, [onError]);
 
-    const load = async () => {
-      try {
-        player.pause();
-        await player.replaceAsync(streamUrl);
-        if (cancelled || generation !== loadGenerationRef.current) {
-          return;
-        }
-        player.play();
-      } catch {
-        if (!cancelled && generation === loadGenerationRef.current) {
-          onError();
-        }
-      }
-    };
+  return <View />;
+});
 
-    void load();
-
-    return () => {
-      cancelled = true;
-      try {
-        player.pause();
-      } catch {
-        // Ignore.
-      }
-    };
-  }, [onError, player, streamUrl]);
-
-  useEffect(() => {
-    const playingSub = player.addListener("playingChange", ({ isPlaying }) => {
-      if (isPlaying) onPlaying();
-      else onPaused();
-    });
-    const statusSub = player.addListener("statusChange", ({ status, error }) => {
-      if (status === "error" || error) {
-        onError();
-      }
-    });
-
-    return () => {
-      playingSub.remove();
-      statusSub.remove();
-    };
-  }, [onError, onPaused, onPlaying, player]);
-
-  return (
-    <View style={styles.fill}>
-      <VideoView
-        style={styles.fill}
-        player={player}
-        nativeControls={false}
-        contentFit="contain"
-        allowsPictureInPicture={false}
-        startsPictureInPictureAutomatically={false}
-      />
-    </View>
-  );
+const TvNativeVideoSurface = forwardRef<
+  TvNativeVideoHandle,
+  TvNativeVideoSurfaceProps
+>(function TvNativeVideoSurface(props, ref) {
+  const Component = getImpl();
+  if (!Component) {
+    return <UnavailableNativeSurface ref={ref} onError={props.onError} />;
+  }
+  return <Component {...props} ref={ref} />;
 });
 
 export default TvNativeVideoSurface;
-
-const styles = StyleSheet.create({
-  fill: {
-    flex: 1,
-    backgroundColor: "#000",
-  },
-});
