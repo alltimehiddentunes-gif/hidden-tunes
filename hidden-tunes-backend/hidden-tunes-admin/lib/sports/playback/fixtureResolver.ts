@@ -25,6 +25,8 @@ export type FixturePlayRequest = {
   appVersion?: string;
   preferredLanguage?: string;
   userId?: string | null;
+  /** When true, private pilot may resolve without public sports_enabled. */
+  privatePilot?: boolean;
 };
 
 export type FixturePlaySession =
@@ -321,7 +323,9 @@ export async function resolveFixturePlayback(
   await recordSportsMetric("resolver_requests");
 
   try {
-    const sportsEnabled = await isSportsFeatureEnabled("sports_enabled");
+    const sportsEnabled =
+      request.privatePilot === true ||
+      (await isSportsFeatureEnabled("sports_enabled"));
     if (!sportsEnabled) {
       const session = unavailable(
         fixtureId,
