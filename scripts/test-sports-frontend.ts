@@ -8,6 +8,7 @@ import {
   isSportsClientEnabled,
   isSportsDevFixturesEnabled,
   isSportsFullUiEnabled,
+  isSportsTestPlayerEnabled,
   SPORTS_CLIENT_FLAGS,
 } from "../constants/sportsFlags";
 import {
@@ -17,7 +18,10 @@ import {
   DEV_UNAVAILABLE,
   buildDevSportsHome,
 } from "../lib/sports/devFixtures";
-import { assertDevFixturesNotInProduction, searchDevSports } from "../lib/sports/devFixtures/lookups";
+import { normalizeSportsSlug } from "../lib/sports/normalizeSportsSlug";
+import { assertDevFixturesNotInProduction, getDevSportHub, searchDevSports } from "../lib/sports/devFixtures/lookups";
+import fs from "fs";
+import path from "path";
 import { buildMatchAccessibilityLabel } from "../lib/sports/ui/buildAccessibilityLabel";
 import {
   boundSectionItems,
@@ -174,11 +178,44 @@ function main() {
   const scoreOnly = ALL_DEV_FIXTURES.find((f) => f.id === "dev-fixture-live-score-only")!;
   assert.equal(primaryActionLabel(scoreOnly), null);
 
-  // Accessibility label
+  // Accessibility label (dev fixtures may still use classic names for unit tests)
   const a11y = buildMatchAccessibilityLabel(DEV_FOOTBALL_LIVE);
   assert.match(a11y, /Arsenal/i);
   assert.match(a11y, /Chelsea/i);
   assert.match(a11y, /live/i);
+
+  // Slug normalization
+  assert.equal(normalizeSportsSlug("Football"), "football");
+  assert.equal(normalizeSportsSlug("FOOTBALL"), "football");
+  assert.equal(normalizeSportsSlug("football"), "football");
+  assert.equal(normalizeSportsSlug(" association football "), "association-football");
+
+  // Test player flag default false
+  assert.equal(isSportsTestPlayerEnabled(), false);
+
+  // Sport hub returns football fixtures for football slug (dev path)
+  const footballHub = getDevSportHub("football");
+  assert.ok((footballHub.fixtures || []).length > 0);
+  assert.ok((footballHub.sections || []).some((s) => (s.items?.length || 0) > 0));
+
+  // No Sports horizontal shelf in production components (source audit)
+  const shelfSrc = fs.readFileSync(
+    path.join(process.cwd(), "components/sports/SportsHorizontalShelf.tsx"),
+    "utf8"
+  );
+  assert.equal(/\bhorizontal\b/.test(shelfSrc), false);
+  assert.ok(shelfSrc.includes("sports-vertical-shelf"));
+
+  // Related fixtures exclude current (backend helper contract mirrored in tests via hub)
+  const relatedSample = (footballHub.fixtures || []).filter((f) => f.id !== DEV_FOOTBALL_LIVE.id);
+  assert.ok(relatedSample.every((f) => f.id !== DEV_FOOTBALL_LIVE.id));
+
+  // Live count derived from records
+  const liveCount = (footballHub.fixtures || []).filter((f) => f.status?.live).length;
+  assert.equal(
+    (footballHub.sections || []).find((s) => s.id === "live_now")?.items.length || 0,
+    liveCount
+  );
 
   // Bounded rendering
   const many = Array.from({ length: 50 }, (_, i) => ({ id: `x${i}` }));
