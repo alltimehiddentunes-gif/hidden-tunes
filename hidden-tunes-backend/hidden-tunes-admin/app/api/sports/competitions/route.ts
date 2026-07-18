@@ -1,4 +1,5 @@
 import { listPaginated } from "@/lib/sports/catalog";
+import { isTestSportsCompetition } from "@/lib/sports/catalogFilter";
 import { SPORTS_PUBLIC_CATALOG_STATUSES } from "@/lib/sports/constants";
 import { isSportsFeatureEnabled } from "@/lib/sports/featureFlags";
 import {
@@ -45,11 +46,17 @@ export async function GET(request: NextRequest) {
       }
     );
     // Optional sport filter — client may pass sport slug; filter after join-free list.
-    let filtered = items;
+    let filtered = items.filter(
+      (row) =>
+        !isTestSportsCompetition({
+          name: (row as { name?: string }).name,
+          slug: (row as { slug?: string }).slug,
+        })
+    );
     if (sportSlug) {
       // listPaginated returns raw rows; sport_id filter via slug requires client-side assemble.
       // Keep all when sport filter cannot be applied here without extra lookup.
-      filtered = items;
+      filtered = filtered;
     }
     return jsonSportsOk({
       enabled: true,

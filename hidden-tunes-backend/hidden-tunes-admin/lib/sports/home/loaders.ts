@@ -5,6 +5,7 @@
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+import { isTestSportsCompetition } from "../catalogFilter";
 import { SPORTS_PUBLIC_CATALOG_STATUSES } from "../constants";
 import type { SectionLoaderResult } from "./assemble";
 import { encodeSportsCursor } from "./assemble";
@@ -395,7 +396,15 @@ export async function loadPopularCompetitions(
       for (const s of sports || []) sportsMap.set(s.id, s.slug);
     }
 
-    const ranked = (data || []).map((c) => {
+    const ranked = (data || [])
+      .filter(
+        (c) =>
+          !isTestSportsCompetition({
+            name: c.name,
+            slug: c.slug,
+          })
+      )
+      .map((c) => {
       const card: SportsCompetitionCard & { rank: number } = {
         id: c.id,
         slug: c.slug,

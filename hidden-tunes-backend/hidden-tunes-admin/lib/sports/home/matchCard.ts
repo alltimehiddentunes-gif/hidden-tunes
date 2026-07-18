@@ -23,6 +23,7 @@ export type MatchCardParticipantInput = {
 export type MatchCardInput = {
   id: string;
   slug?: string | null;
+  title?: string | null;
   sport: {
     id: string;
     slug: string;
@@ -164,6 +165,7 @@ export function toSportsMatchCard(input: MatchCardInput): SportsMatchCard {
   const card: SportsMatchCard = {
     id: input.id,
     slug: input.slug ?? null,
+    title: input.title ?? null,
     sport: {
       id: input.sport.id,
       slug: input.sport.slug,

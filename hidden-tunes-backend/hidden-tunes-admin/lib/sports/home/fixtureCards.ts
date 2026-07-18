@@ -386,6 +386,7 @@ export async function batchLoadMatchCards(
     return toSportsMatchCard({
       id: fixture.id,
       slug: typeof meta.slug === "string" ? meta.slug : null,
+      title: fixture.title || null,
       sport: {
         id: sport?.id || fixture.sport_id,
         slug: sport?.slug || "unknown",

@@ -85,6 +85,8 @@ export type SportsMatchCard = {
   };
   /** Canonical availability — aligned with playabilitySync / play resolver. */
   availabilityState?: string | null;
+  /** Optional display title when participants are missing. */
+  title?: string | null;
   badges?: string[];
   /** Safe, non-private reason — only when personalization is enabled. */
   recommendationReason?: {
