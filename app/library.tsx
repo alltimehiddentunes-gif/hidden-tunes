@@ -44,16 +44,14 @@ import { useLocalization } from "../localization";
 import type { TranslationKey } from "../localization";
 
 /**
- * Dev-only Sports Preview entry. Never added to HOME_MORE_HUB_SHORTCUTS.
+ * Sports Preview entry in More → Discovery.
+ * Never added to HOME_MORE_HUB_SHORTCUTS — only shown when the pilot flags
+ * are explicitly enabled (Metro .env and Preview eas.json env).
  * Fixture flag controls data only — not whether this navigation card appears.
+ * Must NOT require __DEV__: Preview/standalone builds set __DEV__=false.
  */
 function isSportsPreviewVisible(): boolean {
-  return (
-    __DEV__ &&
-    sportsEnabled &&
-    sportsMobilePilotEnabled &&
-    sportsFullUiEnabled
-  );
+  return sportsEnabled && sportsMobilePilotEnabled && sportsFullUiEnabled;
 }
 
 type LibrarySection = {
@@ -280,7 +278,7 @@ export default function LibraryScreen() {
                 {
                   id: "sports-preview",
                   title: "Sports Preview",
-                  eyebrow: "Dev-only live Sports pilot",
+                  eyebrow: "Live Sports pilot",
                   icon: "football-outline" as keyof typeof Ionicons.glyphMap,
                   href: "/sports",
                   accent: COLORS.cyan,

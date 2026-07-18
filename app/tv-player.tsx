@@ -156,6 +156,7 @@ const TvStreamPlayer = memo(function TvStreamPlayer({
       ref={webViewRef}
       key={`tv-stream-${stationId}-${streamUrl}`}
       allowsInlineMediaPlayback
+      allowsPictureInPictureMediaPlayback
       allowsFullscreenVideo
       cacheEnabled={false}
       incognito
@@ -523,14 +524,16 @@ export default function TvPlayerScreen() {
       const active = nextState === "active";
       setAppActive(active);
       if (!active) {
+        // Keep the live stream playing so iOS PiP / background audio can continue.
+        // Pausing here was killing Picture-in-Picture and background TV playback
+        // in standalone Preview builds (Metro appeared fine under __DEV__ timing).
         wasPlayingBeforeBackgroundRef.current = isStreamPlayingRef.current;
-        pauseTvWebViewPlayback(displayWebViewRef);
-        setIsStreamPlaying(false);
         return;
       }
 
       if (confirmedRef.current?.streamUrl && wasPlayingBeforeBackgroundRef.current) {
         setStreamMounted(true);
+        // Re-assert play after return from background/PiP in case the OS suspended media.
         resumeTvWebViewPlayback(displayWebViewRef);
         setIsStreamPlaying(true);
       }
