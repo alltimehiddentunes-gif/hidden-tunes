@@ -265,7 +265,7 @@ extension HiddenAudioCarPlayManager: CPSearchTemplateDelegate {
   func searchTemplate(
     _ searchTemplate: CPSearchTemplate,
     updatedSearchText searchText: String,
-    completionHandler: @escaping ([CPListItem]) -> Void
+    completionHandler: @escaping ([any CPListTemplateItem]) -> Void
   ) {
     let matches = HiddenAudioCarPlayCatalog.updateSearchResults(query: searchText)
     if matches.isEmpty {
