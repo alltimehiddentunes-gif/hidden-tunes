@@ -24,6 +24,7 @@ import type {
 import {
   SPORTS_COLORS,
   SportsDisabledState,
+  SportsScreenHeader,
   navigateSportsBack,
   useSportsFullUiGate,
   useSportsNowClock,
@@ -118,6 +119,15 @@ export default function SportsPlayerScreen() {
     router.replace(`/sports/player/${encodeURIComponent(card.id)}` as never);
   }, []);
 
+  const leavePlayer = useCallback(() => {
+    abortRef.current?.abort();
+    setSession(null);
+    setFixture(null);
+    setError(null);
+    setLoading(false);
+    navigateSportsBack();
+  }, []);
+
   if (!gate.allowed) {
     return (
       <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
@@ -131,6 +141,7 @@ export default function SportsPlayerScreen() {
     return (
       <SafeAreaView style={styles.root} edges={["top", "bottom"]}>
         <Stack.Screen options={{ headerShown: false }} />
+        <SportsScreenHeader title="Match" onBack={leavePlayer} />
         <SportsEmptyState
           title="Match not found"
           message="This Sports player link is missing a fixture."
@@ -151,8 +162,8 @@ export default function SportsPlayerScreen() {
         errorMessage={error}
         relatedFixtures={fixture?.relatedFixtures}
         nowMs={nowMs}
-        onBack={navigateSportsBack}
-        onClose={navigateSportsBack}
+        onBack={leavePlayer}
+        onClose={leavePlayer}
         onRetry={() => {
           resolvedOnceRef.current = false;
           void resolve();

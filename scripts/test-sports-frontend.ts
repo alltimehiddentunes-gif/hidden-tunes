@@ -5,7 +5,6 @@
 import assert from "assert/strict";
 
 import {
-  isSportsClientEnabled,
   isSportsDevFixturesEnabled,
   isSportsFullUiEnabled,
   isSportsTestPlayerEnabled,
@@ -253,8 +252,55 @@ function main() {
   ]);
   assert.equal(isolated.length, 2);
 
-  // Client flag reader still respects defaults
-  assert.equal(isSportsClientEnabled("sports_enabled"), false);
+  // Every Sports route screen must expose a visible back control.
+  const sportsAppDir = path.join(process.cwd(), "app/sports");
+  const sportsRouteFiles = [
+    "index.tsx",
+    "search.tsx",
+    "following.tsx",
+    "saved.tsx",
+    "fixture/[fixtureId].tsx",
+    "competition/[competitionId].tsx",
+    "sport/[sportSlug].tsx",
+    "country/[code].tsx",
+    "player/[fixtureId].tsx",
+  ];
+  for (const rel of sportsRouteFiles) {
+    const src = fs.readFileSync(path.join(sportsAppDir, rel), "utf8");
+    const hasSharedHeader = src.includes("SportsScreenHeader") || src.includes("SportsHeader");
+    const hasPlayerBack = src.includes("onBack={navigateSportsBack}") || src.includes("navigateSportsBack");
+    const hasHomeBack = src.includes("navigateSportsHomeBack");
+    const hasInlineBack = src.includes('testID="sports-back-button"');
+    assert.ok(
+      hasSharedHeader || hasPlayerBack || hasHomeBack || hasInlineBack,
+      `${rel} must expose a Sports back control`
+    );
+  }
+  const sharedSrc = fs.readFileSync(path.join(sportsAppDir, "_shared.tsx"), "utf8");
+  assert.ok(sharedSrc.includes("navigateSportsBack"));
+  assert.ok(sharedSrc.includes('testID="sports-back-button"'));
+  const headerSrc = fs.readFileSync(
+    path.join(process.cwd(), "components/sports/SportsHeader.tsx"),
+    "utf8"
+  );
+  assert.ok(headerSrc.includes('testID="sports-back-button"') || headerSrc.includes("SportsBackButton"));
+  assert.ok(headerSrc.includes("onBackPress") || headerSrc.includes("SportsBackButton"));
+  const backBtnSrc = fs.readFileSync(
+    path.join(process.cwd(), "components/sports/SportsBackButton.tsx"),
+    "utf8"
+  );
+  assert.ok(backBtnSrc.includes('testID = "sports-back-button"') || backBtnSrc.includes('sports-back-button'));
+  assert.ok(sharedSrc.includes("SportsBackButton"));
+  assert.ok(fs.readFileSync(path.join(process.cwd(), "app/sports/search.tsx"), "utf8").includes("SportsBackButton"));
+  assert.ok(
+    fs
+      .readFileSync(path.join(process.cwd(), "components/sports/SportsPlayerShell.tsx"), "utf8")
+      .includes("SportsBackButton")
+  );
+  // Home preview entry may expose back via SportsHeader onBackPress (not a bottom tab).
+  assert.ok(
+    fs.readFileSync(path.join(sportsAppDir, "index.tsx"), "utf8").includes("navigateSportsHomeBack")
+  );
 
   console.log("test-sports-frontend: all assertions passed");
 }

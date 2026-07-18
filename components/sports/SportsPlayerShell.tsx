@@ -22,6 +22,7 @@ import type {
   SportsPlaybackSession,
 } from "@/types/sports";
 
+import SportsBackButton from "./SportsBackButton";
 import SportsHorizontalShelf from "./SportsHorizontalShelf";
 import SportsMatchCard from "./SportsMatchCard";
 import SportsStatusBadge from "./SportsStatusBadge";
@@ -139,6 +140,7 @@ function PlayerSurface({
   if (embedUrl && embedUrl !== "about:blank") {
     return (
       <WebView
+        key={embedUrl}
         source={{ uri: embedUrl }}
         style={styles.webView}
         allowsInlineMediaPlayback
@@ -234,14 +236,7 @@ function SportsPlayerShell({
     <View style={styles.root}>
       <View style={styles.topBar}>
         {onBack ? (
-          <TouchableOpacity
-            onPress={handleBack}
-            style={styles.iconBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="chevron-back" size={22} color={SPORTS_COLORS.text} />
-          </TouchableOpacity>
+          <SportsBackButton onPress={handleBack} />
         ) : (
           <View style={styles.iconBtn} />
         )}

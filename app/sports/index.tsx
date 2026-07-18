@@ -57,7 +57,7 @@ import {
 } from "../../utils/tapPressGuard";
 import { getSportsWatchAction, shouldOpenSportsPlayer } from "../../lib/sports/ui/availability";
 
-import { SPORTS_COLORS, SportsDisabledState, useSportsFullUiGate, useSportsNowClock } from "./_shared";
+import { SPORTS_COLORS, SportsDisabledState, navigateSportsHomeBack, useSportsFullUiGate, useSportsNowClock } from "./_shared";
 
 type DevProfile = "anonymous" | "football" | "basketball";
 
@@ -337,7 +337,11 @@ function SportsHomeInner() {
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <SportsHeader onSearchPress={goSearch} onFollowingPress={goFollowing} />
+      <SportsHeader
+        onBackPress={navigateSportsHomeBack}
+        onSearchPress={goSearch}
+        onFollowingPress={goFollowing}
+      />
 
       <View style={styles.savedLinkRow}>
         <Pressable style={styles.savedLinkBtn} onPress={goSaved} hitSlop={8}>

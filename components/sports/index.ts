@@ -41,5 +41,6 @@ export {
 } from "./SportsSkeleton";
 
 export { default as SportsHeader } from "./SportsHeader";
+export { default as SportsBackButton } from "./SportsBackButton";
 
 export { default as SportsPlayerShell } from "./SportsPlayerShell";

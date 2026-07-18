@@ -5,7 +5,10 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { SPORTS_COLORS } from "@/lib/sports/ui/sportsTheme";
 
+import SportsBackButton from "./SportsBackButton";
+
 type SportsHeaderProps = {
+  onBackPress?: () => void;
   onSearchPress?: () => void;
   onFollowingPress?: () => void;
   followingBadgeCount?: number;
@@ -13,6 +16,7 @@ type SportsHeaderProps = {
 };
 
 function SportsHeader({
+  onBackPress,
   onSearchPress,
   onFollowingPress,
   followingBadgeCount,
@@ -21,7 +25,9 @@ function SportsHeader({
   const showFollowingBadge = typeof followingBadgeCount === "number" && followingBadgeCount > 0;
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, style]} testID="sports-screen-header">
+      {onBackPress ? <SportsBackButton onPress={onBackPress} /> : null}
+
       <View style={styles.copy}>
         <Text style={styles.title}>Sports</Text>
         <Text style={styles.subtitle} numberOfLines={1}>

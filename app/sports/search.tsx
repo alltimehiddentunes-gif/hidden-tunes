@@ -19,6 +19,7 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  SportsBackButton,
   SportsCompetitionShelf,
   SportsEmptyState,
   SportsErrorState,
@@ -42,7 +43,7 @@ import type {
 } from "../../types/sports";
 import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../utils/tapPressGuard";
 
-import { SPORTS_COLORS, SportsDisabledState, useSportsFullUiGate, useSportsNowClock } from "./_shared";
+import { SPORTS_COLORS, SportsDisabledState, navigateSportsBack, useSportsFullUiGate, useSportsNowClock } from "./_shared";
 
 const DEBOUNCE_MS = 350;
 
@@ -167,9 +168,7 @@ export default function SportsSearchScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <View style={styles.searchBarRow}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={22} color={SPORTS_COLORS.text} />
-        </Pressable>
+        <SportsBackButton onPress={navigateSportsBack} />
         <View style={styles.searchInputWrap}>
           <Ionicons name="search-outline" size={16} color={SPORTS_COLORS.textDim} />
           <TextInput
@@ -275,14 +274,6 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: SPORTS_COLORS.surfaceGlass,
   },
   searchInputWrap: {
     flex: 1,
