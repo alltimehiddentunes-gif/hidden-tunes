@@ -39,19 +39,27 @@ export async function listSportsFixturesFiltered(
   const now = input.now ?? new Date();
 
   let sportId = input.sportId || null;
-  if (!sportId && input.sportSlug) {
+  const rawSlug = String(input.sportSlug || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+  if (!sportId && rawSlug) {
     const { data } = await supabaseAdmin
       .from("sports")
       .select("id")
-      .eq("slug", input.sportSlug)
+      .eq("slug", rawSlug)
       .maybeSingle();
     sportId = data?.id || null;
+    // Unknown slug must not widen to all sports (would hide filter bugs).
+    if (!sportId) {
+      return { items: [], nextCursor: null, limit };
+    }
   }
 
   let query = supabaseAdmin
     .from("sports_fixtures")
     .select(
-      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata"
+      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata, availability_state, playable"
     )
     .order("starts_at", { ascending: true })
     .range(offset, offset + limit);
