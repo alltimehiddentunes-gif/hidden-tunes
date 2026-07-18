@@ -1263,6 +1263,14 @@ export default function SearchScreen() {
       title: artist.name,
       query: cleanSubmittedSearchQuery,
     });
+    const artistId = String(artist.id || "").trim();
+    if (artistId && artistId !== "undefined" && artistId !== "null" && !/^\d+$/.test(artistId)) {
+      router.push({
+        pathname: "/artist/[id]",
+        params: { id: artistId },
+      } as any);
+      return;
+    }
     router.push({
       pathname: "/artist",
       params: {

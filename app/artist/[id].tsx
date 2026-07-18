@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,14 +14,12 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ArtistTrackRow from "../../components/catalog/ArtistTrackRow";
-import FavoriteButton from "../../components/FavoriteButton";
 import HTImage from "../../components/HTImage";
-import PremiumBackground from "../../components/PremiumBackground";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
-import { buildArtistFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
@@ -28,15 +28,34 @@ import {
   extractHiddenTunesArtists,
   getHiddenTunesArtistById,
   getHiddenTunesCatalogSnapshot,
+  getHiddenTunesSongsPage,
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import { getCachedHiddenTunesCatalog } from "../../services/hiddenTunes";
+import {
+  ArtistProfileApiError,
+  artistReleaseTypeLabel,
+  fetchArtistAbout,
+  fetchArtistProfileShell,
+  fetchArtistReleases,
+  fetchArtistSimilar,
+  fetchArtistTopSongs,
+  followArtistProfile,
+  getCachedArtistFollowState,
+  setCachedArtistFollowState,
+  unfollowArtistProfile,
+  type ArtistProfileAbout,
+  type ArtistProfileRelease,
+  type ArtistProfileShell,
+  type ArtistProfileSimilarArtist,
+} from "../../services/artistProfileApi";
+import {
+  getCurrentSupabaseAccessToken,
+  getCurrentSupabaseSessionSummary,
+} from "../../services/mobileSupabaseAuth";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
-import { logEntityTapReceived } from "../../utils/entityDiagnostics";
-import { mergeApiTracksWithCatalogArtist } from "../../utils/entityResolution";
 import { shouldResetCatalogFallbackGate } from "../../utils/catalogEmptyStateTiming";
 import {
   logApiRefresh,
@@ -49,15 +68,23 @@ import {
 import { trackRenderProbe } from "../../utils/renderDiagnostics";
 import {
   createStableKeyExtractor,
-  getHorizontalListPerformanceSettings,
   getListPerformanceSettings,
   markFastScrolling,
 } from "../../utils/performanceMode";
+import { scheduleDelayedNonEssentialWork } from "../../utils/backgroundWork";
 import {
   loadArtistDetailSnapshot,
   saveArtistDetailSnapshot,
 } from "../../utils/detailSnapshots";
-import { useLocalization } from "@/localization";
+import {
+  canOpenArtistProfileById,
+  resolveArtistFromList,
+} from "../../utils/artistIdentity";
+
+const INITIAL_TRACK_PAGE_SIZE = 20;
+const INITIAL_RELEASE_PAGE_SIZE = 24;
+const INITIAL_SIMILAR_PAGE_SIZE = 12;
+const ARTIST_MINI_PLAYER_BOTTOM_PADDING = 150;
 
 function getArtwork(item: any) {
   return getArtworkUri(item);
@@ -104,110 +131,118 @@ function safeSong(song: HiddenTunesNormalizedSong): HiddenTunesNormalizedSong {
   };
 }
 
-function normalizeLookup(value: unknown) {
-  return String(value || "")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+function findArtistById(artists: HiddenTunesArtist[], id: string) {
+  if (!canOpenArtistProfileById(id)) return null;
+  return resolveArtistFromList(artists, id);
 }
 
-function findArtistById(artists: HiddenTunesArtist[], id: string) {
-  const cleanId = normalizeLookup(id);
+function mapProfileReleaseToAlbum(
+  release: ArtistProfileRelease,
+  artistName: string,
+): HiddenTunesAlbum {
+  return {
+    id: release.id,
+    title: release.title,
+    slug: release.slug || release.id,
+    artist: artistName,
+    artistId: release.artist_id || undefined,
+    artwork: release.artwork || "",
+    releaseType: release.release_type || "unknown",
+    tracks: [],
+  };
+}
 
-  return (
-    artists.find(
-      (artist) =>
-        artist.id === id ||
-        normalizeLookup(artist.id) === cleanId ||
-        normalizeLookup(artist.slug) === cleanId ||
-        normalizeLookup(artist.name) === cleanId
-    ) || null
-  );
+function mergeArtistWithProfile(
+  base: HiddenTunesArtist,
+  shell: ArtistProfileShell,
+): HiddenTunesArtist {
+  return {
+    ...base,
+    id: shell.artist.id || base.id,
+    name: shell.artist.name || base.name,
+    slug: shell.artist.slug || base.slug,
+    artwork: shell.artist.artwork || base.artwork,
+    image_url: shell.artist.artwork || base.image_url,
+    bio: shell.artist.bio || base.bio,
+    genre: shell.artist.genres[0] || base.genre,
+  };
 }
 
 export default function ArtistScreen() {
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const { playSong } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
-  const { t } = useLocalization();
   const screenStartedAt = useRef(startPerformanceTimer()).current;
-
-  const musicUi = useMemo(
-    () => ({
-      creatorWorld: t("music.artist.creatorWorld"),
-      playArtist: t("music.artist.playArtist"),
-      openingWorld: t("music.artist.openingWorld"),
-      checkingCached: t("music.artist.checkingCached"),
-      unavailableTitle: t("music.artist.unavailableTitle"),
-      unavailableDescription: t("music.artist.unavailableDescription"),
-      goBack: t("music.common.goBack"),
-      releases: t("music.artist.releases"),
-      releasesSubtitle: t("music.artist.releasesSubtitle"),
-      essentialTracks: t("music.artist.essentialTracks"),
-      essentialTracksSubtitle: t("music.artist.essentialTracksSubtitle"),
-      noSongsTitle: t("music.artist.noSongsTitle"),
-      noSongsDescription: t("music.artist.noSongsDescription"),
-      formatSongs: (count: number) =>
-        count === 1
-          ? t("music.counts.oneSong", { count })
-          : t("music.counts.songs", { count }),
-      formatAlbums: (count: number) =>
-        count === 1
-          ? t("music.counts.oneAlbum", { count })
-          : t("music.counts.albums", { count }),
-      formatTracks: (count: number) =>
-        count === 1
-          ? t("music.counts.oneTrack", { count })
-          : t("music.counts.tracks", { count }),
-      artistMeta: (songCount: number, albumCount: number, genre?: string) => {
-        const base = t("music.counts.songMeta", {
-          songs:
-            songCount === 1
-              ? t("music.counts.oneSong", { count: songCount })
-              : t("music.counts.songs", { count: songCount }),
-          albums:
-            albumCount === 1
-              ? t("music.counts.oneAlbum", { count: albumCount })
-              : t("music.counts.albums", { count: albumCount }),
-        });
-        return genre ? `${base} • ${genre}` : base;
-      },
-    }),
-    [t]
-  );
+  const refreshAbortRef = useRef<AbortController | null>(null);
 
   const [artist, setArtist] = useState<HiddenTunesArtist | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasCheckedFallbacks, setHasCheckedFallbacks] = useState(false);
+  const [profileShell, setProfileShell] = useState<ArtistProfileShell | null>(null);
+  const [profileAbout, setProfileAbout] = useState<ArtistProfileAbout | null>(null);
+  const [profileReleases, setProfileReleases] = useState<HiddenTunesAlbum[]>([]);
+  const [releasesHasMore, setReleasesHasMore] = useState(false);
+  const [releasesCursor, setReleasesCursor] = useState<string | null>(null);
+  const [loadingMoreReleases, setLoadingMoreReleases] = useState(false);
+  const [tracksHasMore, setTracksHasMore] = useState(false);
+  const [tracksNextPage, setTracksNextPage] = useState(2);
+  const [loadingMoreTracks, setLoadingMoreTracks] = useState(false);
+  const [trackSectionLabel, setTrackSectionLabel] = useState("Essential Tracks");
+  const [similarArtists, setSimilarArtists] = useState<ArtistProfileSimilarArtist[]>([]);
+  const [similarHasMore, setSimilarHasMore] = useState(false);
+  const [similarCursor, setSimilarCursor] = useState<string | null>(null);
+  const [loadingMoreSimilar, setLoadingMoreSimilar] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followAvailable, setFollowAvailable] = useState(true);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
   const artistRef = useRef<HiddenTunesArtist | null>(null);
-  const loadRequestIdRef = useRef(0);
+  const requestGenerationRef = useRef(0);
+  const profileArtistIdRef = useRef<string | null>(null);
+  const followInFlightRef = useRef(false);
 
-  const tracks = useMemo(() => {
-    const apiTracks = (artist?.tracks || []).map(safeSong);
-    const catalog = getCachedHiddenTunesCatalog();
-    const merged = mergeApiTracksWithCatalogArtist(apiTracks, catalog, {
-      id: String(id || ""),
-      artist: artist?.name,
-      name: artist?.name,
-    }).map((song) => safeSong(song as HiddenTunesNormalizedSong));
-    return merged;
-  }, [artist?.name, artist?.tracks, id]);
+  const tracks = useMemo(
+    () => (artist?.tracks || []).map(safeSong),
+    [artist?.tracks]
+  );
 
-  const albums = useMemo(() => artist?.albums || [], [artist?.albums]);
+  const albums = useMemo(() => {
+    if (profileReleases.length > 0) return profileReleases;
+    return artist?.albums || [];
+  }, [artist?.albums, profileReleases]);
+
+  const genreLabel = useMemo(() => {
+    if (profileShell?.artist.genres?.length) {
+      return profileShell.artist.genres.slice(0, 3).join(" ┬À ");
+    }
+    return artist?.genre || "";
+  }, [artist?.genre, profileShell?.artist.genres]);
+
+  const bioText = useMemo(() => {
+    return String(profileAbout?.bio || profileShell?.artist.bio || artist?.bio || "").trim();
+  }, [artist?.bio, profileAbout?.bio, profileShell?.artist.bio]);
+
+  const followerLabel = useMemo(() => {
+    if (!followerCount || followerCount <= 0) return null;
+    return `${followerCount} follower${followerCount === 1 ? "" : "s"}`;
+  }, [followerCount]);
   const listPerformance = useMemo(
     () => getListPerformanceSettings(tracks.length),
     [tracks.length]
   );
-  const albumListTuning = useMemo(
-    () => getHorizontalListPerformanceSettings(albums.length),
-    [albums.length]
-  );
   const trackKeyExtractor = useMemo(
     () => createStableKeyExtractor("artist-track"),
     []
+  );
+  const listBottomPadding = useMemo(
+    () =>
+      ARTIST_MINI_PLAYER_BOTTOM_PADDING +
+      Math.max(insets.bottom, 0) +
+      (currentSong ? 24 : 0),
+    [currentSong, insets.bottom]
   );
 
   useEffect(() => trackRenderProbe("ArtistScreen"), []);
@@ -217,47 +252,44 @@ export default function ArtistScreen() {
   }, [artist]);
 
   const loadArtist = useCallback(
-    async (showLoader = true, allowClearOnMiss = false) => {
-      const artistId = String(id || "").trim();
-      if (!artistId) {
-        setArtist(null);
-        setHasCheckedFallbacks(true);
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
-
-      const requestId = ++loadRequestIdRef.current;
-      const isActive = () => loadRequestIdRef.current === requestId;
+    async (showLoader = true, signal?: AbortSignal) => {
+      const artistId = String(id || "");
+      const requestGeneration = ++requestGenerationRef.current;
       let showedCachedArtist = false;
       const refreshStart = startPerformanceTimer();
 
       try {
         if (shouldResetCatalogFallbackGate(artistRef.current?.tracks?.length || 0)) {
-          if (!isActive()) return;
           setHasCheckedFallbacks(false);
         }
         if (showLoader && !artistRef.current) setLoading(true);
 
         const snapshotArtist = await loadArtistDetailSnapshot(artistId);
-        if (!isActive()) return;
+        if (requestGeneration !== requestGenerationRef.current || signal?.aborted) return;
         if (snapshotArtist) {
-          setArtist(snapshotArtist);
+          // Bound cached tracks so idle open never paints hundreds of rows.
+          const boundedSnapshot = {
+            ...snapshotArtist,
+            tracks: (snapshotArtist.tracks || []).slice(0, INITIAL_TRACK_PAGE_SIZE),
+          };
+          setArtist(boundedSnapshot);
+          setTracksHasMore((snapshotArtist.tracks || []).length > INITIAL_TRACK_PAGE_SIZE);
+          setTracksNextPage(2);
           setLoading(false);
           showedCachedArtist = true;
           logCacheResult("artist", true, {
             id: artistId,
-            tracks: snapshotArtist.tracks.length,
+            tracks: boundedSnapshot.tracks.length,
             snapshot: true,
           });
           logScreenReady("artist", screenStartedAt, {
             cache: "hit",
-            tracks: snapshotArtist.tracks.length,
+            tracks: boundedSnapshot.tracks.length,
           });
           logPerformanceSummary("artist", {
             cache: "hit",
             firstContentMs: Date.now() - screenStartedAt,
-            itemCount: snapshotArtist.tracks.length,
+            itemCount: boundedSnapshot.tracks.length,
           });
         }
 
@@ -270,67 +302,263 @@ export default function ArtistScreen() {
           const cachedSongs = memoryArtist
             ? memorySongs
             : await hydrateHiddenTunesCatalogCache();
-          if (!isActive()) return;
+          if (requestGeneration !== requestGenerationRef.current || signal?.aborted) return;
           const cachedArtist =
             memoryArtist ||
             findArtistById(extractHiddenTunesArtists(cachedSongs), artistId);
 
           if (cachedArtist) {
-            setArtist(cachedArtist);
+            const boundedCached = {
+              ...cachedArtist,
+              tracks: (cachedArtist.tracks || []).slice(0, INITIAL_TRACK_PAGE_SIZE),
+            };
+            setArtist(boundedCached);
+            setTracksHasMore((cachedArtist.tracks || []).length > INITIAL_TRACK_PAGE_SIZE);
+            setTracksNextPage(2);
             setLoading(false);
             showedCachedArtist = true;
             logCacheResult("artist", true, {
               id: artistId,
-              tracks: cachedArtist.tracks.length,
+              tracks: boundedCached.tracks.length,
               source: memoryArtist ? "memory" : "storage",
             });
             logScreenReady("artist", screenStartedAt, {
               cache: "hit",
-              tracks: cachedArtist.tracks.length,
+              tracks: boundedCached.tracks.length,
             });
             logPerformanceSummary("artist", {
               cache: "hit",
               firstContentMs: Date.now() - screenStartedAt,
-              itemCount: cachedArtist.tracks.length,
+              itemCount: boundedCached.tracks.length,
             });
           } else {
             logCacheResult("artist", false, { id: artistId });
           }
         }
 
-        const data = await getHiddenTunesArtistById(artistId);
-        if (!isActive()) return;
-        logApiRefresh("artist", refreshStart, {
-          id: artistId,
-          found: Boolean(data),
-          tracks: data?.tracks.length || 0,
-        });
-        logPerformanceSummary("artist", {
-          cache: showedCachedArtist ? "hit" : "miss",
-          apiRefreshMs: Date.now() - refreshStart,
-          itemCount: data?.tracks.length || 0,
-          emptyStateReason: data
-            ? "content_available"
-            : "cache_api_and_fallback_empty",
-        });
+        const applyCatalogFallback = async () => {
+          const data = await getHiddenTunesArtistById(artistId);
+          if (requestGeneration !== requestGenerationRef.current || signal?.aborted) return false;
+          logApiRefresh("artist", refreshStart, {
+            id: artistId,
+            found: Boolean(data),
+            tracks: data?.tracks.length || 0,
+          });
+          logPerformanceSummary("artist", {
+            cache: showedCachedArtist ? "hit" : "miss",
+            apiRefreshMs: Date.now() - refreshStart,
+            itemCount: data?.tracks.length || 0,
+            emptyStateReason: data
+              ? "content_available"
+              : "cache_api_and_fallback_empty",
+          });
 
-        if (data) {
-          setArtist(data);
-          void saveArtistDetailSnapshot(data);
-          if (!showedCachedArtist) {
-            logScreenReady("artist", screenStartedAt, {
-              cache: "miss",
-              tracks: data.tracks.length,
-            });
+          if (data) {
+            const bounded = {
+              ...data,
+              tracks: (data.tracks || []).slice(0, INITIAL_TRACK_PAGE_SIZE),
+            };
+            setArtist((previous) =>
+              previous
+                ? {
+                    ...previous,
+                    ...bounded,
+                    tracks: bounded.tracks,
+                    albums: bounded.albums,
+                  }
+                : bounded,
+            );
+            setTracksHasMore((data.tracks || []).length >= INITIAL_TRACK_PAGE_SIZE);
+            setTracksNextPage(2);
+            void saveArtistDetailSnapshot(bounded);
+            if (!showedCachedArtist) {
+              logScreenReady("artist", screenStartedAt, {
+                cache: "miss",
+                tracks: bounded.tracks.length,
+              });
+            }
+            return true;
           }
-        } else if (!showedCachedArtist && (allowClearOnMiss || !artistRef.current)) {
-          setArtist(null);
+
+          if (!showedCachedArtist) {
+            setArtist(null);
+          }
+          return false;
+        };
+
+        const loadSimilarDeferred = (canonicalId: string) => {
+          scheduleDelayedNonEssentialWork(() => {
+            if (requestGeneration !== requestGenerationRef.current || signal?.aborted) {
+              return;
+            }
+            void fetchArtistSimilar(canonicalId, {
+              limit: INITIAL_SIMILAR_PAGE_SIZE,
+              signal,
+            })
+              .then((similarPage) => {
+                if (requestGeneration !== requestGenerationRef.current || signal?.aborted) {
+                  return;
+                }
+                const similarItems = (similarPage?.items || []).filter(
+                  (item) => item.id && item.id !== canonicalId,
+                );
+                const dedupedSimilar: ArtistProfileSimilarArtist[] = [];
+                const seenSimilar = new Set<string>();
+                for (const item of similarItems) {
+                  if (seenSimilar.has(item.id)) continue;
+                  seenSimilar.add(item.id);
+                  dedupedSimilar.push(item);
+                }
+                setSimilarArtists(dedupedSimilar);
+                setSimilarHasMore(similarPage?.pagination.hasMore === true);
+                setSimilarCursor(similarPage?.pagination.nextCursor || null);
+              })
+              .catch(() => {
+                // Optional section ÔÇö keep profile usable when similar fails.
+              });
+          });
+        };
+
+        const applyProfileEnrichment = async () => {
+          try {
+            const tokenResult = await getCurrentSupabaseAccessToken();
+            const token = tokenResult.accessToken;
+
+            const shell = await fetchArtistProfileShell(artistId, {
+              signal,
+              token,
+            });
+            if (requestGeneration !== requestGenerationRef.current || signal?.aborted) {
+              return true;
+            }
+
+            setProfileShell(shell);
+            profileArtistIdRef.current = shell.artist.id;
+
+            setArtist((previous) => {
+              if (previous) return mergeArtistWithProfile(previous, shell);
+              return {
+                id: shell.artist.id,
+                name: shell.artist.name,
+                slug: shell.artist.slug || "",
+                artwork: shell.artist.artwork || "",
+                image_url: shell.artist.artwork || undefined,
+                bio: shell.artist.bio || "",
+                genre: shell.artist.genres[0] || "",
+                tracks: [],
+                albums: [],
+              };
+            });
+            setLoading(false);
+
+            // Follow comes from shell + local cache ÔÇö no duplicate GET.
+            const cachedFollow = getCachedArtistFollowState(shell.artist.id);
+            const initialFollowing =
+              cachedFollow?.is_following ?? shell.viewer.is_following === true;
+            const initialAvailable =
+              cachedFollow?.available ?? shell.viewer.follow_available !== false;
+            const initialFollowers =
+              cachedFollow?.follower_count ??
+              (Number(shell.statistics.follower_count) || 0);
+            setIsFollowing(initialFollowing);
+            setFollowAvailable(initialAvailable);
+            setFollowerCount(initialFollowers);
+            setCachedArtistFollowState({
+              artist_id: shell.artist.id,
+              is_following: initialFollowing,
+              follower_count: initialFollowers,
+              available: initialAvailable,
+            });
+
+            const [releasesPage, about, topSongsPage, songsPage] = await Promise.all([
+              fetchArtistReleases(shell.artist.id, {
+                limit: INITIAL_RELEASE_PAGE_SIZE,
+                signal,
+              }).catch(() => null),
+              fetchArtistAbout(shell.artist.id, { signal }).catch(() => null),
+              fetchArtistTopSongs(shell.artist.id, {
+                limit: 5,
+                signal,
+              }).catch(() => null),
+              getHiddenTunesSongsPage({
+                page: 1,
+                limit: INITIAL_TRACK_PAGE_SIZE,
+                artistId: shell.artist.id,
+              }).catch(() => null),
+            ]);
+            if (requestGeneration !== requestGenerationRef.current || signal?.aborted) {
+              return true;
+            }
+
+            if (releasesPage?.items?.length) {
+              setProfileReleases(
+                releasesPage.items.map((release) =>
+                  mapProfileReleaseToAlbum(release, shell.artist.name),
+                ),
+              );
+              setReleasesHasMore(releasesPage.pagination.hasMore);
+              setReleasesCursor(releasesPage.pagination.nextCursor);
+            } else {
+              setProfileReleases([]);
+              setReleasesHasMore(false);
+              setReleasesCursor(null);
+            }
+            if (about) setProfileAbout(about);
+            if (topSongsPage?.ranking?.label) {
+              setTrackSectionLabel(topSongsPage.ranking.label);
+            } else {
+              setTrackSectionLabel("Essential Tracks");
+            }
+
+            if (songsPage?.songs?.length) {
+              setArtist((previous) => {
+                const next: HiddenTunesArtist = previous
+                  ? { ...previous, tracks: songsPage.songs }
+                  : {
+                      id: shell.artist.id,
+                      name: shell.artist.name,
+                      slug: shell.artist.slug || "",
+                      artwork: shell.artist.artwork || "",
+                      tracks: songsPage.songs,
+                      albums: [],
+                    };
+                void saveArtistDetailSnapshot(next);
+                return next;
+              });
+              setTracksHasMore(songsPage.hasMore === true);
+              setTracksNextPage(songsPage.nextPage || 2);
+            }
+
+            logApiRefresh("artist", refreshStart, {
+              id: artistId,
+              found: true,
+              tracks: songsPage?.songs?.length || 0,
+              profile: true,
+            });
+
+            loadSimilarDeferred(shell.artist.id);
+            return true;
+          } catch (error) {
+            if (signal?.aborted) return true;
+            if (error instanceof ArtistProfileApiError && __DEV__) {
+              console.log("Artist profile enrichment skipped:", error.message);
+            }
+            return false;
+          }
+        };
+
+        const enriched = await applyProfileEnrichment();
+        if (requestGeneration !== requestGenerationRef.current || signal?.aborted) return;
+        if (!enriched) {
+          await applyCatalogFallback();
         }
       } catch (error) {
         console.log("Load artist error:", error);
-        if (isActive() && !showedCachedArtist) setArtist(null);
+        if (!showedCachedArtist && requestGeneration === requestGenerationRef.current) {
+          setArtist(null);
+        }
       } finally {
-        if (isActive()) {
+        if (requestGeneration === requestGenerationRef.current) {
           setHasCheckedFallbacks(true);
           setLoading(false);
           setRefreshing(false);
@@ -341,16 +569,40 @@ export default function ArtistScreen() {
   );
 
   useEffect(() => {
-    logEntityTapReceived("artist", { id: String(id || "") });
-    void loadArtist(true);
+    refreshAbortRef.current?.abort();
+    const abortController = new AbortController();
+    refreshAbortRef.current = abortController;
+    setProfileShell(null);
+    setProfileAbout(null);
+    setProfileReleases([]);
+    setReleasesHasMore(false);
+    setReleasesCursor(null);
+    setTracksHasMore(false);
+    setTracksNextPage(2);
+    setTrackSectionLabel("Essential Tracks");
+    setSimilarArtists([]);
+    setSimilarHasMore(false);
+    setSimilarCursor(null);
+    setIsFollowing(false);
+    setFollowAvailable(true);
+    setFollowerCount(0);
+    setFollowBusy(false);
+    followInFlightRef.current = false;
+    profileArtistIdRef.current = null;
+    setAboutExpanded(false);
+    void loadArtist(true, abortController.signal);
     return () => {
-      loadRequestIdRef.current += 1;
+      requestGenerationRef.current += 1;
+      abortController.abort();
     };
   }, [id, loadArtist]);
 
   async function onRefresh() {
+    refreshAbortRef.current?.abort();
+    const abortController = new AbortController();
+    refreshAbortRef.current = abortController;
     setRefreshing(true);
-    await loadArtist(false);
+    await loadArtist(false, abortController.signal);
   }
 
   const handlePlay = useCallback(
@@ -363,14 +615,7 @@ export default function ArtistScreen() {
         tracks.findIndex((item) => item.id === normalized.id)
       );
 
-      void playSong(normalized as any, tracks as any, startIndex, {
-        source: "artist",
-        label: artist?.name || String(id || "Artist"),
-        artistId: String(artist?.id || id || ""),
-        artistName: artist?.name,
-        genre: normalized.genre,
-        mood: normalized.mood,
-      })
+      void playSong(normalized as any, tracks as any, startIndex)
         .finally(() => {
           logTapToPlay("artist", tapStartedAt, { id: normalized.id });
         })
@@ -379,7 +624,7 @@ export default function ArtistScreen() {
         });
 
       requestAnimationFrame(() => {
-        router.push("/music-feed" as any);
+        router.push("/player" as any);
       });
     },
     [playSong, tracks]
@@ -390,14 +635,7 @@ export default function ArtistScreen() {
 
     const tapStartedAt = startPerformanceTimer();
 
-    void playSong(tracks[0] as any, tracks as any, 0, {
-      source: "artist",
-      label: artist?.name || String(id || "Artist"),
-      artistId: String(artist?.id || id || ""),
-      artistName: artist?.name,
-      genre: tracks[0]?.genre,
-      mood: tracks[0]?.mood,
-    })
+    void playSong(tracks[0] as any, tracks as any, 0)
       .finally(() => {
         logTapToPlay("artist", tapStartedAt, { id: tracks[0]?.id });
       })
@@ -406,7 +644,7 @@ export default function ArtistScreen() {
       });
 
     requestAnimationFrame(() => {
-      router.push("/music-feed" as any);
+      router.push("/player" as any);
     });
   }
 
@@ -416,14 +654,7 @@ export default function ArtistScreen() {
     const shuffled = shuffleSongs(tracks);
     const tapStartedAt = startPerformanceTimer();
 
-    void playSong(shuffled[0] as any, shuffled as any, 0, {
-      source: "artist",
-      label: artist?.name || String(id || "Artist"),
-      artistId: String(artist?.id || id || ""),
-      artistName: artist?.name,
-      genre: shuffled[0]?.genre,
-      mood: shuffled[0]?.mood,
-    })
+    void playSong(shuffled[0] as any, shuffled as any, 0)
       .finally(() => {
         logTapToPlay("artist", tapStartedAt, { id: shuffled[0]?.id });
       })
@@ -432,7 +663,7 @@ export default function ArtistScreen() {
       });
 
     requestAnimationFrame(() => {
-      router.push("/music-feed" as any);
+      router.push("/player" as any);
     });
   }
 
@@ -443,15 +674,188 @@ export default function ArtistScreen() {
     } as any);
   }
 
+  async function loadMoreReleases() {
+    const artistId = profileArtistIdRef.current;
+    if (!artistId || !releasesHasMore || !releasesCursor || loadingMoreReleases) return;
+    setLoadingMoreReleases(true);
+    try {
+      const page = await fetchArtistReleases(artistId, {
+        limit: INITIAL_RELEASE_PAGE_SIZE,
+        cursor: releasesCursor,
+      });
+      const artistName = profileShell?.artist.name || artist?.name || "";
+      setProfileReleases((previous) => {
+        const seen = new Set(previous.map((item) => item.id));
+        const appended = page.items
+          .map((release) => mapProfileReleaseToAlbum(release, artistName))
+          .filter((item) => !seen.has(item.id));
+        return [...previous, ...appended];
+      });
+      setReleasesHasMore(page.pagination.hasMore);
+      setReleasesCursor(page.pagination.nextCursor);
+    } catch {
+      // Keep already-loaded releases when pagination fails.
+    } finally {
+      setLoadingMoreReleases(false);
+    }
+  }
+
+  async function loadMoreTracks() {
+    const artistId = profileArtistIdRef.current || String(artist?.id || "");
+    if (!artistId || !tracksHasMore || loadingMoreTracks) return;
+    if (tracks.length >= 40) {
+      setTracksHasMore(false);
+      return;
+    }
+    setLoadingMoreTracks(true);
+    try {
+      const page = await getHiddenTunesSongsPage({
+        page: tracksNextPage,
+        limit: INITIAL_TRACK_PAGE_SIZE,
+        artistId,
+      });
+      setArtist((previous) => {
+        if (!previous) return previous;
+        const seen = new Set(previous.tracks.map((item) => item.id));
+        const appended = page.songs.filter((item) => !seen.has(item.id));
+        const merged = [...previous.tracks, ...appended].slice(0, 40);
+        return { ...previous, tracks: merged };
+      });
+      const reachedCap = tracks.length + page.songs.length >= 40;
+      setTracksHasMore(page.hasMore === true && !reachedCap);
+      setTracksNextPage(page.nextPage || tracksNextPage + 1);
+    } catch {
+      // Keep already-loaded tracks when pagination fails.
+    } finally {
+      setLoadingMoreTracks(false);
+    }
+  }
+
+  async function loadMoreSimilar() {
+    const artistId = profileArtistIdRef.current;
+    if (!artistId || !similarHasMore || !similarCursor || loadingMoreSimilar) return;
+    setLoadingMoreSimilar(true);
+    try {
+      const page = await fetchArtistSimilar(artistId, {
+        limit: 12,
+        cursor: similarCursor,
+      });
+      setSimilarArtists((previous) => {
+        const seen = new Set(previous.map((item) => item.id));
+        const appended = page.items.filter(
+          (item) => item.id && item.id !== artistId && !seen.has(item.id),
+        );
+        return [...previous, ...appended];
+      });
+      setSimilarHasMore(page.pagination.hasMore);
+      setSimilarCursor(page.pagination.nextCursor);
+    } catch {
+      // Keep already-loaded similar artists when pagination fails.
+    } finally {
+      setLoadingMoreSimilar(false);
+    }
+  }
+
+  function openSimilarArtist(similar: ArtistProfileSimilarArtist) {
+    if (!canOpenArtistProfileById(similar.id)) return;
+    router.push({
+      pathname: "/artist/[id]",
+      params: { id: similar.id },
+    } as any);
+  }
+
+  async function toggleFollow() {
+    const artistUuid = profileArtistIdRef.current || String(artist?.id || "");
+    if (!canOpenArtistProfileById(artistUuid)) return;
+    if (!followAvailable) {
+      Alert.alert(
+        "Follow unavailable",
+        "Artist follow is not available yet on this server.",
+      );
+      return;
+    }
+    if (followInFlightRef.current || followBusy) return;
+
+    const session = await getCurrentSupabaseSessionSummary();
+    if (!session.isSignedIn) {
+      Alert.alert("Sign in to follow", "Sign in to follow artists and sync across devices.", [
+        { text: "Not now", style: "cancel" },
+        {
+          text: "Sign in",
+          onPress: () => router.push("/artist-submissions" as any),
+        },
+      ]);
+      return;
+    }
+
+    const tokenResult = await getCurrentSupabaseAccessToken();
+    if (!tokenResult.accessToken) {
+      Alert.alert("Sign in to follow", tokenResult.error || "Sign in to follow artists.");
+      return;
+    }
+
+    const previousFollowing = isFollowing;
+    const previousCount = followerCount;
+    const nextFollowing = !previousFollowing;
+    const nextCount = Math.max(0, previousCount + (nextFollowing ? 1 : -1));
+
+    followInFlightRef.current = true;
+    setFollowBusy(true);
+    setIsFollowing(nextFollowing);
+    setFollowerCount(nextCount);
+    setCachedArtistFollowState({
+      artist_id: artistUuid,
+      is_following: nextFollowing,
+      follower_count: nextCount,
+      available: true,
+    });
+
+    try {
+      const result = nextFollowing
+        ? await followArtistProfile(artistUuid, { token: tokenResult.accessToken })
+        : await unfollowArtistProfile(artistUuid, { token: tokenResult.accessToken });
+      setIsFollowing(result.is_following);
+      setFollowerCount(result.follower_count);
+      setFollowAvailable(result.available);
+    } catch (error) {
+      setIsFollowing(previousFollowing);
+      setFollowerCount(previousCount);
+      setCachedArtistFollowState({
+        artist_id: artistUuid,
+        is_following: previousFollowing,
+        follower_count: previousCount,
+        available: followAvailable,
+      });
+      const status = error instanceof ArtistProfileApiError ? error.status : 0;
+      if (status === 503) {
+        setFollowAvailable(false);
+        Alert.alert(
+          "Follow unavailable",
+          "Artist follow is not available yet on this server.",
+        );
+      } else if (status === 401) {
+        Alert.alert("Sign in to follow", "Your session expired. Sign in again to follow artists.");
+      } else {
+        Alert.alert(
+          "Could not update follow",
+          error instanceof Error ? error.message : "Please try again.",
+        );
+      }
+    } finally {
+      followInFlightRef.current = false;
+      setFollowBusy(false);
+    }
+  }
+
   const renderTrackItem = useCallback(
     ({ item, index }: { item: HiddenTunesNormalizedSong; index: number }) => (
       <ArtistTrackRow
         track={item}
         index={index}
         active={currentSong?.id === item.id}
-        isPlaying={currentSong?.id === item.id && isPlaying}
+        isPlaying={isPlaying}
         metaLine={`${item.album || artist?.name || ""}${
-          item.duration ? ` • ${formatDuration(item.duration)}` : ""
+          item.duration ? ` ÔÇó ${formatDuration(item.duration)}` : ""
         }`}
         onPress={handlePlay}
       />
@@ -467,9 +871,8 @@ export default function ArtistScreen() {
   if (loading && !artist) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
-        <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>{musicUi.openingWorld}</Text>
+        <Text style={styles.loadingText}>Opening artist world...</Text>
       </LinearGradient>
     );
   }
@@ -477,14 +880,13 @@ export default function ArtistScreen() {
   if (!artist && hasCheckedFallbacks && !refreshing) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
-        <PremiumBackground variant="entity" />
         <Ionicons name="person-circle-outline" size={70} color={COLORS.textMuted} />
-        <Text style={styles.emptyTitle}>{musicUi.unavailableTitle}</Text>
-        <Text style={styles.emptyText}>{musicUi.unavailableDescription}</Text>
+        <Text style={styles.emptyTitle}>Artist world unavailable</Text>
+        <Text style={styles.emptyText}>Refresh the catalog or return to Search.</Text>
 
         <TouchableOpacity style={styles.emptyButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={18} color="#000" />
-          <Text style={styles.emptyButtonText}>{musicUi.goBack}</Text>
+          <Text style={styles.emptyButtonText}>Go Back</Text>
         </TouchableOpacity>
       </LinearGradient>
     );
@@ -493,24 +895,25 @@ export default function ArtistScreen() {
   if (!artist) {
     return (
       <LinearGradient colors={GRADIENTS.main as any} style={styles.center}>
-        <PremiumBackground variant="entity" />
         <ActivityIndicator color={COLORS.primary} />
-        <Text style={styles.loadingText}>{musicUi.checkingCached}</Text>
+        <Text style={styles.loadingText}>Checking cached artist...</Text>
       </LinearGradient>
     );
   }
 
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.screen}>
-      <PremiumBackground variant="entity" />
-      <View style={styles.glowPurple} />
-      <View style={styles.glowCyan} />
-
       <FlatList
         data={tracks}
         keyExtractor={trackKeyExtractor}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(insets.top, 12) + 12,
+            paddingBottom: listBottomPadding,
+          },
+        ]}
         initialNumToRender={listPerformance.initialNumToRender}
         maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
         windowSize={listPerformance.windowSize}
@@ -530,11 +933,21 @@ export default function ArtistScreen() {
         ListHeaderComponent={
           <>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="chevron-back" size={26} color={COLORS.text} />
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onRefresh} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={onRefresh}
+            style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh artist profile"
+          >
             <Ionicons name="refresh" size={22} color={COLORS.text} />
           </TouchableOpacity>
         </View>
@@ -549,71 +962,139 @@ export default function ArtistScreen() {
           </View>
 
           <View style={styles.artistBadge}>
-            <Ionicons name="cloud-done" size={14} color={COLORS.primary} />
-            <Text style={styles.artistBadgeText}>{musicUi.creatorWorld}</Text>
+            <Ionicons
+              name={profileShell?.artist.is_verified ? "checkmark-circle" : "cloud-done"}
+              size={14}
+              color={COLORS.primary}
+            />
+            <Text style={styles.artistBadgeText}>
+              {profileShell?.artist.is_verified ? "VERIFIED ARTIST" : "CREATOR WORLD"}
+            </Text>
           </View>
 
-          <Text style={styles.name}>{artist.name}</Text>
+          <Text style={styles.name} numberOfLines={2}>
+            {artist.name}
+          </Text>
 
           <Text style={styles.meta}>
-            {musicUi.artistMeta(tracks.length, albums.length, artist.genre)}
+            {tracks.length}
+            {tracksHasMore ? "+" : ""} song{tracks.length === 1 ? "" : "s"} ÔÇó{" "}
+            {albums.length}
+            {releasesHasMore ? "+" : ""} album{albums.length === 1 ? "" : "s"}
+            {genreLabel ? ` ÔÇó ${genreLabel}` : ""}
+            {followerLabel ? ` ÔÇó ${followerLabel}` : ""}
           </Text>
+
+          {bioText ? (
+            <View style={styles.aboutBlock}>
+              <Text
+                style={styles.aboutText}
+                numberOfLines={aboutExpanded ? undefined : 3}
+              >
+                {bioText}
+              </Text>
+              {bioText.length > 140 ? (
+                <TouchableOpacity
+                  onPress={() => setAboutExpanded((value) => !value)}
+                  style={styles.aboutToggle}
+                  accessibilityRole="button"
+                  accessibilityLabel={aboutExpanded ? "Show less biography" : "Show more biography"}
+                >
+                  <Text style={styles.aboutToggleText}>
+                    {aboutExpanded ? "See less" : "See more"}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : null}
 
           <View style={styles.actionRow}>
             <TouchableOpacity
               style={[styles.playButton, !tracks.length && styles.disabledButton]}
               onPress={playArtist}
               disabled={!tracks.length}
+              accessibilityRole="button"
+              accessibilityLabel={`Play artist ${artist.name}`}
             >
               <Ionicons name="play" size={20} color="#000" />
-              <Text style={styles.playText}>{musicUi.playArtist}</Text>
+              <Text style={styles.playText}>Play Artist</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.followButton,
+                isFollowing && styles.followButtonActive,
+                (!followAvailable || followBusy) && styles.disabledButton,
+              ]}
+              onPress={() => {
+                void toggleFollow();
+              }}
+              disabled={followBusy}
+              accessibilityRole="button"
+              accessibilityLabel={
+                !followAvailable
+                  ? "Follow unavailable"
+                  : isFollowing
+                    ? `Unfollow ${artist.name}`
+                    : `Follow ${artist.name}`
+              }
+              accessibilityState={{ disabled: followBusy, selected: isFollowing }}
+            >
+              {followBusy ? (
+                <ActivityIndicator color={isFollowing ? COLORS.text : "#000"} />
+              ) : (
+                <>
+                  <Ionicons
+                    name={isFollowing ? "checkmark" : "person-add-outline"}
+                    size={18}
+                    color={isFollowing ? COLORS.text : "#000"}
+                  />
+                  <Text
+                    style={[
+                      styles.followButtonText,
+                      isFollowing && styles.followButtonTextActive,
+                    ]}
+                  >
+                    {!followAvailable ? "Unavailable" : isFollowing ? "Following" : "Follow"}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.shuffleButton, !tracks.length && styles.disabledButton]}
               onPress={playShuffle}
               disabled={!tracks.length}
+              accessibilityRole="button"
+              accessibilityLabel={`Shuffle artist ${artist.name}`}
             >
               <Ionicons name="shuffle" size={20} color={COLORS.text} />
             </TouchableOpacity>
-
-            {artist?.id ? (
-              <FavoriteButton
-                item={buildArtistFavoriteItem({
-                  id: String(artist.id),
-                  name: artist.name,
-                  artwork: artistArtwork,
-                  genre: artist.genre,
-                })}
-                size={20}
-              />
-            ) : null}
           </View>
         </View>
 
         {albums.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{musicUi.releases}</Text>
-              <Text style={styles.sectionSub}>{musicUi.releasesSubtitle}</Text>
+              <Text style={styles.sectionTitle}>Releases</Text>
+              <Text style={styles.sectionSub}>
+                Albums, EPs, singles, and appearances when taxonomy is available
+              </Text>
             </View>
 
-            <FlatList
+            <ScrollView
               horizontal
-              data={albums}
-              keyExtractor={(item) => `artist-album-${item.id}`}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.albumList}
-              initialNumToRender={albumListTuning.initialNumToRender}
-              maxToRenderPerBatch={albumListTuning.maxToRenderPerBatch}
-              windowSize={albumListTuning.windowSize}
-              updateCellsBatchingPeriod={albumListTuning.updateCellsBatchingPeriod}
-              removeClippedSubviews
-              renderItem={({ item }) => (
+            >
+              {albums.map((item) => (
                 <TouchableOpacity
+                  key={`artist-album-${item.id}`}
                   style={styles.albumCard}
                   activeOpacity={0.86}
                   onPress={() => openAlbum(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open release ${item.title}`}
                 >
                   <HTImage
                     source={item}
@@ -626,25 +1107,124 @@ export default function ArtistScreen() {
                   </Text>
 
                   <Text style={styles.albumSub} numberOfLines={1}>
-                    {musicUi.formatTracks(item.tracks.length)}
+                    {Array.isArray(item.tracks) && item.tracks.length > 0
+                      ? `${item.tracks.length} track${item.tracks.length === 1 ? "" : "s"}`
+                      : artistReleaseTypeLabel(item.releaseType)}
                   </Text>
                 </TouchableOpacity>
-              )}
-            />
+              ))}
+              {releasesHasMore ? (
+                <TouchableOpacity
+                  style={styles.moreReleasesBtn}
+                  onPress={() => {
+                    void loadMoreReleases();
+                  }}
+                  disabled={loadingMoreReleases}
+                  accessibilityRole="button"
+                  accessibilityLabel="Load more releases"
+                >
+                  {loadingMoreReleases ? (
+                    <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                    <Text style={styles.moreReleasesText}>See more</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
           </>
         )}
 
+        {similarArtists.length > 0 ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Similar Artists</Text>
+              <Text style={styles.sectionSub}>
+                Based on shared catalog signals, not name matching
+              </Text>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.albumList}
+            >
+              {similarArtists.map((item) => (
+                <TouchableOpacity
+                  key={`artist-similar-${item.id}`}
+                  style={styles.similarCard}
+                  activeOpacity={0.86}
+                  onPress={() => openSimilarArtist(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open similar artist ${item.name}`}
+                >
+                  <HTImage
+                    source={{ artwork: item.artwork || undefined }}
+                    style={styles.similarAvatar}
+                  />
+                  <Text style={styles.albumTitle} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.albumSub} numberOfLines={1}>
+                    {item.reason ||
+                      (item.genres[0]
+                        ? item.genres[0].replace(/\b\w/g, (c) => c.toUpperCase())
+                        : "Artist")}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              {similarHasMore ? (
+                <TouchableOpacity
+                  style={styles.moreReleasesBtn}
+                  onPress={() => {
+                    void loadMoreSimilar();
+                  }}
+                  disabled={loadingMoreSimilar}
+                  accessibilityRole="button"
+                  accessibilityLabel="Load more similar artists"
+                >
+                  {loadingMoreSimilar ? (
+                    <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                    <Text style={styles.moreReleasesText}>See more</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
+            </ScrollView>
+          </>
+        ) : null}
+
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{musicUi.essentialTracks}</Text>
-          <Text style={styles.sectionSub}>{musicUi.essentialTracksSubtitle}</Text>
+          <Text style={styles.sectionTitle}>{trackSectionLabel}</Text>
+          <Text style={styles.sectionSub}>Start a queue from this artist world</Text>
         </View>
           </>
+        }
+        ListFooterComponent={
+          tracksHasMore ? (
+            <TouchableOpacity
+              style={styles.moreTracksBtn}
+              onPress={() => {
+                void loadMoreTracks();
+              }}
+              disabled={loadingMoreTracks}
+              accessibilityRole="button"
+              accessibilityLabel="Load more tracks"
+            >
+              {loadingMoreTracks ? (
+                <ActivityIndicator color={COLORS.primary} />
+              ) : (
+                <Text style={styles.moreTracksText}>See more tracks</Text>
+              )}
+            </TouchableOpacity>
+          ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyTracks}>
             <Ionicons name="musical-notes-outline" size={52} color={COLORS.textMuted} />
-            <Text style={styles.emptyTitle}>{musicUi.noSongsTitle}</Text>
-            <Text style={styles.emptyText}>{musicUi.noSongsDescription}</Text>
+            <Text style={styles.emptyTitle}>No songs here yet</Text>
+            <Text style={styles.emptyText}>
+              This artist world is still waiting for tracks.
+            </Text>
           </View>
         }
       />
@@ -659,26 +1239,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  glowPurple: {
-    position: "absolute",
-    top: 40,
-    left: -120,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: "rgba(168,85,247,0.18)",
-  },
-  glowCyan: {
-    position: "absolute",
-    top: 320,
-    right: -145,
-    width: 330,
-    height: 330,
-    borderRadius: 165,
-    backgroundColor: "rgba(34,211,238,0.1)",
-  },
   content: {
-    paddingTop: 55,
     paddingBottom: 150,
   },
   loadingText: {
@@ -749,12 +1310,34 @@ const styles = StyleSheet.create({
     marginTop: 18,
     textAlign: "center",
     letterSpacing: -0.5,
+    paddingHorizontal: 8,
   },
   meta: {
     color: COLORS.textMuted,
     marginTop: 7,
     textAlign: "center",
     fontWeight: "700",
+  },
+  aboutBlock: {
+    marginTop: 14,
+    width: "100%",
+    paddingHorizontal: 8,
+  },
+  aboutText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    fontWeight: "600",
+  },
+  aboutToggle: {
+    marginTop: 8,
+    alignSelf: "center",
+  },
+  aboutToggleText: {
+    color: COLORS.primary,
+    fontWeight: "800",
+    fontSize: 13,
   },
   actionRow: {
     marginTop: 22,
@@ -774,6 +1357,30 @@ const styles = StyleSheet.create({
   playText: {
     color: "#000",
     fontWeight: "900",
+  },
+  followButton: {
+    backgroundColor: COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: 999,
+    minWidth: 118,
+    justifyContent: "center",
+  },
+  followButtonActive: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  followButtonText: {
+    color: "#000",
+    fontWeight: "900",
+    fontSize: 13,
+  },
+  followButtonTextActive: {
+    color: COLORS.text,
   },
   shuffleButton: {
     width: 48,
@@ -827,6 +1434,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     marginTop: 4,
+  },
+  moreReleasesBtn: {
+    width: 108,
+    height: 148,
+    borderRadius: 18,
+    marginRight: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  moreReleasesText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  moreTracksBtn: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 20,
+    minHeight: 46,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  moreTracksText: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  similarCard: {
+    width: 118,
+    marginRight: 14,
+  },
+  similarAvatar: {
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   trackRow: {
     marginHorizontal: 20,

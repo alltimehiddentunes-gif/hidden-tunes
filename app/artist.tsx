@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,255 +14,314 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 
-import HTImage from "../components/HTImage";
-import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
-import { usePlayerActions } from "../context/PlayerContext";
-import { resolveEntityArtwork } from "../utils/artwork";
+
 import {
-  logEntityArtworkResolved,
-  logEntityTapReceived,
-} from "../utils/entityDiagnostics";
-import { resolveArtistEntity, RELATED_SONGS_LABEL } from "../utils/entityResolution";
+  searchYouTubeBackend,
+  BackendYouTubeTrack,
+} from "../services/youtubeBackend";
 import {
-  fetchHiddenTunesCatalog,
-  getCachedHiddenTunesCatalog,
-  isDerivedCatalogTrusted,
-  type HiddenTunesAlbumCatalogItem,
-  type HiddenTunesArtistCatalogItem,
-  type HiddenTunesDerivedCatalog,
-  type HiddenTunesSong,
-} from "../services/hiddenTunes";
-import { useLocalization } from "@/localization";
+  extractHiddenTunesArtists,
+  getHiddenTunesArtists,
+  getHiddenTunesCatalogSnapshot,
+} from "../services/hiddenTunesApi";
+import {
+  canOpenArtistProfileById,
+  resolveArtistFromList,
+} from "../utils/artistIdentity";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
 
-function clean(value: string) {
-  return String(value || "").trim().toLowerCase();
-}
-
-function getSongDurationSeconds(song: HiddenTunesSong) {
-  const raw = (song as any).raw || {};
-  const value = (song as any).duration ?? (song as any).durationSeconds ?? raw.duration ?? raw.durationSeconds;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
-  return parsed > 10000 ? Math.round(parsed / 1000) : Math.round(parsed);
-}
-
-function formatDuration(seconds?: number) {
-  if (!seconds || !Number.isFinite(seconds)) return "Hidden Tunes";
-  const total = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(total / 60);
-  const secs = total % 60;
-  return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
-}
+type AlbumPreview = {
+  id: string;
+  album: string;
+  artist: string;
+  thumbnail: string;
+  query: string;
+};
 
 export default function ArtistScreen() {
   const params = useLocalSearchParams();
-  const { playSong } = usePlayerActions();
-  const { t } = useLocalization();
-  const artistName = String(params.artist || "Unknown Artist");
 
-  const musicUi = useMemo(
-    () => ({
-      kicker: t("music.artist.kicker"),
-      playArtist: t("music.artist.playArtist"),
-      albums: t("music.artist.albums"),
-      albumsDerivedSubtitle: t("music.artist.albumsDerivedSubtitle"),
-      songs: t("music.common.songs"),
-      relatedSongs: t("music.common.relatedSongs"),
-      hiddenTunesCatalog: t("music.common.hiddenTunesCatalog"),
-      playableTracks: t("music.common.playableTracks"),
-      refresh: t("music.common.refresh"),
-      loadingNamed: (name: string) => t("music.common.loadingNamed", { name }),
-      noSongsForArtistTitle: t("music.artist.noSongsForArtistTitle"),
-      noSongsForArtistDescription: t("music.artist.noSongsForArtistDescription"),
-      formatSongs: (count: number) =>
-        count === 1
-          ? t("music.counts.oneSong", { count })
-          : t("music.counts.songs", { count }),
-      artistSubtitle: (songCount: number, albumCount: number) =>
-        t("music.counts.songMeta", {
-          songs:
-            songCount === 1
-              ? t("music.counts.oneSong", { count: songCount })
-              : t("music.counts.songs", { count: songCount }),
-          albums:
-            albumCount === 1
-              ? t("music.counts.oneAlbum", { count: albumCount })
-              : t("music.counts.albums", { count: albumCount }),
-        }) + ` • ${t("music.common.hiddenTunesCatalog")}`,
-      sectionTitle: (recoveryLabel?: string) =>
-        recoveryLabel === RELATED_SONGS_LABEL
-          ? t("music.common.relatedSongs")
-          : recoveryLabel || t("music.common.songs"),
-      sectionSubtitle: (recoveryLabel: string | undefined, trackCount: number) => {
-        const countLabel =
-          trackCount === 1
-            ? t("music.counts.oneSong", { count: trackCount })
-            : t("music.counts.songs", { count: trackCount });
-        if (recoveryLabel === RELATED_SONGS_LABEL) {
-          return `${t("music.common.relatedSongs")} • ${countLabel}`;
-        }
-        if (recoveryLabel) {
-          return `${recoveryLabel} • ${countLabel}`;
-        }
-        return t("music.common.playableTracks");
-      },
-    }),
-    [t]
-  );
+  const artist = String(params.artist || "Unknown Artist");
+  const query = String(params.query || `${artist} songs`);
 
-  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
+  const [tracks, setTracks] = useState<BackendYouTubeTrack[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resolvingCatalog, setResolvingCatalog] = useState(true);
 
   useEffect(() => {
-    logEntityTapReceived("artist", {
-      artist: artistName,
-      id: String(params.id || ""),
-    });
-    void loadArtistCatalog();
-  }, [artistName, params.id]);
+    let cancelled = false;
 
-  async function loadArtistCatalog() {
+    async function resolveCanonicalArtist() {
+      setResolvingCatalog(true);
+      try {
+        const memorySongs = getHiddenTunesCatalogSnapshot();
+        const memoryArtists = memorySongs.length
+          ? extractHiddenTunesArtists(memorySongs)
+          : [];
+        const artists =
+          memoryArtists.length > 0
+            ? memoryArtists
+            : await getHiddenTunesArtists({ forceRefresh: false });
+        if (cancelled) return;
+
+        const match = resolveArtistFromList(artists, artist);
+        if (match?.id && canOpenArtistProfileById(match.id)) {
+          router.replace({
+            pathname: "/artist/[id]",
+            params: { id: String(match.id) },
+          } as any);
+          return;
+        }
+      } catch {
+        // Keep YouTube legacy profile when catalog resolve fails or is ambiguous.
+      } finally {
+        if (!cancelled) setResolvingCatalog(false);
+      }
+    }
+
+    void resolveCanonicalArtist();
+    return () => {
+      cancelled = true;
+    };
+  }, [artist]);
+
+  useEffect(() => {
+    if (resolvingCatalog) return;
+    loadArtistTracks();
+  }, [query, resolvingCatalog]);
+
+  async function loadArtistTracks() {
     try {
       setLoading(true);
-      const cached = getCachedHiddenTunesCatalog();
-      setCatalog(
-        cached && isDerivedCatalogTrusted(cached)
-          ? cached
-          : await fetchHiddenTunesCatalog()
-      );
+
+      const results = await searchYouTubeBackend(query);
+      setTracks(Array.isArray(results) ? results : []);
     } catch (error) {
-      console.log("Artist catalog load error:", error);
-      setCatalog(null);
+      console.log("Artist load error:", error);
+      setTracks([]);
     } finally {
       setLoading(false);
     }
   }
 
-  const artistResolution = useMemo(
-    () =>
-      resolveArtistEntity(catalog, {
-        id: String(params.id || ""),
-        artist: artistName,
-        name: artistName,
-      }),
-    [artistName, catalog, params.id]
-  );
+  const artistImage = useMemo(() => {
+    const firstTrackWithImage = tracks.find((item) => item.thumbnail);
+    return firstTrackWithImage?.thumbnail || FALLBACK_ARTWORK;
+  }, [tracks]);
 
-  const artist = artistResolution.entity as HiddenTunesArtistCatalogItem | undefined;
-  const tracks = artistResolution.tracks;
-  const albums = artistResolution.albums;
-  const recoveryLabel = artistResolution.recoveryLabel;
+  const albums: AlbumPreview[] = useMemo(() => {
+    return tracks.slice(0, 8).map((track, index) => {
+      const safeThumbnail = track.thumbnail || artistImage || FALLBACK_ARTWORK;
 
-  const heroArtwork = useMemo(() => {
-    const artwork = resolveEntityArtwork(artist || { name: artistName }, tracks);
-    logEntityArtworkResolved({
-      kind: "artist",
-      name: artist?.name || artistName,
-      trackCount: tracks.length,
-      hasArtwork: Boolean(artwork),
+      return {
+        id: `${track.id || "artist-track"}-album-${index}`,
+        album: `${artist} Essentials`,
+        artist,
+        thumbnail: safeThumbnail,
+        query: `${artist} album songs`,
+      };
     });
-    return artwork;
-  }, [artist, artistName, tracks]);
+  }, [tracks, artist, artistImage]);
 
-  function openAlbum(album: HiddenTunesAlbumCatalogItem) {
+  function openTrack(track: BackendYouTubeTrack) {
+    router.push({
+      pathname: "/youtube-player",
+      params: {
+        id: track.id || "",
+        videoId: track.id || "",
+        title: track.title || "Unknown Song",
+        artist: track.artist || artist || "Unknown Artist",
+        thumbnail: track.thumbnail || artistImage || FALLBACK_ARTWORK,
+      },
+    });
+  }
+
+  function openAlbum(album: AlbumPreview) {
     router.push({
       pathname: "/album",
       params: {
-        album: album.title,
+        album: album.album,
         artist: album.artist,
-        thumbnail: album.artwork,
+        thumbnail: album.thumbnail,
+        query: album.query,
       },
-    } as any);
+    });
   }
 
-  function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
-    void playSong(song, tracks, queueIndex, {
-      source: "artist",
-      label: artist?.name || artistName,
-      artistId: artist?.id,
-      artistName: artist?.name || artistName,
-      genre: song.genre,
-      mood: song.mood,
+  function playTopSong() {
+    if (tracks[0]) {
+      openTrack(tracks[0]);
+    }
+  }
+
+  function openEssentialsAlbum() {
+    router.push({
+      pathname: "/album",
+      params: {
+        album: `${artist} Essentials`,
+        artist,
+        thumbnail: artistImage,
+        query: `${artist} album songs`,
+      },
     });
+  }
+
+  function openRadio() {
+    router.push({
+      pathname: "/radio",
+      params: {
+        title: `${artist} Radio`,
+        query: `${artist} songs`,
+      },
+    });
+  }
+
+  if (resolvingCatalog) {
+    return (
+      <LinearGradient colors={GRADIENTS.main} style={styles.container}>
+        <View style={styles.loader}>
+          <ActivityIndicator color={COLORS.primary} />
+          <Text style={styles.loadingText}>Opening artistÔÇª</Text>
+        </View>
+      </LinearGradient>
+    );
   }
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View pointerEvents="none" style={styles.glowPurple} />
-      <View pointerEvents="none" style={styles.glowCyan} />
-
       <FlatList
-          onScrollBeginDrag={() => markFastScrolling(true)}
-          onMomentumScrollBegin={() => markFastScrolling(true)}
-          onScrollEndDrag={() => markFastScrolling(false)}
-          onMomentumScrollEnd={() => markFastScrolling(false)}
         data={tracks}
-        keyExtractor={(item, index) => `${item.id}-${index}`}
+        keyExtractor={(item, index) => `${item.id || "track"}-${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
             <View style={styles.topBar}>
-              <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => router.back()}
+              >
                 <Ionicons name="chevron-back" size={24} color={COLORS.text} />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.iconButton} onPress={loadArtistCatalog}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={loadArtistTracks}
+              >
                 <Ionicons name="refresh" size={21} color={COLORS.text} />
               </TouchableOpacity>
             </View>
 
-            <LinearGradient colors={GRADIENTS.card} style={styles.hero}>
-              <View style={styles.artistImageWrap}>
-                <HTImage
-                  source={artist || { name: artistName, artwork: heroArtwork }}
-                  candidates={tracks}
-                  style={styles.artistImage}
-                  contentFit="cover"
-                />
-              </View>
+            <View style={styles.hero}>
+              <Image source={{ uri: artistImage }} style={styles.artistImage} />
 
-              <Text style={styles.kicker}>{musicUi.kicker}</Text>
-              <Text style={styles.artistName} numberOfLines={2}>{artist?.name || artistName}</Text>
-              <Text style={styles.subtitle} numberOfLines={2}>
-                {musicUi.artistSubtitle(tracks.length, albums.length)}
+              <Text style={styles.kicker}>ARTIST</Text>
+
+              <Text style={styles.artistName} numberOfLines={2}>
+                {artist}
+              </Text>
+
+              <Text style={styles.subtitle} numberOfLines={1}>
+                Songs, albums and discovery
               </Text>
 
               <View style={styles.actionRow}>
                 <TouchableOpacity
                   activeOpacity={0.86}
-                  style={[styles.playButton, tracks.length === 0 && styles.disabledPlayButton]}
+                  style={[
+                    styles.playButton,
+                    tracks.length === 0 && styles.disabledPlayButton,
+                  ]}
                   disabled={tracks.length === 0}
-                  onPress={() => tracks[0] && handlePlaySong(tracks[0], 0)}
+                  onPress={playTopSong}
                 >
                   <Ionicons name="play" size={18} color="#000" />
-                  <Text style={styles.playButtonText}>{musicUi.playArtist}</Text>
+                  <Text style={styles.playButtonText}>Play Top Song</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  style={styles.secondaryButton}
+                  onPress={openEssentialsAlbum}
+                >
+                  <Ionicons name="albums-outline" size={20} color={COLORS.text} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  style={styles.secondaryButton}
+                  onPress={openRadio}
+                >
+                  <Ionicons name="radio" size={20} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
-            </LinearGradient>
+            </View>
+
+            {!loading && (
+              <View style={styles.radioCard}>
+                <View style={styles.radioIcon}>
+                  <Ionicons name="radio" size={28} color={COLORS.primary} />
+                </View>
+
+                <View style={styles.radioInfo}>
+                  <Text style={styles.radioTitle}>{artist} Radio</Text>
+                  <Text style={styles.radioSubtitle} numberOfLines={1}>
+                    Endless queue based on {artist}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  style={styles.radioButton}
+                  onPress={openRadio}
+                >
+                  <Ionicons name="play" size={17} color="#000" />
+                  <Text style={styles.radioButtonText}>Start</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {loading ? (
               <View style={styles.loader}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>{musicUi.loadingNamed(artistName)}</Text>
+                <Text style={styles.loadingText}>Loading {artist}...</Text>
               </View>
             ) : (
               <>
                 {albums.length > 0 && (
                   <View style={styles.albumSection}>
                     <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionTitle}>{musicUi.albums}</Text>
-                      <Text style={styles.sectionSub}>{musicUi.albumsDerivedSubtitle}</Text>
+                      <Text style={styles.sectionTitle}>Albums</Text>
+                      <Text style={styles.sectionSub}>
+                        Artist collections and essentials
+                      </Text>
                     </View>
 
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.albumRow}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.albumRow}
+                    >
                       {albums.map((album) => (
-                        <TouchableOpacity key={album.id} activeOpacity={0.86} style={styles.albumCard} onPress={() => openAlbum(album)}>
-                          <HTImage source={album} candidates={album.songs} style={styles.albumCover} contentFit="cover" />
-                          <Text style={styles.albumTitle} numberOfLines={2}>{album.title}</Text>
-                          <Text style={styles.albumArtist} numberOfLines={1}>{album.artist}</Text>
+                        <TouchableOpacity
+                          key={album.id}
+                          activeOpacity={0.86}
+                          style={styles.albumCard}
+                          onPress={() => openAlbum(album)}
+                        >
+                          <Image
+                            source={{ uri: album.thumbnail }}
+                            style={styles.albumCover}
+                          />
+
+                          <Text style={styles.albumTitle} numberOfLines={2}>
+                            {album.album}
+                          </Text>
+
+                          <Text style={styles.albumArtist} numberOfLines={1}>
+                            {album.artist}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -269,9 +329,9 @@ export default function ArtistScreen() {
                 )}
 
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{musicUi.sectionTitle(recoveryLabel)}</Text>
-                  <Text style={styles.sectionSub}>
-                    {musicUi.sectionSubtitle(recoveryLabel, tracks.length)}
+                  <Text style={styles.sectionTitle}>Popular Songs</Text>
+                  <Text style={styles.sectionSub} numberOfLines={1}>
+                    {query}
                   </Text>
                 </View>
               </>
@@ -281,32 +341,48 @@ export default function ArtistScreen() {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Ionicons name="person-circle-outline" size={60} color={COLORS.textMuted} />
-              <PremiumEmptyState
-                icon="person-circle-outline"
-                title={musicUi.noSongsForArtistTitle}
-                message={musicUi.noSongsForArtistDescription}
-                actionLabel={musicUi.refresh}
-                onAction={loadArtistCatalog}
+              <Ionicons
+                name="person-circle-outline"
+                size={60}
+                color={COLORS.textMuted}
               />
+              <Text style={styles.emptyTitle}>No songs yet</Text>
+              <Text style={styles.emptyText}>
+                Try refreshing this artist.
+              </Text>
             </View>
           ) : null
         }
         renderItem={({ item, index }) => {
           if (loading) return null;
-          const duration = getSongDurationSeconds(item);
 
           return (
-            <TouchableOpacity activeOpacity={0.86} style={styles.trackCard} onPress={() => handlePlaySong(item, index)}>
-              <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
-              <HTImage source={item} style={styles.cover} contentFit="cover" />
+            <TouchableOpacity
+              activeOpacity={0.86}
+              style={styles.trackCard}
+              onPress={() => openTrack(item)}
+            >
+              <Text style={styles.rank}>
+                {String(index + 1).padStart(2, "0")}
+              </Text>
+
+              <Image
+                source={{ uri: item.thumbnail || artistImage || FALLBACK_ARTWORK }}
+                style={styles.cover}
+              />
 
               <View style={styles.info}>
-                <Text style={styles.trackTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.trackArtist} numberOfLines={1}>{item.artist}</Text>
+                <Text style={styles.trackTitle} numberOfLines={1}>
+                  {item.title || "Unknown Song"}
+                </Text>
+
+                <Text style={styles.trackArtist} numberOfLines={1}>
+                  {item.artist || artist || "Unknown Artist"}
+                </Text>
+
                 <View style={styles.metaRow}>
-                  <Ionicons name="cloud-outline" size={13} color={COLORS.primary} />
-                  <Text style={styles.metaText}>{formatDuration(duration)}</Text>
+                  <Ionicons name="tv" size={13} color="#ff3b30" />
+                  <Text style={styles.metaText}>Hidden Tunes TV</Text>
                 </View>
               </View>
 
@@ -322,11 +398,22 @@ export default function ArtistScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  glowPurple: { position: "absolute", top: 40, left: -120, width: 280, height: 280, borderRadius: 140, backgroundColor: "rgba(168,85,247,0.18)" },
-  glowCyan: { position: "absolute", top: 330, right: -150, width: 320, height: 320, borderRadius: 160, backgroundColor: "rgba(34,211,238,0.1)" },
-  listContent: { paddingHorizontal: 20, paddingTop: 60, paddingBottom: 165 },
-  topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  container: {
+    flex: 1,
+  },
+
+  listContent: {
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 165,
+  },
+
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
   iconButton: {
     width: 46,
     height: 46,
@@ -337,34 +424,197 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  hero: { alignItems: "center", paddingHorizontal: 18, paddingTop: 22, paddingBottom: 24, borderRadius: 30, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)", overflow: "hidden", marginTop: 18, marginBottom: 24 },
-  artistImageWrap: { width: 196, height: 196, borderRadius: 98, padding: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
+
+  hero: {
+    alignItems: "center",
+    paddingTop: 26,
+    paddingBottom: 28,
+  },
+
   artistImage: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 94,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
   },
-  kicker: { color: COLORS.primary, fontSize: 11, fontWeight: "900", letterSpacing: 2, marginTop: 22 },
-  artistName: { color: COLORS.text, fontSize: 34, fontWeight: "900", textAlign: "center", marginTop: 8, lineHeight: 40 },
-  subtitle: { color: COLORS.textMuted, fontSize: 13, fontWeight: "700", marginTop: 10, textAlign: "center", lineHeight: 19 },
-  actionRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 20 },
-  playButton: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 999 },
-  disabledPlayButton: { opacity: 0.45 },
-  playButtonText: { color: "#000", fontSize: 14, fontWeight: "900", marginLeft: 8 },
-  loader: { minHeight: 220, alignItems: "center", justifyContent: "center" },
-  loadingText: { color: COLORS.textMuted, marginTop: 14 },
-  albumSection: { marginBottom: 30 },
-  sectionHeader: { marginBottom: 16 },
-  sectionTitle: { color: COLORS.text, fontSize: 19, fontWeight: "900" },
-  sectionSub: { color: COLORS.textMuted, fontSize: 13, marginTop: 5 },
-  albumRow: { gap: 14, paddingRight: 20 },
-  albumCard: { width: 145 },
-  albumCover: { width: 136, height: 136, borderRadius: 24, backgroundColor: "rgba(168,85,247,0.1)" },
-  albumTitle: { color: COLORS.text, fontSize: 14, fontWeight: "900", marginTop: 10, lineHeight: 18 },
-  albumArtist: { color: COLORS.textMuted, fontSize: 12, marginTop: 5 },
+
+  kicker: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+    marginTop: 22,
+  },
+
+  artistName: {
+    color: COLORS.text,
+    fontSize: 34,
+    fontWeight: "900",
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 40,
+  },
+
+  subtitle: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+    marginTop: 8,
+  },
+
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 20,
+  },
+
+  playButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+    borderRadius: 999,
+  },
+
+  disabledPlayButton: {
+    opacity: 0.45,
+  },
+
+  playButtonText: {
+    color: "#000",
+    fontSize: 14,
+    fontWeight: "900",
+    marginLeft: 8,
+  },
+
+  secondaryButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+
+  radioCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 28,
+    marginBottom: 30,
+    backgroundColor: "rgba(255,255,255,0.065)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.11)",
+  },
+
+  radioIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+
+  radioInfo: {
+    flex: 1,
+  },
+
+  radioTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  radioSubtitle: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 5,
+  },
+
+  radioButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+  },
+
+  radioButtonText: {
+    color: "#000",
+    fontSize: 12,
+    fontWeight: "900",
+    marginLeft: 5,
+  },
+
+  loader: {
+    minHeight: 220,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  loadingText: {
+    color: COLORS.textMuted,
+    marginTop: 14,
+  },
+
+  albumSection: {
+    marginBottom: 30,
+  },
+
+  sectionHeader: {
+    marginBottom: 16,
+  },
+
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: "900",
+  },
+
+  sectionSub: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 5,
+  },
+
+  albumRow: {
+    gap: 14,
+    paddingRight: 20,
+  },
+
+  albumCard: {
+    width: 145,
+  },
+
+  albumCover: {
+    width: 145,
+    height: 145,
+    borderRadius: 26,
+    backgroundColor: COLORS.card,
+  },
+
+  albumTitle: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "900",
+    marginTop: 10,
+    lineHeight: 18,
+  },
+
+  albumArtist: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 5,
+  },
+
   trackCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -375,15 +625,76 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.09)",
   },
-  rank: { width: 30, color: "rgba(255,255,255,0.32)", fontSize: 15, fontWeight: "900" },
-  cover: { width: 62, height: 62, borderRadius: 17, backgroundColor: "rgba(168,85,247,0.1)" },
-  info: { flex: 1, marginLeft: 14 },
-  trackTitle: { color: COLORS.text, fontSize: 15, fontWeight: "800" },
-  trackArtist: { color: COLORS.textMuted, fontSize: 13, marginTop: 5 },
-  metaRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  metaText: { color: COLORS.textMuted, fontSize: 11, fontWeight: "700", marginLeft: 5 },
-  playCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
-  empty: { minHeight: 260, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  emptyTitle: { color: COLORS.text, fontSize: 21, fontWeight: "900", marginTop: 18 },
-  emptyText: { color: COLORS.textMuted, marginTop: 8, textAlign: "center" },
+
+  rank: {
+    width: 30,
+    color: "rgba(255,255,255,0.32)",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  cover: {
+    width: 66,
+    height: 66,
+    borderRadius: 18,
+    backgroundColor: COLORS.card,
+  },
+
+  info: {
+    flex: 1,
+    marginLeft: 14,
+  },
+
+  trackTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  trackArtist: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    marginTop: 5,
+  },
+
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+
+  metaText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    marginLeft: 5,
+  },
+
+  playCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  empty: {
+    minHeight: 260,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyTitle: {
+    color: COLORS.text,
+    fontSize: 21,
+    fontWeight: "900",
+    marginTop: 18,
+  },
+
+  emptyText: {
+    color: COLORS.textMuted,
+    marginTop: 8,
+    textAlign: "center",
+  },
 });

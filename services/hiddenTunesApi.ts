@@ -178,6 +178,8 @@ export type HiddenTunesAlbum = {
   artistId?: string;
   artwork: string;
   genre?: string;
+  /** Present on Artist Profile release cards when mapped from the profile API. */
+  releaseType?: string;
   tracks: HiddenTunesNormalizedSong[];
 };
 
