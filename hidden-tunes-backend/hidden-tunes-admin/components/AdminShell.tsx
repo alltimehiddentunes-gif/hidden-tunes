@@ -72,6 +72,12 @@ const NAV_ITEMS = [
     roles: "all",
   },
   {
+    href: "/admin/sports",
+    label: "Sports",
+    description: "Sports foundation ops",
+    roles: "all",
+  },
+  {
     href: "/admin/submissions",
     label: "Submissions",
     description: "Artist review queue",
