@@ -44,7 +44,13 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_BUILD_PROFILE": "production"
+        "EXPO_PUBLIC_BUILD_PROFILE": "production",
+        "EXPO_PUBLIC_SPORTS_ENABLED": "true",
+        "EXPO_PUBLIC_SPORTS_MOBILE_PILOT_ENABLED": "true",
+        "EXPO_PUBLIC_SPORTS_FULL_UI_ENABLED": "true",
+        "EXPO_PUBLIC_SPORTS_USE_DEV_FIXTURES": "false",
+        "SHARP_IGNORE_GLOBAL_LIBVIPS": "true",
+        "SHARP_FORCE_PREBUILT": "true"
       }
     }
   }
