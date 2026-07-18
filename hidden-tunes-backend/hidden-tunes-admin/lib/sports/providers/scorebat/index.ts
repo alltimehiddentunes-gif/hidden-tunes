@@ -35,3 +35,8 @@ export {
 } from "./health";
 export { SCOREBAT_FIXTURE_MATCHES } from "./fixtures";
 export { ScoreBatProviderAdapter, createScoreBatAdapter } from "./adapter";
+export {
+  assessScoreBatEntitlement,
+  createScoreBatVideoProvider,
+  registerScoreBatPilotAsset,
+} from "./videoProvider";
