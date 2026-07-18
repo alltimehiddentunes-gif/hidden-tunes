@@ -102,6 +102,7 @@ export const SPORTS_WORKER_KEYS = [
   "sports-notification-dispatch",
   "sports-provider-health-check",
   "sports-quarantine-recovery",
+  "sports-validate-live-broadcasts",
 ] as const;
 
 export type SportsWorkerKey = (typeof SPORTS_WORKER_KEYS)[number];

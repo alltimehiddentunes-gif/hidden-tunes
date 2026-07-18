@@ -39,7 +39,7 @@ export async function runSportsWorker(
     };
   }
 
-  // Provider imports remain disabled in Phase 1.
+  // Provider imports remain disabled unless explicitly invoked via CLI workers.
   if (
     workerKey === "sports-video-import" ||
     workerKey === "sports-broadcast-discovery" ||
@@ -54,6 +54,22 @@ export async function runSportsWorker(
       errors: [],
       notes: [
         "Phase 1 skeleton only — production import loops are not started.",
+        `batchSize=${batchSize}`,
+        ctx.dryRun ? "dryRun=true" : "dryRun=false",
+      ],
+    };
+  }
+
+  if (workerKey === "sports-validate-live-broadcasts") {
+    return {
+      workerKey,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      status: "skipped",
+      processed: 0,
+      errors: [],
+      notes: [
+        "Invoke via: npm run sports:validate-live-broadcasts -- --dry-run --limit=50",
         `batchSize=${batchSize}`,
         ctx.dryRun ? "dryRun=true" : "dryRun=false",
       ],

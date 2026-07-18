@@ -127,6 +127,8 @@
     "test:sports-home-ia": "tsx scripts/test-sports-home-ia.ts",
     "test:sports-personalization": "tsx scripts/test-sports-personalization.ts",
     "test:sports-scorebat": "tsx scripts/test-sports-scorebat.ts",
+    "test:sports-playback": "tsx scripts/test-sports-playback-resolver.ts",
+    "sports:validate-live-broadcasts": "tsx scripts/run-sports-validate-live-broadcasts.ts",
     "sports:smoke-olympics": "tsx scripts/smoke-sports-olympics-staging.ts",
     "sports:validate-migration": "tsx scripts/validate-sports-migration.ts",
     "sports:import-provider": "tsx scripts/run-sports-import-provider.ts",
