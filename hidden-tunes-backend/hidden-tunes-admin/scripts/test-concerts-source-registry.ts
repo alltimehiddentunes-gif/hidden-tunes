@@ -165,13 +165,18 @@ test("external_link_only cannot be import-enabled", () => {
   assert.equal(result.ok, false);
 });
 
-test("curated registry dry-run audit passes", () => {
+test("curated registry dry-run audit passes with Phase 4 import enablement", () => {
   const audit = auditCuratedConcertSourceRegistry();
   assert.equal(audit.ok, true);
   assert.ok(audit.total >= 20 && audit.total <= 50);
-  assert.equal(audit.importEnabledCount, 0);
+  assert.ok(audit.importEnabledCount >= 20);
   assert.ok(audit.enabledCount > 0);
-  assert.ok(getCuratedConcertSources().every((s) => s.importEnabled === false));
+  const sources = getCuratedConcertSources();
+  assert.ok(sources.some((s) => s.stableKey === "arte-concert" && s.importEnabled));
+  assert.ok(sources.some((s) => s.stableKey === "medici-tv" && !s.importEnabled));
+  assert.ok(
+    sources.some((s) => s.stableKey === "digital-concert-hall" && !s.importEnabled)
+  );
 });
 
 test("normalize preserves https official urls", () => {

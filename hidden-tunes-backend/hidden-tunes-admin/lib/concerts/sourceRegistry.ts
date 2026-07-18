@@ -1,28 +1,39 @@
 /**
- * Curated official Concerts source registry (Phase 3).
- * In-code seed only — no concert items/streams. import_enabled is false for all Phase 3 rows.
+ * Curated official Concerts source registry.
+ * Phase 4: eligible YouTube/public sources are import-enabled so checkpointed
+ * import runs can process all verified free playable content. Items still insert
+ * as validation_pending and are never public until later validation passes.
  *
  * Evidence standard:
  * - Official website exists and identifies the institution/owner
  * - Media/channel URL is the institution's official presence (or clearly linked)
  * - Authorization and embed policy are classified separately from public visibility
- * - Unclear ownership or unknown embed policy => disabled, non-importable
+ * - Unclear ownership or unknown/prohibited embed policy => disabled, non-importable
+ * - Subscription/external-link-only platforms stay non-importable for in-app playback
  */
 
 import type { ConcertSourceSeed } from "./types";
 import { validateConcertSourceRegistry } from "./sourceValidation";
 import { normalizeConcertSourceSeed } from "./sourceNormalization";
+import { getKnownConcertYouTubeChannelId } from "./providers/channelIdentityMap";
+import { withPhase4ImportFlags } from "./import/sourceEligibility";
 
 const REVIEWED = "2026-07-18";
 
-/**
- * Phase 3 policy: registry may mark trusted sources enabled, but never import-enabled yet.
- */
 function seed(partial: Omit<ConcertSourceSeed, "importEnabled">): ConcertSourceSeed {
-  return {
+  const knownId = getKnownConcertYouTubeChannelId(partial.stableKey);
+  const providerChannelId = partial.providerChannelId || knownId || null;
+  const mediaChannelUrl =
+    partial.provider === "youtube" && providerChannelId
+      ? `https://www.youtube.com/channel/${providerChannelId}`
+      : partial.mediaChannelUrl;
+
+  return withPhase4ImportFlags({
     ...partial,
+    providerChannelId,
+    mediaChannelUrl,
     importEnabled: false,
-  };
+  });
 }
 
 export const CURATED_CONCERT_SOURCES: ConcertSourceSeed[] = [
@@ -60,8 +71,8 @@ export const CURATED_CONCERT_SOURCES: ConcertSourceSeed[] = [
     providerType: "orchestra",
     provider: "youtube",
     officialUrl: "https://www.berliner-philharmoniker.de/en/",
-    mediaChannelUrl: "https://www.youtube.com/@BerlinPhil",
-    providerChannelId: null,
+    mediaChannelUrl: "https://www.youtube.com/channel/UCtRkmSO4PrhJ4TzNOmFIwjw",
+    providerChannelId: "UCtRkmSO4PrhJ4TzNOmFIwjw",
     countryCode: "DE",
     region: "europe",
     languageCodes: ["de", "en"],
@@ -80,7 +91,7 @@ export const CURATED_CONCERT_SOURCES: ConcertSourceSeed[] = [
     reliabilityScore: 92,
     lastReviewedAt: REVIEWED,
     reviewNotes:
-      "Official orchestra website. YouTube handle @BerlinPhil is the orchestra's public channel; UC ID to be resolved before import. Digital Concert Hall subscription content is a separate source and not enabled here.",
+      "Official orchestra website. YouTube channel ID UCtRkmSO4PrhJ4TzNOmFIwjw confirmed for @BerlinPhil. Digital Concert Hall subscription content remains a separate non-importable source.",
   }),
   seed({
     stableKey: "digital-concert-hall",
@@ -882,8 +893,8 @@ export const CURATED_CONCERT_SOURCES: ConcertSourceSeed[] = [
     providerType: "official_festival",
     provider: "youtube",
     officialUrl: "https://www.tomorrowland.com/",
-    mediaChannelUrl: "https://www.youtube.com/@tomorrowland",
-    providerChannelId: null,
+    mediaChannelUrl: "https://www.youtube.com/channel/UCsN8M73DMWa8SPp5o_0IAQQ",
+    providerChannelId: "UCsN8M73DMWa8SPp5o_0IAQQ",
     countryCode: "BE",
     region: "europe",
     languageCodes: ["en", "nl", "fr"],
