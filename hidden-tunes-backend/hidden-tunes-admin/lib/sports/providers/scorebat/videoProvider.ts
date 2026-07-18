@@ -222,7 +222,7 @@ export function createScoreBatVideoProvider(
       return {
         status: h.consecutiveFailures >= 3 ? "degraded" : "healthy",
         consecutiveFailures: h.consecutiveFailures,
-        successRate: h.playbackSuccessRate,
+        successRate: h.playbackSuccess,
       };
     },
   };
