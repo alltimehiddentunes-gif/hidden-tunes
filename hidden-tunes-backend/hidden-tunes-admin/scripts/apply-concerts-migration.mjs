@@ -21,6 +21,7 @@ const MIGRATIONS = [
   "supabase/migrations/20260718190100_concerts_user_data.sql",
   "supabase/migrations/20260718190200_concerts_playback_validation.sql",
   "supabase/migrations/20260718192000_concerts_source_registry_columns.sql",
+  "supabase/migrations/20260718193000_concerts_scale_hardening.sql",
 ];
 
 function loadEnvFile(filePath) {
@@ -130,6 +131,10 @@ function validateLocally(files) {
 
   if (files[3] && !files[3].sql.includes("stable_key")) {
     issues.push("source_registry_columns missing stable_key");
+  }
+
+  if (files[4] && !files[4].sql.includes("concert_import_rejections")) {
+    issues.push("scale_hardening missing concert_import_rejections");
   }
 
   return issues;

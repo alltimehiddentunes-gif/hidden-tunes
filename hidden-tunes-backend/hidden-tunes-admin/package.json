@@ -145,6 +145,7 @@
     "concerts:import:dry": "tsx scripts/run-concerts-import.ts --dry-run",
     "test:concerts-source-registry": "tsx scripts/test-concerts-source-registry.ts",
     "test:concerts-import": "tsx scripts/test-concerts-import-pipeline.ts",
+    "test:concerts-scale": "tsx scripts/test-concerts-scale-hardening.ts",
     "test:artist-profile": "tsx scripts/test-artist-profile.ts",
     "artist:apply-migration": "node scripts/apply-artist-profile-migration.mjs",
     "artist:verify-schema": "node scripts/apply-artist-profile-migration.mjs --verify-only",

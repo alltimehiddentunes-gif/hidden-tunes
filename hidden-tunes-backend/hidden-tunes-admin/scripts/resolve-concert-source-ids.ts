@@ -1,12 +1,10 @@
 /**
- * Resolve official YouTube channel IDs for curated Concerts sources.
+ * Resolve Concerts source identities with ownership checks + report.
+ * Records newly resolved UC… IDs into channelIdentityMap (non-dry-run only).
  *
  * Usage:
  *   npx tsx scripts/resolve-concert-source-ids.ts --dry-run
  *   npx tsx scripts/resolve-concert-source-ids.ts
- *
- * Uses known map + YOUTUBE_API_KEY forHandle when available.
- * Does not write to production DB unless --write-db is passed (still not for prod casually).
  */
 
 import fs from "fs";
@@ -14,84 +12,111 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { getCuratedConcertSources } from "../lib/concerts/sourceRegistry";
-import { getKnownConcertYouTubeChannelId } from "../lib/concerts/providers/channelIdentityMap";
 import {
-  hasConcertYouTubeApiKey,
-  resolveYouTubeChannelIdForHandle,
-} from "../lib/concerts/providers/youtubeClient";
-import { isValidYouTubeChannelId } from "../lib/concerts/providers/youtubeOfficial";
-import { normalizeYouTubeChannelUrl } from "../lib/concerts/providers/youtubeOfficial";
-import { isConcertSourceImportEligible } from "../lib/concerts/import/sourceEligibility";
+  applyResolvedIdentitiesToChannelMap,
+  resolveConcertSourceIdentities,
+} from "../lib/concerts/import/identityResolution";
+import { CONCERT_YOUTUBE_CHANNEL_IDS } from "../lib/concerts/providers/channelIdentityMap";
+import { hasConcertYouTubeApiKey } from "../lib/concerts/providers/youtubeClient";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(__dirname, "..");
 
-function extractHandle(mediaChannelUrl: string): string | null {
-  const normalized = normalizeYouTubeChannelUrl(mediaChannelUrl) || mediaChannelUrl;
-  try {
-    const url = new URL(normalized);
-    const parts = url.pathname.split("/").filter(Boolean);
-    if (parts[0]?.startsWith("@")) return parts[0].slice(1);
-    return null;
-  } catch {
-    return null;
-  }
+function writeChannelIdentityMap(merged: Record<string, string>) {
+  const mapPath = path.join(
+    adminRoot,
+    "lib",
+    "concerts",
+    "providers",
+    "channelIdentityMap.ts"
+  );
+  const entries = Object.entries(merged)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, id]) => `  "${key}": "${id}",`)
+    .join("\n");
+
+  const contents = `/**
+ * Verified / researched YouTube channel IDs for curated Concerts sources.
+ * Prefer API forHandle resolution when YOUTUBE_API_KEY is present.
+ * Entries here are only IDs confirmed from official channel URLs or Wikidata P2397
+ * or YouTube Data API forHandle resolution with ownership checks.
+ */
+
+export const CONCERT_YOUTUBE_CHANNEL_IDS: Record<string, string> = {
+${entries}
+};
+
+export function getKnownConcertYouTubeChannelId(
+  stableKey: string
+): string | null {
+  return CONCERT_YOUTUBE_CHANNEL_IDS[stableKey] || null;
+}
+`;
+  fs.writeFileSync(mapPath, contents);
+  return mapPath;
 }
 
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
   const sources = getCuratedConcertSources();
-  const rows = [];
+  const { rows, summary } = await resolveConcertSourceIdentities(sources);
 
-  for (const source of sources) {
-    const known = getKnownConcertYouTubeChannelId(source.stableKey);
-    let resolved =
-      (source.providerChannelId && isValidYouTubeChannelId(source.providerChannelId)
-        ? source.providerChannelId
-        : null) || known;
+  const newlyResolved = applyResolvedIdentitiesToChannelMap(
+    rows.filter((r) => r.status === "resolved")
+  );
+  const merged = {
+    ...CONCERT_YOUTUBE_CHANNEL_IDS,
+    ...newlyResolved,
+  };
 
-    let method = resolved
-      ? source.providerChannelId
-        ? "seed"
-        : "known_map"
-      : null;
-
-    if (!resolved && source.provider === "youtube" && hasConcertYouTubeApiKey()) {
-      const handle = extractHandle(source.mediaChannelUrl);
-      if (handle) {
-        resolved = await resolveYouTubeChannelIdForHandle(handle);
-        method = resolved ? "youtube_api_forHandle" : "youtube_api_miss";
-      }
-    }
-
-    rows.push({
-      stableKey: source.stableKey,
-      eligible: isConcertSourceImportEligible(source),
-      importEnabled: source.importEnabled,
-      provider: source.provider,
-      resolvedChannelId: resolved,
-      method,
-      needsApi: source.provider === "youtube" && !resolved,
-    });
-  }
-
-  const summary = {
+  const report = {
     dry_run: dryRun,
     youtube_api_key_present: hasConcertYouTubeApiKey(),
-    total: rows.length,
-    resolved: rows.filter((r) => r.resolvedChannelId).length,
-    unresolved_youtube: rows.filter((r) => r.needsApi).length,
-    import_enabled: rows.filter((r) => r.importEnabled).length,
+    generated_at: new Date().toISOString(),
+    summary,
+    resolved_or_known: rows.filter((r) =>
+      ["resolved", "already_resolved"].includes(r.status)
+    ).length,
+    unresolved: rows.filter((r) =>
+      ["not_found", "ambiguous", "wrong_owner", "temporarily_blocked"].includes(
+        r.status
+      )
+    ).length,
+    newly_resolved_count: Object.keys(newlyResolved).length,
+    newly_resolved: newlyResolved,
+    channel_map_size: Object.keys(merged).length,
     rows,
   };
 
-  console.log(JSON.stringify(summary, null, 2));
+  console.log(JSON.stringify(report, null, 2));
 
   if (!dryRun) {
-    const outPath = path.join(adminRoot, "data", "concerts-channel-id-resolution.json");
+    const outPath = path.join(
+      adminRoot,
+      "data",
+      "concerts-identity-resolution-report.json"
+    );
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
-    fs.writeFileSync(outPath, JSON.stringify(summary, null, 2));
-    console.log(JSON.stringify({ wrote: outPath }, null, 2));
+    fs.writeFileSync(outPath, JSON.stringify(report, null, 2));
+
+    let mapPath: string | null = null;
+    if (Object.keys(newlyResolved).length > 0) {
+      mapPath = writeChannelIdentityMap(merged);
+    }
+
+    console.log(
+      JSON.stringify(
+        {
+          wrote: outPath,
+          channel_map_updated: mapPath,
+          note: hasConcertYouTubeApiKey()
+            ? "Resolved IDs recorded when ownership checks passed"
+            : "No YOUTUBE_API_KEY — unresolved handles preserved without inventing IDs",
+        },
+        null,
+        2
+      )
+    );
   }
 }
 

@@ -1,10 +1,10 @@
 /**
- * Per-item concert content classification.
- * Accepts substantial live performances; rejects studio MVs, interviews, ads, etc.
- * Does NOT reject for duration alone when other concert signals are strong.
+ * Per-item concert content classification (Phase 5 hardened).
+ * Supports worldwide concert formats. Duration is supporting evidence only.
  */
 
-import type { ConcertYouTubeVideoCandidate } from "./providers/youtubeClient";
+import type { ConcertYouTubeVideoCandidate } from "../providers/youtubeClient";
+import type { ConcertRejectionReasonCode } from "./rejectionMemory";
 
 export type ConcertClassificationDecision =
   | "accept_candidate"
@@ -13,18 +13,40 @@ export type ConcertClassificationDecision =
   | "reject_paid_or_members"
   | "reject_embed_disabled";
 
+export type ConcertAcceptedType =
+  | "full_concert"
+  | "festival_set"
+  | "live_artist_set"
+  | "live_session"
+  | "orchestra_concert"
+  | "opera"
+  | "choir_performance"
+  | "gospel_concert"
+  | "jazz_session"
+  | "classical_recital"
+  | "chamber_performance"
+  | "dj_festival_set"
+  | "acoustic_performance"
+  | "university_concert"
+  | "conservatory_performance"
+  | "venue_livestream"
+  | "public_broadcaster_concert"
+  | "government_cultural_performance"
+  | "official_concert_replay"
+  | "scheduled_concert_livestream"
+  | "substantial_single_live_performance"
+  | "concert"
+  | "livestream"
+  | "orchestra"
+  | "recital"
+  | "venue_broadcast"
+  | "cultural_performance"
+  | "other";
+
 export type ConcertClassificationResult = {
   decision: ConcertClassificationDecision;
-  concertType:
-    | "concert"
-    | "festival_set"
-    | "livestream"
-    | "orchestra"
-    | "opera"
-    | "recital"
-    | "venue_broadcast"
-    | "cultural_performance"
-    | "other";
+  concertType: ConcertAcceptedType;
+  rejectionCode?: ConcertRejectionReasonCode;
   reasons: string[];
   isLive: boolean;
   isUpcoming: boolean;
@@ -32,46 +54,45 @@ export type ConcertClassificationResult = {
   score: number;
 };
 
-const REJECT_PATTERNS = [
-  /\binterview\b/i,
-  /\btrailer\b/i,
-  /\bteaser\b/i,
-  /\bbehind the scenes\b/i,
-  /\bmaking of\b/i,
-  /\bofficial music video\b/i,
-  /\bmusic video\b/i,
-  /\blyric video\b/i,
-  /\baudio only\b/i,
-  /\bvisualizer\b/i,
-  /\bpodcast\b/i,
-  /\bpress conference\b/i,
-  /\badvertisement\b/i,
-  /\bsponsored\b/i,
-  /\bunboxing\b/i,
-  /\breaction\b/i,
-  /\bmembers?\s*only\b/i,
-  /\bpaywall\b/i,
-  /\bsubscribe to watch\b/i,
+const REJECT_RULES: Array<{
+  pattern: RegExp;
+  code: ConcertRejectionReasonCode;
+}> = [
+  { pattern: /\binterview\b/i, code: "interview" },
+  { pattern: /\btrailer\b|\bteaser\b/i, code: "trailer" },
+  { pattern: /\bpromo\b|\badvertisement\b|\bsponsored\b/i, code: "promo" },
+  { pattern: /\bofficial music video\b|\bmusic video\b|\blyric video\b/i, code: "studio_music_video" },
+  { pattern: /\baudio only\b|\bvisualizer\b/i, code: "studio_music_video" },
+  { pattern: /\bbehind the scenes\b|\bmaking of\b|\bpress conference\b/i, code: "not_concert" },
+  { pattern: /\bpodcast\b|\bunboxing\b|\breaction\b/i, code: "not_concert" },
+  { pattern: /\bmembers?\s*only\b/i, code: "members_only" },
+  { pattern: /\bpaywall\b|\bsubscribe to watch\b/i, code: "paid_only" },
 ];
 
 const STRONG_ACCEPT_PATTERNS = [
-  /\blive (at|from|in|on)\b/i,
   /\bfull concert\b/i,
-  /\bconcert\b/i,
+  /\blive (at|from|in|on)\b/i,
+  /\bin concert\b/i,
   /\bfestival\b/i,
   /\blive set\b/i,
+  /\bdj set\b/i,
   /\blivestream\b/i,
   /\blive stream\b/i,
-  /\bin concert\b/i,
+  /\blive session\b/i,
+  /\btiny desk\b/i,
   /\borchestra\b/i,
   /\bsymphony\b/i,
+  /\bphilharmon/i,
   /\bopera\b/i,
   /\brecital\b/i,
+  /\bchamber\b/i,
   /\bgospel\b/i,
   /\bchoir\b/i,
-  /\bjazz (session|club|festival)\b/i,
-  /\btiny desk\b/i,
-  /\blive session\b/i,
+  /\bjazz (session|club|festival|live)\b/i,
+  /\bacoustic (session|live|performance)\b/i,
+  /\bconservatory\b/i,
+  /\buniversity\b.*\bconcert\b/i,
+  /\bconcert\b/i,
   /\bperformance\b/i,
 ];
 
@@ -79,20 +100,29 @@ function textBlob(candidate: ConcertYouTubeVideoCandidate): string {
   return [candidate.title, candidate.description, candidate.tags.join(" ")].join("\n");
 }
 
-function inferConcertType(
+export function inferConcertType(
   candidate: ConcertYouTubeVideoCandidate
-): ConcertClassificationResult["concertType"] {
+): ConcertAcceptedType {
   const blob = textBlob(candidate);
+  if (candidate.liveBroadcastContent === "upcoming") return "scheduled_concert_livestream";
+  if (candidate.liveBroadcastContent === "live") return "venue_livestream";
   if (/\bopera\b/i.test(blob)) return "opera";
-  if (/\borchestra|symphony|philharmon/i.test(blob)) return "orchestra";
+  if (/\bchamber\b/i.test(blob)) return "chamber_performance";
+  if (/\brecital\b/i.test(blob)) return "classical_recital";
+  if (/\borchestra|symphony|philharmon/i.test(blob)) return "orchestra_concert";
+  if (/\bgospel\b/i.test(blob)) return "gospel_concert";
+  if (/\bchoir\b/i.test(blob)) return "choir_performance";
+  if (/\bjazz\b/i.test(blob)) return "jazz_session";
+  if (/\bdj set\b/i.test(blob)) return "dj_festival_set";
+  if (/\bacoustic\b/i.test(blob)) return "acoustic_performance";
+  if (/\bconservatory\b/i.test(blob)) return "conservatory_performance";
+  if (/\buniversity\b/i.test(blob)) return "university_concert";
   if (/\bfestival|live set\b/i.test(blob)) return "festival_set";
-  if (/\brecital\b/i.test(blob)) return "recital";
-  if (candidate.liveBroadcastContent === "live" || candidate.liveBroadcastContent === "upcoming") {
-    return "livestream";
-  }
-  if (/\bvenue|hall|theatre|theater|opera house\b/i.test(blob)) return "venue_broadcast";
-  if (/\bcultural|choir|gospel\b/i.test(blob)) return "cultural_performance";
-  if (/\bconcert|live (at|from|in|session)\b/i.test(blob)) return "concert";
+  if (/\btiny desk|live session\b/i.test(blob)) return "live_session";
+  if (/\bfull concert\b/i.test(blob)) return "full_concert";
+  if (/\blive (at|from|in)\b/i.test(blob)) return "live_artist_set";
+  if (/\bconcert\b/i.test(blob)) return "official_concert_replay";
+  if (/\bperformance\b/i.test(blob)) return "substantial_single_live_performance";
   return "other";
 }
 
@@ -107,6 +137,7 @@ export function classifyConcertCandidate(
     return {
       decision: "reject_unavailable",
       concertType: "other",
+      rejectionCode: "metadata_insufficient",
       reasons: ["missing_title"],
       isLive: false,
       isUpcoming: false,
@@ -119,6 +150,7 @@ export function classifyConcertCandidate(
     return {
       decision: "reject_embed_disabled",
       concertType: inferConcertType(candidate),
+      rejectionCode: "embed_disabled",
       reasons: ["embed_disabled"],
       isLive: candidate.liveBroadcastContent === "live",
       isUpcoming: candidate.liveBroadcastContent === "upcoming",
@@ -127,16 +159,16 @@ export function classifyConcertCandidate(
     };
   }
 
-  for (const pattern of REJECT_PATTERNS) {
-    if (pattern.test(blob)) {
-      const paid =
-        /\bmembers?\s*only\b/i.test(blob) ||
-        /\bpaywall\b/i.test(blob) ||
-        /\bsubscribe to watch\b/i.test(blob);
+  for (const rule of REJECT_RULES) {
+    if (rule.pattern.test(blob)) {
       return {
-        decision: paid ? "reject_paid_or_members" : "reject_non_concert",
+        decision:
+          rule.code === "members_only" || rule.code === "paid_only"
+            ? "reject_paid_or_members"
+            : "reject_non_concert",
         concertType: inferConcertType(candidate),
-        reasons: [`matched_reject:${pattern}`],
+        rejectionCode: rule.code,
+        reasons: [`matched_reject:${rule.code}`],
         isLive: false,
         isUpcoming: false,
         isReplay: false,
@@ -160,10 +192,10 @@ export function classifyConcertCandidate(
     reasons.push("upcoming_broadcast");
   } else if (candidate.durationSeconds != null && candidate.durationSeconds >= 8 * 60) {
     score += 1;
-    reasons.push("duration_substantial");
+    reasons.push("duration_supporting_evidence");
   }
 
-  // Short clips can still be accepted when strong live-performance signals exist.
+  // Duration alone never rejects when strong concert signals exist.
   if (
     candidate.durationSeconds != null &&
     candidate.durationSeconds > 0 &&
@@ -173,6 +205,7 @@ export function classifyConcertCandidate(
     return {
       decision: "reject_non_concert",
       concertType: inferConcertType(candidate),
+      rejectionCode: "short_insufficient",
       reasons: [...reasons, "too_short_without_strong_signal"],
       isLive: false,
       isUpcoming: false,
@@ -185,6 +218,7 @@ export function classifyConcertCandidate(
     return {
       decision: "reject_non_concert",
       concertType: inferConcertType(candidate),
+      rejectionCode: "not_concert",
       reasons: [...reasons, "insufficient_concert_signal"],
       isLive: false,
       isUpcoming: false,

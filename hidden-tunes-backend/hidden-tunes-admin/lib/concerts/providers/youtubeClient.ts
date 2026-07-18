@@ -88,24 +88,66 @@ async function ytFetch<T>(
   return (await response.json()) as T;
 }
 
-export async function resolveYouTubeChannelIdForHandle(
+export type ConcertYouTubeChannelIdentity = {
+  channelId: string;
+  channelTitle: string | null;
+};
+
+export async function resolveYouTubeChannelForHandle(
   handle: string,
   opts: ConcertYouTubeClientOptions = {}
-): Promise<string | null> {
+): Promise<ConcertYouTubeChannelIdentity | null> {
   const cleaned = String(handle || "")
     .trim()
     .replace(/^@/, "");
   if (!cleaned) return null;
-  if (isValidYouTubeChannelId(cleaned)) return cleaned;
+  if (isValidYouTubeChannelId(cleaned)) {
+    return { channelId: cleaned, channelTitle: null };
+  }
 
-  type ChannelsResponse = { items?: Array<{ id?: string }> };
+  type ChannelsResponse = {
+    items?: Array<{ id?: string; snippet?: { title?: string } }>;
+  };
   const data = await ytFetch<ChannelsResponse>(
     "channels",
-    { part: "id", forHandle: cleaned },
+    { part: "id,snippet", forHandle: cleaned },
     opts
   );
   const id = String(data.items?.[0]?.id || "").trim();
-  return isValidYouTubeChannelId(id) ? id : null;
+  if (!isValidYouTubeChannelId(id)) return null;
+  return {
+    channelId: id,
+    channelTitle: data.items?.[0]?.snippet?.title || null,
+  };
+}
+
+export async function resolveYouTubeChannelIdForHandle(
+  handle: string,
+  opts: ConcertYouTubeClientOptions = {}
+): Promise<string | null> {
+  const resolved = await resolveYouTubeChannelForHandle(handle, opts);
+  return resolved?.channelId || null;
+}
+
+export async function fetchYouTubeChannelSnippet(
+  channelId: string,
+  opts: ConcertYouTubeClientOptions = {}
+): Promise<{ channelId: string; channelTitle: string | null } | null> {
+  if (!isValidYouTubeChannelId(channelId)) return null;
+  type ChannelsResponse = {
+    items?: Array<{ id?: string; snippet?: { title?: string } }>;
+  };
+  const data = await ytFetch<ChannelsResponse>(
+    "channels",
+    { part: "snippet", id: channelId },
+    opts
+  );
+  const id = String(data.items?.[0]?.id || "").trim();
+  if (!isValidYouTubeChannelId(id)) return null;
+  return {
+    channelId: id,
+    channelTitle: data.items?.[0]?.snippet?.title || null,
+  };
 }
 
 export async function fetchYouTubeUploadsPlaylistId(

@@ -1,7 +1,7 @@
 /**
- * Checkpointed Concerts import runner.
- * Discovers broadly from eligible sources; inserts only as validation_pending.
- * Never publishes publicly. Bounded per run; resumable across runs.
+ * Checkpointed Concerts import runner (Phase 5 scale-hardened).
+ * Source-level failure isolation, rejection memory, soft dedupe, bounded pages.
+ * Never publishes publicly.
  */
 
 import path from "path";
@@ -24,8 +24,24 @@ import {
   writeConcertImportCheckpoint,
   type ConcertImportCheckpoint,
 } from "./checkpoint";
+import {
+  buildConcertMetadataHash,
+  buildConcertPerformanceFingerprint,
+  buildHardProviderKey,
+  scoreConcertSoftDuplicate,
+} from "./dedupe";
+import { inferLifecycleHint } from "./lifecycle";
 import { insertPendingConcertCandidate } from "./persistPending";
 import { probeYouTubeConcertPlayability } from "./playbackProbe";
+import {
+  createRequestDeduper,
+  decideConcertProviderRetry,
+} from "./rateLimit";
+import {
+  mapClassificationToRejectionCode,
+  shouldSkipRejectedConcert,
+  type ConcertRejectionRecord,
+} from "./rejectionMemory";
 import { isConcertSourceImportEligible } from "./sourceEligibility";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -41,6 +57,7 @@ export type ConcertImportRunOptions = {
   skipPlaybackProbe?: boolean;
   fixtures?: Record<string, ConcertYouTubeVideoCandidate[]>;
   adminRoot?: string;
+  rejectionMemory?: Map<string, ConcertRejectionRecord>;
   onProgress?: (event: Record<string, unknown>) => void;
 };
 
@@ -53,8 +70,11 @@ export type ConcertImportSourceReport = {
   accepted: number;
   rejected: number;
   duplicates: number;
+  probableDuplicates: number;
+  skippedRejections: number;
   inserted: number;
   probeFailed: number;
+  retries: number;
   errors: string[];
   checkpoint: ConcertImportCheckpoint;
 };
@@ -66,13 +86,17 @@ export type ConcertImportRunReport = {
   sources_considered: number;
   sources_eligible: number;
   sources_run: number;
+  sources_failed: number;
   totals: {
     seen: number;
     accepted: number;
     rejected: number;
     duplicates: number;
+    probable_duplicates: number;
+    skipped_rejections: number;
     inserted: number;
     probe_failed: number;
+    retries: number;
   };
   sources: ConcertImportSourceReport[];
 };
@@ -105,6 +129,10 @@ async function resolveChannelId(source: ConcertSourceSeed): Promise<string | nul
   return null;
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function runConcertsImport(
   options: ConcertImportRunOptions
 ): Promise<ConcertImportRunReport> {
@@ -113,6 +141,11 @@ export async function runConcertsImport(
   const maxPages = Math.max(1, options.maxPagesPerSource ?? 2);
   const pageSize = Math.min(50, Math.max(1, options.pageSize ?? 25));
   const resume = options.resume !== false;
+  const rejectionMemory =
+    options.rejectionMemory || new Map<string, ConcertRejectionRecord>();
+  const requestDedupe = createRequestDeduper<Awaited<
+    ReturnType<typeof discoverYouTubeChannelPage>
+  >>();
 
   const selected = options.sourceStableKey
     ? options.sources.filter((s) => s.stableKey === options.sourceStableKey)
@@ -120,56 +153,58 @@ export async function runConcertsImport(
 
   const eligible = selected.filter(isConcertSourceImportEligible);
   const reports: ConcertImportSourceReport[] = [];
+  const seenProviderKeys = new Set<string>();
+  const fingerprintIndex = new Map<string, string>();
+  const softSeen: Array<{
+    id: string;
+    title: string;
+    primaryArtistName: string;
+    providerContentId: string;
+    durationSeconds: number | null;
+    performanceDate: string | null;
+    lifecycleHint: "scheduled" | "live" | "replay" | "unknown";
+    performanceFingerprint: string;
+  }> = [];
 
   for (const source of selected) {
     const checkpoint =
       (resume && loadConcertImportCheckpoint(adminRoot, source.stableKey)) ||
       createConcertImportCheckpoint(source.stableKey);
 
-    if (!isConcertSourceImportEligible(source)) {
-      checkpoint.status = "completed";
-      checkpoint.last_error = "source_not_import_eligible";
-      writeConcertImportCheckpoint(adminRoot, checkpoint);
-      reports.push({
-        stableKey: source.stableKey,
-        eligible: false,
-        channelId: null,
-        pages: 0,
-        seen: 0,
-        accepted: 0,
-        rejected: 0,
-        duplicates: 0,
-        inserted: 0,
-        probeFailed: 0,
-        errors: ["source_not_import_eligible"],
-        checkpoint,
-      });
-      continue;
-    }
-
     const sourceReport: ConcertImportSourceReport = {
       stableKey: source.stableKey,
-      eligible: true,
+      eligible: isConcertSourceImportEligible(source),
       channelId: null,
       pages: 0,
       seen: 0,
       accepted: 0,
       rejected: 0,
       duplicates: 0,
+      probableDuplicates: 0,
+      skippedRejections: 0,
       inserted: 0,
       probeFailed: 0,
+      retries: 0,
       errors: [],
       checkpoint,
     };
+
+    if (!sourceReport.eligible) {
+      checkpoint.status = "completed";
+      checkpoint.last_error = "source_not_import_eligible";
+      writeConcertImportCheckpoint(adminRoot, checkpoint);
+      sourceReport.errors.push("source_not_import_eligible");
+      sourceReport.checkpoint = checkpoint;
+      reports.push(sourceReport);
+      continue;
+    }
 
     try {
       checkpoint.status = "running";
       const channelId = await resolveChannelId(source);
       sourceReport.channelId = channelId;
       checkpoint.channel_id = channelId;
-      if (!channelId) {
-        throw new Error("channel_id_unresolved");
-      }
+      if (!channelId) throw new Error("channel_id_unresolved");
 
       let pageToken: string | null = resume ? checkpoint.page_token : null;
       let pagesThisRun = 0;
@@ -179,20 +214,46 @@ export async function runConcertsImport(
         let nextPageToken: string | null = null;
 
         if (options.fixtures?.[source.stableKey]) {
-          candidates = options.fixtures[source.stableKey];
+          // Memory-bounded: only one fixture page per source per run.
+          candidates =
+            pagesThisRun === 0 ? options.fixtures[source.stableKey] : [];
           nextPageToken = null;
         } else {
           if (!hasConcertYouTubeApiKey()) {
             throw new Error("youtube_api_key_missing");
           }
-          const page = await discoverYouTubeChannelPage({
-            channelId,
-            pageToken,
-            maxResults: pageSize,
-          });
-          candidates = page.candidates;
-          nextPageToken = page.nextPageToken;
-          checkpoint.uploads_playlist_id = page.uploadsPlaylistId;
+
+          let attempt = 0;
+          // Provider retry with backoff; failure stays isolated to this source.
+          // eslint-disable-next-line no-constant-condition
+          while (true) {
+            try {
+              const cacheKey = `${channelId}:${pageToken || "start"}:${pageSize}`;
+              const page = await requestDedupe(cacheKey, () =>
+                discoverYouTubeChannelPage({
+                  channelId,
+                  pageToken,
+                  maxResults: pageSize,
+                })
+              );
+              candidates = page.candidates;
+              nextPageToken = page.nextPageToken;
+              checkpoint.uploads_playlist_id = page.uploadsPlaylistId;
+              break;
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              const statusMatch = message.match(/YouTube API (\d+)/);
+              const decision = decideConcertProviderRetry({
+                attempt,
+                status: statusMatch ? Number(statusMatch[1]) : null,
+                errorMessage: message,
+              });
+              if (!decision.retry) throw error;
+              sourceReport.retries += 1;
+              attempt += 1;
+              await sleep(decision.delayMs);
+            }
+          }
         }
 
         pagesThisRun += 1;
@@ -203,12 +264,100 @@ export async function runConcertsImport(
           sourceReport.seen += 1;
           checkpoint.candidates_seen += 1;
 
+          const hardKey = buildHardProviderKey("youtube", candidate.providerContentId);
+          if (seenProviderKeys.has(hardKey)) {
+            sourceReport.duplicates += 1;
+            checkpoint.duplicates += 1;
+            continue;
+          }
+          seenProviderKeys.add(hardKey);
+
+          const metadataHash = buildConcertMetadataHash({
+            title: candidate.title,
+            description: candidate.description,
+            duration: candidate.durationSeconds,
+            embeddable: candidate.embeddable,
+            live: candidate.liveBroadcastContent,
+          });
+
+          const rejectionKey = hardKey;
+          const priorRejection = rejectionMemory.get(rejectionKey);
+          if (priorRejection) {
+            const skip = shouldSkipRejectedConcert({
+              rejection: priorRejection,
+              currentMetadataHash: metadataHash,
+              currentEmbedStatus: String(candidate.embeddable),
+            });
+            if (skip.skip) {
+              sourceReport.skippedRejections += 1;
+              continue;
+            }
+          }
+
           const classification = classifyConcertCandidate(candidate);
           if (classification.decision !== "accept_candidate") {
             sourceReport.rejected += 1;
             checkpoint.rejected += 1;
+            const code =
+              classification.rejectionCode ||
+              mapClassificationToRejectionCode(
+                classification.decision,
+                candidate.title,
+                candidate.description
+              );
+            rejectionMemory.set(rejectionKey, {
+              provider: "youtube",
+              providerContentId: candidate.providerContentId,
+              reasonCode: code,
+              metadataHash,
+              embedStatus: String(candidate.embeddable),
+              lastSeenAt: new Date().toISOString(),
+            });
             continue;
           }
+
+          const lifecycleHint = inferLifecycleHint({
+            liveBroadcastContent: candidate.liveBroadcastContent,
+            isLive: classification.isLive,
+            isUpcoming: classification.isUpcoming,
+            isReplay: classification.isReplay,
+          });
+          const fingerprint = buildConcertPerformanceFingerprint({
+            title: candidate.title,
+            primaryArtistName: candidate.channelTitle,
+            performanceDate: candidate.publishedAt,
+            durationSeconds: candidate.durationSeconds,
+            providerChannelId: candidate.channelId,
+            lifecycleHint,
+          });
+
+          // Soft duplicate scan against in-run memory (bounded; no full catalog load).
+          let skipAsDuplicate = false;
+          for (const prior of softSeen) {
+            const soft = scoreConcertSoftDuplicate(
+              {
+                id: "incoming",
+                title: candidate.title,
+                primaryArtistName: candidate.channelTitle,
+                providerContentId: candidate.providerContentId,
+                durationSeconds: candidate.durationSeconds,
+                performanceDate: candidate.publishedAt,
+                lifecycleHint,
+                performanceFingerprint: fingerprint,
+              },
+              prior
+            );
+            if (soft.autoMerge) {
+              sourceReport.duplicates += 1;
+              checkpoint.duplicates += 1;
+              skipAsDuplicate = true;
+              break;
+            }
+            if (soft.kind === "probable_duplicate") {
+              sourceReport.probableDuplicates += 1;
+            }
+          }
+          if (skipAsDuplicate) continue;
 
           if (!options.skipPlaybackProbe) {
             const probe = await probeYouTubeConcertPlayability(candidate);
@@ -216,17 +365,33 @@ export async function runConcertsImport(
               sourceReport.probeFailed += 1;
               sourceReport.rejected += 1;
               checkpoint.rejected += 1;
+              rejectionMemory.set(rejectionKey, {
+                provider: "youtube",
+                providerContentId: candidate.providerContentId,
+                reasonCode: "dead",
+                metadataHash,
+                embedStatus: String(candidate.embeddable),
+                lastSeenAt: new Date().toISOString(),
+              });
               continue;
             }
           }
 
           sourceReport.accepted += 1;
           checkpoint.accepted += 1;
+          softSeen.push({
+            id: candidate.providerContentId,
+            title: candidate.title,
+            primaryArtistName: candidate.channelTitle,
+            providerContentId: candidate.providerContentId,
+            durationSeconds: candidate.durationSeconds,
+            performanceDate: candidate.publishedAt,
+            lifecycleHint,
+            performanceFingerprint: fingerprint,
+          });
 
           if (dryRun) continue;
 
-          // Source UUID is required for DB insert; caller/seed must upsert sources first.
-          // When source_id is unknown, skip insert and record error once.
           if (!checkpoint.source_id) {
             sourceReport.errors.push("source_id_missing_upsert_sources_first");
             continue;
@@ -238,9 +403,10 @@ export async function runConcertsImport(
             classification,
             countryCode: source.countryCode,
             languageCode: source.languageCodes[0] || null,
+            existingFingerprintIndex: fingerprintIndex,
           });
 
-          if (result.duplicate) {
+          if (result.duplicate || result.probableDuplicate) {
             sourceReport.duplicates += 1;
             checkpoint.duplicates += 1;
           } else if (result.inserted) {
@@ -277,6 +443,7 @@ export async function runConcertsImport(
       checkpoint.status = "failed";
       checkpoint.last_error = message;
       writeConcertImportCheckpoint(adminRoot, checkpoint);
+      // Continue other sources — one broken source must not stop the run.
     }
 
     sourceReport.checkpoint = checkpoint;
@@ -289,8 +456,11 @@ export async function runConcertsImport(
       acc.accepted += row.accepted;
       acc.rejected += row.rejected;
       acc.duplicates += row.duplicates;
+      acc.probable_duplicates += row.probableDuplicates;
+      acc.skipped_rejections += row.skippedRejections;
       acc.inserted += row.inserted;
       acc.probe_failed += row.probeFailed;
+      acc.retries += row.retries;
       return acc;
     },
     {
@@ -298,8 +468,11 @@ export async function runConcertsImport(
       accepted: 0,
       rejected: 0,
       duplicates: 0,
+      probable_duplicates: 0,
+      skipped_rejections: 0,
       inserted: 0,
       probe_failed: 0,
+      retries: 0,
     }
   );
 
@@ -310,6 +483,7 @@ export async function runConcertsImport(
     sources_considered: selected.length,
     sources_eligible: eligible.length,
     sources_run: reports.filter((r) => r.eligible).length,
+    sources_failed: reports.filter((r) => r.errors.length > 0 && r.eligible).length,
     totals,
     sources: reports,
   };
