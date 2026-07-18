@@ -128,6 +128,7 @@ function buildHlsPlayerHtml(streamUrl: string) {
         }
         var video = document.getElementById("player");
         video.addEventListener("playing", function () { post("playing"); });
+        video.addEventListener("loadeddata", function () { post("playing"); });
         video.addEventListener("pause", function () { post("paused"); });
         video.addEventListener("error", function () { post("error"); });
         try {
@@ -181,11 +182,33 @@ function buildYouTubePlayerHtml(sourceId: string) {
   </head>
   <body>
     <iframe
+      id="yt"
       src="${embedUrl}"
       title="Hidden Tunes TV"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowfullscreen
     ></iframe>
+    <script>
+      (function () {
+        function post(message) {
+          if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+            window.ReactNativeWebView.postMessage(String(message));
+          }
+        }
+        var iframe = document.getElementById("yt");
+        var posted = false;
+        function markPlaying() {
+          if (posted) return;
+          posted = true;
+          post("playing");
+        }
+        if (iframe) {
+          iframe.addEventListener("load", markPlaying);
+        }
+        // YouTube iframe API is not wired; clear preparing once the embed has mounted.
+        setTimeout(markPlaying, 1200);
+      })();
+    </script>
   </body>
 </html>`;
 }
@@ -276,6 +299,13 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   isPlayingRef.current = isTvPlaying;
   surfaceRef.current = surface;
 
+  // Playing proves the stream is live — never keep a preparing spinner on top of it.
+  useEffect(() => {
+    if (isTvPlaying) {
+      setIsTvLoading(false);
+    }
+  }, [isTvPlaying]);
+
   const unloadSurface = useCallback(() => {
     try {
       nativePlayerRef.current?.unload();
@@ -342,7 +372,8 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       setSeedQueueIds(input.seedIds ?? []);
       setSectionId(input.section ?? null);
       setPresentationModeState(input.presentation);
-      setIsTvPlaying(true);
+      // Optimistic session start — preparing until native/WebView confirms playback.
+      setIsTvPlaying(false);
       setIsTvLoading(true);
       setHasError(false);
       setPlayerGeneration((value) => value + 1);
@@ -614,7 +645,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const handleRetry = useCallback(() => {
     setHasError(false);
     setIsTvLoading(true);
-    setIsTvPlaying(true);
+    setIsTvPlaying(false);
     setPlayerGeneration((value) => value + 1);
   }, []);
 

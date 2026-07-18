@@ -421,8 +421,8 @@ function TvPlayerHost({
         </LinearGradient>
       )}
 
-      {isLoading && !hasError ? (
-        <View style={styles.loadingOverlay}>
+      {isLoading && !isPlaying && !hasError ? (
+        <View style={styles.loadingOverlay} pointerEvents="none">
           <ActivityIndicator color={COLORS.primary} size="large" />
           {full ? <Text style={styles.loadingText}>Loading stream…</Text> : null}
         </View>
