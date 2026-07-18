@@ -83,6 +83,8 @@ export type SportsMatchCard = {
     playable: boolean;
     playbackModeHint?: "embed" | "native" | "webview" | null;
   };
+  /** Canonical availability — aligned with playabilitySync / play resolver. */
+  availabilityState?: string | null;
   badges?: string[];
   /** Safe, non-private reason — only when personalization is enabled. */
   recommendationReason?: {

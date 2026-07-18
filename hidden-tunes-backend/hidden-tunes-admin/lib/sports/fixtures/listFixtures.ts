@@ -61,6 +61,7 @@ export async function listSportsFixturesFiltered(
     .select(
       "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata, availability_state, playable"
     )
+    .eq("visible", true)
     .order("starts_at", { ascending: true })
     .range(offset, offset + limit);
 
@@ -103,7 +104,12 @@ export async function listSportsFixturesFiltered(
   const rows = (data || []) as FixtureRow[];
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
-  const items = await batchLoadMatchCards(page, { now });
+  let items = await batchLoadMatchCards(page, { now });
+
+  // Live list must use effective live (time window), not stale status alone.
+  if (input.live) {
+    items = items.filter((c) => c.status.live);
+  }
 
   return {
     items,

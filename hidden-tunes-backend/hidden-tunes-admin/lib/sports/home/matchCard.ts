@@ -55,6 +55,8 @@ export type MatchCardInput = {
     posterUrl?: string | null;
   } | null;
   hasPlayableBroadcast?: boolean;
+  hasExternalOfficial?: boolean;
+  availabilityState?: string | null;
   hasReplay?: boolean;
   hasHighlights?: boolean;
   badges?: string[];
@@ -101,6 +103,7 @@ export function toSportsMatchCard(input: MatchCardInput): SportsMatchCard {
     broadcastStatus: input.broadcastStatus,
     startsAt: input.startsAt,
     endsAt: input.endsAt,
+    sportSlug: input.sport.slug,
     metadata: input.metadata,
     hasReplay: input.hasReplay,
     hasHighlights: input.hasHighlights,
@@ -127,6 +130,36 @@ export function toSportsMatchCard(input: MatchCardInput): SportsMatchCard {
     watchability.playable = false;
     watchability.state = "unavailable";
   }
+
+  // External official (no in-app stream) is never "playable" for Watch Live.
+  if (
+    !input.hasPlayableBroadcast &&
+    input.hasExternalOfficial &&
+    status.live
+  ) {
+    watchability.playable = false;
+    watchability.state = "unavailable";
+  }
+
+  // live_in_app only when actually live AND validated playable.
+  if (watchability.playable && !status.live && code !== "replay_available" && code !== "highlights_available") {
+    watchability.playable = false;
+    watchability.state = "unavailable";
+  }
+
+  const availabilityState =
+    input.availabilityState ||
+    (watchability.playable && status.live
+      ? "live_in_app"
+      : input.hasExternalOfficial && status.live
+        ? "live_external"
+        : status.finished
+          ? "finished"
+          : status.live
+            ? "live_unavailable"
+            : code === "starting_soon" || code === "scheduled"
+              ? "upcoming"
+              : "unavailable");
 
   const card: SportsMatchCard = {
     id: input.id,
@@ -167,6 +200,7 @@ export function toSportsMatchCard(input: MatchCardInput): SportsMatchCard {
     venue: input.venue ?? null,
     artwork: input.artwork ?? null,
     watchability,
+    availabilityState,
     badges: input.badges,
   };
 

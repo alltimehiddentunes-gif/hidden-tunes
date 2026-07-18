@@ -8,6 +8,7 @@ import {
   parseSportsCountry,
   parseSportsPlatform,
 } from "@/lib/sports/http";
+import { resolveSportsBrowseAccess } from "@/lib/sports/pilotAccess";
 import { parsePositiveInt } from "@/lib/tvCatalog";
 
 export const runtime = "nodejs";
@@ -15,8 +16,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const enabled = await isSportsFeatureEnabled("sports_enabled");
-    if (!enabled) {
+    const access = await resolveSportsBrowseAccess(request, () =>
+      isSportsFeatureEnabled("sports_enabled")
+    );
+    if (!access.enabled) {
       return jsonSportsOk({
         enabled: false,
         message: "Sports is disabled by feature flag.",
@@ -64,6 +67,9 @@ export async function GET(request: NextRequest) {
       userId,
       timeZone,
       locale,
+      forceFeatureEnabled: access.privatePilot,
+      forceHomeIaEnabled: access.privatePilot,
+      bypassCache: access.privatePilot,
       limits: limitOverride
         ? {
             liveNow: limitOverride,
@@ -85,6 +91,7 @@ export async function GET(request: NextRequest) {
 
     return jsonSportsOk({
       enabled: true,
+      privatePilot: access.privatePilot || undefined,
       homeIaEnabled,
       personalizationEnabled,
       personalizationApplied,

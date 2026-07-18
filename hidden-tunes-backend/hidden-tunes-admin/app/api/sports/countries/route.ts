@@ -62,7 +62,13 @@ export async function GET(request: NextRequest) {
       ...(fixRes.data || []),
       ...(teamRes.data || []),
     ]) {
-      if (row.country_code) codes.add(String(row.country_code).toUpperCase());
+      const code = row.country_code
+        ? String(row.country_code).toUpperCase()
+        : "";
+      // ZZ / XX are internal fallbacks — never public country hubs.
+      if (code && code !== "ZZ" && code !== "XX" && code !== "AA") {
+        codes.add(code);
+      }
     }
 
     if (!codes.size) {

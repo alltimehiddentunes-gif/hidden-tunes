@@ -7,6 +7,7 @@ import {
   parseSportsPlatform,
 } from "@/lib/sports/http";
 import { resolveFixturePlayback } from "@/lib/sports/playback/fixtureResolver";
+import { isSportsPrivatePilotRequest } from "@/lib/sports/pilotAccess";
 import type { SportsPlatform } from "@/lib/sports/types";
 
 export const runtime = "nodejs";
@@ -48,6 +49,7 @@ export async function POST(
         ? String(body.preferredLanguage)
         : undefined,
       userId: body.userId ? String(body.userId) : null,
+      privatePilot: isSportsPrivatePilotRequest(request),
     });
 
     const status =

@@ -6,6 +6,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 import { isSportsFeatureEnabled } from "../featureFlags";
+import { computeSportsEffectiveLiveState } from "../liveState";
 import { validateScoreBatEmbed } from "../providers/scorebat/embedSafety";
 import { getScoreBatRuntimeConfig } from "../providers/scorebat/config";
 import {
@@ -349,23 +350,30 @@ export async function resolveFixturePlayback(
     const now = new Date();
     const fixtureStatus = String(fixture.status || "").toLowerCase();
     if (fixtureStatus === "cancelled" || fixtureStatus === "postponed") {
+      await syncFixturePlayability(fixtureId).catch(() => undefined);
       const session = unavailable(fixtureId, "no_broadcast");
       await recordSportsMetric("unavailable_responses");
       return session;
     }
 
-    const starts = new Date(fixture.starts_at);
-    const ends = fixture.ends_at ? new Date(fixture.ends_at) : null;
+    const liveState = computeSportsEffectiveLiveState({
+      fixtureStatus: fixture.status,
+      startsAt: fixture.starts_at,
+      endsAt: fixture.ends_at,
+      now,
+    });
     const isFinished =
+      liveState.isFinished ||
       fixtureStatus === "completed" ||
-      fixtureStatus === "expired" ||
-      (ends !== null && ends <= now);
-    const isUpcoming =
-      !isFinished &&
-      starts > now &&
-      (fixtureStatus === "scheduled" ||
-        fixtureStatus === "verified" ||
-        fixtureStatus === "discovered");
+      fixtureStatus === "expired";
+    const isUpcoming = liveState.isUpcoming;
+
+    if (isFinished) {
+      await syncFixturePlayability(fixtureId).catch(() => undefined);
+      const session = unavailable(fixtureId, "finished");
+      await recordSportsMetric("unavailable_responses");
+      return session;
+    }
 
     const { data: rows } = await supabaseAdmin
       .from("sports_broadcasts")

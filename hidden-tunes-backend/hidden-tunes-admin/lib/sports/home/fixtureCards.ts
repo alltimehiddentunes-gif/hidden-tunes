@@ -5,6 +5,8 @@
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+import { isTestOrPlaceholderSportsFixture } from "../catalogFilter";
+import { isEligibleForReadyPlayback } from "../playback/healthScore";
 import { toSportsMatchCard } from "./matchCard";
 import type { SportsMatchCard } from "./types";
 
@@ -19,6 +21,8 @@ export type FixtureRow = {
   venue_id: string | null;
   country_code: string | null;
   metadata: Record<string, unknown> | null;
+  availability_state?: string | null;
+  playable?: boolean | null;
 };
 
 type SportRow = { id: string; slug: string; name: string; artwork_url?: string | null };
@@ -66,6 +70,7 @@ type BroadcastHint = {
   fixture_id: string;
   availability_status: string;
   playable: boolean;
+  hasExternalOfficial: boolean;
 };
 
 const PLAYABLE_SOURCE_STATUSES = [
@@ -73,7 +78,6 @@ const PLAYABLE_SOURCE_STATUSES = [
   "scheduled",
   "live",
   "degraded",
-  "external_only",
 ];
 
 export async function batchLoadMatchCards(
@@ -81,9 +85,13 @@ export async function batchLoadMatchCards(
   opts: {
     now?: Date;
     startingSoonWindowMs?: number;
+    /** When true (default), drop test / placeholder catalog rows. */
+    excludeTestContent?: boolean;
   } = {}
 ): Promise<SportsMatchCard[]> {
   if (!fixtures.length) return [];
+  const now = opts.now ?? new Date();
+  const excludeTest = opts.excludeTestContent !== false;
 
   const fixtureIds = fixtures.map((f) => f.id);
   const sportIds = [...new Set(fixtures.map((f) => f.sport_id))];
@@ -131,7 +139,9 @@ export async function batchLoadMatchCards(
       .eq("period", "full_time"),
     supabaseAdmin
       .from("sports_broadcasts")
-      .select("id, fixture_id, availability_status")
+      .select(
+        "id, fixture_id, availability_status, validation_status, health_score, validation_expires_at, playback_kind, access_type, publisher_domain, metadata, is_official"
+      )
       .in("fixture_id", fixtureIds)
       .not("published_at", "is", null)
       .is("unpublished_at", null)
@@ -159,47 +169,60 @@ export async function batchLoadMatchCards(
     ((scoresRes.data || []) as ScoreRow[]).map((s) => [s.fixture_id, s])
   );
 
-  const broadcastIds = ((broadcastsRes.data || []) as Array<{
+  type BroadcastRow = {
     id: string;
     fixture_id: string;
     availability_status: string;
-  }>).map((b) => b.id);
+    validation_status: string;
+    health_score: number;
+    validation_expires_at: string | null;
+    playback_kind: string | null;
+    access_type: string;
+    publisher_domain: string | null;
+    metadata: Record<string, unknown> | null;
+    is_official: boolean;
+  };
 
-  const playableByBroadcast = new Set<string>();
-  if (broadcastIds.length) {
-    const { data: sources, error: sourcesError } = await supabaseAdmin
-      .from("sports_stream_sources")
-      .select("broadcast_id, status, is_direct_play_allowed, is_embed_allowed, is_external_only")
-      .in("broadcast_id", broadcastIds)
-      .in("status", PLAYABLE_SOURCE_STATUSES);
-    if (sourcesError) throw new Error(sourcesError.message);
-    for (const src of sources || []) {
-      if (
-        src.is_direct_play_allowed ||
-        src.is_embed_allowed ||
-        src.is_external_only
-      ) {
-        playableByBroadcast.add(String(src.broadcast_id));
-      }
-    }
-  }
-
+  const broadcasts = (broadcastsRes.data || []) as BroadcastRow[];
   const broadcastHints = new Map<string, BroadcastHint>();
-  for (const b of (broadcastsRes.data || []) as Array<{
-    id: string;
-    fixture_id: string;
-    availability_status: string;
-  }>) {
+  for (const b of broadcasts) {
+    const domain = String(b.publisher_domain || "").toLowerCase();
+    const metaUrl = String(
+      (b.metadata || {}).official_url ||
+        (b.metadata || {}).officialUrl ||
+        (b.metadata || {}).embed_url ||
+        ""
+    ).toLowerCase();
+    const placeholder =
+      domain.includes("example.com") ||
+      domain.includes("example.org") ||
+      metaUrl.includes("example.com") ||
+      metaUrl.includes("example.org");
+    if (placeholder) continue;
+
+    const inAppPlayable = isEligibleForReadyPlayback({
+      healthScore: Number(b.health_score || 0),
+      validationStatus: b.validation_status,
+      validationExpiresAt: b.validation_expires_at,
+      now,
+    });
+    const externalOfficial =
+      !inAppPlayable &&
+      b.is_official === true &&
+      (b.playback_kind === "external" || b.access_type === "external") &&
+      PLAYABLE_SOURCE_STATUSES.includes(b.availability_status);
+
     const prev = broadcastHints.get(b.fixture_id);
-    const playable = playableByBroadcast.has(b.id);
     if (!prev) {
       broadcastHints.set(b.fixture_id, {
         fixture_id: b.fixture_id,
         availability_status: b.availability_status,
-        playable,
+        playable: inAppPlayable,
+        hasExternalOfficial: externalOfficial,
       });
     } else {
-      prev.playable = prev.playable || playable;
+      prev.playable = prev.playable || inAppPlayable;
+      prev.hasExternalOfficial = prev.hasExternalOfficial || externalOfficial;
       if (b.availability_status === "live") {
         prev.availability_status = "live";
       }
@@ -275,7 +298,20 @@ export async function batchLoadMatchCards(
     participantsByFixture.set(p.fixture_id, list);
   }
 
-  return fixtures.map((fixture) => {
+  return fixtures
+    .filter((fixture) => {
+      if (!excludeTest) return true;
+      const competition = fixture.competition_id
+        ? competitions.get(fixture.competition_id)
+        : null;
+      return !isTestOrPlaceholderSportsFixture({
+        title: fixture.title,
+        metadata: fixture.metadata,
+        competitionName: competition?.name,
+        competitionSlug: competition?.slug,
+      });
+    })
+    .map((fixture) => {
     const sport = sports.get(fixture.sport_id);
     const competition = fixture.competition_id
       ? competitions.get(fixture.competition_id)
@@ -336,6 +372,17 @@ export async function batchLoadMatchCards(
       badges.push("featured");
     }
 
+    // Prefer validated in-app playability; never invent playable from loose source flags.
+    const dbPlayable = fixture.playable === true;
+    const validatedPlayable = Boolean(hint?.playable) || dbPlayable;
+    const availabilityState =
+      fixture.availability_state ||
+      (validatedPlayable
+        ? "live_in_app"
+        : hint?.hasExternalOfficial
+          ? "live_external"
+          : null);
+
     return toSportsMatchCard({
       id: fixture.id,
       slug: typeof meta.slug === "string" ? meta.slug : null,
@@ -374,11 +421,13 @@ export async function batchLoadMatchCards(
         thumbnailUrl: competition?.artwork_url ?? sport?.artwork_url ?? null,
         posterUrl: competition?.artwork_url ?? null,
       },
-      hasPlayableBroadcast: Boolean(hint?.playable),
+      hasPlayableBroadcast: validatedPlayable,
+      hasExternalOfficial: Boolean(hint?.hasExternalOfficial),
+      availabilityState,
       hasReplay: Boolean(flags?.hasReplay),
       hasHighlights: Boolean(flags?.hasHighlights),
       badges: badges.length ? badges : undefined,
-      now: opts.now,
+      now,
       startingSoonWindowMs: opts.startingSoonWindowMs,
     });
   });

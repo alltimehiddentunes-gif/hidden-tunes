@@ -65,8 +65,9 @@ async function loadFixtures(query: {
   let q = supabaseAdmin
     .from("sports_fixtures")
     .select(
-      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata"
+      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata, availability_state, playable"
     )
+    .eq("visible", true)
     .limit(query.featuredOnly ? Math.min(100, query.limit * 5) : query.limit);
 
   if (query.statusIn?.length) q = q.in("status", query.statusIn);
@@ -101,9 +102,14 @@ export async function loadLiveNow(
       now: ctx.now,
       startingSoonWindowMs: ctx.limits.startingSoonWindowMs,
     });
-    // Live Now requires a playable broadcast.
+    // Live Now requires genuine live window + validated in-app playability.
     const items = cards
-      .filter((c) => c.watchability.playable && c.status.live)
+      .filter(
+        (c) =>
+          c.status.live &&
+          c.watchability.playable &&
+          c.availabilityState === "live_in_app"
+      )
       .sort((a, b) => {
         const aFeatured = a.badges?.includes("featured") ? 0 : 1;
         const bFeatured = b.badges?.includes("featured") ? 0 : 1;
@@ -492,7 +498,12 @@ export async function loadBrowseCountries(
       ...(fixRes.data || []),
       ...(teamRes.data || []),
     ]) {
-      if (row.country_code) codes.add(String(row.country_code).toUpperCase());
+      const code = row.country_code
+        ? String(row.country_code).toUpperCase()
+        : "";
+      if (code && code !== "ZZ" && code !== "XX" && code !== "AA") {
+        codes.add(code);
+      }
     }
 
     if (!codes.size) {

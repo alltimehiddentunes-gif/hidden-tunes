@@ -63,6 +63,12 @@ const baseCardInput = {
   startsAt: new Date(Date.now() + 60 * 60_000).toISOString(),
 };
 
+const liveCardInput = {
+  ...baseCardInput,
+  startsAt: new Date(Date.now() - 30 * 60_000).toISOString(),
+  endsAt: new Date(Date.now() + 90 * 60_000).toISOString(),
+};
+
 test("status: scheduled maps to scheduled", () => {
   assert.equal(
     mapSportsPublicEventStatus({ fixtureStatus: "scheduled" }),
@@ -71,7 +77,21 @@ test("status: scheduled maps to scheduled", () => {
 });
 
 test("status: live maps to live", () => {
-  assert.equal(mapSportsPublicEventStatus({ fixtureStatus: "live" }), "live");
+  const startsAt = new Date(Date.now() - 30 * 60_000).toISOString();
+  const endsAt = new Date(Date.now() + 90 * 60_000).toISOString();
+  assert.equal(
+    mapSportsPublicEventStatus({ fixtureStatus: "live", startsAt, endsAt }),
+    "live"
+  );
+});
+
+test("status: stale live past endsAt maps to finished", () => {
+  const startsAt = new Date(Date.now() - 5 * 3600_000).toISOString();
+  const endsAt = new Date(Date.now() - 3 * 3600_000).toISOString();
+  assert.equal(
+    mapSportsPublicEventStatus({ fixtureStatus: "live", startsAt, endsAt }),
+    "finished"
+  );
 });
 
 test("status: starting soon within window", () => {
@@ -87,9 +107,13 @@ test("status: starting soon within window", () => {
 });
 
 test("status: half_time from metadata period", () => {
+  const startsAt = new Date(Date.now() - 30 * 60_000).toISOString();
+  const endsAt = new Date(Date.now() + 90 * 60_000).toISOString();
   assert.equal(
     mapSportsPublicEventStatus({
       fixtureStatus: "live",
+      startsAt,
+      endsAt,
       metadata: { period: "half_time" },
     }),
     "half_time"
@@ -127,7 +151,7 @@ test("status describe live/finished flags", () => {
 
 test("match-card: canonical shape + no leaks", () => {
   const card = toSportsMatchCard({
-    ...baseCardInput,
+    ...liveCardInput,
     fixtureStatus: "live",
     hasPlayableBroadcast: true,
   });
@@ -159,7 +183,7 @@ test("match-card: strips provider/playback leak keys", () => {
 
 test("Live Now requires playable broadcast", () => {
   const noPlay = toSportsMatchCard({
-    ...baseCardInput,
+    ...liveCardInput,
     fixtureStatus: "live",
     hasPlayableBroadcast: false,
   });
@@ -167,7 +191,7 @@ test("Live Now requires playable broadcast", () => {
   assert.equal(noPlay.watchability.playable, false);
 
   const play = toSportsMatchCard({
-    ...baseCardInput,
+    ...liveCardInput,
     fixtureStatus: "live",
     hasPlayableBroadcast: true,
   });
@@ -381,7 +405,7 @@ test("feature flags default off for home IA + mobile pilot", () => {
 
 test("provider playback URLs not in match card", () => {
   const card = toSportsMatchCard({
-    ...baseCardInput,
+    ...liveCardInput,
     fixtureStatus: "live",
     hasPlayableBroadcast: true,
   });

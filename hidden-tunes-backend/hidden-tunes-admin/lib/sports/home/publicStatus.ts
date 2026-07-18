@@ -1,8 +1,10 @@
 /**
  * Maps internal fixture / broadcast lifecycle to public event status.
  * Does not replace internal statuses — browse-layer only.
+ * Live codes require an effective live time window (see liveState.ts).
  */
 
+import { computeSportsEffectiveLiveState } from "../liveState";
 import type { SportsPublicEventStatus } from "./types";
 
 export type PublicStatusInput = {
@@ -10,6 +12,7 @@ export type PublicStatusInput = {
   broadcastStatus?: string | null;
   startsAt?: string | null;
   endsAt?: string | null;
+  sportSlug?: string | null;
   now?: Date;
   startingSoonWindowMs?: number;
   metadata?: Record<string, unknown> | null;
@@ -94,13 +97,36 @@ export function mapSportsPublicEventStatus(
   const period = metaPeriod(input.metadata);
   const hint = metaPublicHint(input.metadata);
 
-  if (hint) return hint;
+  const liveState = computeSportsEffectiveLiveState({
+    fixtureStatus: input.fixtureStatus,
+    startsAt: input.startsAt,
+    endsAt: input.endsAt,
+    sportSlug: input.sportSlug,
+    now,
+  });
+
+  // Metadata period hints only apply inside an effective live window.
+  if (liveState.effectiveLive) {
+    if (period === "half_time" || period === "ht") return "half_time";
+    if (period === "intermission" || period === "break") return "intermission";
+    if (period === "extra_time" || period === "et" || period === "aet") {
+      return "extra_time";
+    }
+    if (period === "penalties" || period === "pens" || period === "pso") {
+      return "penalties";
+    }
+  }
+
+  // Never honor a stale metadata "live" hint after the window ends.
+  if (hint && hint !== "live" && !LIVE_CODES.has(hint)) return hint;
+  if (hint && LIVE_CODES.has(hint) && liveState.effectiveLive) return hint;
 
   if (fixture === "cancelled" || broadcast === "removed") return "cancelled";
   if (fixture === "postponed") return "postponed";
   if (fixture === "delayed" || period === "delayed") return "delayed";
 
   if (
+    liveState.isFinished ||
     fixture === "completed" ||
     fixture === "expired" ||
     broadcast === "expired"
@@ -121,16 +147,14 @@ export function mapSportsPublicEventStatus(
     return "unavailable";
   }
 
-  if (period === "half_time" || period === "ht") return "half_time";
-  if (period === "intermission" || period === "break") return "intermission";
-  if (period === "extra_time" || period === "et" || period === "aet") {
-    return "extra_time";
-  }
-  if (period === "penalties" || period === "pens" || period === "pso") {
-    return "penalties";
-  }
-
-  if (fixture === "live" || broadcast === "live" || broadcast === "degraded") {
+  // Provider/fixture "live" only counts inside the authoritative time window.
+  if (
+    liveState.effectiveLive &&
+    (fixture === "live" ||
+      broadcast === "live" ||
+      broadcast === "degraded" ||
+      liveState.reason === "live_window")
+  ) {
     return "live";
   }
 
@@ -152,7 +176,8 @@ export function mapSportsPublicEventStatus(
     fixture === "scheduled" ||
     fixture === "verified" ||
     broadcast === "scheduled" ||
-    broadcast === "verified"
+    broadcast === "verified" ||
+    liveState.isUpcoming
   ) {
     return "scheduled";
   }
