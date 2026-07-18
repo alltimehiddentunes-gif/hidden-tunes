@@ -13,7 +13,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
 
   func templateApplicationScene(
     _ templateApplicationScene: CPTemplateApplicationScene,
-    didDisconnect interfaceController: CPInterfaceController
+    didDisconnectInterfaceController interfaceController: CPInterfaceController
   ) {
     // Release CarPlay UI only — never stop the shared HiddenAudio session.
     HiddenAudioCarPlayManager.shared.disconnect()
