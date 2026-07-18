@@ -130,7 +130,16 @@ const NATIVE_FILES = [
   "HiddenAudioModule.swift",
   "HiddenAudioModule.m",
   "HiddenAudioCarPlayManager.swift",
+  "HiddenAudioCarPlayCatalog.swift",
+  "CarPlaySceneDelegate.swift",
 ];
+
+const CARPLAY_SCENE_ROLE = "CPTemplateApplicationSceneSessionRoleApplication";
+const CARPLAY_SCENE_CONFIG = {
+  UISceneClassName: "CPTemplateApplicationScene",
+  UISceneConfigurationName: "HiddenTunesCarPlay",
+  UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate",
+};
 
 function getRepoSourceDir(projectRoot) {
   return path.join(
@@ -146,7 +155,9 @@ function getRepoSourceDir(projectRoot) {
 
 const withHiddenAudioEntitlements = (config) => {
   return withEntitlementsPlist(config, (config) => {
-    delete config.modResults["com.apple.developer.carplay-audio"];
+    // CarPlay Audio only for this phase — do not enable CarPlay Video yet.
+    config.modResults["com.apple.developer.carplay-audio"] = true;
+    delete config.modResults["com.apple.developer.carplay-video"];
     delete config.modResults["com.apple.developer.playable-content"];
     return config;
   });
@@ -158,22 +169,14 @@ const withHiddenAudioInfoPlist = (config) => {
       ? Array.from(new Set([...config.modResults.UIBackgroundModes, "audio"]))
       : ["audio"];
 
-    const sceneManifest = config.modResults.UIApplicationSceneManifest;
-    const sceneConfigurations = sceneManifest?.UISceneConfigurations;
-    if (sceneConfigurations) {
-      delete sceneConfigurations.CPTemplateApplicationSceneSessionRoleApplication;
-
-      if (Object.keys(sceneConfigurations).length === 0) {
-        delete sceneManifest.UISceneConfigurations;
-      }
-    }
-
-    if (
-      sceneManifest &&
-      Object.keys(sceneManifest).every((key) => key === "UIApplicationSupportsMultipleScenes")
-    ) {
-      delete config.modResults.UIApplicationSceneManifest;
-    }
+    // Preserve any existing phone scene configs; only declare CarPlay template scene.
+    const sceneManifest = config.modResults.UIApplicationSceneManifest || {
+      UIApplicationSupportsMultipleScenes: false,
+    };
+    const sceneConfigurations = sceneManifest.UISceneConfigurations || {};
+    sceneConfigurations[CARPLAY_SCENE_ROLE] = [CARPLAY_SCENE_CONFIG];
+    sceneManifest.UISceneConfigurations = sceneConfigurations;
+    config.modResults.UIApplicationSceneManifest = sceneManifest;
 
     return config;
   });
@@ -230,6 +233,18 @@ const withHiddenAudioXcodeProject = (config) => {
       if (!xcodeProject.hasFile(filePath)) {
         xcodeProject.addSourceFile(filePath, { target: targetUuid }, groupKey);
       }
+    }
+
+    try {
+      xcodeProject.addFramework("CarPlay.framework", {
+        weak: false,
+        target: targetUuid,
+      });
+    } catch (error) {
+      console.warn(
+        "[hidden-audio] CarPlay.framework link skipped:",
+        error && error.message ? error.message : error
+      );
     }
 
     return config;

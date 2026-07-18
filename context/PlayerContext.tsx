@@ -48,7 +48,10 @@ import {
   isDerivedCatalogTrusted,
 } from "../services/hiddenTunes";
 import { syncAndroidAutoCatalogFromDerived } from "../services/androidAutoCatalogBridge";
-import { syncCarPlayCatalogFromDerived } from "../services/carPlayCatalogBridge";
+import {
+  resolveCarPlayMediaId,
+  syncCarPlayCatalogFromDerived,
+} from "../services/carPlayCatalogBridge";
 import {
   buildAndroidAutoFallbackQueue,
   resolveAndroidAutoMediaId,
@@ -7135,8 +7138,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
           case "play_from_media_id": {
             const mediaId = String((data as Record<string, unknown>).mediaId || "");
+            if (!mediaId) {
+              logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", {
+                ...data,
+                mediaId,
+              });
+              break;
+            }
+
+            if (Platform.OS === "ios") {
+              const carPlayResolved = resolveCarPlayMediaId(mediaId);
+              if (carPlayResolved) {
+                await playSong(
+                  carPlayResolved.song as any,
+                  carPlayResolved.queue as any,
+                  0,
+                  { source: "carplay", label: "CarPlay" },
+                  carPlayResolved.queueMode
+                );
+                logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
+                  command: "play_from_media_id",
+                  mediaId,
+                  source: "carplay",
+                  kind: carPlayResolved.kind,
+                });
+                break;
+              }
+            }
+
             const catalog = getCachedHiddenTunesCatalog();
-            if (!mediaId || !catalog) {
+            if (!catalog) {
               logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", {
                 ...data,
                 mediaId,

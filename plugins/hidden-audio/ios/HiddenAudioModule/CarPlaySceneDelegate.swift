@@ -1,7 +1,8 @@
 import CarPlay
 import UIKit
 
-class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
+/// CarPlay template scene delegate. Phone UI scene remains unchanged.
+final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   func templateApplicationScene(
     _ templateApplicationScene: CPTemplateApplicationScene,
     didConnect interfaceController: CPInterfaceController
@@ -14,6 +15,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     _ templateApplicationScene: CPTemplateApplicationScene,
     didDisconnect interfaceController: CPInterfaceController
   ) {
+    // Release CarPlay UI only — never stop the shared HiddenAudio session.
     HiddenAudioCarPlayManager.shared.disconnect()
   }
 }
