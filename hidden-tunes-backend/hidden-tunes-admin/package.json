@@ -141,7 +141,17 @@
     "lectures:verify": "tsx scripts/run-lectures-verify.ts",
     "lectures:promote": "tsx scripts/run-lecture-import-worker.ts --validate-media --publish-valid",
     "lectures:report": "tsx scripts/run-lectures-report.ts",
-    "test:lectures-expansion-worldwide": "tsx scripts/test-lectures-expansion-worldwide.ts"
+    "test:lectures-expansion-worldwide": "tsx scripts/test-lectures-expansion-worldwide.ts",
+    "test:sports-foundation": "tsx scripts/test-sports-foundation.ts",
+    "test:sports-provider": "tsx scripts/test-sports-olympics-provider.ts",
+    "test:sports-home-ia": "tsx scripts/test-sports-home-ia.ts",
+    "test:sports-personalization": "tsx scripts/test-sports-personalization.ts",
+    "test:sports-scorebat": "tsx scripts/test-sports-scorebat.ts",
+    "test:sports-playback": "tsx scripts/test-sports-playback-resolver.ts",
+    "sports:validate-live-broadcasts": "tsx scripts/run-sports-validate-live-broadcasts.ts",
+    "sports:smoke-olympics": "tsx scripts/smoke-sports-olympics-staging.ts",
+    "sports:validate-migration": "tsx scripts/validate-sports-migration.ts",
+    "sports:import-provider": "tsx scripts/run-sports-import-provider.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1045.0",
