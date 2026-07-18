@@ -5,6 +5,7 @@
 import {
   isSportsClientEnabled,
   isSportsDevFixturesEnabled,
+  isSportsTestPlayerEnabled,
 } from "../constants/sportsFlags";
 import { buildDevSportsHome } from "../lib/sports/devFixtures";
 import {
@@ -13,6 +14,7 @@ import {
   getDevSportHub,
   searchDevSports,
 } from "../lib/sports/devFixtures/lookups";
+import { normalizeSportsSlug } from "../lib/sports/normalizeSportsSlug";
 import type {
   SportsCompetitionCard,
   SportsCountryCard,
@@ -44,6 +46,10 @@ function privatePilotToken(): string | null {
     process.env.EXPO_PUBLIC_SPORTS_PRIVATE_PILOT_TOKEN || ""
   ).trim();
   return token.length >= 16 ? token : null;
+}
+
+function sportsAccessMode(): "private-pilot" | "public" {
+  return privatePilotToken() ? "private-pilot" : "public";
 }
 
 function sportsRequestHeaders(
@@ -135,7 +141,7 @@ export async function fetchSportsHome(
   if (locale) qs.set("locale", locale);
   const path = `/api/sports/home${qs.toString() ? `?${qs}` : ""}`;
   return dedupe(
-    `home:${country}:${platform}:${options.userId || "anon"}:${tz || ""}`,
+    `home:${sportsAccessMode()}:${country}:${platform}:${options.userId || "anon"}:${tz || ""}`,
     () =>
       sportsFetch<SportsHomeResponse>(path, {
         signal: options.signal,
@@ -179,15 +185,20 @@ export async function fetchSportsFixtures(
     page: String(page),
     limit: String(limit),
   });
-  if (options.sportSlug) qs.set("sport", options.sportSlug);
+  if (options.sportSlug) qs.set("sport", normalizeSportsSlug(options.sportSlug));
   if (options.competitionId) qs.set("competitionId", options.competitionId);
   if (options.status) qs.set("status", options.status);
   if (options.date) qs.set("date", options.date);
-  return sportsFetch(`/api/sports/fixtures?${qs}`, {
-    signal: options.signal,
-    country: options.country || "ZZ",
-    platform: options.platform || "ios",
-  });
+  // Do not pass storefront country as fixtureCountry — that poisoned sport hubs with ZZ.
+  return dedupe(
+    `fixtures:${sportsAccessMode()}:${qs.toString()}:${options.platform || "ios"}`,
+    () =>
+      sportsFetch(`/api/sports/fixtures?${qs}`, {
+        signal: options.signal,
+        country: options.country || "ZZ",
+        platform: options.platform || "ios",
+      })
+  );
 }
 export async function fetchSportsFixtureDetail(
   fixtureId: string,
@@ -207,11 +218,15 @@ export async function fetchSportsFixtureDetail(
       message: fixture ? undefined : "Fixture not found.",
     };
   }
-  return sportsFetch(`/api/sports/fixtures/${encodeURIComponent(fixtureId)}`, {
-    signal: options.signal,
-    country: options.country || "ZZ",
-    platform: options.platform || "ios",
-  });
+  return dedupe(
+    `fixture:${sportsAccessMode()}:${fixtureId}:${options.platform || "ios"}`,
+    () =>
+      sportsFetch(`/api/sports/fixtures/${encodeURIComponent(fixtureId)}`, {
+        signal: options.signal,
+        country: options.country || "ZZ",
+        platform: options.platform || "ios",
+      })
+  );
 }
 export async function fetchSportsWatchOptions(
   fixtureId: string,
@@ -362,66 +377,239 @@ export async function fetchSportsSportHub(
   sport?: SportsWorldCard | null;
   sections?: import("../types/sports").SportsHomeSection[];
 }> {
+  const slug = normalizeSportsSlug(sportSlug);
   if (isSportsDevFixturesEnabled()) {
     return {
       success: true,
       enabled: true,
-      ...getDevSportHub(sportSlug),
+      ...getDevSportHub(slug),
     };
   }
-  // Backend sport hub may be assembled from fixtures + competitions filters.
   const [sports, fixtures, competitions] = await Promise.all([
     fetchSportsList(options),
-    fetchSportsFixtures({ ...options, sportSlug, limit: 40 }),
-    fetchSportsCompetitions({ ...options, sportSlug, limit: 20 }),
+    fetchSportsFixtures({ ...options, sportSlug: slug, limit: 40 }),
+    fetchSportsCompetitions({ ...options, sportSlug: slug, limit: 20 }),
   ]);
+
+  if (fixtures.enabled === false && sports.enabled === false) {
+    return {
+      success: true,
+      enabled: false,
+      sport: null,
+      sections: [],
+    };
+  }
+
   const sport =
-    (sports.items || []).find((s) => s.slug === sportSlug) ||
+    (sports.items || []).find((s) => normalizeSportsSlug(s.slug) === slug) ||
     ({
-      id: sportSlug,
-      slug: sportSlug,
-      name: sportSlug.replace(/-/g, " "),
+      id: slug,
+      slug,
+      name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
     } as SportsWorldCard);
-  const live = (fixtures.items || []).filter((f) => f.status?.live);
-  const soon = (fixtures.items || []).filter(
-    (f) => String(f.status?.code || "") === "starting_soon"
+
+  const all = fixtures.items || [];
+  const now = Date.now();
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
+  const live = all.filter((f) => f.status?.live);
+  const laterToday = all.filter((f) => {
+    if (f.status?.live || f.status?.finished) return false;
+    const t = Date.parse(String(f.timing?.startsAt || ""));
+    return Number.isFinite(t) && t >= now && t <= endOfToday.getTime();
+  });
+  const upcoming = all.filter((f) => {
+    if (f.status?.live || f.status?.finished) return false;
+    const t = Date.parse(String(f.timing?.startsAt || ""));
+    return Number.isFinite(t) && t > endOfToday.getTime();
+  });
+  const finished = all.filter((f) => f.status?.finished);
+  const comps = (competitions.items || []).filter(
+    (c) => !c.sportSlug || normalizeSportsSlug(c.sportSlug) === slug
   );
-  const schedule = fixtures.items || [];
+
+  const sections: SportsHomeSection[] = [
+    { id: "live_now", type: "live", title: "Live", rank: 10, items: live },
+    {
+      id: "later_today",
+      type: "fixtures",
+      title: "Later Today",
+      rank: 20,
+      items: laterToday,
+    },
+    {
+      id: "upcoming",
+      type: "fixtures",
+      title: "Upcoming",
+      rank: 30,
+      items: upcoming,
+    },
+    {
+      id: "recently_finished",
+      type: "fixtures",
+      title: "Recently Finished",
+      rank: 40,
+      items: finished,
+    },
+    {
+      id: "popular_competitions",
+      type: "competitions",
+      title: "Competitions",
+      rank: 60,
+      items: comps,
+    },
+  ].filter((s) => (s.items?.length || 0) > 0);
+
   return {
     success: true,
     enabled: true,
     sport,
-    sections: [
-      {
-        id: "live_now",
-        type: "live",
-        title: "Live Now",
-        rank: 10,
-        items: live,
-      },
-      {
-        id: "starting_soon",
-        type: "fixtures",
-        title: "Starting Soon",
-        rank: 20,
-        items: soon,
-      },
-      {
-        id: "popular_competitions",
-        type: "competitions",
-        title: "Popular Competitions",
-        rank: 60,
-        items: competitions.items || [],
-      },
-      {
-        id: "todays_schedule",
-        type: "fixtures",
-        title: "Today's Schedule",
-        rank: 90,
-        items: schedule,
-      },
-    ],
+    sections,
   };
+}
+
+export async function fetchSportsCountryHub(
+  countryCode: string,
+  options: FetchOptions = {}
+): Promise<{
+  success: boolean;
+  enabled?: boolean;
+  country?: SportsCountryCard | null;
+  sections?: SportsHomeSection[];
+}> {
+  const code = String(countryCode || "")
+    .trim()
+    .toUpperCase()
+    .slice(0, 2);
+  if (!code) {
+    return { success: true, enabled: true, country: null, sections: [] };
+  }
+
+  if (isSportsDevFixturesEnabled()) {
+    const home = buildDevSportsHome("anonymous");
+    const countries = (devHomeSections(home).find((s) => s.id === "browse_countries")
+      ?.items || []) as SportsCountryCard[];
+    const country = countries.find((c) => c.code === code) || {
+      code,
+      name: code,
+    };
+    const fixtures = ALL_DEV_COUNTRY_FIXTURES(code);
+    return {
+      success: true,
+      enabled: true,
+      country,
+      sections: buildCountrySections(fixtures, []),
+    };
+  }
+
+  const qs = new URLSearchParams({
+    page: "1",
+    limit: "40",
+    countryCode: code,
+  });
+  const [countries, fixturesRes, competitions] = await Promise.all([
+    fetchSportsCountries(options),
+    dedupe(
+      `country-fixtures:${sportsAccessMode()}:${code}:${options.platform || "ios"}`,
+      () =>
+        sportsFetch<{
+          success: boolean;
+          enabled?: boolean;
+          items?: SportsMatchCard[];
+        }>(`/api/sports/fixtures?${qs}`, {
+          signal: options.signal,
+          country: options.country || "ZZ",
+          platform: options.platform || "ios",
+        })
+    ),
+    fetchSportsCompetitions({ ...options, limit: 40 }),
+  ]);
+
+  if (fixturesRes.enabled === false) {
+    return { success: true, enabled: false, country: null, sections: [] };
+  }
+
+  const country =
+    (countries.items || []).find((c) => c.code === code) ||
+    ({ code, name: code } as SportsCountryCard);
+  const fixtures = fixturesRes.items || [];
+  const competitionMap = new Map<string, SportsCompetitionCard>();
+  for (const f of fixtures) {
+    if (!f.competition?.id) continue;
+    if (competitionMap.has(f.competition.id)) continue;
+    competitionMap.set(f.competition.id, {
+      id: f.competition.id,
+      slug: f.competition.slug,
+      name: f.competition.name,
+      shortName: f.competition.shortName,
+      sportSlug: f.sport?.slug,
+      sportName: f.sport?.name,
+      countryCode: f.competition.countryCode || code,
+      logoUrl: f.competition.logoUrl,
+    });
+  }
+  for (const c of competitions.items || []) {
+    const cc = String(c.countryCode || (c as { country_code?: string }).country_code || "").toUpperCase();
+    if (cc === code) competitionMap.set(c.id, c);
+  }
+  const comps = [...competitionMap.values()];
+
+  return {
+    success: true,
+    enabled: true,
+    country,
+    sections: buildCountrySections(fixtures, comps),
+  };
+}
+
+function buildCountrySections(
+  fixtures: SportsMatchCard[],
+  competitions: SportsCompetitionCard[]
+): SportsHomeSection[] {
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+  const live = fixtures.filter((f) => f.status?.live);
+  const today = fixtures.filter((f) => {
+    const t = Date.parse(String(f.timing?.startsAt || ""));
+    return Number.isFinite(t) && t <= endOfToday.getTime() && !f.status?.finished;
+  });
+  const upcoming = fixtures.filter((f) => {
+    const t = Date.parse(String(f.timing?.startsAt || ""));
+    return Number.isFinite(t) && t > endOfToday.getTime();
+  });
+  const finished = fixtures.filter((f) => f.status?.finished);
+  return [
+    { id: "live_now", type: "live", title: "Live", rank: 10, items: live },
+    { id: "today", type: "fixtures", title: "Today", rank: 20, items: today },
+    {
+      id: "upcoming",
+      type: "fixtures",
+      title: "Upcoming",
+      rank: 30,
+      items: upcoming,
+    },
+    {
+      id: "popular_competitions",
+      type: "competitions",
+      title: "Competitions",
+      rank: 50,
+      items: competitions,
+    },
+    {
+      id: "recently_finished",
+      type: "fixtures",
+      title: "Recent results",
+      rank: 60,
+      items: finished,
+    },
+  ].filter((s) => (s.items?.length || 0) > 0);
+}
+
+function ALL_DEV_COUNTRY_FIXTURES(code: string): SportsMatchCard[] {
+  return (getDevSportHub("football").fixtures || []).filter(
+    (f) => String(f.competition?.countryCode || "").toUpperCase() === code
+  );
 }
 export async function searchSportsCatalog(
   query: string,
@@ -521,7 +709,7 @@ export async function resolveSportsVideoPlayback(input: {
     };
   }
   return dedupe(
-    `video-play:${input.videoId}:${input.platform}:${input.country}`,
+    `video-play:${sportsAccessMode()}:${input.videoId}:${input.platform}:${input.country}`,
     async () => {
       const response = await fetch(
         `${SPORTS_CATALOG_BASE_URL}/api/sports/videos/${encodeURIComponent(input.videoId)}/play`,
@@ -588,7 +776,7 @@ export async function resolveSportsBroadcastPlayback(input: {
     };
   }
   return dedupe(
-    `play:${input.broadcastId}:${input.platform}:${input.country}`,
+    `play:${sportsAccessMode()}:${input.broadcastId}:${input.platform}:${input.country}`,
     async () => {
       const response = await fetch(
         `${SPORTS_CATALOG_BASE_URL}/api/sports/broadcasts/${encodeURIComponent(input.broadcastId)}/play`,
@@ -662,10 +850,18 @@ export async function resolveSportsFixturePlaySession(input: {
       );
     }
 
-    // Dev-only controlled HTML surface — clearly labeled, never a fake live stream.
+    // Fake HTML player requires explicit test flag — never __DEV__ alone.
+    if (!isSportsTestPlayerEnabled()) {
+      return unavailableSession(
+        fixtureId,
+        "no_broadcast",
+        "No stream available."
+      );
+    }
+
     const fixtureHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Sports Dev Fixture</title>
 <style>body{margin:0;background:#0A1220;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}h1{font-size:18px;margin:0 0 8px}p{opacity:.75;font-size:14px;line-height:1.4}</style></head>
-<body><div><h1>Development fixture player</h1><p>${title.replace(/[<>&]/g, "")}</p><p>Not a live provider stream. Used only to validate tap-to-watch in __DEV__.</p></div></body></html>`;
+<body><div><h1>Development fixture player</h1><p>${title.replace(/[<>&]/g, "")}</p><p>Not a live provider stream. Used only to validate tap-to-watch when EXPO_PUBLIC_SPORTS_ENABLE_TEST_PLAYER=true.</p></div></body></html>`;
 
     return {
       status: "ready",

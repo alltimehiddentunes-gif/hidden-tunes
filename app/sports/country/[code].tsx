@@ -1,8 +1,8 @@
 /**
- * Sport hub — live / later today / upcoming / finished / competitions for one sport.
+ * Country hub — fixtures and competitions for a canonical country code.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Platform, RefreshControl, ScrollView, StyleSheet } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -16,42 +16,42 @@ import {
   SportsSection,
   SportsSkeletonRow,
 } from "../../../components/sports";
-import { fetchSportsSportHub } from "../../../services/sports";
-import { normalizeSportsSlug } from "../../../lib/sports/normalizeSportsSlug";
+import { fetchSportsCountryHub } from "../../../services/sports";
+import { normalizeSportsCountryCode } from "../../../lib/sports/normalizeSportsSlug";
 import type {
   SportsCompetitionCard,
+  SportsCountryCard,
   SportsHomeSection,
   SportsMatchCard as SportsMatchCardType,
-  SportsWorldCard,
 } from "../../../types/sports";
 import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../../utils/tapPressGuard";
 
 import { SPORTS_COLORS, SportsScreenHeader, useSportsFullUiGate, useSportsNowClock } from "../_shared";
 
-export default function SportHubScreen() {
+export default function CountryHubScreen() {
   const gate = useSportsFullUiGate();
-  const params = useLocalSearchParams<{ sportSlug?: string }>();
-  const sportSlug = normalizeSportsSlug(String(params.sportSlug || ""));
+  const params = useLocalSearchParams<{ code?: string }>();
+  const countryCode = normalizeSportsCountryCode(String(params.code || ""));
   const nowMs = useSportsNowClock();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [sport, setSport] = useState<SportsWorldCard | null>(null);
+  const [country, setCountry] = useState<SportsCountryCard | null>(null);
   const [sections, setSections] = useState<SportsHomeSection[]>([]);
 
   const abortRef = useRef<AbortController | null>(null);
   const navGuardRef = useRef(createTapGuardState());
 
   const load = useCallback(async () => {
-    if (!sportSlug) return;
+    if (!countryCode) return;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     setError(null);
 
     try {
-      const res = await fetchSportsSportHub(sportSlug, {
+      const res = await fetchSportsCountryHub(countryCode, {
         signal: controller.signal,
         country: "ZZ",
         platform: Platform.OS,
@@ -63,7 +63,7 @@ export default function SportHubScreen() {
         setError("Sports preview is unavailable.");
         return;
       }
-      setSport(res.sport || null);
+      setCountry(res.country || null);
       setSections((res.sections || []).filter((s) => (s.items?.length || 0) > 0));
     } catch {
       if (!controller.signal.aborted) {
@@ -75,18 +75,13 @@ export default function SportHubScreen() {
         setRefreshing(false);
       }
     }
-  }, [sportSlug]);
+  }, [countryCode]);
 
   useEffect(() => {
     if (!gate.allowed) return;
     void load();
     return () => abortRef.current?.abort();
   }, [gate.allowed, load]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    void load();
-  }, [load]);
 
   const onPressMatch = useCallback((card: SportsMatchCardType) => {
     if (shouldIgnoreDuplicateTap(navGuardRef.current, `fixture:${card.id}`)) return;
@@ -104,7 +99,7 @@ export default function SportHubScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <SportsScreenHeader title="Sport" />
+        <SportsScreenHeader title="Country" />
         <SportsEmptyState title="Sports isn't available yet" message={gate.reason} />
       </SafeAreaView>
     );
@@ -113,87 +108,59 @@ export default function SportHubScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
-      <SportsScreenHeader
-        title={sport?.name || sportSlug.replace(/-/g, " ") || "Sport"}
-        subtitle={
-          sport?.liveCount
-            ? `${sport.liveCount} live now`
-            : sport?.upcomingCount
-              ? `${sport.upcomingCount} upcoming`
-              : undefined
-        }
-      />
+      <SportsScreenHeader title={country?.name || countryCode || "Country"} />
 
       {loading ? (
         <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}>
-          <View style={{ marginBottom: 20 }}>
-            <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
-          </View>
           <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
         </ScrollView>
       ) : (
         <ScrollView
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SPORTS_COLORS.amber} />
+            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={SPORTS_COLORS.amber} />
           }
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
         >
           {error ? <SportsErrorState message={error} onRetry={load} /> : null}
-
           {!sections.length && !error ? (
             <SportsEmptyState
-              title="No current events for this sport."
-              message="There are no live, upcoming, or recent fixtures for this sport right now."
+              title="No current events for this country."
+              message="There are no fixtures or competitions for this country right now."
             />
           ) : (
-            sections.map((section) =>
-              renderSportHubSection(section, { nowMs, onPressMatch, onWatchMatch, onPressCompetition })
-            )
+            sections.map((section) => {
+              if (section.type === "competitions") {
+                return (
+                  <SportsSection key={section.id} title={section.title}>
+                    <SportsCompetitionShelf
+                      sectionId={section.id}
+                      competitions={section.items as SportsCompetitionCard[]}
+                      onPress={onPressCompetition}
+                    />
+                  </SportsSection>
+                );
+              }
+              return (
+                <SportsSection key={section.id} title={section.title}>
+                  <SportsHorizontalShelf columns={1}>
+                    {(section.items as SportsMatchCardType[]).map((card) => (
+                      <SportsMatchCard
+                        key={card.id}
+                        card={card}
+                        nowMs={nowMs}
+                        onPress={onPressMatch}
+                        onWatch={onWatchMatch}
+                      />
+                    ))}
+                  </SportsHorizontalShelf>
+                </SportsSection>
+              );
+            })
           )}
         </ScrollView>
       )}
     </SafeAreaView>
-  );
-}
-
-function renderSportHubSection(
-  section: SportsHomeSection,
-  handlers: {
-    nowMs: number;
-    onPressMatch: (c: SportsMatchCardType) => void;
-    onWatchMatch: (c: SportsMatchCardType) => void;
-    onPressCompetition: (c: SportsCompetitionCard) => void;
-  }
-) {
-  if (section.type === "competitions") {
-    return (
-      <SportsSection key={section.id} title={section.title} subtitle={section.subtitle}>
-        <SportsCompetitionShelf
-          sectionId={section.id}
-          competitions={section.items as SportsCompetitionCard[]}
-          onPress={handlers.onPressCompetition}
-        />
-      </SportsSection>
-    );
-  }
-
-  const variant = section.id === "recently_finished" ? "finished" : "shelf";
-  return (
-    <SportsSection key={section.id} title={section.title} subtitle={section.subtitle}>
-      <SportsHorizontalShelf columns={1}>
-        {(section.items as SportsMatchCardType[]).map((card) => (
-          <SportsMatchCard
-            key={card.id}
-            card={card}
-            variant={variant as "finished" | "shelf"}
-            nowMs={handlers.nowMs}
-            onPress={handlers.onPressMatch}
-            onWatch={handlers.onWatchMatch}
-          />
-        ))}
-      </SportsHorizontalShelf>
-    </SportsSection>
   );
 }
 

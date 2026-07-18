@@ -1,17 +1,18 @@
 import { memo } from "react";
-import { View } from "react-native";
 
 import { boundSectionItems, stableSportsKey } from "@/lib/sports/ui/homeSections";
 import type { SportsCompetitionCard as SportsCompetitionCardType } from "@/types/sports";
 
 import SportsCompetitionCard from "./SportsCompetitionCard";
-import SportsHorizontalShelf from "./SportsHorizontalShelf";
+import SportsGridSection from "./SportsGridSection";
 
 type SportsCompetitionShelfProps = {
   sectionId?: string;
   competitions: SportsCompetitionCardType[];
   limit?: number;
+  /** @deprecated Ignored — competitions always use a vertical grid. */
   cardWidth?: number;
+  columns?: number;
   onPress?: (competition: SportsCompetitionCardType) => void;
   onToggleFollow?: (competition: SportsCompetitionCardType) => void;
 };
@@ -20,7 +21,7 @@ function SportsCompetitionShelf({
   sectionId = "popular_competitions",
   competitions,
   limit,
-  cardWidth = 240,
+  columns = 2,
   onPress,
   onToggleFollow,
 }: SportsCompetitionShelfProps) {
@@ -28,17 +29,16 @@ function SportsCompetitionShelf({
   if (!items.length) return null;
 
   return (
-    <SportsHorizontalShelf>
+    <SportsGridSection columns={columns} testID="sports-competition-grid">
       {items.map((competition, index) => (
-        <View key={stableSportsKey(sectionId, competition, index)} style={{ width: cardWidth }}>
-          <SportsCompetitionCard
-            competition={competition}
-            onPress={onPress}
-            onToggleFollow={onToggleFollow}
-          />
-        </View>
+        <SportsCompetitionCard
+          key={stableSportsKey(sectionId, competition, index)}
+          competition={competition}
+          onPress={onPress}
+          onToggleFollow={onToggleFollow}
+        />
       ))}
-    </SportsHorizontalShelf>
+    </SportsGridSection>
   );
 }
 

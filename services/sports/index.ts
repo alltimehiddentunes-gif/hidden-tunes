@@ -14,6 +14,7 @@ export {
   fetchSportsCompetitions,
   fetchSportsCompetitionDetail,
   fetchSportsSportHub,
+  fetchSportsCountryHub,
   searchSportsCatalog,
   resolveSportsFixturePlayback,
   resolveSportsFixturePlaySession,

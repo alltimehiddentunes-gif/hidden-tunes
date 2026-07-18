@@ -16,6 +16,7 @@ import { formatFinishedTime, formatKickoff } from "@/lib/sports/ui/formatKickoff
 import { formatMatchTitle, formatScore, participantBySide } from "@/lib/sports/ui/formatScore";
 import { formatMatchMinute } from "@/lib/sports/ui/formatStatus";
 import { boundSectionItems } from "@/lib/sports/ui/homeSections";
+import { isSportsTestPlayerEnabled } from "@/constants/sportsFlags";
 import type {
   SportsMatchCard as SportsMatchCardType,
   SportsPlaybackSession,
@@ -151,7 +152,7 @@ function PlayerSurface({
     );
   }
 
-  if (session.fixtureHtml && __DEV__) {
+  if (session.fixtureHtml && isSportsTestPlayerEnabled()) {
     return (
       <WebView
         source={{ html: session.fixtureHtml }}
@@ -214,7 +215,7 @@ function SportsPlayerShell({
   }, [onClose]);
 
   const related = useMemo(
-    () => boundSectionItems(relatedFixtures, 16),
+    () => boundSectionItems(relatedFixtures, 6),
     [relatedFixtures]
   );
 
@@ -412,4 +413,4 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 });
-
+

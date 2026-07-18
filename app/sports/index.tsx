@@ -101,6 +101,31 @@ function mergeSectionErrors(
   );
 }
 
+/** Hide browse sports with no backing fixtures in the current home payload. */
+function filterUnsupportedHomeSections(sections: SportsHomeSection[]): SportsHomeSection[] {
+  const slugsWithFixtures = new Set<string>();
+  for (const section of sections) {
+    if (section.type !== "fixtures" && section.type !== "live") continue;
+    for (const item of section.items || []) {
+      const slug = String((item as SportsMatchCardType).sport?.slug || "").toLowerCase();
+      if (slug) slugsWithFixtures.add(slug);
+    }
+  }
+
+  return sections.map((section) => {
+    if (section.type !== "sports") return section;
+    const items = (section.items as SportsWorldCardType[]).filter((sport) => {
+      const slug = String(sport.slug || "").toLowerCase();
+      if (!slug) return false;
+      if (slug.includes("winter") || slug.includes("esport")) {
+        return slugsWithFixtures.has(slug);
+      }
+      return slugsWithFixtures.has(slug) || Boolean(sport.liveCount) || Boolean(sport.upcomingCount);
+    });
+    return { ...section, items };
+  });
+}
+
 function SportsHomeInner() {
   const gate = useSportsFullUiGate();
   const sportsPlayback = useSportsPlayback();
@@ -142,16 +167,16 @@ function SportsHomeInner() {
 
       if (!home.enabled) {
         setSections([]);
-        setError(home.message || "Sports is unavailable right now.");
+        setError(home.message || "Sports preview is unavailable.");
         return;
       }
 
       const raw = Array.isArray(home.sections) ? home.sections : [];
       const merged = mergeSectionErrors(raw, home.sectionErrors);
-      setSections(omitEmptySportsSections(merged));
-    } catch (err) {
+      setSections(omitEmptySportsSections(filterUnsupportedHomeSections(merged)));
+    } catch {
       if (!controller.signal.aborted) {
-        setError(err instanceof Error ? err.message : "Sports could not be loaded right now.");
+        setError("Sports could not be loaded. Try again.");
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -287,7 +312,8 @@ function SportsHomeInner() {
 
   const onPressSport = useCallback((s: SportsWorldCardType) => goSport(s.slug), [goSport]);
   const onPressCountry = useCallback((c: SportsCountryCardType) => {
-    router.push(`/sports/search?q=${encodeURIComponent(c.name)}` as any);
+    if (!c.code) return;
+    router.push(`/sports/country/${encodeURIComponent(c.code)}` as any);
   }, []);
   const onPressVideo = useCallback(
     (v: SportsVideoCardType) => {
@@ -502,7 +528,7 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
   if (section.type === "videos") {
     return (
       <SportsSection key={section.id} title={section.title} subtitle={section.subtitle} error={section.error}>
-        <SportsHorizontalShelf>
+        <SportsHorizontalShelf columns={2}>
           {(section.items as SportsVideoCardType[]).map((v) => (
             <SportsVideoCard key={v.id} video={v} onPress={h.onPressVideo} />
           ))}

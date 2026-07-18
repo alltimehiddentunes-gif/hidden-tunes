@@ -24,11 +24,16 @@ export function formatScore(card: SportsMatchCard): string | null {
 export function formatMatchTitle(card: SportsMatchCard): string {
   const home = participantBySide(card.participants, "home");
   const away = participantBySide(card.participants, "away");
-  if (home?.name && away?.name) return `${home.name} vs ${away.name}`;
+  const homeName = home?.name?.trim() || "";
+  const awayName = away?.name?.trim() || "";
+  if (homeName || awayName) {
+    return `${homeName || "Unknown team"} vs ${awayName || "Unknown team"}`;
+  }
   const names = (card.participants || []).map((p) => p.name).filter(Boolean);
   if (names.length >= 2) return `${names[0]} vs ${names[1]}`;
   if (names.length === 1) return names[0];
-  if (card.competition?.name) return card.competition.name;
+  const title = String((card as SportsMatchCard & { title?: string }).title || "").trim();
+  if (title) return title;
   return "Match";
 }
 export function participantInitials(name: string | null | undefined): string {

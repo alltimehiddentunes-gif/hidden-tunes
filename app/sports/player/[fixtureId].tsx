@@ -24,6 +24,7 @@ import type {
 import {
   SPORTS_COLORS,
   SportsDisabledState,
+  navigateSportsBack,
   useSportsFullUiGate,
   useSportsNowClock,
 } from "../_shared";
@@ -133,8 +134,8 @@ export default function SportsPlayerScreen() {
         <SportsEmptyState
           title="Match not found"
           message="This Sports player link is missing a fixture."
-          actionLabel="Back to Sports"
-          onAction={() => router.replace("/sports" as never)}
+          ctaLabel="Back to Sports"
+          onCta={() => router.replace("/sports" as never)}
         />
       </SafeAreaView>
     );
@@ -150,8 +151,8 @@ export default function SportsPlayerScreen() {
         errorMessage={error}
         relatedFixtures={fixture?.relatedFixtures}
         nowMs={nowMs}
-        onBack={() => router.back()}
-        onClose={() => router.back()}
+        onBack={navigateSportsBack}
+        onClose={navigateSportsBack}
         onRetry={() => {
           resolvedOnceRef.current = false;
           void resolve();
@@ -165,4 +166,4 @@ export default function SportsPlayerScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: SPORTS_COLORS.navy },
 });
-
+

@@ -75,4 +75,13 @@ export function isSportsDevFixturesEnabled(): boolean {
 }
 
 export const sportsUseDevFixtures = isSportsDevFixturesEnabled();
-
+
+/**
+ * Explicit test-only HTML player. Never enabled by __DEV__ alone.
+ * Default false — private production pilot must not show development player.
+ */
+export function isSportsTestPlayerEnabled(): boolean {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return false;
+  const envVal = process.env.EXPO_PUBLIC_SPORTS_ENABLE_TEST_PLAYER;
+  return envVal === "1" || envVal === "true";
+}

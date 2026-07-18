@@ -226,8 +226,14 @@ export default function FixtureDetailScreen() {
           </View>
 
           <View style={styles.detailsCard}>
-            <DetailRow label="Competition" value={fixture.competition?.name} />
-            <DetailRow label="Kickoff" value={formatKickoff(fixture.timing?.startsAt, nowMs) || null} />
+            <DetailRow
+              label="Competition"
+              value={fixture.competition?.name?.trim() || "Competition unavailable"}
+            />
+            <DetailRow
+              label="Kickoff"
+              value={formatKickoff(fixture.timing?.startsAt, nowMs) || "Time unavailable"}
+            />
             <DetailRow
               label="Venue"
               value={
@@ -281,9 +287,9 @@ export default function FixtureDetailScreen() {
           ) : null}
 
           {fixture.relatedFixtures?.length ? (
-            <SportsSection title="Related matches">
-              <SportsHorizontalShelf>
-                {fixture.relatedFixtures.map((card) => (
+            <SportsSection title="Related fixtures">
+              <SportsHorizontalShelf columns={1}>
+                {fixture.relatedFixtures.slice(0, 6).map((card) => (
                   <SportsMatchCard key={card.id} card={card} nowMs={nowMs} onPress={onPressRelated} />
                 ))}
               </SportsHorizontalShelf>
@@ -296,15 +302,17 @@ export default function FixtureDetailScreen() {
 }
 
 function ParticipantBlock({ name, score }: { name?: string | null; score?: string | number | null }) {
-  if (!name) return null;
+  const label = name?.trim() || "Unknown team";
   return (
     <View style={styles.participantBlock}>
       <Text style={styles.participantBlockName} numberOfLines={2}>
-        {name}
+        {label}
       </Text>
       {score != null && String(score).length > 0 ? (
         <Text style={styles.participantBlockScore}>{score}</Text>
-      ) : null}
+      ) : (
+        <Text style={styles.participantBlockScoreMuted}>Score unavailable</Text>
+      )}
     </View>
   );
 }
@@ -345,6 +353,7 @@ const styles = StyleSheet.create({
   participantBlock: { flex: 1, alignItems: "center", gap: 4 },
   participantBlockName: { color: SPORTS_COLORS.text, fontSize: 14, fontWeight: "700", textAlign: "center" },
   participantBlockScore: { color: SPORTS_COLORS.text, fontSize: 26, fontWeight: "900" },
+  participantBlockScoreMuted: { color: SPORTS_COLORS.textDim, fontSize: 11, fontWeight: "600" },
   vs: { color: SPORTS_COLORS.textDim, fontSize: 12, fontWeight: "700" },
   watchBtn: {
     flexDirection: "row",

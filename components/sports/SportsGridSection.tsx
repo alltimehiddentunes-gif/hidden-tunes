@@ -7,6 +7,7 @@ type SportsGridSectionProps = {
   gap?: number;
   horizontalPadding?: number;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 };
 
 /**
@@ -19,6 +20,7 @@ function SportsGridSection({
   gap = 12,
   horizontalPadding = 18,
   style,
+  testID,
 }: SportsGridSectionProps) {
   const items = Children.toArray(children);
   if (!items.length) return null;
@@ -27,7 +29,10 @@ function SportsGridSection({
   const halfGap = gap / 2;
 
   return (
-    <View style={[styles.container, { paddingHorizontal: horizontalPadding }, style]}>
+    <View
+      style={[styles.container, { paddingHorizontal: horizontalPadding }, style]}
+      testID={testID}
+    >
       <View style={[styles.row, { marginHorizontal: -halfGap }]}>
         {items.map((child, index) => (
           <View

@@ -22,6 +22,17 @@ import { SPORTS_COLORS } from "../../lib/sports/ui/sportsTheme";
 
 const CLOCK_INTERVAL_MS = 30_000;
 
+/** Safe Sports back — prefer history, else replace Sports home. */
+export function navigateSportsBack(): void {
+  if (typeof (router as { canGoBack?: () => boolean }).canGoBack === "function") {
+    if ((router as { canGoBack: () => boolean }).canGoBack()) {
+      router.back();
+      return;
+    }
+  }
+  router.replace("/sports" as never);
+}
+
 /** One shared ticking clock per screen — never create a timer per card. */
 export function useSportsNowClock(intervalMs: number = CLOCK_INTERVAL_MS): number {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
@@ -72,13 +83,14 @@ export function SportsScreenHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <View style={styles.screenHeader}>
+    <View style={styles.screenHeader} testID="sports-screen-header">
       <Pressable
         style={styles.headerBackBtn}
-        onPress={onBack || (() => router.back())}
+        onPress={onBack || navigateSportsBack}
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel="Go back"
+        testID="sports-back-button"
       >
         <Ionicons name="chevron-back" size={22} color={SPORTS_COLORS.text} />
       </Pressable>
@@ -92,7 +104,7 @@ export function SportsScreenHeader({
           </Text>
         ) : null}
       </View>
-      {right ? <View style={styles.headerRight}>{right}</View> : null}
+      {right ? <View style={styles.headerRight}>{right}</View> : <View style={styles.headerRightSpacer} />}
     </View>
   );
 }
@@ -207,10 +219,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: SPORTS_COLORS.surfaceGlass,
   },
-  headerTextWrap: { flex: 1 },
+  headerTextWrap: { flex: 1, minWidth: 0 },
   headerTitle: { color: SPORTS_COLORS.text, fontSize: 17, fontWeight: "700" },
   headerSubtitle: { color: SPORTS_COLORS.textDim, fontSize: 12, marginTop: 2 },
-  headerRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 36 },
+  headerRightSpacer: { width: 36 },
 
   center: { padding: 32, alignItems: "center", gap: 10 },
   centerLabel: { color: SPORTS_COLORS.textDim, fontSize: 13 },
