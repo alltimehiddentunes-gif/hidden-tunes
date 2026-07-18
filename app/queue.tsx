@@ -32,6 +32,7 @@ import {
 import {
   isPodcastAppSong,
   isPodcastQueueContext,
+  PODCAST_EPISODE_SONG_PREFIX,
 } from "../utils/podcastPlaybackAdapter";
 import {
   getQueueLabels,
@@ -46,6 +47,18 @@ type QueueRow = {
 
 function clean(value: unknown) {
   return String(value || "").trim();
+}
+
+function isJunkLabel(value: string) {
+  const lower = value.toLowerCase();
+  return (
+    !value ||
+    lower === "unknown" ||
+    lower === "null" ||
+    lower === "undefined" ||
+    lower === "hidden tunes" ||
+    lower === "queue"
+  );
 }
 
 function getArtist(song: AppSong) {
@@ -67,6 +80,18 @@ function formatDuration(value: AppSong["duration"]) {
   return `${mins}:${String(secs).padStart(2, "0")}`;
 }
 
+function looksLikePodcastSong(song?: AppSong | null) {
+  if (!song) return false;
+  if (isPodcastAppSong(song)) return true;
+  const id = clean(song.id).toLowerCase();
+  if (id.startsWith(PODCAST_EPISODE_SONG_PREFIX)) return true;
+  const sourceName = clean(song.sourceName).toLowerCase();
+  if (sourceName === "podcast" || sourceName === "podcasts") return true;
+  const genre = clean(song.genre).toLowerCase();
+  if (genre === "podcast" || genre === "podcasts") return true;
+  return false;
+}
+
 function isMotivationContext(context: PlaybackQueueContext) {
   return (
     context.source === "motivation" ||
@@ -77,25 +102,32 @@ function isMotivationContext(context: PlaybackQueueContext) {
 
 function resolveQueueContentKind(
   context: PlaybackQueueContext,
-  currentSong: AppSong | null
+  currentSong: AppSong | null,
+  queueSongs: AppSong[]
 ): QueueContentKind {
-  if (isPodcastQueueContext(context) || isPodcastAppSong(currentSong)) {
+  if (
+    isPodcastQueueContext(context) ||
+    looksLikePodcastSong(currentSong) ||
+    queueSongs.some(looksLikePodcastSong)
+  ) {
     return "podcast";
   }
-  if (isAudiobookChapterAppSong(currentSong)) {
+  if (
+    isAudiobookChapterAppSong(currentSong) ||
+    queueSongs.some((song) => isAudiobookChapterAppSong(song)) ||
+    clean(currentSong?.sourceName).toLowerCase() === "audiobook"
+  ) {
     return "audiobook";
   }
   if (
     isEducationalQueueContext(context) ||
-    isEducationalSessionAppSong(currentSong)
+    isEducationalSessionAppSong(currentSong) ||
+    queueSongs.some((song) => isEducationalSessionAppSong(song))
   ) {
     return "lecture";
   }
   if (isMotivationContext(context)) {
     return "motivation";
-  }
-  if (clean(currentSong?.sourceName).toLowerCase() === "audiobook") {
-    return "audiobook";
   }
   return "music";
 }
@@ -109,21 +141,18 @@ function getSessionContextLabel(
   const candidates = [
     context.contextTitle,
     context.albumTitle,
-    context.label,
+    kind === "podcast" ? null : context.label,
     context.artistName,
     currentSong?.album,
     currentSong?.channelTitle,
     currentSong?.artist,
     currentSong?.user?.name,
+    context.label,
     context.genre,
     context.mood,
   ]
     .map(clean)
-    .filter(Boolean)
-    .filter((value) => {
-      const lower = value.toLowerCase();
-      return lower !== "unknown" && lower !== "null" && lower !== "undefined";
-    });
+    .filter((value) => !isJunkLabel(value));
 
   if (candidates.length) return candidates[0];
 
@@ -153,7 +182,7 @@ function buildFallbackQueue(
 
 export default function QueueScreen() {
   const insets = useSafeAreaInsets();
-  const { playSong, nextSong, previousSong } = usePlayerActions();
+  const { playSong } = usePlayerActions();
   const {
     songs,
     onlineSongs,
@@ -226,7 +255,11 @@ export default function QueueScreen() {
   }, [activeQueueIndex, currentIndex, currentSong?.id, queueSongs.length]);
 
   const queueContext = activeQueueContext || { source: "queue" as const };
-  const contentKind = resolveQueueContentKind(queueContext, currentSong);
+  const contentKind = resolveQueueContentKind(
+    queueContext,
+    currentSong,
+    queueSongs
+  );
   const labels = getQueueLabels(contentKind);
   const sessionContextLabel = getSessionContextLabel(
     queueContext,
@@ -238,9 +271,38 @@ export default function QueueScreen() {
   const positionText =
     currentIndex >= 0 && sessionCount > 0
       ? labels.positionLabel(currentIndex + 1, sessionCount)
-      : `${sessionCount} ${sessionCount === 1 ? labels.singular.toLowerCase() : labels.plural.toLowerCase()}`;
-  const scrollTail = getMobileScrollTailPadding(insets.bottom);
-  const sessionArtwork = currentRow?.song || currentSong;
+      : `${sessionCount} ${
+          sessionCount === 1
+            ? labels.singular.toLowerCase()
+            : labels.plural.toLowerCase()
+        }`;
+  // Extra room so last rows clear MiniPlayer + bottom nav on device.
+  const scrollTail = getMobileScrollTailPadding(insets.bottom) + 28;
+
+  useEffect(() => {
+    if (!__DEV__) return;
+    console.log("[QUEUE_UI]", {
+      contentKind,
+      sessionLabel: labels.sessionLabel,
+      sessionTitle: sessionContextLabel,
+      source: queueContext.source,
+      queueType: queueContext.queueType,
+      contextType: queueContext.contextType,
+      currentId: currentSong?.id || null,
+      sourceName: currentSong?.sourceName || null,
+      queueLength: sessionCount,
+    });
+  }, [
+    contentKind,
+    currentSong?.id,
+    currentSong?.sourceName,
+    labels.sessionLabel,
+    queueContext.contextType,
+    queueContext.queueType,
+    queueContext.source,
+    sessionContextLabel,
+    sessionCount,
+  ]);
 
   function playQueueRow(row: QueueRow) {
     const context: PlaybackQueueContext = activeQueue.length
@@ -311,12 +373,8 @@ export default function QueueScreen() {
           </Text>
           <Text numberOfLines={1} style={styles.queueArtist}>
             {subtitle}
+            {durationText ? `  ·  ${durationText}` : ""}
           </Text>
-          {durationText ? (
-            <Text numberOfLines={1} style={styles.queueDuration}>
-              {durationText}
-            </Text>
-          ) : null}
         </View>
 
         <View
@@ -330,7 +388,7 @@ export default function QueueScreen() {
           ) : (
             <Ionicons
               name={row.isCurrent ? "pause" : "play"}
-              size={15}
+              size={14}
               color={row.isCurrent ? "#000" : COLORS.text}
             />
           )}
@@ -345,7 +403,7 @@ export default function QueueScreen() {
         <View
           style={[
             styles.header,
-            { paddingTop: Math.max(insets.top, 12) + 4 },
+            { paddingTop: Math.max(insets.top, 12) + 2 },
           ]}
         >
           <TouchableOpacity
@@ -366,26 +424,8 @@ export default function QueueScreen() {
             </Text>
           </View>
 
-          <View style={styles.headerControls}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => void previousSong()}
-              accessibilityLabel="Previous"
-            >
-              <Ionicons name="play-skip-back" size={18} color={COLORS.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => void nextSong()}
-              accessibilityLabel="Next"
-            >
-              <Ionicons
-                name="play-skip-forward"
-                size={18}
-                color={COLORS.text}
-              />
-            </TouchableOpacity>
-          </View>
+          {/* Spacer keeps title centered and clears floating settings/dev controls. */}
+          <View style={styles.headerSpacer} />
         </View>
 
         <ScrollView
@@ -395,82 +435,47 @@ export default function QueueScreen() {
             { paddingBottom: scrollTail },
           ]}
         >
-          <View style={styles.sessionCard}>
-            {sessionArtwork ? (
-              <HTImage
-                source={sessionArtwork}
-                style={styles.sessionArt}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={[styles.sessionArt, styles.sessionArtFallback]}>
-                <Ionicons
-                  name={
-                    contentKind === "podcast"
-                      ? "mic"
-                      : contentKind === "audiobook"
-                        ? "book"
-                        : "list"
-                  }
-                  size={20}
-                  color={COLORS.cyan}
-                />
-              </View>
-            )}
-
+          <View style={styles.sessionStrip}>
             <View style={styles.sessionCopy}>
               <Text numberOfLines={1} style={styles.sessionTitle}>
                 {sessionContextLabel}
               </Text>
               <Text numberOfLines={1} style={styles.sessionMeta}>
                 {positionText}
-                {" · "}
+                {"  ·  "}
                 {sessionCount}{" "}
                 {sessionCount === 1
                   ? labels.singular.toLowerCase()
                   : labels.plural.toLowerCase()}
+                {"  ·  "}
+                Smart Queue {smartOn ? "On" : "Off"}
               </Text>
-              <View style={styles.smartRow}>
-                <Text style={styles.smartLabel}>Smart Queue</Text>
-                <Text
-                  style={[
-                    styles.smartValue,
-                    smartOn && styles.smartValueOn,
-                  ]}
-                >
-                  {smartOn ? "On" : "Off"}
-                </Text>
-              </View>
             </View>
           </View>
 
-          <Text style={styles.sectionLabel}>{labels.currentLabel}</Text>
           {currentRow ? (
-            renderQueueRow(currentRow, 0, "current")
+            <View style={styles.nowPlayingBlock}>
+              <Text style={styles.sectionLabel}>{labels.currentLabel}</Text>
+              {renderQueueRow(currentRow, 0, "current")}
+            </View>
           ) : (
             <View style={styles.emptyCard}>
-              <Ionicons name="musical-notes" size={28} color={COLORS.primary} />
+              <Ionicons name="musical-notes" size={24} color={COLORS.primary} />
               <Text style={styles.emptyText}>{labels.emptyCurrent}</Text>
-              <Text style={styles.emptySubtext}>
-                Start playback to build a session.
-              </Text>
             </View>
           )}
 
           <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionHeaderCopy}>
-              <Text style={[styles.sectionLabel, styles.sectionLabelFlush]}>
-                {labels.upNext}
-              </Text>
-              <Text style={styles.sectionSubLabel}>
-                {labels.remainingLabel(upNextRows.length)}
-              </Text>
-            </View>
+            <Text style={[styles.sectionLabel, styles.sectionLabelFlush]}>
+              {labels.upNext}
+            </Text>
+            <Text style={styles.sectionSubLabel}>
+              {labels.remainingLabel(upNextRows.length)}
+            </Text>
           </View>
 
           {upNextRows.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Ionicons name="list" size={26} color={COLORS.cyan} />
               <Text style={styles.emptyText}>{labels.emptyNext}</Text>
               <Text style={styles.emptySubtext}>{labels.emptyNextHint}</Text>
             </View>
@@ -482,7 +487,7 @@ export default function QueueScreen() {
             <View style={styles.previousSection}>
               <Text style={styles.sectionLabel}>{labels.playedEarlier}</Text>
               {previousRows
-                .slice(-5)
+                .slice(-4)
                 .map((row, index) => renderQueueRow(row, index, "previous"))}
             </View>
           ) : null}
@@ -497,22 +502,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingBottom: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
+    paddingRight: 56,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 8,
   },
   headerCopy: {
     flex: 1,
     alignItems: "center",
-    paddingHorizontal: 6,
     minWidth: 0,
   },
-  headerControls: {
-    flexDirection: "row",
-    gap: 6,
+  headerSpacer: {
+    width: 40,
+    height: 40,
   },
   iconButton: {
     width: 40,
@@ -526,139 +530,100 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: COLORS.text,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
-    letterSpacing: 0.2,
   },
   headerSubtitle: {
     color: COLORS.textMuted,
     fontSize: 11,
-    marginTop: 2,
+    marginTop: 1,
     textAlign: "center",
     fontWeight: "700",
-    letterSpacing: 0.4,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
   },
-  sessionCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
-    paddingVertical: 10,
+  sessionStrip: {
+    marginBottom: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  sessionArt: {
-    width: 52,
-    height: 52,
     borderRadius: 12,
-    backgroundColor: COLORS.card,
-  },
-  sessionArtFallback: {
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
-    borderColor: "rgba(34,211,238,0.22)",
-    backgroundColor: "rgba(34,211,238,0.08)",
+    borderColor: "rgba(255,255,255,0.07)",
   },
   sessionCopy: {
-    flex: 1,
     minWidth: 0,
   },
   sessionTitle: {
     color: COLORS.text,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "800",
   },
   sessionMeta: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     marginTop: 3,
   },
-  smartRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 5,
-  },
-  smartLabel: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  smartValue: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  smartValueOn: {
-    color: COLORS.primaryGlow,
+  nowPlayingBlock: {
+    marginBottom: 4,
   },
   sectionHeaderRow: {
-    marginTop: 18,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 6,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "baseline",
     justifyContent: "space-between",
-    gap: 12,
-  },
-  sectionHeaderCopy: {
-    flex: 1,
-    minWidth: 0,
+    gap: 10,
   },
   sectionLabel: {
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     textTransform: "uppercase",
-    letterSpacing: 1.2,
-    marginBottom: 8,
+    letterSpacing: 1.1,
+    marginBottom: 6,
   },
   sectionLabelFlush: {
-    marginBottom: 2,
+    marginBottom: 0,
   },
   sectionSubLabel: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
   },
   queueItem: {
-    marginBottom: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.045)",
+    marginBottom: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
+    borderColor: "rgba(255,255,255,0.06)",
     flexDirection: "row",
     alignItems: "center",
+    minHeight: 56,
   },
   queueItemActive: {
     backgroundColor: "rgba(168,85,247,0.12)",
     borderColor: "rgba(34,211,238,0.28)",
   },
   queueNumber: {
-    width: 32,
+    width: 30,
     color: COLORS.textMuted,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     textAlign: "center",
   },
   queueNumberActive: {
     color: COLORS.cyan,
-    fontSize: 10,
-    letterSpacing: 0.4,
+    letterSpacing: 0.3,
   },
   queueCoverWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     overflow: "hidden",
     backgroundColor: COLORS.card,
   },
@@ -673,65 +638,59 @@ const styles = StyleSheet.create({
   queueInfo: {
     flex: 1,
     minWidth: 0,
-    marginLeft: 10,
-    marginRight: 8,
+    marginLeft: 8,
+    marginRight: 6,
   },
   queueTitle: {
     color: COLORS.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
-    lineHeight: 18,
+    lineHeight: 17,
   },
   queueArtist: {
-    color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  queueDuration: {
     color: COLORS.textMuted,
     fontSize: 11,
     fontWeight: "600",
     marginTop: 2,
-    opacity: 0.85,
   },
   queuePlayButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    borderColor: "rgba(255,255,255,0.09)",
   },
   queuePlayButtonActive: {
     backgroundColor: COLORS.cyan,
     borderColor: "rgba(255,255,255,0.28)",
   },
   previousSection: {
-    marginTop: 14,
-    opacity: 0.7,
+    marginTop: 12,
+    opacity: 0.68,
   },
   emptyCard: {
-    borderRadius: 16,
-    padding: 18,
-    backgroundColor: "rgba(255,255,255,0.045)",
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.07)",
+    borderColor: "rgba(255,255,255,0.06)",
     alignItems: "center",
     justifyContent: "center",
   },
   emptyText: {
     color: COLORS.text,
     fontWeight: "800",
-    marginTop: 8,
+    marginTop: 6,
+    fontSize: 13,
   },
   emptySubtext: {
     color: COLORS.textMuted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
-    lineHeight: 17,
+    lineHeight: 16,
     marginTop: 4,
     maxWidth: 260,
     textAlign: "center",
