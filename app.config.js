@@ -41,7 +41,16 @@ module.exports = ({ config }) => {
     return pluginName === "./plugins/standalone-build-guard";
   });
 
+  const hasExpoVideoPlugin = basePlugins.some((entry) => {
+    const pluginName = Array.isArray(entry) ? entry[0] : entry;
+    return pluginName === "expo-video";
+  });
+
   let plugins = hasSplashPlugin ? basePlugins : [...basePlugins, splashPlugin];
+
+  if (!hasExpoVideoPlugin) {
+    plugins = [...plugins, "expo-video"];
+  }
 
   if (isStandaloneBuild && !hasStandaloneGuard) {
     plugins = [...plugins, "./plugins/standalone-build-guard"];

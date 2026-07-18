@@ -5,6 +5,7 @@ import {
   createTvDiscoverySession,
   getTvDiscoverySession,
 } from "@/services/tvDiscoverySessionStore";
+import { getTvSessionController } from "@/services/tv/tvSessionController";
 import type { TvDiscoveryLaunchContext, TvStationPlayResult } from "@/types/tvDiscovery";
 import { buildDiscoveryHierarchyLayers } from "@/utils/tvDiscoveryHierarchy";
 import {
@@ -47,9 +48,11 @@ function buildTvPlayerRouteParams(
 
   return {
     id: result.station.stationId,
+    channelId: result.station.stationId,
     title: result.station.stationName,
     streamUrl: result.streamUrl,
     sourceType: result.sourceType,
+    logo: result.station.artwork || "",
     contextTitle: launch?.contextTitle || session?.contextTitle || "",
     hierarchyLabel: result.station.hierarchyLabel,
     country: result.station.country,
@@ -61,6 +64,59 @@ function buildTvPlayerRouteParams(
       session?.originalContext.browseReturnPath ||
       "/youtube-feed",
   };
+}
+
+async function attachResolvedTvSession(
+  result: Extract<TvStationPlayResult, { ok: true }>,
+  queueVideos: HiddenTunesTvVideo[]
+) {
+  const controller = getTvSessionController();
+  if (!controller) {
+    return;
+  }
+
+  const itemId = String(result.station.stationId || "").trim();
+  const queue =
+    queueVideos.length > 0
+      ? queueVideos
+      : [
+          {
+            id: itemId,
+            title: result.station.stationName,
+            logo: result.station.artwork || null,
+            thumbnail_url: result.station.artwork || null,
+            categories: result.station.category ? [result.station.category] : [],
+            country: result.station.country || null,
+            language: result.station.language || null,
+            source_type: result.sourceType,
+          } satisfies HiddenTunesTvVideo,
+        ];
+
+  const item =
+    queue.find((entry) => entry.id === itemId) ||
+    ({
+      id: itemId,
+      title: result.station.stationName,
+      logo: result.station.artwork || null,
+      thumbnail_url: result.station.artwork || null,
+      categories: result.station.category ? [result.station.category] : [],
+      country: result.station.country || null,
+      language: result.station.language || null,
+      source_type: result.sourceType,
+    } satisfies HiddenTunesTvVideo);
+
+  await controller.startResolvedSession({
+    item,
+    playback: {
+      id: itemId,
+      source_type: result.sourceType || "hls_stream",
+      source_id: String(item.source_id || ""),
+      stream_url: result.streamUrl,
+      embed_url: null,
+    },
+    queue,
+    presentation: "fullPlayer",
+  });
 }
 
 async function openTvDiscoveryStationInternal(
@@ -111,6 +167,10 @@ async function openTvDiscoveryStationInternal(
     return result;
   }
 
+  // Attach the already-resolved play contract to the single TV session owner
+  // before navigating. Browse still never preloads stream URLs.
+  await attachResolvedTvSession(result, queueVideos);
+
   router.push({
     pathname: "/tv-player",
     params: buildTvPlayerRouteParams(result, launch),
@@ -151,6 +211,7 @@ export async function openTvDiscoveryStation(
 
 export function replaceTvPlayerRoute(result: Extract<TvStationPlayResult, { ok: true }>) {
   try {
+    void attachResolvedTvSession(result, []);
     router.setParams(buildTvPlayerRouteParams(result) as any);
   } catch {
     // Route params are optional metadata when the player is not focused.

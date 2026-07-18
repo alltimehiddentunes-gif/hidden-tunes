@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
 import { isHiddenAudioPocRoute } from "../constants/playbackConfig";
 import { PlayerProvider } from "../context/PlayerContext";
+import { TvPlaybackProvider } from "../context/TvPlaybackContext";
 import LocalizationProvider from "../localization/LocalizationProvider";
 import { markAppMounted } from "../utils/startupDiagnostics";
 import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
@@ -24,6 +25,7 @@ const screenOptions = {
 };
 
 const MemoizedPlayerProvider = memo(PlayerProvider);
+const MemoizedTvPlaybackProvider = memo(TvPlaybackProvider);
 
 function RootStack({ memoizedScreenOptions }: { memoizedScreenOptions: typeof screenOptions }) {
   return (
@@ -59,8 +61,10 @@ function RootLayout() {
           stack
         ) : (
           <MemoizedPlayerProvider>
-            <RemoteMediaControlsBridge />
-            {stack}
+            <MemoizedTvPlaybackProvider>
+              <RemoteMediaControlsBridge />
+              {stack}
+            </MemoizedTvPlaybackProvider>
           </MemoizedPlayerProvider>
         )}
       </LocalizationProvider>

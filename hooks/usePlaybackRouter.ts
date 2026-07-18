@@ -7,6 +7,8 @@ import {
 } from "../services/playback/playbackRouter";
 import type { LiveRadioSessionOptions } from "../services/radio/radioPlaybackSession";
 import { addPodcastRecentlyPlayed } from "../services/podcastRecentlyPlayed";
+import { invalidateTvMediaTransitions } from "../services/tv/tvMediaHandoff";
+import { stopTvSession } from "../services/tv/tvSessionController";
 import type { PodcastEpisode } from "../types/podcast";
 import type { RadioStation } from "../types/radio";
 import { logPodcastDiagnostic } from "../utils/podcastDiagnostics";
@@ -21,9 +23,20 @@ export function usePlaybackRouter() {
   const { playSong, playQueue, stopPlayback } = usePlayerActions();
 
   return useMemo(() => {
+    const playSongStoppingTv: typeof playSong = (...args) => {
+      invalidateTvMediaTransitions();
+      stopTvSession();
+      return playSong(...args);
+    };
+    const playQueueStoppingTv: typeof playQueue = (...args) => {
+      invalidateTvMediaTransitions();
+      stopTvSession();
+      return playQueue(...args);
+    };
+
     const deps: PlaybackRouterDeps = {
-      playSong,
-      playQueue,
+      playSong: playSongStoppingTv,
+      playQueue: playQueueStoppingTv,
       stopPlayback,
     };
 
@@ -42,7 +55,7 @@ export function usePlaybackRouter() {
         episode,
         episodes,
         startIndex,
-        playSong,
+        playSong: playSongStoppingTv,
         categoryEpisodes: extras?.categoryEpisodes,
         feedId: extras?.feedId,
         creatorId: extras?.creatorId,
@@ -93,7 +106,7 @@ export function usePlaybackRouter() {
             creatorId: episode.publisher,
             categoryId: episode.categories?.[0],
           });
-          await playSong(song, [song], 0, context, "standard");
+          await playSongStoppingTv(song, [song], 0, context, "standard");
           await addPodcastRecentlyPlayed(episode);
           logPodcastDiagnostic("podcast_episode_play_success", { episodeId: episode.id });
           return { ok: true as const };
