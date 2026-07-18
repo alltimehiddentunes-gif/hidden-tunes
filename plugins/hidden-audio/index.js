@@ -132,13 +132,22 @@ const NATIVE_FILES = [
   "HiddenAudioCarPlayManager.swift",
   "HiddenAudioCarPlayCatalog.swift",
   "CarPlaySceneDelegate.swift",
+  "PhoneSceneDelegate.swift",
 ];
 
 const CARPLAY_SCENE_ROLE = "CPTemplateApplicationSceneSessionRoleApplication";
+const PHONE_SCENE_ROLE = "UIWindowSceneSessionRoleApplication";
+
 const CARPLAY_SCENE_CONFIG = {
   UISceneClassName: "CPTemplateApplicationScene",
   UISceneConfigurationName: "HiddenTunesCarPlay",
   UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate",
+};
+
+const PHONE_SCENE_CONFIG = {
+  UISceneClassName: "UIWindowScene",
+  UISceneConfigurationName: "HiddenTunesPhone",
+  UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).PhoneSceneDelegate",
 };
 
 function getRepoSourceDir(projectRoot) {
@@ -169,13 +178,15 @@ const withHiddenAudioInfoPlist = (config) => {
       ? Array.from(new Set([...config.modResults.UIBackgroundModes, "audio"]))
       : ["audio"];
 
-    // Preserve any existing phone scene configs; only declare CarPlay template scene.
-    const sceneManifest = config.modResults.UIApplicationSceneManifest || {
-      UIApplicationSupportsMultipleScenes: false,
+    // Dual-scene manifesto: phone UIWindowScene + CarPlay template scene.
+    // CarPlay-only manifesto blanks the iPhone UI on modern iOS SDKs.
+    const sceneManifest = {
+      UIApplicationSupportsMultipleScenes: true,
+      UISceneConfigurations: {
+        [PHONE_SCENE_ROLE]: [PHONE_SCENE_CONFIG],
+        [CARPLAY_SCENE_ROLE]: [CARPLAY_SCENE_CONFIG],
+      },
     };
-    const sceneConfigurations = sceneManifest.UISceneConfigurations || {};
-    sceneConfigurations[CARPLAY_SCENE_ROLE] = [CARPLAY_SCENE_CONFIG];
-    sceneManifest.UISceneConfigurations = sceneConfigurations;
     config.modResults.UIApplicationSceneManifest = sceneManifest;
 
     return config;
@@ -495,11 +506,89 @@ const withHiddenAudioAndroidProguard = (config) => {
   ]);
 };
 
+const withHiddenAudioAppDelegate = (config) => {
+  return withDangerousMod(config, [
+    "ios",
+    async (config) => {
+      const { platformProjectRoot, projectRoot } = config.modRequest;
+      const appName = IOSConfig.XcodeUtils.getProjectName(projectRoot);
+      const appDelegatePath = path.join(
+        platformProjectRoot,
+        appName,
+        "AppDelegate.swift"
+      );
+
+      if (!fs.existsSync(appDelegatePath)) {
+        console.warn(
+          `[hidden-audio] AppDelegate.swift not found at ${appDelegatePath}; phone scene attach skipped.`
+        );
+        return config;
+      }
+
+      let contents = fs.readFileSync(appDelegatePath, "utf8");
+      if (contents.includes("func attachReactNative(to window: UIWindow)")) {
+        console.log("[hidden-audio] AppDelegate already supports scene-based RN attach.");
+        return config;
+      }
+
+      if (!contents.includes("factory.startReactNative(")) {
+        console.warn(
+          "[hidden-audio] Unexpected AppDelegate.swift shape; skipping scene attach patch."
+        );
+        return config;
+      }
+
+      // Move RN window attach out of didFinishLaunching so PhoneSceneDelegate owns the UIWindow.
+      contents = contents.replace(
+        /#if os\(iOS\) \|\| os\(tvOS\)\s*\n\s*window = UIWindow\(frame: UIScreen\.main\.bounds\)\s*\n\s*factory\.startReactNative\(\s*\n\s*withModuleName: "main",\s*\n\s*in: window,\s*\n\s*launchOptions: launchOptions\)\s*\n#endif/,
+        `pendingLaunchOptions = launchOptions
+
+    // Phone UIWindow is created by PhoneSceneDelegate under UIApplicationSceneManifest.
+    // Keep the factory ready here so CarPlay can still connect without a phone window.`
+      );
+
+      if (!contents.includes("private var pendingLaunchOptions")) {
+        contents = contents.replace(
+          "var reactNativeFactory: RCTReactNativeFactory?",
+          `var reactNativeFactory: RCTReactNativeFactory?
+  private var pendingLaunchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  private var didAttachReactNative = false`
+        );
+      }
+
+      if (!contents.includes("func attachReactNative(to window: UIWindow)")) {
+        contents = contents.replace(
+          /return super\.application\(application, didFinishLaunchingWithOptions: launchOptions\)\n  \}/,
+          `return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  func attachReactNative(to window: UIWindow) {
+    self.window = window
+    guard !didAttachReactNative, let factory = reactNativeFactory else { return }
+    didAttachReactNative = true
+    factory.startReactNative(
+      withModuleName: "main",
+      in: window,
+      launchOptions: pendingLaunchOptions
+    )
+    pendingLaunchOptions = nil
+  }`
+        );
+      }
+
+      fs.writeFileSync(appDelegatePath, contents);
+      console.log("[hidden-audio] AppDelegate patched for PhoneSceneDelegate RN attach.");
+      return config;
+    },
+  ]);
+};
+
 const withHiddenAudio = (config) => {
   config = withHiddenAudioEntitlements(config);
   config = withHiddenAudioInfoPlist(config);
   config = withHiddenAudioNativeSources(config);
   config = withHiddenAudioXcodeProject(config);
+  config = withHiddenAudioAppDelegate(config);
   config = withHiddenAudioAndroidSources(config);
   config = withHiddenAudioAndroidGradle(config);
   config = withHiddenAudioAndroidManifest(config);
