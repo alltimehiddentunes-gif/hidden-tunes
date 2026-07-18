@@ -157,6 +157,7 @@ export default function EducationalProgramDetailScreen() {
 
   useEffect(() => {
     lecturePageTrace("mount", { screen: "lectures/detail", programId });
+    hasDetailContentRef.current = false;
     return () => lecturePageTrace("unmount", { screen: "lectures/detail", programId });
   }, [programId]);
 
