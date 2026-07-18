@@ -52,6 +52,7 @@ import type { PlaybackQueueContext } from "@/context/PlayerContext";
 import {
   fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
+  hydrateCachedHiddenTunesCatalog,
   isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
@@ -59,6 +60,7 @@ import {
   type HiddenTunesGenreCatalogItem,
   type HiddenTunesSong,
 } from "@/services/hiddenTunes";
+import { getHiddenTunesSongsPage } from "@/services/hiddenTunesApi";
 import {
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
@@ -96,6 +98,12 @@ import {
 const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
 const HOME_SECTION_PREVIEW_LIMIT = 8;
+const HOME_FIRST_PAGE_LIMIT = 100;
+
+function logHomeLoad(event: string, extra?: Record<string, unknown>) {
+  if (!__DEV__) return;
+  console.log(`[HomeLoad] ${event}`, extra || "");
+}
 
 type CatalogGroup = {
   id: string;
@@ -844,6 +852,8 @@ export default function MusicFeedScreen() {
   const mountedRef = useRef(true);
   const loadedHomeOnceRef = useRef(Boolean(initialCatalogStateRef.current));
   const catalogRequestRef = useRef<Promise<void> | null>(null);
+  const homeMountAtRef = useRef(Date.now());
+  const homeShellLoggedRef = useRef(false);
   const homeVerticalScrollingRef = useRef(false);
   const homeScrollSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { width: viewportWidth } = useWindowDimensions();
@@ -856,67 +866,150 @@ export default function MusicFeedScreen() {
   const albums = catalog?.albums || [];
   const genres = catalog?.genres || [];
   const playlists = catalog?.playlists || [];
-  const showBlockingLoader = loading && !catalog;
+  // Never block the Home shell behind a full-screen loader. Header, search,
+  // tabs, and cached/skeleton content must paint immediately.
+  const showInlineCatalogLoading = loading && songs.length === 0;
   const homeMotionPaused =
     homeAnimationsPaused || !homeFocused || !HOME_CONTINUOUS_MOTION_ENABLED;
 
+  if (!homeShellLoggedRef.current) {
+    homeShellLoggedRef.current = true;
+    logHomeLoad("shell_render", {
+      ms: Date.now() - homeMountAtRef.current,
+      hasCachedCatalog: Boolean(initialCatalogStateRef.current),
+      cachedSongs: initialCatalogStateRef.current?.songs.length || 0,
+    });
+  }
+
+  const applyCatalog = useCallback((data: HiddenTunesDerivedCatalog | null | undefined) => {
+    if (!data?.songs.length || !mountedRef.current) return;
+    setCatalog(data);
+    setLoading(false);
+    loadedHomeOnceRef.current = true;
+  }, []);
+
   const loadCatalog = useCallback(async () => {
     if (catalogRequestRef.current) {
+      logHomeLoad("deduped_inflight_request");
       return catalogRequestRef.current;
     }
 
     void hydrateDiscoveryPreferredGenres();
-    const cached = getCachedHiddenTunesCatalog();
-    if (cached && isDerivedCatalogTrusted(cached)) {
-      if (mountedRef.current) {
-        setCatalog(cached);
-        setLoading(false);
-      }
-      loadedHomeOnceRef.current = true;
-      return;
-    }
-
-    if (!loadedHomeOnceRef.current && mountedRef.current) {
-      setLoading(true);
-    }
 
     const request = (async () => {
+      const startedAt = Date.now();
       try {
-        const data = await fetchHiddenTunesCatalog();
-        loadedHomeOnceRef.current = true;
-        if (mountedRef.current) {
-          setCatalog(data);
+        // 1) Disk cache first — paint immediately when anything is available.
+        const hydratedStarted = Date.now();
+        const hydrated = await hydrateCachedHiddenTunesCatalog();
+        logHomeLoad("disk_hydrate", {
+          ms: Date.now() - hydratedStarted,
+          songs: hydrated?.songs.length || 0,
+          trusted: isDerivedCatalogTrusted(hydrated),
+        });
+        if (hydrated) {
+          applyCatalog(hydrated);
+          logHomeLoad("cached_content", {
+            ms: Date.now() - homeMountAtRef.current,
+            songs: hydrated.songs.length,
+          });
         }
+
+        // Trusted disk catalog: keep UI live; soft-refresh in background only.
+        if (isDerivedCatalogTrusted(hydrated)) {
+          void fetchHiddenTunesCatalog()
+            .then((data) => {
+              applyCatalog(data);
+              logHomeLoad("background_refresh_done", {
+                ms: Date.now() - startedAt,
+                songs: data.songs.length,
+              });
+            })
+            .catch((error) => {
+              logHomeLoad("background_refresh_error", {
+                error: error instanceof Error ? error.message : String(error),
+              });
+            });
+          return;
+        }
+
+        // 2) Cold / partial: start full catalog, but surface first page ASAP.
+        const networkStarted = Date.now();
+        const fullPromise = fetchHiddenTunesCatalog();
+
+        try {
+          await getHiddenTunesSongsPage({
+            page: 1,
+            limit: HOME_FIRST_PAGE_LIMIT,
+          });
+          const firstPageCatalog = getCachedHiddenTunesCatalog();
+          if (firstPageCatalog?.songs.length) {
+            applyCatalog(firstPageCatalog);
+            logHomeLoad("first_page", {
+              ms: Date.now() - networkStarted,
+              songs: firstPageCatalog.songs.length,
+            });
+          }
+        } catch (error) {
+          logHomeLoad("first_page_error", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+
+        const data = await fullPromise;
+        applyCatalog(data);
+        logHomeLoad("full_catalog", {
+          ms: Date.now() - networkStarted,
+          totalMs: Date.now() - startedAt,
+          songs: data.songs.length,
+        });
+      } catch (error) {
+        logHomeLoad("load_error", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       } finally {
         catalogRequestRef.current = null;
         if (mountedRef.current) {
           setLoading(false);
         }
+        logHomeLoad("load_finally", {
+          ms: Date.now() - startedAt,
+          sinceMountMs: Date.now() - homeMountAtRef.current,
+        });
       }
     })();
 
     catalogRequestRef.current = request;
     return request;
-  }, []);
+  }, [applyCatalog]);
 
   useEffect(() => {
     mountedRef.current = true;
-    const task = InteractionManager.runAfterInteractions(() => {
-      void loadCatalog();
-    });
+    // Start immediately — do not wait for InteractionManager (that delayed first paint).
+    void loadCatalog();
     return () => {
       mountedRef.current = false;
-      task.cancel();
     };
   }, [loadCatalog]);
 
 
   const refreshCatalog = useCallback(async () => {
     setRefreshing(true);
+    const startedAt = Date.now();
     try {
       const data = await fetchHiddenTunesCatalog({ forceRefresh: true });
-      setCatalog(data);
+      if (data.songs.length) {
+        setCatalog(data);
+      }
       setVisibleCatalogCount(CATALOG_PAGE_SIZE);
+      logHomeLoad("pull_refresh", {
+        ms: Date.now() - startedAt,
+        songs: data.songs.length,
+      });
+    } catch (error) {
+      logHomeLoad("pull_refresh_error", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setRefreshing(false);
     }
@@ -1360,13 +1453,7 @@ export default function MusicFeedScreen() {
           </TouchableOpacity>
         </View>
 
-        {showBlockingLoader ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>{homeUi.loadingMusic}</Text>
-          </View>
-        ) : (
-          <FlatList
+        <FlatList
             data={visibleCatalogSongs}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
@@ -1389,15 +1476,22 @@ export default function MusicFeedScreen() {
             }
             ListEmptyComponent={
               songs.length === 0 ? (
-                <View style={styles.catalogEmptyWrap}>
-                  <PremiumEmptyState
-                    icon="musical-notes-outline"
-                    title={homeUi.emptyTitle}
-                    message={homeUi.emptyCatalogMessage}
-                    actionLabel={homeUi.refreshCatalog}
-                    onAction={() => void refreshCatalog()}
-                  />
-                </View>
+                showInlineCatalogLoading ? (
+                  <View style={styles.inlineLoadingWrap}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                    <Text style={styles.loadingText}>{homeUi.loadingMusic}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.catalogEmptyWrap}>
+                    <PremiumEmptyState
+                      icon="musical-notes-outline"
+                      title={homeUi.emptyTitle}
+                      message={homeUi.emptyCatalogMessage}
+                      actionLabel={homeUi.refreshCatalog}
+                      onAction={() => void refreshCatalog()}
+                    />
+                  </View>
+                )
               ) : null
             }
             ListHeaderComponent={
@@ -1424,6 +1518,12 @@ export default function MusicFeedScreen() {
                     animationsPaused={homeMotionPaused}
                     focused={homeFocused}
                   />
+                ) : showInlineCatalogLoading ? (
+                  <View style={styles.sectionSkeletonBlock}>
+                    <View style={styles.sectionSkeletonHero} />
+                    <View style={styles.sectionSkeletonLine} />
+                    <View style={[styles.sectionSkeletonLine, styles.sectionSkeletonLineShort]} />
+                  </View>
                 ) : null}
 
                 <>
@@ -1672,7 +1772,6 @@ export default function MusicFeedScreen() {
             }
             renderItem={renderSongItem}
           />
-        )}
       </LinearGradient>
     </AppShell>
   );
@@ -1739,6 +1838,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 22,
+  },
+  inlineLoadingWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+    paddingHorizontal: 22,
+  },
+  sectionSkeletonBlock: {
+    marginTop: 8,
+    marginBottom: 18,
+    gap: 12,
+  },
+  sectionSkeletonHero: {
+    height: 220,
+    borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  sectionSkeletonLine: {
+    height: 14,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    width: "72%",
+  },
+  sectionSkeletonLineShort: {
+    width: "46%",
   },
   loadingText: { color: COLORS.textMuted, marginTop: 12, fontWeight: "700" },
   emptyIcon: {

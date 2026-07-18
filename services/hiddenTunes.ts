@@ -2,6 +2,7 @@
   fetchAllHiddenTunesCatalogSongs,
   getHiddenTunesCatalogSnapshot,
   getHiddenTunesSongsPage,
+  hydrateHiddenTunesCatalogCache,
   type HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
 
@@ -327,9 +328,14 @@ function mapNormalizedCatalogSong(
   );
 }
 
+const SONGS_JSON_FETCH_TIMEOUT_MS = 5500;
+
 async function fetchHiddenTunesSongsFromJson(): Promise<HiddenTunesSong[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SONGS_JSON_FETCH_TIMEOUT_MS);
+
   try {
-    const response = await fetch(SONGS_URL);
+    const response = await fetch(SONGS_URL, { signal: controller.signal });
 
     if (!response.ok) {
       console.log("Failed to fetch songs.json:", response.status);
@@ -355,6 +361,8 @@ async function fetchHiddenTunesSongsFromJson(): Promise<HiddenTunesSong[]> {
   } catch (error) {
     console.log("Hidden Tunes songs.json fetch error:", error);
     return [];
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -452,6 +460,17 @@ export function getDiscoveryPlayableSongs(): HiddenTunesSong[] {
 export function getCachedHiddenTunesCatalog() {
   syncDerivedCatalogFromSnapshot();
   return derivedCatalogCache;
+}
+
+/**
+ * Disk → memory → derived catalog for first paint.
+ * Returns any non-empty cache (including untrusted slices) so Home is not blocked.
+ */
+export async function hydrateCachedHiddenTunesCatalog(): Promise<HiddenTunesDerivedCatalog | null> {
+  await hydrateHiddenTunesCatalogCache();
+  syncDerivedCatalogFromSnapshot();
+  const cached = derivedCatalogCache;
+  return cached && cached.songs.length > 0 ? cached : null;
 }
 
 export function clearHiddenTunesCatalogCache() {
