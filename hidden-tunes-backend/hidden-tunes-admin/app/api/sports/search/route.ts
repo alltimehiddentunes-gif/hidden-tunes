@@ -8,6 +8,7 @@ import {
   parseSportsPageLimit,
   parseSportsPlatform,
 } from "@/lib/sports/http";
+import { resolveSportsBrowseAccess } from "@/lib/sports/pilotAccess";
 import { searchSportsCatalog } from "@/lib/sports/search/service";
 
 export const runtime = "nodejs";
@@ -15,8 +16,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const enabled = await isSportsFeatureEnabled("sports_enabled");
-    if (!enabled) {
+    const access = await resolveSportsBrowseAccess(request, () =>
+      isSportsFeatureEnabled("sports_enabled")
+    );
+    if (!access.enabled) {
       return jsonSportsOk({
         enabled: false,
         query: "",
@@ -39,7 +42,11 @@ export async function GET(request: NextRequest) {
       limit,
     });
 
-    return jsonSportsOk({ enabled: true, ...result });
+    return jsonSportsOk({
+      enabled: true,
+      privatePilot: access.privatePilot || undefined,
+      ...result,
+    });
   } catch (err) {
     return jsonSportsError(
       "Sports search failed.",

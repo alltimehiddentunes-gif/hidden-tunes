@@ -10,6 +10,7 @@ import {
   jsonSportsOk,
   parseSportsPageLimit,
 } from "@/lib/sports/http";
+import { resolveSportsBrowseAccess } from "@/lib/sports/pilotAccess";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -18,8 +19,10 @@ export const dynamic = "force-dynamic";
 /** Browse Sports taxonomy — reuses sports table; distinct from categories route. */
 export async function GET(request: NextRequest) {
   try {
-    const enabled = await isSportsFeatureEnabled("sports_enabled");
-    if (!enabled) {
+    const access = await resolveSportsBrowseAccess(request, () =>
+      isSportsFeatureEnabled("sports_enabled")
+    );
+    if (!access.enabled) {
       return jsonSportsOk({
         enabled: false,
         items: [],
@@ -46,6 +49,7 @@ export async function GET(request: NextRequest) {
 
     return jsonSportsOk({
       enabled: true,
+      privatePilot: access.privatePilot || undefined,
       items: page.map((s) => ({
         id: s.id,
         slug: s.slug,
