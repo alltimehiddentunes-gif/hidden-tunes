@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { usePlayerState } from "@/context/PlayerContext";
@@ -34,11 +35,16 @@ import {
   nextEducationalPlayGeneration,
 } from "@/utils/educationalPlayback";
 import { mergeEducationalSessions } from "@/utils/educationalOrdering";
+import { goBackWithinLectures } from "@/utils/lectureNavigation";
+import { joinLectureRequest, lecturePageTrace } from "@/utils/lectureRequestJoin";
 import { lectureTrace } from "@/utils/lectureTapTrace";
+import { createTapGuardState, shouldIgnoreDuplicateTap } from "@/utils/tapPressGuard";
 
 function hasAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
 }
+
+const playSessionTapGuard = createTapGuardState();
 
 const SessionRow = memo(function SessionRow({
   session,
@@ -91,6 +97,7 @@ export default function EducationalProgramDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const programId = String(params.id || "").trim();
   const { currentSong } = usePlayerState();
+  const insets = useSafeAreaInsets();
 
   const [program, setProgram] = useState<EducationalProgram | null>(null);
   const [sessions, setSessions] = useState<EducationalSession[]>([]);
@@ -108,16 +115,21 @@ export default function EducationalProgramDetailScreen() {
   const playControllerRef = useRef<AbortController | null>(null);
   const loadMoreControllerRef = useRef<AbortController | null>(null);
   const playGenerationRef = useRef(0);
+  const hasDetailContentRef = useRef(false);
 
   const loadDetail = useCallback(
     async (options?: { page?: number; reset?: boolean; signal?: AbortSignal }) => {
       const page = options?.page || 1;
       const reset = options?.reset === true;
-      const detail = await fetchEducationalProgramDetail(programId, {
-        sessionPage: page,
-        sessionLimit: 40,
-        signal: options?.signal,
-      });
+      const requestKey = `lecture:${programId}:page:${page}`;
+
+      const detail = await joinLectureRequest(requestKey, () =>
+        fetchEducationalProgramDetail(programId, {
+          sessionPage: page,
+          sessionLimit: 40,
+          signal: options?.signal,
+        })
+      );
 
       setProgram(detail.program);
       setSessions((current) => {
@@ -133,6 +145,7 @@ export default function EducationalProgramDetailScreen() {
         return pages;
       });
       setNextSessionPage(detail.pagination.hasMore ? page + 1 : page);
+      hasDetailContentRef.current = true;
       EducationalPlaybackController.mergeProgramSessions(detail.program.id, detail.sessions, {
         loadedPage: page,
         hasMore: detail.pagination.hasMore,
@@ -143,6 +156,11 @@ export default function EducationalProgramDetailScreen() {
   );
 
   useEffect(() => {
+    lecturePageTrace("mount", { screen: "lectures/detail", programId });
+    return () => lecturePageTrace("unmount", { screen: "lectures/detail", programId });
+  }, [programId]);
+
+  useEffect(() => {
     if (!programId) {
       setLoading(false);
       setError(true);
@@ -151,7 +169,10 @@ export default function EducationalProgramDetailScreen() {
 
     const controller = new AbortController();
     playControllerRef.current?.abort();
-    setLoading(true);
+    // Keep rendered course content visible while refreshing the same program.
+    if (!hasDetailContentRef.current) {
+      setLoading(true);
+    }
     setError(false);
     setSessionPage(1);
     setLoadedPageNumbers([1]);
@@ -159,10 +180,15 @@ export default function EducationalProgramDetailScreen() {
 
     void loadDetail({ page: 1, reset: true, signal: controller.signal })
       .catch((loadError) => {
-        if (hasAbortError(loadError)) return;
-        setProgram(null);
-        setSessions([]);
-        setError(true);
+        if (hasAbortError(loadError)) {
+          lecturePageTrace("fetch_aborted", { key: `lecture:${programId}` });
+          return;
+        }
+        if (!hasDetailContentRef.current) {
+          setProgram(null);
+          setSessions([]);
+          setError(true);
+        }
       })
       .finally(() => {
         setLoading(false);
@@ -217,6 +243,9 @@ export default function EducationalProgramDetailScreen() {
   const playSession = useCallback(
     async (sessionId: string, startPositionMillis = 0) => {
       if (!program || !sessionId || loadingSessionId) return;
+      if (shouldIgnoreDuplicateTap(playSessionTapGuard, `lecture-play:${sessionId}`)) {
+        return;
+      }
 
       playControllerRef.current?.abort();
       const controller = new AbortController();
@@ -239,6 +268,8 @@ export default function EducationalProgramDetailScreen() {
         const session = sessions.find((entry) => entry.id === sessionId);
         if (!session) return;
 
+        // Single authoritative entry: EducationalPlaybackController → playSong only.
+        // PlayerContext may call playQueue internally; Lectures must not call playQueue separately.
         const result = await EducationalPlaybackController.playSessionFromProgram({
           program,
           sessions,
@@ -309,7 +340,8 @@ export default function EducationalProgramDetailScreen() {
   const firstSession = sessions[0] || null;
   const resumeSessionId = savedProgress?.sessionId || firstSession?.id || null;
 
-  if (loading) {
+  // Only block the whole screen on the first load — never flash away cached course content.
+  if (loading && !program) {
     return (
       <LinearGradient colors={GRADIENTS.main} style={styles.center}>
         <ActivityIndicator color={COLORS.primary} />
@@ -317,21 +349,35 @@ export default function EducationalProgramDetailScreen() {
     );
   }
 
-  if (error || !program) {
+  if ((error || !program) && !loading) {
     return (
       <LinearGradient colors={GRADIENTS.main} style={styles.center}>
         <Text style={styles.errorTitle}>Course unavailable</Text>
-        <TouchableOpacity style={styles.backPill} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backPill} onPress={goBackWithinLectures}>
           <Text style={styles.backPillText}>Go back</Text>
         </TouchableOpacity>
       </LinearGradient>
     );
   }
 
+  if (!program) {
+    return (
+      <LinearGradient colors={GRADIENTS.main} style={styles.center}>
+        <ActivityIndicator color={COLORS.primary} />
+      </LinearGradient>
+    );
+  }
+
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <View style={[styles.header, { paddingTop: Math.max(12, insets.top) }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={goBackWithinLectures}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
@@ -428,12 +474,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
   },
   headerTitle: { flex: 1, color: COLORS.text, fontSize: 16, fontWeight: "800" },
   listContent: { paddingHorizontal: 18, paddingBottom: 120 },

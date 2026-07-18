@@ -13,7 +13,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HTImage from "@/components/HTImage";
 import { LECTURES_DEFAULT_CATEGORY_SLUG } from "@/constants/lecturesCatalog";
@@ -33,16 +33,26 @@ import { listContinueLearningEntries } from "@/services/educationalProgress";
 import { listEducationalRecentlyPlayed } from "@/services/educationalRecentlyPlayed";
 import type { EducationalCategory } from "@/types/education";
 import { openEducationalProgramDetail } from "@/utils/educationalVideoPlayback";
+import { goBackWithinLectures } from "@/utils/lectureNavigation";
+import { joinLectureRequest, lecturePageTrace } from "@/utils/lectureRequestJoin";
 import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "@/utils/performanceMode";
+import { createTapGuardState, shouldIgnoreDuplicateTap } from "@/utils/tapPressGuard";
 
 const SEARCH_DEBOUNCE_MS = 350;
 const LANE_LIMIT = 12;
+const openProgramTapGuard = createTapGuardState();
 
 function hasAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
+}
+
+function openLectureProgram(item: HiddenTunesLectureItem) {
+  const key = String(item.id || item.slug || "").trim();
+  if (!key || shouldIgnoreDuplicateTap(openProgramTapGuard, `lecture-open:${key}`)) return;
+  openEducationalProgramDetail(item);
 }
 
 const ProgramRow = memo(function ProgramRow({ item }: { item: HiddenTunesLectureItem }) {
@@ -58,7 +68,7 @@ const ProgramRow = memo(function ProgramRow({ item }: { item: HiddenTunesLecture
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.9}
-      onPress={() => openEducationalProgramDetail(item)}
+      onPress={() => openLectureProgram(item)}
     >
       <HTImage
         uri={item.artwork_url || item.cover_url || undefined}
@@ -101,7 +111,7 @@ const LaneSection = memo(function LaneSection({
             key={item.id}
             style={styles.laneCard}
             activeOpacity={0.9}
-            onPress={() => openEducationalProgramDetail(item)}
+            onPress={() => openLectureProgram(item)}
           >
             <HTImage
               uri={item.artwork_url || item.cover_url || undefined}
@@ -122,6 +132,7 @@ const LaneSection = memo(function LaneSection({
 
 export default function LecturesHomeScreen() {
   const mountedRef = useMountedRef();
+  const insets = useSafeAreaInsets();
   const [categories, setCategories] = useState<EducationalCategory[]>([]);
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>(LECTURES_DEFAULT_CATEGORY_SLUG);
   const [items, setItems] = useState<HiddenTunesLectureItem[]>([]);
@@ -146,10 +157,17 @@ export default function LecturesHomeScreen() {
   const browseAbortRef = useRef<AbortController | null>(null);
   const railsAbortRef = useRef<AbortController | null>(null);
   const searchPagingAbortRef = useRef<AbortController | null>(null);
+  const hasBrowseContentRef = useRef(false);
+  const browseKeyRef = useRef<string | null>(null);
 
   const isSearching = searchQuery.trim().length > 0;
   const listItems = isSearching ? searchItems : items;
   const canLoadMore = isSearching ? searchHasMore : hasMore;
+
+  useEffect(() => {
+    lecturePageTrace("mount", { screen: "lectures/index" });
+    return () => lecturePageTrace("unmount", { screen: "lectures/index" });
+  }, []);
 
   const loadBrowsePage = useCallback(
     async (options?: { page?: number; reset?: boolean; categorySlug?: string }) => {
@@ -157,17 +175,30 @@ export default function LecturesHomeScreen() {
       const categorySlug = options?.categorySlug ?? selectedCategorySlug;
       const nextPage = reset ? 1 : options?.page ?? 1;
       const requestId = ++categoryRequestRef.current;
-      browseAbortRef.current?.abort();
+      const requestKey = `lecture-category:${categorySlug}:${nextPage}`;
+
+      // Abort only when the resource key changes — same-key callers join the in-flight promise.
+      if (browseKeyRef.current && browseKeyRef.current !== requestKey) {
+        browseAbortRef.current?.abort();
+      }
+      browseKeyRef.current = requestKey;
       const controller = new AbortController();
       browseAbortRef.current = controller;
 
       try {
         setLoadError(null);
-        const result = await fetchEducationalCategoryPage(categorySlug, {
-          page: nextPage,
-          limit: LECTURES_DEFAULT_PAGE_LIMIT,
-          signal: controller.signal,
-        });
+        // Keep cached browse rows visible during refresh — no full-list spinner flash.
+        if (reset && !hasBrowseContentRef.current) {
+          setLoading(true);
+        }
+
+        const result = await joinLectureRequest(requestKey, () =>
+          fetchEducationalCategoryPage(categorySlug, {
+            page: nextPage,
+            limit: LECTURES_DEFAULT_PAGE_LIMIT,
+            signal: controller.signal,
+          })
+        );
         const responseItems = filterEducationalBrowseItems(result.items);
 
         if (!mountedRef.current || requestId !== categoryRequestRef.current) return;
@@ -177,10 +208,24 @@ export default function LecturesHomeScreen() {
             reset ? "browse:reset" : "browse:append"
           )
         );
+        hasBrowseContentRef.current = true;
         setPage(result.pagination.page);
         setHasMore(result.pagination.hasMore);
+
+        // Featured rail reuses default-category browse — avoid a second network fetch.
+        if (reset && categorySlug === LECTURES_DEFAULT_CATEGORY_SLUG) {
+          setFeaturedItems(
+            dedupeLectureItemsById(
+              responseItems.filter((item) => item.is_featured).slice(0, LANE_LIMIT),
+              "home:featured"
+            )
+          );
+        }
       } catch (error) {
-        if (hasAbortError(error)) return;
+        if (hasAbortError(error)) {
+          lecturePageTrace("fetch_aborted", { key: requestKey });
+          return;
+        }
         if (!mountedRef.current || requestId !== categoryRequestRef.current) return;
         setLoadError("Lectures could not be loaded right now.");
       } finally {
@@ -198,25 +243,17 @@ export default function LecturesHomeScreen() {
     const controller = new AbortController();
     railsAbortRef.current = controller;
     try {
-      const [categoriesResult, featuredResult, continueResult, recentResult] = await Promise.all([
-        fetchEducationalCategories({ signal: controller.signal }),
-        fetchEducationalCategoryPage(LECTURES_DEFAULT_CATEGORY_SLUG, {
-          page: 1,
-          limit: LANE_LIMIT,
-          signal: controller.signal,
-        }),
+      // Categories + local rails only. Featured comes from browse (same default slug).
+      const [categoriesResult, continueResult, recentResult] = await Promise.all([
+        joinLectureRequest("lecture:categories", () =>
+          fetchEducationalCategories({ signal: controller.signal })
+        ),
         listContinueLearningEntries(8),
         listEducationalRecentlyPlayed(8),
       ]);
 
       if (!mountedRef.current || controller.signal.aborted) return;
       setCategories(categoriesResult);
-      setFeaturedItems(
-        dedupeLectureItemsById(
-          filterEducationalBrowseItems(featuredResult.items).filter((item) => item.is_featured),
-          "home:featured"
-        )
-      );
       setContinueItems(
         dedupeLectureItemsById(
           continueResult.map((entry) => ({
@@ -341,14 +378,15 @@ export default function LecturesHomeScreen() {
 
   const onSelectCategory = useCallback(
     (slug: string) => {
+      if (slug === selectedCategorySlug && !isSearching) return;
       setSelectedCategorySlug(slug);
-      setLoading(true);
-      setItems([]);
+      setSearchQuery("");
       setPage(1);
       setHasMore(false);
+      // Keep previous rows visible until the new category page arrives.
       void loadBrowsePage({ reset: true, categorySlug: slug });
     },
-    [loadBrowsePage]
+    [isSearching, loadBrowsePage, selectedCategorySlug]
   );
 
   const listPerformance = useMemo(
@@ -363,8 +401,14 @@ export default function LecturesHomeScreen() {
   const listHeader = useMemo(
     () => (
       <View>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <View style={[styles.header, { paddingTop: Math.max(12, insets.top) }]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={goBackWithinLectures}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
           <View style={styles.headerText}>
@@ -418,6 +462,7 @@ export default function LecturesHomeScreen() {
       categories,
       continueItems,
       featuredItems,
+      insets.top,
       isSearching,
       onSelectCategory,
       recentItems,
@@ -476,12 +521,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
   },
   headerText: { flex: 1 },
   kicker: {

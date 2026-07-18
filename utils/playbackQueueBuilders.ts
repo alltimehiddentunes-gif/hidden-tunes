@@ -85,6 +85,62 @@ function isMotivationQueueContext(context: PlaybackQueueContext) {
   return false;
 }
 
+/** Lectures sessions: active row is playable; siblings are metadata-only until resolve. */
+function isEducationalDomainSong(song: QueueBuildSong) {
+  const id = text(song.id);
+  if (id.startsWith("lecture-session-")) return true;
+  return lower(song.sourceName) === "lectures";
+}
+
+function isEducationalQueueContext(context: PlaybackQueueContext) {
+  const typed = context as PlaybackQueueContext & {
+    queueType?: string;
+    contextType?: string;
+  };
+  if (typed.queueType === "educational") return true;
+  if (typed.contextType === "educational-program") return true;
+  return false;
+}
+
+function preserveStrictDomainQueue(input: {
+  seed: QueueBuildSong;
+  providedQueue?: QueueBuildSong[];
+  requestedIndex?: number;
+  isDomainSong: (song: QueueBuildSong) => boolean;
+  builtFrom: string;
+  diagnostics: Record<string, unknown>;
+}): QueueBuildResult {
+  const domainProvided = dedupeSongs(
+    (input.providedQueue || []).filter((entry) => !isYouTubeSong(entry))
+  );
+  const placed = ensureSongInQueue(
+    domainProvided.length
+      ? domainProvided
+      : input.isDomainSong(input.seed)
+        ? [input.seed]
+        : [],
+    input.seed
+  );
+  const activeIndex =
+    input.requestedIndex === undefined
+      ? placed.activeIndex
+      : Math.max(0, Math.min(input.requestedIndex, placed.queue.length - 1));
+
+  return {
+    queue: placed.queue,
+    activeIndex,
+    builtFrom: input.builtFrom,
+    expanded: false,
+    diagnostics: {
+      ...input.diagnostics,
+      provided_length: domainProvided.length,
+      final_length: placed.queue.length,
+      foreign_item_count: 0,
+      expanded: false,
+    },
+  };
+}
+
 function songArtist(song: QueueBuildSong) {
   return lower(song.artist || song.user?.name || song.channelTitle);
 }
@@ -368,28 +424,94 @@ export function buildContextualPlaybackQueue(options: {
     isMotivationDomainSong(seed) ||
     (providedQueue || []).some(isMotivationDomainSong)
   ) {
-    const motivationProvided = dedupeSongs(
-      (providedQueue || []).filter((entry) => !isYouTubeSong(entry))
-    );
-    const placed = ensureSongInQueue(
-      motivationProvided.length ? motivationProvided : isMotivationDomainSong(seed) ? [seed] : [],
-      seed
-    );
-    const activeIndex =
-      requestedIndex === undefined
-        ? placed.activeIndex
-        : Math.max(0, Math.min(requestedIndex, placed.queue.length - 1));
-    return {
-      queue: placed.queue,
-      activeIndex,
+    return preserveStrictDomainQueue({
+      seed,
+      providedQueue,
+      requestedIndex,
+      isDomainSong: isMotivationDomainSong,
       builtFrom: "motivation_domain_preserved",
-      expanded: false,
       diagnostics: {
         motivation_domain_guard: true,
-        motivation_provided_length: motivationProvided.length,
         discovery_catalog_size: catalog.length,
       },
-    };
+    });
+  }
+
+  // Lectures must never expand into Music discovery. Keep the supplied course queue.
+  if (
+    isEducationalQueueContext(context) ||
+    isEducationalDomainSong(seed) ||
+    (providedQueue || []).some(isEducationalDomainSong)
+  ) {
+    const result = preserveStrictDomainQueue({
+      seed,
+      providedQueue,
+      requestedIndex,
+      isDomainSong: isEducationalDomainSong,
+      builtFrom: "educational_domain_preserved",
+      diagnostics: {
+        educational_domain_guard: true,
+        discovery_catalog_size: catalog.length,
+        program_id: text(
+          (context as PlaybackQueueContext & { contextId?: string; albumId?: string })
+            .contextId || context.albumId
+        ),
+      },
+    });
+
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[LECTURE_QUEUE] accepted", {
+        providedLength: (providedQueue || []).length,
+        finalLength: result.queue.length,
+        activeIndex: result.activeIndex,
+        programId: result.diagnostics.program_id || null,
+        expanded: false,
+        foreignItemCount: 0,
+      });
+    }
+
+    const active = result.queue[result.activeIndex];
+    const invalid =
+      result.queue.length === 0 ||
+      result.activeIndex < 0 ||
+      result.activeIndex >= result.queue.length ||
+      !active ||
+      text(active.id) !== text(seed.id) ||
+      result.queue.some((item) => !isEducationalDomainSong(item));
+
+    if (invalid) {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.warn("[LECTURE_QUEUE] validation_failed_fallback_to_provided", {
+          seedId: seed.id,
+          providedLength: (providedQueue || []).length,
+          finalLength: result.queue.length,
+          activeIndex: result.activeIndex,
+        });
+      }
+      const fallback = dedupeSongs(
+        (providedQueue || []).filter((entry) => !isYouTubeSong(entry))
+      );
+      const placed = ensureSongInQueue(
+        fallback.length ? fallback : isEducationalDomainSong(seed) ? [seed] : [],
+        seed
+      );
+      return {
+        queue: placed.queue,
+        activeIndex:
+          requestedIndex === undefined
+            ? placed.activeIndex
+            : Math.max(0, Math.min(requestedIndex, placed.queue.length - 1)),
+        builtFrom: "educational_domain_fallback_provided",
+        expanded: false,
+        diagnostics: {
+          educational_domain_guard: true,
+          educational_validation_failed: true,
+          discovery_catalog_size: catalog.length,
+        },
+      };
+    }
+
+    return result;
   }
 
   const provided = dedupeSongs((providedQueue || []).filter(isPlayableSong));

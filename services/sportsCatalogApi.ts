@@ -34,6 +34,27 @@ import {
 import { formatMatchTitle } from "../lib/sports/ui/formatScore";
 export const SPORTS_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const SPORTS_DEFAULT_PAGE_LIMIT = 20;
+
+/** Dev-only private pilot header — never embedded in production release builds. */
+const SPORTS_PRIVATE_PILOT_HEADER = "X-Hidden-Tunes-Sports-Pilot";
+
+function privatePilotToken(): string | null {
+  if (typeof __DEV__ !== "undefined" && !__DEV__) return null;
+  const token = String(
+    process.env.EXPO_PUBLIC_SPORTS_PRIVATE_PILOT_TOKEN || ""
+  ).trim();
+  return token.length >= 16 ? token : null;
+}
+
+function sportsRequestHeaders(
+  base: Record<string, string> = {}
+): Record<string, string> {
+  const headers = { ...base };
+  const pilot = privatePilotToken();
+  if (pilot) headers[SPORTS_PRIVATE_PILOT_HEADER] = pilot;
+  return headers;
+}
+
 type FetchOptions = {
   signal?: AbortSignal;
   country?: string;
@@ -86,6 +107,8 @@ async function sportsFetch<T>(
   if (init.platform) headers.set("x-ht-platform", init.platform);
   if (init.country) headers.set("x-ht-storefront-country", init.country);
   if (init.userId) headers.set("x-ht-user-id", init.userId);
+  const pilot = privatePilotToken();
+  if (pilot) headers.set(SPORTS_PRIVATE_PILOT_HEADER, pilot);
   const response = await fetch(url.toString(), {
     ...init,
     headers,
@@ -504,10 +527,10 @@ export async function resolveSportsVideoPlayback(input: {
         `${SPORTS_CATALOG_BASE_URL}/api/sports/videos/${encodeURIComponent(input.videoId)}/play`,
         {
           method: "POST",
-          headers: {
+        headers: sportsRequestHeaders({
             "Content-Type": "application/json",
             "x-ht-platform": input.platform,
-          },
+          }),
           body: JSON.stringify({
             platform: input.platform,
             country: input.country,
@@ -571,10 +594,10 @@ export async function resolveSportsBroadcastPlayback(input: {
         `${SPORTS_CATALOG_BASE_URL}/api/sports/broadcasts/${encodeURIComponent(input.broadcastId)}/play`,
         {
           method: "POST",
-          headers: {
+        headers: sportsRequestHeaders({
             "Content-Type": "application/json",
             "x-ht-platform": input.platform,
-          },
+          }),
           body: JSON.stringify({
             platform: input.platform,
             country: input.country,
@@ -667,11 +690,11 @@ export async function resolveSportsFixturePlaySession(input: {
       `${SPORTS_CATALOG_BASE_URL}/api/sports/fixtures/${encodeURIComponent(fixtureId)}/play`,
       {
         method: "POST",
-        headers: {
+        headers: sportsRequestHeaders({
           "Content-Type": "application/json",
           "x-ht-platform": input.platform,
           "x-ht-storefront-country": input.country,
-        },
+        }),
         body: JSON.stringify({
           platform: input.platform,
           country: input.country,
