@@ -7,12 +7,14 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
 import { COLORS, GRADIENTS } from "@/constants/theme";
@@ -27,6 +29,13 @@ import {
 } from "@/services/tv/tvFavorites";
 import type { HiddenTunesTvVideo } from "@/services/tvCatalogApi";
 import type { TVChannel, TvPresentationMode } from "@/types/tv";
+import {
+  getTvChannelInitials,
+  getTvDisplaySubtitle,
+  markTvArtworkLoadFailure,
+  resolveTvArtworkUrl,
+  shouldShowTvVerifiedBadge,
+} from "@/utils/tvArtwork";
 import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
 import { useMountedRef } from "@/utils/useMountedRef";
 
@@ -64,12 +73,105 @@ type TvPlayerHostProps = {
 };
 
 function formatCategoryLabel(category: string) {
-  return category.charAt(0).toUpperCase() + category.slice(1);
+  const cleaned = String(category || "").trim();
+  if (!cleaned) return "";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+/** Strip ingestion/debug dumps that must never reach the user-facing player. */
+function getUserFacingStationBlurb(raw: string | null | undefined): string {
+  const text = String(raw || "").trim();
+  if (!text) return "";
+
+  const lower = text.toLowerCase();
+  const debugMarkers = [
+    "provider:",
+    "legal basis",
+    "legal_basis",
+    "station id",
+    "station_id",
+    "discovered:",
+    "official-fast-providers",
+    "catalog wave",
+    "wave4",
+    "validation",
+    "source_type",
+    "ingestion",
+  ];
+  if (debugMarkers.some((marker) => lower.includes(marker))) {
+    return "";
+  }
+  if (/https?:\/\//i.test(text) && (lower.includes("official") || text.includes("\n"))) {
+    return "";
+  }
+  if ((text.match(/\n/g) || []).length >= 2) {
+    return "";
+  }
+  // Keep short human blurbs only.
+  if (text.length > 160) return "";
+  return text;
+}
+
+function resolveStationArtworkUri(
+  channel: TVChannel | null,
+  item: HiddenTunesTvVideo
+): string {
+  const fromChannel = String(channel?.logoUrl || "").trim();
+  if (fromChannel) return fromChannel;
+  return resolveTvArtworkUrl(item);
+}
+
+function StationArtworkMark({
+  uri,
+  title,
+  size,
+}: {
+  uri: string;
+  title: string;
+  size: number;
+}) {
+  const [failed, setFailed] = useState(!uri);
+  const initials = getTvChannelInitials(title);
+  const radius = Math.round(size * 0.22);
+
+  if (failed || !uri) {
+    return (
+      <LinearGradient
+        colors={["rgba(168,85,247,0.42)", "rgba(34,211,238,0.12)", "rgba(8,2,18,0.95)"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.artworkFallback,
+          { width: size, height: size, borderRadius: radius },
+        ]}
+      >
+        <View style={styles.artworkFallbackGlow} />
+        <Text style={[styles.artworkInitials, { fontSize: Math.round(size * 0.28) }]}>
+          {initials}
+        </Text>
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width: size, height: size, borderRadius: radius }}
+      contentFit="cover"
+      recyclingKey={uri}
+      cachePolicy="memory-disk"
+      priority="high"
+      onError={() => {
+        markTvArtworkLoadFailure(uri);
+        setFailed(true);
+      }}
+    />
+  );
 }
 
 /**
- * Single WebView host. Presentation mode only changes layout styles ÔÇö
- * the WebView stays on a stable tree path so floating Ôåö full does not remount.
+ * Single TV session host. Presentation mode only changes layout styles —
+ * the video surface stays on a stable tree path so floating ↔ full does not remount.
  */
 function TvPlayerHost({
   html,
@@ -98,11 +200,47 @@ function TvPlayerHost({
   onReportError,
 }: TvPlayerHostProps) {
   const mountedRef = useMountedRef();
+  const insets = useSafeAreaInsets();
+  const { width: viewportWidth } = useWindowDimensions();
   const [isFavorite, setIsFavorite] = useState(false);
   const [relatedChannels, setRelatedChannels] = useState<TVChannel[]>([]);
   const full = presentationMode === "fullPlayer";
   const displayChannel = seedChannel;
-  const title = displayChannel?.name || item.title;
+  const title = displayChannel?.name || item.title || "Hidden Tunes TV";
+  const artworkUri = useMemo(
+    () => resolveStationArtworkUri(displayChannel, item),
+    [displayChannel, item]
+  );
+  const regionLabel = useMemo(() => {
+    if (displayChannel?.country) return displayChannel.country;
+    return getTvDisplaySubtitle(item) || item.country || "";
+  }, [displayChannel, item]);
+  const categoryLabel = useMemo(() => {
+    if (displayChannel?.category) return formatCategoryLabel(displayChannel.category);
+    return (
+      formatCategoryLabel(item.category || "") ||
+      formatCategoryLabel(item.categories?.[0] || "") ||
+      formatCategoryLabel(item.genre || "")
+    );
+  }, [displayChannel, item]);
+  const metaLine = useMemo(() => {
+    return [regionLabel, categoryLabel].filter(Boolean).join(" · ");
+  }, [categoryLabel, regionLabel]);
+  const userBlurb = useMemo(
+    () =>
+      getUserFacingStationBlurb(displayChannel?.description || item.description || ""),
+    [displayChannel?.description, item.description]
+  );
+  const showLiveBadge = Boolean(displayChannel?.isLive ?? true);
+  const showFreeBadge = true;
+  const showVerifiedBadge = displayChannel
+    ? displayChannel.isVerifiedLegal
+    : shouldShowTvVerifiedBadge(item);
+
+  const canvasWidth = Math.min(viewportWidth - 32, 560);
+  const canvasStyle = full
+    ? [styles.videoShell, styles.videoShellFull, { width: canvasWidth, alignSelf: "center" as const }]
+    : [styles.videoShell, styles.videoShellFloating];
 
   useEffect(() => {
     if (!full) return;
@@ -162,6 +300,16 @@ function TvPlayerHost({
     if (router.canGoBack()) router.back();
   }, [onMinimize]);
 
+  const handleReportBroken = useCallback(() => {
+    if (!displayChannel) return;
+    markTvChannelBroken(displayChannel.id);
+    void markTvChannelTemporarilyUnavailable(
+      displayChannel.id,
+      "playback_failed"
+    );
+    onReportError();
+  }, [displayChannel, onReportError]);
+
   const relatedListSettings = useMemo(
     () => getHorizontalListPerformanceSettings(relatedChannels.length),
     [relatedChannels.length]
@@ -174,33 +322,151 @@ function TvPlayerHost({
     [onSelectSeedChannel]
   );
 
+  const playerCanvas = (
+    <View style={canvasStyle} collapsable={false}>
+      {hasError ? (
+        <LinearGradient
+          colors={["rgba(24,10,42,0.98)", "rgba(6,2,12,0.98)", "#000"]}
+          style={styles.errorCanvas}
+        >
+          {artworkUri ? (
+            <Image
+              source={{ uri: artworkUri }}
+              style={styles.errorArtworkWash}
+              contentFit="cover"
+              blurRadius={18}
+              recyclingKey={`wash-${item.id}`}
+              cachePolicy="memory-disk"
+              priority="low"
+            />
+          ) : null}
+          <View style={styles.errorContent}>
+            <View style={styles.errorIconWrap}>
+              <Ionicons name="cloud-offline-outline" size={22} color={COLORS.textMuted} />
+            </View>
+            <Text style={styles.errorTitle}>Stream temporarily unavailable</Text>
+            <Text style={styles.errorSub}>
+              We couldn't start this channel. Try again or continue to another
+              station.
+            </Text>
+            <View style={styles.errorActions}>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={onRetry}
+                accessibilityRole="button"
+                accessibilityLabel="Retry"
+              >
+                <Text style={styles.primaryButtonText}>Retry</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={onNext}
+                accessibilityRole="button"
+                accessibilityLabel="Next channel"
+              >
+                <Text style={styles.secondaryButtonText}>Next channel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
+      ) : surface === "native" && streamUrl ? (
+        <TvNativeVideoSurface
+          key={`tv-native-${playerGeneration}`}
+          ref={nativePlayerRef}
+          streamUrl={streamUrl}
+          onPlaying={onNativePlaying}
+          onPaused={onNativePaused}
+          onError={onReportError}
+        />
+      ) : surface === "webview" && html ? (
+        <WebView
+          key={`tv-session-${playerGeneration}`}
+          ref={webViewRef}
+          source={{ html }}
+          style={styles.webView}
+          allowsInlineMediaPlayback
+          allowsFullscreenVideo
+          mediaPlaybackRequiresUserAction={false}
+          javaScriptEnabled
+          domStorageEnabled={false}
+          cacheEnabled={false}
+          incognito
+          onMessage={onMessage}
+          onError={onReportError}
+          onHttpError={onReportError}
+        />
+      ) : (
+        <LinearGradient
+          colors={["rgba(24,10,42,0.98)", "rgba(6,2,12,0.98)", "#000"]}
+          style={styles.errorCanvas}
+        >
+          <View style={styles.errorContent}>
+            <View style={styles.errorIconWrap}>
+              <Ionicons name="cloud-offline-outline" size={22} color={COLORS.textMuted} />
+            </View>
+            <Text style={styles.errorTitle}>Stream temporarily unavailable</Text>
+            <Text style={styles.errorSub}>
+              We couldn't start this channel. Try again or continue to another
+              station.
+            </Text>
+            <View style={styles.errorActions}>
+              <TouchableOpacity style={styles.primaryButton} onPress={onRetry}>
+                <Text style={styles.primaryButtonText}>Retry</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.secondaryButton} onPress={onNext}>
+                <Text style={styles.secondaryButtonText}>Next channel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
+      )}
+
+      {isLoading && !hasError ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+          {full ? <Text style={styles.loadingText}>Loading stream…</Text> : null}
+        </View>
+      ) : null}
+    </View>
+  );
+
   const body = (
     <>
-      <View style={full ? styles.topBar : styles.floatingHeader}>
+      <View
+        style={[
+          full ? styles.topBar : styles.floatingHeader,
+          full ? { paddingTop: Math.max(insets.top, 10) } : null,
+        ]}
+      >
         {full ? (
           <>
-            <TouchableOpacity style={styles.iconButton} onPress={handleBack}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleBack}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
               <Ionicons name="chevron-back" size={22} color={COLORS.text} />
             </TouchableOpacity>
             <Text style={styles.topTitle} numberOfLines={1}>
               {title}
             </Text>
-            {displayChannel ? (
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => void handleToggleFavorite()}
-              >
-                <Ionicons
-                  name={isFavorite ? "heart" : "heart-outline"}
-                  size={20}
-                  color={isFavorite ? COLORS.primary : COLORS.text}
-                />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.iconButton} onPress={onStop}>
-                <Ionicons name="close" size={20} color={COLORS.text} />
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={onMinimize}
+              accessibilityRole="button"
+              accessibilityLabel="Picture in picture"
+            >
+              <Ionicons name="browsers-outline" size={18} color={COLORS.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={onStop}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
+              <Ionicons name="close" size={20} color={COLORS.text} />
+            </TouchableOpacity>
           </>
         ) : (
           <>
@@ -230,80 +496,14 @@ function TvPlayerHost({
         )}
       </View>
 
-      {/* Stable path: Root ÔåÆ Card ÔåÆ videoShell ÔåÆ WebView (never reparented) */}
-      <View
-        style={[
-          styles.videoShell,
-          full ? styles.videoShellFull : styles.videoShellFloating,
-        ]}
-      >
-        {hasError ? (
-          <View style={styles.errorOverlay}>
-            <Ionicons
-              name="alert-circle-outline"
-              size={42}
-              color={COLORS.textMuted}
-            />
-            <Text style={styles.errorTitle}>Channel unavailable right now</Text>
-            <Text style={styles.errorSub}>
-              This stream could not be loaded. Try again or skip to another
-              channel.
-            </Text>
-            <View style={styles.errorActions}>
-              <TouchableOpacity style={styles.primaryButton} onPress={onRetry}>
-                <Text style={styles.primaryButtonText}>Try again</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={onNext}>
-                <Text style={styles.secondaryButtonText}>Next channel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : surface === "native" && streamUrl ? (
-          <TvNativeVideoSurface
-            key={`tv-native-${playerGeneration}`}
-            ref={nativePlayerRef}
-            streamUrl={streamUrl}
-            onPlaying={onNativePlaying}
-            onPaused={onNativePaused}
-            onError={onReportError}
-          />
-        ) : surface === "webview" && html ? (
-          <WebView
-            key={`tv-session-${playerGeneration}`}
-            ref={webViewRef}
-            source={{ html }}
-            style={styles.webView}
-            allowsInlineMediaPlayback
-            allowsFullscreenVideo
-            mediaPlaybackRequiresUserAction={false}
-            javaScriptEnabled
-            domStorageEnabled={false}
-            cacheEnabled={false}
-            incognito
-            onMessage={onMessage}
-            onError={onReportError}
-            onHttpError={onReportError}
-          />
-        ) : (
-          <View style={styles.errorOverlay}>
-            <Text style={styles.errorTitle}>Stream format not supported</Text>
-          </View>
-        )}
-
-        {isLoading && !hasError ? (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator color={COLORS.primary} size="large" />
-            {full ? (
-              <Text style={styles.loadingText}>Loading stream...</Text>
-            ) : null}
-          </View>
-        ) : null}
-      </View>
+      {playerCanvas}
 
       <View style={full ? styles.controlsRow : styles.floatingControls}>
         <TouchableOpacity
           style={full ? styles.fullControlButton : styles.controlButton}
           onPress={onPrevious}
+          accessibilityRole="button"
+          accessibilityLabel="Previous channel"
         >
           <Ionicons
             name="play-skip-back"
@@ -312,7 +512,12 @@ function TvPlayerHost({
           />
         </TouchableOpacity>
         {full ? (
-          <TouchableOpacity style={styles.playButton} onPress={onTogglePlayback}>
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={onTogglePlayback}
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? "Pause" : "Play"}
+          >
             <Ionicons
               name={isPlaying ? "pause" : "play"}
               size={24}
@@ -331,6 +536,8 @@ function TvPlayerHost({
         <TouchableOpacity
           style={full ? styles.fullControlButton : styles.controlButton}
           onPress={onNext}
+          accessibilityRole="button"
+          accessibilityLabel="Next channel"
         >
           <Ionicons
             name="play-skip-forward"
@@ -343,73 +550,91 @@ function TvPlayerHost({
       {full ? (
         <ScrollView
           style={styles.metaScroll}
-          contentContainerStyle={styles.metaContent}
+          contentContainerStyle={[
+            styles.metaContent,
+            { paddingBottom: Math.max(insets.bottom, 24) + 16 },
+          ]}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.channelMeta}>
-            {displayChannel?.logoUrl || item.logo || item.thumbnail_url ? (
-              <Image
-                source={{
-                  uri:
-                    displayChannel?.logoUrl ||
-                    item.logo ||
-                    item.thumbnail_url ||
-                    "",
-                }}
-                style={styles.channelLogo}
-                contentFit="contain"
-                recyclingKey={item.id}
-                cachePolicy="memory-disk"
-                priority="low"
-              />
-            ) : (
-              <View style={styles.channelLogoFallback}>
-                <Ionicons name="tv" size={24} color={COLORS.primary} />
-              </View>
-            )}
-            <View style={styles.channelCopy}>
-              <Text style={styles.channelName}>{title}</Text>
-              <Text style={styles.channelDetails}>
-                {displayChannel
-                  ? `${formatCategoryLabel(displayChannel.category)}${
-                      displayChannel.country
-                        ? ` ┬À ${displayChannel.country}`
-                        : ""
-                    }${
-                      displayChannel.language
-                        ? ` ┬À ${displayChannel.language}`
-                        : ""
-                    }`
-                  : item.categories?.[0] || "TV"}
+          <View style={styles.stationCard}>
+            <StationArtworkMark uri={artworkUri} title={title} size={68} />
+            <View style={styles.stationCopy}>
+              <Text style={styles.channelName} numberOfLines={2}>
+                {title}
               </Text>
-              {displayChannel?.description || item.description ? (
-                <Text style={styles.channelDescription}>
-                  {displayChannel?.description || item.description}
+              {metaLine ? (
+                <Text style={styles.channelDetails} numberOfLines={1}>
+                  {metaLine}
+                </Text>
+              ) : null}
+              <View style={styles.badgeRow}>
+                {showLiveBadge ? (
+                  <View style={[styles.badge, styles.badgeLive]}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.badgeText}>Live</Text>
+                  </View>
+                ) : null}
+                {showFreeBadge ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>Free TV</Text>
+                  </View>
+                ) : null}
+                {showVerifiedBadge ? (
+                  <View style={styles.badge}>
+                    <Ionicons name="shield-checkmark" size={11} color={COLORS.cyan} />
+                    <Text style={styles.badgeText}>Verified</Text>
+                  </View>
+                ) : null}
+              </View>
+              {userBlurb ? (
+                <Text style={styles.channelDescription} numberOfLines={3}>
+                  {userBlurb}
                 </Text>
               ) : null}
             </View>
           </View>
 
-          {displayChannel ? (
+          <View style={styles.secondaryActions}>
+            {displayChannel ? (
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={() => void handleToggleFavorite()}
+                accessibilityRole="button"
+                accessibilityLabel={isFavorite ? "Unfavorite" : "Favorite"}
+              >
+                <Ionicons
+                  name={isFavorite ? "heart" : "heart-outline"}
+                  size={18}
+                  color={isFavorite ? COLORS.primary : COLORS.text}
+                />
+                <Text style={styles.secondaryActionLabel}>Favorite</Text>
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
-              style={styles.reportButton}
-              onPress={() => {
-                markTvChannelBroken(displayChannel.id);
-                void markTvChannelTemporarilyUnavailable(
-                  displayChannel.id,
-                  "playback_failed"
-                );
-                onReportError();
-              }}
+              style={styles.secondaryAction}
+              onPress={onMinimize}
+              accessibilityRole="button"
+              accessibilityLabel="Picture in picture"
             >
-              <Ionicons name="flag-outline" size={16} color={COLORS.textMuted} />
-              <Text style={styles.reportText}>Report broken channel</Text>
+              <Ionicons name="browsers-outline" size={18} color={COLORS.text} />
+              <Text style={styles.secondaryActionLabel}>PiP</Text>
             </TouchableOpacity>
-          ) : null}
+            {displayChannel ? (
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={handleReportBroken}
+                accessibilityRole="button"
+                accessibilityLabel="Report broken channel"
+              >
+                <Ionicons name="flag-outline" size={17} color={COLORS.textMuted} />
+                <Text style={styles.secondaryActionLabel}>Report</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
           {relatedChannels.length ? (
             <View style={styles.relatedSection}>
-              <Text style={styles.relatedTitle}>Related Channels</Text>
+              <Text style={styles.relatedTitle}>Related channels</Text>
               <FlatList
                 horizontal
                 data={relatedChannels}
@@ -431,8 +656,6 @@ function TvPlayerHost({
     </>
   );
 
-  // Stable tree: root ÔåÆ bgSlot ÔåÆ card ÔåÆ videoShell ÔåÆ WebView.
-  // Mode only changes styles / optional bg gradient; never reparents the WebView.
   return (
     <View
       style={full ? styles.fullRoot : styles.floatingRoot}
@@ -485,12 +708,12 @@ const styles = StyleSheet.create({
   floatingTitle: {
     color: COLORS.text,
     fontSize: 13,
-    fontWeight: "900",
+    fontWeight: "800",
   },
   floatingSub: {
     color: COLORS.textMuted,
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: "600",
     marginTop: 2,
   },
   headerIcon: {
@@ -533,11 +756,10 @@ const styles = StyleSheet.create({
     height: 78,
   },
   videoShellFull: {
-    marginHorizontal: 16,
     aspectRatio: 16 / 9,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
   webView: {
     flex: 1,
@@ -553,32 +775,53 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     marginTop: 10,
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "700",
   },
-  errorOverlay: {
+  errorCanvas: {
     flex: 1,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    backgroundColor: "rgba(0,0,0,0.82)",
+  },
+  errorArtworkWash: {
+    ...StyleSheet.absoluteFill,
+    opacity: 0.22,
+  },
+  errorContent: {
+    paddingHorizontal: 22,
+    alignItems: "center",
+    maxWidth: 340,
+  },
+  errorIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+    marginBottom: 12,
   },
   errorTitle: {
     color: COLORS.text,
     fontSize: 16,
-    fontWeight: "900",
-    marginTop: 12,
+    fontWeight: "800",
     textAlign: "center",
+    letterSpacing: 0.2,
   },
   errorSub: {
     color: COLORS.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "700",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "500",
     marginTop: 8,
     textAlign: "center",
   },
   errorActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
     gap: 10,
     marginTop: 16,
   },
@@ -592,21 +835,22 @@ const styles = StyleSheet.create({
   },
   fullContainer: {
     flex: 1,
-    paddingTop: 52,
   },
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    gap: 10,
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    gap: 8,
+    zIndex: 4,
   },
   topTitle: {
     flex: 1,
     color: COLORS.text,
-    fontSize: 16,
-    fontWeight: "900",
+    fontSize: 15,
+    fontWeight: "800",
     textAlign: "center",
+    paddingHorizontal: 4,
   },
   iconButton: {
     width: 40,
@@ -615,26 +859,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 18,
-    paddingVertical: 14,
+    gap: 20,
+    paddingVertical: 16,
   },
   fullControlButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   playButton: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: COLORS.primary,
@@ -642,89 +890,144 @@ const styles = StyleSheet.create({
   metaScroll: { flex: 1 },
   metaContent: {
     paddingHorizontal: 16,
-    paddingBottom: 40,
   },
-  channelMeta: {
+  stationCard: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
+    gap: 14,
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.045)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
-  channelLogo: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
-  channelLogoFallback: {
-    width: 64,
-    height: 64,
-    borderRadius: 14,
+  artworkFallback: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.28)",
   },
-  channelCopy: { flex: 1 },
+  artworkFallbackGlow: {
+    position: "absolute",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(168,85,247,0.28)",
+  },
+  artworkInitials: {
+    color: COLORS.text,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  stationCopy: { flex: 1, minWidth: 0 },
   channelName: {
     color: COLORS.text,
-    fontSize: 20,
-    fontWeight: "900",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: 0.15,
   },
   channelDetails: {
     color: COLORS.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 13,
+    fontWeight: "600",
     marginTop: 4,
+  },
+  badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 10,
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  badgeLive: {
+    borderColor: "rgba(34,197,94,0.35)",
+    backgroundColor: "rgba(34,197,94,0.12)",
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.success,
+  },
+  badgeText: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
   },
   channelDescription: {
     color: COLORS.textDim,
     fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "700",
-    marginTop: 8,
+    lineHeight: 17,
+    fontWeight: "500",
+    marginTop: 10,
   },
-  reportButton: {
+  secondaryActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 14,
+  },
+  secondaryAction: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    alignSelf: "flex-start",
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
-  reportText: {
-    color: COLORS.textMuted,
-    fontSize: 12,
+  secondaryActionLabel: {
+    color: COLORS.text,
+    fontSize: 13,
     fontWeight: "700",
   },
-  relatedSection: { marginTop: 10 },
+  relatedSection: { marginTop: 22 },
   relatedTitle: {
     color: COLORS.text,
-    fontSize: 18,
-    fontWeight: "900",
+    fontSize: 16,
+    fontWeight: "800",
     marginBottom: 12,
   },
   primaryButton: {
     minHeight: 40,
+    minWidth: 96,
     borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   primaryButtonText: {
     color: "#000",
-    fontSize: 12,
-    fontWeight: "900",
+    fontSize: 13,
+    fontWeight: "800",
   },
   secondaryButton: {
     minHeight: 40,
+    minWidth: 96,
     borderRadius: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     backgroundColor: "rgba(255,255,255,0.1)",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
   },
   secondaryButtonText: {
     color: COLORS.text,
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 13,
+    fontWeight: "700",
   },
 });
