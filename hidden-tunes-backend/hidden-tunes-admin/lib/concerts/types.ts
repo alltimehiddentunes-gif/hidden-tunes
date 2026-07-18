@@ -58,10 +58,18 @@ export const CONCERT_IMPORTABLE_EMBED_POLICIES = [
 
 export const CONCERT_MEDIA_PROVIDERS = [
   "youtube",
-  "official_website",
   "vimeo",
+  "dailymotion",
+  "twitch",
+  "hls",
+  "dash",
+  "iframe",
+  "official_website",
   "authorized_platform",
   "public_broadcaster_player",
+  "festival_player",
+  "venue_player",
+  "other",
 ] as const;
 
 export type ConcertMediaProvider = (typeof CONCERT_MEDIA_PROVIDERS)[number];

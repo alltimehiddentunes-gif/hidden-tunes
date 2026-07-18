@@ -1,8 +1,11 @@
 /**
- * Per-item concert content classification (Phase 5 hardened).
- * Supports worldwide concert formats. Duration is supporting evidence only.
+ * Per-item concert content classification (worldwide formats).
+ * Duration is supporting evidence only — never a sole reject reason when
+ * the item is clearly a substantial live musical performance.
+ * Provider-agnostic: YouTube is not required.
  */
 
+import type { ConcertMediaCandidate } from "../candidate";
 import type { ConcertYouTubeVideoCandidate } from "../providers/youtubeClient";
 import type { ConcertRejectionReasonCode } from "./rejectionMemory";
 
@@ -54,6 +57,15 @@ export type ConcertClassificationResult = {
   score: number;
 };
 
+type ClassifiableConcert = {
+  title: string;
+  description?: string | null;
+  tags?: string[] | null;
+  liveBroadcastContent?: string | null;
+  durationSeconds?: number | null;
+  embeddable?: boolean | null;
+};
+
 const REJECT_RULES: Array<{
   pattern: RegExp;
   code: ConcertRejectionReasonCode;
@@ -61,9 +73,15 @@ const REJECT_RULES: Array<{
   { pattern: /\binterview\b/i, code: "interview" },
   { pattern: /\btrailer\b|\bteaser\b/i, code: "trailer" },
   { pattern: /\bpromo\b|\badvertisement\b|\bsponsored\b/i, code: "promo" },
-  { pattern: /\bofficial music video\b|\bmusic video\b|\blyric video\b/i, code: "studio_music_video" },
+  {
+    pattern: /\bofficial music video\b|\bmusic video\b|\blyric video\b/i,
+    code: "studio_music_video",
+  },
   { pattern: /\baudio only\b|\bvisualizer\b/i, code: "studio_music_video" },
-  { pattern: /\bbehind the scenes\b|\bmaking of\b|\bpress conference\b/i, code: "not_concert" },
+  {
+    pattern: /\bbehind the scenes\b|\bmaking of\b|\bpress conference\b/i,
+    code: "not_concert",
+  },
   { pattern: /\bpodcast\b|\bunboxing\b|\breaction\b/i, code: "not_concert" },
   { pattern: /\bmembers?\s*only\b/i, code: "members_only" },
   { pattern: /\bpaywall\b|\bsubscribe to watch\b/i, code: "paid_only" },
@@ -96,13 +114,15 @@ const STRONG_ACCEPT_PATTERNS = [
   /\bperformance\b/i,
 ];
 
-function textBlob(candidate: ConcertYouTubeVideoCandidate): string {
-  return [candidate.title, candidate.description, candidate.tags.join(" ")].join("\n");
+function textBlob(candidate: ClassifiableConcert): string {
+  return [
+    candidate.title,
+    candidate.description || "",
+    (candidate.tags || []).join(" "),
+  ].join("\n");
 }
 
-export function inferConcertType(
-  candidate: ConcertYouTubeVideoCandidate
-): ConcertAcceptedType {
+export function inferConcertType(candidate: ClassifiableConcert): ConcertAcceptedType {
   const blob = textBlob(candidate);
   if (candidate.liveBroadcastContent === "upcoming") return "scheduled_concert_livestream";
   if (candidate.liveBroadcastContent === "live") return "venue_livestream";
@@ -127,13 +147,13 @@ export function inferConcertType(
 }
 
 export function classifyConcertCandidate(
-  candidate: ConcertYouTubeVideoCandidate
+  candidate: ClassifiableConcert | ConcertYouTubeVideoCandidate | ConcertMediaCandidate
 ): ConcertClassificationResult {
   const reasons: string[] = [];
   const blob = textBlob(candidate);
   let score = 0;
 
-  if (!candidate.title.trim()) {
+  if (!String(candidate.title || "").trim()) {
     return {
       decision: "reject_unavailable",
       concertType: "other",
@@ -190,16 +210,19 @@ export function classifyConcertCandidate(
   } else if (candidate.liveBroadcastContent === "upcoming") {
     score += 3;
     reasons.push("upcoming_broadcast");
-  } else if (candidate.durationSeconds != null && candidate.durationSeconds >= 8 * 60) {
+  } else if (
+    candidate.durationSeconds != null &&
+    candidate.durationSeconds >= 8 * 60
+  ) {
     score += 1;
     reasons.push("duration_supporting_evidence");
   }
 
-  // Duration alone never rejects when strong concert signals exist.
+  // Duration alone never rejects a clearly substantial live performance.
   if (
     candidate.durationSeconds != null &&
     candidate.durationSeconds > 0 &&
-    candidate.durationSeconds < 90 &&
+    candidate.durationSeconds < 45 &&
     score < 4
   ) {
     return {

@@ -46,7 +46,9 @@ export function evaluateConcertSourceAuthorization(source: {
   const inAppPlaybackPermitted =
     canImport &&
     (source.embedPolicy === "official_embed_allowed" ||
-      source.embedPolicy === "provider_player_required");
+      source.embedPolicy === "provider_player_required" ||
+      source.embedPolicy === "region_limited" ||
+      source.embedPolicy === "age_restricted");
 
   const externalLinkOnly = source.embedPolicy === "external_link_only";
   const blocked =
