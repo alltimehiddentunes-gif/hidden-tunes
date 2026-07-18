@@ -1,6 +1,6 @@
 /**
  * Same-show podcast episode queue loader.
- * Presentation/session helper only — does not change PlayerContext architecture.
+ * Bounded window only — never blocks tap-to-play on a full-show crawl.
  */
 import {
   fetchPodcastEpisodesByShow,
@@ -9,7 +9,11 @@ import {
   type PodcastCatalogEpisodeMetadata,
 } from "@/services/podcastCatalogApi";
 import type { PodcastEpisode } from "@/types/podcast";
-import { PODCAST_PLAYBACK_QUEUE_LIMIT } from "@/utils/podcastPlaybackAdapter";
+
+/** Initial same-show window fetched after playback starts (one API page). */
+export const PODCAST_SHOW_QUEUE_INITIAL_LIMIT = 16;
+const MAX_CACHE_ENTRIES = 8;
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 type ShowEpisodeCacheEntry = {
   showId: string;
@@ -17,14 +21,19 @@ type ShowEpisodeCacheEntry = {
   episodes: PodcastEpisode[];
   total: number;
   fetchedAt: number;
+  pagesFetched: number;
 };
 
-const CACHE_TTL_MS = 5 * 60 * 1000;
 const showEpisodeCache = new Map<string, ShowEpisodeCacheEntry>();
 const showEpisodeInflight = new Map<string, Promise<ShowEpisodeCacheEntry>>();
 
 function clean(value: unknown) {
   return String(value || "").trim();
+}
+
+function podcastPerfLog(tag: string, payload: Record<string, unknown>) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+  console.log(tag, { at: Date.now(), ...payload });
 }
 
 function metadataToShowEpisode(
@@ -58,6 +67,29 @@ function sortShowEpisodesNewestFirst(episodes: PodcastEpisode[]) {
   });
 }
 
+function evictCacheIfNeeded() {
+  while (showEpisodeCache.size > MAX_CACHE_ENTRIES) {
+    let oldestKey: string | null = null;
+    let oldestAt = Number.POSITIVE_INFINITY;
+    for (const [key, entry] of showEpisodeCache) {
+      if (entry.fetchedAt < oldestAt) {
+        oldestAt = entry.fetchedAt;
+        oldestKey = key;
+      }
+    }
+    if (!oldestKey) break;
+    showEpisodeCache.delete(oldestKey);
+  }
+}
+
+export function getPodcastShowEpisodeCacheStats() {
+  return {
+    entries: showEpisodeCache.size,
+    maxEntries: MAX_CACHE_ENTRIES,
+    inflight: showEpisodeInflight.size,
+  };
+}
+
 export function getCachedPodcastShowEpisodes(showId: string) {
   const id = clean(showId);
   if (!id) return null;
@@ -68,12 +100,38 @@ export function getCachedPodcastShowEpisodes(showId: string) {
 }
 
 /**
- * Load paginated episodes for one showId only.
- * Newest published first (API order). Caps at PODCAST_PLAYBACK_QUEUE_LIMIT.
+ * Keep a bounded window around the active episode (newest-first order).
+ */
+export function slicePodcastEpisodeWindow(
+  episodes: PodcastEpisode[],
+  activeEpisodeId: string,
+  before = 7,
+  after = 8
+): PodcastEpisode[] {
+  if (!episodes.length) return [];
+  const activeId = clean(activeEpisodeId);
+  const index = episodes.findIndex((episode) => clean(episode.id) === activeId);
+  if (index < 0) {
+    return episodes.slice(0, before + after + 1);
+  }
+  const start = Math.max(0, index - before);
+  const end = Math.min(episodes.length, index + after + 1);
+  return episodes.slice(start, end);
+}
+
+/**
+ * Load one bounded page of same-show episodes (metadata only).
+ * Does not paginate the entire show. Dedupes concurrent requests per showId.
  */
 export async function loadPodcastShowEpisodeQueue(
   showId: string,
-  options?: { signal?: AbortSignal; showTitle?: string | null; limit?: number }
+  options?: {
+    signal?: AbortSignal;
+    showTitle?: string | null;
+    limit?: number;
+    /** When true, resolve show title via show endpoint if missing. Default false for tap path. */
+    resolveShowTitle?: boolean;
+  }
 ): Promise<ShowEpisodeCacheEntry> {
   const id = clean(showId);
   if (!id) {
@@ -83,63 +141,99 @@ export async function loadPodcastShowEpisodeQueue(
       episodes: [],
       total: 0,
       fetchedAt: Date.now(),
+      pagesFetched: 0,
     };
   }
 
   const cached = getCachedPodcastShowEpisodes(id);
-  if (cached) return cached;
+  if (cached) {
+    podcastPerfLog("[PODCAST_QUEUE_BUILD]", {
+      source: "cache_hit",
+      showId: id,
+      episodeCount: cached.episodes.length,
+      pagesFetched: cached.pagesFetched,
+      cacheEntries: showEpisodeCache.size,
+    });
+    return cached;
+  }
 
   const inflight = showEpisodeInflight.get(id);
-  if (inflight) return inflight;
+  if (inflight) {
+    podcastPerfLog("[PODCAST_QUEUE_BUILD]", {
+      source: "inflight_join",
+      showId: id,
+    });
+    return inflight;
+  }
 
   const limit = Math.min(
-    PODCAST_PLAYBACK_QUEUE_LIMIT,
-    Math.max(1, Number(options?.limit || PODCAST_PLAYBACK_QUEUE_LIMIT))
+    PODCAST_SHOW_QUEUE_INITIAL_LIMIT,
+    Math.max(1, Number(options?.limit || PODCAST_SHOW_QUEUE_INITIAL_LIMIT))
   );
 
   const promise = (async (): Promise<ShowEpisodeCacheEntry> => {
     let showTitle = clean(options?.showTitle);
-    if (!showTitle) {
+    const shouldResolveTitle = Boolean(options?.resolveShowTitle) && !showTitle;
+
+    if (shouldResolveTitle) {
+      podcastPerfLog("[PODCAST_FETCH]", {
+        kind: "show_by_id",
+        showId: id,
+      });
       const showResponse = await fetchPodcastShowById(id);
       showTitle = clean(showResponse.show?.title) || "Podcast";
     }
+    if (!showTitle) showTitle = "Podcast";
+
+    if (options?.signal?.aborted) {
+      return {
+        showId: id,
+        showTitle,
+        episodes: [],
+        total: 0,
+        fetchedAt: Date.now(),
+        pagesFetched: 0,
+      };
+    }
+
+    const pageLimit = Math.min(PODCAST_CATALOG_PAGE_LIMIT, limit);
+    podcastPerfLog("[PODCAST_FETCH]", {
+      kind: "episodes_by_show",
+      showId: id,
+      page: 1,
+      limit: pageLimit,
+    });
+    const response = await fetchPodcastEpisodesByShow(id, 1, pageLimit);
 
     const collected: PodcastEpisode[] = [];
-    let page = 1;
-    let total = 0;
-    let hasMore = true;
-
-    while (hasMore && collected.length < limit) {
-      if (options?.signal?.aborted) break;
-      const pageLimit = Math.min(PODCAST_CATALOG_PAGE_LIMIT, limit - collected.length);
-      const response = await fetchPodcastEpisodesByShow(id, page, pageLimit);
-      if (!response.success) break;
-
-      total = response.pagination.total || total;
+    if (response.success) {
       for (const entry of response.episodes) {
         if (clean(entry.showId) && clean(entry.showId) !== id) continue;
-        collected.push(
-          metadataToShowEpisode(
-            { ...entry, showId: id },
-            showTitle
-          )
-        );
+        collected.push(metadataToShowEpisode({ ...entry, showId: id }, showTitle));
         if (collected.length >= limit) break;
       }
-
-      hasMore = Boolean(response.pagination.hasMore) && response.episodes.length > 0;
-      page += 1;
-      if (page > 20) break;
     }
 
     const entry: ShowEpisodeCacheEntry = {
       showId: id,
       showTitle,
       episodes: sortShowEpisodesNewestFirst(collected),
-      total: total || collected.length,
+      total: response.pagination?.total || collected.length,
       fetchedAt: Date.now(),
+      pagesFetched: 1,
     };
     showEpisodeCache.set(id, entry);
+    evictCacheIfNeeded();
+
+    podcastPerfLog("[PODCAST_QUEUE_BUILD]", {
+      source: "network",
+      showId: id,
+      episodeCount: entry.episodes.length,
+      total: entry.total,
+      pagesFetched: 1,
+      cacheEntries: showEpisodeCache.size,
+    });
+
     return entry;
   })().finally(() => {
     showEpisodeInflight.delete(id);

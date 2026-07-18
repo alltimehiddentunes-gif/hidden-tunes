@@ -20,7 +20,7 @@ import {
 import { playPodcastEpisodeFromShow } from "../utils/podcastPlayback";
 
 export function usePlaybackRouter() {
-  const { playSong, playQueue, stopPlayback } = usePlayerActions();
+  const { playSong, playQueue, stopPlayback, enrichActiveQueueIfCurrent } = usePlayerActions();
 
   return useMemo(() => {
     const playSongStoppingTv: typeof playSong = (...args) => {
@@ -56,6 +56,7 @@ export function usePlaybackRouter() {
         episodes,
         startIndex,
         playSong: playSongStoppingTv,
+        enrichActiveQueue: enrichActiveQueueIfCurrent,
         categoryEpisodes: extras?.categoryEpisodes,
         feedId: extras?.feedId,
         creatorId: extras?.creatorId,
@@ -119,5 +120,5 @@ export function usePlaybackRouter() {
         }
       },
     };
-  }, [playSong, playQueue, stopPlayback]);
+  }, [playSong, playQueue, stopPlayback, enrichActiveQueueIfCurrent]);
 }

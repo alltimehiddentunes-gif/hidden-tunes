@@ -397,6 +397,17 @@ export type PlayerContextType = {
   toggleFavorite: (song: AppSong) => Promise<void>;
   isFavorite: (song: AppSong | null) => boolean;
   clearActiveQueue: () => Promise<void>;
+  /**
+   * Podcast-only hydrate path: replace active queue when the current song
+   * still matches, without interrupting playback or opening the player again.
+   */
+  enrichActiveQueueIfCurrent: (
+    expectedSongId: string,
+    queue: AppSong[],
+    index: number,
+    queueContext?: PlaybackQueueContext,
+    queueMode?: ActiveQueueMode
+  ) => Promise<void>;
   preloadIdlePlayableTrack: (
     song: AppSong,
     options?: { source?: string }
@@ -3205,6 +3216,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (lastOpen.songId === songId && now - lastOpen.at < 1000) return;
 
     lastPlayerOpenRequestRef.current = { songId, at: now };
+    if (
+      __DEV__ &&
+      (songId.startsWith("podcast-") ||
+        String(song?.sourceName || "").toLowerCase().includes("podcast"))
+    ) {
+      console.log("[PODCAST_NAV]", {
+        at: now,
+        source,
+        songId,
+        title: song?.title || "",
+      });
+    }
     logLockscreenPlaybackDiagnostic("playable_tap_player_open_requested", {
       source,
       songId,
@@ -3390,6 +3413,110 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       void syncNativeRemoteQueueAvailability();
     },
     [normalizeSong, isYouTubeSong, persistActiveQueue, deferPlaybackStartWork, syncNativeRemoteQueueAvailability]
+  );
+
+  const enrichActiveQueueIfCurrent = useCallback(
+    async (
+      expectedSongId: string,
+      queue: AppSong[],
+      index: number,
+      queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT,
+      queueMode?: ActiveQueueMode
+    ) => {
+      const expectedId = String(expectedSongId || "").trim();
+      if (!expectedId) return;
+      if (String(currentSongRef.current?.id || "") !== expectedId) {
+        if (__DEV__) {
+          console.log("[PODCAST_QUEUE_BUILD]", {
+            at: Date.now(),
+            phase: "enrich_skipped_song_changed",
+            expectedId,
+            currentId: currentSongRef.current?.id || null,
+          });
+        }
+        return;
+      }
+
+      const normalizedQueue = queue
+        .map(normalizeSong)
+        .filter((song) => !isYouTubeSong(song));
+      if (!normalizedQueue.length) return;
+
+      const byId = normalizedQueue.findIndex((song) => song.id === expectedId);
+      const safeIndex =
+        byId >= 0
+          ? byId
+          : Math.max(0, Math.min(index, normalizedQueue.length - 1));
+
+      const previousIds = activeQueueRef.current.map((song) => song.id).join(",");
+      const nextIds = normalizedQueue.map((song) => song.id).join(",");
+      if (
+        previousIds === nextIds &&
+        activeQueueIndexRef.current === safeIndex
+      ) {
+        if (__DEV__) {
+          console.log("[PODCAST_QUEUE_BUILD]", {
+            at: Date.now(),
+            phase: "enrich_skipped_unchanged",
+            expectedId,
+            queueLength: normalizedQueue.length,
+          });
+        }
+        return;
+      }
+
+      const resolvedMode =
+        queueMode ||
+        activeQueueModeRef.current ||
+        resolveQueueModeForSong(normalizedQueue[safeIndex]);
+      const normalizedContext = normalizePlaybackQueueContext(queueContext);
+
+      await syncActiveQueue(
+        normalizedQueue,
+        safeIndex,
+        resolvedMode,
+        normalizedContext
+      );
+
+      // Soft metadata refresh for the playing row (title/show) — keep playable URIs.
+      const enriched = normalizedQueue[safeIndex];
+      const current = currentSongRef.current;
+      if (enriched && current && current.id === expectedId) {
+        const merged: AppSong = {
+          ...current,
+          title: enriched.title || current.title,
+          artist: enriched.artist || current.artist,
+          album: enriched.album || current.album,
+          albumId: enriched.albumId || current.albumId,
+          artworkUrl: current.artworkUrl || enriched.artworkUrl,
+          coverUrl: current.coverUrl || enriched.coverUrl,
+          thumbnail: current.thumbnail || enriched.thumbnail,
+          artwork: current.artwork || enriched.artwork,
+          streamUrl: current.streamUrl || enriched.streamUrl,
+          url: current.url || enriched.url,
+          audioUrl: current.audioUrl || enriched.audioUrl,
+        };
+        currentSongRef.current = merged;
+        setCurrentSong(merged);
+      }
+
+      if (__DEV__) {
+        console.log("[PODCAST_QUEUE_BUILD]", {
+          at: Date.now(),
+          phase: "enrich_applied",
+          expectedId,
+          queueLength: normalizedQueue.length,
+          index: safeIndex,
+        });
+      }
+    },
+    [
+      normalizeSong,
+      isYouTubeSong,
+      syncActiveQueue,
+      resolveQueueModeForSong,
+      setCurrentSong,
+    ]
   );
 
   const persistYouTubeQueue = useCallback(
@@ -8308,6 +8435,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       toggleFavorite,
       isFavorite,
       clearActiveQueue,
+      enrichActiveQueueIfCurrent,
       preloadIdlePlayableTrack,
       setEmotionalQueue,
       advanceEmotionalQueue,
@@ -8334,6 +8462,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       toggleFavorite,
       isFavorite,
       clearActiveQueue,
+      enrichActiveQueueIfCurrent,
       preloadIdlePlayableTrack,
       setEmotionalQueue,
       advanceEmotionalQueue,

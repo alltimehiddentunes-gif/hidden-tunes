@@ -30,7 +30,6 @@ import { COLORS } from "../../../constants/theme";
 import {
   fetchPodcastEpisodePlay,
   fetchPodcastEpisodesByCategory,
-  fetchPodcastShowById,
   getBackendPodcastCategoryLabel,
   PODCAST_CATALOG_PAGE_LIMIT,
   resolveBackendPodcastCategorySlug,
@@ -349,13 +348,10 @@ export default function PodcastCategoryScreen() {
         );
 
         const showId = String(playable.showId || metadata.showId || "").trim();
-        let showTitle = categoryLabel;
-        if (showId) {
-          const showResponse = await fetchPodcastShowById(showId);
-          if (showResponse.show?.title) {
-            showTitle = showResponse.show.title;
-          }
-        }
+        // Do not block tap-to-play on show-title network fetch.
+        // Background queue hydrate will replace placeholder titles when needed.
+        const showTitle =
+          String(playable.showTitle || "").trim() || categoryLabel || "Podcast";
 
         const playableWithShow: PodcastEpisode = {
           ...playable,

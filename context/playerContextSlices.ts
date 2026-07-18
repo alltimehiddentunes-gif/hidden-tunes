@@ -43,6 +43,7 @@ export type PlayerActionsContextValue = Pick<
   | "toggleFavorite"
   | "isFavorite"
   | "clearActiveQueue"
+  | "enrichActiveQueueIfCurrent"
   | "preloadIdlePlayableTrack"
   | "setEmotionalQueue"
   | "advanceEmotionalQueue"
