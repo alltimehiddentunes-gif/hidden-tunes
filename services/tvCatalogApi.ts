@@ -27,10 +27,19 @@ export const TV_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const TV_CATALOG_API_PATH = "/api/tv/videos";
 export const TV_CATEGORIES_API_PATH = "/api/tv/categories";
 export const TV_PLAY_API_PATH = "/api/tv/videos";
-export const TV_DEFAULT_PAGE_LIMIT = 20;
+export const TV_DEFAULT_PAGE_LIMIT = 24;
+/** Home rail preview page — only ~8 cards render; keep the fetch small. */
 export const TV_LANE_PAGE_LIMIT = 12;
+export const TV_CATEGORY_PAGE_LIMIT = 32;
+export const TV_SEARCH_PAGE_LIMIT = 24;
 export const TV_HOME_CACHE_KEY = "hidden_tunes_tv_home_cache_v3";
 export const TV_HOME_CACHE_TTL_MS = 1000 * 60 * 30;
+export const TV_BROWSE_MEMORY_TTL_MS = 1000 * 60 * 2;
+export const TV_SEARCH_MEMORY_TTL_MS = 1000 * 45;
+
+const TV_PRIORITY_LANE_IDS = new Set(["featured", "recent"]);
+const TV_CATALOG_MEMORY_CACHE_LIMIT = 48;
+const TV_SEARCH_MEMORY_CACHE_LIMIT = 24;
 
 const BLOCKED_BROWSE_KEYS = new Set([
   "audioUrl",
@@ -142,6 +151,32 @@ export type TvHomeCachePayload = {
     videos: HiddenTunesTvVideo[];
   }>;
 };
+
+const tvCatalogMemoryCache = new Map<
+  string,
+  { value: TvCatalogResponse; at: number }
+>();
+const tvCatalogInFlight = new Map<string, Promise<TvCatalogResponse>>();
+const tvSearchMemoryCache = new Map<
+  string,
+  { value: HiddenTunesTvVideo[]; at: number }
+>();
+
+function pruneTimedCache<T>(
+  cache: Map<string, { value: T; at: number }>,
+  ttlMs: number,
+  limit: number
+) {
+  const now = Date.now();
+  for (const [key, entry] of cache) {
+    if (now - entry.at > ttlMs) cache.delete(key);
+  }
+  while (cache.size > limit) {
+    const oldest = cache.keys().next().value;
+    if (!oldest) break;
+    cache.delete(oldest);
+  }
+}
 
 export const TV_HOME_LANES: TvCatalogLane[] = [
   {
@@ -442,11 +477,11 @@ function buildCatalogUrl(query: TvCatalogQuery = {}) {
   return `${TV_CATALOG_BASE_URL}${TV_CATALOG_API_PATH}?${params.toString()}`;
 }
 
-export async function fetchTvCatalog(
-  query: TvCatalogQuery = {},
+async function fetchTvCatalogNetwork(
+  url: string,
+  query: TvCatalogQuery,
   options?: { signal?: AbortSignal }
 ): Promise<TvCatalogResponse> {
-  const url = buildCatalogUrl(query);
   const emptyPagination = {
     page: query.page || 1,
     limit: query.limit || TV_DEFAULT_PAGE_LIMIT,
@@ -478,17 +513,29 @@ export async function fetchTvCatalog(
     }));
 
     const paginationRaw = (payload.pagination || {}) as Record<string, unknown>;
+    const page = Number(paginationRaw.page || query.page || 1);
+    const limit = Number(paginationRaw.limit || query.limit || TV_DEFAULT_PAGE_LIMIT);
+    const total = Number(paginationRaw.total || videos.length);
+    const totalPages = Number(
+      paginationRaw.totalPages || (limit > 0 ? Math.ceil(total / limit) : 0)
+    );
+    const hasMore =
+      typeof paginationRaw.hasMore === "boolean"
+        ? Boolean(paginationRaw.hasMore)
+        : totalPages > 0
+          ? page < totalPages
+          : videos.length >= limit;
 
     return {
       success: true,
       videos,
       metadataMode,
       pagination: {
-        page: Number(paginationRaw.page || query.page || 1),
-        limit: Number(paginationRaw.limit || query.limit || TV_DEFAULT_PAGE_LIMIT),
-        total: Number(paginationRaw.total || videos.length),
-        totalPages: Number(paginationRaw.totalPages || 0),
-        hasMore: Boolean(paginationRaw.hasMore),
+        page,
+        limit,
+        total,
+        totalPages,
+        hasMore,
       },
     };
   } catch (error) {
@@ -510,6 +557,71 @@ export async function fetchTvCatalog(
         : "Network error while loading TV catalog.",
     };
   }
+}
+
+export async function fetchTvCatalog(
+  query: TvCatalogQuery = {},
+  options?: { signal?: AbortSignal }
+): Promise<TvCatalogResponse> {
+  const url = buildCatalogUrl(query);
+  const emptyPagination = {
+    page: query.page || 1,
+    limit: query.limit || TV_DEFAULT_PAGE_LIMIT,
+    total: 0,
+    totalPages: 0,
+    hasMore: false,
+  };
+
+  if (options?.signal?.aborted) {
+    return {
+      success: false,
+      videos: [],
+      pagination: emptyPagination,
+      error: "aborted",
+    };
+  }
+
+  pruneTimedCache(tvCatalogMemoryCache, TV_BROWSE_MEMORY_TTL_MS, TV_CATALOG_MEMORY_CACHE_LIMIT);
+
+  const cached = tvCatalogMemoryCache.get(url);
+  if (cached && Date.now() - cached.at < TV_BROWSE_MEMORY_TTL_MS) {
+    return cached.value;
+  }
+
+  // Share in-flight GETs without binding them to a single AbortSignal so one
+  // screen unmount cannot cancel a concurrent identical browse request.
+  let request = tvCatalogInFlight.get(url);
+  if (!request) {
+    request = fetchTvCatalogNetwork(url, query)
+      .then((result) => {
+        if (result.success && result.videos.length > 0) {
+          tvCatalogMemoryCache.set(url, { value: result, at: Date.now() });
+          pruneTimedCache(
+            tvCatalogMemoryCache,
+            TV_BROWSE_MEMORY_TTL_MS,
+            TV_CATALOG_MEMORY_CACHE_LIMIT
+          );
+        }
+        return result;
+      })
+      .finally(() => {
+        if (tvCatalogInFlight.get(url) === request) {
+          tvCatalogInFlight.delete(url);
+        }
+      });
+    tvCatalogInFlight.set(url, request);
+  }
+
+  const result = await request;
+  if (options?.signal?.aborted) {
+    return {
+      success: false,
+      videos: [],
+      pagination: emptyPagination,
+      error: "aborted",
+    };
+  }
+  return result;
 }
 
 export async function loadTvHomeCache() {
@@ -640,15 +752,26 @@ async function fetchLaneVideos(lane: TvCatalogLane, options?: { signal?: AbortSi
 
 export async function fetchTvCategoryLane(
   category: TvBrowseCategory,
-  options?: { signal?: AbortSignal }
-): Promise<TvHomeLane & { transportError?: string }> {
+  options?: { signal?: AbortSignal; page?: number; limit?: number }
+): Promise<
+  TvHomeLane & {
+    transportError?: string;
+    page: number;
+    hasMore: boolean;
+  }
+> {
+  const page = Math.max(1, Number(options?.page || 1));
+  const limit = Math.min(
+    40,
+    Math.max(20, Number(options?.limit || TV_CATEGORY_PAGE_LIMIT))
+  );
   const response = await fetchTvCatalog(
     {
-      page: 1,
-      limit: TV_LANE_PAGE_LIMIT,
+      page,
+      limit,
       category: category.name,
     },
-    options
+    { signal: options?.signal }
   );
 
   return {
@@ -656,6 +779,8 @@ export async function fetchTvCategoryLane(
     title: category.name,
     videos: response.success ? response.videos : [],
     metadataMode: response.metadataMode,
+    page: response.pagination.page,
+    hasMore: Boolean(response.success && response.pagination.hasMore),
     transportError:
       !response.success && response.error && response.error !== "aborted"
         ? response.error
@@ -681,34 +806,91 @@ export async function fetchArchiveConcertLane(options?: {
 
 export async function fetchTvSearchVideos(
   query: string,
-  options?: { signal?: AbortSignal; limit?: number }
+  options?: { signal?: AbortSignal; limit?: number; page?: number }
 ) {
   const cleanQuery = String(query || "").trim();
   if (cleanQuery.length < 2) return [] as HiddenTunesTvVideo[];
 
-  const limit = Math.max(1, Number(options?.limit || TV_LANE_PAGE_LIMIT * 2));
+  const page = Math.max(1, Number(options?.page || 1));
+  const limit = Math.min(
+    40,
+    Math.max(1, Number(options?.limit || TV_SEARCH_PAGE_LIMIT))
+  );
+  const cacheKey = `${cleanQuery.toLowerCase()}|${page}|${limit}|${resolveTvClientPlatform()}`;
+  pruneTimedCache(tvSearchMemoryCache, TV_SEARCH_MEMORY_TTL_MS, TV_SEARCH_MEMORY_CACHE_LIMIT);
+
+  const cached = tvSearchMemoryCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < TV_SEARCH_MEMORY_TTL_MS) {
+    return cached.value;
+  }
+
   const backendResponse = await fetchTvCatalog(
-    { q: cleanQuery, page: 1, limit },
+    { q: cleanQuery, page, limit },
     { signal: options?.signal }
   );
 
-  return backendResponse.success ? backendResponse.videos.slice(0, limit) : [];
+  const videos = backendResponse.success
+    ? backendResponse.videos.slice(0, limit)
+    : [];
+
+  if (videos.length > 0) {
+    tvSearchMemoryCache.set(cacheKey, { value: videos, at: Date.now() });
+    pruneTimedCache(tvSearchMemoryCache, TV_SEARCH_MEMORY_TTL_MS, TV_SEARCH_MEMORY_CACHE_LIMIT);
+  }
+
+  return videos;
 }
 
-export async function fetchTvHomeLanes(options?: { signal?: AbortSignal }) {
-  const laneResults = await Promise.all(
-    TV_HOME_LANES.map(async (lane) => {
-      const result = await fetchLaneVideos(lane, options);
-      return {
-        id: lane.id,
-        title: lane.title,
-        videos: result.videos,
-        metadataMode: result.metadataMode,
-        transportError: result.transportError,
-      };
-    })
+async function fetchHomeLaneResult(
+  lane: TvCatalogLane,
+  options?: { signal?: AbortSignal }
+) {
+  const result = await fetchLaneVideos(lane, options);
+  return {
+    id: lane.id,
+    title: lane.title,
+    videos: result.videos,
+    metadataMode: result.metadataMode,
+    transportError: result.transportError,
+  };
+}
+
+export async function fetchTvHomeLanes(options?: {
+  signal?: AbortSignal;
+  onPriorityLanes?: (lanes: TvHomeLane[]) => void;
+}) {
+  const priorityLanes = TV_HOME_LANES.filter((lane) => TV_PRIORITY_LANE_IDS.has(lane.id));
+  const secondaryLanes = TV_HOME_LANES.filter((lane) => !TV_PRIORITY_LANE_IDS.has(lane.id));
+
+  const priorityResults = await Promise.all(
+    priorityLanes.map((lane) => fetchHomeLaneResult(lane, options))
   );
 
+  if (options?.signal?.aborted) {
+    return {
+      lanes: priorityResults.map(({ transportError: _ignored, ...lane }) => lane),
+      hasAnyVideos: priorityResults.some((lane) => lane.videos.length > 0),
+      transportError: priorityResults.find((lane) => lane.transportError)?.transportError,
+    };
+  }
+
+  options?.onPriorityLanes?.(
+    priorityResults.map(({ transportError: _ignored, ...lane }) => lane)
+  );
+
+  // Prefetch at most one secondary page-wave ahead of the remaining home lanes.
+  const secondaryResults: Awaited<ReturnType<typeof fetchHomeLaneResult>>[] = [];
+  const SECONDARY_BATCH = 3;
+  for (let index = 0; index < secondaryLanes.length; index += SECONDARY_BATCH) {
+    if (options?.signal?.aborted) break;
+    const batch = secondaryLanes.slice(index, index + SECONDARY_BATCH);
+    const batchResults = await Promise.all(
+      batch.map((lane) => fetchHomeLaneResult(lane, options))
+    );
+    secondaryResults.push(...batchResults);
+  }
+
+  const laneResults = [...priorityResults, ...secondaryResults];
   const payload: TvHomeCachePayload = {
     version: 1,
     savedAt: new Date().toISOString(),
@@ -716,7 +898,7 @@ export async function fetchTvHomeLanes(options?: { signal?: AbortSignal }) {
   };
 
   const hasAnyVideos = laneResults.some((lane) => lane.videos.length > 0);
-  if (hasAnyVideos) {
+  if (hasAnyVideos && !options?.signal?.aborted) {
     await saveTvHomeCache(payload);
   }
 

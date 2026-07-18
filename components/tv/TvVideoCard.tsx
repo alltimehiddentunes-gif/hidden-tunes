@@ -1,5 +1,11 @@
 import { memo, useMemo, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -15,16 +21,25 @@ import {
   markTvArtworkLoadFailure,
   resolveTvArtworkUrl,
   shouldShowTvVerifiedBadge,
+  TV_CARD_DECODE_HEIGHT,
+  TV_CARD_DECODE_WIDTH,
 } from "@/utils/tvArtwork";
 
 type TvVideoCardProps = {
   video: HiddenTunesTvVideo;
   width?: number | "100%";
   fillWidth?: boolean;
+  connecting?: boolean;
   onPress: (video: HiddenTunesTvVideo) => void;
 };
 
-function TvVideoCard({ video, width = 168, fillWidth = false, onPress }: TvVideoCardProps) {
+function TvVideoCard({
+  video,
+  width = 168,
+  fillWidth = false,
+  connecting = false,
+  onPress,
+}: TvVideoCardProps) {
   const item = useMemo(() => normalizeVideoItem(video), [video]);
   const artworkUrl = useMemo(() => resolveTvArtworkUrl(video), [video]);
   const [artworkFailed, setArtworkFailed] = useState(false);
@@ -37,20 +52,37 @@ function TvVideoCard({ video, width = 168, fillWidth = false, onPress }: TvVideo
   );
   const initials = useMemo(() => getTvChannelInitials(displayName), [displayName]);
   const showArtwork = Boolean(artworkUrl) && !artworkFailed;
+  const imageSource = useMemo(
+    () =>
+      artworkUrl
+        ? {
+            uri: artworkUrl,
+            width: TV_CARD_DECODE_WIDTH,
+            height: TV_CARD_DECODE_HEIGHT,
+          }
+        : null,
+    [artworkUrl]
+  );
 
   return (
     <TouchableOpacity
       activeOpacity={0.88}
+      disabled={connecting}
       onPress={() => onPress(video)}
       style={[styles.card, fillWidth ? styles.cardFill : { width }]}
+      accessibilityRole="button"
+      accessibilityLabel={`Play ${displayName}`}
     >
       <View style={styles.thumbWrap}>
-        {showArtwork ? (
+        {showArtwork && imageSource ? (
           <Image
-            source={{ uri: artworkUrl }}
+            source={imageSource}
             style={styles.thumb}
             contentFit="cover"
             cachePolicy="memory-disk"
+            recyclingKey={video.id}
+            priority="low"
+            transition={0}
             onError={() => {
               markTvArtworkLoadFailure(artworkUrl);
               setArtworkFailed(true);
@@ -69,9 +101,15 @@ function TvVideoCard({ video, width = 168, fillWidth = false, onPress }: TvVideo
           </View>
         ) : null}
 
-        <View style={styles.playBadge}>
-          <Ionicons name="play" size={14} color="#000" />
-        </View>
+        {connecting ? (
+          <View style={styles.connectingOverlay}>
+            <ActivityIndicator color={COLORS.primary} size="small" />
+          </View>
+        ) : (
+          <View style={styles.playBadge}>
+            <Ionicons name="play" size={14} color="#000" />
+          </View>
+        )}
       </View>
 
       <Text numberOfLines={2} style={styles.title}>
@@ -93,7 +131,23 @@ function TvVideoCard({ video, width = 168, fillWidth = false, onPress }: TvVideo
   );
 }
 
-export default memo(TvVideoCard);
+function areEqual(prev: TvVideoCardProps, next: TvVideoCardProps) {
+  return (
+    prev.video.id === next.video.id &&
+    prev.video.title === next.video.title &&
+    prev.video.logo === next.video.logo &&
+    prev.video.thumbnail_url === next.video.thumbnail_url &&
+    prev.video.channel_name === next.video.channel_name &&
+    prev.video.reliability_score === next.video.reliability_score &&
+    prev.video.verified === next.video.verified &&
+    prev.width === next.width &&
+    prev.fillWidth === next.fillWidth &&
+    prev.connecting === next.connecting &&
+    prev.onPress === next.onPress
+  );
+}
+
+export default memo(TvVideoCard, areEqual);
 
 const styles = StyleSheet.create({
   card: {
@@ -160,6 +214,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  connectingOverlay: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
 
   title: {

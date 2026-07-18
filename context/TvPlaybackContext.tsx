@@ -48,6 +48,7 @@ import {
   getNowPlayingSnapshot,
   subscribeNowPlaying,
 } from "../utils/nowPlayingStore";
+import { releaseTvPlayerRuntime } from "../utils/tvPlayerLifecycle";
 
 type TvPlaybackResult = TvSessionStartResult;
 
@@ -325,6 +326,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const stopTv = useCallback(() => {
     sessionIdRef.current += 1;
     invalidateTvMediaTransitions();
+    releaseTvPlayerRuntime({ webViewRef, clearSession: true });
     unloadSurface();
     setCurrentItem(null);
     setCurrentPlayback(null);
