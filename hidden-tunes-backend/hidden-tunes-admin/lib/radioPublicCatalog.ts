@@ -1,5 +1,8 @@
 export const RADIO_PUBLIC_STATION_SELECT =
-  "id, name, favicon_url, country, country_code, language, tags, bitrate, codec, votes, click_count, category_slug, categories, quality_score, reliability_score, is_featured, is_mature, content_rating";
+  "id, name, favicon_url, country, country_code, state, language, tags, bitrate, codec, votes, click_count, category_slug, categories, quality_score, reliability_score, is_featured, is_mature, content_rating";
+
+export const RADIO_PUBLIC_STATION_SELECT_WITH_STREAM =
+  "id, name, favicon_url, country, country_code, state, language, tags, bitrate, codec, votes, click_count, category_slug, categories, quality_score, reliability_score, is_featured, is_mature, content_rating, stream_url";
 
 export const RADIO_PLAY_STATION_SELECT =
   "id, name, stream_url, source_type, source_station_uuid, status, playback_status, is_active, is_verified, is_mature, quality_score, reliability_score, quarantined_at, disabled_at";
@@ -14,6 +17,7 @@ export type RadioPublicStation = {
   artwork_url: string | null;
   country: string | null;
   country_code: string | null;
+  state: string | null;
   language: string | null;
   tags: string[];
   categories: string[];
@@ -28,6 +32,8 @@ export type RadioPublicStation = {
   is_featured: boolean;
   is_mature: boolean;
   content_rating: string | null;
+  /** Present only when the caller requests include_stream=1. */
+  stream_url?: string | null;
 };
 
 export type RadioPagination = {
@@ -125,8 +131,38 @@ export function isPublicRadioRow(row: Record<string, unknown>) {
   );
 }
 
+export function buildRadioTextSearchOrFilter(searchQuery: string | null | undefined) {
+  const cleaned = cleanRadioFilterToken(searchQuery, 120);
+  if (!cleaned) return null;
+
+  const escaped = cleaned.replace(/[%_]/g, "\\$&");
+  const tagToken = cleaned
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+
+  const parts = [
+    `name.ilike.%${escaped}%`,
+    `normalized_name.ilike.%${escaped}%`,
+    `country.ilike.%${escaped}%`,
+    `country_code.ilike.%${escaped}%`,
+    `state.ilike.%${escaped}%`,
+    `language.ilike.%${escaped}%`,
+    `category_slug.ilike.%${escaped}%`,
+  ];
+
+  if (tagToken) {
+    parts.push(`tags.cs.{${tagToken}}`);
+    parts.push(`categories.cs.{${tagToken}}`);
+  }
+
+  return parts.join(",");
+}
+
 export function toRadioPublicStation(
-  row: Record<string, unknown>
+  row: Record<string, unknown>,
+  options?: { includeStream?: boolean }
 ): RadioPublicStation {
   const tags = normalizeStringArray(row.tags);
   const categories = Array.from(
@@ -137,12 +173,13 @@ export function toRadioPublicStation(
     ].filter(Boolean))
   ).slice(0, 12);
 
-  return {
+  const station: RadioPublicStation = {
     id: cleanRadioText(row.id, 120),
     name: cleanRadioText(row.name, 300) || "Radio Station",
     artwork_url: cleanRadioText(row.favicon_url, 2000) || null,
     country: cleanRadioText(row.country, 120) || null,
     country_code: cleanRadioText(row.country_code, 8).toUpperCase() || null,
+    state: cleanRadioText(row.state, 120) || null,
     language: cleanRadioText(row.language, 120) || null,
     tags,
     categories,
@@ -158,6 +195,12 @@ export function toRadioPublicStation(
     is_mature: row.is_mature === true,
     content_rating: cleanRadioText(row.content_rating, 40) || null,
   };
+
+  if (options?.includeStream) {
+    station.stream_url = cleanRadioText(row.stream_url, 2000) || null;
+  }
+
+  return station;
 }
 
 export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
@@ -169,6 +212,7 @@ export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
     featured?: boolean | null;
     includeMature?: boolean | null;
     searchQuery?: string | null;
+    httpsOnly?: boolean | null;
   }
 ) {
   let next = query
@@ -180,8 +224,20 @@ export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
     .is("disabled_at", null)
     .gte("reliability_score", RADIO_PUBLIC_RELIABILITY_THRESHOLD);
 
-  if (!filters.includeMature) {
+  if (filters.includeMature) {
+    next = next
+      .eq("is_mature", true)
+      .eq("mature_source_approved", true)
+      .eq("mature_review_status", "confirmed")
+      .eq("rights_status", "approved")
+      .eq("is_free", true);
+  } else {
     next = next.eq("is_mature", false);
+  }
+
+  if (filters.httpsOnly) {
+    // Mobile ATS has no cleartext exception; keep HTTP streams out of mobile search pages.
+    next = next.ilike("stream_url", "https://%");
   }
 
   if (filters.featured !== null && filters.featured !== undefined) {
@@ -203,12 +259,9 @@ export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
     next = next.ilike("language", `%${language}%`);
   }
 
-  const searchQuery = cleanRadioFilterToken(filters.searchQuery, 120);
-  if (searchQuery) {
-    const escaped = searchQuery.replace(/[%_]/g, "\\$&");
-    next = next.or(
-      `name.ilike.%${escaped}%,country.ilike.%${escaped}%,language.ilike.%${escaped}%,category_slug.ilike.%${escaped}%`
-    );
+  const searchOr = buildRadioTextSearchOrFilter(filters.searchQuery);
+  if (searchOr) {
+    next = next.or(searchOr);
   }
 
   return next;
