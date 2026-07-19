@@ -17,9 +17,11 @@ import { router } from "expo-router";
 import HTImage from "../../components/HTImage";
 import { COLORS } from "../../constants/theme";
 import {
+  AUDIOBOOK_ALL_CATEGORY_SLUG,
   fetchAudiobookCategory,
   fetchAudiobookTree,
   formatAudiobookDuration,
+  peekCachedAudiobookPage,
   searchAudiobooks,
 } from "../../services/audiobooksApi";
 import type { AudiobookCategory, AudiobookItem } from "../../types/audiobooks";
@@ -27,12 +29,29 @@ import type { AudiobookCategory, AudiobookItem } from "../../types/audiobooks";
 const PAGE_LIMIT = 40;
 const SEARCH_DEBOUNCE_MS = 350;
 
+const ALL_CATEGORY: AudiobookCategory = {
+  id: AUDIOBOOK_ALL_CATEGORY_SLUG,
+  slug: AUDIOBOOK_ALL_CATEGORY_SLUG,
+  name: "All",
+  title: "All",
+  item_count: 1,
+  icon: "library-outline",
+  gradient: ["#1F2418", "#0A0F0B"],
+};
+
 function itemKey(item: AudiobookItem) {
   return item.id || item.slug;
 }
 
 function hasAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
+}
+
+function peekBrowsePage(slug: string, page = 1) {
+  if (slug === AUDIOBOOK_ALL_CATEGORY_SLUG) {
+    return peekCachedAudiobookPage("all", "", page, PAGE_LIMIT);
+  }
+  return peekCachedAudiobookPage("category", slug, page, PAGE_LIMIT);
 }
 
 const AudiobookRow = memo(function AudiobookRow({ item }: { item: AudiobookItem }) {
@@ -85,11 +104,12 @@ const AudiobookRow = memo(function AudiobookRow({ item }: { item: AudiobookItem 
 
 export default function AudiobooksHomeScreen() {
   const [categories, setCategories] = useState<AudiobookCategory[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("fiction");
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    AUDIOBOOK_ALL_CATEGORY_SLUG
+  );
   const [items, setItems] = useState<AudiobookItem[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-  const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -106,11 +126,16 @@ export default function AudiobooksHomeScreen() {
   const searchPaginationRequestRef = useRef(0);
   const selectedCategoryRef = useRef(selectedCategory);
   const searchQueryRef = useRef(searchQuery);
+  const paginationAbortRef = useRef<AbortController | null>(null);
 
   const isSearching = searchQuery.trim().length > 0;
   const listItems = isSearching ? searchItems : items;
   const canLoadMore = isSearching ? searchHasMore : hasMore;
   const isLoadingMore = isSearching ? searchLoadingMore : loadingMore;
+  const railCategories = useMemo(
+    () => [ALL_CATEGORY, ...categories.filter((category) => category.slug !== AUDIOBOOK_ALL_CATEGORY_SLUG)],
+    [categories]
+  );
 
   useEffect(() => {
     selectedCategoryRef.current = selectedCategory;
@@ -121,34 +146,35 @@ export default function AudiobooksHomeScreen() {
   }, [searchQuery]);
 
   useEffect(() => {
+    return () => {
+      paginationAbortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
     const controller = new AbortController();
-    setLoadingCategories(true);
 
     void fetchAudiobookTree(controller.signal)
       .then((nextCategories) => {
         setCategories(nextCategories);
-        if (nextCategories.length > 0) {
-          setSelectedCategory((current) => {
-            if (
-              nextCategories.some((category) => category.slug === current) &&
-              (nextCategories.find((category) => category.slug === current)?.item_count || 0) > 0
-            ) {
-              return current;
-            }
+        if (nextCategories.length === 0) return;
 
-            const firstPopulated =
-              nextCategories.find((category) => category.item_count > 0) ||
-              nextCategories[0];
-            return firstPopulated.slug;
-          });
-        }
+        // Tree intentionally returns item_count: 0 for every category. Keep a
+        // valid selection (including All) instead of forcing empty "fiction".
+        setSelectedCategory((current) => {
+          if (current === AUDIOBOOK_ALL_CATEGORY_SLUG) return current;
+          if (nextCategories.some((category) => category.slug === current)) {
+            return current;
+          }
+          const firstPopulated = nextCategories.find(
+            (category) => (category.item_count || 0) > 0
+          );
+          return firstPopulated?.slug || AUDIOBOOK_ALL_CATEGORY_SLUG;
+        });
       })
       .catch((error) => {
         if (hasAbortError(error)) return;
         setCategories([]);
-      })
-      .finally(() => {
-        setLoadingCategories(false);
       });
 
     return () => controller.abort();
@@ -159,23 +185,35 @@ export default function AudiobooksHomeScreen() {
     const controller = new AbortController();
     const requestId = ++categoryRequestRef.current;
 
-    setLoadingItems(true);
-    setLoadError(false);
-    setPage(1);
+    const cached = peekBrowsePage(selectedCategory, 1);
+    if (cached?.items.length) {
+      setItems(cached.items);
+      setHasMore(cached.pagination.hasMore);
+      setPage(cached.pagination.page);
+      setLoadingItems(false);
+      setLoadError(false);
+    } else {
+      setLoadingItems(true);
+      setLoadError(false);
+      setPage(1);
+    }
 
     void fetchAudiobookCategory(selectedCategory, {
       page: 1,
       limit: PAGE_LIMIT,
       signal: controller.signal,
+      bypassCache: Boolean(cached?.items.length),
     })
       .then((result) => {
         if (requestId !== categoryRequestRef.current) return;
         setItems(result.items);
         setHasMore(result.pagination.hasMore);
         setPage(result.pagination.page);
+        setLoadError(false);
       })
       .catch((error) => {
         if (hasAbortError(error) || requestId !== categoryRequestRef.current) return;
+        if (cached?.items.length) return;
         setItems([]);
         setHasMore(false);
         setLoadError(true);
@@ -202,22 +240,35 @@ export default function AudiobooksHomeScreen() {
 
     const controller = new AbortController();
     const requestId = ++searchRequestRef.current;
-    setSearchLoading(true);
-    setSearchError(false);
+    const cached = peekCachedAudiobookPage("search", query.toLowerCase(), 1, PAGE_LIMIT);
+    if (cached?.items.length) {
+      setSearchItems(cached.items);
+      setSearchHasMore(cached.pagination.hasMore);
+      setSearchPage(cached.pagination.page);
+      setSearchLoading(false);
+      setSearchError(false);
+    } else {
+      setSearchLoading(true);
+      setSearchError(false);
+    }
+
     const timer = setTimeout(() => {
       void searchAudiobooks(query, {
         page: 1,
         limit: PAGE_LIMIT,
         signal: controller.signal,
+        bypassCache: Boolean(cached?.items.length),
       })
         .then((result) => {
           if (requestId !== searchRequestRef.current) return;
           setSearchItems(result.items);
           setSearchHasMore(result.pagination.hasMore);
           setSearchPage(result.pagination.page);
+          setSearchError(false);
         })
         .catch((error) => {
           if (hasAbortError(error) || requestId !== searchRequestRef.current) return;
+          if (cached?.items.length) return;
           setSearchItems([]);
           setSearchHasMore(false);
           setSearchError(true);
@@ -237,13 +288,17 @@ export default function AudiobooksHomeScreen() {
 
   const selectedCategoryTitle = useMemo(
     () =>
-      categories.find((category) => category.slug === selectedCategory)?.title ||
+      railCategories.find((category) => category.slug === selectedCategory)?.title ||
       "Audiobooks",
-    [categories, selectedCategory]
+    [railCategories, selectedCategory]
   );
 
   const loadMore = useCallback(() => {
     if (!canLoadMore || isLoadingMore) return;
+
+    paginationAbortRef.current?.abort();
+    const controller = new AbortController();
+    paginationAbortRef.current = controller;
 
     if (isSearching) {
       const query = searchQuery.trim();
@@ -251,7 +306,11 @@ export default function AudiobooksHomeScreen() {
       const nextPage = searchPage + 1;
       const requestId = ++searchPaginationRequestRef.current;
       setSearchLoadingMore(true);
-      void searchAudiobooks(query, { page: nextPage, limit: PAGE_LIMIT })
+      void searchAudiobooks(query, {
+        page: nextPage,
+        limit: PAGE_LIMIT,
+        signal: controller.signal,
+      })
         .then((result) => {
           if (
             requestId !== searchPaginationRequestRef.current ||
@@ -274,7 +333,8 @@ export default function AudiobooksHomeScreen() {
           setSearchHasMore(result.pagination.hasMore);
           setSearchPage(result.pagination.page);
         })
-        .catch(() => {
+        .catch((error) => {
+          if (hasAbortError(error)) return;
           if (requestId === searchPaginationRequestRef.current) {
             setSearchHasMore(false);
           }
@@ -294,6 +354,7 @@ export default function AudiobooksHomeScreen() {
     void fetchAudiobookCategory(categorySlug, {
       page: nextPage,
       limit: PAGE_LIMIT,
+      signal: controller.signal,
     })
       .then((result) => {
         if (
@@ -317,7 +378,8 @@ export default function AudiobooksHomeScreen() {
         setHasMore(result.pagination.hasMore);
         setPage(result.pagination.page);
       })
-      .catch(() => {
+      .catch((error) => {
+        if (hasAbortError(error)) return;
         if (requestId === categoryPaginationRequestRef.current) {
           setHasMore(false);
         }
@@ -341,6 +403,29 @@ export default function AudiobooksHomeScreen() {
     []
   );
   const keyExtractor = useCallback((item: AudiobookItem) => itemKey(item), []);
+  const listEmpty = useMemo(
+    () => (
+      <View style={styles.centerState}>
+        <Ionicons name="book-outline" size={28} color={COLORS.textMuted} />
+        <Text style={styles.stateText}>No audiobooks found.</Text>
+      </View>
+    ),
+    []
+  );
+  const listFooter = useMemo(
+    () =>
+      isLoadingMore ? (
+        <ActivityIndicator color={COLORS.primary} style={styles.footerLoader} />
+      ) : null,
+    [isLoadingMore]
+  );
+
+  const showInitialSpinner =
+    (loadingItems && !isSearching && items.length === 0) ||
+    (searchLoading && isSearching && searchItems.length === 0);
+  const showErrorState =
+    ((loadError && !isSearching && items.length === 0) ||
+      (searchError && isSearching && searchItems.length === 0));
 
   return (
     <LinearGradient colors={["#101514", "#050706"]} style={styles.container}>
@@ -377,52 +462,58 @@ export default function AudiobooksHomeScreen() {
         ) : null}
       </View>
 
-      {loadingCategories ? (
-        <ActivityIndicator color={COLORS.primary} style={styles.categoryLoader} />
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryRail}
-        >
-          {categories.map((category) => {
-            const active = category.slug === selectedCategory && !isSearching;
-            return (
-              <TouchableOpacity
-                key={category.slug}
-                activeOpacity={0.85}
-                style={[styles.categoryChip, active && styles.categoryChipActive]}
-                onPress={() => {
-                  setSearchQuery("");
-                  setSelectedCategory(category.slug);
-                }}
-              >
-                <Ionicons
-                  name="book-outline"
-                  size={15}
-                  color={active ? "#00130D" : COLORS.textMuted}
-                />
-                <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
-                  {category.title}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      )}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryRail}
+      >
+        {railCategories.map((category) => {
+          const active = category.slug === selectedCategory && !isSearching;
+          return (
+            <TouchableOpacity
+              key={category.slug}
+              activeOpacity={0.85}
+              style={[styles.categoryChip, active && styles.categoryChipActive]}
+              onPress={() => {
+                setSearchQuery("");
+                setSelectedCategory(category.slug);
+              }}
+            >
+              <Ionicons
+                name={
+                  category.slug === AUDIOBOOK_ALL_CATEGORY_SLUG
+                    ? "library-outline"
+                    : "book-outline"
+                }
+                size={15}
+                color={active ? "#00130D" : COLORS.textMuted}
+              />
+              <Text style={[styles.categoryText, active && styles.categoryTextActive]}>
+                {category.title}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       <View style={styles.listHeader}>
         <Text style={styles.sectionTitle}>
           {isSearching ? `Search: ${searchQuery.trim()}` : selectedCategoryTitle}
         </Text>
-        <Text style={styles.sectionMeta}>{listItems.length} loaded</Text>
+        <View style={styles.sectionMetaRow}>
+          {(loadingItems && !isSearching && items.length > 0) ||
+          (searchLoading && isSearching && searchItems.length > 0) ? (
+            <ActivityIndicator color={COLORS.primary} size="small" style={styles.headerRefresh} />
+          ) : null}
+          <Text style={styles.sectionMeta}>{listItems.length} loaded</Text>
+        </View>
       </View>
 
-      {(loadingItems && !isSearching) || searchLoading ? (
+      {showInitialSpinner ? (
         <View style={styles.centerState}>
           <ActivityIndicator color={COLORS.primary} />
         </View>
-      ) : loadError || searchError ? (
+      ) : showErrorState ? (
         <View style={styles.centerState}>
           <Ionicons name="cloud-offline-outline" size={28} color={COLORS.textMuted} />
           <Text style={styles.stateText}>Audiobooks are unavailable right now.</Text>
@@ -440,17 +531,8 @@ export default function AudiobooksHomeScreen() {
           maxToRenderPerBatch={10}
           updateCellsBatchingPeriod={60}
           windowSize={7}
-          ListEmptyComponent={
-            <View style={styles.centerState}>
-              <Ionicons name="book-outline" size={28} color={COLORS.textMuted} />
-              <Text style={styles.stateText}>No audiobooks found.</Text>
-            </View>
-          }
-          ListFooterComponent={
-            isLoadingMore ? (
-              <ActivityIndicator color={COLORS.primary} style={styles.footerLoader} />
-            ) : null
-          }
+          ListEmptyComponent={listEmpty}
+          ListFooterComponent={listFooter}
         />
       )}
     </LinearGradient>
@@ -570,11 +652,18 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     flex: 1,
   },
+  sectionMetaRow: {
+    marginLeft: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerRefresh: {
+    marginRight: 8,
+  },
   sectionMeta: {
     color: COLORS.textMuted,
     fontSize: 12,
     fontWeight: "700",
-    marginLeft: 10,
   },
   listContent: {
     paddingHorizontal: 20,

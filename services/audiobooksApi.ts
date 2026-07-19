@@ -17,6 +17,8 @@ import {
 
 export const AUDIOBOOK_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const AUDIOBOOK_PAGE_LIMIT = 40;
+/** Synthetic browse slug for unfiltered `/api/audiobooks` (not a DB category). */
+export const AUDIOBOOK_ALL_CATEGORY_SLUG = "all";
 
 const AUDIOBOOK_CATEGORY_GRADIENTS = [
   ["#1F2418", "#0A0F0B"],
@@ -37,8 +39,109 @@ const BLOCKED_BROWSE_KEYS = new Set([
 ]);
 
 const TREE_CACHE_TTL_MS = 5 * 60 * 1000;
+const PAGE_CACHE_TTL_MS = 5 * 60 * 1000;
+const PAGE_CACHE_LIMIT = 24;
+/** Browse cards only show ~2 lines; trim before caching/rendering. */
+const BROWSE_DESCRIPTION_MAX = 280;
+
 let cachedTree: AudiobookCategory[] | null = null;
 let cachedTreeAt = 0;
+
+const pageMemoryCache = new Map<string, { value: AudiobookPage; at: number }>();
+const pageInFlight = new Map<string, Promise<AudiobookPage>>();
+
+function prunePageCache() {
+  const now = Date.now();
+  for (const [key, entry] of pageMemoryCache) {
+    if (now - entry.at > PAGE_CACHE_TTL_MS) pageMemoryCache.delete(key);
+  }
+  while (pageMemoryCache.size > PAGE_CACHE_LIMIT) {
+    const oldest = pageMemoryCache.keys().next().value;
+    if (!oldest) break;
+    pageMemoryCache.delete(oldest);
+  }
+}
+
+function compactBrowseItems(items: AudiobookItem[]): AudiobookItem[] {
+  return items.map((item) => {
+    if (!item.description || item.description.length <= BROWSE_DESCRIPTION_MAX) {
+      return item;
+    }
+    return {
+      ...item,
+      description: item.description.slice(0, BROWSE_DESCRIPTION_MAX),
+    };
+  });
+}
+
+function readCachedPage(cacheKey: string): AudiobookPage | null {
+  prunePageCache();
+  const cached = pageMemoryCache.get(cacheKey);
+  if (!cached) return null;
+  if (Date.now() - cached.at > PAGE_CACHE_TTL_MS) {
+    pageMemoryCache.delete(cacheKey);
+    return null;
+  }
+  return cached.value;
+}
+
+function writeCachedPage(cacheKey: string, value: AudiobookPage) {
+  if (!value.items.length) return;
+  pageMemoryCache.set(cacheKey, { value, at: Date.now() });
+  prunePageCache();
+}
+
+async function loadAudiobookPage(
+  cacheKey: string,
+  loader: () => Promise<AudiobookPage>,
+  signal?: AbortSignal,
+  bypassCache = false
+): Promise<AudiobookPage> {
+  if (!bypassCache) {
+    const cached = readCachedPage(cacheKey);
+    if (cached) return cached;
+  }
+
+  if (signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+
+  let request = pageInFlight.get(cacheKey);
+  if (!request) {
+    request = loader()
+      .then((page) => {
+        const compacted: AudiobookPage = {
+          items: compactBrowseItems(page.items),
+          pagination: page.pagination,
+        };
+        writeCachedPage(cacheKey, compacted);
+        return compacted;
+      })
+      .finally(() => {
+        if (pageInFlight.get(cacheKey) === request) {
+          pageInFlight.delete(cacheKey);
+        }
+      });
+    pageInFlight.set(cacheKey, request);
+  }
+
+  const result = await request;
+  if (signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+  return result;
+}
+
+/** Sync peek for stale-while-revalidate UI (does not start a network fetch). */
+export function peekCachedAudiobookPage(
+  kind: "all" | "category" | "search",
+  key: string,
+  page: number,
+  limit: number
+): AudiobookPage | null {
+  const cacheKey = `${kind}:${key}:${clampPage(page)}:${clampLimit(limit)}`;
+  return readCachedPage(cacheKey);
+}
 
 type QueryValue = string | number | boolean | undefined | null;
 
@@ -317,23 +420,14 @@ export async function fetchAudiobookTree(signal?: AbortSignal): Promise<Audioboo
   return categories;
 }
 
-export async function fetchAudiobookCategory(
-  slug: string,
-  options?: { page?: number; limit?: number; signal?: AbortSignal }
-): Promise<AudiobookPage> {
-  const page = clampPage(options?.page);
-  const limit = clampLimit(options?.limit);
-  const payload = await fetchAudiobookJson<{
+function mapAudiobookPagePayload(
+  payload: {
     audiobooks?: Record<string, unknown>[];
     pagination?: Record<string, unknown>;
-  }>(
-    buildAudiobookUrl(`/api/audiobooks/category/${encodeURIComponent(slug)}`, {
-      page,
-      limit,
-    }),
-    options?.signal
-  );
-
+  },
+  page: number,
+  limit: number
+): AudiobookPage {
   const items = dedupeAudiobooks(
     (payload.audiobooks || [])
       .map((item) => normalizeAudiobookItem(item))
@@ -346,37 +440,102 @@ export async function fetchAudiobookCategory(
   };
 }
 
+/** Unfiltered browse — used for the default "All" rail so first paint is not an empty category. */
+export async function fetchAudiobooksBrowse(options?: {
+  page?: number;
+  limit?: number;
+  signal?: AbortSignal;
+  bypassCache?: boolean;
+}): Promise<AudiobookPage> {
+  const page = clampPage(options?.page);
+  const limit = clampLimit(options?.limit);
+  const cacheKey = `all::${page}:${limit}`;
+
+  return loadAudiobookPage(
+    cacheKey,
+    async () => {
+      const payload = await fetchAudiobookJson<{
+        audiobooks?: Record<string, unknown>[];
+        pagination?: Record<string, unknown>;
+      }>(buildAudiobookUrl("/api/audiobooks", { page, limit }));
+      return mapAudiobookPagePayload(payload, page, limit);
+    },
+    options?.signal,
+    options?.bypassCache === true
+  );
+}
+
+export async function fetchAudiobookCategory(
+  slug: string,
+  options?: {
+    page?: number;
+    limit?: number;
+    signal?: AbortSignal;
+    bypassCache?: boolean;
+  }
+): Promise<AudiobookPage> {
+  const cleaned = String(slug || "").trim();
+  if (!cleaned || cleaned === AUDIOBOOK_ALL_CATEGORY_SLUG) {
+    return fetchAudiobooksBrowse(options);
+  }
+
+  const page = clampPage(options?.page);
+  const limit = clampLimit(options?.limit);
+  const cacheKey = `category:${cleaned}:${page}:${limit}`;
+
+  return loadAudiobookPage(
+    cacheKey,
+    async () => {
+      const payload = await fetchAudiobookJson<{
+        audiobooks?: Record<string, unknown>[];
+        pagination?: Record<string, unknown>;
+      }>(
+        buildAudiobookUrl(`/api/audiobooks/category/${encodeURIComponent(cleaned)}`, {
+          page,
+          limit,
+        })
+      );
+      return mapAudiobookPagePayload(payload, page, limit);
+    },
+    options?.signal,
+    options?.bypassCache === true
+  );
+}
+
 export async function searchAudiobooks(
   q: string,
-  options?: { page?: number; limit?: number; signal?: AbortSignal }
+  options?: {
+    page?: number;
+    limit?: number;
+    signal?: AbortSignal;
+    bypassCache?: boolean;
+  }
 ): Promise<AudiobookPage> {
   const page = clampPage(options?.page);
   const limit = clampLimit(options?.limit);
   const query = q.trim();
   if (!query) return { items: [], pagination: emptyPagination(page, limit) };
 
-  const payload = await fetchAudiobookJson<{
-    audiobooks?: Record<string, unknown>[];
-    pagination?: Record<string, unknown>;
-  }>(
-    buildAudiobookUrl("/api/audiobooks/search", {
-      q: query,
-      page,
-      limit,
-    }),
-    options?.signal
-  );
+  const cacheKey = `search:${query.toLowerCase()}:${page}:${limit}`;
 
-  const items = dedupeAudiobooks(
-    (payload.audiobooks || [])
-      .map((item) => normalizeAudiobookItem(item))
-      .filter((item): item is AudiobookItem => Boolean(item))
+  return loadAudiobookPage(
+    cacheKey,
+    async () => {
+      const payload = await fetchAudiobookJson<{
+        audiobooks?: Record<string, unknown>[];
+        pagination?: Record<string, unknown>;
+      }>(
+        buildAudiobookUrl("/api/audiobooks/search", {
+          q: query,
+          page,
+          limit,
+        })
+      );
+      return mapAudiobookPagePayload(payload, page, limit);
+    },
+    options?.signal,
+    options?.bypassCache === true
   );
-
-  return {
-    items,
-    pagination: normalizePagination(payload.pagination, { page, limit }, items.length),
-  };
 }
 
 export async function fetchAudiobookDetail(
