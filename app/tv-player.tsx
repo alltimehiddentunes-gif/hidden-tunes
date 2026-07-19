@@ -110,12 +110,13 @@ export default function TvPlayerScreen() {
   }, []);
 
   // Transparent shell — TvPlayerHost (absolute overlay) is the real UI.
+  // Must stay transparent in Preview/release so floating mode never shows a black route plate.
   return <View style={styles.shell} pointerEvents="none" />;
 }
 
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "transparent",
   },
 });

@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -11,20 +12,22 @@ import {
   ActivityIndicator,
   BackHandler,
   FlatList,
-  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
+  type LayoutChangeEvent,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
+import { getMobileBottomNavContentInset } from "@/components/navigation/navigationConfig";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { getMatureTvEnabled } from "@/services/matureTvPreferences";
 import { markTvChannelBroken } from "@/services/tv/tvBrokenChannels";
@@ -248,10 +251,16 @@ function TvPlayerHost({
     ? displayChannel.isVerifiedLegal
     : shouldShowTvVerifiedBadge(item);
 
-  /** Floating card footprint — header + video strip + controls. */
-  const floatingCardWidth = Math.min(viewportWidth - 28, viewportWidth * 0.92);
-  const floatingCardHeight = 46 + 78 + 42;
-  const tabBarClearance = 64;
+  /**
+   * Deterministic floating layout (same path in Metro and Preview/release).
+   * Width matches the original 14pt side margins. Height comes from onLayout
+   * so clamp/start position cannot drift between __DEV__ and release.
+   * Drag uses RNGH Pan under GestureHandlerRootView — PanResponder is not
+   * reliable in standalone Preview builds.
+   */
+  const floatingCardWidth = Math.max(120, viewportWidth - 28);
+  const [floatingCardHeight, setFloatingCardHeight] = useState(166);
+  const bottomClearance = getMobileBottomNavContentInset(insets.bottom) + 8;
 
   const clampFloatingPosition = useCallback(
     (x: number, y: number) => {
@@ -260,10 +269,7 @@ function TvPlayerHost({
       const minY = Math.max(insets.top, 8);
       const maxY = Math.max(
         minY,
-        viewportHeight -
-          floatingCardHeight -
-          Math.max(insets.bottom, 8) -
-          tabBarClearance
+        viewportHeight - floatingCardHeight - bottomClearance
       );
       return {
         x: Math.min(maxX, Math.max(minX, x)),
@@ -271,9 +277,9 @@ function TvPlayerHost({
       };
     },
     [
+      bottomClearance,
       floatingCardHeight,
       floatingCardWidth,
-      insets.bottom,
       insets.top,
       viewportHeight,
       viewportWidth,
@@ -284,15 +290,12 @@ function TvPlayerHost({
     () =>
       clampFloatingPosition(
         14,
-        viewportHeight -
-          floatingCardHeight -
-          Math.max(insets.bottom, 8) -
-          tabBarClearance
+        viewportHeight - floatingCardHeight - bottomClearance
       ),
     [
+      bottomClearance,
       clampFloatingPosition,
       floatingCardHeight,
-      insets.bottom,
       viewportHeight,
     ]
   );
@@ -316,37 +319,52 @@ function TvPlayerHost({
     }
   }
 
-  // Stable PanResponder; refs are only read inside gesture callbacks, not for render output.
-  /* eslint-disable react-hooks/refs -- PanResponder callbacks close over refs; initializer runs once */
-  const floatingPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onStartShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        Math.abs(gesture.dx) > 6 || Math.abs(gesture.dy) > 6,
-      onMoveShouldSetPanResponderCapture: (_, gesture) =>
-        Math.abs(gesture.dx) > 6 || Math.abs(gesture.dy) > 6,
-      onPanResponderGrant: () => {
-        dragOriginRef.current = { ...floatPosRef.current };
-      },
-      onPanResponderMove: (_, gesture) => {
-        const next = clampFloatingPositionRef.current(
-          dragOriginRef.current.x + gesture.dx,
-          dragOriginRef.current.y + gesture.dy
-        );
-        floatPosRef.current = next;
-        setFloatPos(next);
-      },
-      onPanResponderRelease: (_, gesture) => {
-        const next = clampFloatingPositionRef.current(
-          dragOriginRef.current.x + gesture.dx,
-          dragOriginRef.current.y + gesture.dy
-        );
-        floatPosRef.current = next;
-        setFloatPos(next);
-      },
-    })
-  ).current;
+  // Keep the card inside bounds when safe-area / measured size settles (Preview often
+  // reports insets/layout one frame later than Metro).
+  useLayoutEffect(() => {
+    if (full) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reclamp after measured layout/insets settle
+    setFloatPos((prev) => {
+      const next = clampFloatingPosition(prev.x, prev.y);
+      if (next.x === prev.x && next.y === prev.y) return prev;
+      return next;
+    });
+  }, [clampFloatingPosition, full]);
+
+  const onFloatingCardLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextHeight = Math.round(event.nativeEvent.layout.height);
+    if (nextHeight > 0) {
+      setFloatingCardHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    }
+  }, []);
+
+  /* eslint-disable react-hooks/refs -- RNGH callbacks close over refs; gesture instance is stable */
+  const floatingPanGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .runOnJS(true)
+        .minDistance(6)
+        .onBegin(() => {
+          dragOriginRef.current = { ...floatPosRef.current };
+        })
+        .onUpdate((event) => {
+          const next = clampFloatingPositionRef.current(
+            dragOriginRef.current.x + event.translationX,
+            dragOriginRef.current.y + event.translationY
+          );
+          floatPosRef.current = next;
+          setFloatPos(next);
+        })
+        .onEnd((event) => {
+          const next = clampFloatingPositionRef.current(
+            dragOriginRef.current.x + event.translationX,
+            dragOriginRef.current.y + event.translationY
+          );
+          floatPosRef.current = next;
+          setFloatPos(next);
+        }),
+    []
+  );
   /* eslint-enable react-hooks/refs */
 
   const canvasWidth = Math.min(viewportWidth - 32, 560);
@@ -814,6 +832,23 @@ function TvPlayerHost({
     </>
   );
 
+  const floatingCard = (
+    <View
+      style={[
+        styles.floatingCard,
+        {
+          left: floatPos.x,
+          top: floatPos.y,
+          width: floatingCardWidth,
+        },
+      ]}
+      collapsable={false}
+      onLayout={onFloatingCardLayout}
+    >
+      {body}
+    </View>
+  );
+
   return (
     <View
       style={full ? styles.fullRoot : styles.floatingRoot}
@@ -827,25 +862,15 @@ function TvPlayerHost({
           />
         ) : null}
       </View>
-      <View
-        style={
-          full
-            ? styles.fullContainer
-            : [
-                styles.floatingCard,
-                {
-                  left: floatPos.x,
-                  top: floatPos.y,
-                  width: floatingCardWidth,
-                },
-              ]
-        }
-        collapsable={false}
-        // eslint-disable-next-line react-hooks/refs -- panHandlers object is stable; safe to attach when floating
-        {...(full ? {} : floatingPanResponder.panHandlers)}
-      >
-        {body}
-      </View>
+      {full ? (
+        <View style={styles.fullContainer} collapsable={false}>
+          {body}
+        </View>
+      ) : (
+        <GestureDetector gesture={floatingPanGesture}>
+          {floatingCard}
+        </GestureDetector>
+      )}
     </View>
   );
 }
