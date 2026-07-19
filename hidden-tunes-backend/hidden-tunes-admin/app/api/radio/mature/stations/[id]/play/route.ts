@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   RADIO_PLAY_STATION_SELECT,
-  isPublicRadioRow,
   jsonRadioError,
 } from "@/lib/radioPublicCatalog";
 import {
@@ -20,12 +19,13 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  if (!parseMatureRadioAccess(request)) {
+    return jsonRadioError("Mature radio playback requires age confirmation.", 403);
+  }
+
   const { id } = await context.params;
   const cleanId = String(id || "").trim();
-
-  if (!cleanId) {
-    return jsonRadioError("Radio station id is required.", 400);
-  }
+  if (!cleanId) return jsonRadioError("Radio station id is required.", 400);
 
   const { data, error } = await supabaseAdmin
     .from("radio_stations")
@@ -33,20 +33,9 @@ export async function GET(
     .eq("id", cleanId)
     .maybeSingle();
 
-  if (error) {
-    return jsonRadioError("Failed to load radio play URL.", 500, error.message);
-  }
-
-  if (!data) {
-    return jsonRadioError("Radio station not found or not currently playable.", 404);
-  }
-
-  if (data.is_mature === true) {
-    if (!parseMatureRadioAccess(request) || !isPublicMatureRadioRow(data as Record<string, unknown>)) {
-      return jsonRadioError("Mature radio playback requires age confirmation.", 403);
-    }
-  } else if (!isPublicRadioRow(data as Record<string, unknown>)) {
-    return jsonRadioError("Radio station not found or not currently playable.", 404);
+  if (error) return jsonRadioError("Failed to load mature radio play URL.", 500, error.message);
+  if (!data || !isPublicMatureRadioRow(data as Record<string, unknown>)) {
+    return jsonRadioError("Mature radio station not found or not currently playable.", 404);
   }
 
   const resolved = await resolveRadioPlayStreamUrl({
@@ -55,7 +44,7 @@ export async function GET(
   });
 
   if (resolved.kind === "unavailable") {
-    return jsonRadioError("Radio station is not currently playable.", 404);
+    return jsonRadioError("Mature radio station is not currently playable.", 404);
   }
 
   if (data.source_type === "radio_browser" && data.source_station_uuid) {
@@ -71,5 +60,6 @@ export async function GET(
     source_station_uuid: data.source_station_uuid,
     stream_url: resolved.streamUrl,
     delivery: resolved.kind === "relay_http" ? "relay" : "direct",
+    mature: true,
   });
 }
