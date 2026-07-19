@@ -157,9 +157,14 @@ const tvCatalogMemoryCache = new Map<
   { value: TvCatalogResponse; at: number }
 >();
 const tvCatalogInFlight = new Map<string, Promise<TvCatalogResponse>>();
+type TvSearchPageCacheValue = {
+  videos: HiddenTunesTvVideo[];
+  page: number;
+  hasMore: boolean;
+};
 const tvSearchMemoryCache = new Map<
   string,
-  { value: HiddenTunesTvVideo[]; at: number }
+  { value: TvSearchPageCacheValue; at: number }
 >();
 
 function pruneTimedCache<T>(
@@ -804,12 +809,20 @@ export async function fetchArchiveConcertLane(options?: {
   };
 }
 
-export async function fetchTvSearchVideos(
+export type TvSearchPageResult = {
+  videos: HiddenTunesTvVideo[];
+  page: number;
+  hasMore: boolean;
+};
+
+export async function fetchTvSearchPage(
   query: string,
   options?: { signal?: AbortSignal; limit?: number; page?: number }
-) {
+): Promise<TvSearchPageResult> {
   const cleanQuery = String(query || "").trim();
-  if (cleanQuery.length < 2) return [] as HiddenTunesTvVideo[];
+  if (cleanQuery.length < 2) {
+    return { videos: [], page: 1, hasMore: false };
+  }
 
   const page = Math.max(1, Number(options?.page || 1));
   const limit = Math.min(
@@ -832,13 +845,26 @@ export async function fetchTvSearchVideos(
   const videos = backendResponse.success
     ? backendResponse.videos.slice(0, limit)
     : [];
+  const result: TvSearchPageResult = {
+    videos,
+    page: backendResponse.pagination.page || page,
+    hasMore: Boolean(backendResponse.success && backendResponse.pagination.hasMore),
+  };
 
   if (videos.length > 0) {
-    tvSearchMemoryCache.set(cacheKey, { value: videos, at: Date.now() });
+    tvSearchMemoryCache.set(cacheKey, { value: result, at: Date.now() });
     pruneTimedCache(tvSearchMemoryCache, TV_SEARCH_MEMORY_TTL_MS, TV_SEARCH_MEMORY_CACHE_LIMIT);
   }
 
-  return videos;
+  return result;
+}
+
+export async function fetchTvSearchVideos(
+  query: string,
+  options?: { signal?: AbortSignal; limit?: number; page?: number }
+) {
+  const result = await fetchTvSearchPage(query, options);
+  return result.videos;
 }
 
 async function fetchHomeLaneResult(

@@ -30,7 +30,7 @@ import {
   fetchTvCategories,
   fetchTvCategoryLane,
   fetchTvHomeLanes,
-  fetchTvSearchVideos,
+  fetchTvSearchPage,
   filterAdminHomeLanes,
   loadTvHomeCache,
   TV_SEARCH_PAGE_LIMIT,
@@ -103,6 +103,9 @@ export default function YouTubeFeedScreen() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<HiddenTunesTvVideo[]>([]);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchLoadingMore, setSearchLoadingMore] = useState(false);
   const [archiveLaneLoading, setArchiveLaneLoading] = useState(false);
   const [connectingVideoId, setConnectingVideoId] = useState<string | null>(null);
   const [visibleLaneBudget, setVisibleLaneBudget] = useState(3);
@@ -297,6 +300,7 @@ export default function YouTubeFeedScreen() {
 
   const clearTvBrowseState = useCallback(() => {
     categoryRequestRef.current += 1;
+    tvSearchRequestIdRef.current += 1;
     abortCategory();
     setActiveCategorySlug(null);
     setCategoryLane(null);
@@ -308,6 +312,9 @@ export default function YouTubeFeedScreen() {
     setQuery("");
     setSearchResults([]);
     setSearching(false);
+    setSearchPage(1);
+    setSearchHasMore(false);
+    setSearchLoadingMore(false);
   }, [abortCategory]);
 
   const handleTvHomeBack = useCallback(() => {
@@ -412,26 +419,37 @@ export default function YouTubeFeedScreen() {
   useEffect(() => {
     const clean = query.trim();
     if (clean.length < 2) {
+      tvSearchRequestIdRef.current += 1;
       setSearchResults([]);
       setSearching(false);
+      setSearchPage(1);
+      setSearchHasMore(false);
+      setSearchLoadingMore(false);
       return;
     }
 
     let cancelled = false;
     const controller = new AbortController();
     const requestId = ++tvSearchRequestIdRef.current;
+    setSearchPage(1);
+    setSearchHasMore(false);
+    setSearchLoadingMore(false);
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const videos = await fetchTvSearchVideos(clean, {
+        const result = await fetchTvSearchPage(clean, {
           signal: controller.signal,
           limit: TV_SEARCH_PAGE_LIMIT,
+          page: 1,
         });
         if (cancelled || requestId !== tvSearchRequestIdRef.current) return;
-        setSearchResults(videos);
+        setSearchResults(result.videos);
+        setSearchPage(result.page);
+        setSearchHasMore(result.hasMore);
       } catch {
         if (!cancelled && requestId === tvSearchRequestIdRef.current) {
           setSearchResults([]);
+          setSearchHasMore(false);
         }
       } finally {
         if (!cancelled && requestId === tvSearchRequestIdRef.current) {
@@ -446,6 +464,63 @@ export default function YouTubeFeedScreen() {
       clearTimeout(timer);
     };
   }, [query]);
+
+  const loadMoreSearch = useCallback(() => {
+    const clean = query.trim();
+    if (
+      clean.length < 2 ||
+      searching ||
+      searchLoadingMore ||
+      !searchHasMore ||
+      searchResults.length === 0
+    ) {
+      return;
+    }
+
+    const requestId = ++tvSearchRequestIdRef.current;
+    const controller = new AbortController();
+    const nextPage = searchPage + 1;
+    setSearchLoadingMore(true);
+
+    void fetchTvSearchPage(clean, {
+      signal: controller.signal,
+      limit: TV_SEARCH_PAGE_LIMIT,
+      page: nextPage,
+    })
+      .then((result) => {
+        if (requestId !== tvSearchRequestIdRef.current) return;
+        if (!result.videos.length) {
+          setSearchHasMore(false);
+          return;
+        }
+        setSearchResults((current) => {
+          const seen = new Set(current.map((video) => video.id));
+          return [
+            ...current,
+            ...result.videos.filter((video) => !seen.has(video.id)),
+          ];
+        });
+        setSearchPage(result.page);
+        setSearchHasMore(result.hasMore);
+      })
+      .catch(() => {
+        if (requestId === tvSearchRequestIdRef.current) {
+          setSearchHasMore(false);
+        }
+      })
+      .finally(() => {
+        if (requestId === tvSearchRequestIdRef.current) {
+          setSearchLoadingMore(false);
+        }
+      });
+  }, [
+    query,
+    searchHasMore,
+    searchLoadingMore,
+    searchPage,
+    searchResults.length,
+    searching,
+  ]);
 
   const openVideo = useCallback(
     (
@@ -490,50 +565,30 @@ export default function YouTubeFeedScreen() {
     [removeQuarantinedChannel]
   );
 
-  const renderTopChrome = useCallback(
+  const renderHeaderChrome = useCallback(
     () => (
-      <>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={handleTvHomeBack}
-            activeOpacity={0.85}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            testID="tv-home-back-button"
-          >
-            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-          </TouchableOpacity>
-          <View style={styles.headerIcon}>
-            <Ionicons name="tv" size={23} color={COLORS.primaryGlow} />
-          </View>
-          <View style={styles.headerCopy}>
-            <Text style={styles.kicker}>CURATED</Text>
-            <Text style={styles.title}>Hidden Tunes TV</Text>
-          </View>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleTvHomeBack}
+          activeOpacity={0.85}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          testID="tv-home-back-button"
+        >
+          <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerIcon}>
+          <Ionicons name="tv" size={23} color={COLORS.primaryGlow} />
         </View>
-
-        <View style={styles.searchShell}>
-          <Ionicons name="search" size={18} color={COLORS.cyan} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search TV"
-            placeholderTextColor={COLORS.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={styles.searchInput}
-          />
-          {query.length > 0 ? (
-            <TouchableOpacity activeOpacity={0.8} hitSlop={8} onPress={() => setQuery("")}>
-              <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          ) : null}
+        <View style={styles.headerCopy}>
+          <Text style={styles.kicker}>CURATED</Text>
+          <Text style={styles.title}>Hidden Tunes TV</Text>
         </View>
-      </>
+      </View>
     ),
-    [handleTvHomeBack, query]
+    [handleTvHomeBack]
   );
 
   const activeCategory = useMemo(
@@ -576,11 +631,8 @@ export default function YouTubeFeedScreen() {
 
   const feedRows = useMemo<FeedRow[]>(() => {
     if (hasSearchText) {
-      if (searching) {
-        return [{ key: "search-loading", kind: "loading", label: "Searching" }];
-      }
       if (searchResults.length > 0) {
-        return [
+        const rows: FeedRow[] = [
           {
             key: "search-lane",
             kind: "lane",
@@ -593,6 +645,13 @@ export default function YouTubeFeedScreen() {
             },
           },
         ];
+        if (searchHasMore || searchLoadingMore) {
+          rows.push({ key: "search-load-more", kind: "load-more" });
+        }
+        return rows;
+      }
+      if (searching) {
+        return [{ key: "search-loading", kind: "loading", label: "Searching" }];
       }
       if (query.trim().length >= 2) {
         return [
@@ -704,7 +763,9 @@ export default function YouTubeFeedScreen() {
     loadError,
     query,
     recentlyAddedLane,
+    searchHasMore,
     searchLane,
+    searchLoadingMore,
     searchResults.length,
     searching,
     shellReady,
@@ -820,6 +881,22 @@ export default function YouTubeFeedScreen() {
               </TouchableOpacity>
             );
           }
+          if (item.key === "search-load-more") {
+            return (
+              <TouchableOpacity
+                activeOpacity={0.88}
+                style={styles.loadMoreButton}
+                disabled={searchLoadingMore}
+                onPress={loadMoreSearch}
+              >
+                {searchLoadingMore ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <Text style={styles.loadMoreText}>Load more stations</Text>
+                )}
+              </TouchableOpacity>
+            );
+          }
           return (
             <TouchableOpacity
               activeOpacity={0.88}
@@ -846,9 +923,11 @@ export default function YouTubeFeedScreen() {
       featuredWidth,
       handleSelectCategory,
       loadMoreCategory,
+      loadMoreSearch,
       loadTv,
       openVideo,
       renderLaneCard,
+      searchLoadingMore,
     ]
   );
 
@@ -858,20 +937,43 @@ export default function YouTubeFeedScreen() {
         <View style={styles.glowPurple} pointerEvents="none" />
         <View style={styles.glowCyan} pointerEvents="none" />
 
+        {renderHeaderChrome()}
+
+        <View style={styles.searchShell}>
+          <Ionicons name="search" size={18} color={COLORS.cyan} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search TV"
+            placeholderTextColor={COLORS.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={styles.searchInput}
+          />
+          {query.length > 0 ? (
+            <TouchableOpacity activeOpacity={0.8} hitSlop={8} onPress={() => setQuery("")}>
+              <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
         <FlatList
+          style={styles.feedList}
           data={feedRows}
           keyExtractor={(item) => item.key}
           renderItem={renderFeedItem}
-          ListHeaderComponent={renderTopChrome}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: scrollTailPadding }}
           onScroll={onScroll}
           scrollEventThrottle={32}
           onEndReachedThreshold={0.4}
           onEndReached={() => {
-            if (activeCategorySlug && categoryHasMore) {
+            if (hasSearchText) {
+              loadMoreSearch();
+            } else if (activeCategorySlug && categoryHasMore) {
               loadMoreCategory();
-            } else if (!hasSearchText && !activeCategorySlug) {
+            } else if (!activeCategorySlug) {
               setVisibleLaneBudget((current) =>
                 Math.min(channelLanes.length || current, current + 2)
               );
@@ -898,6 +1000,7 @@ export default function YouTubeFeedScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingTop: 52, paddingHorizontal: 18 },
+  feedList: { flex: 1 },
   glowPurple: {
     position: "absolute",
     top: -50,
