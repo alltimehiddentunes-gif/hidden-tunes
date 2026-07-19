@@ -55,7 +55,7 @@
     "expo-status-bar": "~56.0.4",
     "expo-symbols": "~56.0.5",
     "expo-system-ui": "~56.0.5",
-    "expo-video": "~56.1.4",
+    "expo-video": "56.1.2",
     "expo-web-browser": "~56.0.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -101,7 +101,8 @@
         "expo-linking",
         "expo-router",
         "expo-splash-screen",
-        "expo-symbols"
+        "expo-symbols",
+        "expo-video"
       ]
     }
   }
