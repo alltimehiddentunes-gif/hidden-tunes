@@ -18,6 +18,7 @@ export type TvNativeVideoHandle = {
 
 type TvNativeVideoSurfaceProps = {
   streamUrl: string;
+  nativeControls?: boolean;
   onPlaying: () => void;
   onPaused: () => void;
   onError: () => void;

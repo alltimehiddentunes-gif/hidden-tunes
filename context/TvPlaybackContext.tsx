@@ -287,6 +287,8 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const [sectionId, setSectionId] = useState<TvLiveSectionId | null>(null);
   const [presentationMode, setPresentationModeState] =
     useState<TvPresentationMode>("closed");
+  const presentationModeRef = useRef<TvPresentationMode>("closed");
+  presentationModeRef.current = presentationMode;
   const [isTvPlaying, setIsTvPlaying] = useState(false);
   const [isTvLoading, setIsTvLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -717,6 +719,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       startResolvedSession,
       stopSession: stopTv,
       setPresentationMode,
+      getPresentationMode: () => presentationModeRef.current,
       isSessionActive: () => sessionActiveRef.current,
       getActiveItemId: () => activeItemIdRef.current,
     });

@@ -533,6 +533,7 @@ function TvPlayerHost({
           key={`tv-native-${playerGeneration}`}
           ref={nativePlayerRef}
           streamUrl={streamUrl}
+          nativeControls={full}
           onPlaying={onNativePlaying}
           onPaused={onNativePaused}
           onError={onReportError}

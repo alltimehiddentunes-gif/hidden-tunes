@@ -17,6 +17,11 @@ export type TvNativeVideoHandle = {
 
 type TvNativeVideoSurfaceProps = {
   streamUrl: string;
+  /**
+   * When true, show the same on-video native chrome Metro uses
+   * (Fullscreen ↗, on-video PiP, transport). Keep app chrome below separately.
+   */
+  nativeControls?: boolean;
   onPlaying: () => void;
   onPaused: () => void;
   onError: () => void;
@@ -30,7 +35,7 @@ const TvNativeVideoSurface = forwardRef<
   TvNativeVideoHandle,
   TvNativeVideoSurfaceProps
 >(function TvNativeVideoSurface(
-  { streamUrl, onPlaying, onPaused, onError },
+  { streamUrl, nativeControls = false, onPlaying, onPaused, onError },
   ref
 ) {
   const loadGenerationRef = useRef(0);
@@ -181,9 +186,11 @@ const TvNativeVideoSurface = forwardRef<
         ref={videoViewRef}
         style={styles.fill}
         player={player}
-        nativeControls={false}
+        nativeControls={nativeControls}
         contentFit="contain"
-        allowsPictureInPicture={false}
+        // Required for the on-video PiP control Metro shows in native chrome.
+        // Background auto-start stays off so in-app floating and native PiP do not fight.
+        allowsPictureInPicture
         startsPictureInPictureAutomatically={false}
       />
     </View>

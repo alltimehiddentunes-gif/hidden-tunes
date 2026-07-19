@@ -102,10 +102,16 @@ export default function TvPlayerScreen() {
     void bootstrap();
 
     return () => {
-      const active = getTvSessionController();
-      if (active?.isSessionActive()) {
+      // Defer auto-float so a simultaneous restore/remount to fullPlayer wins.
+      // Preview/Hermes often runs route cleanup after restore set fullPlayer;
+      // sync cleanup was leaving the session stuck in floating without full chrome
+      // (Fullscreen + PiP controls).
+      queueMicrotask(() => {
+        const active = getTvSessionController();
+        if (!active?.isSessionActive()) return;
+        if (active.getPresentationMode() !== "fullPlayer") return;
         active.setPresentationMode("floating");
-      }
+      });
     };
   }, []);
 

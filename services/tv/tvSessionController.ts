@@ -46,6 +46,7 @@ export type TvSessionControllerApi = {
   ) => Promise<TvSessionStartResult>;
   stopSession: () => void;
   setPresentationMode: (mode: TvPresentationMode) => void;
+  getPresentationMode: () => TvPresentationMode;
   isSessionActive: () => boolean;
   getActiveItemId: () => string | null;
 };
