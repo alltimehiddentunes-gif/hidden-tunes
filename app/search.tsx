@@ -99,7 +99,11 @@ import { logVisibleFeatureChecklist } from "../utils/visibleFeatureDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
 import {
   SEARCH_BACKEND_DEBOUNCE_MS,
+  SEARCH_COLD_START_MAX_ATTEMPTS,
+  SEARCH_COLD_START_RETRY_DELAY_MS,
   SEARCH_EXTERNAL_DEBOUNCE_MS,
+  shouldCacheBackendSearchResult,
+  shouldShowGenuineZeroMatches,
 } from "../utils/searchPerformance";
 import { resolveStationEntity } from "../utils/entityResolution";
 import { resolveEntityArtwork } from "../utils/artwork";
@@ -327,6 +331,8 @@ export default function SearchScreen() {
       seeMoreRadioStations: t("search.seeMoreRadioStations"),
       noMatchesTitle: t("search.noMatchesTitle"),
       noMatchesDescription: t("search.noMatchesDescription"),
+      temporaryErrorTitle: t("errors.somethingWentWrong"),
+      temporaryErrorDescription: t("errors.tryAgainLater"),
       trending: t("search.trending"),
       tryThese: t("search.tryThese"),
       forYou: t("search.forYou"),
@@ -379,6 +385,7 @@ export default function SearchScreen() {
   const [backendSearchSongs, setBackendSearchSongs] = useState<HiddenTunesNormalizedSong[]>([]);
   const [backendSearchQuery, setBackendSearchQuery] = useState("");
   const [backendSearchCompletedQuery, setBackendSearchCompletedQuery] = useState("");
+  const [backendSearchError, setBackendSearchError] = useState<string | null>(null);
   const [externalSearchSongs, setExternalSearchSongs] = useState<HiddenTunesNormalizedSong[]>([]);
   const [externalSearchQuery, setExternalSearchQuery] = useState("");
   const [externalSearchCompletedQuery, setExternalSearchCompletedQuery] = useState("");
@@ -513,6 +520,7 @@ export default function SearchScreen() {
       setBackendSearchSongs([]);
       setBackendSearchQuery("");
       setBackendSearchCompletedQuery("");
+      setBackendSearchError(null);
       setExternalSearchSongs([]);
       setExternalSearchQuery("");
       setExternalSearchCompletedQuery("");
@@ -537,6 +545,7 @@ export default function SearchScreen() {
       setBackendSearchSongs(cached);
       setBackendSearchQuery(query);
       setBackendSearchCompletedQuery(query);
+      setBackendSearchError(null);
       return;
     }
 
@@ -544,6 +553,8 @@ export default function SearchScreen() {
     backendSearchRequestIdRef.current = requestId;
     setBackendSearchQuery(query);
     setBackendSearchCompletedQuery("");
+    setBackendSearchError(null);
+    setBackendSearchSongs([]);
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
@@ -559,15 +570,21 @@ export default function SearchScreen() {
       void searchHiddenTunesSongs(query, {
         signal: controller.signal,
         limit: SEARCH_BACKEND_RESULT_LIMIT,
+        softEmptyOnError: false,
+        retries: SEARCH_COLD_START_MAX_ATTEMPTS - 1,
+        retryDelayMs: SEARCH_COLD_START_RETRY_DELAY_MS,
       })
         .then((results) => {
           if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
-          backendSearchCacheRef.current.set(cacheKey, results);
-          if (backendSearchCacheRef.current.size > SEARCH_BACKEND_CACHE_LIMIT) {
-            const oldestQuery = backendSearchCacheRef.current.keys().next().value;
-            if (oldestQuery) backendSearchCacheRef.current.delete(oldestQuery);
+          if (shouldCacheBackendSearchResult(false)) {
+            backendSearchCacheRef.current.set(cacheKey, results);
+            if (backendSearchCacheRef.current.size > SEARCH_BACKEND_CACHE_LIMIT) {
+              const oldestQuery = backendSearchCacheRef.current.keys().next().value;
+              if (oldestQuery) backendSearchCacheRef.current.delete(oldestQuery);
+            }
           }
           setBackendSearchSongs(results);
+          setBackendSearchError(null);
           logSearchDiagnostic("search_backend_immediate_success", {
             query,
             count: results.length,
@@ -588,9 +605,10 @@ export default function SearchScreen() {
         .catch((error) => {
           if (controller.signal.aborted) return;
           if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
-          console.log("Search backend query error:", error);
-          setBackendSearchSongs([]);
           const message = error instanceof Error ? error.message : String(error);
+          console.log("Search backend query error:", error);
+          // Preserve any prior successful songs for this screen; never cache failures as [].
+          setBackendSearchError(message || "search_backend_failed");
           logSearchDiagnostic("search_backend_immediate_failed", {
             query,
             error: message,
@@ -1697,10 +1715,15 @@ export default function SearchScreen() {
         count: apkExternalAudioResults.length,
       });
     }
-    if (apkResultCount === 0) {
+    if (apkResultCount === 0 && !backendSearchError) {
       logSearchDiagnostic("search_empty_true_after_backend", { query: cleanSubmittedSearchQuery });
       logSearchDiagnostic("search_empty_after_all_sources", { query: cleanSubmittedSearchQuery });
       logSearchDiagnostic("search_empty_state_shown", { query: cleanSubmittedSearchQuery });
+    } else if (apkResultCount === 0 && backendSearchError) {
+      logSearchDiagnostic("search_empty_suppressed_backend_error", {
+        query: cleanSubmittedSearchQuery,
+        error: backendSearchError,
+      });
     }
   }, [
     apkAlbumResults.length,
@@ -1713,6 +1736,7 @@ export default function SearchScreen() {
     apkSongRanked.length,
     apkStationResults.length,
     apkTvResults.length,
+    backendSearchError,
     cleanSubmittedSearchQuery,
     hasInternalCatalogResults,
     internalSearchResults.albums.length,
@@ -2131,11 +2155,27 @@ export default function SearchScreen() {
                   </View>
                 ) : null}
 
-                {apkResultCount === 0 &&
+                {backendSearchError &&
+                apkResultCount === 0 &&
                 deferredMedia.radioStations.length === 0 &&
                 deferredPodcasts.results.length === 0 &&
                 !deferredMedia.radioLoading &&
                 !deferredPodcasts.loading ? (
+                  <View style={styles.emptyPanel}>
+                    <Ionicons name="cloud-offline-outline" size={34} color={COLORS.primaryGlow} />
+                    <Text style={styles.emptyTitle}>{searchUi.temporaryErrorTitle}</Text>
+                    <Text style={styles.emptyText}>{searchUi.temporaryErrorDescription}</Text>
+                  </View>
+                ) : shouldShowGenuineZeroMatches({
+                    backendPending: backendSearchPendingForQuery,
+                    backendError: backendSearchError,
+                    resultCount:
+                      apkResultCount +
+                      deferredMedia.radioStations.length +
+                      deferredPodcasts.results.length,
+                    radioLoading: deferredMedia.radioLoading,
+                    podcastsLoading: deferredPodcasts.loading,
+                  }) ? (
                   <View style={styles.emptyPanel}>
                     <Ionicons name="search" size={34} color={COLORS.primaryGlow} />
                     <Text style={styles.emptyTitle}>{searchUi.noMatchesTitle}</Text>

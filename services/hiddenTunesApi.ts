@@ -19,6 +19,11 @@ import {
 } from "../utils/backgroundWork";
 import { isAppActiveForWork } from "../utils/performanceMode";
 import { scheduleStartupTask } from "../utils/startupScheduler";
+import {
+  SEARCH_COLD_START_MAX_ATTEMPTS,
+  SEARCH_COLD_START_RETRY_DELAY_MS,
+  searchAttemptTimeoutMs,
+} from "../utils/searchColdStartPolicy";
 
 const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-api.onrender.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
@@ -919,12 +924,14 @@ export function prefetchHiddenTunesCatalog() {
 async function fetchWithTimeout(
   url: string,
   timeoutMs = NETWORK_FETCH_TIMEOUT_MS,
-  externalSignal?: AbortSignal
+  externalSignal?: AbortSignal,
+  options?: { bypassCooldown?: boolean }
 ) {
   const endpointKey = url.split("?")[0];
   const endpointFailure = endpointFailures.get(endpointKey);
 
   if (
+    !options?.bypassCooldown &&
     endpointFailure &&
     Date.now() - endpointFailure.failedAt < FAILED_ENDPOINT_COOLDOWN_MS
   ) {
@@ -1440,52 +1447,130 @@ export async function refreshHiddenTunesSongs() {
     : await getHiddenTunesSongs({ forceRefresh: false });
 }
 
+export type SearchHiddenTunesSongsOptions = {
+  signal?: AbortSignal;
+  limit?: number;
+  /**
+   * When true (default), transport/timeout failures return [] for legacy callers.
+   * Main search passes false so cold-start failures are not shown as zero matches.
+   */
+  softEmptyOnError?: boolean;
+  /** Override per-attempt timeout. Cold-start search uses longer defaults. */
+  timeoutMs?: number;
+  /** Extra attempts after the first. Main search uses 1 retry for Render wake. */
+  retries?: number;
+  retryDelayMs?: number;
+};
+
 export async function searchHiddenTunesSongs(
   query: string,
-  options?: { signal?: AbortSignal; limit?: number }
+  options?: SearchHiddenTunesSongsOptions
 ) {
   const cleanQuery = query.trim().toLowerCase();
   const limit = Math.min(Math.max(Number(options?.limit) || SEARCH_SONG_LIMIT, 1), 100);
+  const softEmptyOnError = options?.softEmptyOnError !== false;
+  const maxAttempts = Math.max(
+    1,
+    Math.min(
+      Number(options?.retries) != null
+        ? 1 + Math.max(0, Number(options?.retries))
+        : softEmptyOnError
+          ? 1
+          : SEARCH_COLD_START_MAX_ATTEMPTS,
+      3
+    )
+  );
+  const retryDelayMs = Math.max(
+    0,
+    Number(options?.retryDelayMs) || SEARCH_COLD_START_RETRY_DELAY_MS
+  );
 
   if (!cleanQuery) {
     return [] as HiddenTunesNormalizedSong[];
   }
 
-  try {
-    const url =
-      HIDDEN_TUNES_API_BASE_URL +
-      "/api/songs?page=1&limit=" +
-      limit +
-      "&q=" +
-      encodeURIComponent(cleanQuery);
-    const response = await fetchWithTimeout(
-      url,
-      NETWORK_FETCH_TIMEOUT_MS,
-      options?.signal
-    );
+  let lastError: unknown;
 
-    if (!response.ok) {
-      throw new Error(`Hidden Tunes search API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const rawSongs = normalizeRawSongArray(data);
-
-    return applySmartArtworkFallbacks(
-      rawSongs
-        .map((song: HiddenTunesCloudSong, index: number) =>
-          normalizeHiddenTunesSong(song, index)
-        )
-        .filter(Boolean) as HiddenTunesNormalizedSong[]
-    );
-  } catch (error) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     if (options?.signal?.aborted) {
-      throw error;
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Hidden Tunes search aborted");
     }
 
-    console.log("Hidden Tunes backend search error:", error);
+    const timeoutMs = Math.max(
+      1,
+      Number(options?.timeoutMs) ||
+        (softEmptyOnError
+          ? NETWORK_FETCH_TIMEOUT_MS
+          : searchAttemptTimeoutMs(attempt))
+    );
+
+    try {
+      const url =
+        HIDDEN_TUNES_API_BASE_URL +
+        "/api/songs?page=1&limit=" +
+        limit +
+        "&q=" +
+        encodeURIComponent(cleanQuery);
+      const response = await fetchWithTimeout(url, timeoutMs, options?.signal, {
+        // Search retries must not be blocked by a sibling /api/songs catalog miss.
+        bypassCooldown: !softEmptyOnError,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Hidden Tunes search API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const rawSongs = normalizeRawSongArray(data);
+
+      return applySmartArtworkFallbacks(
+        rawSongs
+          .map((song: HiddenTunesCloudSong, index: number) =>
+            normalizeHiddenTunesSong(song, index)
+          )
+          .filter(Boolean) as HiddenTunesNormalizedSong[]
+      );
+    } catch (error) {
+      if (options?.signal?.aborted) {
+        throw error;
+      }
+
+      lastError = error;
+      console.log(
+        `Hidden Tunes backend search error (attempt ${attempt}/${maxAttempts}):`,
+        error
+      );
+
+      if (attempt < maxAttempts) {
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, retryDelayMs);
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          if (options?.signal) {
+            if (options.signal.aborted) {
+              clearTimeout(timer);
+              resolve();
+              return;
+            }
+            options.signal.addEventListener("abort", onAbort, { once: true });
+          }
+        });
+        continue;
+      }
+    }
+  }
+
+  if (softEmptyOnError) {
     return [] as HiddenTunesNormalizedSong[];
   }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Hidden Tunes backend search failed");
 }
 
 export function extractHiddenTunesAlbums(songs: HiddenTunesNormalizedSong[]) {

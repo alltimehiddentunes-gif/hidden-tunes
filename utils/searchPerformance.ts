@@ -1,5 +1,15 @@
 /** Shared search timing — music stays responsive; media defers until pause. */
 
+export {
+  SEARCH_COLD_START_FIRST_TIMEOUT_MS,
+  SEARCH_COLD_START_MAX_ATTEMPTS,
+  SEARCH_COLD_START_RETRY_DELAY_MS,
+  SEARCH_COLD_START_RETRY_TIMEOUT_MS,
+  searchAttemptTimeoutMs,
+  shouldCacheBackendSearchResult,
+  shouldShowGenuineZeroMatches,
+} from "./searchColdStartPolicy";
+
 /** Main search backend (music-first) debounce after submit. */
 export const SEARCH_BACKEND_DEBOUNCE_MS = 300;
 

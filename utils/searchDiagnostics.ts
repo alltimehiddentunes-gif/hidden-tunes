@@ -24,6 +24,7 @@ export type SearchDiagnosticEvent =
   | "search_backend_immediate_cache_hit"
   | "search_empty_blocked_backend_loading"
   | "search_empty_true_after_backend"
+  | "search_empty_suppressed_backend_error"
   | "search_backend_result_promoted"
   | "search_backend_q_may_not_be_full_catalog"
   | "search_ranking_applied"
