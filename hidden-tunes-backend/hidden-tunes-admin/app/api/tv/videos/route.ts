@@ -71,7 +71,25 @@ export async function GET(request: NextRequest) {
 
   if (searchQuery) {
     const escaped = searchQuery.replace(/[%_]/g, "\\$&");
-    query = query.or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`);
+    const tagToken = searchQuery
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+    const searchParts = [
+      `title.ilike.%${escaped}%`,
+      `channel_name.ilike.%${escaped}%`,
+      `category.ilike.%${escaped}%`,
+      `genre.ilike.%${escaped}%`,
+      `mood.ilike.%${escaped}%`,
+      `format.ilike.%${escaped}%`,
+      `language.ilike.%${escaped}%`,
+      `region.ilike.%${escaped}%`,
+    ];
+    if (tagToken) {
+      searchParts.push(`tags.cs.{${tagToken}}`);
+    }
+    query = query.or(searchParts.join(","));
   }
 
   const { data, error } = await query
