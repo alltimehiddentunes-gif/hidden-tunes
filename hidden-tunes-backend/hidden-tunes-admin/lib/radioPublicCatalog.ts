@@ -197,7 +197,9 @@ export function toRadioPublicStation(
   };
 
   if (options?.includeStream) {
-    station.stream_url = cleanRadioText(row.stream_url, 2000) || null;
+    const url = cleanRadioText(row.stream_url, 2000) || null;
+    // Never expose cleartext upstream URLs in list payloads; /play returns HTTPS (direct or relay).
+    station.stream_url = url && url.startsWith("https://") ? url : null;
   }
 
   return station;
@@ -236,8 +238,8 @@ export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
   }
 
   if (filters.httpsOnly) {
-    // Mobile ATS has no cleartext exception; keep HTTP streams out of mobile search pages.
-    next = next.ilike("stream_url", "https://%");
+    // Client-ATS playable: direct HTTPS, or HTTP that /play can wrap in the HTTPS relay.
+    next = next.or("stream_url.ilike.https://%,stream_url.ilike.http://%");
   }
 
   if (filters.featured !== null && filters.featured !== undefined) {
