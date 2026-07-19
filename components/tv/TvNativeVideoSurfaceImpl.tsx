@@ -11,6 +11,8 @@ export type TvNativeVideoHandle = {
   play: () => void;
   pause: () => void;
   unload: () => void;
+  enterFullscreen: () => Promise<void>;
+  exitFullscreen: () => Promise<void>;
 };
 
 type TvNativeVideoSurfaceProps = {
@@ -33,6 +35,7 @@ const TvNativeVideoSurface = forwardRef<
 ) {
   const loadGenerationRef = useRef(0);
   const reportedPlayingRef = useRef(false);
+  const videoViewRef = useRef<VideoView | null>(null);
   const onPlayingRef = useRef(onPlaying);
   const onPausedRef = useRef(onPaused);
   const onErrorRef = useRef(onError);
@@ -78,6 +81,20 @@ const TvNativeVideoSurface = forwardRef<
           player.replace(null);
         } catch {
           // Best-effort release before unmount.
+        }
+      },
+      enterFullscreen: async () => {
+        try {
+          await videoViewRef.current?.enterFullscreen();
+        } catch {
+          // Best-effort — unsupported surfaces fail silently.
+        }
+      },
+      exitFullscreen: async () => {
+        try {
+          await videoViewRef.current?.exitFullscreen();
+        } catch {
+          // Best-effort.
         }
       },
     }),
@@ -161,6 +178,7 @@ const TvNativeVideoSurface = forwardRef<
   return (
     <View style={styles.fill}>
       <VideoView
+        ref={videoViewRef}
         style={styles.fill}
         player={player}
         nativeControls={false}

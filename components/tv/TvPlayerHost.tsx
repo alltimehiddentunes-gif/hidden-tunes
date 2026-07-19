@@ -1,8 +1,17 @@
-import { memo, useCallback, useEffect, useMemo, useState, type RefObject } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import {
   ActivityIndicator,
   BackHandler,
   FlatList,
+  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
@@ -202,7 +211,7 @@ function TvPlayerHost({
 }: TvPlayerHostProps) {
   const mountedRef = useMountedRef();
   const insets = useSafeAreaInsets();
-  const { width: viewportWidth } = useWindowDimensions();
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const [isFavorite, setIsFavorite] = useState(false);
   const [relatedChannels, setRelatedChannels] = useState<TVChannel[]>([]);
   const full = presentationMode === "fullPlayer";
@@ -238,6 +247,107 @@ function TvPlayerHost({
   const showVerifiedBadge = displayChannel
     ? displayChannel.isVerifiedLegal
     : shouldShowTvVerifiedBadge(item);
+
+  /** Floating card footprint — header + video strip + controls. */
+  const floatingCardWidth = Math.min(viewportWidth - 28, viewportWidth * 0.92);
+  const floatingCardHeight = 46 + 78 + 42;
+  const tabBarClearance = 64;
+
+  const clampFloatingPosition = useCallback(
+    (x: number, y: number) => {
+      const minX = 8;
+      const maxX = Math.max(minX, viewportWidth - floatingCardWidth - 8);
+      const minY = Math.max(insets.top, 8);
+      const maxY = Math.max(
+        minY,
+        viewportHeight -
+          floatingCardHeight -
+          Math.max(insets.bottom, 8) -
+          tabBarClearance
+      );
+      return {
+        x: Math.min(maxX, Math.max(minX, x)),
+        y: Math.min(maxY, Math.max(minY, y)),
+      };
+    },
+    [
+      floatingCardHeight,
+      floatingCardWidth,
+      insets.bottom,
+      insets.top,
+      viewportHeight,
+      viewportWidth,
+    ]
+  );
+
+  const defaultFloatingPosition = useCallback(
+    () =>
+      clampFloatingPosition(
+        14,
+        viewportHeight -
+          floatingCardHeight -
+          Math.max(insets.bottom, 8) -
+          tabBarClearance
+      ),
+    [
+      clampFloatingPosition,
+      floatingCardHeight,
+      insets.bottom,
+      viewportHeight,
+    ]
+  );
+
+  const [floatPos, setFloatPos] = useState(defaultFloatingPosition);
+  const [floatModeKey, setFloatModeKey] = useState(full);
+  const floatPosRef = useRef(floatPos);
+  const dragOriginRef = useRef(floatPos);
+  const clampFloatingPositionRef = useRef(clampFloatingPosition);
+
+  // eslint-disable-next-line react-hooks/refs -- gesture handlers need latest clamp/position
+  floatPosRef.current = floatPos;
+  // eslint-disable-next-line react-hooks/refs -- gesture handlers need latest clamp/position
+  clampFloatingPositionRef.current = clampFloatingPosition;
+
+  // Reset dock position when entering floating mode (props→state sync during render).
+  if (full !== floatModeKey) {
+    setFloatModeKey(full);
+    if (!full) {
+      setFloatPos(defaultFloatingPosition());
+    }
+  }
+
+  // Stable PanResponder; refs are only read inside gesture callbacks, not for render output.
+  /* eslint-disable react-hooks/refs -- PanResponder callbacks close over refs; initializer runs once */
+  const floatingPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > 6 || Math.abs(gesture.dy) > 6,
+      onMoveShouldSetPanResponderCapture: (_, gesture) =>
+        Math.abs(gesture.dx) > 6 || Math.abs(gesture.dy) > 6,
+      onPanResponderGrant: () => {
+        dragOriginRef.current = { ...floatPosRef.current };
+      },
+      onPanResponderMove: (_, gesture) => {
+        const next = clampFloatingPositionRef.current(
+          dragOriginRef.current.x + gesture.dx,
+          dragOriginRef.current.y + gesture.dy
+        );
+        floatPosRef.current = next;
+        setFloatPos(next);
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const next = clampFloatingPositionRef.current(
+          dragOriginRef.current.x + gesture.dx,
+          dragOriginRef.current.y + gesture.dy
+        );
+        floatPosRef.current = next;
+        setFloatPos(next);
+      },
+    })
+  ).current;
+  /* eslint-enable react-hooks/refs */
 
   const canvasWidth = Math.min(viewportWidth - 32, 560);
   const canvasStyle = full
@@ -301,6 +411,35 @@ function TvPlayerHost({
     onMinimize();
     navigateTvPlayerBack();
   }, [onMinimize]);
+
+  const handleEnterFullscreen = useCallback(() => {
+    if (surface === "native") {
+      void nativePlayerRef.current?.enterFullscreen?.();
+      return;
+    }
+    webViewRef.current?.injectJavaScript(`
+      (function () {
+        try {
+          var video = document.getElementById("player");
+          if (video) {
+            if (video.webkitEnterFullscreen) {
+              video.webkitEnterFullscreen();
+              return;
+            }
+            if (video.requestFullscreen) {
+              video.requestFullscreen();
+              return;
+            }
+          }
+          var iframe = document.getElementById("yt");
+          if (iframe && iframe.requestFullscreen) {
+            iframe.requestFullscreen();
+          }
+        } catch (e) {}
+      })();
+      true;
+    `);
+  }, [nativePlayerRef, surface, webViewRef]);
 
   const handleReportBroken = useCallback(() => {
     if (!displayChannel) return;
@@ -455,7 +594,7 @@ function TvPlayerHost({
             </Text>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={onMinimize}
+              onPress={handleBack}
               accessibilityRole="button"
               accessibilityLabel="Picture in picture"
             >
@@ -473,12 +612,19 @@ function TvPlayerHost({
         ) : (
           <>
             <View style={styles.floatingCopy}>
-              <Text numberOfLines={1} style={styles.floatingTitle}>
-                {title}
-              </Text>
-              <Text numberOfLines={1} style={styles.floatingSub}>
-                {isPlaying ? "Live TV playing" : "Live TV paused"}
-              </Text>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={onExpand}
+                accessibilityRole="button"
+                accessibilityLabel="Restore TV player"
+              >
+                <Text numberOfLines={1} style={styles.floatingTitle}>
+                  {title}
+                </Text>
+                <Text numberOfLines={1} style={styles.floatingSub}>
+                  {isPlaying ? "Live TV playing" : "Live TV paused"}
+                </Text>
+              </TouchableOpacity>
             </View>
             <TouchableOpacity
               activeOpacity={0.86}
@@ -547,6 +693,16 @@ function TvPlayerHost({
             color={COLORS.text}
           />
         </TouchableOpacity>
+        {full ? (
+          <TouchableOpacity
+            style={styles.fullControlButton}
+            onPress={handleEnterFullscreen}
+            accessibilityRole="button"
+            accessibilityLabel="Enter fullscreen"
+          >
+            <Ionicons name="expand" size={22} color={COLORS.text} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {full ? (
@@ -614,7 +770,7 @@ function TvPlayerHost({
             ) : null}
             <TouchableOpacity
               style={styles.secondaryAction}
-              onPress={onMinimize}
+              onPress={handleBack}
               accessibilityRole="button"
               accessibilityLabel="Picture in picture"
             >
@@ -672,8 +828,21 @@ function TvPlayerHost({
         ) : null}
       </View>
       <View
-        style={full ? styles.fullContainer : styles.floatingCard}
+        style={
+          full
+            ? styles.fullContainer
+            : [
+                styles.floatingCard,
+                {
+                  left: floatPos.x,
+                  top: floatPos.y,
+                  width: floatingCardWidth,
+                },
+              ]
+        }
         collapsable={false}
+        // eslint-disable-next-line react-hooks/refs -- panHandlers object is stable; safe to attach when floating
+        {...(full ? {} : floatingPanResponder.panHandlers)}
       >
         {body}
       </View>
@@ -686,18 +855,18 @@ export default memo(TvPlayerHost);
 const styles = StyleSheet.create({
   floatingRoot: {
     ...StyleSheet.absoluteFill,
-    justifyContent: "flex-end",
     zIndex: 200,
     elevation: 20,
   },
   floatingCard: {
-    marginHorizontal: 14,
-    marginBottom: 22,
+    position: "absolute",
     borderRadius: 18,
     overflow: "hidden",
     backgroundColor: "rgba(8,8,12,0.96)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
+    zIndex: 201,
+    elevation: 24,
   },
   floatingHeader: {
     minHeight: 46,

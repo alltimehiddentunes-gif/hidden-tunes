@@ -12,6 +12,8 @@ export type TvNativeVideoHandle = {
   play: () => void;
   pause: () => void;
   unload: () => void;
+  enterFullscreen: () => Promise<void>;
+  exitFullscreen: () => Promise<void>;
 };
 
 type TvNativeVideoSurfaceProps = {
@@ -57,6 +59,8 @@ const UnavailableNativeSurface = forwardRef<
       play: () => {},
       pause: () => {},
       unload: () => {},
+      enterFullscreen: async () => {},
+      exitFullscreen: async () => {},
     }),
     []
   );
