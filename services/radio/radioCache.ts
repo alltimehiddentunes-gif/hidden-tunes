@@ -35,7 +35,8 @@ export function normalizeRadioSearchCacheKey(query: string) {
 
   if (!safeQuery) return "";
 
-  return `search:${safeQuery.replace(/[^a-z0-9 _-]+/g, "")}`;
+  // Namespace away from legacy Radio Browser search pages.
+  return `catalog-search:${safeQuery.replace(/[^a-z0-9 _-]+/g, "")}`;
 }
 
 function isFresh(cachedAt: number) {

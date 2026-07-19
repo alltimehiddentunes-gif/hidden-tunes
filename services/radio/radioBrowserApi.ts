@@ -26,6 +26,7 @@ import {
   sortStationsByVotes,
 } from "./radioQualityScore";
 import { fetchExpandedRadioSearchPage } from "./radioSearchDiscovery";
+import { fetchRadioCatalogSearchPage } from "./radioCatalogApi";
 import {
   countCachedRadioStations,
   getRadioStationInflight,
@@ -276,15 +277,21 @@ export async function fetchRadioSearchPage(
   const safeQuery = String(query || "").trim();
   if (!safeQuery) return [];
 
-  const stations = await fetchExpandedRadioSearchPage(
-    safeQuery,
-    offset,
-    limit,
-    (path, requestSignal) => fetchRadioBrowserJson(path, requestSignal ?? signal),
-    signal
-  );
-
-  return stations;
+  // Production catalog search (full eligible HTTPS set). Radio Browser expansion
+  // remains available for category browse only.
+  try {
+    return await fetchRadioCatalogSearchPage(safeQuery, offset, limit, signal);
+  } catch (error) {
+    if ((error as Error)?.name === "AbortError") throw error;
+    // Last-resort fallback so search is not empty if the catalog API is down.
+    return fetchExpandedRadioSearchPage(
+      safeQuery,
+      offset,
+      limit,
+      (path, requestSignal) => fetchRadioBrowserJson(path, requestSignal ?? signal),
+      signal
+    );
+  }
 }
 
 type LoadRadioPageOptions = {
