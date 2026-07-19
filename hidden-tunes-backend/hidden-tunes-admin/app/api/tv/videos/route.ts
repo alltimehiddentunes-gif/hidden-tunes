@@ -36,16 +36,17 @@ function cleanFilter(value: string | null) {
 }
 
 export async function GET(request: NextRequest) {
+  try {
   const params = request.nextUrl.searchParams;
   const page = parsePositiveInt(params.get("page"), 1, 10_000);
   const limit = parsePositiveInt(params.get("limit"), DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   const from = (page - 1) * limit;
-  const to = from + limit - 1;
+  const to = from + limit; // fetch one extra row for hasMore (avoid exact count)
   const platform = parseTvClientPlatform(request);
 
   let query = supabaseAdmin
     .from("tv_videos")
-    .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
+    .select(TV_PUBLIC_VIDEO_SELECT) as unknown as SupabaseFilterQuery;
 
   applyTvPublicCatalogFilters(query, platform);
 
@@ -70,10 +71,28 @@ export async function GET(request: NextRequest) {
 
   if (searchQuery) {
     const escaped = searchQuery.replace(/[%_]/g, "\\$&");
-    query = query.or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`);
+    const tagToken = searchQuery
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+    const searchParts = [
+      `title.ilike.%${escaped}%`,
+      `channel_name.ilike.%${escaped}%`,
+      `category.ilike.%${escaped}%`,
+      `genre.ilike.%${escaped}%`,
+      `mood.ilike.%${escaped}%`,
+      `format.ilike.%${escaped}%`,
+      `language.ilike.%${escaped}%`,
+      `region.ilike.%${escaped}%`,
+    ];
+    if (tagToken) {
+      searchParts.push(`tags.cs.{${tagToken}}`);
+    }
+    query = query.or(searchParts.join(","));
   }
 
-  const { data, error, count } = await query
+  const { data, error } = await query
     .order("created_at", { ascending: false })
     .range(from, to);
 
@@ -81,11 +100,12 @@ export async function GET(request: NextRequest) {
     return jsonError("Failed to load public TV catalog.", 500, error.message);
   }
 
-  const total = count || 0;
-  const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
-  const videos = ((data || []) as Record<string, unknown>[]).map((row) =>
-    toTvPublicStation(row)
-  ) as TvPublicVideo[];
+  const rows = ((data || []) as Record<string, unknown>[]);
+  const hasMore = rows.length > limit;
+  const pageRows = hasMore ? rows.slice(0, limit) : rows;
+  const videos = pageRows.map((row) => toTvPublicStation(row)) as TvPublicVideo[];
+  const total = from + videos.length + (hasMore ? 1 : 0);
+  const totalPages = hasMore ? page + 1 : page;
 
   return NextResponse.json({
     success: true,
@@ -96,7 +116,11 @@ export async function GET(request: NextRequest) {
       limit,
       total,
       totalPages,
-      hasMore: page < totalPages,
+      hasMore,
     },
   });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown database error.";
+    return jsonError("Failed to load public TV catalog.", 504, message);
+  }
 }
