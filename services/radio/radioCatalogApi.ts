@@ -155,6 +155,12 @@ function buildPlayUrl(stationId: string) {
   return `${RADIO_CATALOG_BASE_URL}${RADIO_CATALOG_STATIONS_PATH}/${encodeURIComponent(stationId)}/play`;
 }
 
+function abortAttachError() {
+  const error = new Error("radio_catalog_attach_aborted");
+  error.name = "AbortError";
+  return error;
+}
+
 async function attachHttpsStreamUrls(
   stations: RadioCatalogPublicStation[],
   signal?: AbortSignal
@@ -162,7 +168,8 @@ async function attachHttpsStreamUrls(
   const attached: RadioCatalogPublicStation[] = [];
 
   for (const station of stations) {
-    if (signal?.aborted) break;
+    // Never return a partial attach as a successful catalog page.
+    if (signal?.aborted) throw abortAttachError();
 
     let streamUrl = pickHttpsStreamUrl(station.stream_url);
     if (!streamUrl && station.id) {
@@ -185,8 +192,14 @@ async function attachHttpsStreamUrls(
     attached.push({ ...station, stream_url: streamUrl });
   }
 
+  if (signal?.aborted) throw abortAttachError();
   return attached;
 }
+
+export type RadioCatalogSearchPageResult = {
+  stations: HiddenTunesStation[];
+  hasMore: boolean;
+};
 
 /**
  * Full-catalog radio search against production Hidden Tunes radio_stations.
@@ -197,9 +210,9 @@ export async function fetchRadioCatalogSearchPage(
   offset = 0,
   limit = RADIO_CATALOG_PAGE_SIZE,
   signal?: AbortSignal
-): Promise<HiddenTunesStation[]> {
+): Promise<RadioCatalogSearchPageResult> {
   const safeQuery = String(query || "").trim();
-  if (!safeQuery) return [];
+  if (!safeQuery) return { stations: [], hasMore: false };
 
   const safeLimit = Math.max(1, Math.min(Number(limit) || RADIO_CATALOG_PAGE_SIZE, 40));
   const safeOffset = Math.max(0, Number(offset) || 0);
@@ -227,5 +240,8 @@ export async function fetchRadioCatalogSearchPage(
       .filter((station): station is HiddenTunesStation => Boolean(station))
   );
 
-  return filterMatureStations(mapped).slice(0, safeLimit);
+  return {
+    stations: filterMatureStations(mapped).slice(0, safeLimit),
+    hasMore: Boolean(payload.pagination?.hasMore),
+  };
 }

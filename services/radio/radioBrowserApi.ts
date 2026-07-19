@@ -37,6 +37,12 @@ import {
   setRadioStationInflight,
   writeCachedRadioStations,
 } from "./radioCache";
+import {
+  shouldPersistRadioSearchResult,
+  shouldRevalidateShortRadioSearchCache,
+  resolveRadioSearchHasMore,
+  type RadioSearchResultSource,
+} from "../../utils/radioSearchCachePolicy";
 
 const RADIO_BROWSER_SERVERS = [
   "https://de1.api.radio-browser.info",
@@ -273,24 +279,44 @@ export async function fetchRadioSearchPage(
   offset = 0,
   limit = RADIO_STATION_PAGE_SIZE,
   signal?: AbortSignal
-) {
+): Promise<{
+  stations: HiddenTunesStation[];
+  source: RadioSearchResultSource;
+  persist: boolean;
+  hasMore: boolean;
+}> {
   const safeQuery = String(query || "").trim();
-  if (!safeQuery) return [];
+  if (!safeQuery) {
+    return { stations: [], source: "catalog", persist: false, hasMore: false };
+  }
 
   // Production catalog search (full eligible HTTPS set). Radio Browser expansion
-  // remains available for category browse only.
+  // remains available as last-resort fallback only.
   try {
-    return await fetchRadioCatalogSearchPage(safeQuery, offset, limit, signal);
+    const catalog = await fetchRadioCatalogSearchPage(safeQuery, offset, limit, signal);
+    return {
+      stations: catalog.stations,
+      source: "catalog",
+      persist: shouldPersistRadioSearchResult("catalog"),
+      hasMore: catalog.hasMore,
+    };
   } catch (error) {
     if ((error as Error)?.name === "AbortError") throw error;
     // Last-resort fallback so search is not empty if the catalog API is down.
-    return fetchExpandedRadioSearchPage(
+    // Never persist these rows under catalog-search:* (HTTPS filter can shrink 40→9).
+    const stations = await fetchExpandedRadioSearchPage(
       safeQuery,
       offset,
       limit,
       (path, requestSignal) => fetchRadioBrowserJson(path, requestSignal ?? signal),
       signal
     );
+    return {
+      stations,
+      source: "fallback",
+      persist: shouldPersistRadioSearchResult("fallback"),
+      hasMore: stations.length >= limit,
+    };
   }
 }
 
@@ -307,6 +333,29 @@ type LoadRadioPageResult = {
   hasMore: boolean;
   fromCache: boolean;
 };
+
+type RadioPageFetchResult =
+  | HiddenTunesStation[]
+  | {
+      stations: HiddenTunesStation[];
+      persist?: boolean;
+      hasMore?: boolean;
+    };
+
+function normalizeRadioPageFetchResult(page: RadioPageFetchResult) {
+  if (Array.isArray(page)) {
+    return {
+      stations: page,
+      persist: true,
+      hasMore: undefined as boolean | undefined,
+    };
+  }
+  return {
+    stations: page.stations,
+    persist: page.persist !== false,
+    hasMore: page.hasMore,
+  };
+}
 
 async function loadCachedOrHydratedPage(
   cacheKey: string,
@@ -338,7 +387,11 @@ async function loadCachedOrHydratedPage(
 
 async function loadRadioPage(
   cacheKey: string,
-  fetchPage: (offset: number, limit: number, signal?: AbortSignal) => Promise<HiddenTunesStation[]>,
+  fetchPage: (
+    offset: number,
+    limit: number,
+    signal?: AbortSignal
+  ) => Promise<RadioPageFetchResult>,
   options?: LoadRadioPageOptions
 ): Promise<LoadRadioPageResult> {
   const safeKey = String(cacheKey || "").trim();
@@ -353,7 +406,17 @@ async function loadRadioPage(
   try {
     if (!options?.forceRefresh) {
       const cached = await loadCachedOrHydratedPage(safeKey, offset, limit);
-      if (cached) return cached;
+      if (cached) {
+        const mustRevalidate =
+          offset === 0 &&
+          !append &&
+          shouldRevalidateShortRadioSearchCache(safeKey, cached.stations.length, limit);
+        if (!mustRevalidate) {
+          return cached;
+        }
+        // Short catalog-search cache: fall through to network so poisoned 9-row
+        // pages cannot permanently skip revalidation.
+      }
 
       if (offset === 0 && !append) {
         const inflight = getRadioStationInflight(safeKey);
@@ -369,9 +432,30 @@ async function loadRadioPage(
     }
 
     const fetchPromise = fetchPage(offset, limit, signal)
-      .then((page) => {
+      .then(async (page) => {
         logRadioDiscoveryFetch("radio-page", `${safeKey}@${offset}`);
-        return writeCachedRadioStations(safeKey, page, { append: append || offset > 0 });
+        const normalized = normalizeRadioPageFetchResult(page);
+        if (normalized.persist) {
+          const written = await writeCachedRadioStations(safeKey, normalized.stations, {
+            append: append || offset > 0,
+          });
+          return {
+            stations: written,
+            hasMore: resolveRadioSearchHasMore(
+              written.length,
+              limit,
+              normalized.hasMore
+            ),
+          };
+        }
+        return {
+          stations: normalized.stations,
+          hasMore: resolveRadioSearchHasMore(
+            normalized.stations.length,
+            limit,
+            normalized.hasMore
+          ),
+        };
       })
       .catch(async (error) => {
         if ((error as Error)?.name === "AbortError") {
@@ -380,18 +464,25 @@ async function loadRadioPage(
 
         const fallback =
           readCachedRadioStations(safeKey) || (await hydrateCachedRadioStations(safeKey)) || [];
-        return filterMatureStations(fallback.slice(offset, offset + limit));
+        const stations = filterMatureStations(fallback.slice(offset, offset + limit));
+        return {
+          stations,
+          hasMore: stations.length >= limit,
+        };
       });
 
     if (offset === 0 && !append && !options?.forceRefresh) {
-      setRadioStationInflight(safeKey, fetchPromise);
+      setRadioStationInflight(
+        safeKey,
+        fetchPromise.then((result) => result.stations)
+      );
     }
 
-    const stations = await fetchPromise;
+    const result = await fetchPromise;
 
     return {
-      stations: filterMatureStations(stations),
-      hasMore: stations.length >= limit,
+      stations: filterMatureStations(result.stations),
+      hasMore: result.hasMore,
       fromCache: false,
     };
   } finally {
@@ -435,7 +526,14 @@ export async function loadRadioSearchPage(query: string, options?: LoadRadioPage
 
   return loadRadioPage(
     cacheKey,
-    (pageOffset, limit, signal) => fetchRadioSearchPage(safeQuery, pageOffset, limit, signal),
+    async (pageOffset, limit, signal) => {
+      const result = await fetchRadioSearchPage(safeQuery, pageOffset, limit, signal);
+      return {
+        stations: result.stations,
+        persist: result.persist,
+        hasMore: result.hasMore,
+      };
+    },
     {
       ...options,
       requestKey: `search:${cacheKey}`,

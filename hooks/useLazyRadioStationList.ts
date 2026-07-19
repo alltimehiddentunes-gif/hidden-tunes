@@ -11,6 +11,7 @@ import {
   isRadioCacheFresh,
   readCachedRadioPage,
 } from "../services/radio/radioCache";
+import { shouldRevalidateShortRadioSearchCache } from "../utils/radioSearchCachePolicy";
 
 type LoadPageResult = {
   stations: HiddenTunesStation[];
@@ -123,12 +124,19 @@ export function useLazyRadioStationList({
     let cancelled = false;
 
     const cachedPage = readCachedRadioPage(cacheKey, 0, RADIO_STATION_PAGE_SIZE);
-    const hasFreshCache = cachedPage.length > 0 && isRadioCacheFresh(cacheKey);
+    const needsShortRevalidate = shouldRevalidateShortRadioSearchCache(
+      cacheKey,
+      cachedPage.length,
+      RADIO_STATION_PAGE_SIZE
+    );
+    const hasFreshCache =
+      cachedPage.length > 0 && isRadioCacheFresh(cacheKey) && !needsShortRevalidate;
 
     if (cachedPage.length) {
       rememberStations(cachedPage);
       setListItems(cachedPage.map(toRadioStationListItem));
-      setHasMore(cachedPage.length >= RADIO_STATION_PAGE_SIZE);
+      // Short catalog-search pages must not lock hasMore=false (poisoned 9-row caches).
+      setHasMore(cachedPage.length >= RADIO_STATION_PAGE_SIZE || needsShortRevalidate);
       setLoading(false);
       setHasLoadedOnce(true);
     } else {
@@ -146,19 +154,33 @@ export function useLazyRadioStationList({
 
         if (hydrated?.length) {
           const hydratedPage = hydrated.slice(0, RADIO_STATION_PAGE_SIZE);
+          const hydratedNeedsRevalidate = shouldRevalidateShortRadioSearchCache(
+            cacheKey,
+            hydratedPage.length,
+            RADIO_STATION_PAGE_SIZE
+          );
           rememberStations(hydratedPage);
           setListItems(hydratedPage.map(toRadioStationListItem));
-          setHasMore(hydrated.length >= RADIO_STATION_PAGE_SIZE);
+          setHasMore(
+            hydrated.length >= RADIO_STATION_PAGE_SIZE || hydratedNeedsRevalidate
+          );
           setLoading(false);
           setHasLoadedOnce(true);
 
-          if (isRadioCacheFresh(cacheKey)) return;
+          if (isRadioCacheFresh(cacheKey) && !hydratedNeedsRevalidate) return;
+
+          await fetchPage(0, false, hydratedNeedsRevalidate);
+          if (generation === requestGenerationRef.current) {
+            setLoading(false);
+            setRefreshing(false);
+          }
+          return;
         }
       }
 
       if (hasFreshCache) return;
 
-      await fetchPage(0, false, false);
+      await fetchPage(0, false, needsShortRevalidate);
       if (generation === requestGenerationRef.current) {
         setLoading(false);
         setRefreshing(false);
