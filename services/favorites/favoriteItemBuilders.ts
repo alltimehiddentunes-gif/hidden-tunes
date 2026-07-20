@@ -1,11 +1,30 @@
 import type { RadioStationListItem } from "../../types/radio";
 import type { FavoriteItemMetadata, UnifiedFavoriteItem } from "../../types/favorites";
 import { isMatureContentItem } from "../../types/matureContent";
-import { getArtworkUri } from "../../utils/artwork";
+import {
+  isRadioFavoriteSource,
+  normalizeRadioFavoriteStationId,
+} from "./libraryFavoriteIdentity";
 
+/** Local artwork pick — avoids importing RN artwork utils (keeps Node tests green). */
 function resolveArtwork(source: unknown) {
-  const artwork = getArtworkUri(source as any);
-  return artwork || undefined;
+  if (!source || typeof source !== "object") {
+    return typeof source === "string" && source.trim() ? source.trim() : undefined;
+  }
+  const record = source as Record<string, unknown>;
+  for (const key of [
+    "artwork",
+    "artworkUrl",
+    "cover",
+    "coverUrl",
+    "thumbnail",
+    "favicon",
+    "uri",
+  ]) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
 }
 
 function matureMetadata(item?: {
@@ -38,6 +57,8 @@ type SongFavoriteSource = {
   cover?: unknown;
   thumbnail?: unknown;
   artwork?: unknown;
+  artworkUrl?: unknown;
+  coverUrl?: unknown;
   videoId?: string;
   type?: string;
   source?: string;
@@ -48,21 +69,54 @@ type SongFavoriteSource = {
   duration?: number | string;
   artistId?: string;
   albumId?: string;
+  genre?: string;
+  country?: string;
+  language?: string;
+  is_mature?: boolean;
+  mature_reason?: string;
+  content_rating?: FavoriteItemMetadata["content_rating"];
 };
 
 export function buildSongFavoriteItem(song: SongFavoriteSource): UnifiedFavoriteItem {
   const record = song;
+
+  // Live radio plays as AppSong (id radio-*, source radio, type live_stream).
+  // MiniPlayer/Player hearts call this builder — never save Radio as a song.
+  if (isRadioFavoriteSource(record)) {
+    return buildRadioStationFavoriteItem({
+      id: normalizeRadioFavoriteStationId(String(record.id || "")),
+      title: record.title,
+      name: record.title,
+      artworkUrl: String(
+        record.artworkUrl || record.coverUrl || record.artwork || record.cover || ""
+      ),
+      country: record.country,
+      language: record.language,
+      genre: record.genre,
+      streamUrl: String(record.streamUrl || record.url || record.audioUrl || ""),
+      is_mature: record.is_mature,
+      mature_reason: record.mature_reason,
+      content_rating: record.content_rating,
+    });
+  }
+
   const artist =
     record.artist ||
     record.user?.name ||
     record.channelTitle ||
     String((record as any).artistName || "Unknown Artist");
-  const videoId = sanitizeYouTubeVideoId(record.videoId || record.id);
-  const isYoutube =
+
+  const explicitYoutube =
     record.type === "youtube_video" ||
     record.source === "youtube" ||
     record.sourceName === "YouTube" ||
     Boolean(record.videoId);
+
+  // Only mine videoId from the raw id when the item is already YouTube-owned.
+  // Otherwise radio-/generic ids falsely match the 11-char YouTube pattern.
+  const videoId = explicitYoutube
+    ? sanitizeYouTubeVideoId(record.videoId || record.id)
+    : sanitizeYouTubeVideoId(record.videoId);
 
   return {
     id: String(record.id || videoId || ""),
@@ -70,7 +124,9 @@ export function buildSongFavoriteItem(song: SongFavoriteSource): UnifiedFavorite
     title: String(record.title || "Untitled"),
     subtitle: String(artist),
     artwork: resolveArtwork(record),
-    source: isYoutube ? "youtube" : String(record.source || record.sourceName || "hidden_tunes"),
+    source: explicitYoutube
+      ? "youtube"
+      : String(record.source || record.sourceName || "hidden_tunes"),
     addedAt: new Date().toISOString(),
     metadata: {
       artistName: String(artist),
@@ -160,9 +216,10 @@ export function buildRadioStationFavoriteItem(
     (Array.isArray((station as RadioStationListItem).tags)
       ? (station as RadioStationListItem).tags[0]
       : undefined);
+  const id = normalizeRadioFavoriteStationId(String(station.id || ""));
 
   return {
-    id: String(station.id),
+    id,
     type: "radio_station",
     title,
     subtitle: String(station.country || genre || "Live Radio"),
@@ -177,6 +234,7 @@ export function buildRadioStationFavoriteItem(
       stationLanguage: station.language,
       stationGenre: genre,
       streamUrl: (station as { streamUrl?: string }).streamUrl,
+      legacyType: "live_stream",
       ...matureMetadata(station),
     },
   };

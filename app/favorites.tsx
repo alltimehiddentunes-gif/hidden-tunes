@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
 import {
+  Alert,
   SectionList,
   StyleSheet,
   Text,
@@ -27,7 +28,8 @@ import {
 import { useFavorites } from "../hooks/useFavorites";
 import { usePlaybackRouter } from "../hooks/usePlaybackRouter";
 import type { FavoriteItemType, UnifiedFavoriteItem } from "../types/favorites";
-import { songFavoriteToAppSong } from "../services/favorites/unifiedFavorites";
+import { openLibraryFavorite } from "../services/favorites/openLibraryFavorite";
+import { libraryMediaBadgeLabel } from "../services/favorites/libraryFavoriteIdentity";
 import { logVisibleFeatureChecklist } from "../utils/visibleFeatureDiagnostics";
 
 type FavoriteSection = {
@@ -43,21 +45,6 @@ const SECTION_ORDER: Array<{ type: FavoriteItemType; title: string }> = [
   { type: "album", title: "Favorite Albums" },
   { type: "radio_station", title: "Favorite Radio Stations" },
 ];
-
-function sanitizeYouTubeVideoId(value: unknown) {
-  const text = String(value || "").replace("youtube-", "").trim();
-  if (/^[a-zA-Z0-9_-]{11}$/.test(text)) return text;
-  const match = text.match(/[a-zA-Z0-9_-]{11}/);
-  return match ? match[0] : "";
-}
-
-function isYouTubeFavorite(item: UnifiedFavoriteItem) {
-  return (
-    item.source === "youtube" ||
-    item.metadata?.legacyType === "youtube_video" ||
-    Boolean(item.metadata?.videoId)
-  );
-}
 
 export default function FavoritesScreen() {
   const { playSong } = usePlayerActions();
@@ -85,95 +72,28 @@ export default function FavoritesScreen() {
     });
   }, [sections.length, totalVisible]);
 
-  const playFavoriteSong = useCallback(
-    (item: UnifiedFavoriteItem, index: number) => {
-      if (isYouTubeFavorite(item)) {
-        const videoId = sanitizeYouTubeVideoId(item.metadata?.videoId || item.id);
-        if (!videoId) return;
-
-        router.push({
-          pathname: "/youtube-player",
-          params: {
-            videoId,
-            title: item.title,
-            channelTitle: item.subtitle || item.metadata?.artistName || "Unknown Artist",
-            thumbnail: item.artwork || "",
-          },
-        } as any);
-        return;
-      }
-
-      const song = songFavoriteToAppSong(item);
-      const queue = songFavorites;
-      void playSong(song as any, queue as any, index, {
-        source: "playlist",
-        label: "Favorites",
-        artistName: song.artist,
-      });
-    },
-    [playSong, songFavorites]
-  );
-
   const openFavorite = useCallback(
     (item: UnifiedFavoriteItem) => {
-      switch (item.type) {
-        case "song":
-          playFavoriteSong(item, 0);
-          return;
-        case "artist":
-          router.push({
-            pathname: "/artist/[id]",
-            params: { id: item.id },
-          } as any);
-          return;
-        case "album":
-          router.push({
-            pathname: "/album/[id]",
-            params: { id: item.id },
-          } as any);
-          return;
-        case "radio_station": {
-          const radioFavorites = visibleFavorites.filter(
-            (entry) => entry.type === "radio_station"
+      openLibraryFavorite(item, {
+        playSong: (song, queue, index, context) => {
+          void playSong(song as any, queue as any, index, context as any);
+        },
+        playRadioStation: (station, options) => {
+          void playRadioStation(station as any, options);
+        },
+        songFavoritesQueue: songFavorites as any,
+        radioFavorites: visibleFavorites.filter(
+          (entry) => entry.type === "radio_station"
+        ),
+        onUnsupported: () => {
+          Alert.alert(
+            "Unavailable",
+            "This saved item cannot be opened from Library yet."
           );
-          const sessionStations = radioFavorites.map((entry) => ({
-            id: entry.id,
-            title: entry.title,
-            streamUrl: String(entry.metadata?.streamUrl || ""),
-            artworkUrl: entry.artwork,
-            country: entry.metadata?.stationCountry,
-            genre: entry.metadata?.stationGenre,
-            tags: entry.metadata?.stationGenre
-              ? [String(entry.metadata.stationGenre)]
-              : [],
-            source: "radio" as const,
-          }));
-          const active = sessionStations.find((entry) => entry.id === item.id) || {
-            id: item.id,
-            title: item.title,
-            streamUrl: String(item.metadata?.streamUrl || ""),
-            artworkUrl: item.artwork,
-            country: item.metadata?.stationCountry,
-            genre: item.metadata?.stationGenre,
-            tags: item.metadata?.stationGenre ? [String(item.metadata.stationGenre)] : [],
-            source: "radio" as const,
-          };
-          void playRadioStation(active, {
-            session: sessionStations,
-            startIndex: Math.max(
-              0,
-              sessionStations.findIndex((entry) => entry.id === item.id)
-            ),
-            label: "Radio Favorites",
-            cacheKey: "favorites",
-          });
-          return;
-        }
-        default:
-          return;
-      }
+        },
+      });
     },
-    [playFavoriteSong, playRadioStation, visibleFavorites]
+    [playRadioStation, playSong, songFavorites, visibleFavorites]
   );
 
   const typeIcon = (type: FavoriteItemType) => {
@@ -205,7 +125,7 @@ export default function FavoritesScreen() {
           <View style={styles.copy}>
             <View style={styles.badgeRow}>
               <Ionicons name={typeIcon(item.type) as any} size={13} color={COLORS.primary} />
-              <Text style={styles.badgeText}>{item.source || "Hidden Tunes"}</Text>
+              <Text style={styles.badgeText}>{libraryMediaBadgeLabel(item)}</Text>
               <MatureContentBadge item={item.metadata} />
             </View>
             <Text numberOfLines={1} style={[styles.title, active && styles.titleActive]}>
@@ -237,7 +157,8 @@ export default function FavoritesScreen() {
   );
 
   const favoriteKeyExtractor = useCallback(
-    (item: UnifiedFavoriteItem, index: number) => `${item.type}-${item.id}-${index}`,
+    (item: UnifiedFavoriteItem, index: number) =>
+      `${item.type}:${String(item.id || "").trim()}:${index}`,
     []
   );
 
