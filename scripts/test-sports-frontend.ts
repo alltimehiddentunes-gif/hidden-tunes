@@ -33,6 +33,7 @@ import {
 import {
   canShowWatchAction,
   formatStatusLabel,
+  getSportsWatchAction,
   primaryActionLabel,
 } from "../lib/sports/ui/formatStatus";
 import { formatMatchTitle, formatScore } from "../lib/sports/ui/formatScore";
@@ -197,13 +198,14 @@ function main() {
   assert.ok((footballHub.fixtures || []).length > 0);
   assert.ok((footballHub.sections || []).some((s) => (s.items?.length || 0) > 0));
 
-  // No Sports horizontal shelf in production components (source audit)
+  // No Sports sideways scrolling shelf in production components (source audit)
   const shelfSrc = fs.readFileSync(
     path.join(process.cwd(), "components/sports/SportsHorizontalShelf.tsx"),
     "utf8"
   );
-  assert.equal(/\bhorizontal\b/.test(shelfSrc), false);
   assert.ok(shelfSrc.includes("sports-vertical-shelf"));
+  assert.equal(/horizontal=\{true\}/.test(shelfSrc), false);
+  assert.equal(/showsHorizontalScrollIndicator/.test(shelfSrc), false);
 
   // Related fixtures exclude current (backend helper contract mirrored in tests via hub)
   const relatedSample = (footballHub.fixtures || []).filter((f) => f.id !== DEV_FOOTBALL_LIVE.id);
@@ -215,6 +217,15 @@ function main() {
     (footballHub.sections || []).find((s) => s.id === "live_now")?.items.length || 0,
     liveCount
   );
+
+  // Reminder uses semantic kind — not label string matching
+  const scheduledRemind = ALL_DEV_FIXTURES.find(
+    (f) => f.status?.code === "scheduled" || f.status?.code === "starting_soon"
+  );
+  if (scheduledRemind) {
+    assert.equal(getSportsWatchAction(scheduledRemind).kind, "remind");
+  }
+  assert.equal(getSportsWatchAction(DEV_POSTPONED).kind, "none");
 
   // Bounded rendering
   const many = Array.from({ length: 50 }, (_, i) => ({ id: `x${i}` }));

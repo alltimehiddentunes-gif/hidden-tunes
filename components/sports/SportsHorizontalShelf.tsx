@@ -1,6 +1,8 @@
 import { Children, memo, type ReactNode } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 
+import { SPORTS_SECTION_LIMITS } from "@/lib/sports/ui/homeSections";
+
 type SportsHorizontalShelfProps = {
   children: ReactNode;
   /** Caps rendered items defensively even if the caller already bounded the data. */
@@ -14,11 +16,12 @@ type SportsHorizontalShelfProps = {
 
 /**
  * Sports discovery layout — vertical only (global Sports layout rule).
- * Kept export name for call-site compatibility; never scrolls horizontally.
+ * Kept export name for call-site compatibility; never scrolls sideways.
+ * Defaults to the shared shelf section bound so home shelves stay capped.
  */
 function SportsHorizontalShelf({
   children,
-  maxItems,
+  maxItems = SPORTS_SECTION_LIMITS.horizontal,
   gap = 12,
   style,
   contentContainerStyle,

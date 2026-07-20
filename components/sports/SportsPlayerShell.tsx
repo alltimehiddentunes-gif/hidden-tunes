@@ -17,6 +17,7 @@ import { formatMatchTitle, formatScore, participantBySide } from "@/lib/sports/u
 import { formatMatchMinute } from "@/lib/sports/ui/formatStatus";
 import { boundSectionItems } from "@/lib/sports/ui/homeSections";
 import { isSportsTestPlayerEnabled } from "@/constants/sportsFlags";
+import { needsSportsCountdownClock } from "@/lib/sports/ui/availability";
 import type {
   SportsMatchCard as SportsMatchCardType,
   SportsPlaybackSession,
@@ -301,7 +302,7 @@ function SportsPlayerShell({
                 key={card.id}
                 card={card}
                 variant="compact"
-                nowMs={clockMs}
+                nowMs={needsSportsCountdownClock(card) ? clockMs : undefined}
                 onPress={onSelectRelated}
               />
             ))}

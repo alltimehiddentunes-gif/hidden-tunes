@@ -9,6 +9,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SportsEmptyState, SportsErrorState, SportsMatchCard, SportsSection } from "../../components/sports";
 import { fetchSportsHome, getSportsFollows, unfollowSportsEntity } from "../../services/sports";
+import {
+  getSportsWatchAction,
+  needsSportsCountdownClock,
+  openSportsPlayer,
+  openSportsPlayerIfPlayable,
+  shouldOpenSportsPlayer,
+} from "../../lib/sports/ui/availability";
 import type { SportsFollowEntity, SportsMatchCard as SportsMatchCardType } from "../../types/sports";
 import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../utils/tapPressGuard";
 
@@ -145,7 +152,13 @@ export default function SportsFollowingScreen() {
   }, []);
   const onWatchMatch = useCallback((card: SportsMatchCardType) => {
     if (shouldIgnoreDuplicateTap(navGuardRef.current, `watch:${card.id}`)) return;
-    router.push(`/sports/player/${encodeURIComponent(card.id)}` as any);
+    const action = getSportsWatchAction(card);
+    if (action.kind === "watch_external" || action.kind === "subscription") {
+      openSportsPlayer(card.id);
+      return;
+    }
+    if (!shouldOpenSportsPlayer(card)) return;
+    openSportsPlayerIfPlayable(card);
   }, []);
 
   const grouped = useMemo(() => {
@@ -201,7 +214,7 @@ export default function SportsFollowingScreen() {
                         key={card.id}
                         card={card}
                         variant="search"
-                        nowMs={nowMs}
+                        nowMs={needsSportsCountdownClock(card) ? nowMs : undefined}
                         onPress={onPressMatch}
                         onWatch={onWatchMatch}
                       />

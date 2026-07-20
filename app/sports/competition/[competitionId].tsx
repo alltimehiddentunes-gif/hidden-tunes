@@ -3,7 +3,7 @@
  * No standings table: there is no standings API in this phase.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Platform, RefreshControl, StyleSheet, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -24,6 +24,13 @@ import {
   isSportsFollowed,
   unfollowSportsEntity,
 } from "../../../services/sports";
+import {
+  getSportsWatchAction,
+  needsSportsCountdownClock,
+  openSportsPlayerIfPlayable,
+  shouldOpenSportsPlayer,
+} from "../../../lib/sports/ui/availability";
+import { boundSectionItems, SPORTS_SECTION_LIMITS } from "../../../lib/sports/ui/homeSections";
 import type {
   SportsCompetitionCard,
   SportsMatchCard as SportsMatchCardType,
@@ -32,6 +39,10 @@ import type {
 import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../../utils/tapPressGuard";
 
 import { SPORTS_COLORS, SportsScreenHeader, useSportsFullUiGate, useSportsNowClock } from "../_shared";
+
+type CompetitionListSection =
+  | { id: string; kind: "fixtures"; title: string; variant: "shelf" | "finished"; items: SportsMatchCardType[] }
+  | { id: string; kind: "videos"; title: string; items: SportsVideoCardType[] };
 
 export default function CompetitionHubScreen() {
   const gate = useSportsFullUiGate();
@@ -135,19 +146,81 @@ export default function CompetitionHubScreen() {
   }, []);
   const onWatchMatch = useCallback((card: SportsMatchCardType) => {
     if (shouldIgnoreDuplicateTap(navGuardRef.current, `watch:${card.id}`)) return;
-    router.push(`/sports/player/${encodeURIComponent(card.id)}` as any);
+    const action = getSportsWatchAction(card);
+    if (action.kind === "watch_external" || action.kind === "subscription") {
+      router.push(`/sports/fixture/${encodeURIComponent(card.id)}` as any);
+      return;
+    }
+    if (!shouldOpenSportsPlayer(card)) return;
+    openSportsPlayerIfPlayable(card);
   }, []);
   const onPressVideo = useCallback((v: SportsVideoCardType) => {
     if (v.fixtureId) router.push(`/sports/fixture/${encodeURIComponent(v.fixtureId)}` as any);
   }, []);
 
-  const live = useMemo(() => fixtures.filter((f) => f.status?.live), [fixtures]);
-  const upcoming = useMemo(
-    () => fixtures.filter((f) => !f.status?.live && !f.status?.finished),
+  const live = useMemo(
+    () => boundSectionItems(fixtures.filter((f) => f.status?.live), SPORTS_SECTION_LIMITS.horizontal),
     [fixtures]
   );
-  const finished = useMemo(() => fixtures.filter((f) => f.status?.finished), [fixtures]);
-  const hasAnyContent = !!(live.length || upcoming.length || finished.length || highlights.length || replays.length);
+  const upcoming = useMemo(
+    () =>
+      boundSectionItems(
+        fixtures.filter((f) => !f.status?.live && !f.status?.finished),
+        SPORTS_SECTION_LIMITS.horizontal
+      ),
+    [fixtures]
+  );
+  const finished = useMemo(
+    () => boundSectionItems(fixtures.filter((f) => f.status?.finished), SPORTS_SECTION_LIMITS.horizontal),
+    [fixtures]
+  );
+  const highlightItems = useMemo(
+    () => boundSectionItems(highlights, SPORTS_SECTION_LIMITS.horizontal),
+    [highlights]
+  );
+  const replayItems = useMemo(
+    () => boundSectionItems(replays, SPORTS_SECTION_LIMITS.horizontal),
+    [replays]
+  );
+  const hasAnyContent = !!(
+    live.length ||
+    upcoming.length ||
+    finished.length ||
+    highlightItems.length ||
+    replayItems.length
+  );
+
+  const listSections = useMemo(() => {
+    const next: CompetitionListSection[] = [];
+    if (live.length) {
+      next.push({ id: "live", kind: "fixtures", title: "Live Now", variant: "shelf", items: live });
+    }
+    if (upcoming.length) {
+      next.push({
+        id: "upcoming",
+        kind: "fixtures",
+        title: "Upcoming",
+        variant: "shelf",
+        items: upcoming,
+      });
+    }
+    if (finished.length) {
+      next.push({
+        id: "finished",
+        kind: "fixtures",
+        title: "Recently Finished",
+        variant: "finished",
+        items: finished,
+      });
+    }
+    if (highlightItems.length) {
+      next.push({ id: "highlights", kind: "videos", title: "Highlights", items: highlightItems });
+    }
+    if (replayItems.length) {
+      next.push({ id: "replays", kind: "videos", title: "Replays", items: replayItems });
+    }
+    return next;
+  }, [live, upcoming, finished, highlightItems, replayItems]);
 
   if (!gate.allowed) {
     return (
@@ -173,100 +246,60 @@ export default function CompetitionHubScreen() {
       />
 
       {loading ? (
-        <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}>
+        <View style={{ paddingTop: 8, paddingBottom: 40 }}>
           <View style={{ marginBottom: 20 }}>
             <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
           </View>
           <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
-        </ScrollView>
+        </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={listSections}
+          keyExtractor={(section) => section.id}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SPORTS_COLORS.amber} />
           }
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
-        >
-          {error ? <SportsErrorState message={error} onRetry={load} /> : null}
-
-          {!hasAnyContent && !error ? (
-            <SportsEmptyState
-              title="No matches yet"
-              message="This competition doesn't have any fixtures, highlights, or replays right now."
-            />
-          ) : (
-            <>
-              {live.length ? (
-                <SportsSection title="Live Now">
-                  <SportsHorizontalShelf>
-                    {live.map((card) => (
-                      <SportsMatchCard
-                        key={card.id}
-                        card={card}
-                        nowMs={nowMs}
-                        onPress={onPressMatch}
-                        onWatch={onWatchMatch}
-                      />
-                    ))}
-                  </SportsHorizontalShelf>
-                </SportsSection>
-              ) : null}
-
-              {upcoming.length ? (
-                <SportsSection title="Upcoming">
-                  <SportsHorizontalShelf>
-                    {upcoming.map((card) => (
-                      <SportsMatchCard
-                        key={card.id}
-                        card={card}
-                        nowMs={nowMs}
-                        onPress={onPressMatch}
-                        onWatch={onWatchMatch}
-                      />
-                    ))}
-                  </SportsHorizontalShelf>
-                </SportsSection>
-              ) : null}
-
-              {finished.length ? (
-                <SportsSection title="Recently Finished">
-                  <SportsHorizontalShelf>
-                    {finished.map((card) => (
-                      <SportsMatchCard
-                        key={card.id}
-                        card={card}
-                        variant="finished"
-                        nowMs={nowMs}
-                        onPress={onPressMatch}
-                        onWatch={onWatchMatch}
-                      />
-                    ))}
-                  </SportsHorizontalShelf>
-                </SportsSection>
-              ) : null}
-
-              {highlights.length ? (
-                <SportsSection title="Highlights">
-                  <SportsHorizontalShelf>
-                    {highlights.map((v) => (
-                      <SportsVideoCard key={v.id} video={v} onPress={onPressVideo} />
-                    ))}
-                  </SportsHorizontalShelf>
-                </SportsSection>
-              ) : null}
-
-              {replays.length ? (
-                <SportsSection title="Replays">
-                  <SportsHorizontalShelf>
-                    {replays.map((v) => (
-                      <SportsVideoCard key={v.id} video={v} onPress={onPressVideo} />
-                    ))}
-                  </SportsHorizontalShelf>
-                </SportsSection>
-              ) : null}
-            </>
+          ListHeaderComponent={error ? <SportsErrorState message={error} onRetry={load} /> : null}
+          ListEmptyComponent={
+            !hasAnyContent && !error ? (
+              <SportsEmptyState
+                title="No matches yet"
+                message="This competition doesn't have any fixtures, highlights, or replays right now."
+              />
+            ) : null
+          }
+          renderItem={({ item: section }) => (
+            <SportsSection title={section.title}>
+              {section.kind === "fixtures" ? (
+                <SportsHorizontalShelf maxItems={SPORTS_SECTION_LIMITS.horizontal}>
+                  {section.items.map((card) => (
+                    <SportsMatchCard
+                      key={card.id}
+                      card={card}
+                      variant={section.variant}
+                      nowMs={needsSportsCountdownClock(card) ? nowMs : undefined}
+                      onPress={onPressMatch}
+                      onWatch={onWatchMatch}
+                    />
+                  ))}
+                </SportsHorizontalShelf>
+              ) : (
+                <SportsHorizontalShelf maxItems={SPORTS_SECTION_LIMITS.horizontal}>
+                  {section.items.map((v) => (
+                    <SportsVideoCard key={v.id} video={v} onPress={onPressVideo} />
+                  ))}
+                </SportsHorizontalShelf>
+              )}
+            </SportsSection>
           )}
-        </ScrollView>
+          initialNumToRender={4}
+          maxToRenderPerBatch={3}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={Platform.OS === "android"}
+        />
       )}
     </SafeAreaView>
   );

@@ -5,6 +5,9 @@ export {
   deriveSportsAvailability,
   getSportsWatchAction,
   isLiveInAppPlayable,
+  needsSportsCountdownClock,
+  openSportsPlayer,
+  openSportsPlayerIfPlayable,
   primaryActionLabel,
   shouldOpenSportsPlayer,
 } from "./availability";

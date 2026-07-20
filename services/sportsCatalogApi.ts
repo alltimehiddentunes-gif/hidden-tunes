@@ -34,6 +34,7 @@ import {
   unavailableSession,
 } from "../lib/sports/ui/playbackSession";
 import { formatMatchTitle } from "../lib/sports/ui/formatScore";
+import { isSportsResolveAbortError } from "./sports/sportsPlaybackResolver";
 export const SPORTS_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const SPORTS_DEFAULT_PAGE_LIMIT = 20;
 
@@ -869,6 +870,41 @@ async function hydrateSportsPlaybackSessionEmbed(
   }
 }
 
+function normalizePlayableSession(
+  fixtureId: string,
+  session: SportsPlaybackSession
+): SportsPlaybackSession {
+  if (session.status !== "ready") return session;
+
+  const embedUrl = String(session.embedUrl || "").trim();
+  const hasEmbed = Boolean(embedUrl && embedUrl !== "about:blank");
+  const hasDevHtml = Boolean(session.fixtureHtml && isSportsTestPlayerEnabled());
+  const nativeEnabled = isSportsClientEnabled("sports_native_playback_enabled");
+  const hasNative =
+    nativeEnabled &&
+    Boolean(String(session.manifestUrl || "").trim()) &&
+    (session.playbackKind === "hls" || session.playbackKind === "dash");
+
+  if (hasEmbed || hasDevHtml || hasNative) return session;
+
+  if (
+    !nativeEnabled &&
+    (session.playbackKind === "hls" || session.playbackKind === "dash")
+  ) {
+    return unavailableSession(
+      fixtureId,
+      "validation_failed",
+      "This match stream is not available in the app yet."
+    );
+  }
+
+  return unavailableSession(
+    fixtureId,
+    "validation_failed",
+    "No playable stream was returned for this match."
+  );
+}
+
 /** Resolve fixture playback into the provider-neutral session DTO. */
 export async function resolveSportsFixturePlaySession(input: {
   fixtureId: string;
@@ -877,6 +913,10 @@ export async function resolveSportsFixturePlaySession(input: {
   signal?: AbortSignal;
 }): Promise<SportsPlaybackSession> {
   const fixtureId = input.fixtureId;
+
+  if (input.signal?.aborted) {
+    return unavailableSession(fixtureId, "validation_failed", "Playback request was cancelled.");
+  }
 
   if (isSportsDevFixturesEnabled()) {
     const fixture = getDevFixtureDetail(fixtureId);
@@ -927,7 +967,7 @@ export async function resolveSportsFixturePlaySession(input: {
 <style>body{margin:0;background:#0A1220;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}h1{font-size:18px;margin:0 0 8px}p{opacity:.75;font-size:14px;line-height:1.4}</style></head>
 <body><div><h1>Development fixture player</h1><p>${title.replace(/[<>&]/g, "")}</p><p>Not a live provider stream. Used only to validate tap-to-watch when EXPO_PUBLIC_SPORTS_ENABLE_TEST_PLAYER=true.</p></div></body></html>`;
 
-    return {
+    return normalizePlayableSession(fixtureId, {
       status: "ready",
       fixtureId,
       playbackKind: "webview",
@@ -937,14 +977,22 @@ export async function resolveSportsFixturePlaySession(input: {
       providerLabel: "Dev fixture",
       fixtureHtml,
       embedUrl: null,
-    };
+    });
   }
 
   if (!isSportsClientEnabled("sports_enabled")) {
     return unavailableSession(fixtureId, "provider_disabled", "Sports is disabled.");
   }
 
-  // Prefer dedicated fixture play endpoint; fall back to watch-options → broadcast.
+  // Prefer dedicated fixture play endpoint. Watch-options fallback only when
+  // the play response explicitly allows it — never on network/parse failure.
+  let playFailureMessage: string | null = null;
+  let playFailureReason:
+    | "geo_blocked"
+    | "validation_failed"
+    | "no_broadcast" = "validation_failed";
+  let allowWatchOptionsFallback = false;
+
   try {
     const response = await fetch(
       `${SPORTS_CATALOG_BASE_URL}/api/sports/fixtures/${encodeURIComponent(fixtureId)}/play`,
@@ -963,20 +1011,32 @@ export async function resolveSportsFixturePlaySession(input: {
         cache: "no-store",
       }
     );
-    if (response.ok) {
-      const json = (await response.json()) as {
-        success?: boolean;
-        session?: SportsPlaybackSession;
-        playback?: SportsPlaybackResult;
-        title?: string;
-        error?: string;
-        code?: string;
-      };
+
+    if (input.signal?.aborted) {
+      return unavailableSession(fixtureId, "validation_failed", "Playback request was cancelled.");
+    }
+
+    const json = (await response.json().catch(() => null)) as {
+      success?: boolean;
+      session?: SportsPlaybackSession;
+      playback?: SportsPlaybackResult;
+      title?: string;
+      error?: string;
+      code?: string;
+      allowBroadcastFallback?: boolean;
+      fallback?: string;
+    } | null;
+
+    if (response.ok && json) {
       if (json.session) {
-        return await hydrateSportsPlaybackSessionEmbed(json.session, input.signal);
+        const hydrated = await hydrateSportsPlaybackSessionEmbed(
+          json.session,
+          input.signal
+        );
+        return normalizePlayableSession(fixtureId, hydrated);
       }
       if (json.playback) {
-        return await hydrateSportsPlaybackSessionEmbed(
+        const hydrated = await hydrateSportsPlaybackSessionEmbed(
           sessionFromLegacyPlayback(
             fixtureId,
             json.title || "Match",
@@ -984,17 +1044,50 @@ export async function resolveSportsFixturePlaySession(input: {
           ),
           input.signal
         );
-      }
-      if (json.success === false) {
-        return unavailableSession(
-          fixtureId,
-          json.code === "GEO_BLOCKED" ? "geo_blocked" : "validation_failed",
-          json.error || "This match is currently unavailable."
-        );
+        return normalizePlayableSession(fixtureId, hydrated);
       }
     }
-  } catch {
-    // Fall through to watch-options path.
+
+    if (json?.success === false) {
+      playFailureMessage =
+        json.error || "This match is currently unavailable.";
+      playFailureReason =
+        json.code === "GEO_BLOCKED" ? "geo_blocked" : "validation_failed";
+      allowWatchOptionsFallback =
+        json.allowBroadcastFallback === true ||
+        String(json.fallback || "").toLowerCase() === "broadcast" ||
+        String(json.code || "").toUpperCase() === "TRY_BROADCAST_FALLBACK";
+      if (!allowWatchOptionsFallback) {
+        return unavailableSession(fixtureId, playFailureReason, playFailureMessage);
+      }
+    } else if (!response.ok) {
+      playFailureMessage = "This match could not be started right now.";
+      return unavailableSession(fixtureId, "validation_failed", playFailureMessage);
+    } else {
+      playFailureMessage = "This match is currently unavailable.";
+      return unavailableSession(fixtureId, "no_broadcast", playFailureMessage);
+    }
+  } catch (error) {
+    if (isSportsResolveAbortError(error) || input.signal?.aborted) {
+      return unavailableSession(
+        fixtureId,
+        "validation_failed",
+        "Playback request was cancelled."
+      );
+    }
+    return unavailableSession(
+      fixtureId,
+      "validation_failed",
+      "This match could not be started right now."
+    );
+  }
+
+  if (!allowWatchOptionsFallback) {
+    return unavailableSession(
+      fixtureId,
+      playFailureReason,
+      playFailureMessage || "This match is currently unavailable."
+    );
   }
 
   const options = await fetchSportsWatchOptions(fixtureId, {
@@ -1002,27 +1095,46 @@ export async function resolveSportsFixturePlaySession(input: {
     country: input.country,
     platform: input.platform,
   });
-  const broadcast = options.broadcasts?.[0];
-  if (!broadcast?.id) {
-    return unavailableSession(fixtureId, "no_broadcast", "This match is currently unavailable.");
+  if (input.signal?.aborted) {
+    return unavailableSession(fixtureId, "validation_failed", "Playback request was cancelled.");
   }
+
+  const broadcasts = (options.broadcasts || []).filter((b) => b?.id);
+  const preferred =
+    broadcasts.find((b) => {
+      const status = String(b.status || "").toLowerCase();
+      return status === "live" || status === "ready" || status === "available";
+    }) || null;
+
+  if (!preferred?.id) {
+    return unavailableSession(
+      fixtureId,
+      playFailureReason,
+      playFailureMessage || "This match is currently unavailable."
+    );
+  }
+
   const legacy = await resolveSportsBroadcastPlayback({
-    broadcastId: broadcast.id,
+    broadcastId: preferred.id,
     platform: input.platform,
     country: input.country,
     signal: input.signal,
   });
+  if (input.signal?.aborted) {
+    return unavailableSession(fixtureId, "validation_failed", "Playback request was cancelled.");
+  }
   if (!legacy.success || !legacy.playback) {
     return unavailableSession(
       fixtureId,
-      legacy.code === "GEO_BLOCKED" ? "geo_blocked" : "validation_failed",
-      legacy.error || "This match is currently unavailable."
+      legacy.code === "GEO_BLOCKED" ? "geo_blocked" : playFailureReason,
+      legacy.error || playFailureMessage || "This match is currently unavailable."
     );
   }
-  return await hydrateSportsPlaybackSessionEmbed(
-    sessionFromLegacyPlayback(fixtureId, broadcast.title || "Match", legacy.playback),
+  const hydrated = await hydrateSportsPlaybackSessionEmbed(
+    sessionFromLegacyPlayback(fixtureId, preferred.title || "Match", legacy.playback),
     input.signal
   );
+  return normalizePlayableSession(fixtureId, hydrated);
 }
 
 /** Legacy wrapper — prefer resolveSportsFixturePlaySession. */

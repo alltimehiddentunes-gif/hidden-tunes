@@ -2,13 +2,14 @@
  * Sports search — debounced, grouped results, recent searches.
  * After the first successful paint, new queries never show a full-screen
  * spinner — only a small inline indicator next to the search field.
+ * Latest settled query wins; aborted requests never surface as errors.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -34,6 +35,14 @@ import {
   pushSportsRecentSearch,
   searchSportsCatalog,
 } from "../../services/sports";
+import { isSportsResolveAbortError } from "../../services/sports/sportsPlaybackResolver";
+import {
+  getSportsWatchAction,
+  needsSportsCountdownClock,
+  openSportsPlayerIfPlayable,
+  shouldOpenSportsPlayer,
+} from "../../lib/sports/ui/availability";
+import { boundSectionItems, SPORTS_SECTION_LIMITS } from "../../lib/sports/ui/homeSections";
 import type {
   SportsCompetitionCard,
   SportsMatchCard as SportsMatchCardType,
@@ -46,6 +55,18 @@ import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../utils/tapPr
 import { SPORTS_COLORS, SportsDisabledState, navigateSportsBack, useSportsFullUiGate, useSportsNowClock } from "./_shared";
 
 const DEBOUNCE_MS = 350;
+
+function dedupeFixturesById(items: SportsMatchCardType[]): SportsMatchCardType[] {
+  const seen = new Set<string>();
+  const out: SportsMatchCardType[] = [];
+  for (const item of items) {
+    const id = String(item?.id || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(item);
+  }
+  return out;
+}
 
 export default function SportsSearchScreen() {
   const gate = useSportsFullUiGate();
@@ -62,6 +83,7 @@ export default function SportsSearchScreen() {
 
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queryGenerationRef = useRef(0);
   const navGuardRef = useRef(createTapGuardState());
 
   useEffect(() => {
@@ -73,39 +95,69 @@ export default function SportsSearchScreen() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    const generation = queryGenerationRef.current + 1;
+    queryGenerationRef.current = generation;
 
     const trimmed = q.trim();
     if (!trimmed) {
       setGroups([]);
       setLoading(false);
       setError(null);
+      setActiveQuery("");
       return;
     }
 
     setLoading(true);
     setError(null);
+    setActiveQuery(trimmed);
     try {
       const res = await searchSportsCatalog(trimmed, {
         signal: controller.signal,
         country: "ZZ",
         platform: Platform.OS,
+        limit: SPORTS_SECTION_LIMITS.searchPage,
       });
-      if (controller.signal.aborted) return;
+      if (
+        controller.signal.aborted ||
+        generation !== queryGenerationRef.current
+      ) {
+        return;
+      }
 
       if (!res.enabled) {
         setGroups([]);
         setError("Sports is unavailable right now.");
         return;
       }
-      setGroups(res.groups || []);
+      const nextGroups = (res.groups || []).map((group) => {
+        if (group.type !== "fixtures") return group;
+        return {
+          ...group,
+          items: boundSectionItems(
+            dedupeFixturesById(group.items as SportsMatchCardType[]),
+            SPORTS_SECTION_LIMITS.searchPage
+          ),
+        };
+      });
+      setGroups(nextGroups);
       setHasSearchedOnce(true);
       void pushSportsRecentSearch(trimmed).then(setRecent);
     } catch (err) {
-      if (!controller.signal.aborted) {
-        setError(err instanceof Error ? err.message : "Search could not be completed right now.");
+      if (
+        controller.signal.aborted ||
+        generation !== queryGenerationRef.current ||
+        isSportsResolveAbortError(err)
+      ) {
+        return;
       }
+      setError(err instanceof Error ? err.message : "Search could not be completed right now.");
     } finally {
-      if (!controller.signal.aborted) setLoading(false);
+      if (
+        !controller.signal.aborted &&
+        generation === queryGenerationRef.current
+      ) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -113,7 +165,6 @@ export default function SportsSearchScreen() {
     if (!gate.allowed) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      setActiveQuery(queryInput);
       void runSearch(queryInput);
     }, DEBOUNCE_MS);
     return () => {
@@ -135,7 +186,13 @@ export default function SportsSearchScreen() {
   }, []);
   const onWatchMatch = useCallback((card: SportsMatchCardType) => {
     if (shouldIgnoreDuplicateTap(navGuardRef.current, `watch:${card.id}`)) return;
-    router.push(`/sports/player/${encodeURIComponent(card.id)}` as any);
+    const action = getSportsWatchAction(card);
+    if (action.kind === "watch_external" || action.kind === "subscription") {
+      router.push(`/sports/fixture/${encodeURIComponent(card.id)}` as any);
+      return;
+    }
+    if (!shouldOpenSportsPlayer(card)) return;
+    openSportsPlayerIfPlayable(card);
   }, []);
   const onPressCompetition = useCallback((c: SportsCompetitionCard) => {
     router.push(`/sports/competition/${encodeURIComponent(c.id)}` as any);
@@ -184,7 +241,18 @@ export default function SportsSearchScreen() {
           {showInlineSpinner ? (
             <ActivityIndicator size="small" color={SPORTS_COLORS.amber} />
           ) : queryInput ? (
-            <Pressable onPress={() => setQueryInput("")} hitSlop={10}>
+            <Pressable
+              onPress={() => {
+                abortRef.current?.abort();
+                queryGenerationRef.current += 1;
+                setQueryInput("");
+                setGroups([]);
+                setError(null);
+                setLoading(false);
+                setActiveQuery("");
+              }}
+              hitSlop={10}
+            >
               <Ionicons name="close-circle" size={16} color={SPORTS_COLORS.textDim} />
             </Pressable>
           ) : null}
@@ -196,41 +264,54 @@ export default function SportsSearchScreen() {
           <ActivityIndicator color={SPORTS_COLORS.amber} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-          {error ? <SportsErrorState compact message={error} onRetry={() => runSearch(activeQuery)} /> : null}
+        <FlatList
+          data={groups}
+          keyExtractor={(group) => group.type}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 40 }}
+          ListHeaderComponent={
+            <>
+              {error ? (
+                <SportsErrorState
+                  compact
+                  message={error}
+                  onRetry={() => runSearch(activeQuery)}
+                />
+              ) : null}
 
-          {showRecent ? (
-            <View style={styles.recentSection}>
-              <Text style={styles.recentTitle}>Recent searches</Text>
-              <View style={styles.recentWrap}>
-                {recent.map((q) => (
-                  <Pressable key={q} style={styles.recentChip} onPress={() => onPressRecent(q)}>
-                    <Ionicons name="time-outline" size={13} color={SPORTS_COLORS.textDim} />
-                    <Text style={styles.recentChipText}>{q}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          ) : null}
+              {showRecent ? (
+                <View style={styles.recentSection}>
+                  <Text style={styles.recentTitle}>Recent searches</Text>
+                  <View style={styles.recentWrap}>
+                    {recent.map((q) => (
+                      <Pressable key={q} style={styles.recentChip} onPress={() => onPressRecent(q)}>
+                        <Ionicons name="time-outline" size={13} color={SPORTS_COLORS.textDim} />
+                        <Text style={styles.recentChipText}>{q}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
 
-          {!trimmedQuery && !showRecent ? (
-            <SportsEmptyState
-              icon="search-outline"
-              title="Search Sports"
-              message="Find live matches, teams, leagues, and sports."
-            />
-          ) : null}
+              {!trimmedQuery && !showRecent ? (
+                <SportsEmptyState
+                  icon="search-outline"
+                  title="Search Sports"
+                  message="Find live matches, teams, leagues, and sports."
+                />
+              ) : null}
 
-          {showEmptyResults ? (
-            <SportsEmptyState
-              icon="search-outline"
-              title="No results"
-              message={`Nothing matched "${trimmedQuery}". Try a different spelling.`}
-            />
-          ) : null}
-
-          {groups.map((group) => (
-            <SportsSection key={group.type} title={group.title}>
+              {showEmptyResults ? (
+                <SportsEmptyState
+                  icon="search-outline"
+                  title="No results"
+                  message={`Nothing matched "${trimmedQuery}". Try a different spelling.`}
+                />
+              ) : null}
+            </>
+          }
+          renderItem={({ item: group }) => (
+            <SportsSection title={group.title}>
               {group.type === "fixtures" ? (
                 <View style={styles.fixturesList}>
                   {(group.items as SportsMatchCardType[]).map((card) => (
@@ -238,7 +319,7 @@ export default function SportsSearchScreen() {
                       key={card.id}
                       card={card}
                       variant="search"
-                      nowMs={nowMs}
+                      nowMs={needsSportsCountdownClock(card) ? nowMs : undefined}
                       onPress={onPressMatch}
                       onWatch={onWatchMatch}
                     />
@@ -259,8 +340,13 @@ export default function SportsSearchScreen() {
                 </SportsHorizontalShelf>
               )}
             </SportsSection>
-          ))}
-        </ScrollView>
+          )}
+          initialNumToRender={4}
+          maxToRenderPerBatch={3}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={Platform.OS === "android"}
+        />
       )}
     </SafeAreaView>
   );

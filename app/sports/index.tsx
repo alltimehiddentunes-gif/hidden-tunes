@@ -5,7 +5,7 @@
  * Discovery hub "Sports Preview" card (dev-only) or a direct route push.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -27,10 +27,11 @@ import {
 } from "../../components/sports";
 import { isSportsClientEnabled } from "../../constants/sportsFlags";
 import {
-  SportsPlaybackProvider,
-  useSportsPlayback,
-} from "../../context/SportsPlaybackContext";
-import { omitEmptySportsSections, pickSportsHero } from "../../lib/sports/ui/homeSections";
+  boundSectionItems,
+  omitEmptySportsSections,
+  pickSportsHero,
+  sectionItemLimit,
+} from "../../lib/sports/ui/homeSections";
 import {
   followSportsEntity,
   getSportsFavorites,
@@ -55,7 +56,12 @@ import {
   createTapGuardState,
   shouldIgnoreDuplicateTap,
 } from "../../utils/tapPressGuard";
-import { getSportsWatchAction, shouldOpenSportsPlayer } from "../../lib/sports/ui/availability";
+import {
+  getSportsWatchAction,
+  needsSportsCountdownClock,
+  openSportsPlayerIfPlayable,
+  shouldOpenSportsPlayer,
+} from "../../lib/sports/ui/availability";
 
 import { SPORTS_COLORS, SportsDisabledState, navigateSportsHomeBack, useSportsFullUiGate, useSportsNowClock } from "./_shared";
 
@@ -128,7 +134,6 @@ function filterUnsupportedHomeSections(sections: SportsHomeSection[]): SportsHom
 
 function SportsHomeInner() {
   const gate = useSportsFullUiGate();
-  const sportsPlayback = useSportsPlayback();
   const nowMs = useSportsNowClock();
 
   const [loading, setLoading] = useState(true);
@@ -191,9 +196,8 @@ function SportsHomeInner() {
     void load();
     return () => {
       abortRef.current?.abort();
-      sportsPlayback.stop();
     };
-  }, [gate.allowed, load, sportsPlayback]);
+  }, [gate.allowed, load]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -222,11 +226,6 @@ function SportsHomeInner() {
     if (!id) return;
     router.push(`/sports/competition/${encodeURIComponent(id)}` as any);
   }, []);
-  const goWatch = useCallback((fixtureId: string) => {
-    if (!fixtureId) return;
-    if (shouldIgnoreDuplicateTap(watchGuardRef.current, `watch:${fixtureId}`)) return;
-    router.push(`/sports/player/${encodeURIComponent(fixtureId)}` as any);
-  }, []);
 
   const onPressMatch = useCallback(
     (card: SportsMatchCardType) => {
@@ -238,15 +237,14 @@ function SportsHomeInner() {
   const onWatchMatch = useCallback((card: SportsMatchCardType) => {
     const action = getSportsWatchAction(card);
     if (action.kind === "watch_external" || action.kind === "subscription") {
-      // External / subscription — resolve session for official URL labeling on player,
-      // or open detail. Prefer detail so user sees clear non-in-app messaging.
       if (shouldIgnoreDuplicateTap(watchGuardRef.current, `ext:${card.id}`)) return;
       goFixture(card.id);
       return;
     }
     if (!shouldOpenSportsPlayer(card)) return;
-    goWatch(card.id);
-  }, [goFixture, goWatch]);
+    if (shouldIgnoreDuplicateTap(watchGuardRef.current, `watch:${card.id}`)) return;
+    openSportsPlayerIfPlayable(card);
+  }, [goFixture]);
   const onRemindMatch = useCallback(async (card: SportsMatchCardType) => {
     const isReminded = remindedIds.has(card.id);
     if (isReminded) {
@@ -333,6 +331,52 @@ function SportsHomeInner() {
 
   const showFullSkeleton = loading && !sections.length;
 
+  const listHeader = (
+    <>
+      {error ? (
+        <View style={styles.topError}>
+          <Text style={styles.topErrorText}>{error}</Text>
+          <Pressable onPress={load} hitSlop={10}>
+            <Text style={styles.topErrorRetry}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {__DEV__ ? (
+        <View style={styles.devRow}>
+          {(
+            [
+              ["anonymous", "Anon"],
+              ["football", "Football"],
+              ["basketball", "Basketball"],
+            ] as const
+          ).map(([id, label]) => (
+            <Pressable
+              key={id}
+              onPress={() => setDevProfile(id)}
+              style={[styles.devChip, devProfile === id ? styles.devChipOn : null]}
+            >
+              <Text style={styles.devChipText}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
+      {hero ? (
+        <View style={{ paddingHorizontal: 18, marginBottom: 22 }}>
+          <SportsHero
+            card={hero}
+            nowMs={needsSportsCountdownClock(hero) ? nowMs : undefined}
+            reminded={remindedIds.has(hero.id)}
+            onPress={onPressMatch}
+            onWatch={onWatchMatch}
+            onRemind={onRemindMatch}
+          />
+        </View>
+      ) : null}
+    </>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -351,67 +395,27 @@ function SportsHomeInner() {
       </View>
 
       {showFullSkeleton ? (
-        <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}>
+        <View style={{ paddingTop: 8, paddingBottom: 40 }}>
           <View style={{ paddingHorizontal: 18, marginBottom: 22 }}>
             <SportsHeroSkeleton />
           </View>
           <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
-        </ScrollView>
+        </View>
       ) : (
-        <ScrollView
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={SPORTS_COLORS.amber}
-            />
+        <FlatList
+          data={displaySections}
+          keyExtractor={(section) => section.id}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={
+            !error ? (
+              <View style={styles.center}>
+                <Text style={styles.centerText}>
+                  No Sports content is available right now. Pull to refresh.
+                </Text>
+              </View>
+            ) : null
           }
-          contentContainerStyle={{ paddingBottom: 48 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {error ? (
-            <View style={styles.topError}>
-              <Text style={styles.topErrorText}>{error}</Text>
-              <Pressable onPress={load} hitSlop={10}>
-                <Text style={styles.topErrorRetry}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          {__DEV__ ? (
-            <View style={styles.devRow}>
-              {(
-                [
-                  ["anonymous", "Anon"],
-                  ["football", "Football"],
-                  ["basketball", "Basketball"],
-                ] as const
-              ).map(([id, label]) => (
-                <Pressable
-                  key={id}
-                  onPress={() => setDevProfile(id)}
-                  style={[styles.devChip, devProfile === id ? styles.devChipOn : null]}
-                >
-                  <Text style={styles.devChipText}>{label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-
-          {hero ? (
-            <View style={{ paddingHorizontal: 18, marginBottom: 22 }}>
-              <SportsHero
-                card={hero}
-                nowMs={nowMs}
-                reminded={remindedIds.has(hero.id)}
-                onPress={onPressMatch}
-                onWatch={onWatchMatch}
-                onRemind={onRemindMatch}
-              />
-            </View>
-          ) : null}
-
-          {displaySections.map((section) =>
+          renderItem={({ item: section }) =>
             renderHomeSection(section, {
               nowMs,
               remindedIds,
@@ -427,16 +431,22 @@ function SportsHomeInner() {
               onPressCountry,
               onPressVideo,
             })
-          )}
-
-          {!displaySections.length && !error ? (
-            <View style={styles.center}>
-              <Text style={styles.centerText}>
-                No Sports content is available right now. Pull to refresh.
-              </Text>
-            </View>
-          ) : null}
-        </ScrollView>
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={SPORTS_COLORS.amber}
+            />
+          }
+          contentContainerStyle={{ paddingBottom: 48 }}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={4}
+          maxToRenderPerBatch={3}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={Platform.OS === "android"}
+        />
       )}
     </SafeAreaView>
   );
@@ -459,11 +469,17 @@ type HomeSectionHandlers = {
 };
 
 function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
+  const itemLimit = sectionItemLimit(section.id);
+
   if (section.id === "todays_schedule" && section.type === "fixtures") {
+    const matches = boundSectionItems(
+      section.items as SportsMatchCardType[],
+      itemLimit
+    );
     return (
-      <SportsSection key={section.id} title={section.title} subtitle={section.subtitle} error={section.error}>
+      <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
         <SportsScheduleSection
-          matches={section.items as SportsMatchCardType[]}
+          matches={matches}
           nowMs={h.nowMs}
           rowVariant="compact"
           onPressMatch={h.onPressMatch}
@@ -474,15 +490,19 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
 
   if (section.type === "fixtures" || section.type === "live") {
     const variant = section.id === "recently_finished" ? "finished" : "shelf";
+    const items = boundSectionItems(
+      section.items as SportsMatchCardType[],
+      itemLimit
+    );
     return (
-      <SportsSection key={section.id} title={section.title} subtitle={section.subtitle} error={section.error}>
-        <SportsHorizontalShelf>
-          {(section.items as SportsMatchCardType[]).map((card) => (
+      <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
+        <SportsHorizontalShelf maxItems={itemLimit}>
+          {items.map((card) => (
             <SportsMatchCard
               key={card.id}
               card={card}
               variant={variant}
-              nowMs={h.nowMs}
+              nowMs={needsSportsCountdownClock(card) ? h.nowMs : undefined}
               reminded={h.remindedIds.has(card.id)}
               favorited={h.savedFixtureIds.has(card.id)}
               onPress={h.onPressMatch}
@@ -497,15 +517,19 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
   }
 
   if (section.type === "competitions") {
-    const items = (section.items as SportsCompetitionCardType[]).map((c) => ({
-      ...c,
-      followed: h.followedCompetitionIds.has(c.id),
-    }));
+    const items = boundSectionItems(
+      (section.items as SportsCompetitionCardType[]).map((c) => ({
+        ...c,
+        followed: h.followedCompetitionIds.has(c.id),
+      })),
+      itemLimit
+    );
     return (
-      <SportsSection key={section.id} title={section.title} subtitle={section.subtitle} error={section.error}>
+      <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
         <SportsCompetitionShelf
           sectionId={section.id}
           competitions={items}
+          limit={itemLimit}
           onPress={h.onPressCompetition}
           onToggleFollow={h.onToggleFollowCompetition}
         />
@@ -515,25 +539,38 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
 
   if (section.type === "sports") {
     return (
-      <SportsSection key={section.id} title={section.title} subtitle={section.subtitle} error={section.error}>
-        <SportsWorldGrid sectionId={section.id} sports={section.items as SportsWorldCardType[]} onPress={h.onPressSport} />
+      <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
+        <SportsWorldGrid
+          sectionId={section.id}
+          sports={boundSectionItems(
+            section.items as SportsWorldCardType[],
+            itemLimit
+          )}
+          onPress={h.onPressSport}
+        />
       </SportsSection>
     );
   }
 
   if (section.type === "countries") {
     return (
-      <SportsSection key={section.id} title={section.title} subtitle={section.subtitle} error={section.error}>
-        <SportsCountryGrid countries={section.items as SportsCountryCardType[]} onPress={h.onPressCountry} />
+      <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
+        <SportsCountryGrid
+          countries={boundSectionItems(
+            section.items as SportsCountryCardType[],
+            itemLimit
+          )}
+          onPress={h.onPressCountry}
+        />
       </SportsSection>
     );
   }
 
   if (section.type === "videos") {
     return (
-      <SportsSection key={section.id} title={section.title} subtitle={section.subtitle} error={section.error}>
-        <SportsHorizontalShelf columns={2}>
-          {(section.items as SportsVideoCardType[]).map((v) => (
+      <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
+        <SportsHorizontalShelf columns={2} maxItems={itemLimit}>
+          {boundSectionItems(section.items as SportsVideoCardType[], itemLimit).map((v) => (
             <SportsVideoCard key={v.id} video={v} onPress={h.onPressVideo} />
           ))}
         </SportsHorizontalShelf>
@@ -545,11 +582,7 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
 }
 
 export default function SportsHomeScreen() {
-  return (
-    <SportsPlaybackProvider>
-      <SportsHomeInner />
-    </SportsPlaybackProvider>
-  );
+  return <SportsHomeInner />;
 }
 
 const styles = StyleSheet.create({

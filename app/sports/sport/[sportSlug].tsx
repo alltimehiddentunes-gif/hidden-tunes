@@ -2,7 +2,7 @@
  * Sport hub — live / later today / upcoming / finished / competitions for one sport.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { FlatList, Platform, RefreshControl, StyleSheet, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,6 +18,13 @@ import {
 } from "../../../components/sports";
 import { fetchSportsSportHub } from "../../../services/sports";
 import { normalizeSportsSlug } from "../../../lib/sports/normalizeSportsSlug";
+import {
+  getSportsWatchAction,
+  needsSportsCountdownClock,
+  openSportsPlayerIfPlayable,
+  shouldOpenSportsPlayer,
+} from "../../../lib/sports/ui/availability";
+import { boundSectionItems, sectionItemLimit } from "../../../lib/sports/ui/homeSections";
 import type {
   SportsCompetitionCard,
   SportsHomeSection,
@@ -94,7 +101,13 @@ export default function SportHubScreen() {
   }, []);
   const onWatchMatch = useCallback((card: SportsMatchCardType) => {
     if (shouldIgnoreDuplicateTap(navGuardRef.current, `watch:${card.id}`)) return;
-    router.push(`/sports/player/${encodeURIComponent(card.id)}` as any);
+    const action = getSportsWatchAction(card);
+    if (action.kind === "watch_external" || action.kind === "subscription") {
+      router.push(`/sports/fixture/${encodeURIComponent(card.id)}` as any);
+      return;
+    }
+    if (!shouldOpenSportsPlayer(card)) return;
+    openSportsPlayerIfPlayable(card);
   }, []);
   const onPressCompetition = useCallback((c: SportsCompetitionCard) => {
     router.push(`/sports/competition/${encodeURIComponent(c.id)}` as any);
@@ -125,33 +138,39 @@ export default function SportHubScreen() {
       />
 
       {loading ? (
-        <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}>
+        <View style={{ paddingTop: 8, paddingBottom: 40 }}>
           <View style={{ marginBottom: 20 }}>
             <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
           </View>
           <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
-        </ScrollView>
+        </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={sections}
+          keyExtractor={(section) => section.id}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={SPORTS_COLORS.amber} />
           }
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
-        >
-          {error ? <SportsErrorState message={error} onRetry={load} /> : null}
-
-          {!sections.length && !error ? (
-            <SportsEmptyState
-              title="No current events for this sport."
-              message="There are no live, upcoming, or recent fixtures for this sport right now."
-            />
-          ) : (
-            sections.map((section) =>
-              renderSportHubSection(section, { nowMs, onPressMatch, onWatchMatch, onPressCompetition })
-            )
-          )}
-        </ScrollView>
+          ListHeaderComponent={error ? <SportsErrorState message={error} onRetry={load} /> : null}
+          ListEmptyComponent={
+            !error ? (
+              <SportsEmptyState
+                title="No current events for this sport."
+                message="There are no live, upcoming, or recent fixtures for this sport right now."
+              />
+            ) : null
+          }
+          renderItem={({ item: section }) =>
+            renderSportHubSection(section, { nowMs, onPressMatch, onWatchMatch, onPressCompetition })
+          }
+          initialNumToRender={4}
+          maxToRenderPerBatch={3}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={Platform.OS === "android"}
+        />
       )}
     </SafeAreaView>
   );
@@ -166,12 +185,18 @@ function renderSportHubSection(
     onPressCompetition: (c: SportsCompetitionCard) => void;
   }
 ) {
+  const limit = sectionItemLimit(section.id);
+
   if (section.type === "competitions") {
     return (
-      <SportsSection key={section.id} title={section.title} subtitle={section.subtitle}>
+      <SportsSection title={section.title} subtitle={section.subtitle}>
         <SportsCompetitionShelf
           sectionId={section.id}
-          competitions={section.items as SportsCompetitionCard[]}
+          competitions={boundSectionItems(
+            section.items as SportsCompetitionCard[],
+            limit
+          )}
+          limit={limit}
           onPress={handlers.onPressCompetition}
         />
       </SportsSection>
@@ -179,15 +204,16 @@ function renderSportHubSection(
   }
 
   const variant = section.id === "recently_finished" ? "finished" : "shelf";
+  const items = boundSectionItems(section.items as SportsMatchCardType[], limit);
   return (
-    <SportsSection key={section.id} title={section.title} subtitle={section.subtitle}>
-      <SportsHorizontalShelf columns={1}>
-        {(section.items as SportsMatchCardType[]).map((card) => (
+    <SportsSection title={section.title} subtitle={section.subtitle}>
+      <SportsHorizontalShelf columns={1} maxItems={limit}>
+        {items.map((card) => (
           <SportsMatchCard
             key={card.id}
             card={card}
             variant={variant as "finished" | "shelf"}
-            nowMs={handlers.nowMs}
+            nowMs={needsSportsCountdownClock(card) ? handlers.nowMs : undefined}
             onPress={handlers.onPressMatch}
             onWatch={handlers.onWatchMatch}
           />

@@ -30,7 +30,13 @@ import {
 } from "../../../services/sports";
 import { formatKickoff } from "../../../lib/sports/ui/formatKickoff";
 import { formatMatchTitle, formatScore, participantBySide } from "../../../lib/sports/ui/formatScore";
-import { canShowWatchAction, formatStatusLabel, primaryActionLabel } from "../../../lib/sports/ui/formatStatus";
+import {
+  canShowWatchAction,
+  formatStatusLabel,
+  getSportsWatchAction,
+  openSportsPlayer,
+  primaryActionLabel,
+} from "../../../lib/sports/ui/formatStatus";
 import type {
   SportsFixtureDetail,
   SportsMatchCard as SportsMatchCardType,
@@ -114,7 +120,16 @@ export default function FixtureDetailScreen() {
   const goWatch = useCallback(() => {
     if (!fixture) return;
     if (shouldIgnoreDuplicateTap(watchGuardRef.current, `watch:${fixture.id}`)) return;
-    router.push(`/sports/player/${encodeURIComponent(fixture.id)}` as any);
+    const action = getSportsWatchAction(fixture);
+    if (
+      action.kind === "watch_live" ||
+      action.kind === "replay" ||
+      action.kind === "highlights" ||
+      action.kind === "watch_external" ||
+      action.kind === "subscription"
+    ) {
+      openSportsPlayer(fixture.id);
+    }
   }, [fixture]);
 
   const toggleSaved = useCallback(async () => {

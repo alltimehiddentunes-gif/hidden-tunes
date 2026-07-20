@@ -26,6 +26,35 @@ export type SportsWatchAction =
   | { kind: "highlights"; label: "Watch Highlights" }
   | { kind: "none"; label: null; meta?: string };
 
+/** Module flag — Sports player route is the only place that sets this. */
+let sportsPlayerRouteActive = false;
+
+export function setSportsPlayerRouteActive(active: boolean): void {
+  sportsPlayerRouteActive = active;
+}
+
+export function isSportsPlayerRouteActive(): boolean {
+  return sportsPlayerRouteActive;
+}
+
+/**
+ * Single Sports player navigation entry.
+ * First open pushes; subsequent opens replace so player routes never stack.
+ */
+export function openSportsPlayer(fixtureId: string): void {
+  const id = String(fixtureId || "").trim();
+  if (!id) return;
+  const path = `/sports/player/${encodeURIComponent(id)}`;
+  // Lazy require keeps Node unit tests free of react-native transforms.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { router } = require("expo-router") as typeof import("expo-router");
+  if (sportsPlayerRouteActive) {
+    router.replace(path as never);
+    return;
+  }
+  router.push(path as never);
+}
+
 function normalizeStatusCode(code: string | null | undefined): string {
   return String(code || "")
     .trim()
@@ -149,4 +178,18 @@ export function shouldOpenSportsPlayer(card: SportsMatchCard): boolean {
   const kind = getSportsWatchAction(card).kind;
   return kind === "watch_live" || kind === "replay" || kind === "highlights";
 }
-
+
+/** Upcoming fixtures need the shared clock for countdown labels. */
+export function needsSportsCountdownClock(card: SportsMatchCard): boolean {
+  return deriveSportsAvailability(card) === "upcoming";
+}
+
+/**
+ * Open Sports player only when the card is in-app playable (live/replay/highlights).
+ * External / subscription actions must not enter the player route.
+ */
+export function openSportsPlayerIfPlayable(card: SportsMatchCard): boolean {
+  if (!shouldOpenSportsPlayer(card)) return false;
+  openSportsPlayer(card.id);
+  return true;
+}

@@ -1,7 +1,8 @@
 /**
- * Isolated Sports playback session owner.
- * Intentionally does NOT import or mutate PlayerContext, TV session, MiniPlayer, or music queue.
- * Feature-flagged — not mounted in app/_layout until Phase 2 approval.
+ * Compatibility Sports playback context.
+ * Active fixture playback is owned exclusively by `app/sports/player/[fixtureId].tsx`.
+ * This provider keeps the public API for home wrappers but does not resolve streams,
+ * register the Sports handoff adapter, or compete with the player route.
  */
 import {
   createContext,
@@ -14,11 +15,6 @@ import {
 } from "react";
 
 import { isSportsClientEnabled } from "../constants/sportsFlags";
-import { resolveSportsPlayback } from "../services/sports/sportsPlaybackResolver";
-import {
-  recordSportsWatchHistory,
-  upsertSportsContinueWatching,
-} from "../services/sports/sportsWatchHistory";
 import type { SportsPlaybackResult } from "../types/sports";
 
 type SportsSession = {
@@ -58,56 +54,22 @@ export function SportsPlaybackProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const startBroadcast = useCallback(
-    async (input: {
+    async (_input: {
       broadcastId: string;
       title: string;
       platform: "ios" | "android" | "desktop" | "web" | "smart_tv";
       country: string;
     }) => {
+      // Compatibility stub — player route owns resolve + handoff.
       if (!enabled) {
         setError("Sports is disabled.");
         return false;
       }
-
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setError(null);
-
-      const result = await resolveSportsPlayback({
-        broadcastId: input.broadcastId,
-        platform: input.platform,
-        country: input.country,
-        signal: controller.signal,
-      });
-
-      if (controller.signal.aborted) return false;
-
-      if (!result.ok) {
-        setError(result.message);
-        setSession(null);
-        return false;
-      }
-
-      const next: SportsSession = {
-        broadcastId: input.broadcastId,
-        title: input.title,
-        playback: result.playback,
-      };
-      setSession(next);
-      await recordSportsWatchHistory({
-        id: input.broadcastId,
-        kind: "broadcast",
-        title: input.title,
-        positionMs: 0,
-      });
-      await upsertSportsContinueWatching({
-        id: input.broadcastId,
-        kind: "broadcast",
-        title: input.title,
-        positionMs: 0,
-      });
-      return true;
+      setError(
+        "Open this match from the Sports player. In-app playback is owned by the Sports player route."
+      );
+      setSession(null);
+      return false;
     },
     [enabled]
   );

@@ -21,10 +21,9 @@ import {
   participantInitials,
 } from "@/lib/sports/ui/formatScore";
 import {
-  canShowWatchAction,
   formatMatchMinute,
+  getSportsWatchAction,
   normalizeStatusCode,
-  primaryActionLabel,
 } from "@/lib/sports/ui/formatStatus";
 import type { SportsMatchCard as SportsMatchCardType, SportsMatchParticipant } from "@/types/sports";
 
@@ -116,11 +115,6 @@ function ParticipantRow({
   );
 }
 
-function resolveActionKind(actionLabel: string | null): "watch" | "remind" | null {
-  if (!actionLabel) return null;
-  return actionLabel === "Remind me" ? "remind" : "watch";
-}
-
 function SportsMatchCard({
   card,
   variant = "shelf",
@@ -142,15 +136,21 @@ function SportsMatchCard({
   const statusCode = normalizeStatusCode(card.status?.code);
   const isLive = card.status?.live === true || statusCode === "live";
   const kickoff = formatKickoff(card.timing?.startsAt, clockMs);
-  const countdown = formatCountdown(card.timing?.startsAt, clockMs);
+  const countdown =
+    typeof nowMs === "number" ? formatCountdown(card.timing?.startsAt, clockMs) : null;
   const finishedTime = formatFinishedTime(card.timing?.endsAt, card.timing?.startsAt);
   const accessibilityLabel = buildMatchAccessibilityLabel(card);
 
-  const actionLabel = primaryActionLabel(card);
-  const actionKind = resolveActionKind(actionLabel);
-  const watchable = canShowWatchAction(card);
-  const showWatchButton = actionKind === "watch" && watchable && !!onWatch;
-  const showRemindButton = actionKind === "remind" && !!onRemind;
+  const action = getSportsWatchAction(card);
+  const actionLabel = action.label;
+  const showWatchButton =
+    (action.kind === "watch_live" ||
+      action.kind === "replay" ||
+      action.kind === "highlights" ||
+      action.kind === "watch_external" ||
+      action.kind === "subscription") &&
+    !!onWatch;
+  const showRemindButton = action.kind === "remind" && !!onRemind;
 
   const handlePress = useCallback(() => {
     onPress?.(card);
@@ -207,9 +207,9 @@ function SportsMatchCard({
     >
       <Ionicons
         name={
-          actionLabel === "Replay"
+          action.kind === "replay"
             ? "play-skip-back"
-            : actionLabel === "Highlights"
+            : action.kind === "highlights"
               ? "flash"
               : "play"
         }
@@ -406,12 +406,21 @@ function SportsMatchCard({
 }
 
 function areEqual(prev: SportsMatchCardProps, next: SportsMatchCardProps) {
+  const prevClock = typeof prev.nowMs === "number";
+  const nextClock = typeof next.nowMs === "number";
+  const clockEqual =
+    !prevClock && !nextClock
+      ? true
+      : prevClock && nextClock
+        ? Math.floor((prev.nowMs as number) / 30000) ===
+          Math.floor((next.nowMs as number) / 30000)
+        : false;
   return (
     prev.card === next.card &&
     prev.variant === next.variant &&
     prev.reminded === next.reminded &&
     prev.favorited === next.favorited &&
-    Math.floor((prev.nowMs ?? 0) / 30000) === Math.floor((next.nowMs ?? 0) / 30000) &&
+    clockEqual &&
     prev.onPress === next.onPress &&
     prev.onWatch === next.onWatch &&
     prev.onRemind === next.onRemind &&

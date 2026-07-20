@@ -19,7 +19,7 @@ export {
   resolveSportsFixturePlayback,
   resolveSportsFixturePlaySession,
 } from "../sportsCatalogApi";
-export { resolveSportsPlayback } from "./sportsPlaybackResolver";
+export { resolveSportsPlayback, shouldCommitSportsResolve, isSportsResolveAbortError } from "./sportsPlaybackResolver";
 export {
   recordSportsWatchHistory,
   getSportsWatchHistory,

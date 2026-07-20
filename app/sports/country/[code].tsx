@@ -18,6 +18,13 @@ import {
 } from "../../../components/sports";
 import { fetchSportsCountryHub } from "../../../services/sports";
 import { normalizeSportsCountryCode } from "../../../lib/sports/normalizeSportsSlug";
+import {
+  getSportsWatchAction,
+  needsSportsCountdownClock,
+  openSportsPlayer,
+  openSportsPlayerIfPlayable,
+  shouldOpenSportsPlayer,
+} from "../../../lib/sports/ui/availability";
 import type {
   SportsCompetitionCard,
   SportsCountryCard,
@@ -89,7 +96,13 @@ export default function CountryHubScreen() {
   }, []);
   const onWatchMatch = useCallback((card: SportsMatchCardType) => {
     if (shouldIgnoreDuplicateTap(navGuardRef.current, `watch:${card.id}`)) return;
-    router.push(`/sports/player/${encodeURIComponent(card.id)}` as any);
+    const action = getSportsWatchAction(card);
+    if (action.kind === "watch_external" || action.kind === "subscription") {
+      openSportsPlayer(card.id);
+      return;
+    }
+    if (!shouldOpenSportsPlayer(card)) return;
+    openSportsPlayerIfPlayable(card);
   }, []);
   const onPressCompetition = useCallback((c: SportsCompetitionCard) => {
     router.push(`/sports/competition/${encodeURIComponent(c.id)}` as any);
@@ -148,7 +161,7 @@ export default function CountryHubScreen() {
                       <SportsMatchCard
                         key={card.id}
                         card={card}
-                        nowMs={nowMs}
+                        nowMs={needsSportsCountdownClock(card) ? nowMs : undefined}
                         onPress={onPressMatch}
                         onWatch={onWatchMatch}
                       />
