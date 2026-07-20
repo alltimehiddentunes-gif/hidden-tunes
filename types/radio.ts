@@ -16,10 +16,11 @@ export type RadioBrowserStationRaw = {
   clickcount?: number;
 };
 
-/** Full station record stored in cache — includes stream URL for playback on tap. */
+/** Full station record — stream may be empty until tap-time /play. */
 export type HiddenTunesStation = {
   id: string;
   name: string;
+  /** Direct HTTPS when known; empty until /play on tap. */
   streamUrl: string;
   favicon?: string;
   country?: string;

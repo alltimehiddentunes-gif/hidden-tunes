@@ -40,30 +40,96 @@ export type CatalogJsonFetchResult = {
   contentType: string;
 };
 
+export type CatalogJsonFetchOptions = {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  /** Dev diagnostics only — feature owner label (e.g. radio-search). */
+  requestOwner?: string;
+};
+
+type CatalogFetchOutcome =
+  | "success"
+  | "timeout"
+  | "aborted"
+  | "http_error"
+  | "parse_error";
+
+function catalogUrlPath(url: string) {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url.split("?")[0] || url;
+  }
+}
+
+function logCatalogFetchDiag(payload: {
+  requestOwner: string;
+  urlPath: string;
+  timeoutMs: number;
+  startedAt: number;
+  elapsedMs: number;
+  outcome: CatalogFetchOutcome;
+}) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+  console.log("[CatalogJsonFetch]", payload);
+}
+
 /**
  * GET JSON with Accept: application/json, optional parent AbortSignal, and timeout.
  * Parent cancellation surfaces as AbortError; timeout surfaces as TimeoutError.
+ *
+ * Timer/listener cleanup always runs in finally. Only one terminal outcome settles
+ * the returned promise (no delayed rejection after success/abort/timeout).
  */
 export async function catalogJsonFetch(
   url: string,
-  options?: { signal?: AbortSignal; timeoutMs?: number }
+  options?: CatalogJsonFetchOptions
 ): Promise<CatalogJsonFetchResult> {
   const timeoutMs = Math.max(1_000, Number(options?.timeoutMs || CATALOG_REQUEST_TIMEOUT_MS));
   const parent = options?.signal;
+  const requestOwner = String(options?.requestOwner || "catalog").trim() || "catalog";
+  const urlPath = catalogUrlPath(url);
+  const startedAt = Date.now();
   const controller = new AbortController();
   let timedOut = false;
+  let settled = false;
 
   if (parent?.aborted) {
+    logCatalogFetchDiag({
+      requestOwner,
+      urlPath,
+      timeoutMs,
+      startedAt,
+      elapsedMs: 0,
+      outcome: "aborted",
+    });
     throw abortError();
   }
 
-  const onParentAbort = () => controller.abort();
+  const onParentAbort = () => {
+    if (!settled) controller.abort();
+  };
   parent?.addEventListener("abort", onParentAbort);
 
   const timer = setTimeout(() => {
+    if (settled) return;
     timedOut = true;
     controller.abort();
   }, timeoutMs);
+
+  const finish = (outcome: CatalogFetchOutcome) => {
+    if (settled) return;
+    settled = true;
+    logCatalogFetchDiag({
+      requestOwner,
+      urlPath,
+      timeoutMs,
+      startedAt,
+      elapsedMs: Date.now() - startedAt,
+      outcome,
+    });
+  };
 
   try {
     const response = await fetch(url, {
@@ -80,6 +146,7 @@ export async function catalogJsonFetch(
     const claimsJson = contentType.toLowerCase().includes("application/json");
 
     if (looksHtml || (!claimsJson && !trimmed)) {
+      finish(response.ok ? "parse_error" : "http_error");
       throw new Error(
         response.ok ? "catalog_api_non_json_response" : `catalog_api_${response.status}`
       );
@@ -90,20 +157,37 @@ export async function catalogJsonFetch(
       try {
         json = JSON.parse(trimmed);
       } catch {
+        finish("parse_error");
         throw new Error("catalog_api_invalid_json");
       }
     }
 
+    if (!response.ok) {
+      finish("http_error");
+      return { response, json, contentType };
+    }
+
+    finish("success");
     return { response, json, contentType };
   } catch (error) {
     if (timedOut) {
+      finish("timeout");
       throw timeoutError();
     }
     if (parent?.aborted || isCatalogAbortError(error)) {
+      finish("aborted");
       throw abortError();
+    }
+    if (!settled) {
+      finish(
+        error instanceof Error && /invalid_json|non_json/.test(error.message)
+          ? "parse_error"
+          : "http_error"
+      );
     }
     throw error;
   } finally {
+    settled = true;
     clearTimeout(timer);
     parent?.removeEventListener("abort", onParentAbort);
   }

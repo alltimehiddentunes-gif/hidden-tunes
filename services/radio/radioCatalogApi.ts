@@ -1,6 +1,18 @@
 /**
  * Production radio catalog client (admin.hiddentunes.com).
  * Search path only — category browse still uses Radio Browser until a later swap.
+ *
+ * Search is metadata-first and uncapped by client policy:
+ * - 40 rows per request
+ * - zero /play calls during list load
+ * - id + name are enough for a visible row
+ * - playback resolves on tap via fetchRadioStationPlay
+ *
+ * Backend paging contract (verified against production):
+ * - stations[] at payload.stations
+ * - pagination: { page, limit, total, totalPages, hasMore }
+ * - page= is honored; offset= is IGNORED (same page 1 results)
+ * - Client maps offset → page via floor(offset/limit)+1 and advances by limit
  */
 import { MEDIA_DISCOVERY_PAGE_SIZE } from "../../constants/mediaDiscovery";
 import type { HiddenTunesStation } from "../../types/radio";
@@ -9,8 +21,9 @@ import {
   catalogJsonFetch,
   isCatalogAbortError,
 } from "../catalogJsonFetch";
-import { shouldIncludeMatureInApi, getMatureContentSettings } from "../../utils/matureContentSettings";
+import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 import { sanitizeStationTagsForDisplay } from "./radioNormalizer";
+import { isPlayableLiveRadioStreamUrl } from "./radioPlaybackSession";
 
 export const RADIO_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const RADIO_CATALOG_STATIONS_PATH = "/api/radio/stations";
@@ -50,7 +63,8 @@ export type RadioCatalogStationsResponse = {
   error?: string;
 };
 
-function pickHttpsStreamUrl(value: unknown) {
+/** Keep direct HTTPS when list payload includes it; never require it for visibility. */
+export function pickOptionalHttpsStreamUrl(value: unknown) {
   const candidate = String(value || "").trim();
   if (!candidate.startsWith("https://")) return "";
   return candidate;
@@ -66,14 +80,17 @@ function normalizeCatalogTags(station: RadioCatalogPublicStation) {
   ).slice(0, 8);
 }
 
+/**
+ * Metadata-first map: stable id + name are enough for discovery cards.
+ * streamUrl may be empty until tap-time /play resolve.
+ */
 export function mapRadioCatalogStationToHiddenTunes(
   station: RadioCatalogPublicStation
 ): HiddenTunesStation | null {
   const id = String(station.id || "").trim().toLowerCase();
   const name = String(station.name || "").trim();
-  const streamUrl = pickHttpsStreamUrl(station.stream_url);
 
-  if (!id || !name || !streamUrl) return null;
+  if (!id || !name) return null;
 
   const tags = normalizeCatalogTags(station);
   const country =
@@ -82,10 +99,10 @@ export function mapRadioCatalogStationToHiddenTunes(
       .toUpperCase()
       .slice(0, 2) || undefined;
 
-  const base: HiddenTunesStation = {
+  return {
     id,
     name,
-    streamUrl,
+    streamUrl: pickOptionalHttpsStreamUrl(station.stream_url),
     favicon: String(station.artwork_url || "").trim() || undefined,
     country,
     language: String(station.language || "").trim() || undefined,
@@ -104,21 +121,20 @@ export function mapRadioCatalogStationToHiddenTunes(
     is_mature: station.is_mature === true,
     content_rating: (station.content_rating as HiddenTunesStation["content_rating"]) || undefined,
   };
-
-  return base;
 }
 
-function dedupeCatalogStations(stations: HiddenTunesStation[]) {
+/** Exact-ID dedupe. Empty streams must not collapse distinct stations. */
+export function dedupeCatalogStations(stations: HiddenTunesStation[]) {
   const seenIds = new Set<string>();
   const seenStreams = new Set<string>();
   const deduped: HiddenTunesStation[] = [];
 
   for (const station of stations) {
-    if (seenIds.has(station.id)) continue;
-    const streamKey = station.streamUrl.trim().toLowerCase();
-    if (seenStreams.has(streamKey)) continue;
+    if (!station?.id || seenIds.has(station.id)) continue;
+    const streamKey = String(station.streamUrl || "").trim().toLowerCase();
+    if (streamKey && seenStreams.has(streamKey)) continue;
     seenIds.add(station.id);
-    seenStreams.add(streamKey);
+    if (streamKey) seenStreams.add(streamKey);
     deduped.push(station);
   }
 
@@ -130,23 +146,83 @@ function filterMatureStations(stations: HiddenTunesStation[]) {
   return stations.filter((station) => !isMatureContentItem(station));
 }
 
-function buildCatalogSearchUrl(query: string, page: number, limit: number) {
+/**
+ * Map production pagination fields. Does not invent values.
+ * Production shape: pagination.{ page, limit, total, totalPages, hasMore }
+ */
+export function parseRadioCatalogPagination(
+  payload: unknown,
+  options: { requestOffset: number; requestLimit: number; rawBackendRowsReturned: number }
+) {
+  const root =
+    payload && typeof payload === "object"
+      ? (payload as Record<string, unknown>)
+      : ({} as Record<string, unknown>);
+  const pagRaw = root.pagination;
+  const pag =
+    pagRaw && typeof pagRaw === "object"
+      ? (pagRaw as Record<string, unknown>)
+      : ({} as Record<string, unknown>);
+
+  const totalNum = Number(pag.total ?? pag.total_count ?? root.total);
+  const backendTotal = Number.isFinite(totalNum) ? totalNum : undefined;
+
+  const hasMoreRaw = pag.hasMore ?? pag.has_more ?? root.hasMore ?? root.has_more;
+  let backendHasMore: boolean | undefined =
+    typeof hasMoreRaw === "boolean" ? hasMoreRaw : undefined;
+
+  const pageNum = Number(pag.page ?? root.page);
+  const limitNum = Number(pag.limit ?? options.requestLimit);
+  const totalPagesNum = Number(pag.totalPages ?? pag.total_pages);
+
+  // Derive hasMore only when explicit flag missing but page math is complete.
+  if (
+    backendHasMore === undefined &&
+    Number.isFinite(pageNum) &&
+    Number.isFinite(limitNum) &&
+    Number.isFinite(totalNum)
+  ) {
+    backendHasMore = pageNum * limitNum < totalNum;
+  } else if (
+    backendHasMore === undefined &&
+    Number.isFinite(pageNum) &&
+    Number.isFinite(totalPagesNum)
+  ) {
+    backendHasMore = pageNum < totalPagesNum;
+  }
+
+  // Backend is page-based (offset= is ignored). Advance by requestLimit, not raw row count.
+  const pageSize = Number.isFinite(limitNum) && limitNum > 0 ? limitNum : options.requestLimit;
+  const backendNextOffset =
+    backendHasMore === true ? options.requestOffset + pageSize : undefined;
+
+  return {
+    backendTotal,
+    backendHasMore,
+    backendNextOffset,
+    backendPage: Number.isFinite(pageNum) ? pageNum : undefined,
+    backendLimit: Number.isFinite(limitNum) ? limitNum : undefined,
+    rawBackendRowsReturned: options.rawBackendRowsReturned,
+  };
+}
+
+/**
+ * Full-catalog metadata search. No https_only gate.
+ * include_stream=1 is optional enrichment only (direct HTTPS when present).
+ *
+ * IMPORTANT: Do not append includeMature / mature_enabled / age_confirmed.
+ * Production currently returns HTTP 500 ("Failed to load public radio stations.")
+ * when includeMature=true is combined with age_confirmed=true. That caused every
+ * search on mature-enabled devices to fail with radio_catalog_search_500.
+ * Client-side filterMatureStations still honors local mature settings.
+ */
+export function buildCatalogSearchUrl(query: string, page: number, limit: number) {
   const params = new URLSearchParams({
     q: query,
     page: String(page),
     limit: String(limit),
-    https_only: "1",
     include_stream: "1",
   });
-
-  if (shouldIncludeMatureInApi()) {
-    const settings = getMatureContentSettings();
-    if (settings.enabled && settings.hasConsent) {
-      params.set("includeMature", "true");
-      params.set("mature_enabled", "true");
-      params.set("age_confirmed", "true");
-    }
-  }
 
   return `${RADIO_CATALOG_BASE_URL}${RADIO_CATALOG_STATIONS_PATH}?${params.toString()}`;
 }
@@ -155,55 +231,72 @@ function buildPlayUrl(stationId: string) {
   return `${RADIO_CATALOG_BASE_URL}${RADIO_CATALOG_STATIONS_PATH}/${encodeURIComponent(stationId)}/play`;
 }
 
-function abortAttachError() {
-  const error = new Error("radio_catalog_attach_aborted");
-  error.name = "AbortError";
-  return error;
+export type RadioCatalogPlayResult = {
+  stationId: string;
+  streamUrl: string;
+  delivery?: string;
+};
+
+/** Tap-time play resolver only — never used during search list load. */
+export async function fetchRadioStationPlay(
+  stationId: string,
+  signal?: AbortSignal
+): Promise<RadioCatalogPlayResult | null> {
+  const id = String(stationId || "").trim();
+  if (!id) return null;
+
+  try {
+    const { response, json } = await catalogJsonFetch(buildPlayUrl(id), {
+      signal,
+      requestOwner: "radio-play",
+    });
+    if (!response.ok) return null;
+
+    const payload = json as {
+      success?: boolean;
+      stream_url?: string;
+      delivery?: string;
+    };
+    const streamUrl = pickOptionalHttpsStreamUrl(payload?.stream_url);
+    if (!streamUrl || !isPlayableLiveRadioStreamUrl(streamUrl)) return null;
+
+    return {
+      stationId: id.toLowerCase(),
+      streamUrl,
+      delivery: String(payload?.delivery || "").trim() || undefined,
+    };
+  } catch (error) {
+    if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
+      throw error;
+    }
+    return null;
+  }
 }
 
-async function attachHttpsStreamUrls(
-  stations: RadioCatalogPublicStation[],
+export async function resolveRadioStationStreamUrl(
+  station: Pick<HiddenTunesStation, "id" | "streamUrl">,
   signal?: AbortSignal
-): Promise<RadioCatalogPublicStation[]> {
-  const attached: RadioCatalogPublicStation[] = [];
-
-  for (const station of stations) {
-    // Never return a partial attach as a successful catalog page.
-    if (signal?.aborted) throw abortAttachError();
-
-    let streamUrl = pickHttpsStreamUrl(station.stream_url);
-    if (!streamUrl && station.id) {
-      try {
-        const { response, json } = await catalogJsonFetch(buildPlayUrl(String(station.id)), {
-          signal,
-        });
-        if (response.ok) {
-          const payload = json as { stream_url?: string };
-          streamUrl = pickHttpsStreamUrl(payload?.stream_url);
-        }
-      } catch (error) {
-        if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
-          throw error;
-        }
-      }
-    }
-
-    if (!streamUrl) continue;
-    attached.push({ ...station, stream_url: streamUrl });
-  }
-
-  if (signal?.aborted) throw abortAttachError();
-  return attached;
+): Promise<string | null> {
+  const existing = pickOptionalHttpsStreamUrl(station.streamUrl);
+  if (existing) return existing;
+  const play = await fetchRadioStationPlay(station.id, signal);
+  return play?.streamUrl || null;
 }
 
 export type RadioCatalogSearchPageResult = {
   stations: HiddenTunesStation[];
   hasMore: boolean;
+  backendTotal?: number;
+  backendPageRowCount?: number;
+  backendNextOffset?: number;
+  rawBackendRowsReturned: number;
+  /** Always 0 — search must not call /play. */
+  listTimePlayCalls: number;
+  source: "catalog";
 };
 
 /**
- * Full-catalog radio search against production Hidden Tunes radio_stations.
- * Paginates with the same 40/page contract as the rest of media discovery.
+ * Full-catalog radio search — metadata page only, backend hasMore is source of truth.
  */
 export async function fetchRadioCatalogSearchPage(
   query: string,
@@ -212,15 +305,24 @@ export async function fetchRadioCatalogSearchPage(
   signal?: AbortSignal
 ): Promise<RadioCatalogSearchPageResult> {
   const safeQuery = String(query || "").trim();
-  if (!safeQuery) return { stations: [], hasMore: false };
+  if (!safeQuery) {
+    return {
+      stations: [],
+      hasMore: false,
+      listTimePlayCalls: 0,
+      rawBackendRowsReturned: 0,
+      source: "catalog",
+    };
+  }
 
   const safeLimit = Math.max(1, Math.min(Number(limit) || RADIO_CATALOG_PAGE_SIZE, 40));
   const safeOffset = Math.max(0, Number(offset) || 0);
+  // Production honors page=, not offset=.
   const page = Math.floor(safeOffset / safeLimit) + 1;
 
   const { response, json } = await catalogJsonFetch(
     buildCatalogSearchUrl(safeQuery, page, safeLimit),
-    { signal }
+    { signal, requestOwner: "radio-search" }
   );
 
   if (!response.ok) {
@@ -232,16 +334,30 @@ export async function fetchRadioCatalogSearchPage(
     throw new Error("radio_catalog_search_invalid_payload");
   }
 
-  const withStreams = await attachHttpsStreamUrls(payload.stations, signal);
+  const rawBackendRowsReturned = payload.stations.length;
+  const paging = parseRadioCatalogPagination(payload, {
+    requestOffset: safeOffset,
+    requestLimit: safeLimit,
+    rawBackendRowsReturned,
+  });
 
   const mapped = dedupeCatalogStations(
-    withStreams
+    payload.stations
       .map((station) => mapRadioCatalogStationToHiddenTunes(station))
       .filter((station): station is HiddenTunesStation => Boolean(station))
   );
 
+  // Completion follows backend hasMore only — never normalized/deduped length.
+  const hasMore = paging.backendHasMore === true;
+
   return {
     stations: filterMatureStations(mapped).slice(0, safeLimit),
-    hasMore: Boolean(payload.pagination?.hasMore),
+    hasMore,
+    backendTotal: paging.backendTotal,
+    backendPageRowCount: rawBackendRowsReturned,
+    backendNextOffset: paging.backendNextOffset,
+    rawBackendRowsReturned,
+    listTimePlayCalls: 0,
+    source: "catalog",
   };
 }

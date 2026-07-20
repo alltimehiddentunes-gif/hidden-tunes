@@ -5,6 +5,8 @@
 import {
   isCatalogRadioSearchCacheKey,
   resolveRadioSearchHasMore,
+  shouldBypassCatalogSearchCacheForOffset,
+  shouldFallThroughCatalogSearchCacheEnd,
   shouldPersistRadioSearchResult,
   shouldRevalidateShortRadioSearchCache,
 } from "../utils/radioSearchCachePolicy";
@@ -56,6 +58,23 @@ function main() {
 
   // Case 5 — pagination after recovery: backend hasMore drives page 2
   assertEqual(resolveRadioSearchHasMore(40, 40, true), true, "page2 available after recovery");
+
+  // Case 6 — incomplete playable cache must not terminate catalog search
+  assertEqual(
+    shouldBypassCatalogSearchCacheForOffset("catalog-search:jazz", 40),
+    true,
+    "search offset>0 bypasses cache"
+  );
+  assertEqual(
+    shouldFallThroughCatalogSearchCacheEnd({
+      cacheKey: "catalog-search:jazz",
+      offset: 160,
+      pageLength: 39,
+      cacheTotal: 199,
+    }),
+    true,
+    "199-row cache end falls through"
+  );
 
   console.log("radio-search-cache-policy: ok");
 }

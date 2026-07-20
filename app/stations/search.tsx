@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,8 @@ import { loadRadioSearchPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioSearchCacheKey } from "../../services/radio/radioCache";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import { buildRadioSessionFromListItems } from "../../services/radio/buildRadioPlaybackSession";
+import { resolveRadioStationStreamUrl } from "../../services/radio/radioCatalogApi";
+import { isCatalogAbortError } from "../../services/catalogJsonFetch";
 import type { RadioStationListItem } from "../../types/radio";
 import {
   createStableKeyExtractor,
@@ -36,6 +38,8 @@ import {
 import { dedupeStationsById } from "../../utils/dedupeStationsById";
 import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 import { RADIO_SEARCH_DEBOUNCE_MS } from "../../utils/searchPerformance";
+
+const STATION_UNAVAILABLE_MESSAGE = "Station is temporarily unavailable";
 
 export default function RadioSearchScreen() {
   const params = useLocalSearchParams<{ q?: string }>();
@@ -50,6 +54,9 @@ export default function RadioSearchScreen() {
     () => normalizeRadioSearchCacheKey(debouncedQuery),
     [debouncedQuery]
   );
+  const playInFlightRef = useRef<string | null>(null);
+  const playGenerationRef = useRef(0);
+  const [pendingStationId, setPendingStationId] = useState<string | null>(null);
 
   const loadPage = useCallback(
     (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
@@ -70,6 +77,7 @@ export default function RadioSearchScreen() {
     onRefresh,
     loadMore,
     resolveStation,
+    upsertStation,
     listCountLabel,
   } = useLazyRadioStationList({
     cacheKey,
@@ -78,31 +86,105 @@ export default function RadioSearchScreen() {
     loadPage,
   });
 
+  // Avoid recreating play handlers on every pagination append (mass row re-render).
+  const listItemsRef = useRef(listItems);
+  listItemsRef.current = listItems;
+  const resolveStationRef = useRef(resolveStation);
+  resolveStationRef.current = resolveStation;
+  const upsertStationRef = useRef(upsertStation);
+  upsertStationRef.current = upsertStation;
+  const cacheKeyRef = useRef(cacheKey);
+  cacheKeyRef.current = cacheKey;
+  const debouncedQueryRef = useRef(debouncedQuery);
+  debouncedQueryRef.current = debouncedQuery;
+
   const playStation = useCallback(
     async (item: RadioStationListItem) => {
-      const station = resolveStation(item.id);
-      if (!station) {
-        Alert.alert("Unavailable", "This station is unavailable right now.");
-        return;
-      }
+      const stationId = String(item.id || "").trim();
+      if (!stationId) return;
 
-      const session = buildRadioSessionFromListItems(listItems, resolveStation, {
-        startStationId: station.id,
-        label: debouncedQuery ? `Search: ${debouncedQuery}` : "Radio Search",
-        cacheKey,
-        searchQuery: debouncedQuery,
-      });
+      // Same station while resolving: ignore. Different station: latest wins.
+      if (playInFlightRef.current === stationId) return;
 
-      const result = await playRadioStation(normalizeRadioStation(station), session);
+      const generation = ++playGenerationRef.current;
+      playInFlightRef.current = stationId;
+      setPendingStationId(stationId);
 
-      if (!result.ok) {
-        Alert.alert(
-          "Unavailable",
-          result.error || "This station is unavailable right now."
+      try {
+        const station = resolveStationRef.current(stationId);
+        if (!station) {
+          if (generation === playGenerationRef.current) {
+            Alert.alert("Unavailable", STATION_UNAVAILABLE_MESSAGE);
+          }
+          return;
+        }
+
+        let streamUrl = "";
+        try {
+          streamUrl = (await resolveRadioStationStreamUrl(station)) || "";
+        } catch (error) {
+          if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
+            return;
+          }
+          streamUrl = "";
+        }
+
+        if (generation !== playGenerationRef.current) return;
+
+        if (!streamUrl) {
+          Alert.alert("Unavailable", STATION_UNAVAILABLE_MESSAGE);
+          return;
+        }
+
+        const playableStation = { ...station, streamUrl };
+        upsertStationRef.current(playableStation);
+
+        // Bound session window so tap does not remap thousands of rows on the JS thread.
+        const allItems = listItemsRef.current;
+        const focus = allItems.findIndex((entry) => entry.id === stationId);
+        const windowStart = focus >= 0 ? Math.max(0, focus - 40) : 0;
+        const sessionItems =
+          focus >= 0 ? allItems.slice(windowStart, focus + 41) : allItems.slice(0, 81);
+
+        const session = buildRadioSessionFromListItems(
+          sessionItems,
+          (id) => {
+            if (id === playableStation.id) return playableStation;
+            return resolveStationRef.current(id);
+          },
+          {
+            startStationId: playableStation.id,
+            label: debouncedQueryRef.current
+              ? `Search: ${debouncedQueryRef.current}`
+              : "Radio Search",
+            cacheKey: cacheKeyRef.current,
+            searchQuery: debouncedQueryRef.current,
+          }
         );
+
+        if (generation !== playGenerationRef.current) return;
+
+        const result = await playRadioStation(
+          normalizeRadioStation(playableStation),
+          session
+        );
+
+        if (generation !== playGenerationRef.current) return;
+
+        if (!result.ok) {
+          Alert.alert(
+            "Unavailable",
+            result.error || STATION_UNAVAILABLE_MESSAGE
+          );
+        }
+      } finally {
+        if (generation === playGenerationRef.current) {
+          playInFlightRef.current = null;
+          setPendingStationId(null);
+        }
       }
     },
-    [cacheKey, debouncedQuery, listItems, playRadioStation, resolveStation]
+    [playRadioStation]
   );
 
   const handleStationPress = useCallback(
@@ -114,7 +196,7 @@ export default function RadioSearchScreen() {
     [playStation, runWithMatureConsent]
   );
 
-  // Final FlatList guard: exact-ID dedupe only (never index-padded keys).
+  // Hook already dedupes on commit; keep a cheap memoized safety guard only.
   const flatListData = useMemo(
     () => dedupeStationsById(listItems),
     [listItems]
@@ -135,10 +217,19 @@ export default function RadioSearchScreen() {
       <RadioStationCard
         item={item}
         variant="premium"
+        pending={pendingStationId === item.id}
         onPress={() => handleStationPress(item)}
       />
     ),
-    [handleStationPress]
+    [handleStationPress, pendingStationId]
+  );
+
+  const listHeader = useMemo(
+    () =>
+      listCountLabel ? (
+        <Text style={styles.sectionTitle}>{listCountLabel}</Text>
+      ) : null,
+    [listCountLabel]
   );
 
   const showPrompt = !debouncedQuery;
@@ -213,11 +304,7 @@ export default function RadioSearchScreen() {
           }
           onEndReachedThreshold={0.35}
           onEndReached={loadMore}
-          ListHeaderComponent={
-            listCountLabel ? (
-              <Text style={styles.sectionTitle}>{listCountLabel}</Text>
-            ) : null
-          }
+          ListHeaderComponent={listHeader}
           ListFooterComponent={
             loadingMore ? (
               <ActivityIndicator

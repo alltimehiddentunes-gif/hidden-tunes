@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 
 import HTImage from "../HTImage";
@@ -77,6 +77,8 @@ type RadioStationCardProps = {
   item: RadioStationListItem;
   onPress: () => void;
   variant?: "list" | "premium";
+  /** Immediate tap feedback while playback is resolving. */
+  pending?: boolean;
 };
 
 const RadioStationArt = memo(function RadioStationArt({
@@ -131,6 +133,7 @@ export const RadioStationCard = memo(function RadioStationCard({
   item,
   onPress,
   variant = "list",
+  pending = false,
 }: RadioStationCardProps) {
   const isPremium = variant === "premium";
   const artSize = isPremium ? 64 : 44;
@@ -138,7 +141,11 @@ export const RadioStationCard = memo(function RadioStationCard({
   return (
     <TouchableOpacity
       activeOpacity={0.88}
-      style={[styles.stationRow, isPremium && styles.stationRowPremium]}
+      style={[
+        styles.stationRow,
+        isPremium && styles.stationRowPremium,
+        pending && styles.stationRowPending,
+      ]}
       onPress={onPress}
     >
       <RadioStationArt artworkUrl={item.artworkUrl} item={item} size={artSize} />
@@ -159,7 +166,11 @@ export const RadioStationCard = memo(function RadioStationCard({
       </View>
 
       <FavoriteButton item={buildRadioStationFavoriteItem(item)} size={18} />
-      <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+      {pending ? (
+        <ActivityIndicator size="small" color={COLORS.primary} />
+      ) : (
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+      )}
     </TouchableOpacity>
   );
 });
@@ -295,6 +306,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderColor: "rgba(168,85,247,0.18)",
     backgroundColor: "rgba(255,255,255,0.06)",
+  },
+  stationRowPending: {
+    opacity: 0.72,
   },
   stationArtFallback: {
     alignItems: "center",

@@ -6,12 +6,29 @@ import type { HiddenTunesStation } from "../../types/radio";
 const STORAGE_PREFIX = "hidden_tunes_radio_stations_v2";
 const CACHE_TTL_MS = 18 * 60 * 60 * 1000;
 const MAX_MEMORY_ENTRIES = 24;
-const MAX_STATIONS_PER_KEY = 2000;
+/**
+ * Soft persist ceiling for non-search category caches only.
+ * Must NEVER stop catalog-search pagination (no artificial search cap).
+ */
+export const MAX_STATIONS_PER_KEY = 2000;
 const STORAGE_WRITE_DEBOUNCE_MS = 1200;
 
 type CachedStationPayload = {
   stations: HiddenTunesStation[];
   cachedAt: number;
+  /** Last known backend match total (catalog search). */
+  backendTotal?: number;
+  /** Last known backend pagination.hasMore after a network page. */
+  backendHasMore?: boolean;
+  /** Next backend offset to request (page cursor, not visible length). */
+  nextBackendOffset?: number;
+};
+
+export type RadioCachePaginationMeta = {
+  backendTotal?: number;
+  backendHasMore?: boolean;
+  nextBackendOffset?: number;
+  stationCount: number;
 };
 
 const memoryCache = new Map<string, CachedStationPayload>();
@@ -70,7 +87,10 @@ function schedulePersistStationCache(key: string, payload: CachedStationPayload)
   );
 }
 
-function dedupeRadioStations(stations: HiddenTunesStation[]) {
+function dedupeRadioStations(
+  stations: HiddenTunesStation[],
+  options?: { softPersistCap?: number | null }
+) {
   const seenIds = new Set<string>();
   const seenStreams = new Set<string>();
   const deduped: HiddenTunesStation[] = [];
@@ -78,13 +98,18 @@ function dedupeRadioStations(stations: HiddenTunesStation[]) {
   for (const station of stations) {
     if (!station?.id || seenIds.has(station.id)) continue;
     const streamKey = String(station.streamUrl || "").trim().toLowerCase();
-    if (!streamKey || seenStreams.has(streamKey)) continue;
+    // Metadata-only rows (empty stream) remain cacheable until tap resolve.
+    if (streamKey && seenStreams.has(streamKey)) continue;
     seenIds.add(station.id);
-    seenStreams.add(streamKey);
+    if (streamKey) seenStreams.add(streamKey);
     deduped.push(station);
   }
 
-  return deduped.slice(0, MAX_STATIONS_PER_KEY);
+  const cap = options?.softPersistCap;
+  if (typeof cap === "number" && cap > 0) {
+    return deduped.slice(0, cap);
+  }
+  return deduped;
 }
 
 function getMemoryEntry(cacheKey: string) {
@@ -136,6 +161,9 @@ export async function hydrateCachedRadioStations(cacheKey: string) {
     const payload: CachedStationPayload = {
       stations: dedupeRadioStations(parsed.stations),
       cachedAt: parsed.cachedAt,
+      backendTotal: parsed.backendTotal,
+      backendHasMore: parsed.backendHasMore,
+      nextBackendOffset: parsed.nextBackendOffset,
     };
 
     memoryCache.set(key, payload);
@@ -148,17 +176,55 @@ export async function hydrateCachedRadioStations(cacheKey: string) {
 export function writeCachedRadioStations(
   cacheKey: string,
   stations: HiddenTunesStation[],
-  options?: { append?: boolean }
+  options?: {
+    append?: boolean;
+    backendTotal?: number;
+    backendHasMore?: boolean;
+    nextBackendOffset?: number;
+    /** When true, skip growing the station array (meta-only update). */
+    metaOnly?: boolean;
+  }
 ) {
   const key = normalizeRadioCategoryCacheKey(cacheKey);
-  const existing = readCachedRadioStations(cacheKey) || [];
-  const merged = options?.append
-    ? dedupeRadioStations([...existing, ...stations])
-    : dedupeRadioStations(stations);
+  const existingEntry = getMemoryEntry(key);
+  const existing = existingEntry?.stations || [];
+  const isCatalogSearch = String(cacheKey || "")
+    .trim()
+    .toLowerCase()
+    .startsWith("catalog-search:");
+
+  // Category browse may soft-trim disk; catalog-search must not invent a search ceiling.
+  const softPersistCap = isCatalogSearch ? null : MAX_STATIONS_PER_KEY;
+
+  let merged: HiddenTunesStation[];
+  if (options?.metaOnly) {
+    merged = existing;
+  } else if (isCatalogSearch && (options?.append || false) && existing.length > 0) {
+    // Search: keep first page for hydrate only — do not grow AsyncStorage with every page.
+    // Active UI list lives in the hook; pagination is driven by backend cursor, not cache size.
+    merged = existing;
+  } else {
+    merged = options?.append
+      ? dedupeRadioStations([...existing, ...stations], { softPersistCap })
+      : dedupeRadioStations(stations, { softPersistCap });
+  }
 
   const payload: CachedStationPayload = {
     stations: merged,
     cachedAt: Date.now(),
+    backendTotal:
+      typeof options?.backendTotal === "number" && Number.isFinite(options.backendTotal)
+        ? options.backendTotal
+        : existingEntry?.backendTotal,
+    backendHasMore:
+      typeof options?.backendHasMore === "boolean"
+        ? options.backendHasMore
+        : existingEntry?.backendHasMore,
+    nextBackendOffset:
+      typeof options?.nextBackendOffset === "number" &&
+      Number.isFinite(options.nextBackendOffset)
+        ? Math.max(0, options.nextBackendOffset)
+        : existingEntry?.nextBackendOffset,
   };
 
   memoryCache.set(key, payload);
@@ -186,6 +252,20 @@ export function setRadioStationInflight(
 
 export function countCachedRadioStations(cacheKey: string) {
   return readCachedRadioStations(cacheKey)?.length || 0;
+}
+
+export function readRadioCachePaginationMeta(
+  cacheKey: string
+): RadioCachePaginationMeta | null {
+  const key = normalizeRadioCategoryCacheKey(cacheKey);
+  const entry = getMemoryEntry(key);
+  if (!entry) return null;
+  return {
+    backendTotal: entry.backendTotal,
+    backendHasMore: entry.backendHasMore,
+    nextBackendOffset: entry.nextBackendOffset,
+    stationCount: entry.stations.length,
+  };
 }
 
 function stripMatureStations(stations: HiddenTunesStation[]) {

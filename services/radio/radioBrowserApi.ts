@@ -25,7 +25,6 @@ import {
   sortStationsByQuality,
   sortStationsByVotes,
 } from "./radioQualityScore";
-import { fetchExpandedRadioSearchPage } from "./radioSearchDiscovery";
 import { fetchRadioCatalogSearchPage } from "./radioCatalogApi";
 import {
   countCachedRadioStations,
@@ -34,16 +33,20 @@ import {
   normalizeRadioSearchCacheKey,
   readCachedRadioPage,
   readCachedRadioStations,
+  readRadioCachePaginationMeta,
   setRadioStationInflight,
   writeCachedRadioStations,
 } from "./radioCache";
 import {
+  isCatalogRadioSearchCacheKey,
+  shouldBypassCatalogSearchCacheForOffset,
+  shouldFallThroughCatalogSearchCacheEnd,
   shouldPersistRadioSearchResult,
   shouldRevalidateShortRadioSearchCache,
   resolveRadioSearchHasMore,
   type RadioSearchResultSource,
 } from "../../utils/radioSearchCachePolicy";
-import { isCatalogAbortError } from "../catalogJsonFetch";
+import { isCatalogAbortError, isCatalogTimeoutError } from "../catalogJsonFetch";
 
 const RADIO_BROWSER_SERVERS = [
   "https://de1.api.radio-browser.info",
@@ -285,14 +288,20 @@ export async function fetchRadioSearchPage(
   source: RadioSearchResultSource;
   persist: boolean;
   hasMore: boolean;
+  backendTotal?: number;
+  backendPageRowCount?: number;
+  backendNextOffset?: number;
+  rawBackendRowsReturned?: number;
+  catalogError?: string;
 }> {
   const safeQuery = String(query || "").trim();
   if (!safeQuery) {
     return { stations: [], source: "catalog", persist: false, hasMore: false };
   }
 
-  // Production catalog search (full eligible HTTPS set). Radio Browser expansion
-  // remains available as last-resort fallback only.
+  // Full-catalog search must use production pagination. Do NOT replace a catalog
+  // timeout/failure with Radio Browser subset results — that yields 1–2 rows,
+  // undefined backendTotal, and false "backend-exhausted-no-persist".
   try {
     const catalog = await fetchRadioCatalogSearchPage(safeQuery, offset, limit, signal);
     return {
@@ -300,24 +309,25 @@ export async function fetchRadioSearchPage(
       source: "catalog",
       persist: shouldPersistRadioSearchResult("catalog"),
       hasMore: catalog.hasMore,
+      backendTotal: catalog.backendTotal,
+      backendPageRowCount: catalog.backendPageRowCount,
+      backendNextOffset: catalog.backendNextOffset,
+      rawBackendRowsReturned: catalog.rawBackendRowsReturned,
     };
   } catch (error) {
     if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") throw error;
-    // Last-resort fallback so search is not empty if the catalog API is down.
-    // Never persist these rows under catalog-search:* (HTTPS filter can shrink 40ÔåÆ9).
-    const stations = await fetchExpandedRadioSearchPage(
-      safeQuery,
-      offset,
-      limit,
-      (path, requestSignal) => fetchRadioBrowserJson(path, requestSignal ?? signal),
-      signal
-    );
-    return {
-      stations,
-      source: "fallback",
-      persist: shouldPersistRadioSearchResult("fallback"),
-      hasMore: stations.length >= limit,
-    };
+    // Propagate timeout to loadRadioPage ownership boundary (cache preserve + no LogBox).
+    if (isCatalogTimeoutError(error)) throw error;
+
+    const message = error instanceof Error ? error.message : String(error);
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.warn("[RadioSearch] catalog request failed (no RB substitute)", {
+        query: safeQuery,
+        offset,
+        message,
+      });
+    }
+    throw error;
   }
 }
 
@@ -333,6 +343,13 @@ type LoadRadioPageResult = {
   stations: HiddenTunesStation[];
   hasMore: boolean;
   fromCache: boolean;
+  backendTotal?: number;
+  backendPageRowCount?: number;
+  backendNextOffset?: number;
+  rawBackendRowsReturned?: number;
+  source?: string;
+  /** Dev/test: why pagination continued or stopped for this page. */
+  stopReason?: string;
 };
 
 type RadioPageFetchResult =
@@ -341,6 +358,11 @@ type RadioPageFetchResult =
       stations: HiddenTunesStation[];
       persist?: boolean;
       hasMore?: boolean;
+      backendTotal?: number;
+      backendPageRowCount?: number;
+      backendNextOffset?: number;
+      rawBackendRowsReturned?: number;
+      source?: string;
     };
 
 function normalizeRadioPageFetchResult(page: RadioPageFetchResult) {
@@ -349,13 +371,28 @@ function normalizeRadioPageFetchResult(page: RadioPageFetchResult) {
       stations: page,
       persist: true,
       hasMore: undefined as boolean | undefined,
+      backendTotal: undefined as number | undefined,
+      backendPageRowCount: undefined as number | undefined,
+      backendNextOffset: undefined as number | undefined,
+      rawBackendRowsReturned: undefined as number | undefined,
+      source: undefined as string | undefined,
     };
   }
   return {
     stations: page.stations,
     persist: page.persist !== false,
     hasMore: page.hasMore,
+    backendTotal: page.backendTotal,
+    backendPageRowCount: page.backendPageRowCount,
+    backendNextOffset: page.backendNextOffset,
+    rawBackendRowsReturned: page.rawBackendRowsReturned,
+    source: page.source,
   };
+}
+
+function logRadioSearchTrace(payload: Record<string, unknown>) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+  console.log("[RadioSearchTrace]", payload);
 }
 
 async function loadCachedOrHydratedPage(
@@ -370,7 +407,8 @@ async function loadCachedOrHydratedPage(
       stations: filterMatureStations(memoryPage),
       hasMore: total > offset + memoryPage.length || memoryPage.length >= limit,
       fromCache: true,
-    } satisfies LoadRadioPageResult;
+      cacheTotal: total,
+    };
   }
 
   const hydrated = await hydrateCachedRadioStations(cacheKey);
@@ -383,7 +421,8 @@ async function loadCachedOrHydratedPage(
     stations: filterMatureStations(page),
     hasMore: hydrated.length > offset + page.length || page.length >= limit,
     fromCache: true,
-  } satisfies LoadRadioPageResult;
+    cacheTotal: hydrated.length,
+  };
 }
 
 async function loadRadioPage(
@@ -403,20 +442,65 @@ async function loadRadioPage(
   const append = Boolean(options?.append);
   const requestKey = options?.requestKey || safeKey;
   const signal = beginBrowseRequest(requestKey);
+  const catalogSearch = isCatalogRadioSearchCacheKey(safeKey);
 
   try {
     if (!options?.forceRefresh) {
-      const cached = await loadCachedOrHydratedPage(safeKey, offset, limit);
-      if (cached) {
-        const mustRevalidate =
-          offset === 0 &&
-          !append &&
-          shouldRevalidateShortRadioSearchCache(safeKey, cached.stations.length, limit);
-        if (!mustRevalidate) {
-          return cached;
+      // Catalog-search playable cache must not own the backend cursor.
+      const bypassCache = shouldBypassCatalogSearchCacheForOffset(safeKey, offset);
+
+      if (!bypassCache) {
+        const cached = await loadCachedOrHydratedPage(safeKey, offset, limit);
+        if (cached) {
+          const mustRevalidate =
+            offset === 0 &&
+            !append &&
+            shouldRevalidateShortRadioSearchCache(safeKey, cached.stations.length, limit);
+
+          const meta = readRadioCachePaginationMeta(safeKey);
+          const fallThroughEnd =
+            !mustRevalidate &&
+            shouldFallThroughCatalogSearchCacheEnd({
+              cacheKey: safeKey,
+              offset,
+              pageLength: cached.stations.length,
+              cacheTotal: cached.cacheTotal,
+              backendHasMore: meta?.backendHasMore,
+            });
+
+          if (!mustRevalidate && !fallThroughEnd) {
+            const hasMore = catalogSearch
+              ? meta?.backendHasMore !== false &&
+                (cached.hasMore || meta?.backendHasMore === true)
+              : cached.hasMore;
+
+            logRadioSearchTrace({
+              query: safeKey,
+              requestOffset: offset,
+              requestLimit: limit,
+              rawBackendRowsReturned: cached.stations.length,
+              backendTotal: meta?.backendTotal,
+              backendHasMore: hasMore,
+              backendNextOffset: hasMore ? offset + limit : undefined,
+              normalizedRows: cached.stations.length,
+              uniqueAdded: cached.stations.length,
+              source: "cache",
+              stopReason: hasMore ? "cache-page" : "cache-exhausted-backend-done",
+            });
+
+            return {
+              stations: cached.stations,
+              hasMore,
+              fromCache: true,
+              backendTotal: meta?.backendTotal,
+              backendNextOffset: hasMore ? offset + limit : undefined,
+              rawBackendRowsReturned: cached.stations.length,
+              source: "cache",
+              stopReason: hasMore ? "cache-page" : "cache-exhausted-backend-done",
+            };
+          }
+          // Short / incomplete catalog-search cache: fall through to network.
         }
-        // Short catalog-search cache: fall through to network so poisoned 9-row
-        // pages cannot permanently skip revalidation.
       }
 
       if (offset === 0 && !append) {
@@ -427,6 +511,7 @@ async function loadRadioPage(
             stations: filterMatureStations(stations.slice(0, limit)),
             hasMore: stations.length >= limit,
             fromCache: true,
+            stopReason: "inflight",
           };
         }
       }
@@ -436,26 +521,86 @@ async function loadRadioPage(
       .then(async (page) => {
         logRadioDiscoveryFetch("radio-page", `${safeKey}@${offset}`);
         const normalized = normalizeRadioPageFetchResult(page);
+        const backendHasMore = normalized.hasMore;
+        // Page-based backend: always advance by request limit when hasMore, never by
+        // normalized/raw row count (short last pages must not rematerialize page 1).
+        const nextBackendOffset =
+          typeof normalized.backendNextOffset === "number"
+            ? normalized.backendNextOffset
+            : backendHasMore === true
+              ? offset + limit
+              : undefined;
+
         if (normalized.persist) {
-          const written = await writeCachedRadioStations(safeKey, normalized.stations, {
+          await writeCachedRadioStations(safeKey, normalized.stations, {
             append: append || offset > 0,
+            backendTotal: normalized.backendTotal,
+            backendHasMore:
+              typeof backendHasMore === "boolean" ? backendHasMore : undefined,
+            nextBackendOffset,
           });
-          return {
-            stations: written,
-            hasMore: resolveRadioSearchHasMore(
-              written.length,
-              limit,
-              normalized.hasMore
-            ),
-          };
-        }
-        return {
-          stations: normalized.stations,
-          hasMore: resolveRadioSearchHasMore(
+          const hasMore = resolveRadioSearchHasMore(
             normalized.stations.length,
             limit,
-            normalized.hasMore
-          ),
+            backendHasMore
+          );
+          const stopReason = hasMore ? "backend-has-more" : "backend-exhausted";
+
+          logRadioSearchTrace({
+            query: safeKey,
+            requestOffset: offset,
+            requestLimit: limit,
+            rawBackendRowsReturned: normalized.rawBackendRowsReturned ?? normalized.backendPageRowCount,
+            backendTotal: normalized.backendTotal,
+            backendHasMore: hasMore,
+            backendNextOffset: nextBackendOffset,
+            normalizedRows: normalized.stations.length,
+            uniqueAdded: normalized.stations.length,
+            source: normalized.source || "catalog",
+            stopReason,
+          });
+
+          return {
+            stations: normalized.stations,
+            hasMore,
+            backendTotal: normalized.backendTotal,
+            backendPageRowCount: normalized.backendPageRowCount,
+            backendNextOffset: nextBackendOffset,
+            rawBackendRowsReturned: normalized.rawBackendRowsReturned,
+            source: normalized.source || "catalog",
+            stopReason,
+          };
+        }
+        const hasMore = resolveRadioSearchHasMore(
+          normalized.stations.length,
+          limit,
+          backendHasMore
+        );
+        const stopReason = hasMore
+          ? "backend-has-more-no-persist"
+          : "backend-exhausted-no-persist";
+        logRadioSearchTrace({
+          query: safeKey,
+          requestOffset: offset,
+          requestLimit: limit,
+          rawBackendRowsReturned: normalized.rawBackendRowsReturned ?? normalized.stations.length,
+          backendTotal: normalized.backendTotal,
+          backendHasMore: hasMore,
+          backendNextOffset: nextBackendOffset,
+          normalizedRows: normalized.stations.length,
+          uniqueAdded: normalized.stations.length,
+          source: normalized.source || "unknown",
+          stopReason,
+        });
+        return {
+          stations: normalized.stations,
+          hasMore,
+          backendTotal: normalized.backendTotal,
+          backendPageRowCount: normalized.backendPageRowCount,
+          backendNextOffset: nextBackendOffset,
+          rawBackendRowsReturned: normalized.rawBackendRowsReturned,
+          source: normalized.source,
+          stopReason,
         };
       })
       .catch(async (error) => {
@@ -466,9 +611,43 @@ async function loadRadioPage(
         const fallback =
           readCachedRadioStations(safeKey) || (await hydrateCachedRadioStations(safeKey)) || [];
         const stations = filterMatureStations(fallback.slice(offset, offset + limit));
+
+        // Bounded catalog timeout: keep cache visible, do not mark backend exhausted.
+        if (isCatalogTimeoutError(error)) {
+          const meta = readRadioCachePaginationMeta(safeKey);
+          const hasMore =
+            catalogSearch
+              ? meta?.backendHasMore !== false
+              : stations.length >= limit || Boolean(fallback.length);
+          logRadioSearchTrace({
+            query: safeKey,
+            requestOffset: offset,
+            requestLimit: limit,
+            rawBackendRowsReturned: stations.length,
+            backendTotal: meta?.backendTotal,
+            backendHasMore: hasMore,
+            normalizedRows: stations.length,
+            uniqueAdded: stations.length,
+            source: "cache-timeout",
+            stopReason: "catalog-timeout-cache-preserved",
+          });
+          return {
+            stations,
+            hasMore,
+            backendTotal: meta?.backendTotal,
+            backendPageRowCount: stations.length,
+            backendNextOffset: hasMore ? offset + limit : undefined,
+            rawBackendRowsReturned: stations.length,
+            stopReason: "catalog-timeout-cache-preserved",
+            source: "cache-timeout",
+          };
+        }
+
         return {
           stations,
           hasMore: stations.length >= limit,
+          stopReason: "network-error-cache-fallback",
+          source: "cache-fallback",
         };
       });
 
@@ -478,8 +657,11 @@ async function loadRadioPage(
         fetchPromise
           .then((result) => result.stations)
           .catch((error) => {
-            // Prevent unhandled rejection when a superseded request aborts.
+            // Prevent unhandled rejection on abort / expected catalog timeout.
             if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
+              return [] as HiddenTunesStation[];
+            }
+            if (isCatalogTimeoutError(error)) {
               return [] as HiddenTunesStation[];
             }
             throw error;
@@ -493,13 +675,42 @@ async function loadRadioPage(
       return {
         stations: filterMatureStations(result.stations),
         hasMore: result.hasMore,
-        fromCache: false,
+        fromCache: Boolean(
+          result.source === "cache-timeout" || result.source === "cache-fallback"
+        ),
+        backendTotal: result.backendTotal,
+        backendPageRowCount: result.backendPageRowCount,
+        backendNextOffset: result.backendNextOffset,
+        rawBackendRowsReturned: result.rawBackendRowsReturned,
+        source: result.source,
+        stopReason: result.stopReason,
       };
     } catch (error) {
       // External cancellation (unmount / query replace) — silent empty page.
-      // Internal TimeoutError is not AbortError and keeps fallback/throw behavior above.
       if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
-        return { stations: [], hasMore: false, fromCache: false };
+        return {
+          stations: [],
+          hasMore: false,
+          fromCache: false,
+          stopReason: "aborted",
+        };
+      }
+      // Timeout should already be settled above; swallow as last resort (no LogBox).
+      if (isCatalogTimeoutError(error)) {
+        const fallback =
+          readCachedRadioStations(safeKey) || (await hydrateCachedRadioStations(safeKey)) || [];
+        const stations = filterMatureStations(fallback.slice(offset, offset + limit));
+        const meta = readRadioCachePaginationMeta(safeKey);
+        return {
+          stations,
+          hasMore: catalogSearch ? meta?.backendHasMore !== false : stations.length >= limit,
+          fromCache: true,
+          backendTotal: meta?.backendTotal,
+          backendPageRowCount: stations.length,
+          rawBackendRowsReturned: stations.length,
+          stopReason: "catalog-timeout-cache-preserved",
+          source: "cache-timeout",
+        };
       }
       throw error;
     }
@@ -550,6 +761,11 @@ export async function loadRadioSearchPage(query: string, options?: LoadRadioPage
         stations: result.stations,
         persist: result.persist,
         hasMore: result.hasMore,
+        backendTotal: result.backendTotal,
+        backendPageRowCount: result.backendPageRowCount,
+        backendNextOffset: result.backendNextOffset,
+        rawBackendRowsReturned: result.rawBackendRowsReturned,
+        source: result.source,
       };
     },
     {
