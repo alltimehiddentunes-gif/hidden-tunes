@@ -11,6 +11,7 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   BackHandler,
   FlatList,
   Platform,
@@ -60,6 +61,14 @@ import TvNativeVideoSurface, {
 } from "./TvNativeVideoSurface";
 import type { TvPlaybackSurface } from "@/services/tv/tvPlaybackSurface";
 import { canUseTvPiP } from "@/services/tv/tvPipEligibility";
+import {
+  requestTvFullscreenLandscape,
+  restoreTvPortraitOrientation,
+} from "@/services/tv/tvFullscreenOrientation";
+import {
+  onTvPipStarted,
+  onTvPipStoppedWhileActive,
+} from "@/services/tv/tvPlayerNavigation";
 
 type TvPlayerHostProps = {
   html: string;
@@ -218,8 +227,11 @@ function TvPlayerHost({
   const mountedRef = useMountedRef();
   const insets = useSafeAreaInsets();
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const isLandscapeLayout = viewportWidth > viewportHeight;
   const [isFavorite, setIsFavorite] = useState(false);
   const [relatedChannels, setRelatedChannels] = useState<TVChannel[]>([]);
+  /** In-route UI fullscreen — same VideoView, distinct absoluteFill geometry. */
+  const [isUiFullscreen, setIsUiFullscreen] = useState(false);
   const full = presentationMode === "fullPlayer";
   const displayChannel = seedChannel;
   const rawTitle = displayChannel?.name || item.title || "Hidden Tunes TV";
@@ -370,15 +382,37 @@ function TvPlayerHost({
   );
   /* eslint-enable react-hooks/refs */
 
-  const canvasWidth = Math.min(viewportWidth - 32, 560);
-  const canvasStyle = full
-    ? [styles.videoShell, styles.videoShellFull, { width: canvasWidth, alignSelf: "center" as const }]
-    : [styles.videoShell, styles.videoShellFloating];
+  // Expanded portrait uses a bounded 16:9 stage. UI fullscreen uses absoluteFill.
+  // Do not flex-fill the portrait stage — that created the giant black canvas.
+  const metaMaxHeight = Math.max(160, Math.round(viewportHeight * 0.42));
+  const canvasStyle = !full
+    ? [styles.videoShell, styles.videoShellFloating]
+    : isUiFullscreen
+      ? [styles.videoShell, styles.videoShellUiFullscreen]
+      : [styles.videoShell, styles.videoShellPortrait];
+
+  useEffect(() => {
+    if (!full) {
+      setIsUiFullscreen(false);
+      void restoreTvPortraitOrientation();
+    }
+  }, [full]);
+
+  useEffect(() => {
+    return () => {
+      void restoreTvPortraitOrientation();
+    };
+  }, []);
 
   useEffect(() => {
     if (!full) return;
 
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (isUiFullscreen) {
+        setIsUiFullscreen(false);
+        void restoreTvPortraitOrientation();
+        return true;
+      }
       onMinimize();
       navigateTvPlayerBack();
       return true;
@@ -387,7 +421,7 @@ function TvPlayerHost({
     return () => {
       subscription.remove();
     };
-  }, [full, onMinimize]);
+  }, [full, isUiFullscreen, onMinimize]);
 
   useEffect(() => {
     if (!displayChannel) {
@@ -429,38 +463,26 @@ function TvPlayerHost({
   }, [displayChannel, isFavorite, mountedRef]);
 
   const handleBack = useCallback(() => {
-    onMinimize();
-    navigateTvPlayerBack();
-  }, [onMinimize]);
-
-  const handleEnterFullscreen = useCallback(() => {
-    if (surface === "native") {
-      void nativePlayerRef.current?.enterFullscreen?.();
+    if (isUiFullscreen) {
+      setIsUiFullscreen(false);
+      void restoreTvPortraitOrientation();
       return;
     }
-    webViewRef.current?.injectJavaScript(`
-      (function () {
-        try {
-          var video = document.getElementById("player");
-          if (video) {
-            if (video.webkitEnterFullscreen) {
-              video.webkitEnterFullscreen();
-              return;
-            }
-            if (video.requestFullscreen) {
-              video.requestFullscreen();
-              return;
-            }
-          }
-          var iframe = document.getElementById("yt");
-          if (iframe && iframe.requestFullscreen) {
-            iframe.requestFullscreen();
-          }
-        } catch (e) {}
-      })();
-      true;
-    `);
-  }, [nativePlayerRef, surface, webViewRef]);
+    onMinimize();
+    navigateTvPlayerBack();
+  }, [isUiFullscreen, onMinimize]);
+
+  const handleEnterFullscreen = useCallback(() => {
+    // In-route true fullscreen owner (same VideoView). Native enterFullscreen is
+    // not mixed in — it left portrait chrome/flex geometry active on device.
+    setIsUiFullscreen(true);
+    void requestTvFullscreenLandscape();
+  }, []);
+
+  const handleExitFullscreen = useCallback(() => {
+    setIsUiFullscreen(false);
+    void restoreTvPortraitOrientation();
+  }, []);
 
   const pipEligible = canUseTvPiP({
     platform: Platform.OS,
@@ -495,21 +517,35 @@ function TvPlayerHost({
         }
         return;
       }
-      // Keep the session alive in floating layout while system PiP owns the window.
-      onMinimize();
+      // Do not minimize/remount here. Floating remounts VideoView onto a
+      // different tree branch and races automatic/manual PiP capture.
+      // Presentation stays full until explicit Back or confirmed restore.
     } catch {
       Alert.alert("Picture in Picture", "PiP unavailable on this device");
     }
-  }, [nativePlayerRef, onMinimize, pipEligible, surface]);
+  }, [nativePlayerRef, pipEligible, surface]);
 
   const handleNativePipStart = useCallback(() => {
-    onMinimize();
-  }, [onMinimize]);
+    // Leave UI fullscreen chrome so it cannot ghost under system PiP.
+    setIsUiFullscreen(false);
+    void restoreTvPortraitOrientation();
+    onTvPipStarted();
+    if (__DEV__) {
+      console.log("[HTTvPiPRestore] pip active — keep full presentation mounted");
+    }
+  }, []);
 
   const handleNativePipStop = useCallback(() => {
-    // Platform returns to the app; expand the existing TV session (same player).
-    onExpand();
-  }, [onExpand]);
+    // Only restore when the app is active (PiP expand). Closing PiP while
+    // backgrounded must not open the empty /tv-player shell.
+    if (AppState.currentState !== "active") {
+      if (__DEV__) {
+        console.log("[HTTvPiPRestore] pip stopped while inactive — no route open");
+      }
+      return;
+    }
+    onTvPipStoppedWhileActive();
+  }, []);
 
   const handleReportBroken = useCallback(() => {
     if (!displayChannel) return;
@@ -585,7 +621,7 @@ function TvPlayerHost({
           key={`tv-native-${playerGeneration}`}
           ref={nativePlayerRef}
           streamUrl={streamUrl}
-          nativeControls={full}
+          nativeControls={false}
           autoPictureInPicture={pipEligible && isPlaying && !hasError}
           onPlaying={onNativePlaying}
           onPaused={onNativePaused}
@@ -645,146 +681,261 @@ function TvPlayerHost({
     </View>
   );
 
-  const body = (
-    <>
+  const floatingHeader = (
+    <View style={styles.floatingHeader}>
+      <View style={styles.floatingCopy}>
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={onExpand}
+          accessibilityRole="button"
+          accessibilityLabel="Restore TV player"
+        >
+          <Text numberOfLines={1} style={styles.floatingTitle}>
+            {title}
+          </Text>
+          <Text numberOfLines={1} style={styles.floatingSub}>
+            {isPlaying ? "Live TV playing" : "Live TV paused"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity
+        activeOpacity={0.86}
+        style={styles.headerIcon}
+        onPress={onExpand}
+      >
+        <Ionicons name="expand-outline" size={17} color={COLORS.text} />
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.86}
+        style={styles.headerIcon}
+        onPress={onStop}
+      >
+        <Ionicons name="close" size={18} color={COLORS.text} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const fullHeader = (
+    <View
+      style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}
+    >
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={handleBack}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="chevron-back" size={24} color="#fff" />
+        <Text style={styles.backLabel}>Back</Text>
+      </TouchableOpacity>
+      <Text style={styles.topTitle} numberOfLines={1}>
+        {title}
+      </Text>
+      <TouchableOpacity
+        style={styles.iconButton}
+        onPress={onStop}
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+      >
+        <Ionicons name="close" size={20} color={COLORS.text} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  const transportControls = (
+    <View style={full ? styles.controlsRow : styles.floatingControls}>
+      <TouchableOpacity
+        style={full ? styles.fullControlButton : styles.controlButton}
+        onPress={onPrevious}
+        accessibilityRole="button"
+        accessibilityLabel="Previous channel"
+      >
+        <Ionicons
+          name="play-skip-back"
+          size={full ? 22 : 17}
+          color={COLORS.text}
+        />
+      </TouchableOpacity>
+      {full ? (
+        <TouchableOpacity
+          style={styles.playButton}
+          onPress={onTogglePlayback}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? "Pause" : "Play"}
+        >
+          <Ionicons
+            name={isPlaying ? "pause" : "play"}
+            size={24}
+            color="#000"
+          />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.86}
+          style={styles.stopButton}
+          onPress={onStop}
+        >
+          <Ionicons name="stop" size={17} color="#000" />
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity
+        style={full ? styles.fullControlButton : styles.controlButton}
+        onPress={onNext}
+        accessibilityRole="button"
+        accessibilityLabel="Next channel"
+      >
+        <Ionicons
+          name="play-skip-forward"
+          size={full ? 22 : 17}
+          color={COLORS.text}
+        />
+      </TouchableOpacity>
+      {full && pipEligible ? (
+        <TouchableOpacity
+          style={styles.fullControlButton}
+          onPress={() => void handleStartSystemPiP()}
+          accessibilityRole="button"
+          accessibilityLabel="Picture in Picture"
+        >
+          <Ionicons name="browsers-outline" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+      ) : null}
+      {full ? (
+        <TouchableOpacity
+          style={styles.fullControlButton}
+          onPress={handleEnterFullscreen}
+          accessibilityRole="button"
+          accessibilityLabel="Enter fullscreen"
+        >
+          <Ionicons name="expand" size={22} color={COLORS.text} />
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+
+  const fullscreenOverlay = (
+    <View
+      style={[
+        styles.fullscreenOverlay,
+        {
+          paddingTop: Math.max(insets.top, 12),
+          paddingLeft: Math.max(insets.left, isLandscapeLayout ? 12 : 0),
+          paddingRight: Math.max(insets.right, isLandscapeLayout ? 12 : 0),
+        },
+      ]}
+      pointerEvents="box-none"
+    >
+      <View style={styles.fullscreenTopBar} pointerEvents="box-none">
+        <TouchableOpacity
+          style={styles.fullControlButton}
+          onPress={handleExitFullscreen}
+          accessibilityRole="button"
+          accessibilityLabel="Exit fullscreen"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="contract" size={22} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.fullscreenTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        <TouchableOpacity
+          style={styles.fullControlButton}
+          onPress={() => {
+            setIsUiFullscreen(false);
+            void restoreTvPortraitOrientation();
+            onStop();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        >
+          <Ionicons name="close" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
       <View
         style={[
-          full ? styles.topBar : styles.floatingHeader,
-          full ? { paddingTop: Math.max(insets.top, 10) } : null,
+          styles.fullscreenBottomBar,
+          { paddingBottom: Math.max(insets.bottom, 16) },
         ]}
+        pointerEvents="box-none"
       >
-        {full ? (
-          <>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={handleBack}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-            </TouchableOpacity>
-            <Text style={styles.topTitle} numberOfLines={1}>
-              {title}
-            </Text>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={handleBack}
-              accessibilityRole="button"
-              accessibilityLabel="Picture in picture"
-            >
-              <Ionicons name="browsers-outline" size={18} color={COLORS.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={onStop}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <Ionicons name="close" size={20} color={COLORS.text} />
-            </TouchableOpacity>
-          </>
-        ) : (
-          <>
-            <View style={styles.floatingCopy}>
-              <TouchableOpacity
-                activeOpacity={0.9}
-                onPress={onExpand}
-                accessibilityRole="button"
-                accessibilityLabel="Restore TV player"
-              >
-                <Text numberOfLines={1} style={styles.floatingTitle}>
-                  {title}
-                </Text>
-                <Text numberOfLines={1} style={styles.floatingSub}>
-                  {isPlaying ? "Live TV playing" : "Live TV paused"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.headerIcon}
-              onPress={onExpand}
-            >
-              <Ionicons name="expand-outline" size={17} color={COLORS.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.86}
-              style={styles.headerIcon}
-              onPress={onStop}
-            >
-              <Ionicons name="close" size={18} color={COLORS.text} />
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-
-      {playerCanvas}
-
-      <View style={full ? styles.controlsRow : styles.floatingControls}>
         <TouchableOpacity
-          style={full ? styles.fullControlButton : styles.controlButton}
+          style={styles.fullControlButton}
           onPress={onPrevious}
           accessibilityRole="button"
           accessibilityLabel="Previous channel"
         >
+          <Ionicons name="play-skip-back" size={22} color="#fff" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.playButton}
+          onPress={onTogglePlayback}
+          accessibilityRole="button"
+          accessibilityLabel={isPlaying ? "Pause" : "Play"}
+        >
           <Ionicons
-            name="play-skip-back"
-            size={full ? 22 : 17}
-            color={COLORS.text}
+            name={isPlaying ? "pause" : "play"}
+            size={24}
+            color="#000"
           />
         </TouchableOpacity>
-        {full ? (
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={onTogglePlayback}
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? "Pause" : "Play"}
-          >
-            <Ionicons
-              name={isPlaying ? "pause" : "play"}
-              size={24}
-              color="#000"
-            />
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            activeOpacity={0.86}
-            style={styles.stopButton}
-            onPress={onStop}
-          >
-            <Ionicons name="stop" size={17} color="#000" />
-          </TouchableOpacity>
-        )}
         <TouchableOpacity
-          style={full ? styles.fullControlButton : styles.controlButton}
+          style={styles.fullControlButton}
           onPress={onNext}
           accessibilityRole="button"
           accessibilityLabel="Next channel"
         >
-          <Ionicons
-            name="play-skip-forward"
-            size={full ? 22 : 17}
-            color={COLORS.text}
-          />
+          <Ionicons name="play-skip-forward" size={22} color="#fff" />
         </TouchableOpacity>
-        {full ? (
+        {pipEligible ? (
           <TouchableOpacity
             style={styles.fullControlButton}
-            onPress={handleEnterFullscreen}
+            onPress={() => void handleStartSystemPiP()}
             accessibilityRole="button"
-            accessibilityLabel="Enter fullscreen"
+            accessibilityLabel="Picture in Picture"
           >
-            <Ionicons name="expand" size={22} color={COLORS.text} />
+            <Ionicons name="browsers-outline" size={22} color="#fff" />
           </TouchableOpacity>
         ) : null}
+        <TouchableOpacity
+          style={styles.fullControlButton}
+          onPress={handleExitFullscreen}
+          accessibilityRole="button"
+          accessibilityLabel="Exit fullscreen"
+        >
+          <Ionicons name="contract" size={22} color="#fff" />
+        </TouchableOpacity>
       </View>
+    </View>
+  );
 
-      {full ? (
-        <ScrollView
-          style={styles.metaScroll}
+  const floatingBody = (
+    <>
+      {floatingHeader}
+      {playerCanvas}
+      {transportControls}
+    </>
+  );
+
+  const fullBody = (
+    <>
+      {!isUiFullscreen ? fullHeader : null}
+      <View
+        style={
+          isUiFullscreen ? styles.fullVideoStageFullscreen : styles.fullVideoStagePortrait
+        }
+        collapsable={false}
+      >
+        {playerCanvas}
+        {isUiFullscreen ? fullscreenOverlay : null}
+      </View>
+      {!isUiFullscreen ? transportControls : null}
+      {!isUiFullscreen ? (
+      <ScrollView
+          style={[styles.metaScroll, { maxHeight: metaMaxHeight }]}
           contentContainerStyle={[
             styles.metaContent,
-            { paddingBottom: Math.max(insets.bottom, 24) + 16 },
+            { paddingBottom: Math.max(insets.bottom, 16) + 12 },
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -842,30 +993,6 @@ function TvPlayerHost({
                 <Text style={styles.secondaryActionLabel}>Favorite</Text>
               </TouchableOpacity>
             ) : null}
-            {surface === "native" ? (
-              <TouchableOpacity
-                style={styles.secondaryAction}
-                onPress={() => void handleStartSystemPiP()}
-                disabled={!pipEligible}
-                accessibilityRole="button"
-                accessibilityLabel="Picture in picture"
-                accessibilityState={{ disabled: !pipEligible }}
-              >
-                <Ionicons
-                  name="browsers-outline"
-                  size={18}
-                  color={pipEligible ? COLORS.text : COLORS.textMuted}
-                />
-                <Text
-                  style={[
-                    styles.secondaryActionLabel,
-                    !pipEligible ? styles.secondaryActionLabelDisabled : null,
-                  ]}
-                >
-                  PiP
-                </Text>
-              </TouchableOpacity>
-            ) : null}
             {displayChannel ? (
               <TouchableOpacity
                 style={styles.secondaryAction}
@@ -916,7 +1043,7 @@ function TvPlayerHost({
       collapsable={false}
       onLayout={onFloatingCardLayout}
     >
-      {body}
+      {floatingBody}
     </View>
   );
 
@@ -935,7 +1062,7 @@ function TvPlayerHost({
       </View>
       {full ? (
         <View style={styles.fullContainer} collapsable={false}>
-          {body}
+          {fullBody}
         </View>
       ) : (
         <GestureDetector gesture={floatingPanGesture}>
@@ -1022,11 +1149,51 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 78,
   },
-  videoShellFull: {
+  videoShellPortrait: {
+    width: "100%",
     aspectRatio: 16 / 9,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "#000",
+  },
+  videoShellUiFullscreen: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "#000",
+  },
+  fullVideoStagePortrait: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#000",
+  },
+  fullVideoStageFullscreen: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "#000",
+    zIndex: 20,
+  },
+  fullscreenOverlay: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: "space-between",
+    zIndex: 30,
+  },
+  fullscreenTopBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  fullscreenTitle: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  fullscreenBottomBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    paddingHorizontal: 14,
   },
   webView: {
     flex: 1,
@@ -1106,7 +1273,7 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingBottom: 10,
     gap: 8,
     zIndex: 4,
@@ -1119,22 +1286,48 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 4,
   },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  backButton: {
+    minWidth: 72,
+    height: 44,
+    paddingHorizontal: 10,
+    borderRadius: 22,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    gap: 2,
+    backgroundColor: "rgba(0,0,0,0.62)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.22)",
+  },
+  backLabel: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
+    marginRight: 2,
+  },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  iconButtonDisabled: {
+    opacity: 0.45,
+  },
+  iconButtonSpacer: {
+    width: 44,
+    height: 44,
   },
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
   },
   fullControlButton: {
     width: 48,
@@ -1154,7 +1347,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: COLORS.primary,
   },
-  metaScroll: { flex: 1 },
+  metaScroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
   metaContent: {
     paddingHorizontal: 16,
   },

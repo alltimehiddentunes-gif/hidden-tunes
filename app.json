@@ -3,7 +3,7 @@
     "name": "Hidden Tunes",
     "slug": "hidden-tunes",
     "version": "1.0.1",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "hiddentunes",
     "userInterfaceStyle": "dark",
@@ -55,6 +55,12 @@
         {
           "supportsPictureInPicture": true,
           "supportsBackgroundPlayback": true
+        }
+      ],
+      [
+        "expo-screen-orientation",
+        {
+          "initialOrientation": "PORTRAIT_UP"
         }
       ],
       [

@@ -36,6 +36,15 @@ function RootStack({ memoizedScreenOptions }: { memoizedScreenOptions: typeof sc
       <Stack.Screen name="downloads" />
       <Stack.Screen name="lyrics" />
       <Stack.Screen name="queue" />
+      <Stack.Screen
+        name="tv-player"
+        options={{
+          // Persistent TvPlayerHost paints the player; avoid Stack black flash
+          // and blank shell animation during PiP restore / singleton reopen.
+          animation: "none",
+          contentStyle: { backgroundColor: "transparent" },
+        }}
+      />
     </Stack>
   );
 }

@@ -6,6 +6,7 @@ import {
   getTvDiscoverySession,
 } from "@/services/tvDiscoverySessionStore";
 import { getTvSessionController } from "@/services/tv/tvSessionController";
+import { openTvPlayerFullScreen } from "@/services/tv/tvPlayerNavigation";
 import type { TvDiscoveryLaunchContext, TvStationPlayResult } from "@/types/tvDiscovery";
 import { buildDiscoveryHierarchyLayers } from "@/utils/tvDiscoveryHierarchy";
 import {
@@ -171,10 +172,7 @@ async function openTvDiscoveryStationInternal(
   // before navigating. Browse still never preloads stream URLs.
   await attachResolvedTvSession(result, queueVideos);
 
-  router.push({
-    pathname: "/tv-player",
-    params: buildTvPlayerRouteParams(result, launch),
-  } as any);
+  openTvPlayerFullScreen("user-open");
 
   return result;
 }
