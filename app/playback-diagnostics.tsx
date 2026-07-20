@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "../constants/theme";
@@ -285,7 +286,7 @@ export default function PlaybackDiagnosticsScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => safeRouterBack("/library")}
           accessibilityLabel="Go back"
         >
           <Ionicons name="chevron-back" size={22} color={COLORS.text} />

@@ -11,6 +11,7 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
@@ -62,7 +63,7 @@ export default function CloudPlaylistsScreen() {
   return (
     <LinearGradient colors={GRADIENTS.main as any} style={styles.screen}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => safeRouterBack("/library")} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={26} color={COLORS.text} />
         </TouchableOpacity>
 

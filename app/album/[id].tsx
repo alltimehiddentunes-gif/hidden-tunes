@@ -11,6 +11,7 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../../utils/safeNavigation";
 import { Ionicons } from "@expo/vector-icons";
 
 import NeonEQ from "../../components/NeonEQ";
@@ -624,7 +625,7 @@ export default function AlbumScreen() {
         <Text style={styles.emptyTitle}>{musicUi.unavailableTitle}</Text>
         <Text style={styles.emptyText}>{musicUi.unavailableDescription}</Text>
 
-        <TouchableOpacity style={styles.emptyButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.emptyButton} onPress={() => safeRouterBack("/music-feed")}>
           <Ionicons name="chevron-back" size={18} color="#000" />
           <Text style={styles.emptyButtonText}>{musicUi.goBack}</Text>
         </TouchableOpacity>
@@ -671,7 +672,7 @@ export default function AlbumScreen() {
         ListHeaderComponent={
           <>
             <View style={styles.header}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <TouchableOpacity onPress={() => safeRouterBack("/music-feed")} style={styles.backBtn}>
                 <Ionicons name="chevron-back" size={26} color={COLORS.text} />
               </TouchableOpacity>
 

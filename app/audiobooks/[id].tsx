@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../../utils/safeNavigation";
 
 import { COLORS } from "../../constants/theme";
 import { claimExclusivePlayback } from "../../services/playback/PlaybackHandoffCoordinator";
@@ -293,7 +294,7 @@ export default function AudiobookDetailScreen() {
           <TouchableOpacity
             activeOpacity={0.84}
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => safeRouterBack("/audiobooks")}
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
           </TouchableOpacity>

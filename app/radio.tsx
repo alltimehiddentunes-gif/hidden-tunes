@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import AppShell from "../components/navigation/AppShell";
 import HTImage from "../components/HTImage";
@@ -418,7 +419,7 @@ export default function RadioScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={() => router.back()}
+          onPress={() => safeRouterBack("/library")}
           activeOpacity={0.85}
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />

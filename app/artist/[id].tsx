@@ -13,6 +13,7 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../../utils/safeNavigation";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -884,7 +885,7 @@ export default function ArtistScreen() {
         <Text style={styles.emptyTitle}>Artist world unavailable</Text>
         <Text style={styles.emptyText}>Refresh the catalog or return to Search.</Text>
 
-        <TouchableOpacity style={styles.emptyButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.emptyButton} onPress={() => safeRouterBack("/music-feed")}>
           <Ionicons name="chevron-back" size={18} color="#000" />
           <Text style={styles.emptyButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -934,7 +935,7 @@ export default function ArtistScreen() {
           <>
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => safeRouterBack("/music-feed")}
             style={styles.backBtn}
             accessibilityRole="button"
             accessibilityLabel="Go back"

@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { useFocusEffect, useLocalSearchParams, router } from "expo-router";
+import { safeRouterBack } from "../../utils/safeNavigation";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -338,7 +339,7 @@ export default function PlaylistDetailScreen() {
           onPress: async () => {
             try {
               await deleteUserPlaylist(playlistId);
-              router.back();
+              safeRouterBack("/playlists");
             } catch (error) {
               console.log("Delete playlist error:", error);
             }
@@ -353,7 +354,7 @@ export default function PlaylistDetailScreen() {
       <LinearGradient colors={GRADIENTS.main as any} style={styles.container}>
       <PremiumBackground variant="library" />
         <View style={styles.topHeader}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.topButton}>
+          <TouchableOpacity onPress={() => safeRouterBack("/playlists")} style={styles.topButton}>
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
         </View>
@@ -378,7 +379,7 @@ export default function PlaylistDetailScreen() {
       <View style={styles.glowCyan} />
 
       <View style={styles.topHeader}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.topButton}>
+        <TouchableOpacity onPress={() => safeRouterBack("/playlists")} style={styles.topButton}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
 

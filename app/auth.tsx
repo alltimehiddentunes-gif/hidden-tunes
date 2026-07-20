@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { useLocalization } from "../localization";
@@ -27,7 +28,7 @@ export default function AuthScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.keyboardView}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => safeRouterBack("/music-feed")}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
 

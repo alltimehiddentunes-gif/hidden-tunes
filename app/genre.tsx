@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
@@ -273,7 +274,7 @@ export default function GenreScreen() {
       <View pointerEvents="none" style={styles.glowCyan} />
 
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.backButton} onPress={() => safeRouterBack("/music-feed")} activeOpacity={0.85}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
 

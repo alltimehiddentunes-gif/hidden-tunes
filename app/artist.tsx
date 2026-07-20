@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 
@@ -200,7 +201,7 @@ export default function ArtistScreen() {
             <View style={styles.topBar}>
               <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() => router.back()}
+                onPress={() => safeRouterBack("/music-feed")}
               >
                 <Ionicons name="chevron-back" size={24} color={COLORS.text} />
               </TouchableOpacity>

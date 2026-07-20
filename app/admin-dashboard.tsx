@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 
@@ -109,7 +110,7 @@ export default function AdminDashboardScreen() {
         contentContainerStyle={styles.content}
       >
         <View style={styles.topBar}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => safeRouterBack("/library")}>
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
 

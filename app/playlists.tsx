@@ -13,6 +13,7 @@ import {
 } from "react-native";
 
 import { useFocusEffect, router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -393,7 +394,7 @@ export default function PlaylistsScreen() {
             <View style={styles.header}>
               <TouchableOpacity
                 style={styles.backButton}
-                onPress={() => router.back()}
+                onPress={() => safeRouterBack("/library")}
               >
                 <Ionicons name="chevron-back" size={24} color={COLORS.text} />
               </TouchableOpacity>

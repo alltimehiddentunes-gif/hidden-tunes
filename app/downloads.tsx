@@ -12,6 +12,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import AppShell from "../components/navigation/AppShell";
 import HTImage from "../components/HTImage";
@@ -146,7 +147,7 @@ export default function DownloadsScreen() {
         <View pointerEvents="none" style={styles.glowCyan} />
 
         <View style={styles.header}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => safeRouterBack("/library")}>
             <Ionicons name="chevron-back" size={26} color={COLORS.text} />
           </TouchableOpacity>
 

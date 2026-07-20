@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../../utils/safeNavigation";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
@@ -138,7 +139,7 @@ export default function RadioCategoryScreen() {
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>This room is not available</Text>
           <Text style={styles.emptyText}>Try another search.</Text>
-          <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.backLink} onPress={() => safeRouterBack("/stations")}>
             <Text style={styles.backLinkText}>Back to Live Stations</Text>
           </TouchableOpacity>
         </View>
@@ -152,7 +153,7 @@ export default function RadioCategoryScreen() {
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.85}
-          onPress={() => router.back()}
+          onPress={() => safeRouterBack("/stations")}
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>

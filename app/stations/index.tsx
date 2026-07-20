@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
-import { safeRouterPush } from "../../utils/safeNavigation";
+import { safeRouterPush, safeRouterBack } from "../../utils/safeNavigation";
 import { getHorizontalListPerformanceSettings } from "../../utils/performanceMode";
 
 import {
@@ -244,7 +244,7 @@ export default function RadioStationsHomeScreen() {
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.85}
-          onPress={() => router.back()}
+          onPress={() => safeRouterBack("/radio")}
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>

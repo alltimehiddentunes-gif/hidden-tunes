@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import PremiumBackground from "../components/PremiumBackground";
 import WorldHeader from "../components/worlds/WorldHeader";
@@ -69,7 +70,7 @@ function WorldDetailScreen() {
         <SafeAreaView style={styles.safeArea}>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => router.back()}
+            onPress={() => safeRouterBack("/worlds")}
             style={styles.backButton}
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
@@ -87,7 +88,7 @@ function WorldDetailScreen() {
         <View style={styles.topBar}>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => router.back()}
+            onPress={() => safeRouterBack("/worlds")}
             style={styles.backButton}
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />

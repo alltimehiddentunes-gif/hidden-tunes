@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { safeRouterBack } from "../../utils/safeNavigation";
 
 const API_BASE_URL = "https://hidden-tunes-backend.onrender.com";
 
@@ -167,7 +168,7 @@ export default function AdminUploadScreen() {
           <View style={styles.header}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.back()}
+              onPress={() => safeRouterBack("/admin-dashboard")}
             >
               <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
             </TouchableOpacity>

@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import AppShell from "../components/navigation/AppShell";
@@ -42,7 +43,7 @@ export default function LanguageScreen() {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t("common.back")}
-            onPress={() => router.back()}
+            onPress={() => safeRouterBack("/library")}
             style={styles.backButton}
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />

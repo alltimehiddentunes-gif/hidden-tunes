@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -664,7 +665,7 @@ export default function PlayerScreen() {
   }));
 
   const handleBack = useCallback(() => {
-    router.back();
+    safeRouterBack("/music-feed");
   }, []);
 
   const openQueue = useCallback(() => {

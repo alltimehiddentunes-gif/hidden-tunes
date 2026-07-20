@@ -10,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import WorldCard from "../components/worlds/WorldCard";
 import { COLORS, GRADIENTS } from "../constants/theme";
@@ -76,7 +77,7 @@ function WorldGalleryScreen({ embedded = false }: WorldGalleryScreenProps) {
         <View style={styles.topBar}>
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => router.back()}
+            onPress={() => safeRouterBack("/worlds")}
             style={styles.backButton}
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.text} />

@@ -50,3 +50,24 @@ export function safeRouterReplace(
   router.replace(href as any);
   return true;
 }
+
+/** True when Expo Router reports a previous screen in history. */
+export function canRouterGoBack(): boolean {
+  return (
+    typeof (router as { canGoBack?: () => boolean }).canGoBack === "function" &&
+    (router as { canGoBack: () => boolean }).canGoBack()
+  );
+}
+
+/**
+ * Prefer history back; otherwise replace to a section fallback.
+ * Prevents Expo Router "GO_BACK was not handled" when opened cold / deep-linked.
+ */
+export function safeRouterBack(fallback: string = "/music-feed"): boolean {
+  if (canRouterGoBack()) {
+    router.back();
+    return true;
+  }
+  router.replace(fallback as never);
+  return false;
+}

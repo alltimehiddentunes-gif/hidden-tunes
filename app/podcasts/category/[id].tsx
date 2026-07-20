@@ -16,6 +16,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HTImage from "../../../components/HTImage";
+import { navigatePodcastBack } from "../../../utils/podcastNavigation";
 import { PodcastCategoryCard, PodcastShowCard } from "../../../components/podcast/PodcastCards";
 import PodcastEmptyCategoryState from "../../../components/podcast/PodcastEmptyCategoryState";
 import PodcastSearchBar from "../../../components/podcast/PodcastSearchBar";
@@ -87,13 +88,12 @@ function CategoryPodcastHeader({
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
 
   return (
     <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
       <View style={styles.headerRow}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => navigatePodcastBack("/podcasts")}
           style={styles.backButton}
           accessibilityRole="button"
           accessibilityLabel="Go back"

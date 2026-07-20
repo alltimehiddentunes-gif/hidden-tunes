@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
@@ -303,7 +304,7 @@ export default function AlbumScreen() {
     <AppShell>
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => safeRouterBack("/music-feed")}>
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
 

@@ -26,6 +26,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import {
   getBestLyricsPayload,
@@ -524,7 +525,7 @@ export default function LyricsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => router.back()}
+            onPress={() => safeRouterBack("/music-feed")}
             activeOpacity={0.85}
           >
             <Ionicons name="chevron-down" size={26} color="#FFFFFF" />

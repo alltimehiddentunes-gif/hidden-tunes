@@ -10,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { safeRouterBack } from "../utils/safeNavigation";
 
 import AppShell from "../components/navigation/AppShell";
 import AddToPlaylistButton from "../components/AddToPlaylistButton";
@@ -223,7 +224,7 @@ function RecentlyPlayedScreen() {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.iconButton}
-          onPress={() => router.back()}
+          onPress={() => safeRouterBack("/library")}
         >
           <Ionicons name="chevron-back" size={25} color={COLORS.text} />
         </TouchableOpacity>
