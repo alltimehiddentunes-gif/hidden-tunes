@@ -2,16 +2,17 @@
  * Static CarPlay readiness checks for CLEAN consolidation.
  * Run: npx tsx scripts/test-carplay-static-readiness.ts
  */
-import fs from "fs";
-import path from "path";
+// @ts-nocheck
+const fs = require("fs");
+const path = require("path");
 
 const root = process.cwd();
 
-function assertOk(condition: unknown, label: string) {
+function assertOk(condition, label) {
   if (!condition) throw new Error(label);
 }
 
-function read(rel: string) {
+function read(rel) {
   return fs.readFileSync(path.join(root, rel), "utf8");
 }
 
