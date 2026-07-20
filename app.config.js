@@ -46,10 +46,36 @@ module.exports = ({ config }) => {
     return pluginName === "expo-video";
   });
 
+  const expoVideoPlugin = [
+    "expo-video",
+    {
+      supportsPictureInPicture: true,
+      supportsBackgroundPlayback: true,
+    },
+  ];
+
   let plugins = hasSplashPlugin ? basePlugins : [...basePlugins, splashPlugin];
 
   if (!hasExpoVideoPlugin) {
-    plugins = [...plugins, "expo-video"];
+    plugins = [...plugins, expoVideoPlugin];
+  } else {
+    // Ensure existing expo-video entry carries PiP / background flags without duplicating.
+    plugins = plugins.map((entry) => {
+      const pluginName = Array.isArray(entry) ? entry[0] : entry;
+      if (pluginName !== "expo-video") return entry;
+      const existingOptions =
+        Array.isArray(entry) && entry[1] && typeof entry[1] === "object"
+          ? entry[1]
+          : {};
+      return [
+        "expo-video",
+        {
+          ...existingOptions,
+          supportsPictureInPicture: true,
+          supportsBackgroundPlayback: true,
+        },
+      ];
+    });
   }
 
   if (isStandaloneBuild && !hasStandaloneGuard) {

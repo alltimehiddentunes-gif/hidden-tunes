@@ -50,7 +50,13 @@
     "plugins": [
       "expo-dev-client",
       "expo-router",
-      "expo-video",
+      [
+        "expo-video",
+        {
+          "supportsPictureInPicture": true,
+          "supportsBackgroundPlayback": true
+        }
+      ],
       [
         "expo-media-control",
         {

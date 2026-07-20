@@ -14,14 +14,22 @@ export type TvNativeVideoHandle = {
   unload: () => void;
   enterFullscreen: () => Promise<void>;
   exitFullscreen: () => Promise<void>;
+  startPictureInPicture: () => Promise<{
+    ok: boolean;
+    message?: string;
+  }>;
+  stopPictureInPicture: () => Promise<void>;
 };
 
 type TvNativeVideoSurfaceProps = {
   streamUrl: string;
   nativeControls?: boolean;
+  autoPictureInPicture?: boolean;
   onPlaying: () => void;
   onPaused: () => void;
   onError: () => void;
+  onPictureInPictureStart?: () => void;
+  onPictureInPictureStop?: () => void;
 };
 
 type ImplComponent = ComponentType<
@@ -47,7 +55,7 @@ function getImpl(): ImplComponent | null {
   } catch {
     Impl = null;
   }
-  return Impl;
+  return Impl ?? null;
 }
 
 const UnavailableNativeSurface = forwardRef<
@@ -62,6 +70,11 @@ const UnavailableNativeSurface = forwardRef<
       unload: () => {},
       enterFullscreen: async () => {},
       exitFullscreen: async () => {},
+      startPictureInPicture: async () => ({
+        ok: false,
+        message: "PiP unavailable on this device",
+      }),
+      stopPictureInPicture: async () => {},
     }),
     []
   );

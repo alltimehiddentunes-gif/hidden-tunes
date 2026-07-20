@@ -10,8 +10,10 @@ import {
 } from "react";
 import {
   ActivityIndicator,
+  Alert,
   BackHandler,
   FlatList,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -57,6 +59,7 @@ import TvNativeVideoSurface, {
   type TvNativeVideoHandle,
 } from "./TvNativeVideoSurface";
 import type { TvPlaybackSurface } from "@/services/tv/tvPlaybackSurface";
+import { canUseTvPiP } from "@/services/tv/tvPipEligibility";
 
 type TvPlayerHostProps = {
   html: string;
@@ -459,6 +462,55 @@ function TvPlayerHost({
     `);
   }, [nativePlayerRef, surface, webViewRef]);
 
+  const pipEligible = canUseTvPiP({
+    platform: Platform.OS,
+    sourceUri: streamUrl,
+    surface,
+    playerStatus: hasError
+      ? "error"
+      : isLoading
+        ? "loading"
+        : isPlaying
+          ? "playing"
+          : "paused",
+    isNativeSurfaceMounted: surface === "native" && Boolean(streamUrl),
+    hasFatalError: hasError,
+    sessionActive: true,
+  });
+
+  const handleStartSystemPiP = useCallback(async () => {
+    if (!pipEligible || surface !== "native") {
+      Alert.alert("Picture in Picture", "PiP unavailable on this device");
+      return;
+    }
+    try {
+      const result = await nativePlayerRef.current?.startPictureInPicture?.();
+      if (!result) {
+        Alert.alert("Picture in Picture", "PiP unavailable on this device");
+        return;
+      }
+      if (!result.ok) {
+        if (result.message) {
+          Alert.alert("Picture in Picture", result.message);
+        }
+        return;
+      }
+      // Keep the session alive in floating layout while system PiP owns the window.
+      onMinimize();
+    } catch {
+      Alert.alert("Picture in Picture", "PiP unavailable on this device");
+    }
+  }, [nativePlayerRef, onMinimize, pipEligible, surface]);
+
+  const handleNativePipStart = useCallback(() => {
+    onMinimize();
+  }, [onMinimize]);
+
+  const handleNativePipStop = useCallback(() => {
+    // Platform returns to the app; expand the existing TV session (same player).
+    onExpand();
+  }, [onExpand]);
+
   const handleReportBroken = useCallback(() => {
     if (!displayChannel) return;
     markTvChannelBroken(displayChannel.id);
@@ -534,9 +586,12 @@ function TvPlayerHost({
           ref={nativePlayerRef}
           streamUrl={streamUrl}
           nativeControls={full}
+          autoPictureInPicture={pipEligible && isPlaying && !hasError}
           onPlaying={onNativePlaying}
           onPaused={onNativePaused}
           onError={onReportError}
+          onPictureInPictureStart={handleNativePipStart}
+          onPictureInPictureStop={handleNativePipStop}
         />
       ) : surface === "webview" && html ? (
         <WebView
@@ -787,15 +842,30 @@ function TvPlayerHost({
                 <Text style={styles.secondaryActionLabel}>Favorite</Text>
               </TouchableOpacity>
             ) : null}
-            <TouchableOpacity
-              style={styles.secondaryAction}
-              onPress={handleBack}
-              accessibilityRole="button"
-              accessibilityLabel="Picture in picture"
-            >
-              <Ionicons name="browsers-outline" size={18} color={COLORS.text} />
-              <Text style={styles.secondaryActionLabel}>PiP</Text>
-            </TouchableOpacity>
+            {surface === "native" ? (
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={() => void handleStartSystemPiP()}
+                disabled={!pipEligible}
+                accessibilityRole="button"
+                accessibilityLabel="Picture in picture"
+                accessibilityState={{ disabled: !pipEligible }}
+              >
+                <Ionicons
+                  name="browsers-outline"
+                  size={18}
+                  color={pipEligible ? COLORS.text : COLORS.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.secondaryActionLabel,
+                    !pipEligible ? styles.secondaryActionLabelDisabled : null,
+                  ]}
+                >
+                  PiP
+                </Text>
+              </TouchableOpacity>
+            ) : null}
             {displayChannel ? (
               <TouchableOpacity
                 style={styles.secondaryAction}
@@ -1189,6 +1259,9 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 13,
     fontWeight: "700",
+  },
+  secondaryActionLabelDisabled: {
+    color: COLORS.textMuted,
   },
   relatedSection: { marginTop: 22 },
   relatedTitle: {
