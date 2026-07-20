@@ -25,6 +25,7 @@ import {
   isPlatformBlockedStreamUrl,
   isResolvedStreamPlayable,
   TV_LOCAL_QUARANTINE_THRESHOLD,
+  TV_NAV_STALE,
 } from "../../utils/tvPlayabilityGate";
 
 type OpenVideoOptions = {
@@ -319,6 +320,10 @@ export async function openVideoItemWithAlert(
   const result = await openVideoItem(videoInput, options);
 
   if (!result.ok) {
+    // Superseded / aborted opens must stay silent — latest tap owns UX.
+    if (result.error === TV_NAV_STALE) {
+      return result;
+    }
     const failures = await getTvPlaybackFailureCount(rawVideo.id);
     if (failures >= TV_LOCAL_QUARANTINE_THRESHOLD) {
       options.onQuarantined?.(rawVideo.id);

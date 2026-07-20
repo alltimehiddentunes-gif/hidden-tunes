@@ -38,6 +38,11 @@ import {
   type TvHomeLane,
 } from "@/services/tvCatalogApi";
 import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
+import { chunkTvVideosForVirtualizedRows } from "@/services/tv/tvPagePerformanceContract";
+import {
+  decideTvBrowseTap,
+  shouldApplyTvBrowseTapResult,
+} from "@/services/tv/tvTapPlaybackContract";
 import { getListPerformanceSettings, markFastScrolling } from "@/utils/performanceMode";
 import { buildTvDiscoveryLaunchContext } from "@/utils/tvDiscoveryLaunchContext";
 import { navigateTvHomeBack } from "@/utils/tvNavigation";
@@ -47,6 +52,7 @@ type TvLane = TvHomeLane;
 const TV_LANE_PREVIEW_LIMIT = 8;
 const ARCHIVE_DEFER_SCROLL_Y = 420;
 const SKELETON_CARD_COUNT = 6;
+const TV_GRID_COLUMNS = 2;
 
 type FeedRow =
   | { key: string; kind: "categories" }
@@ -60,8 +66,43 @@ type FeedRow =
       maxItems?: number;
       categoryMeta?: { slug: string; title: string; query?: string };
     }
+  | {
+      key: string;
+      kind: "lane-header";
+      title: string;
+      count: number;
+    }
+  | {
+      key: string;
+      kind: "grid-row";
+      videos: HiddenTunesTvVideo[];
+      lane: TvLane;
+      categoryMeta?: { slug: string; title: string; query?: string };
+    }
   | { key: string; kind: "load-more" }
   | { key: string; kind: "loading"; label: string };
+
+function appendVirtualizedLaneRows(
+  rows: FeedRow[],
+  lane: TvLane,
+  categoryMeta?: { slug: string; title: string; query?: string }
+) {
+  rows.push({
+    key: `lane-header-${lane.id}`,
+    kind: "lane-header",
+    title: displayLaneTitle(lane.title),
+    count: lane.videos.length,
+  });
+  chunkTvVideosForVirtualizedRows(lane.videos, TV_GRID_COLUMNS).forEach((videos, index) => {
+    rows.push({
+      key: `grid-${lane.id}-${index}-${videos.map((v) => v.id).join("_")}`,
+      kind: "grid-row",
+      videos,
+      lane,
+      categoryMeta,
+    });
+  });
+}
 
 function displayLaneTitle(title: string) {
   if (title === "Documentary Nights") return "Documentary";
@@ -116,6 +157,19 @@ export default function YouTubeFeedScreen() {
   const archiveAbortRef = useRef<AbortController | null>(null);
   const archiveRequestedRef = useRef(false);
   const openGuardRef = useRef<string | null>(null);
+  const tapGenerationRef = useRef(0);
+  const openVideoRef = useRef<
+    (
+      video: HiddenTunesTvVideo,
+      queueVideos?: HiddenTunesTvVideo[],
+      launchOptions?: {
+        query?: string;
+        lane?: TvLane;
+        categorySlug?: string;
+        categoryTitle?: string;
+      }
+    ) => void
+  >(() => undefined);
   const mountedRef = useRef(true);
   const { width } = useWindowDimensions();
   const featuredWidth = Math.max(300, width - 36);
@@ -533,9 +587,27 @@ export default function YouTubeFeedScreen() {
         categoryTitle?: string;
       }
     ) => {
-      if (openGuardRef.current) return;
+      const decision = decideTvBrowseTap({
+        tappedId: video.id,
+        inFlightId: openGuardRef.current,
+        generation: tapGenerationRef.current,
+      });
+      if (decision.action === "suppress") {
+        return;
+      }
+
+      tapGenerationRef.current = decision.nextGeneration;
+      const generation = decision.nextGeneration;
       openGuardRef.current = video.id;
       setConnectingVideoId(video.id);
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[HTTvPerf] tap_accepted", {
+          id: video.id,
+          generation,
+          reason: decision.reason,
+        });
+      }
 
       const queue = queueVideos?.length ? queueVideos : [video];
       const startIndex = Math.max(0, queue.findIndex((entry) => entry.id === video.id));
@@ -554,6 +626,14 @@ export default function YouTubeFeedScreen() {
         discoveryContext,
         onQuarantined: removeQuarantinedChannel,
       }).finally(() => {
+        if (
+          !shouldApplyTvBrowseTapResult({
+            resultGeneration: generation,
+            latestGeneration: tapGenerationRef.current,
+          })
+        ) {
+          return;
+        }
         if (openGuardRef.current === video.id) {
           openGuardRef.current = null;
         }
@@ -563,6 +643,23 @@ export default function YouTubeFeedScreen() {
       });
     },
     [removeQuarantinedChannel]
+  );
+  openVideoRef.current = openVideo;
+
+  const onStableLaneCardPress = useCallback(
+    (
+      video: HiddenTunesTvVideo,
+      lane: TvLane,
+      categoryMeta?: { slug: string; title: string; query?: string }
+    ) => {
+      openVideoRef.current(video, lane.videos, {
+        lane,
+        categorySlug: categoryMeta?.slug,
+        categoryTitle: categoryMeta?.title,
+        query: categoryMeta?.query,
+      });
+    },
+    []
   );
 
   const renderHeaderChrome = useCallback(
@@ -600,25 +697,19 @@ export default function YouTubeFeedScreen() {
     (
       item: HiddenTunesTvVideo,
       lane: TvLane,
-      categoryMeta?: { slug: string; title: string; query?: string }
+      categoryMeta?: { slug: string; title: string; query?: string },
+      connectingId?: string | null
     ) => (
       <View style={styles.gridCell}>
         <TvVideoCard
           video={item}
           fillWidth
-          connecting={connectingVideoId === item.id}
-          onPress={(pressed) =>
-            openVideo(pressed, lane.videos, {
-              lane,
-              categorySlug: categoryMeta?.slug,
-              categoryTitle: categoryMeta?.title,
-              query: categoryMeta?.query,
-            })
-          }
+          connecting={connectingId === item.id}
+          onPress={() => onStableLaneCardPress(item, lane, categoryMeta)}
         />
       </View>
     ),
-    [connectingVideoId, openVideo]
+    [onStableLaneCardPress]
   );
 
   const searchLane = useMemo<TvLane>(
@@ -632,19 +723,12 @@ export default function YouTubeFeedScreen() {
   const feedRows = useMemo<FeedRow[]>(() => {
     if (hasSearchText) {
       if (searchResults.length > 0) {
-        const rows: FeedRow[] = [
-          {
-            key: "search-lane",
-            kind: "lane",
-            lane: searchLane,
-            maxItems: searchLane.videos.length,
-            categoryMeta: {
-              slug: "search",
-              title: "Search Results",
-              query: query.trim(),
-            },
-          },
-        ];
+        const rows: FeedRow[] = [];
+        appendVirtualizedLaneRows(rows, searchLane, {
+          slug: "search",
+          title: "Search Results",
+          query: query.trim(),
+        });
         if (searchHasMore || searchLoadingMore) {
           rows.push({ key: "search-load-more", kind: "load-more" });
         }
@@ -675,15 +759,13 @@ export default function YouTubeFeedScreen() {
     if (categoryLaneLoading) {
       rows.push({ key: "category-loading", kind: "loading", label: "Loading category" });
     } else if (categoryLane) {
-      rows.push({
-        key: `category-${categoryLane.id}`,
-        kind: "lane",
-        lane: categoryLane,
-        maxItems: categoryLane.videos.length,
-        categoryMeta: activeCategory
+      appendVirtualizedLaneRows(
+        rows,
+        categoryLane,
+        activeCategory
           ? { slug: activeCategory.slug, title: activeCategory.name }
-          : undefined,
-      });
+          : undefined
+      );
       if (categoryHasMore) {
         rows.push({ key: "category-load-more", kind: "load-more" });
       }
@@ -772,10 +854,17 @@ export default function YouTubeFeedScreen() {
     visibleLaneBudget,
   ]);
 
-  const listPerf = useMemo(
-    () => getListPerformanceSettings(Math.max(feedRows.length * TV_LANE_PREVIEW_LIMIT, 24)),
-    [feedRows.length]
-  );
+  const listPerf = useMemo(() => {
+    const estimatedCards = feedRows.reduce((count, row) => {
+      if (row.kind === "grid-row") return count + row.videos.length;
+      if (row.kind === "lane") {
+        return count + Math.min(row.lane.videos.length, row.maxItems ?? TV_LANE_PREVIEW_LIMIT);
+      }
+      if (row.kind === "featured") return count + 1;
+      return count;
+    }, 0);
+    return getListPerformanceSettings(Math.max(estimatedCards, feedRows.length, 24));
+  }, [feedRows]);
 
   const onScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -840,8 +929,45 @@ export default function YouTubeFeedScreen() {
                 video={item.video}
                 width={featuredWidth}
                 connecting={connectingVideoId === item.video.id}
-                onPress={(pressed) => openVideo(pressed, item.lane?.videos, { lane: item.lane })}
+                onPress={(pressed) =>
+                  openVideoRef.current(pressed, item.lane?.videos, { lane: item.lane })
+                }
               />
+            </View>
+          );
+        case "lane-header":
+          return (
+            <View style={styles.laneSectionHeader}>
+              <Text style={styles.sectionTitle}>{item.title}</Text>
+              <Text style={styles.sectionMeta}>{item.count} ready</Text>
+            </View>
+          );
+        case "grid-row":
+          return (
+            <View style={styles.virtualGridRow}>
+              {item.videos.map((video) => (
+                <View key={video.id} style={styles.gridCell}>
+                  <TvVideoCard
+                    video={video}
+                    fillWidth
+                    connecting={connectingVideoId === video.id}
+                    onPress={() =>
+                      onStableLaneCardPress(video, item.lane, item.categoryMeta)
+                    }
+                  />
+                </View>
+              ))}
+              {item.videos.length < TV_GRID_COLUMNS
+                ? Array.from(
+                    { length: TV_GRID_COLUMNS - item.videos.length },
+                    (_, filler) => (
+                      <View
+                        key={`filler-${item.key}-${filler}`}
+                        style={styles.gridCell}
+                      />
+                    )
+                  )
+                : null}
             </View>
           );
         case "lane":
@@ -855,7 +981,12 @@ export default function YouTubeFeedScreen() {
                 data={item.lane.videos}
                 keyExtractor={(video) => video.id}
                 renderItem={({ item: video }) =>
-                  renderLaneCard(video, item.lane, item.categoryMeta)
+                  renderLaneCard(
+                    video,
+                    item.lane,
+                    item.categoryMeta,
+                    connectingVideoId
+                  )
                 }
                 maxItems={item.maxItems ?? TV_LANE_PREVIEW_LIMIT}
                 scrollEnabled={false}
@@ -925,7 +1056,7 @@ export default function YouTubeFeedScreen() {
       loadMoreCategory,
       loadMoreSearch,
       loadTv,
-      openVideo,
+      onStableLaneCardPress,
       renderLaneCard,
       searchLoadingMore,
     ]
@@ -1067,6 +1198,18 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   laneSection: { marginBottom: 24 },
+  laneSectionHeader: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  virtualGridRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 12,
+  },
   gridCell: { flex: 1, minWidth: 0 },
   sectionHeader: {
     flexDirection: "row",

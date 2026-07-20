@@ -5,8 +5,12 @@ import {
   createTvDiscoverySession,
   getTvDiscoverySession,
 } from "@/services/tvDiscoverySessionStore";
-import { getTvSessionController } from "@/services/tv/tvSessionController";
+import { cancelTvDiscoveryResolution } from "@/services/tvDiscoveryAbort";
 import { openTvPlayerFullScreen } from "@/services/tv/tvPlayerNavigation";
+import {
+  getTvSessionController,
+  stopTvSession,
+} from "@/services/tv/tvSessionController";
 import type { TvDiscoveryLaunchContext, TvStationPlayResult } from "@/types/tvDiscovery";
 import { buildDiscoveryHierarchyLayers } from "@/utils/tvDiscoveryHierarchy";
 import {
@@ -18,8 +22,12 @@ import { tvVideoToQueueItem, tvVideosToQueueItems } from "@/utils/tvStationItem"
 
 let tvDiscoveryOpenInFlight: {
   stationId: string;
+  generation: number;
   promise: Promise<TvStationPlayResult>;
 } | null = null;
+
+/** Latest accepted browse/open tap generation — stale opens must not attach. */
+let tvDiscoveryOpenGeneration = 0;
 
 export type OpenTvDiscoveryOptions = {
   queueVideos?: HiddenTunesTvVideo[];
@@ -156,12 +164,22 @@ async function openTvDiscoveryStationInternal(
     hierarchyLayers,
   });
 
+  const openGeneration = tvDiscoveryOpenGeneration;
+
   let result = await playTvDiscoveryStationAtIndex(
     getTvDiscoverySession()?.currentIndex ?? 0
   );
 
+  if (openGeneration !== tvDiscoveryOpenGeneration) {
+    return { ok: false, error: TV_NAV_STALE, attempts: 0 };
+  }
+
   if (!result.ok && result.error !== TV_NAV_STALE && !result.exhausted) {
     result = await exploreForwardUntilPlayable();
+  }
+
+  if (openGeneration !== tvDiscoveryOpenGeneration) {
+    return { ok: false, error: TV_NAV_STALE, attempts: 0 };
   }
 
   if (!result.ok) {
@@ -171,6 +189,10 @@ async function openTvDiscoveryStationInternal(
   // Attach the already-resolved play contract to the single TV session owner
   // before navigating. Browse still never preloads stream URLs.
   await attachResolvedTvSession(result, queueVideos);
+
+  if (openGeneration !== tvDiscoveryOpenGeneration) {
+    return { ok: false, error: TV_NAV_STALE, attempts: 0 };
+  }
 
   openTvPlayerFullScreen("user-open");
 
@@ -191,15 +213,31 @@ export async function openTvDiscoveryStation(
         );
   const anchorId = (queueVideos[startIndex >= 0 ? startIndex : 0] || video).id;
 
+  // Same station already resolving — reuse (suppress duplicate same-card taps).
   if (tvDiscoveryOpenInFlight?.stationId === anchorId) {
     return tvDiscoveryOpenInFlight.promise;
   }
 
+  // Different station (or idle): latest tap wins — abort prior resolution.
+  tvDiscoveryOpenGeneration += 1;
+  const generation = tvDiscoveryOpenGeneration;
+  cancelTvDiscoveryResolution();
+
+  const controller = getTvSessionController();
+  const activeId = controller?.getActiveItemId?.() ?? null;
+  if (controller?.isSessionActive?.() && activeId !== anchorId) {
+    stopTvSession();
+  }
+
   const promise = openTvDiscoveryStationInternal(video, options);
-  tvDiscoveryOpenInFlight = { stationId: anchorId, promise };
+  tvDiscoveryOpenInFlight = { stationId: anchorId, generation, promise };
 
   try {
-    return await promise;
+    const result = await promise;
+    if (generation !== tvDiscoveryOpenGeneration) {
+      return { ok: false, error: TV_NAV_STALE, attempts: 0 };
+    }
+    return result;
   } finally {
     if (tvDiscoveryOpenInFlight?.promise === promise) {
       tvDiscoveryOpenInFlight = null;

@@ -142,8 +142,9 @@ function areEqual(prev: TvVideoCardProps, next: TvVideoCardProps) {
     prev.video.verified === next.video.verified &&
     prev.width === next.width &&
     prev.fillWidth === next.fillWidth &&
-    prev.connecting === next.connecting &&
-    prev.onPress === next.onPress
+    prev.connecting === next.connecting
+    // onPress intentionally ignored: handlers use refs / stable open paths;
+    // comparing it forced full-grid remounts when connectingVideoId flipped.
   );
 }
 
