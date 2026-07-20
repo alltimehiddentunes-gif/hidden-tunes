@@ -29,6 +29,7 @@ type LoadPageResult = {
   rawBackendRowsReturned?: number;
   source?: string;
   stopReason?: string;
+  catalogError?: string;
 };
 
 type UseLazyRadioStationListOptions = {
@@ -217,7 +218,14 @@ export function useLazyRadioStationList({
           }
         }
 
-        setLoadError(null);
+        // Genuine HTTP/network/parse: keep stations, surface recoverable warning.
+        // Timeout/abort paths never set catalogError.
+        if (result.catalogError) {
+          setLoadError(result.catalogError);
+        } else {
+          setLoadError(null);
+        }
+
         const applied = applyPage(result.stations, append, result.hasMore, offset, {
           backendTotal: result.backendTotal,
           backendPageRowCount: result.backendPageRowCount,

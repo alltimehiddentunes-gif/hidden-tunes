@@ -74,6 +74,7 @@ export default function RadioSearchScreen() {
     refreshing,
     loadingMore,
     hasLoadedOnce,
+    loadError,
     onRefresh,
     loadMore,
     resolveStation,
@@ -225,11 +226,17 @@ export default function RadioSearchScreen() {
   );
 
   const listHeader = useMemo(
-    () =>
-      listCountLabel ? (
-        <Text style={styles.sectionTitle}>{listCountLabel}</Text>
-      ) : null,
-    [listCountLabel]
+    () => (
+      <View>
+        {loadError ? (
+          <Text style={styles.refreshWarning}>{loadError}</Text>
+        ) : null}
+        {listCountLabel ? (
+          <Text style={styles.sectionTitle}>{listCountLabel}</Text>
+        ) : null}
+      </View>
+    ),
+    [listCountLabel, loadError]
   );
 
   const showPrompt = !debouncedQuery;
@@ -238,7 +245,8 @@ export default function RadioSearchScreen() {
     hasLoadedOnce &&
     !loading &&
     !refreshing &&
-    listItems.length === 0;
+    listItems.length === 0 &&
+    !loadError;
 
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
@@ -404,6 +412,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 12,
     marginTop: 8,
+  },
+  refreshWarning: {
+    color: "#E8B86D",
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 4,
+    marginBottom: 4,
+    lineHeight: 18,
   },
   center: {
     flex: 1,

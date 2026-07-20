@@ -350,6 +350,8 @@ type LoadRadioPageResult = {
   source?: string;
   /** Dev/test: why pagination continued or stopped for this page. */
   stopReason?: string;
+  /** Recoverable catalog failure; stations may still be from local cache. */
+  catalogError?: string;
 };
 
 type RadioPageFetchResult =
@@ -643,11 +645,21 @@ async function loadRadioPage(
           };
         }
 
+        const message = error instanceof Error ? error.message : String(error);
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.warn("[RadioSearch] catalog failure (cache preserved)", {
+            query: safeKey,
+            offset,
+            message,
+          });
+        }
+
         return {
           stations,
           hasMore: stations.length >= limit,
           stopReason: "network-error-cache-fallback",
           source: "cache-fallback",
+          catalogError: "Couldn't refresh stations. Pull to retry.",
         };
       });
 
@@ -684,6 +696,7 @@ async function loadRadioPage(
         rawBackendRowsReturned: result.rawBackendRowsReturned,
         source: result.source,
         stopReason: result.stopReason,
+        catalogError: result.catalogError,
       };
     } catch (error) {
       // External cancellation (unmount / query replace) — silent empty page.
