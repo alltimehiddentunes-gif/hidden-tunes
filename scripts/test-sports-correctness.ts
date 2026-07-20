@@ -162,6 +162,16 @@ function main() {
   assert.equal(shouldOpenSportsPlayer(upcoming), false);
   assert.equal(shouldOpenSportsPlayer(livePlayable), true);
   assert.equal(shouldOpenSportsPlayer(finished), false);
+
+  // Finished status beats stale availabilityState=live_in_app
+  const staleLiveFinished: SportsMatchCard = {
+    id: "stale-finished",
+    status: { code: "finished", label: "Final", live: false, finished: true },
+    watchability: { state: "watch", playable: false },
+    availabilityState: "live_in_app",
+  };
+  assert.equal(getSportsWatchAction(staleLiveFinished).kind, "none");
+  assert.equal(shouldOpenSportsPlayer(staleLiveFinished), false);
   assert.equal(needsSportsCountdownClock(upcoming), true);
   assert.equal(needsSportsCountdownClock(livePlayable), false);
   assert.equal(needsSportsCountdownClock(finished), false);

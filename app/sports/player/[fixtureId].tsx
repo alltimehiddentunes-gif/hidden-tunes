@@ -141,6 +141,14 @@ export default function SportsPlayerScreen() {
         if (!canCommit() || !claim.isCurrent()) return;
         claimGenerationRef.current = claim.generation;
 
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[SportsPlayer] resolve start", {
+            fixtureId: id,
+            generation,
+            claimGeneration: claim.generation,
+          });
+        }
+
         const [detail, playSession] = await Promise.all([
           fetchSportsFixtureDetail(id, {
             signal: controller.signal,
@@ -155,7 +163,24 @@ export default function SportsPlayerScreen() {
           }),
         ]);
 
-        if (!canCommit() || !claim.isCurrent()) return;
+        if (!canCommit() || !claim.isCurrent()) {
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.log("[SportsPlayer] resolve ignored (stale)", {
+              fixtureId: id,
+              generation,
+              currentGeneration: generationRef.current,
+            });
+          }
+          return;
+        }
+
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[SportsPlayer] resolve commit", {
+            fixtureId: id,
+            generation,
+            sessionStatus: playSession.status,
+          });
+        }
 
         if (detail.fixture) setFixture(detail.fixture);
         setSession(playSession);

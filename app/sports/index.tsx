@@ -5,9 +5,19 @@
  * Discovery hub "Sports Preview" card (dev-only) or a direct route push.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import {
+  AppState,
+  FlatList,
+  Platform,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+  type AppStateStatus,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, router } from "expo-router";
+import { Stack, router, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
@@ -148,12 +158,17 @@ function SportsHomeInner() {
   const abortRef = useRef<AbortController | null>(null);
   const watchGuardRef = useRef(createTapGuardState());
   const navGuardRef = useRef(createTapGuardState());
+  const refreshInFlightRef = useRef(false);
+  const focusedRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { background?: boolean }) => {
+    const background = opts?.background === true;
+    if (background && refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setError(null);
+    if (!background) setError(null);
 
     try {
       const [home, reminders, favorites, follows] = await Promise.all([
@@ -172,7 +187,7 @@ function SportsHomeInner() {
 
       if (!home.enabled) {
         setSections([]);
-        setError(home.message || "Sports preview is unavailable.");
+        if (!background) setError(home.message || "Sports preview is unavailable.");
         return;
       }
 
@@ -180,10 +195,11 @@ function SportsHomeInner() {
       const merged = mergeSectionErrors(raw, home.sectionErrors);
       setSections(omitEmptySportsSections(filterUnsupportedHomeSections(merged)));
     } catch {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && !background) {
         setError("Sports could not be loaded. Try again.");
       }
     } finally {
+      refreshInFlightRef.current = false;
       if (!controller.signal.aborted) {
         setLoading(false);
         setRefreshing(false);
@@ -198,6 +214,33 @@ function SportsHomeInner() {
       abortRef.current?.abort();
     };
   }, [gate.allowed, load]);
+
+  // Focused live refresh — one timer, aborted when unfocused/backgrounded.
+  useFocusEffect(
+    useCallback(() => {
+      if (!gate.allowed) return undefined;
+      focusedRef.current = true;
+      const LIVE_REFRESH_MS = 60_000;
+      const tick = () => {
+        if (!focusedRef.current) return;
+        if (AppState.currentState !== "active") return;
+        void load({ background: true });
+      };
+      const intervalId = setInterval(tick, LIVE_REFRESH_MS);
+      const onAppState = (state: AppStateStatus) => {
+        if (state !== "active") return;
+        if (!focusedRef.current) return;
+        void load({ background: true });
+      };
+      const sub = AppState.addEventListener("change", onAppState);
+      return () => {
+        focusedRef.current = false;
+        clearInterval(intervalId);
+        sub.remove();
+        abortRef.current?.abort();
+      };
+    }, [gate.allowed, load])
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
