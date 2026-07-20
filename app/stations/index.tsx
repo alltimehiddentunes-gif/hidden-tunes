@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -102,6 +102,8 @@ export default function RadioStationsHomeScreen() {
   const { playRadioStation } = usePlaybackRouter();
   const { consentVisible, runWithMatureConsent, cancelConsent, confirmConsent } =
     useMatureContentGate();
+  const hubPlayInFlightRef = useRef<string | null>(null);
+  const hubPlayGenerationRef = useRef(0);
   const {
     featured,
     trending,
@@ -167,29 +169,56 @@ export default function RadioStationsHomeScreen() {
       label: string,
       cacheKey?: string
     ) => {
-      let station = resolveStation(item.id);
+      const stationId = String(item.id || "").trim();
+      if (!stationId) return;
+      if (hubPlayInFlightRef.current === stationId) return;
 
-      if (!station) {
-        const resolved = await loadRadioCategoryPage("featured", { offset: 0, limit: 40 }).catch(
-          () => null
-        );
-        station = resolved?.stations.find((entry) => entry.id === item.id) || null;
-      }
+      const generation = ++hubPlayGenerationRef.current;
+      hubPlayInFlightRef.current = stationId;
 
-      if (!station) {
-        Alert.alert("Unavailable", "This station is unavailable right now.");
-        return;
-      }
+      try {
+        let station = resolveStation(item.id);
 
-      const session = buildRadioSessionFromListItems(railStations, resolveStation, {
-        startStationId: station.id,
-        label,
-        cacheKey,
-      });
+        if (!station) {
+          const resolved = await loadRadioCategoryPage("featured", {
+            offset: 0,
+            limit: 40,
+          }).catch(() => null);
+          if (generation !== hubPlayGenerationRef.current) return;
+          station = resolved?.stations.find((entry) => entry.id === item.id) || null;
+        }
 
-      const result = await playRadioStation(normalizeRadioStation(station), session);
-      if (!result.ok) {
-        Alert.alert("Unavailable", result.error || "This station is unavailable right now.");
+        if (!station) {
+          if (generation === hubPlayGenerationRef.current) {
+            Alert.alert("Unavailable", "This station is unavailable right now.");
+          }
+          return;
+        }
+
+        const focus = railStations.findIndex((entry) => entry.id === stationId);
+        const windowStart = focus >= 0 ? Math.max(0, focus - 40) : 0;
+        const sessionRails =
+          focus >= 0
+            ? railStations.slice(windowStart, focus + 41)
+            : railStations.slice(0, 81);
+
+        if (generation !== hubPlayGenerationRef.current) return;
+
+        const session = buildRadioSessionFromListItems(sessionRails, resolveStation, {
+          startStationId: station.id,
+          label,
+          cacheKey,
+        });
+
+        const result = await playRadioStation(normalizeRadioStation(station), session);
+        if (generation !== hubPlayGenerationRef.current) return;
+        if (!result.ok) {
+          Alert.alert("Unavailable", result.error || "This station is unavailable right now.");
+        }
+      } finally {
+        if (generation === hubPlayGenerationRef.current) {
+          hubPlayInFlightRef.current = null;
+        }
       }
     },
     [playRadioStation, resolveStation]

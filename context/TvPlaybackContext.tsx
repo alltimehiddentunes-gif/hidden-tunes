@@ -8,12 +8,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { router } from "expo-router";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
 import TvPlayerHost from "../components/tv/TvPlayerHost";
 import type { TvNativeVideoHandle } from "../components/tv/TvNativeVideoSurface";
-import { usePlayerActions } from "./PlayerContext";
 import { getTvChannelById } from "../data/tvChannelSeedCatalog";
 import {
   fetchTvPlayback,
@@ -25,6 +23,12 @@ import {
   invalidateTvMediaTransitions,
   isCurrentTvMediaTransition,
 } from "../services/tv/tvMediaHandoff";
+import {
+  claimExclusivePlayback,
+  registerPlaybackOwnerAdapter,
+  releasePlaybackOwner,
+} from "../services/playback/PlaybackHandoffCoordinator";
+import { openTvPlayerFullScreen } from "../services/tv/tvPlayerNavigation";
 import { setTvSessionActive } from "../services/tv/tvPlaybackActivity";
 import {
   resolveTvPlaybackSurface,
@@ -267,7 +271,6 @@ function seedPlayback(channel: TVChannel): HiddenTunesTvPlayback {
 }
 
 export function TvPlaybackProvider({ children }: { children: ReactNode }) {
-  const { stopPlayback } = usePlayerActions();
   const webViewRef = useRef<WebView | null>(null);
   const nativePlayerRef = useRef<TvNativeVideoHandle | null>(null);
   const sessionIdRef = useRef(0);
@@ -311,6 +314,11 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
   const unloadSurface = useCallback(() => {
     try {
+      void nativePlayerRef.current?.stopPictureInPicture?.();
+    } catch {
+      // Best-effort PiP close on owner transfer.
+    }
+    try {
       nativePlayerRef.current?.unload();
     } catch {
       // Best-effort native unload.
@@ -346,6 +354,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     watchedSavedRef.current = null;
     sessionActiveRef.current = false;
     activeItemIdRef.current = null;
+    releasePlaybackOwner("tv");
   }, [unloadSurface]);
 
   const setPresentationMode = useCallback((mode: TvPresentationMode) => {
@@ -402,13 +411,14 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       const presentation =
         input.presentation === "fullPlayer" ? "fullPlayer" : "floating";
 
-      try {
-        await stopPlayback();
-      } catch {
-        // Music owns its failure handling.
-      }
+      const claim = await claimExclusivePlayback({
+        owner: "tv",
+        contentKind: "tv",
+        mediaKey: String(input.item?.id || "tv"),
+      });
 
       if (
+        !claim.isCurrent() ||
         sessionId !== sessionIdRef.current ||
         !isCurrentTvMediaTransition(transitionId)
       ) {
@@ -443,7 +453,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
       return { ok: true };
     },
-    [applyResolvedSession, stopPlayback]
+    [applyResolvedSession]
   );
 
   const startCatalogSession = useCallback(
@@ -457,13 +467,14 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
       setIsTvLoading(true);
 
-      try {
-        await stopPlayback();
-      } catch {
-        // Music owns its failure handling.
-      }
+      const claim = await claimExclusivePlayback({
+        owner: "tv",
+        contentKind: "tv",
+        mediaKey: String(input.video?.id || "tv"),
+      });
 
       if (
+        !claim.isCurrent() ||
         sessionId !== sessionIdRef.current ||
         !isCurrentTvMediaTransition(transitionId)
       ) {
@@ -476,6 +487,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
           playback = await fetchTvPlayback(input.video);
         } catch {
           if (
+            !claim.isCurrent() ||
             sessionId !== sessionIdRef.current ||
             !isCurrentTvMediaTransition(transitionId)
           ) {
@@ -486,6 +498,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       }
 
       if (
+        !claim.isCurrent() ||
         sessionId !== sessionIdRef.current ||
         !isCurrentTvMediaTransition(transitionId)
       ) {
@@ -528,7 +541,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
       return { ok: true };
     },
-    [applyResolvedSession, stopPlayback]
+    [applyResolvedSession]
   );
 
   const startSeedSession = useCallback(
@@ -627,10 +640,9 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
   const restoreTv = useCallback(() => {
     if (presentationMode === "closed") return;
-    setPresentationMode("fullPlayer");
-    // Replace (not push) so PiP restore does not stack duplicate /tv-player routes.
-    router.replace("/tv-player" as any);
-  }, [presentationMode, setPresentationMode]);
+    // Singleton route owner — expands host first; skips navigation when already on /tv-player.
+    openTvPlayerFullScreen("floating-player-tap");
+  }, [presentationMode]);
 
   const handleTogglePlayback = useCallback(() => {
     const nextPlaying = !isPlayingRef.current;
@@ -724,8 +736,17 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       getActiveItemId: () => activeItemIdRef.current,
     });
 
+    const unregisterAdapter = registerPlaybackOwnerAdapter({
+      id: "tv",
+      stopImmediately: () => {
+        stopTv();
+      },
+      isActive: () => sessionActiveRef.current,
+    });
+
     return () => {
       registerTvSessionController(null);
+      unregisterAdapter();
     };
   }, [
     setPresentationMode,

@@ -37,6 +37,13 @@ import {
   isRadioStreamSong,
   radioStationToAppSong,
 } from "../services/playback/radioPlaybackAdapter";
+import {
+  claimExclusivePlayback,
+  isPlaybackOwnerActive,
+  registerPlaybackOwnerAdapter,
+  releasePlaybackOwner,
+} from "../services/playback/PlaybackHandoffCoordinator";
+import { inferSharedAudioContentKind } from "../services/playback/inferSharedAudioContentKind";
 import { loadRadioCategoryPage, loadRadioSearchPage } from "../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 
@@ -4121,6 +4128,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const nextSong = useCallback(async (options?: { source?: "remote" | "app" | "auto" }) => {
     const isAutoAdvance = options?.source === "auto";
+    // Stale queue auto-next must not reclaim ownership after TV/video/sports wins.
+    if (isAutoAdvance && !isPlaybackOwnerActive("shared-audio")) {
+      logAutoNextSkipped("handoff_owner_inactive", { source: "nextSong_auto" });
+      return;
+    }
     if (
       options?.source !== "remote" &&
       options?.source !== "auto" &&
@@ -4348,6 +4360,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
 
     try {
+      if (!isPlaybackOwnerActive("shared-audio")) {
+        logAutoNextSkipped("handoff_owner_inactive", {
+          songId: currentSongRef.current?.id,
+          source: "handleTrackFinished",
+        });
+        return;
+      }
+
       if (isLiveStreamSong(currentSongRef.current)) {
         logAutoNextSkipped("live_stream", {
           songId: currentSongRef.current?.id,
@@ -6156,16 +6176,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queueContext: PlaybackQueueContext = DEFAULT_QUEUE_CONTEXT,
       queueMode?: ActiveQueueMode
     ) => {
+      const seedSong = normalizeSong(
+        queue[Math.max(0, Math.min(startIndex, queue.length - 1))] || queue[0]
+      );
+
+      const handoff = await claimExclusivePlayback({
+        owner: "shared-audio",
+        contentKind: inferSharedAudioContentKind({
+          queueContextSource: queueContext.source,
+          queueMode: queueMode || activeQueueModeRef.current,
+          songSource: (seedSong as { source?: string }).source,
+          songType: (seedSong as { type?: string }).type,
+          songId: seedSong.id,
+        }),
+        mediaKey: seedSong.id,
+      });
+      if (!handoff.isCurrent()) {
+        return;
+      }
+
       logLockscreenPlaybackDiagnostic("playable_tap_received", {
         source: "playQueue",
         queueLength: queue.length,
         requestedIndex: startIndex,
         contextSource: queueContext.source,
       });
-
-      const seedSong = normalizeSong(
-        queue[Math.max(0, Math.min(startIndex, queue.length - 1))] || queue[0]
-      );
       const resolved = resolvePlaybackQueue(
         seedSong,
         queueContext,
@@ -6324,6 +6359,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const requestedQueueIndex =
         typeof index === "number" ? index : activeQueueIndexRef.current;
       const isLatestTap = () => latestPlaySongTapIdRef.current === tapRequestId;
+
+      // Global handoff: silence TV/video/sports immediately before audio resolve/load.
+      const handoff = await claimExclusivePlayback({
+        owner: "shared-audio",
+        contentKind: inferSharedAudioContentKind({
+          queueContextSource: queueContext.source,
+          queueMode: queueMode || activeQueueModeRef.current,
+          songSource: (normalizedSong as { source?: string }).source,
+          songType: (normalizedSong as { type?: string }).type,
+          songId: normalizedSong.id,
+        }),
+        mediaKey: normalizedSong.id,
+      });
+      if (!handoff.isCurrent() || !isLatestTap()) {
+        logTapLatencyDiagnostic("stale_tap_ignored_after_handoff", tapStartedAt, {
+          songId: normalizedSong.id,
+          tapRequestId,
+        });
+        return;
+      }
 
       logTapLatencyDiagnostic("tap_received", tapStartedAt, {
         songId: normalizedSong.id,
@@ -6747,6 +6802,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       lastCurrentSongPersistRef.current = "";
       await removeStoredValues([CURRENT_SONG_KEY, POSITION_KEY]);
+      releasePlaybackOwner("shared-audio");
     } catch (error) {
       console.log("Stop playback error:", error);
     } finally {
@@ -6762,6 +6818,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     clearLoadingRecoveryTimeout,
     clearFinishWatchdog,
   ]);
+
+  useEffect(() => {
+    return registerPlaybackOwnerAdapter({
+      id: "shared-audio",
+      stopImmediately: async () => {
+        try {
+          await stopPlayback();
+        } catch {
+          // Peer stop must never throw into the claiming owner.
+        }
+      },
+      isActive: () => Boolean(currentSongRef.current),
+    });
+  }, [stopPlayback]);
 
   const togglePlayPause = useCallback(async () => {
     if (!queueControlTapGuardRef.current("toggle_play_pause")) return;

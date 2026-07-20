@@ -1,5 +1,6 @@
 import type { AppSong } from "@/context/PlayerContext";
 import type { EducationalProgram, EducationalSession, EducationalSessionPlayItem } from "@/types/education";
+import { claimExclusivePlayback } from "@/services/playback/PlaybackHandoffCoordinator";
 import { fetchEducationalProgramDetail, fetchEducationalSessionPlayback } from "@/services/lecturesCatalogApi";
 import { recordEducationalRecentlyPlayed } from "@/services/educationalRecentlyPlayed";
 import { findEducationalSessionIndex } from "@/utils/educationalOrdering";
@@ -232,6 +233,15 @@ export const EducationalPlaybackController = {
     const requestId = ++activePlayRequestId;
     const generation = input.playGeneration ?? nextEducationalPlayGeneration();
     const tapId = input.tapId || `lecture-${Date.now()}`;
+
+    await claimExclusivePlayback({
+      owner: "shared-audio",
+      contentKind: "lecture",
+      mediaKey: String(input.startSessionId || input.program.id),
+    });
+    if (input.signal?.aborted || requestId !== activePlayRequestId) {
+      return { ok: false as const, error: "Playback request was superseded." };
+    }
 
     createEducationalPlaybackSession({
       program: input.program,

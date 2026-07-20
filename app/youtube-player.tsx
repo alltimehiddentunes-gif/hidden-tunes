@@ -14,7 +14,15 @@ import { router, useLocalSearchParams } from "expo-router";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { usePlayerActions } from "../context/PlayerContext";
+import {
+  claimExclusivePlayback,
+  registerPlaybackOwnerAdapter,
+  releasePlaybackOwner,
+} from "../services/playback/PlaybackHandoffCoordinator";
+import {
+  registerVideoSessionController,
+} from "../services/playback/videoSessionController";
+import { navigateTvPlayerBack } from "../utils/tvNavigation";
 
 type YouTubeQueueItem = {
   id: string;
@@ -283,8 +291,6 @@ export default function YouTubePlayerScreen() {
   const params = useLocalSearchParams();
   const webViewRef = useRef<WebView | null>(null);
 
-  const { stopPlayback } = usePlayerActions();
-
   const startedAtRef = useRef<number>(Date.now());
   const youtubeMiniPayloadRef = useRef("");
   const autoNextLockRef = useRef(false);
@@ -385,13 +391,60 @@ export default function YouTubePlayerScreen() {
   }, [currentEmbedUrl, embedPageOrigin, videoId, videoSource]);
 
   useEffect(() => {
-    stopPlayback?.();
+    let active = true;
+    const sessionActive = { current: true };
+
+    const stopVideo = () => {
+      sessionActive.current = false;
+      try {
+        webViewRef.current?.injectJavaScript?.(
+          `try {
+            var v = document.querySelector('video');
+            if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
+            if (window.YT && window.YT.get) { /* best-effort */ }
+          } catch (e) {} true;`
+        );
+        webViewRef.current?.stopLoading?.();
+      } catch {
+        // Best-effort.
+      }
+      setIsVideoPlaying(false);
+      releasePlaybackOwner("video");
+    };
+
+    registerVideoSessionController({
+      stopSession: stopVideo,
+      isSessionActive: () => sessionActive.current,
+    });
+
+    const unregisterAdapter = registerPlaybackOwnerAdapter({
+      id: "video",
+      stopImmediately: () => {
+        stopVideo();
+      },
+      isActive: () => sessionActive.current,
+    });
+
+    void (async () => {
+      const claim = await claimExclusivePlayback({
+        owner: "video",
+        contentKind: "video",
+        mediaKey: String(initialVideoId || "youtube"),
+      });
+      if (!active || !claim.isCurrent()) {
+        stopVideo();
+      }
+    })();
 
     return () => {
+      active = false;
+      sessionActive.current = false;
+      unregisterAdapter();
+      registerVideoSessionController(null);
+      releasePlaybackOwner("video");
       if (errorSkipTimerRef.current) {
         clearTimeout(errorSkipTimerRef.current);
       }
-
       if (playbackTimerRef.current) {
         clearTimeout(playbackTimerRef.current);
       }
@@ -657,7 +710,7 @@ export default function YouTubePlayerScreen() {
       <View style={styles.topBar}>
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={() => router.back()}
+          onPress={() => navigateTvPlayerBack()}
           activeOpacity={0.85}
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />

@@ -29,6 +29,7 @@ import { normalizeRadioSearchCacheKey } from "../../services/radio/radioCache";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import { buildRadioSessionFromListItems } from "../../services/radio/buildRadioPlaybackSession";
 import { resolveRadioStationStreamUrl } from "../../services/radio/radioCatalogApi";
+import { claimExclusivePlayback } from "../../services/playback/PlaybackHandoffCoordinator";
 import { isCatalogAbortError } from "../../services/catalogJsonFetch";
 import type { RadioStationListItem } from "../../types/radio";
 import {
@@ -112,6 +113,14 @@ export default function RadioSearchScreen() {
       setPendingStationId(stationId);
 
       try {
+        // Silence TV/video/sports before slow /play resolve — last tap wins.
+        await claimExclusivePlayback({
+          owner: "shared-audio",
+          contentKind: "radio",
+          mediaKey: stationId,
+        });
+        if (generation !== playGenerationRef.current) return;
+
         const station = resolveStationRef.current(stationId);
         if (!station) {
           if (generation === playGenerationRef.current) {

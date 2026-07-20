@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import { COLORS } from "../../constants/theme";
+import { claimExclusivePlayback } from "../../services/playback/PlaybackHandoffCoordinator";
 import {
   useAudiobookPlaybackActions,
   useAudiobookProgressTracker,
@@ -192,6 +193,13 @@ export default function AudiobookDetailScreen() {
       setPlayError(false);
 
       try {
+        await claimExclusivePlayback({
+          owner: "shared-audio",
+          contentKind: "audiobook",
+          mediaKey: chapterId,
+        });
+        if (controller.signal.aborted) return;
+
         const queue = await fetchAudiobookChapterQueuePlay(
           audiobookId,
           chapterId,

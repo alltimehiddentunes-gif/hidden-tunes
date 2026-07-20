@@ -1,4 +1,5 @@
 import type { AppSong } from "@/context/PlayerContext";
+import { claimExclusivePlayback } from "@/services/playback/PlaybackHandoffCoordinator";
 import {
   fetchMotivationItemPlayback,
   fetchMotivationProgramDetail,
@@ -91,6 +92,13 @@ export const MotivationPlaybackController = {
     const generation = (getMotivationPlaybackSession()?.queueGeneration || 0) + 1;
     const speakerName = resolveSpeakerName(input.program, input.items);
     const categorySlug = input.contextSlug || input.program.category_slug || null;
+
+    await claimExclusivePlayback({
+      owner: "shared-audio",
+      contentKind: "motivational",
+      mediaKey: String(input.startItemId || input.program.id),
+    });
+    if (requestId !== activeRequestId) return false;
 
     motivationTrace("TAP", {
       selectedItemId: input.startItemId,

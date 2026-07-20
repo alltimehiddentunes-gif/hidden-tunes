@@ -5,6 +5,7 @@ import {
   routeRadioPlayback,
   type PlaybackRouterDeps,
 } from "../services/playback/playbackRouter";
+import { claimExclusivePlayback } from "../services/playback/PlaybackHandoffCoordinator";
 import type { LiveRadioSessionOptions } from "../services/radio/radioPlaybackSession";
 import { addPodcastRecentlyPlayed } from "../services/podcastRecentlyPlayed";
 import { invalidateTvMediaTransitions } from "../services/tv/tvMediaHandoff";
@@ -51,6 +52,12 @@ export function usePlaybackRouter() {
         categoryId?: string | null;
       }
     ) => {
+      await claimExclusivePlayback({
+        owner: "shared-audio",
+        contentKind: "podcast",
+        mediaKey: String(episode.id || "podcast"),
+      });
+
       const result = await playPodcastEpisodeFromShow({
         episode,
         episodes,
@@ -72,10 +79,17 @@ export function usePlaybackRouter() {
     };
 
     return {
-      playRadioStation: (
+      playRadioStation: async (
         station: RadioStation,
         sessionOptions?: LiveRadioSessionOptions
-      ) => routeRadioPlayback(station, deps, sessionOptions),
+      ) => {
+        await claimExclusivePlayback({
+          owner: "shared-audio",
+          contentKind: "radio",
+          mediaKey: String(station.id || "radio"),
+        });
+        return routeRadioPlayback(station, deps, sessionOptions);
+      },
       playPodcastEpisodeFromShow: playPodcastEpisodeFromShowWithRecent,
       playPodcastEpisode: async (
         episode: PodcastEpisode,
@@ -98,6 +112,12 @@ export function usePlaybackRouter() {
         logPodcastDiagnostic("podcast_episode_play_start", { episodeId: episode.id });
 
         try {
+          await claimExclusivePlayback({
+            owner: "shared-audio",
+            contentKind: "podcast",
+            mediaKey: String(episode.id || "podcast"),
+          });
+
           // Single-episode entry still carries Podcast domain context so the
           // shared queue builder cannot expand into Music discovery.
           const song = podcastEpisodeToAppSong(episode);
