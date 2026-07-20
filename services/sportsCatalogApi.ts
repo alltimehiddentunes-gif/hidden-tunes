@@ -1027,25 +1027,25 @@ export async function resolveSportsFixturePlaySession(input: {
       fallback?: string;
     } | null;
 
-    if (response.ok && json) {
-      if (json.session) {
-        const hydrated = await hydrateSportsPlaybackSessionEmbed(
-          json.session,
-          input.signal
-        );
-        return normalizePlayableSession(fixtureId, hydrated);
-      }
-      if (json.playback) {
-        const hydrated = await hydrateSportsPlaybackSessionEmbed(
-          sessionFromLegacyPlayback(
-            fixtureId,
-            json.title || "Match",
-            json.playback
-          ),
-          input.signal
-        );
-        return normalizePlayableSession(fixtureId, hydrated);
-      }
+    // Accept an explicit session on any HTTP status (e.g. 409 finished).
+    if (json?.session) {
+      const hydrated = await hydrateSportsPlaybackSessionEmbed(
+        json.session,
+        input.signal
+      );
+      return normalizePlayableSession(fixtureId, hydrated);
+    }
+
+    if (response.ok && json?.playback) {
+      const hydrated = await hydrateSportsPlaybackSessionEmbed(
+        sessionFromLegacyPlayback(
+          fixtureId,
+          json.title || "Match",
+          json.playback
+        ),
+        input.signal
+      );
+      return normalizePlayableSession(fixtureId, hydrated);
     }
 
     if (json?.success === false) {

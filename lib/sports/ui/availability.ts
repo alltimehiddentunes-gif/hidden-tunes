@@ -75,23 +75,32 @@ function isLiveCode(code: string): boolean {
 /**
  * Derive availability from match card fields.
  * Never invents live_in_app from metadata-only live status.
+ * Finished / cancelled / postponed always beat a stale availabilityState.
  */
 export function deriveSportsAvailability(
   card: SportsMatchCard
 ): SportsAvailabilityState {
+  const code = normalizeStatusCode(card.status?.code);
+
+  if (code === "cancelled" || code === "postponed") return "live_unavailable";
+  if (code === "finished" || card.status?.finished) {
+    if (card.availabilityState === "replay_available") return "replay_available";
+    if (card.availabilityState === "highlights_available") {
+      return "highlights_available";
+    }
+    return "finished";
+  }
+
   if (card.availabilityState) return card.availabilityState;
 
-  const code = normalizeStatusCode(card.status?.code);
   const state = String(card.watchability?.state || "").toLowerCase();
   const playable = card.watchability?.playable === true;
   const access = String(card.watchability?.access || "").toLowerCase();
 
-  if (code === "cancelled" || code === "postponed") return "live_unavailable";
   if (code === "replay_available" || state === "replay") return "replay_available";
   if (code === "highlights_available" || state === "highlights") {
     return "highlights_available";
   }
-  if (code === "finished" || card.status?.finished) return "finished";
 
   if (
     code === "starting_soon" ||
