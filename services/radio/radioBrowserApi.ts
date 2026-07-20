@@ -1,4 +1,4 @@
-import { MEDIA_DISCOVERY_PAGE_SIZE } from "../../constants/mediaDiscovery";
+﻿import { MEDIA_DISCOVERY_PAGE_SIZE } from "../../constants/mediaDiscovery";
 import {
   getRadioCategory,
   resolveRadioCategoryId,
@@ -43,6 +43,7 @@ import {
   resolveRadioSearchHasMore,
   type RadioSearchResultSource,
 } from "../../utils/radioSearchCachePolicy";
+import { isCatalogAbortError } from "../catalogJsonFetch";
 
 const RADIO_BROWSER_SERVERS = [
   "https://de1.api.radio-browser.info",
@@ -301,9 +302,9 @@ export async function fetchRadioSearchPage(
       hasMore: catalog.hasMore,
     };
   } catch (error) {
-    if ((error as Error)?.name === "AbortError") throw error;
+    if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") throw error;
     // Last-resort fallback so search is not empty if the catalog API is down.
-    // Never persist these rows under catalog-search:* (HTTPS filter can shrink 40→9).
+    // Never persist these rows under catalog-search:* (HTTPS filter can shrink 40ÔåÆ9).
     const stations = await fetchExpandedRadioSearchPage(
       safeQuery,
       offset,
@@ -458,7 +459,7 @@ async function loadRadioPage(
         };
       })
       .catch(async (error) => {
-        if ((error as Error)?.name === "AbortError") {
+        if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
           throw error;
         }
 
@@ -474,17 +475,34 @@ async function loadRadioPage(
     if (offset === 0 && !append && !options?.forceRefresh) {
       setRadioStationInflight(
         safeKey,
-        fetchPromise.then((result) => result.stations)
+        fetchPromise
+          .then((result) => result.stations)
+          .catch((error) => {
+            // Prevent unhandled rejection when a superseded request aborts.
+            if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
+              return [] as HiddenTunesStation[];
+            }
+            throw error;
+          })
       );
     }
 
-    const result = await fetchPromise;
+    try {
+      const result = await fetchPromise;
 
-    return {
-      stations: filterMatureStations(result.stations),
-      hasMore: result.hasMore,
-      fromCache: false,
-    };
+      return {
+        stations: filterMatureStations(result.stations),
+        hasMore: result.hasMore,
+        fromCache: false,
+      };
+    } catch (error) {
+      // External cancellation (unmount / query replace) — silent empty page.
+      // Internal TimeoutError is not AbortError and keeps fallback/throw behavior above.
+      if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
+        return { stations: [], hasMore: false, fromCache: false };
+      }
+      throw error;
+    }
   } finally {
     endBrowseRequest(requestKey, signal);
   }

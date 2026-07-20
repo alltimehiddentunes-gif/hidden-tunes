@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
 import { toRadioStationListItem } from "../services/radio/radioNormalizer";
@@ -13,6 +13,7 @@ import {
 } from "../services/radio/radioCache";
 import { dedupeStationsById } from "../utils/dedupeStationsById";
 import { shouldRevalidateShortRadioSearchCache } from "../utils/radioSearchCachePolicy";
+import { isCatalogAbortError } from "../services/catalogJsonFetch";
 
 type LoadPageResult = {
   stations: HiddenTunesStation[];
@@ -115,9 +116,17 @@ export function useLazyRadioStationList({
   const fetchPage = useCallback(
     async (offset: number, append: boolean, forceRefresh: boolean) => {
       const generation = requestGenerationRef.current;
-      const result = await loadPageRef.current(offset, { append, forceRefresh });
-      if (generation !== requestGenerationRef.current) return;
-      applyPage(result.stations, append, result.hasMore);
+      try {
+        const result = await loadPageRef.current(offset, { append, forceRefresh });
+        if (generation !== requestGenerationRef.current) return;
+        applyPage(result.stations, append, result.hasMore);
+      } catch (error) {
+        // Expected cancellation from query change / unmount — never LogBox.
+        if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
+          return;
+        }
+        throw error;
+      }
     },
     [applyPage]
   );

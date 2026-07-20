@@ -7,7 +7,12 @@
 export const CATALOG_REQUEST_TIMEOUT_MS = 15_000;
 
 export function isCatalogAbortError(error: unknown) {
-  return error instanceof Error && error.name === "AbortError";
+  if (!(error instanceof Error)) return false;
+  return (
+    error.name === "AbortError" ||
+    error.message === "Aborted" ||
+    error.message === "radio_catalog_attach_aborted"
+  );
 }
 
 export function isCatalogTimeoutError(error: unknown) {
