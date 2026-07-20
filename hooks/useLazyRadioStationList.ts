@@ -11,6 +11,7 @@ import {
   isRadioCacheFresh,
   readCachedRadioPage,
 } from "../services/radio/radioCache";
+import { dedupeStationsById } from "../utils/dedupeStationsById";
 import { shouldRevalidateShortRadioSearchCache } from "../utils/radioSearchCachePolicy";
 
 type LoadPageResult = {
@@ -63,7 +64,7 @@ export function useLazyRadioStationList({
     cachedPage.forEach((station) => {
       stationStoreRef.current.set(station.id, station);
     });
-    return cachedPage.map(toRadioStationListItem);
+    return dedupeStationsById(cachedPage.map(toRadioStationListItem));
   });
 
   const [loading, setLoading] = useState(() => enabled && listItems.length === 0);
@@ -85,14 +86,30 @@ export function useLazyRadioStationList({
       const nextItems = stations.map(toRadioStationListItem);
 
       setListItems((current) => {
-        if (append) return [...current, ...nextItems];
-        if (listItemsMatch(current, nextItems)) return current;
-        return nextItems;
+        const combined = append ? [...current, ...nextItems] : nextItems;
+        const unique = dedupeStationsById(combined);
+
+        if (
+          typeof __DEV__ !== "undefined" &&
+          __DEV__ &&
+          requestKey.startsWith("search:")
+        ) {
+          console.log("[RadioSearchDedup]", {
+            incoming: nextItems.length,
+            previous: current.length,
+            combined: combined.length,
+            unique: unique.length,
+            duplicatesRemoved: combined.length - unique.length,
+          });
+        }
+
+        if (!append && listItemsMatch(current, unique)) return current;
+        return unique;
       });
       setHasMore(nextHasMore);
       setHasLoadedOnce(true);
     },
-    [rememberStations]
+    [rememberStations, requestKey]
   );
 
   const fetchPage = useCallback(
@@ -134,7 +151,7 @@ export function useLazyRadioStationList({
 
     if (cachedPage.length) {
       rememberStations(cachedPage);
-      setListItems(cachedPage.map(toRadioStationListItem));
+      setListItems(dedupeStationsById(cachedPage.map(toRadioStationListItem)));
       // Short catalog-search pages must not lock hasMore=false (poisoned 9-row caches).
       setHasMore(cachedPage.length >= RADIO_STATION_PAGE_SIZE || needsShortRevalidate);
       setLoading(false);
@@ -160,7 +177,7 @@ export function useLazyRadioStationList({
             RADIO_STATION_PAGE_SIZE
           );
           rememberStations(hydratedPage);
-          setListItems(hydratedPage.map(toRadioStationListItem));
+          setListItems(dedupeStationsById(hydratedPage.map(toRadioStationListItem)));
           setHasMore(
             hydrated.length >= RADIO_STATION_PAGE_SIZE || hydratedNeedsRevalidate
           );

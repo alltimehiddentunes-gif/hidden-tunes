@@ -33,6 +33,7 @@ import {
   createStableKeyExtractor,
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
+import { dedupeStationsById } from "../../utils/dedupeStationsById";
 import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 import { RADIO_SEARCH_DEBOUNCE_MS } from "../../utils/searchPerformance";
 
@@ -113,9 +114,15 @@ export default function RadioSearchScreen() {
     [playStation, runWithMatureConsent]
   );
 
+  // Final FlatList guard: exact-ID dedupe only (never index-padded keys).
+  const flatListData = useMemo(
+    () => dedupeStationsById(listItems),
+    [listItems]
+  );
+
   const listPerformance = useMemo(
-    () => getListPerformanceSettings(listItems.length),
-    [listItems.length]
+    () => getListPerformanceSettings(flatListData.length),
+    [flatListData.length]
   );
 
   const keyExtractor = useMemo(
@@ -193,7 +200,7 @@ export default function RadioSearchScreen() {
         </View>
       ) : (
         <FlatList
-          data={listItems}
+          data={flatListData}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
