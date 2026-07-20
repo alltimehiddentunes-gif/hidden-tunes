@@ -209,9 +209,10 @@ function MoreHero({
 
       <View style={styles.logoFrame}>
         <Image
-          source={require("../assets/images/logo.png")}
+          source={require("../assets/images/splash-lockup.png")}
           style={styles.logoImage}
           resizeMode="contain"
+          accessibilityLabel="Hidden Tunes"
         />
       </View>
 
@@ -358,21 +359,30 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 90,
     overflow: "hidden",
+    zIndex: 0,
   },
   logoFrame: {
-    width: LOGO_SIZES.libraryHero,
-    height: LOGO_SIZES.libraryHero,
-    borderRadius: LOGO_SIZES.libraryHero / 2,
-    backgroundColor: "rgba(255,255,255,0.94)",
+    alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "center",
+    width: LOGO_SIZES.libraryHero + 28,
+    maxWidth: "100%",
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     marginBottom: 16,
+    borderRadius: 28,
+    // Dark glass — never white. Circular white fill was the broken mark.
+    backgroundColor: "rgba(6, 4, 16, 0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    zIndex: 2,
+    elevation: 10,
     ...SHADOWS.artwork,
   },
   logoImage: {
     width: LOGO_SIZES.libraryHeroImage,
     height: LOGO_SIZES.libraryHeroImage,
+    opacity: 1,
   },
   heroEyebrow: {
     color: COLORS.cyan,
