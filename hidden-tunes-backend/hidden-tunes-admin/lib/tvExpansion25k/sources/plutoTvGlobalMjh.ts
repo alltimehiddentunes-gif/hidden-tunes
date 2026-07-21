@@ -11,5 +11,8 @@ export const plutoTvGlobalMjhAdapter = createMjhFastCatalogAdapter({
   catalogUrl: PLUTO_CATALOG_URL,
   cacheKey: "mjh-pluto-tv-global",
   defaultWebsite: "https://pluto.tv/live-tv",
-  streamUrlForId: (channelId) => `https://jmp2.uk/plu-${channelId}.m3u8`,
+  streamUrlForId: (channelId, _catalog, regionKey) =>
+    regionKey
+      ? `https://i.mjh.nz/PlutoTV/${regionKey}/${channelId}.m3u8`
+      : `https://i.mjh.nz/PlutoTV/${channelId}.m3u8`,
 });

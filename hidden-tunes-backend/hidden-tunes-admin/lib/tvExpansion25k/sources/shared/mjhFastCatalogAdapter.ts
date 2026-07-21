@@ -58,7 +58,11 @@ function regionCountryCode(regionKey: string, regionName?: string) {
 function flattenMjhCatalog(
   catalog: MjhCatalog,
   options: {
-    streamUrlForId: (channelId: string, catalog: MjhCatalog) => string;
+    streamUrlForId: (
+      channelId: string,
+      catalog: MjhCatalog,
+      regionKey: string | null
+    ) => string;
     skipChannel?: (channel: MjhRegionChannel, channelId: string, regionKey: string | null) => boolean;
     defaultWebsite: string;
   }
@@ -77,7 +81,7 @@ function flattenMjhCatalog(
     const title = String(channel.name || channelId).trim();
     if (!title) return;
 
-    const streamUrl = options.streamUrlForId(channelId, catalog);
+    const streamUrl = options.streamUrlForId(channelId, catalog, regionKey);
     const urlCheck = validatePublicTvUrl(streamUrl);
     if (!urlCheck.ok) return;
 
@@ -87,7 +91,7 @@ function flattenMjhCatalog(
 
     const category = channel.group || channel.groups?.[0] || null;
     entries.push({
-      id: channelId,
+      id: regionKey ? `${regionKey}-${channelId}` : channelId,
       title,
       url: urlCheck.url,
       logo: channel.logo || null,
@@ -119,7 +123,11 @@ export function createMjhFastCatalogAdapter(options: {
   catalogUrl: string;
   cacheKey: string;
   defaultWebsite: string;
-  streamUrlForId: (channelId: string, catalog: MjhCatalog) => string;
+  streamUrlForId: (
+    channelId: string,
+    catalog: MjhCatalog,
+    regionKey: string | null
+  ) => string;
   skipChannel?: (channel: MjhRegionChannel, channelId: string, regionKey: string | null) => boolean;
 }): TvExpansionSourceAdapter {
   async function loadEntries() {

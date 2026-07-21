@@ -10,7 +10,9 @@ export const samsungTvPlusFastAdapter = createMjhFastCatalogAdapter({
   catalogUrl: SAMSUNG_CATALOG_URL,
   cacheKey: "mjh-samsung-tv-plus",
   defaultWebsite: "https://www.samsung.com/us/tvs/tvplus/",
-  streamUrlForId: (channelId, catalog) =>
-    `https://jmp2.uk/${(catalog.slug || "stvp-{id}").replace("{id}", channelId)}`,
+  streamUrlForId: (channelId, _catalog, regionKey) =>
+    regionKey
+      ? `https://i.mjh.nz/SamsungTVPlus/${regionKey}/${channelId}.m3u8`
+      : `https://i.mjh.nz/SamsungTVPlus/${channelId}.m3u8`,
   skipChannel: (channel) => Boolean(channel.license_url),
 });

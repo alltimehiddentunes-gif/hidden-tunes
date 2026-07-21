@@ -145,21 +145,26 @@ async function loadOfficialFastEntries(seen: Set<string>) {
     catalogUrl: string;
     provider: string;
     website: string;
-    streamUrlForId: (id: string, catalog: MjhCatalog) => string;
+    streamUrlForId: (id: string, catalog: MjhCatalog, regionKey: string | null) => string;
     skip?: (channel: MjhChannel) => boolean;
   }> = [
     {
       catalogUrl: MJH_PLUTO_CATALOG,
       provider: "pluto",
       website: "https://pluto.tv/live-tv",
-      streamUrlForId: (id) => `https://jmp2.uk/plu-${id}.m3u8`,
+      streamUrlForId: (id, _catalog, regionKey) =>
+        regionKey
+          ? `https://i.mjh.nz/PlutoTV/${regionKey}/${id}.m3u8`
+          : `https://i.mjh.nz/PlutoTV/${id}.m3u8`,
     },
     {
       catalogUrl: MJH_SAMSUNG_CATALOG,
       provider: "samsung-tv-plus",
       website: "https://www.samsung.com/us/tvs/tvplus/",
-      streamUrlForId: (id, catalog) =>
-        `https://jmp2.uk/${(catalog.slug || "stvp-{id}").replace("{id}", id)}`,
+      streamUrlForId: (id, _catalog, regionKey) =>
+        regionKey
+          ? `https://i.mjh.nz/SamsungTVPlus/${regionKey}/${id}.m3u8`
+          : `https://i.mjh.nz/SamsungTVPlus/${id}.m3u8`,
       skip: (channel) => Boolean(channel.license_url),
     },
   ];
@@ -167,17 +172,22 @@ async function loadOfficialFastEntries(seen: Set<string>) {
   for (const source of catalogs) {
     try {
       const catalog = await fetchGzJson(source.catalogUrl);
-      const push = (channelId: string, channel: MjhChannel, country: string) => {
+      const push = (
+        channelId: string,
+        channel: MjhChannel,
+        country: string,
+        regionKey: string | null
+      ) => {
         if (source.skip?.(channel)) return;
         const title = String(channel.name || channelId).trim();
         if (!title) return;
-        const url = source.streamUrlForId(channelId, catalog);
+        const url = source.streamUrlForId(channelId, catalog, regionKey);
         if (!url.startsWith("https://")) return;
         const urlKey = url.toLowerCase();
         if (seen.has(urlKey) || batchSeen.has(urlKey)) return;
         batchSeen.add(urlKey);
         entries.push({
-          id: slugify(`fast-${source.provider}-${channelId}`),
+          id: slugify(`fast-${source.provider}-${regionKey || "all"}-${channelId}`),
           title,
           url,
           country: normalizeWave4CountryCode(country),
@@ -192,12 +202,12 @@ async function loadOfficialFastEntries(seen: Set<string>) {
       if (catalog.regions) {
         for (const [regionKey, region] of Object.entries(catalog.regions)) {
           for (const [channelId, channel] of Object.entries(region.channels || {})) {
-            push(channelId, channel, regionCountryCode(regionKey));
+            push(channelId, channel, regionCountryCode(regionKey), regionKey);
           }
         }
       } else if (catalog.channels) {
         for (const [channelId, channel] of Object.entries(catalog.channels)) {
-          push(channelId, channel, "US");
+          push(channelId, channel, "US", null);
         }
       }
     } catch {
