@@ -7027,5 +7027,71 @@
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "ShowVen TV (720p)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-cg-drtvinternational-cg-sd",
+    "title": "DRTV International",
+    "url": "https://vps122407.serveur-vps.net/hls/drtv.m3u8",
+    "country": "CG",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "DRTV International",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-td-teletchad-td-sd",
+    "title": "Tele Tchad (1080p)",
+    "url": "https://strhlslb01.streamakaci.tv/str_tchad_tchad/str_tchad_multi/playlist.m3u8",
+    "country": "TD",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Tele Tchad (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-so-dacwatv-ke-sd",
+    "title": "Dacwa TV (576p) [Not 24/7]",
+    "url": "https://ap02.iqplay.tv:8082/iqb8002/d13w1/playlist.m3u8",
+    "country": "SO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Dacwa TV (576p) [Not 24/7]",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-so-saabtv-so-sd",
+    "title": "Saab TV (576p)",
+    "url": "https://ap02.iqplay.tv:8082/iqb8002/s03btv/playlist.m3u8",
+    "country": "SO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Saab TV (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-so-sntvdaljir-so-sd",
+    "title": "SNTV Daljir (576p)",
+    "url": "https://ap02.iqplay.tv:8082/iqb8002/s2tve/playlist.m3u8",
+    "country": "SO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "SNTV Daljir (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-so-somalinationaltv-so-sd",
+    "title": "Somali National TV (576p)",
+    "url": "https://ap02.iqplay.tv:8082/iqb8002/s4ne/playlist.m3u8",
+    "country": "SO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Somali National TV (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   }
 ]
