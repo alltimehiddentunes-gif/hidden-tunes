@@ -162,6 +162,11 @@ export function getTvExpansionSourceAdapter(id: string) {
   return TV_EXPANSION_SOURCE_ADAPTERS.find((adapter) => adapter.id === id) || null;
 }
 
+export { WORLDWAVE_SOURCE_ADAPTERS } from "@/lib/tvExpansion25k/sources/worldwave/worldwaveSources";
+export { WORLDWAVE3_SOURCE_ADAPTERS } from "@/lib/tvExpansion25k/sources/worldwave3/wave3Sources";
+export { WORLDWAVE4_SOURCE_ADAPTERS } from "@/lib/tvExpansion25k/sources/worldwave4/wave4Sources";
+export { WORLDWAVE4_MATURE_SOURCE_ADAPTERS } from "@/lib/tvExpansion25k/sources/worldwave4/wave4MatureSources";
+
 export function getWave4NormalSourceAdapters() {
   return WORLDWAVE4_SOURCE_ADAPTERS;
 }

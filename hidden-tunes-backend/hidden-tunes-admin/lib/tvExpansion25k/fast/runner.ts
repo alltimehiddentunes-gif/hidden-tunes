@@ -6,7 +6,10 @@ import {
   getWave4NormalSourceAdapters,
   getWave4MatureSourceAdapters,
   TV_EXPANSION_INDEPENDENT_SOURCE_ADAPTERS,
+  TV_EXPANSION_WAVE1_SOURCE_ADAPTERS,
   TV_EXPANSION_WAVE4_ACTIVE_SOURCE_IDS,
+  WORLDWAVE_SOURCE_ADAPTERS,
+  WORLDWAVE3_SOURCE_ADAPTERS,
 } from "@/lib/tvExpansion25k/sources/registry";
 import { getTvPlatformEligibleCounts } from "@/lib/tvExpansion25k/platformCount";
 import {
@@ -52,9 +55,15 @@ export type TvFastExpansionResult = {
 
 function selectWave4Adapters(contentScope: "normal" | "mature") {
   if (contentScope === "mature") return getWave4MatureSourceAdapters();
-  // After wave4 seed exhaustion, keep expanding via independent high-yield catalogs
-  // (FAST / official HLS / parliament) without creating a second pipeline.
-  return [...getWave4NormalSourceAdapters(), ...TV_EXPANSION_INDEPENDENT_SOURCE_ADAPTERS];
+  // After wave4/independent exhaustion, keep expanding via earlier worldwide +
+  // category adapters without creating a second pipeline.
+  return [
+    ...getWave4NormalSourceAdapters(),
+    ...TV_EXPANSION_INDEPENDENT_SOURCE_ADAPTERS,
+    ...WORLDWAVE3_SOURCE_ADAPTERS,
+    ...WORLDWAVE_SOURCE_ADAPTERS,
+    ...TV_EXPANSION_WAVE1_SOURCE_ADAPTERS,
+  ];
 }
 
 function filterAdapters(

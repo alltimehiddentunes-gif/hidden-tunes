@@ -10,7 +10,10 @@ import { TV_EXPANSION_25K_TARGET } from "@/lib/tvExpansion25k/constants";
 import {
   initialAdapterCursors,
   TV_EXPANSION_INDEPENDENT_SOURCE_ADAPTERS,
+  TV_EXPANSION_WAVE1_SOURCE_ADAPTERS,
   TV_EXPANSION_WAVE4_ACTIVE_SOURCE_IDS,
+  WORLDWAVE_SOURCE_ADAPTERS,
+  WORLDWAVE3_SOURCE_ADAPTERS,
 } from "@/lib/tvExpansion25k/sources/registry";
 import type { TvExpansion25kBatchReport, TvExpansion25kSourceState } from "@/lib/tvExpansion25k/checkpoint";
 import { createInitialSourceCursor } from "@/lib/tvExpansion25k/sources/types";
@@ -37,9 +40,12 @@ function batchLogPath(adminRoot: string) {
   return path.join(adminRoot, TV_WAVE4_CHECKPOINT_DIR, TV_WAVE4_BATCH_LOG);
 }
 
-const WAVE4_PLUS_INDEPENDENT_SOURCE_IDS = [
+const WAVE4_PLUS_EXPANSION_SOURCE_IDS = [
   ...TV_EXPANSION_WAVE4_ACTIVE_SOURCE_IDS,
   ...TV_EXPANSION_INDEPENDENT_SOURCE_ADAPTERS.map((adapter) => adapter.id),
+  ...WORLDWAVE3_SOURCE_ADAPTERS.map((adapter) => adapter.id),
+  ...WORLDWAVE_SOURCE_ADAPTERS.map((adapter) => adapter.id),
+  ...TV_EXPANSION_WAVE1_SOURCE_ADAPTERS.map((adapter) => adapter.id),
 ] as const;
 
 export function createInitialWave4Checkpoint(
@@ -48,7 +54,7 @@ export function createInitialWave4Checkpoint(
   const allCursors = initialAdapterCursors();
   const adapterCursors: TvWave4Checkpoint["sources"]["adapterCursors"] = {};
 
-  for (const sourceId of WAVE4_PLUS_INDEPENDENT_SOURCE_IDS) {
+  for (const sourceId of WAVE4_PLUS_EXPANSION_SOURCE_IDS) {
     adapterCursors[sourceId] = allCursors[sourceId] || createInitialSourceCursor(sourceId);
   }
 
