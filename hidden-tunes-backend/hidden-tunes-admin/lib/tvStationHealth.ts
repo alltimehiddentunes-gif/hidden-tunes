@@ -405,7 +405,28 @@ export async function runTvStationSoftHealthRefresh(limit = TV_HEALTH_BATCH_SIZE
   let disabled = 0;
 
   for (const row of (data || []) as TvHealthRow[]) {
-    const probe = await probeTvStation(row);
+    let probe: TvHealthProbeResult;
+    try {
+      probe = await probeTvStation(row);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      checked += 1;
+      failed += 1;
+      // Network blips must not abort the whole refresh batch.
+      const { error: touchError } = await supabaseAdmin
+        .from("tv_videos")
+        .update({
+          last_health_checked_at: new Date().toISOString(),
+          last_health_error: `soft_skip:${reason}`,
+        })
+        .eq("id", row.id);
+      if (touchError) {
+        softSkipped += 1;
+        continue;
+      }
+      softSkipped += 1;
+      continue;
+    }
     checked += 1;
 
     if (probe.playable) {

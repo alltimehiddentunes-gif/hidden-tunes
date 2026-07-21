@@ -37,27 +37,58 @@ async function main() {
   let totalSoftSkipped = 0;
 
   for (let i = 1; i <= batches; i += 1) {
-    const result = await runTvStationSoftHealthRefresh(limit);
-    totalChecked += Number(result.checked || 0);
-    totalPlayable += Number(result.playable || 0);
-    totalSoftSkipped += Number(result.softSkipped || 0);
-    const counts = await getTvPlatformEligibleCounts();
-    console.log(
-      JSON.stringify({
-        event: "tv_health_refresh_batch",
-        batch: i,
-        checked: result.checked,
-        playable: result.playable,
-        softSkipped: result.softSkipped,
-        totalChecked,
-        totalPlayable,
-        totalSoftSkipped,
-        normalPlatformEligible: counts.normalPlatformEligible,
-        searchDiscoveryEligible: counts.searchDiscoveryEligible,
-        combinedPlayableEligible: counts.combinedPlayableEligible,
-        gapTo40k: Math.max(0, 40000 - counts.combinedPlayableEligible),
-      })
-    );
+    try {
+      const result = await runTvStationSoftHealthRefresh(limit);
+      totalChecked += Number(result.checked || 0);
+      totalPlayable += Number(result.playable || 0);
+      totalSoftSkipped += Number(result.softSkipped || 0);
+      let counts;
+      try {
+        counts = await getTvPlatformEligibleCounts();
+      } catch (countError) {
+        console.error(
+          JSON.stringify({
+            event: "tv_health_refresh_count_error",
+            batch: i,
+            message: countError instanceof Error ? countError.message : String(countError),
+          })
+        );
+        counts = {
+          normalPlatformEligible: null,
+          searchDiscoveryEligible: null,
+          combinedPlayableEligible: null,
+        };
+      }
+      console.log(
+        JSON.stringify({
+          event: "tv_health_refresh_batch",
+          batch: i,
+          checked: result.checked,
+          playable: result.playable,
+          softSkipped: result.softSkipped,
+          totalChecked,
+          totalPlayable,
+          totalSoftSkipped,
+          normalPlatformEligible: counts.normalPlatformEligible,
+          searchDiscoveryEligible: counts.searchDiscoveryEligible,
+          combinedPlayableEligible: counts.combinedPlayableEligible,
+          gapTo40k:
+            counts.combinedPlayableEligible == null
+              ? null
+              : Math.max(0, 40000 - counts.combinedPlayableEligible),
+        })
+      );
+    } catch (batchError) {
+      console.error(
+        JSON.stringify({
+          event: "tv_health_refresh_batch_error",
+          batch: i,
+          message: batchError instanceof Error ? batchError.message : String(batchError),
+        })
+      );
+      // Brief pause, then continue — do not abort the whole refresh job.
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
   }
 }
 
