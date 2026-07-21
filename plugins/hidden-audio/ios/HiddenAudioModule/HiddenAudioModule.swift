@@ -264,8 +264,17 @@ class HiddenAudioModule: RCTEventEmitter {
     player?.seek(to: .zero)
     playerStatus = player == nil ? "idle" : "stopped"
     stopProgressObserver()
+    // Ownership transfer / unload must wipe Now Playing — never republish the
+    // previous track title while another owner (TV/video) is audible.
+    activeTrack = nil
+    nowPlayingArtwork = nil
+    nowPlayingArtworkUrl = ""
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     updateRemoteCommandAvailability()
-    updateNowPlayingInfo()
+    emitDiagnostic("hidden_audio_now_playing_cleared", [
+      "reason": "stop",
+      "status": playerStatus
+    ])
     emitState()
     resolve(nil)
   }
@@ -918,9 +927,19 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func updateNowPlayingInfo() {
+    // No active track → clear center so a peer owner (TV) is not masked by
+    // stale Hidden Tunes song metadata.
+    guard let track = activeTrack else {
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+      emitDiagnostic("hidden_audio_now_playing_cleared", [
+        "reason": "update_without_track"
+      ])
+      return
+    }
+
     var info: [String: Any] = [:]
-    info[MPMediaItemPropertyTitle] = activeTrack?["title"] as? String ?? "Hidden Tunes"
-    info[MPMediaItemPropertyArtist] = activeTrack?["artist"] as? String ?? "Hidden Tunes"
+    info[MPMediaItemPropertyTitle] = track["title"] as? String ?? "Hidden Tunes"
+    info[MPMediaItemPropertyArtist] = track["artist"] as? String ?? "Hidden Tunes"
     info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = progressPayload()["positionSeconds"]
     info[MPMediaItemPropertyPlaybackDuration] = progressPayload()["durationSeconds"]
     info[MPNowPlayingInfoPropertyPlaybackRate] = playerStatus == "playing" ? 1 : 0
@@ -929,7 +948,7 @@ class HiddenAudioModule: RCTEventEmitter {
     }
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     emitDiagnostic("hidden_audio_now_playing_set", [
-      "trackId": activeTrack?["id"] as? String ?? "",
+      "trackId": track["id"] as? String ?? "",
       "durationSeconds": progressPayload()["durationSeconds"] ?? 0,
       "playbackRate": playerStatus == "playing" ? 1 : 0
     ])

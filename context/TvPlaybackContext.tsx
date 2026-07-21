@@ -757,6 +757,16 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       stopImmediately: () => {
         stopTv();
       },
+      clearPresentedState: () => {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[handoff] presented_state_clear_requested", {
+            owner: "tv",
+            ts: Date.now(),
+          });
+        }
+        // TV has no separate lock-screen publisher today; stopTv already
+        // unloads the surface. Keep the hook so peer-stop always invokes it.
+      },
       isActive: () => sessionActiveRef.current,
     });
 

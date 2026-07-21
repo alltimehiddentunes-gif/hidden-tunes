@@ -99,6 +99,14 @@ export function getActivePlaybackOwner(): PlaybackOwnerId | null {
   return state.activeOwner;
 }
 
+export function getActivePlaybackContentKind(): PlaybackContentKind | null {
+  return state.contentKind;
+}
+
+export function getActivePlaybackMediaKey(): string | null {
+  return state.mediaKey;
+}
+
 export function getPlaybackHandoffGeneration(): number {
   return state.generation;
 }

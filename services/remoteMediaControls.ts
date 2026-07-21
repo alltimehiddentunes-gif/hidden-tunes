@@ -248,6 +248,40 @@ function resolvePlaybackState(
   return PlaybackState.PAUSED;
 }
 
+/**
+ * Wipe Android lock-screen / notification metadata when shared-audio loses ownership.
+ * PlaybackState.STOPPED alone leaves the previous song title visible.
+ */
+export async function clearRemoteMediaPresentedState(
+  reason = "owner_transfer"
+): Promise<void> {
+  if (!isNativePlatform()) return;
+  if (!isRemoteMediaControlsPlatformEnabled()) return;
+
+  const mediaModule = await loadMediaControlModule();
+  if (!mediaModule) return;
+
+  const { MediaControl } = mediaModule;
+
+  try {
+    await MediaControl.updateMetadata({
+      title: "",
+      artist: "",
+      album: "",
+      duration: 0,
+    });
+    await MediaControl.updatePlaybackState(
+      mediaModule.PlaybackState.STOPPED,
+      0
+    );
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      logRemoteMedia("presented_state_cleared", { reason });
+    }
+  } catch (error) {
+    logRemoteMediaError("clear presented state error", error);
+  }
+}
+
 export async function syncRemoteMediaSession(
   snapshot: RemoteMediaSessionSnapshot
 ): Promise<void> {
@@ -260,10 +294,7 @@ export async function syncRemoteMediaSession(
 
   try {
     if (!snapshot.song) {
-      await MediaControl.updatePlaybackState(
-        mediaModule.PlaybackState.STOPPED,
-        0
-      );
+      await clearRemoteMediaPresentedState("sync_null_song");
       return;
     }
 

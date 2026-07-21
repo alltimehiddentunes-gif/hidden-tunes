@@ -44,6 +44,7 @@ import {
   releasePlaybackOwner,
 } from "../services/playback/PlaybackHandoffCoordinator";
 import { inferSharedAudioContentKind } from "../services/playback/inferSharedAudioContentKind";
+import { clearRemoteMediaPresentedState } from "../services/remoteMediaControls";
 import { loadRadioCategoryPage, loadRadioSearchPage } from "../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 
@@ -6952,6 +6953,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } catch {
           // Peer stop must never throw into the claiming owner.
         }
+      },
+      clearPresentedState: () => {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[handoff] presented_state_clear_requested", {
+            owner: "shared-audio",
+            ts: Date.now(),
+          });
+        }
+        void clearRemoteMediaPresentedState("shared_audio_peer_stop");
       },
       isActive: () => Boolean(currentSongRef.current),
     });

@@ -79,6 +79,24 @@ object HiddenAudioMediaSessionManager {
     mediaSession = null
   }
 
+  /** Wipe title/artist after shared-audio loses global ownership. */
+  fun clearPresentedState() {
+    val session = mediaSession ?: return
+    val emptyMetadata = MediaMetadataCompat.Builder()
+      .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "")
+      .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, "")
+      .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "")
+      .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, 0)
+      .build()
+    session.setMetadata(emptyMetadata)
+    val state = PlaybackStateCompat.Builder()
+      .setActions(0)
+      .setState(PlaybackStateCompat.STATE_STOPPED, 0L, 0f)
+      .build()
+    session.setPlaybackState(state)
+    session.isActive = false
+  }
+
   fun syncFromPlayer(
     title: String,
     artist: String,

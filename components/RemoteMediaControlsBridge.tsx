@@ -8,9 +8,14 @@ import {
   usePlayerActions,
   usePlayerNowPlaying,
 } from "../context/PlayerContext";
+import {
+  getActivePlaybackOwner,
+  getPlaybackHandoffGeneration,
+} from "../services/playback/PlaybackHandoffCoordinator";
 import { bridgeGetProgress } from "../services/playbackBridge";
 import { loadHydratedCatalogOnce } from "../state/catalogFetchLayer";
 import {
+  clearRemoteMediaPresentedState,
   disableRemoteMediaControls,
   enableRemoteMediaControls,
   isRemoteMediaControlsAvailable,
@@ -19,6 +24,10 @@ import {
 import { syncRemoteMediaSessionOrdered } from "../utils/remoteMediaSessionLayer";
 
 const LOCKSCREEN_POSITION_SYNC_MS = 8000;
+
+function isSharedAudioRemoteOwner() {
+  return getActivePlaybackOwner() === "shared-audio";
+}
 
 function RemoteMediaControlsBridge() {
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
@@ -55,22 +64,27 @@ function RemoteMediaControlsBridge() {
 
     void enableRemoteMediaControls({
       onPlay: async () => {
+        if (!isSharedAudioRemoteOwner()) return;
         if (!isPlayingRef.current) {
           await togglePlayPauseRef.current();
         }
       },
       onPause: async () => {
+        if (!isSharedAudioRemoteOwner()) return;
         if (isPlayingRef.current) {
           await togglePlayPauseRef.current();
         }
       },
       onNext: async () => {
+        if (!isSharedAudioRemoteOwner()) return;
         await nextSongRef.current();
       },
       onPrevious: async () => {
+        if (!isSharedAudioRemoteOwner()) return;
         await previousSongRef.current();
       },
       onStop: async () => {
+        if (!isSharedAudioRemoteOwner()) return;
         await stopPlaybackRef.current();
       },
     }).then((enabled: boolean) => {
@@ -85,6 +99,14 @@ function RemoteMediaControlsBridge() {
 
   const syncSession = async (forcePosition = false) => {
     if (!isRemoteMediaControlsAvailable()) return;
+
+    // TV / video / sports own playback — never republish shared-audio metadata.
+    if (!isSharedAudioRemoteOwner() || !currentSongRef.current) {
+      await clearRemoteMediaPresentedState(
+        !isSharedAudioRemoteOwner() ? "non_audio_owner" : "no_current_song"
+      );
+      return;
+    }
 
     const now = Date.now();
     if (
@@ -114,9 +136,45 @@ function RemoteMediaControlsBridge() {
       durationMillis,
     };
 
+    const syncGeneration = getPlaybackHandoffGeneration();
+
     void syncRemoteMediaSessionOrdered(snapshot, async (nextSnapshot) => {
+      if (!isSharedAudioRemoteOwner()) {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[HTRemoteMedia] metadata_publish_rejected", {
+            reason: "owner_changed",
+            generation: syncGeneration,
+            activeOwner: getActivePlaybackOwner(),
+            ts: Date.now(),
+          });
+        }
+        return;
+      }
+      if (getPlaybackHandoffGeneration() !== syncGeneration) {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[HTRemoteMedia] metadata_publish_rejected", {
+            reason: "stale_generation",
+            generation: syncGeneration,
+            ts: Date.now(),
+          });
+        }
+        return;
+      }
+
       const activeSongId = latestSongIdRef.current;
       const snapshotSongId = String(nextSnapshot.song?.id ?? "");
+
+      // Reject in-flight publishes after ownership/stop cleared the active song.
+      if (!activeSongId && snapshotSongId) {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[HTRemoteMedia] metadata_publish_rejected", {
+            reason: "stale_song_after_clear",
+            snapshotSongId,
+            ts: Date.now(),
+          });
+        }
+        return;
+      }
 
       if (activeSongId && snapshotSongId && activeSongId !== snapshotSongId) {
         return;
@@ -132,6 +190,7 @@ function RemoteMediaControlsBridge() {
 
   useEffect(() => {
     if (!isPlaying || !isRemoteMediaControlsAvailable()) return;
+    if (!isSharedAudioRemoteOwner()) return;
 
     const timer = setInterval(() => {
       void syncSession(false);

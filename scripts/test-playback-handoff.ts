@@ -34,6 +34,7 @@ async function main() {
   __resetPlaybackHandoffForTests();
 
   const stops: StopLog[] = [];
+  const clears: PlaybackOwnerId[] = [];
   const starts: string[] = [];
 
   const register = (id: PlaybackOwnerId) =>
@@ -41,6 +42,9 @@ async function main() {
       id,
       stopImmediately: (reason) => {
         stops.push({ owner: id, reason });
+      },
+      clearPresentedState: () => {
+        clears.push(id);
       },
       isActive: () => isPlaybackOwnerActive(id),
     });
@@ -52,6 +56,7 @@ async function main() {
 
   // 1. TV → song
   stops.length = 0;
+  clears.length = 0;
   await claimExclusivePlayback({
     owner: "tv",
     contentKind: "tv",
@@ -68,9 +73,14 @@ async function main() {
     stops.some((entry) => entry.owner === "tv"),
     "1c. TV stop called before song ownership"
   );
+  assert(
+    clears.includes("tv"),
+    "1d. TV presented-state clear called on audio claim"
+  );
 
   // 2. Song → TV
   stops.length = 0;
+  clears.length = 0;
   await claimExclusivePlayback({
     owner: "tv",
     contentKind: "tv",
@@ -80,6 +90,10 @@ async function main() {
   assert(
     stops.some((entry) => entry.owner === "shared-audio"),
     "2b. audio stop called before TV ownership"
+  );
+  assert(
+    clears.includes("shared-audio"),
+    "2c. audio presented-state clear called on TV claim"
   );
 
   // 3. Radio → podcast (same shared-audio owner replacement)

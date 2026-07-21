@@ -22,6 +22,7 @@ import {
   type AppNavigationItem,
 } from "./navigationConfig";
 import { createKeyedTapGuard } from "../../utils/tapGuard";
+import { getActivePlaybackOwner } from "../../services/playback/PlaybackHandoffCoordinator";
 import {
   getNowPlayingSnapshot,
   subscribeNowPlaying,
@@ -101,7 +102,10 @@ export default function AppShell({
   );
   const bottomOffset = Math.max(insets.bottom, 8);
   const showMiniPlayer =
-    isMiniPlayerRoute(pathname) && Boolean(nowPlaying.currentSongId);
+    isMiniPlayerRoute(pathname) &&
+    Boolean(nowPlaying.currentSongId) &&
+    // TV/video/sports own audible media — MiniPlayer must not imply audio owns it.
+    getActivePlaybackOwner() === "shared-audio";
   const shellContentPaddingBottom = getMobileShellContentPaddingBottom(
     insets.bottom,
     showMiniPlayer

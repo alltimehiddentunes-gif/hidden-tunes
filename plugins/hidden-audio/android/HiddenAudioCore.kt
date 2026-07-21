@@ -315,6 +315,9 @@ object HiddenAudioCore {
     lastReassertRequestAtMs = 0L
     abandonAudioFocus()
     stopForegroundService()
+    // Clear MediaSession metadata so TV/video ownership is not masked by the
+    // previous song title after peer stop.
+    HiddenAudioMediaSessionManager.clearPresentedState()
     emitDiagnostic("hidden_audio_unload_called")
     emitState()
     emitProgress()
