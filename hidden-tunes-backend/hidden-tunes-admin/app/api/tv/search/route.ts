@@ -64,6 +64,8 @@ export async function GET(request: NextRequest) {
       search: {
         query,
         catalogCount: result.catalogCount,
+        verifiedCount: result.verifiedCount,
+        discoveryCount: result.discoveryCount,
         liveCount: result.liveCount,
         liveSearchEnabled: result.liveSearchEnabled,
         nextPageToken: result.nextPageToken,

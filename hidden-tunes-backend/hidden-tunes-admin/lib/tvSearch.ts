@@ -17,17 +17,29 @@ import {
 import { TV_RELIABILITY_THRESHOLD } from "@/lib/tvStationHealth";
 import {
   applyTvPublicCatalogFilters,
+  applyTvSearchDiscoveryCatalogFilters,
   type SupabaseFilterQuery,
   type TvClientPlatform,
 } from "@/lib/tvPlatformPolicy";
+import {
+  buildTvSearchDedupeIndex,
+  filterDiscoveryRowsAgainstVerifiedIndex,
+  type TvSearchDedupeRow,
+} from "@/lib/tvSearchDedupe";
+import { mergeTvSearchResultsVerifiedFirst } from "@/lib/tvSearchMerge";
 
 const YOUTUBE_SEARCH_API = "https://www.googleapis.com/youtube/v3/search";
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+const SEARCH_DEDUPE_SELECT =
+  "id, source_type, source_id, source_key, source_url, title, region";
+const SEARCH_RESULT_SELECT = `${TV_PUBLIC_VIDEO_SELECT}, source_type, source_id, source_key, source_url`;
 
 export type TvSearchResult = {
   videos: TvPublicVideo[];
   catalogCount: number;
+  verifiedCount: number;
+  discoveryCount: number;
   liveCount: number;
   liveSearchEnabled: boolean;
   nextPageToken: string | null;
@@ -103,38 +115,174 @@ function mapYouTubeSearchItem(item: YouTubeSearchItem): TvPublicVideo | null {
   };
 }
 
+function escapeSearchQuery(query: string) {
+  return query.replace(/[%_]/g, "\\$&");
+}
+
+function applySearchTextFilter(query: SupabaseFilterQuery, escaped: string) {
+  query.or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`);
+}
+
+function mapSearchRows(rows: Record<string, unknown>[]) {
+  return rows.map((row) => toTvPublicStation(row));
+}
+
+async function countSearchTier(
+  query: string,
+  platform: TvClientPlatform,
+  tier: "verified" | "discovery"
+) {
+  const escaped = escapeSearchQuery(query);
+  let dbQuery = supabaseAdmin
+    .from("tv_videos")
+    .select("id", { count: "exact", head: true }) as unknown as SupabaseFilterQuery;
+
+  if (tier === "verified") {
+    applyTvPublicCatalogFilters(dbQuery, platform);
+  } else {
+    applyTvSearchDiscoveryCatalogFilters(dbQuery, platform);
+  }
+  applySearchTextFilter(dbQuery, escaped);
+
+  const { count, error } = await dbQuery.range(0, 0);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+async function loadVerifiedSearchDedupeIndex(query: string, platform: TvClientPlatform) {
+  const escaped = escapeSearchQuery(query);
+  const pageSize = 1000;
+  const rows: TvSearchDedupeRow[] = [];
+  let from = 0;
+
+  while (true) {
+    let dbQuery = supabaseAdmin
+      .from("tv_videos")
+      .select(SEARCH_DEDUPE_SELECT) as unknown as SupabaseFilterQuery;
+
+    applyTvPublicCatalogFilters(dbQuery, platform);
+    applySearchTextFilter(dbQuery, escaped);
+
+    const { data, error } = await dbQuery.range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+
+    const batch = (data || []) as TvSearchDedupeRow[];
+    if (batch.length === 0) break;
+    rows.push(...batch);
+    if (batch.length < pageSize) break;
+    from += pageSize;
+    if (from > 250_000) break;
+  }
+
+  return buildTvSearchDedupeIndex(rows);
+}
+
+async function fetchSearchTierSlice(
+  query: string,
+  platform: TvClientPlatform,
+  tier: "verified" | "discovery",
+  offset: number,
+  limit: number
+) {
+  if (limit <= 0) {
+    return [] as Record<string, unknown>[];
+  }
+
+  const escaped = escapeSearchQuery(query);
+  let dbQuery = supabaseAdmin
+    .from("tv_videos")
+    .select(SEARCH_RESULT_SELECT) as unknown as SupabaseFilterQuery;
+
+  if (tier === "verified") {
+    applyTvPublicCatalogFilters(dbQuery, platform);
+  } else {
+    applyTvSearchDiscoveryCatalogFilters(dbQuery, platform);
+  }
+  applySearchTextFilter(dbQuery, escaped);
+
+  const { data, error } = await dbQuery
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Record<string, unknown>[];
+}
+
+async function fetchDiscoveryPageDeduped(
+  query: string,
+  platform: TvClientPlatform,
+  verifiedIndex: ReturnType<typeof buildTvSearchDedupeIndex>,
+  discoveryOffset: number,
+  need: number
+) {
+  const accepted: Record<string, unknown>[] = [];
+  let scanOffset = discoveryOffset;
+  let scanned = 0;
+  const batchSize = Math.max(need * 4, 40);
+
+  while (accepted.length < need && scanned < 10_000) {
+    const batch = await fetchSearchTierSlice(
+      query,
+      platform,
+      "discovery",
+      scanOffset,
+      batchSize
+    );
+    if (batch.length === 0) break;
+
+    const filtered = filterDiscoveryRowsAgainstVerifiedIndex(batch, verifiedIndex);
+    accepted.push(...filtered);
+    scanOffset += batch.length;
+    scanned += batch.length;
+    if (batch.length < batchSize) break;
+  }
+
+  return accepted.slice(0, need);
+}
+
+async function countDiscoveryEligibleAfterDedupe(
+  query: string,
+  platform: TvClientPlatform,
+  verifiedIndex: ReturnType<typeof buildTvSearchDedupeIndex>,
+  discoveryTotalRaw: number
+) {
+  if (discoveryTotalRaw <= 0) return 0;
+
+  let eligible = 0;
+  let scanOffset = 0;
+  const batchSize = 1000;
+
+  while (scanOffset < discoveryTotalRaw && scanOffset < 250_000) {
+    const batch = await fetchSearchTierSlice(
+      query,
+      platform,
+      "discovery",
+      scanOffset,
+      batchSize
+    );
+    if (batch.length === 0) break;
+    eligible += filterDiscoveryRowsAgainstVerifiedIndex(batch, verifiedIndex).length;
+    scanOffset += batch.length;
+    if (batch.length < batchSize) break;
+  }
+
+  return eligible;
+}
+
 export async function searchTvCatalogPlayable(
   query: string,
   page: number,
   limit: number,
-  platform: import("@/lib/tvPlatformPolicy").TvClientPlatform = "cross"
+  platform: TvClientPlatform = "cross"
 ) {
-  const escaped = query.replace(/[%_]/g, "\\$&");
-  const from = (page - 1) * limit;
-  const to = from + limit - 1;
-
-  let dbQuery = supabaseAdmin
-    .from("tv_videos")
-    .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
-
-  applyTvPublicCatalogFilters(dbQuery, platform);
-  dbQuery.or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`);
-
-  const { data, error, count } = await dbQuery
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const videos = ((data || []) as Record<string, unknown>[]).map((row) =>
-    toTvPublicStation(row)
-  );
+  const offset = (page - 1) * limit;
+  const rows = await fetchSearchTierSlice(query, platform, "verified", offset, limit);
+  const total = await countSearchTier(query, platform, "verified");
+  const videos = mapSearchRows(rows);
 
   return {
     videos,
-    total: count || videos.length,
+    total,
   };
 }
 
@@ -241,6 +389,8 @@ export async function runTvLiveSearch(options: {
     return {
       videos: [],
       catalogCount: 0,
+      verifiedCount: 0,
+      discoveryCount: 0,
       liveCount: 0,
       liveSearchEnabled: hasYouTubeDataApiKey(),
       nextPageToken: null,
@@ -249,18 +399,58 @@ export async function runTvLiveSearch(options: {
     };
   }
 
-  const catalog = await searchTvCatalogPlayable(query, page, limit, platform);
-  const videos = dedupeBySourceId(catalog.videos);
-  const catalogTotal = catalog.total;
-  const hasMore = page * limit < catalogTotal;
+  const offset = (page - 1) * limit;
+  const [verifiedTotal, discoveryTotalRaw, verifiedIndex] = await Promise.all([
+    countSearchTier(query, platform, "verified"),
+    countSearchTier(query, platform, "discovery"),
+    loadVerifiedSearchDedupeIndex(query, platform),
+  ]);
+
+  const verifiedOffset = Math.min(offset, verifiedTotal);
+  const verifiedLimit = offset < verifiedTotal ? Math.min(limit, verifiedTotal - offset) : 0;
+  const verifiedRows =
+    verifiedLimit > 0
+      ? mapSearchRows(
+          await fetchSearchTierSlice(query, platform, "verified", verifiedOffset, verifiedLimit)
+        )
+      : [];
+
+  const discoveryNeeded = limit - verifiedRows.length;
+  const discoveryOffset = Math.max(0, offset - verifiedTotal);
+  const discoveryRowsRaw =
+    discoveryNeeded > 0
+      ? await fetchDiscoveryPageDeduped(
+          query,
+          platform,
+          verifiedIndex,
+          discoveryOffset,
+          discoveryNeeded
+        )
+      : [];
+  const discoveryRows = mapSearchRows(discoveryRowsRaw);
+
+  const videos = dedupeBySourceId(
+    mergeTvSearchResultsVerifiedFirst(verifiedRows, discoveryRows, limit)
+  );
+
+  const discoveryEligibleTotal = await countDiscoveryEligibleAfterDedupe(
+    query,
+    platform,
+    verifiedIndex,
+    discoveryTotalRaw
+  );
+  const combinedTotal = verifiedTotal + discoveryEligibleTotal;
+  const hasMore = page * limit < combinedTotal;
 
   return {
     videos,
-    catalogCount: catalog.videos.length,
+    catalogCount: videos.length,
+    verifiedCount: verifiedRows.length,
+    discoveryCount: discoveryRows.length,
     liveCount: 0,
     liveSearchEnabled: false,
     nextPageToken: null,
-    total: hasMore ? videos.length + 1 : videos.length,
+    total: hasMore ? page * limit + 1 : combinedTotal,
     error: null,
   };
 }

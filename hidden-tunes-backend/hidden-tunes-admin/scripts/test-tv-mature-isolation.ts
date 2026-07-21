@@ -26,6 +26,9 @@ function createMockQuery(filters: Array<{ op: string; column: string; value: unk
     or() {
       return query;
     },
+    in() {
+      return query;
+    },
     order() {
       return query;
     },

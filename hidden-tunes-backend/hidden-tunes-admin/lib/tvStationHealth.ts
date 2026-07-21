@@ -13,7 +13,7 @@ import {
   fetchYouTubeOEmbedMetadata,
   toTvPublicStation,
 } from "@/lib/tvCatalog";
-import { isTvMatureColumnEnabled } from "@/lib/tvPlatformPolicy";
+import { isTvMatureColumnEnabled, TV_CATALOG_ELIGIBILITY_VERIFIED } from "@/lib/tvPlatformPolicy";
 
 export const TV_RELIABILITY_THRESHOLD = 60;
 export const TV_AUTO_DISABLE_THRESHOLD = 30;
@@ -504,6 +504,7 @@ export async function importVerifiedTvGrowthCandidates(
       stream_protocol: probe.stream_protocol || null,
       validated_stream_url: probe.validated_stream_url || urlCheck.url,
       last_validation_result: probe.last_validation_result || null,
+      catalog_eligibility_tier: TV_CATALOG_ELIGIBILITY_VERIFIED,
       is_mature: isMature || candidate.is_mature === true,
       mature_rating: options.matureRating || candidate.mature_rating || null,
       mature_source_approved: matureSourceApproved || candidate.mature_source_approved === true,

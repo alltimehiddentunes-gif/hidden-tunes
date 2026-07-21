@@ -28,6 +28,7 @@
     "test:tv-wave4:country-codes": "npx tsx scripts/test-wave4-country-codes.ts",
     "test:tv-verification-diagnostics": "npx tsx scripts/test-tv-verification-diagnostics.ts",
     "test:tv-mature": "npx tsx scripts/test-tv-mature-isolation.ts",
+    "test:tv-search-discovery-tier": "npx tsx scripts/test-tv-search-discovery-tier.ts",
     "tv:expand:wave4:yield-audit": "npx tsx scripts/audit-tv-wave4-verification-yield.ts",
     "tv:expand:wave4:unique-projection": "npx tsx scripts/audit-tv-wave4-unique-projection.ts",
     "tv:expand:wave4:execute-readiness": "npx tsx scripts/report-tv-wave4-execute-readiness.ts",
