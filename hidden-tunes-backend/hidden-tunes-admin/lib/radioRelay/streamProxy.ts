@@ -6,7 +6,7 @@ import {
 } from "./constants";
 import { assertRelayUpstreamUrlSafe } from "./ssrf";
 
-const SAFE_REQUEST_HEADERS = ["icy-metadata", "range", "accept"] as const;
+const SAFE_REQUEST_HEADERS = ["range", "accept"] as const;
 
 function pickSafeRequestHeaders(requestHeaders: Headers) {
   const headers = new Headers();
@@ -16,9 +16,10 @@ function pickSafeRequestHeaders(requestHeaders: Headers) {
     const value = requestHeaders.get(name);
     if (value) headers.set(name, value);
   }
-  if (!headers.has("icy-metadata")) {
-    headers.set("icy-metadata", "1");
-  }
+  // The relay forwards the upstream body byte-for-byte. Requesting ICY metadata
+  // would interleave metadata blocks with audio and make Chromium decode them as
+  // media packets, so always ask the station for a clean audio stream.
+  headers.set("icy-metadata", "0");
   return headers;
 }
 
@@ -199,11 +200,9 @@ export function buildRelayResponseHeaders(upstream: Headers, contentType: string
   headers.set("X-Content-Type-Options", "nosniff");
 
   const icyName = upstream.get("icy-name");
-  const icyMetaInt = upstream.get("icy-metaint");
   const icyBr = upstream.get("icy-br");
   const icyGenre = upstream.get("icy-genre");
   if (icyName) headers.set("icy-name", icyName);
-  if (icyMetaInt) headers.set("icy-metaint", icyMetaInt);
   if (icyBr) headers.set("icy-br", icyBr);
   if (icyGenre) headers.set("icy-genre", icyGenre);
 
