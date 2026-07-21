@@ -1,5 +1,12 @@
 import type { ApiSong } from '../api'
 import type { TvChannelMeta } from './types'
+import {
+  formatChannelDisplayName,
+  formatCountryLabel,
+  formatProviderAttributionFromTitle,
+  formatTvBrowseMeta,
+  resolveQualityBadge,
+} from './formatTvChannelDisplay'
 
 export const TV_SONG_ID_PREFIX = 'tv-'
 
@@ -18,10 +25,17 @@ export function isTvQueueSong(song: ApiSong | null | undefined) {
 }
 
 function formatChannelSubtitle(channel: TvChannelMeta) {
+  const country = formatCountryLabel(channel.country) || channel.country
+  const quality = resolveQualityBadge({ title: channel.title })
   const parts = [
-    channel.country,
-    channel.language,
-    channel.categories[0],
+    formatTvBrowseMeta({
+      category: channel.categories[0],
+      country,
+      language: channel.language,
+    }),
+    channel.verified ? 'Verified' : null,
+    quality,
+    formatProviderAttributionFromTitle(channel.title),
   ].filter(Boolean)
   return parts.join(' · ') || 'Live TV'
 }
@@ -32,16 +46,17 @@ export function tvChannelToApiSong(
 ): ApiSong {
   const subtitle = formatChannelSubtitle(channel)
   const normalizedStream = streamUrl?.trim().startsWith('http') ? streamUrl.trim() : null
-  const displayTitle = channel.channelName
+  const rawTitle = channel.channelName
     ? channel.title !== channel.channelName
       ? channel.title
       : channel.channelName
     : channel.title
+  const displayTitle = formatChannelDisplayName(rawTitle) || rawTitle
 
   return {
     id: tvChannelSongId(channel.id),
     title: displayTitle,
-    artist: channel.channelName ?? subtitle,
+    artist: formatChannelDisplayName(channel.channelName) || channel.channelName || subtitle,
     artistId: null,
     album: 'Live TV',
     albumId: null,

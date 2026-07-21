@@ -113,6 +113,7 @@ function normalizeChannel(row: Record<string, unknown>): TvChannelMeta | null {
     categories,
     tags: normalizeStringArray(row.tags),
     isFeatured: row.is_featured === true,
+    verified: row.verified === true,
     reliabilityScore: Number.isFinite(Number(row.reliability_score))
       ? Number(row.reliability_score)
       : 0,

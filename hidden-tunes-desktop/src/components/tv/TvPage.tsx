@@ -3,6 +3,12 @@ import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import type { TvChannelMeta, TvFilterId } from '../../lib/tv/types'
 import { useTvPageData } from '../../lib/tv/useTvPageData'
 import { isTvFavorite, toggleTvFavorite } from '../../lib/tv/tvLocalState'
+import {
+  formatChannelDisplayName,
+  formatCountryLabel,
+  formatTvBrowseMeta,
+  resolveQualityBadge,
+} from '../../lib/tv/formatTvChannelDisplay'
 import tvArtwork from '../../assets/section-headers/tv-lakeside-cabin.png'
 import { SectionHero } from '../SectionHero'
 
@@ -25,8 +31,13 @@ type TvPageProps = {
 }
 
 function formatChannelMeta(channel: TvChannelMeta) {
-  const parts = [channel.country, channel.language, channel.categories[0]].filter(Boolean)
-  return parts.join(' · ') || 'Live stream'
+  return (
+    formatTvBrowseMeta({
+      category: channel.categories[0],
+      country: formatCountryLabel(channel.country) || channel.country,
+      language: channel.language,
+    }) || 'Live stream'
+  )
 }
 
 function regionCode(name: string) {
@@ -54,6 +65,13 @@ const ChannelCard = memo(function ChannelCard({
   onToggleFavorite: () => void
   ArtworkImage: ComponentType<ArtworkImageProps>
 }) {
+  const displayName =
+    formatChannelDisplayName(channel.channelName ?? channel.title) ||
+    channel.channelName ||
+    channel.title
+  const qualityBadge = resolveQualityBadge({ title: channel.title })
+  const showVerified = channel.verified === true
+
   return (
     <article className="tv-station-card">
       <button
@@ -61,14 +79,14 @@ const ChannelCard = memo(function ChannelCard({
         className="tv-station-card-hit"
         onClick={onPlay}
         disabled={tuning}
-        aria-label={`Watch ${channel.title}`}
+        aria-label={`Watch ${displayName}`}
       >
         <div className="tv-station-card-art">
           <ArtworkImage
             src={channel.artworkUrl}
             alt=""
             seed={channel.id}
-            label={channel.title}
+            label={displayName}
           />
           <span className="tv-live-badge">LIVE</span>
           <span className="tv-station-card-play" aria-hidden="true">
@@ -78,8 +96,18 @@ const ChannelCard = memo(function ChannelCard({
           </span>
         </div>
         <div className="tv-station-card-copy">
-          <h3>{channel.channelName ?? channel.title}</h3>
+          <h3>{displayName}</h3>
           <p>{formatChannelMeta(channel)}</p>
+          {(showVerified || qualityBadge) && (
+            <div className="tv-station-card-badges">
+              {showVerified ? (
+                <span className="tv-station-pill tv-station-pill--verified">Verified</span>
+              ) : null}
+              {qualityBadge ? (
+                <span className="tv-station-pill">{qualityBadge}</span>
+              ) : null}
+            </div>
+          )}
         </div>
       </button>
       <button
@@ -144,7 +172,7 @@ export const TvPage = memo(function TvPage({
   const activeTvChannelId = useMemo(() => {
     if (!currentTrack?.id.startsWith('tv-')) return null
     return currentTrack.id.slice('tv-'.length)
-  }, [currentTrack?.id])
+  }, [currentTrack])
 
   const favoriteIds = useMemo(() => {
     void favoriteRevision

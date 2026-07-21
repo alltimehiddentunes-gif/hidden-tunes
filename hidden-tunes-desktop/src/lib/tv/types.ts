@@ -17,6 +17,8 @@ export type TvChannelMeta = {
   categories: string[]
   tags: string[]
   isFeatured: boolean
+  /** Present when the public API marks the station approved — display only. */
+  verified: boolean
   reliabilityScore: number
   streamProtocol: string | null
   streamIsHttps: boolean
