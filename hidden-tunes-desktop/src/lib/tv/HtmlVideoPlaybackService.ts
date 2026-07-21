@@ -42,9 +42,21 @@ export type TvVideoPlaybackMetrics = {
 
 function describeMediaError(video: HTMLVideoElement): string {
   const mediaError = video.error
-  if (!mediaError) return 'Unknown media error'
+  if (!mediaError) return 'This channel\'s stream is currently unavailable.'
   const label = MEDIA_ERROR_LABELS[mediaError.code] ?? `code ${mediaError.code}`
-  return mediaError.message ? `${label}: ${mediaError.message}` : label
+  if (mediaError.code === 2) return 'The channel provider rejected or interrupted the connection.'
+  if (mediaError.code === 3) return 'This channel uses a video format this desktop cannot play.'
+  if (mediaError.code === 4) return 'This channel\'s stream format is not supported.'
+  return mediaError.message ? `${label}: ${mediaError.message}` : 'The stream stopped unexpectedly. Try again.'
+}
+
+function safeEndpoint(value: unknown) {
+  try {
+    const url = new URL(String(value || ''))
+    return `${url.origin}${url.pathname}`
+  } catch {
+    return 'unknown'
+  }
 }
 
 function clampVolume(volume: number): number {
@@ -258,6 +270,8 @@ export class HtmlVideoPlaybackService {
 
       await new Promise<void>((resolve, reject) => {
         let settled = false
+        let networkRecoveries = 0
+        let mediaRecoveries = 0
         const finish = (error?: Error) => {
           if (settled) return
           settled = true
@@ -265,7 +279,32 @@ export class HtmlVideoPlaybackService {
           else resolve()
         }
 
+        const diagnosticEvents = [
+          Hls.Events.MANIFEST_LOADING,
+          Hls.Events.MANIFEST_LOADED,
+          Hls.Events.LEVEL_LOADED,
+          Hls.Events.FRAG_LOADING,
+          Hls.Events.FRAG_LOADED,
+        ] as const
+        for (const eventName of diagnosticEvents) {
+          hls.on(eventName, (_event: string, data: unknown) => {
+            if (!import.meta.env.DEV) return
+            const diagnostic = data as { url?: unknown; frag?: { url?: unknown }; response?: { code?: unknown } }
+            console.info('[ht-tv-playback] hls-event', {
+              event: eventName,
+              endpoint: safeEndpoint(diagnostic.url ?? diagnostic.frag?.url),
+              responseCode: diagnostic.response?.code ?? null,
+            })
+          })
+        }
+
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          if (import.meta.env.DEV) {
+            console.info('[ht-tv-playback] hls-event', {
+              event: Hls.Events.MANIFEST_PARSED,
+              endpoint: safeEndpoint(url),
+            })
+          }
           void this.waitForCanPlay().then(() => finish()).catch((err) => finish(
             err instanceof Error ? err : new Error(String(err)),
           ))
@@ -273,8 +312,35 @@ export class HtmlVideoPlaybackService {
 
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (!data.fatal) return
-          const reason = `${data.type}:${data.details}`
-          finish(new Error(`HLS playback failed (${reason}).`))
+          const diagnostic = {
+            type: data.type,
+            details: data.details,
+            fatal: data.fatal,
+            responseCode: data.response?.code ?? null,
+            endpoint: safeEndpoint(data.url ?? data.frag?.url ?? url),
+            networkRecoveries,
+            mediaRecoveries,
+          }
+          if (import.meta.env.DEV) console.error('[ht-tv-playback] hls-error', diagnostic)
+
+          if (data.type === 'networkError' && networkRecoveries === 0) {
+            networkRecoveries += 1
+            hls.startLoad()
+            return
+          }
+          if (data.type === 'mediaError' && mediaRecoveries === 0) {
+            mediaRecoveries += 1
+            hls.recoverMediaError()
+            return
+          }
+
+          finish(new Error(
+            data.type === 'networkError'
+              ? 'The channel provider rejected or interrupted the connection.'
+              : data.type === 'mediaError'
+                ? 'This channel uses a video format this desktop cannot play.'
+                : 'This channel\'s stream is currently unavailable.',
+          ))
         })
 
         hls.loadSource(url)

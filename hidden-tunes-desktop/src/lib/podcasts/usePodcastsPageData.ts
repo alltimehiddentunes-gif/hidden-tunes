@@ -168,9 +168,13 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
         || nextFallback.length > 0
         || nextEpisodes.length > 0
 
-      if (!hasRenderableData) {
-        setError(failures[0] ?? 'Failed to load podcast catalog.')
-      }
+      setError(
+        failures.length > 0
+          ? failures[0]
+          : hasRenderableData
+            ? null
+            : 'Failed to load podcast catalog.',
+      )
     } catch (err) {
       if (requestId !== bootstrapRequestRef.current) return
       setError(readError(err, 'Failed to load podcast catalog.'))
