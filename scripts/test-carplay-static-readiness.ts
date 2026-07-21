@@ -77,19 +77,39 @@ function main() {
   assertOk(manager.includes("CPNowPlayingTemplate"), "now playing template");
   assertOk(manager.includes("CPSearchTemplate"), "search template");
   assertOk(manager.includes("ensureDefaultCatalog()"), "9. fallback root does not depend on JS");
+  assertOk(manager.includes("makeVisibleFallbackListTemplate"), "fallback factory exists");
+  assertOk(manager.includes("Hidden Tunes is ready"), "fallback has visible ready item");
+  assertOk(manager.includes("Open Now Playing"), "fallback has Now Playing item");
+  assertOk(manager.includes("Connect to Metro for full catalog"), "fallback has Metro hint item");
+  assertOk(manager.includes("fallback_template_created item_count="), "fallback item_count log");
+  assertOk(manager.includes("setRootTemplate start type="), "setRootTemplate start log");
+  assertOk(manager.includes("setRootTemplate complete success="), "setRootTemplate complete log");
+  assertOk(manager.includes("tab_template_created tab_count="), "tab_template_created log");
+  assertOk(manager.includes("tab_upgrade_complete success="), "tab_upgrade_complete log");
+  assertOk(manager.includes("tab_upgrade_failed keeping_list_root"), "tab failure preserves list");
+  assertOk(manager.includes("root_replacement reason="), "root_replacement log");
+  assertOk(manager.includes("catalog_applied section_count="), "catalog_applied log");
+  assertOk(manager.includes("pendingCatalogReload"), "catalog reload defers during install");
+  assertOk(manager.includes("makeNonEmptyListTemplate"), "non-empty list helper");
+  assertOk(manager.includes("guard tabs.count >= 1"), "tab bar never installed with zero tabs");
   assertOk(manager.includes('NSLog("[HTCarPlay]'), "HTCarPlay native logs");
   assertOk(manager.includes('NSLog("[HTCarPlayVideo]'), "HTCarPlayVideo native logs");
   assertOk(manager.includes("supportsVideoPlayback"), "supportsVideoPlayback gating");
   assertOk(manager.includes("CPSessionConfiguration"), "CPSessionConfiguration used");
   assertOk(manager.includes("videos_tab_included"), "video UI gated by capability");
   assertOk(manager.includes("Thread.isMainThread"), "8. main-thread safe root install");
-  assertOk(manager.includes("emptyMessageTitle"), "10. empty catalog safety");
+  assertOk(manager.includes("emptyMessageTitle") || manager.includes("No items available"), "10. empty catalog safety");
   assertOk(manager.includes("installRootTemplates"), "root install path");
-  assertOk(manager.includes("upgradeToTabBarRoot") || manager.includes("CPTabBarTemplate(templates:"), "tab upgrade/create");
+  assertOk(manager.includes("upgradeToTabBarRoot"), "tab upgrade path");
   assertOk(manager.includes("emitCarPlayMediaSelection"), "14. playback bridge selection");
   assertOk(!manager.includes("AVPlayer("), "13. no second AVPlayer in CarPlay manager");
   assertOk(!manager.includes("AVAudioPlayer("), "13. no AVAudioPlayer in CarPlay manager");
   assertOk(!manager.includes("func startIfNeeded() {}"), "manager is not no-op stub");
+  // Root install must happen on connect before async catalog work.
+  const connectIdx = manager.indexOf("self.installRootTemplates(force: true, reason: \"connect\")");
+  const catalogReloadIdx = manager.indexOf("reason: \"catalog_reload\"");
+  assertOk(connectIdx > 0, "connect installs root");
+  assertOk(catalogReloadIdx > connectIdx, "catalog reload is separate from connect install");
 
   const catalog = read("plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioCarPlayCatalog.swift");
   for (const section of [
