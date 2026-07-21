@@ -3,6 +3,7 @@ import UIKit
 /// Phone UIWindowScene delegate. Required once UIApplicationSceneManifest exists
 /// (CarPlay + modern iOS SDK). Starts the existing Expo/React Native UI in the
 /// phone window without changing playback ownership.
+@objc(PhoneSceneDelegate)
 final class PhoneSceneDelegate: UIResponder, UIWindowSceneDelegate {
   var window: UIWindow?
 

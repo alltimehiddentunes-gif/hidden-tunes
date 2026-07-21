@@ -162,9 +162,12 @@ function getRepoSourceDir(projectRoot) {
 
 const withHiddenAudioEntitlements = (config) => {
   return withEntitlementsPlist(config, (config) => {
-    // CarPlay Audio only — do not enable CarPlay Video in this build.
+    // Dual approved managed capabilities (Apple CarPlay Developer Guide keys):
+    // - com.apple.developer.carplay-audio  (ordinary CarPlay systems)
+    // - com.apple.developer.carplay-video (vehicles with video-in-car)
+    // Keep both so the icon remains visible on audio-only vehicles.
     config.modResults["com.apple.developer.carplay-audio"] = true;
-    delete config.modResults["com.apple.developer.carplay-video"];
+    config.modResults["com.apple.developer.carplay-video"] = true;
     delete config.modResults["com.apple.developer.playable-content"];
     return config;
   });
@@ -503,6 +506,72 @@ const withHiddenAudioAndroidProguard = (config) => {
   ]);
 };
 
+const CARPLAY_SCENE_CONFIGURATION_METHOD = `
+  public override func application(
+    _ application: UIApplication,
+    configurationForConnecting connectingSceneSession: UISceneSession,
+    options: UIScene.ConnectionOptions
+  ) -> UISceneConfiguration {
+    let role = connectingSceneSession.role.rawValue
+    NSLog("[HTCarPlay] configurationForConnecting role=%@", role)
+
+    if role == "CPTemplateApplicationSceneSessionRoleApplication" {
+      // Name matches Info.plist HiddenTunesCarPlay entry (CPTemplateApplicationScene).
+      let configuration = UISceneConfiguration(
+        name: "HiddenTunesCarPlay",
+        sessionRole: connectingSceneSession.role
+      )
+      configuration.delegateClass = CarPlaySceneDelegate.self
+      return configuration
+    }
+
+    if connectingSceneSession.role == .windowApplication {
+      let configuration = UISceneConfiguration(
+        name: "HiddenTunesPhone",
+        sessionRole: connectingSceneSession.role
+      )
+      configuration.delegateClass = PhoneSceneDelegate.self
+      return configuration
+    }
+
+    return UISceneConfiguration(
+      name: connectingSceneSession.configuration.name,
+      sessionRole: connectingSceneSession.role
+    )
+  }
+`;
+
+function ensureCarPlaySceneConfiguration(contents) {
+  if (contents.includes("configurationForConnecting connectingSceneSession")) {
+    return { contents, changed: false };
+  }
+
+  if (contents.includes("// Linking API")) {
+    return {
+      contents: contents.replace(
+        "  // Linking API",
+        `${CARPLAY_SCENE_CONFIGURATION_METHOD}\n  // Linking API`
+      ),
+      changed: true,
+    };
+  }
+
+  if (contents.includes("func attachReactNative(to window: UIWindow)")) {
+    const patched = contents.replace(
+      /func attachReactNative\(to window: UIWindow\) \{[\s\S]*?\n  \}\n/,
+      (match) => `${match}\n${CARPLAY_SCENE_CONFIGURATION_METHOD}\n`
+    );
+    if (patched !== contents) {
+      return { contents: patched, changed: true };
+    }
+  }
+
+  console.warn(
+    "[hidden-audio] Could not insert configurationForConnecting; AppDelegate shape unexpected."
+  );
+  return { contents, changed: false };
+}
+
 const withHiddenAudioAppDelegate = (config) => {
   return withDangerousMod(config, [
     "ios",
@@ -523,40 +592,37 @@ const withHiddenAudioAppDelegate = (config) => {
       }
 
       let contents = fs.readFileSync(appDelegatePath, "utf8");
+      let wrote = false;
+
       if (contents.includes("func attachReactNative(to window: UIWindow)")) {
         console.log("[hidden-audio] AppDelegate already supports scene-based RN attach.");
-        return config;
-      }
-
-      if (!contents.includes("factory.startReactNative(")) {
+      } else if (!contents.includes("factory.startReactNative(")) {
         console.warn(
           "[hidden-audio] Unexpected AppDelegate.swift shape; skipping scene attach patch."
         );
-        return config;
-      }
-
-      // Move RN window attach out of didFinishLaunching so PhoneSceneDelegate owns the UIWindow.
-      contents = contents.replace(
-        /#if os\(iOS\) \|\| os\(tvOS\)\s*\n\s*window = UIWindow\(frame: UIScreen\.main\.bounds\)\s*\n\s*factory\.startReactNative\(\s*\n\s*withModuleName: "main",\s*\n\s*in: window,\s*\n\s*launchOptions: launchOptions\)\s*\n#endif/,
-        `pendingLaunchOptions = launchOptions
+      } else {
+        // Move RN window attach out of didFinishLaunching so PhoneSceneDelegate owns the UIWindow.
+        contents = contents.replace(
+          /#if os\(iOS\) \|\| os\(tvOS\)\s*\n\s*window = UIWindow\(frame: UIScreen\.main\.bounds\)\s*\n\s*factory\.startReactNative\(\s*\n\s*withModuleName: "main",\s*\n\s*in: window,\s*\n\s*launchOptions: launchOptions\)\s*\n#endif/,
+          `pendingLaunchOptions = launchOptions
 
     // Phone UIWindow is created by PhoneSceneDelegate under UIApplicationSceneManifest.
     // Keep the factory ready here so CarPlay can still connect without a phone window.`
-      );
+        );
 
-      if (!contents.includes("private var pendingLaunchOptions")) {
-        contents = contents.replace(
-          "var reactNativeFactory: RCTReactNativeFactory?",
-          `var reactNativeFactory: RCTReactNativeFactory?
+        if (!contents.includes("private var pendingLaunchOptions")) {
+          contents = contents.replace(
+            "var reactNativeFactory: RCTReactNativeFactory?",
+            `var reactNativeFactory: RCTReactNativeFactory?
   private var pendingLaunchOptions: [UIApplication.LaunchOptionsKey: Any]?
   private var didAttachReactNative = false`
-        );
-      }
+          );
+        }
 
-      if (!contents.includes("func attachReactNative(to window: UIWindow)")) {
-        contents = contents.replace(
-          /return super\.application\(application, didFinishLaunchingWithOptions: launchOptions\)\n  \}/,
-          `return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+        if (!contents.includes("func attachReactNative(to window: UIWindow)")) {
+          contents = contents.replace(
+            /return super\.application\(application, didFinishLaunchingWithOptions: launchOptions\)\n  \}/,
+            `return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func attachReactNative(to window: UIWindow) {
@@ -570,11 +636,25 @@ const withHiddenAudioAppDelegate = (config) => {
     )
     pendingLaunchOptions = nil
   }`
+          );
+        }
+
+        wrote = true;
+        console.log("[hidden-audio] AppDelegate patched for PhoneSceneDelegate RN attach.");
+      }
+
+      const sceneConfig = ensureCarPlaySceneConfiguration(contents);
+      contents = sceneConfig.contents;
+      if (sceneConfig.changed) {
+        wrote = true;
+        console.log(
+          "[hidden-audio] AppDelegate patched with CarPlay configurationForConnecting."
         );
       }
 
-      fs.writeFileSync(appDelegatePath, contents);
-      console.log("[hidden-audio] AppDelegate patched for PhoneSceneDelegate RN attach.");
+      if (wrote) {
+        fs.writeFileSync(appDelegatePath, contents);
+      }
       return config;
     },
   ]);

@@ -17,7 +17,8 @@
       "buildNumber": "1.0.0",
       "icon": "./assets/images/icon.png",
       "entitlements": {
-        "com.apple.developer.carplay-audio": true
+        "com.apple.developer.carplay-audio": true,
+        "com.apple.developer.carplay-video": true
       },
       "infoPlist": {
         "UIBackgroundModes": [

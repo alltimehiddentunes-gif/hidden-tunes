@@ -313,6 +313,7 @@ enum HiddenAudioCarPlayCatalog {
       "audiobooks",
       "motivationals",
       "lectures",
+      "videos",
     ]
 
     for sectionId in sectionIds {
