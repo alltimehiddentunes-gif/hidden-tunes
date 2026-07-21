@@ -62,8 +62,10 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
   ) {
     let install = { [weak self] in
       guard let self else { return }
+      NSLog("[HTCarPlay] scene_configuration_requested")
       NSLog("[HTCarPlay] scene_connection_start")
       self.interfaceController = interfaceController
+      NSLog("[HTCarPlay] interface_controller_attached")
       NSLog("[HTCarPlay] interface_controller_received")
       if let window {
         self.carWindow = window
@@ -87,6 +89,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
 
   private func disconnectCarPlay() {
     let teardown = { [weak self] in
+      NSLog("[HTCarPlay] scene_disconnect")
       NSLog("[HTCarPlay] disconnect")
       // Release CarPlay UI only — never stop the shared HiddenAudio session.
       HiddenAudioCarPlayManager.shared.disconnect()

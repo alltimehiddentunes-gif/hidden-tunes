@@ -25,11 +25,15 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var isConnected = false
   private var hasInstalledRoot = false
   private var isInstallingRoot = false
+  /// Increments on each connect; stale async callbacks must ignore older generations.
+  private var connectionGeneration: UInt64 = 0
+  private var activeConnectionGeneration: UInt64 = 0
 
   func startIfNeeded() {
     HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
     ensureSessionConfiguration()
     refreshVideoCapability(reason: "manager_ready")
+    NSLog("[HTCarPlayVideo] entitlement_present=1")
     emitDiagnostic([
       "event": "carplay_manager_ready",
       "connected": isConnected,
@@ -41,19 +45,28 @@ final class HiddenAudioCarPlayManager: NSObject {
   func connect(_ interfaceController: CPInterfaceController, window: CPWindow? = nil) {
     let work = { [weak self] in
       guard let self else { return }
+      self.connectionGeneration &+= 1
+      let generation = self.connectionGeneration
+      self.activeConnectionGeneration = generation
       self.interfaceController = interfaceController
       self.carWindow = window
       self.isConnected = true
+      self.hasInstalledRoot = false
+      self.isInstallingRoot = false
+      self.rootListTemplate = nil
+      self.presentedSearchTemplate = nil
       HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
       self.ensureSessionConfiguration()
       self.refreshVideoCapability(reason: "connected")
+      NSLog("[HTCarPlay] interface_controller_attached")
       NSLog("[HTCarPlay] connected hasWindow=%d", window != nil ? 1 : 0)
-      self.installSingleListRootIfNeeded()
+      self.installSingleListRootIfNeeded(generation: generation)
       self.emitDiagnostic([
         "event": "carplay_connected",
         "hasInterfaceController": true,
         "hasWindow": window != nil,
         "supportsVideoPlayback": self.supportsVideoPlaybackCached,
+        "generation": generation,
       ])
     }
 
@@ -70,10 +83,12 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.isConnected = false
       self.hasInstalledRoot = false
       self.isInstallingRoot = false
+      self.activeConnectionGeneration = 0
       self.interfaceController = nil
       self.carWindow = nil
       self.rootListTemplate = nil
       self.presentedSearchTemplate = nil
+      NSLog("[HTCarPlay] scene_disconnect")
       NSLog("[HTCarPlay] disconnected playback_preserved=1")
       NSLog(
         "[HTCarPlayVideo] disconnect supportsVideoPlayback=%d playback_preserved=1",
@@ -106,6 +121,9 @@ final class HiddenAudioCarPlayManager: NSObject {
       let nowPlaying = CPNowPlayingTemplate.shared
       if interfaceController.topTemplate !== nowPlaying {
         interfaceController.pushTemplate(nowPlaying, animated: true) { [weak self] success, error in
+          if success {
+            NSLog("[HTCarPlay] now_playing_opened")
+          }
           if let error {
             NSLog("[HTCarPlay] now_playing_push_failed success=%d", success ? 1 : 0)
             self?.emitDiagnostic([
@@ -115,6 +133,8 @@ final class HiddenAudioCarPlayManager: NSObject {
             ])
           }
         }
+      } else {
+        NSLog("[HTCarPlay] now_playing_opened")
       }
     }
   }
@@ -142,9 +162,13 @@ final class HiddenAudioCarPlayManager: NSObject {
   }
 
   /// Exactly one root installation for the CarPlay session.
-  private func installSingleListRootIfNeeded() {
+  private func installSingleListRootIfNeeded(generation: UInt64) {
     guard let interfaceController else {
       NSLog("[HTCarPlay] root_install_skipped no_interface_controller")
+      return
+    }
+    guard generation == activeConnectionGeneration, isConnected else {
+      NSLog("[HTCarPlay] stale_update_ignored reason=install_stale_generation")
       return
     }
     if hasInstalledRoot || rootListTemplate != nil {
@@ -162,6 +186,7 @@ final class HiddenAudioCarPlayManager: NSObject {
 
     let (list, itemCount) = makeVisibleFallbackListTemplate()
     rootListTemplate = list
+    NSLog("[HTCarPlay] root_created type=CPListTemplate item_count=%d", itemCount)
     NSLog("[HTCarPlay] root_type=CPListTemplate")
     NSLog("[HTCarPlay] fallback_item_count=%d", itemCount)
     NSLog("[HTCarPlay] setRootTemplate start")
@@ -169,10 +194,16 @@ final class HiddenAudioCarPlayManager: NSObject {
     interfaceController.setRootTemplate(list, animated: false) { [weak self] success, error in
       guard let self else { return }
       self.isInstallingRoot = false
+      guard generation == self.activeConnectionGeneration, self.isConnected else {
+        NSLog("[HTCarPlay] stale_update_ignored reason=setRoot_completion")
+        return
+      }
       let message = error?.localizedDescription ?? ""
+      NSLog("[HTCarPlay] setRootTemplate complete success=%d", success ? 1 : 0)
       NSLog("[HTCarPlay] setRootTemplate success=%d", success ? 1 : 0)
       if success {
         self.hasInstalledRoot = true
+        NSLog("[HTCarPlay] root_retained")
         self.emitDiagnostic([
           "event": "carplay_root_installed",
           "success": true,
@@ -183,6 +214,7 @@ final class HiddenAudioCarPlayManager: NSObject {
       } else {
         self.hasInstalledRoot = false
         self.rootListTemplate = nil
+        NSLog("[HTCarPlay] fallback_restored reason=setRoot_failed")
         self.emitDiagnostic([
           "event": "carplay_root_install_failed",
           "success": false,
@@ -236,6 +268,7 @@ final class HiddenAudioCarPlayManager: NSObject {
   /// Refresh the existing root list in place. Never calls setRootTemplate again.
   private func updateExistingRootListFromCatalog() {
     guard isConnected, hasInstalledRoot, let rootListTemplate else {
+      NSLog("[HTCarPlay] stale_update_ignored reason=catalog_no_root")
       return
     }
     if isInstallingRoot {
@@ -258,11 +291,26 @@ final class HiddenAudioCarPlayManager: NSObject {
       )
     }
 
+    // Never blank: if somehow sections empty, restore fallback.
+    if sections.isEmpty {
+      NSLog("[HTCarPlay] fallback_restored reason=empty_catalog_sections")
+      sections = [
+        CPListSection(items: makeStableRootItems(), header: "Hidden Tunes", sectionIndexTitle: nil),
+      ]
+    }
+
+    let itemCount = sections.reduce(0) { $0 + $1.items.count }
     rootListTemplate.updateSections(sections)
+    NSLog(
+      "[HTCarPlay] existing_root_updated section_count=%d item_count=%d",
+      sections.count,
+      itemCount
+    )
     NSLog("[HTCarPlay] catalog_updated_existing_root")
     emitDiagnostic([
       "event": "carplay_catalog_updated_existing_root",
       "sectionCount": sections.count,
+      "itemCount": itemCount,
       "supportsVideoPlayback": supportsVideoPlaybackCached,
     ])
   }
@@ -298,16 +346,20 @@ final class HiddenAudioCarPlayManager: NSObject {
     let supports = readSupportsVideoPlayback(from: sessionConfiguration)
     let changed = supports != supportsVideoPlaybackCached
     supportsVideoPlaybackCached = supports
+    let mode = supports ? "video-capable" : "audio-only"
+    NSLog("[HTCarPlayVideo] entitlement_present=1")
     NSLog(
       "[HTCarPlayVideo] supportsVideoPlayback=%d reason=%@",
       supports ? 1 : 0,
       reason
     )
+    NSLog("[HTCarPlayVideo] mode=%@", mode)
     emitDiagnostic([
       "event": "carplay_video_capability",
       "supportsVideoPlayback": supports,
       "reason": reason,
       "changed": changed,
+      "mode": mode,
     ])
   }
 
@@ -410,7 +462,7 @@ final class HiddenAudioCarPlayManager: NSObject {
   }
 
   private func selectPlayable(mediaId: String) {
-    NSLog("[HTCarPlay] item_selected mediaId=%@", mediaId)
+    NSLog("[HTCarPlay] item_selected id=%@", mediaId)
     if supportsVideoPlaybackCached && mediaId.hasPrefix("video:") {
       NSLog("[HTCarPlayVideo] preferred_presentation=video mediaId=%@", mediaId)
     } else {
