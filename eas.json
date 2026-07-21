@@ -53,5 +53,12 @@
         "SHARP_FORCE_PREBUILT": "true"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6773324462"
+      }
+    }
   }
 }
