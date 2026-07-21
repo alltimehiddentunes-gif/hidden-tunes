@@ -5,6 +5,7 @@ import { allAdaptersExhausted } from "@/lib/tvExpansion25k/sourceDiscovery";
 import {
   getWave4NormalSourceAdapters,
   getWave4MatureSourceAdapters,
+  TV_EXPANSION_INDEPENDENT_SOURCE_ADAPTERS,
   TV_EXPANSION_WAVE4_ACTIVE_SOURCE_IDS,
 } from "@/lib/tvExpansion25k/sources/registry";
 import { getTvPlatformEligibleCounts } from "@/lib/tvExpansion25k/platformCount";
@@ -50,7 +51,10 @@ export type TvFastExpansionResult = {
 };
 
 function selectWave4Adapters(contentScope: "normal" | "mature") {
-  return contentScope === "mature" ? getWave4MatureSourceAdapters() : getWave4NormalSourceAdapters();
+  if (contentScope === "mature") return getWave4MatureSourceAdapters();
+  // After wave4 seed exhaustion, keep expanding via independent high-yield catalogs
+  // (FAST / official HLS / parliament) without creating a second pipeline.
+  return [...getWave4NormalSourceAdapters(), ...TV_EXPANSION_INDEPENDENT_SOURCE_ADAPTERS];
 }
 
 function filterAdapters(
@@ -82,7 +86,7 @@ export async function runTvFastExpansionBatch(
   const countsBefore = await getTvPlatformEligibleCounts();
   const adapters = filterAdapters(selectWave4Adapters(checkpoint.contentScope), limits);
 
-  if (countsBefore.normalPlatformEligible >= (limits.targetEligible || checkpoint.target)) {
+  if (countsBefore.combinedPlayableEligible >= (limits.targetEligible || checkpoint.target)) {
     return {
       done: true,
       reason: "target_reached_before_batch",
@@ -263,7 +267,7 @@ export async function runTvFastExpansionBatch(
   const stopEmptyLimit = limits.stopAfterEmptyBatches ?? runtime.emptyBatchStopLimit;
   const targetEligible = limits.targetEligible || checkpoint.target;
 
-  if (countsAfter.normalPlatformEligible >= targetEligible) {
+  if (countsAfter.combinedPlayableEligible >= targetEligible) {
     return { done: true, reason: "target_reached", checkpoint: nextCheckpoint, report, counts: countsAfter, timing, runtime: nextRuntime };
   }
   if (

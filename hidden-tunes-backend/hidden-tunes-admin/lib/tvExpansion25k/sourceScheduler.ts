@@ -84,6 +84,18 @@ export const TV_SOURCE_WAVE4_WEIGHTS: Record<string, number> = {
   "free-community-playlists-wave4": 5,
   "education-culture-wave4": 8,
   "official-fast-providers-wave4": 18,
+  // Independent high-yield catalogs (reactivated after wave4 seed exhaustion)
+  "pluto-tv-fast": 18,
+  "samsung-tv-plus-fast": 16,
+  "roku-fast-channels": 14,
+  "pluto-tv-global-mjh": 12,
+  "official-global-hls": 14,
+  "official-global-hls-ext": 12,
+  "government-parliament-hls": 10,
+  "government-parliament-hls-ext": 8,
+  "tdtchannels": 10,
+  "youtube-official-global": 8,
+  "youtube-official-global-ext": 6,
 };
 
 /** @deprecated Use getActiveSourceWeightMap() */
