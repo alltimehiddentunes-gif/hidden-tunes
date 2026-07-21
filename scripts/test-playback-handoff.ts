@@ -275,6 +275,28 @@ async function main() {
     "10. audiobook replaces podcast on shared-audio"
   );
 
+  // 11. Nested same claim reuses generation (router → playSong → playQueue)
+  stops.length = 0;
+  const first = await claimExclusivePlayback({
+    owner: "shared-audio",
+    contentKind: "podcast",
+    mediaKey: "podcast-ep-1",
+  });
+  const stopsAfterFirst = stops.length;
+  const nested = await claimExclusivePlayback({
+    owner: "shared-audio",
+    contentKind: "podcast",
+    mediaKey: "podcast-ep-1",
+  });
+  assertEqual(nested.generation, first.generation, "11a. nested claim reuses generation");
+  assert(first.isCurrent(), "11b. original claim still current");
+  assert(nested.isCurrent(), "11c. nested claim still current");
+  assertEqual(
+    stops.length,
+    stopsAfterFirst,
+    "11d. nested same claim does not re-stop peers"
+  );
+
   console.log("PASS: playback handoff coordinator tests");
 }
 

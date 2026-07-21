@@ -33,7 +33,8 @@ export function inferSharedAudioContentKind(
   if (
     source.includes("podcast") ||
     songSource.includes("podcast") ||
-    songType.includes("podcast")
+    songType.includes("podcast") ||
+    songId.startsWith("podcast-")
   ) {
     return "podcast";
   }
@@ -41,7 +42,8 @@ export function inferSharedAudioContentKind(
   if (
     source.includes("audiobook") ||
     songSource.includes("audiobook") ||
-    songType.includes("audiobook")
+    songType.includes("audiobook") ||
+    songId.startsWith("audiobook-")
   ) {
     return "audiobook";
   }
@@ -49,14 +51,17 @@ export function inferSharedAudioContentKind(
   if (
     source.includes("lecture") ||
     source.includes("educational") ||
-    songSource.includes("lecture")
+    songSource.includes("lecture") ||
+    songId.startsWith("lecture-") ||
+    songId.startsWith("educational-")
   ) {
     return "lecture";
   }
 
   if (
     source.includes("motivation") ||
-    songSource.includes("motivation")
+    songSource.includes("motivation") ||
+    songId.startsWith("motivation")
   ) {
     return "motivational";
   }

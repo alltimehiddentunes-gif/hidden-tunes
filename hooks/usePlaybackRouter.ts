@@ -16,6 +16,7 @@ import { logPodcastDiagnostic } from "../utils/podcastDiagnostics";
 import {
   buildPodcastQueueContext,
   isPlayablePodcastAudioUrl,
+  podcastEpisodeSongId,
   podcastEpisodeToAppSong,
 } from "../utils/podcastPlaybackAdapter";
 import { playPodcastEpisodeFromShow } from "../utils/podcastPlayback";
@@ -52,10 +53,11 @@ export function usePlaybackRouter() {
         categoryId?: string | null;
       }
     ) => {
+      // Use the same mediaKey playSong will claim so nested claims reuse one transaction.
       await claimExclusivePlayback({
         owner: "shared-audio",
         contentKind: "podcast",
-        mediaKey: String(episode.id || "podcast"),
+        mediaKey: podcastEpisodeSongId(String(episode.id || "podcast")),
       });
 
       const result = await playPodcastEpisodeFromShow({
@@ -115,7 +117,7 @@ export function usePlaybackRouter() {
           await claimExclusivePlayback({
             owner: "shared-audio",
             contentKind: "podcast",
-            mediaKey: String(episode.id || "podcast"),
+            mediaKey: podcastEpisodeSongId(String(episode.id || "podcast")),
           });
 
           // Single-episode entry still carries Podcast domain context so the

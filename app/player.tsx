@@ -300,6 +300,9 @@ const PlayerProgressPanel = memo(function PlayerProgressPanel({
     scrubbingRef.current = true;
     setIsScrubbing(true);
     setScrubPosition(value);
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[seek] scrub_started", { position: value, ts: Date.now() });
+    }
   }, []);
 
   const handleValueChange = useCallback((value: number) => {
@@ -314,7 +317,14 @@ const PlayerProgressPanel = memo(function PlayerProgressPanel({
       scrubbingRef.current = true;
       setIsScrubbing(true);
       setScrubPosition(clamped);
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[seek] scrub_target_selected", {
+          target: clamped,
+          ts: Date.now(),
+        });
+      }
       try {
+        // Keep scrub ownership until seekTo acknowledges / confirms position.
         await Promise.resolve(onSeekComplete(clamped));
       } finally {
         scrubbingRef.current = false;

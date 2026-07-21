@@ -490,6 +490,10 @@ const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_INTERVAL_BACKGROUND_MS = 30000;
 const POSITION_SAVE_DISTANCE_MS = 5000;
 const DURATION_UPDATE_THRESHOLD_MS = 1500;
+const SEEK_CONFIRM_TOLERANCE_MS = 1500;
+const SEEK_CONFIRM_MAX_ATTEMPTS = 10;
+const SEEK_CONFIRM_POLL_MS = 40;
+const SEEK_STALE_GUARD_FALLBACK_MS = 2500;
 const TRACK_END_THRESHOLD_MS = 750;
 const MIN_DURATION_FOR_POSITION_FINISH_MS = 4000;
 const PRELOAD_BEFORE_END_MS = 15000;
@@ -940,6 +944,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const durationMillisRef = useRef(0);
   const isPlayingRef = useRef(false);
   const isLoadingRef = useRef(false);
+  const pendingSeekGenerationRef = useRef(0);
+  const pendingSeekTargetRef = useRef<number | null>(null);
+  const pendingSeekUntilRef = useRef(0);
 
   const currentSongRef = useRef<AppSong | null>(null);
   const repeatModeRef = useRef<RepeatMode>("off");
@@ -1226,6 +1233,40 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const now = Date.now();
       const previousPosition = positionMillisRef.current;
+      const pendingTarget = pendingSeekTargetRef.current;
+
+      if (pendingTarget != null) {
+        if (now > pendingSeekUntilRef.current) {
+          pendingSeekTargetRef.current = null;
+          pendingSeekUntilRef.current = 0;
+        } else if (
+          Math.abs(progress.positionMillis - pendingTarget) > SEEK_CONFIRM_TOLERANCE_MS
+        ) {
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.log("[seek] stale_progress_ignored", {
+              source,
+              seekGeneration: pendingSeekGenerationRef.current,
+              target: pendingTarget,
+              observed: progress.positionMillis,
+              ts: now,
+            });
+          }
+          // Keep optimistic target in UI while native catches up.
+          return;
+        } else {
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.log("[seek] seek_progress_observed", {
+              source,
+              seekGeneration: pendingSeekGenerationRef.current,
+              target: pendingTarget,
+              observed: progress.positionMillis,
+              ts: now,
+            });
+          }
+          pendingSeekTargetRef.current = null;
+          pendingSeekUntilRef.current = 0;
+        }
+      }
 
       if (progress.positionMillis > 0 || progress.isPlaying) {
         positionMillisRef.current = progress.positionMillis;
@@ -6259,7 +6300,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
         setIsLoading(true);
         setIsPlaying(false);
-        openPlayerForPlayableTap(selectedNormalized, "play_queue_prime");
+        if (!priorInterruptDone) {
+          openPlayerForPlayableTap(selectedNormalized, "play_queue_prime");
+        }
       }
 
       setRadioMode(false);
@@ -6281,7 +6324,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       const currentLoadedSound = soundRef.current;
 
-      if (!switchingToNewSong && currentSongRef.current?.id === selectedSong.id) {
+      // After playSong primes + interrupts, currentSong already matches the new
+      // id so switchingToNewSong is false here. Do not tryResume — that falsely
+      // treats a silenced engine as resumable and causes a second load flicker.
+      if (
+        !priorInterruptDone &&
+        !switchingToNewSong &&
+        currentSongRef.current?.id === selectedSong.id
+      ) {
         try {
           const resumed = await tryResumeHiddenAudioForSong(selectedSong, "play_queue");
           if (resumed) {
@@ -6362,6 +6412,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         typeof index === "number" ? index : activeQueueIndexRef.current;
       const isLatestTap = () => latestPlaySongTapIdRef.current === tapRequestId;
 
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[media_start] media_tap_received", {
+          mediaType: queueContext.source || "unknown",
+          itemId: normalizedSong.id,
+          transactionId: tapRequestId,
+          ts: tapStartedAt,
+        });
+      }
+
       // Global handoff: silence TV/video/sports immediately before audio resolve/load.
       const handoff = await claimExclusivePlayback({
         owner: "shared-audio",
@@ -6375,11 +6434,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         mediaKey: normalizedSong.id,
       });
       if (!handoff.isCurrent() || !isLatestTap()) {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[media_start] media_start_duplicate_ignored", {
+            itemId: normalizedSong.id,
+            transactionId: tapRequestId,
+            reason: "stale_after_handoff",
+            ts: Date.now(),
+          });
+        }
         logTapLatencyDiagnostic("stale_tap_ignored_after_handoff", tapStartedAt, {
           songId: normalizedSong.id,
           tapRequestId,
         });
         return;
+      }
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[media_start] media_start_transaction_created", {
+          mediaType: queueContext.source || "unknown",
+          itemId: normalizedSong.id,
+          transactionId: tapRequestId,
+          handoffGeneration: handoff.generation,
+          ts: Date.now(),
+        });
       }
 
       logTapLatencyDiagnostic("tap_received", tapStartedAt, {
@@ -6983,23 +7060,96 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const seekTo = useCallback(
     async (millis: number) => {
       const safeMillis = Math.max(0, Math.floor(millis || 0));
+      const seekGeneration = pendingSeekGenerationRef.current + 1;
+      pendingSeekGenerationRef.current = seekGeneration;
+      pendingSeekTargetRef.current = safeMillis;
+      pendingSeekUntilRef.current = Date.now() + SEEK_STALE_GUARD_FALLBACK_MS;
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[seek] seek_requested", {
+          seekGeneration,
+          target: safeMillis,
+          ts: Date.now(),
+        });
+      }
+
+      // Optimistic UI target — do not let the first stale native read overwrite it.
+      setPositionMillis(safeMillis);
+      positionMillisRef.current = safeMillis;
 
       if (hiddenAudioActiveRef.current) {
         clearFinishWatchdog("seek");
         await bridgeSeekTo(safeMillis);
-        const progress = await syncHiddenAudioState("seek");
-        const confirmedMillis = progress?.positionMillis || safeMillis;
+
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[seek] seek_native_completed", {
+            seekGeneration,
+            target: safeMillis,
+            note: "bridge_resolved_seek_start",
+            ts: Date.now(),
+          });
+        }
+
+        let confirmedMillis = safeMillis;
+        for (let attempt = 0; attempt < SEEK_CONFIRM_MAX_ATTEMPTS; attempt += 1) {
+          if (pendingSeekGenerationRef.current !== seekGeneration) {
+            return;
+          }
+          const progress = await bridgeGetProgress().catch(() => null);
+          const observed = progress?.positionMillis;
+          if (
+            typeof observed === "number" &&
+            Math.abs(observed - safeMillis) <= SEEK_CONFIRM_TOLERANCE_MS
+          ) {
+            confirmedMillis = observed;
+            if (typeof __DEV__ !== "undefined" && __DEV__) {
+              console.log("[seek] seek_progress_observed", {
+                seekGeneration,
+                target: safeMillis,
+                observed,
+                attempt,
+                ts: Date.now(),
+              });
+            }
+            break;
+          }
+          await new Promise((resolve) => setTimeout(resolve, SEEK_CONFIRM_POLL_MS));
+        }
+
+        if (pendingSeekGenerationRef.current !== seekGeneration) {
+          return;
+        }
+
         setPositionMillis(confirmedMillis);
+        positionMillisRef.current = confirmedMillis;
+        pendingSeekTargetRef.current = null;
+        pendingSeekUntilRef.current = 0;
+
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[seek] scrub_ownership_released", {
+            seekGeneration,
+            target: safeMillis,
+            confirmed: confirmedMillis,
+            ts: Date.now(),
+          });
+        }
+
         await savePlaybackPosition(confirmedMillis);
         return;
       }
 
-      if (!soundRef.current) return;
+      if (!soundRef.current) {
+        pendingSeekTargetRef.current = null;
+        pendingSeekUntilRef.current = 0;
+        return;
+      }
 
       clearFinishWatchdog("seek");
       await soundRef.current.setPositionAsync(safeMillis);
       setPositionMillis(safeMillis);
       positionMillisRef.current = safeMillis;
+      pendingSeekTargetRef.current = null;
+      pendingSeekUntilRef.current = 0;
 
       await savePlaybackPosition(safeMillis);
     },
@@ -7452,6 +7602,50 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const now = Date.now();
         const previousPosition = positionMillisRef.current;
         const wasPlaying = isPlayingRef.current;
+        const pendingTarget = pendingSeekTargetRef.current;
+
+        if (pendingTarget != null) {
+          if (now > pendingSeekUntilRef.current) {
+            pendingSeekTargetRef.current = null;
+            pendingSeekUntilRef.current = 0;
+            if (typeof __DEV__ !== "undefined" && __DEV__) {
+              console.log("[seek] scrub_ownership_released", {
+                reason: "timeout",
+                seekGeneration: pendingSeekGenerationRef.current,
+                target: pendingTarget,
+                observed: progress.positionMillis,
+                ts: now,
+              });
+            }
+          } else if (
+            Math.abs(progress.positionMillis - pendingTarget) > SEEK_CONFIRM_TOLERANCE_MS
+          ) {
+            if (typeof __DEV__ !== "undefined" && __DEV__) {
+              console.log("[seek] stale_progress_ignored", {
+                source: "progress_poll",
+                seekGeneration: pendingSeekGenerationRef.current,
+                target: pendingTarget,
+                observed: progress.positionMillis,
+                ts: now,
+              });
+            }
+            // Do not publish pre-seek position over the optimistic target.
+            return;
+          } else {
+            if (typeof __DEV__ !== "undefined" && __DEV__) {
+              console.log("[seek] seek_progress_observed", {
+                source: "progress_poll",
+                seekGeneration: pendingSeekGenerationRef.current,
+                target: pendingTarget,
+                observed: progress.positionMillis,
+                ts: now,
+              });
+            }
+            pendingSeekTargetRef.current = null;
+            pendingSeekUntilRef.current = 0;
+          }
+        }
+
         positionMillisRef.current = progress.positionMillis;
 
         const playbackState = String(progress.playbackState || "unknown");

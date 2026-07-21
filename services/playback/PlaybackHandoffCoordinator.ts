@@ -185,6 +185,10 @@ async function stopPeersImmediately(
 /**
  * Immediate ownership transfer for a deliberate user tap.
  * Stops every other registered owner before returning.
+ *
+ * Idempotent for the same owner+contentKind+mediaKey while the current claim
+ * is still live — nested router → playSong → playQueue claims must not abort
+ * each other or re-run peer stops (that caused double loading transitions).
  */
 export async function claimExclusivePlayback(input: {
   owner: PlaybackOwnerId;
@@ -192,6 +196,38 @@ export async function claimExclusivePlayback(input: {
   mediaKey: string;
 }): Promise<PlaybackClaim> {
   const previousOwner = state.activeOwner;
+  const existingController = state.pendingController;
+  const sameLiveClaim =
+    state.activeOwner === input.owner &&
+    state.contentKind === input.contentKind &&
+    state.mediaKey === input.mediaKey &&
+    Boolean(existingController) &&
+    !existingController!.signal.aborted;
+
+  if (sameLiveClaim && existingController) {
+    const generation = state.generation;
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[handoff] handoff_claim_reused", {
+        owner: input.owner,
+        contentKind: input.contentKind,
+        mediaKey: input.mediaKey,
+        generation,
+        ts: Date.now(),
+      });
+    }
+    return {
+      owner: input.owner,
+      contentKind: input.contentKind,
+      mediaKey: input.mediaKey,
+      generation,
+      signal: existingController.signal,
+      isCurrent: () =>
+        state.generation === generation &&
+        !existingController.signal.aborted &&
+        state.activeOwner === input.owner,
+    };
+  }
+
   const myGeneration = state.generation + 1;
   state.generation = myGeneration;
 
