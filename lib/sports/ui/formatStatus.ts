@@ -93,4 +93,4 @@ export function formatMatchMinute(card: SportsMatchCard): string | null {
   if (period && String(period).trim()) return String(period).trim();
   return null;
 }
-
+

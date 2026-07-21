@@ -95,4 +95,4 @@ export function unavailableSession(
 ): SportsPlaybackSession {
   return { status: "unavailable", fixtureId, reason, message };
 }
-
+

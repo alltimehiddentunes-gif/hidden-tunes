@@ -138,8 +138,8 @@ export default function CountryHubScreen() {
           {error ? <SportsErrorState message={error} onRetry={load} /> : null}
           {!sections.length && !error ? (
             <SportsEmptyState
-              title="No current events for this country."
-              message="There are no fixtures or competitions for this country right now."
+              title="No verified fixtures are available right now."
+              message="There are no verified fixtures or competitions for this country right now."
             />
           ) : (
             sections.map((section) => {
