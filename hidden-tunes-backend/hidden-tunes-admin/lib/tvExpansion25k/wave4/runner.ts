@@ -157,6 +157,7 @@ export async function runTvWave4Batch(
     importResult = await importVerifiedTvGrowthCandidates(prefilter.accepted, {
       isMature: checkpoint.contentScope === "mature",
       matureSourceApproved: false,
+      catalogEligibilityTier: "search_only",
     });
   } else if (!limits.dryRun) {
     importResult = {

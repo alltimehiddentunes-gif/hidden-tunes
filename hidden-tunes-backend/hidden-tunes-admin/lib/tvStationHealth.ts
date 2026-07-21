@@ -13,7 +13,11 @@ import {
   fetchYouTubeOEmbedMetadata,
   toTvPublicStation,
 } from "@/lib/tvCatalog";
-import { isTvMatureColumnEnabled, TV_CATALOG_ELIGIBILITY_VERIFIED } from "@/lib/tvPlatformPolicy";
+import {
+  isTvMatureColumnEnabled,
+  TV_CATALOG_ELIGIBILITY_SEARCH_ONLY,
+  TV_CATALOG_ELIGIBILITY_VERIFIED,
+} from "@/lib/tvPlatformPolicy";
 
 export const TV_RELIABILITY_THRESHOLD = 60;
 export const TV_AUTO_DISABLE_THRESHOLD = 30;
@@ -94,6 +98,8 @@ export type TvGrowthImportOptions = {
   isMature?: boolean;
   matureSourceApproved?: boolean;
   matureRating?: string | null;
+  /** Defaults to verified (main catalog). Expansion waves use search_only. */
+  catalogEligibilityTier?: "verified" | "search_only";
 };
 
 export type TvStreamProbeDetails = {
@@ -504,7 +510,10 @@ export async function importVerifiedTvGrowthCandidates(
       stream_protocol: probe.stream_protocol || null,
       validated_stream_url: probe.validated_stream_url || urlCheck.url,
       last_validation_result: probe.last_validation_result || null,
-      catalog_eligibility_tier: TV_CATALOG_ELIGIBILITY_VERIFIED,
+      catalog_eligibility_tier:
+        options.catalogEligibilityTier === "search_only"
+          ? TV_CATALOG_ELIGIBILITY_SEARCH_ONLY
+          : TV_CATALOG_ELIGIBILITY_VERIFIED,
       is_mature: isMature || candidate.is_mature === true,
       mature_rating: options.matureRating || candidate.mature_rating || null,
       mature_source_approved: matureSourceApproved || candidate.mature_source_approved === true,

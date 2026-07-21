@@ -5,7 +5,11 @@ import {
   probeTvStation,
   validatePublicTvUrl,
 } from "@/lib/tvStationHealth";
-import { isTvMatureColumnEnabled, TV_CATALOG_ELIGIBILITY_VERIFIED } from "@/lib/tvPlatformPolicy";
+import {
+  isTvMatureColumnEnabled,
+  TV_CATALOG_ELIGIBILITY_SEARCH_ONLY,
+  TV_CATALOG_ELIGIBILITY_VERIFIED,
+} from "@/lib/tvPlatformPolicy";
 import type { TvDedupeCache } from "@/lib/tvExpansion25k/fast/dedupeCache";
 import { guardDatabaseWrite } from "@/lib/tvExpansion25k/fast/dryRunGuard";
 import { DomainConcurrencyLimiter } from "@/lib/tvExpansion25k/fast/domainLimiter";
@@ -48,6 +52,10 @@ function buildInsertRow(
 ) {
   const isMature = options.isMature === true;
   const matureSourceApproved = options.matureSourceApproved === true;
+  const catalogEligibilityTier =
+    options.catalogEligibilityTier === "search_only"
+      ? TV_CATALOG_ELIGIBILITY_SEARCH_ONLY
+      : TV_CATALOG_ELIGIBILITY_VERIFIED;
   const tags = [
     ...new Set(
       [
@@ -91,7 +99,7 @@ function buildInsertRow(
     stream_protocol: probe.stream_protocol || null,
     validated_stream_url: probe.validated_stream_url || url,
     last_validation_result: probe.last_validation_result || null,
-    catalog_eligibility_tier: TV_CATALOG_ELIGIBILITY_VERIFIED,
+    catalog_eligibility_tier: catalogEligibilityTier,
     ...(isTvMatureColumnEnabled()
       ? {
           is_mature: isMature || candidate.is_mature === true,

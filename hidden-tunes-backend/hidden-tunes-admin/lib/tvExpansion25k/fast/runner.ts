@@ -129,6 +129,7 @@ export async function runTvFastExpansionBatch(
     importOptions: {
       isMature: checkpoint.contentScope === "mature",
       matureSourceApproved: false,
+      catalogEligibilityTier: "search_only",
     },
   });
   timer.close("verification");

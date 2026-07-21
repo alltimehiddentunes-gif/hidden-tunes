@@ -81,7 +81,9 @@ export async function runTvExpansion25kBatch(
   let healthResult = { checked: 0, playable: 0, failed: 0, quarantined: 0, disabled: 0 };
 
   if (execute && prefilter.accepted.length > 0) {
-    importResult = await importVerifiedTvGrowthCandidates(prefilter.accepted);
+    importResult = await importVerifiedTvGrowthCandidates(prefilter.accepted, {
+      catalogEligibilityTier: "search_only",
+    });
 
     if (importResult.imported > 0) {
       const healthLimit = Math.min(Math.max(importResult.imported, 10), 50);
