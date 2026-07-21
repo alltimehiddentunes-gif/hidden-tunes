@@ -50,13 +50,21 @@ function main() {
   assertOk(scene.includes("@objc(CarPlaySceneDelegate)"), "@objc CarPlaySceneDelegate");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_delegate_init")'), "scene_delegate_init");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_connection_start")'), "scene_connection_start");
-  assertOk(scene.includes("HiddenAudioCarPlayManager.shared.connect"), "connect routes to manager");
+  assertOk(scene.includes("attachConnectedSession"), "scene attaches manager after inline root");
+  assertOk(scene.includes("setRootTemplate("), "scene installs root inline (Apple audio pattern)");
+  assertOk(scene.includes("Hidden Tunes is ready"), "scene fallback ready row");
+  assertOk(scene.includes("Browse Library"), "scene fallback browse row");
+  assertOk(scene.includes("Now Playing"), "scene fallback now playing row");
+  assertOk(scene.includes("Search"), "scene fallback search row");
   assertOk(scene.includes("private var interfaceController: CPInterfaceController?"), "strong IC");
   assertOk(!scene.includes("CPTabBarTemplate"), "scene delegate has no tab bar");
+  assertOk(!scene.includes("didConnect interfaceController: CPInterfaceController,\n    to window"), "no navigation 3-arg didConnect");
+  assertOk(!scene.includes("didDisconnect interfaceController: CPInterfaceController,\n    from window"), "no navigation 3-arg didDisconnect");
 
   const manager = read("plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioCarPlayManager.swift");
   assertOk(manager.includes("import CarPlay"), "manager imports CarPlay");
-  assertOk(manager.includes("func connect("), "manager connect");
+  assertOk(manager.includes("func attachConnectedSession("), "manager attachConnectedSession");
+  assertOk(manager.includes("func connect("), "manager connect fallback");
   assertOk(manager.includes("private var interfaceController: CPInterfaceController?"), "strong IC");
   assertOk(!manager.includes("private weak var interfaceController"), "IC not weak");
   assertOk(manager.includes("CPListTemplate"), "CPListTemplate root");
@@ -68,12 +76,19 @@ function main() {
   assertOk(manager.includes("Browse Library"), "fallback browse item");
   assertOk(manager.includes("Now Playing"), "fallback now playing item");
   assertOk(manager.includes('"Search"') || manager.includes("title: \"Search\""), "fallback search item");
-  assertOk(manager.includes("fallback_item_count="), "fallback_item_count log");
-  assertOk(manager.includes("root_created type=CPListTemplate item_count="), "root_created log");
-  assertOk(manager.includes("root_type=CPListTemplate"), "root_type log");
-  assertOk(manager.includes("setRootTemplate start"), "setRootTemplate start log");
-  assertOk(manager.includes("setRootTemplate complete success="), "setRootTemplate complete log");
-  assertOk(manager.includes("root_retained"), "root_retained log");
+  assertOk(manager.includes("fallback_item_count=") || scene.includes("fallback_item_count="), "fallback_item_count log");
+  assertOk(
+    manager.includes("root_created type=CPListTemplate item_count=") ||
+      scene.includes("root_created type=CPListTemplate item_count="),
+    "root_created log"
+  );
+  assertOk(manager.includes("root_type=CPListTemplate") || scene.includes("root_type=CPListTemplate"), "root_type log");
+  assertOk(manager.includes("setRootTemplate start") || scene.includes("setRootTemplate start"), "setRootTemplate start log");
+  assertOk(
+    manager.includes("setRootTemplate complete success=") || scene.includes("setRootTemplate complete success="),
+    "setRootTemplate complete log"
+  );
+  assertOk(manager.includes("root_retained") || scene.includes("root_retained"), "root_retained log");
   assertOk(manager.includes("search_presented"), "search_presented log");
   assertOk(manager.includes("catalog_updated_existing_root"), "catalog_updated_existing_root log");
   assertOk(manager.includes("existing_root_updated section_count="), "existing_root_updated log");
@@ -81,13 +96,14 @@ function main() {
   assertOk(manager.includes("scene_disconnect") || scene.includes("scene_disconnect"), "scene_disconnect log");
   assertOk(manager.includes("now_playing_opened"), "now_playing_opened log");
   assertOk(manager.includes("item_selected id="), "item_selected id log");
-  assertOk(manager.includes("fallback_restored reason="), "fallback_restored log");
+  assertOk(manager.includes("fallback_restored reason=") || scene.includes("fallback_restored reason="), "fallback_restored log");
   assertOk(manager.includes("entitlement_present=1"), "video entitlement_present log");
   assertOk(manager.includes("mode=%@") || manager.includes("video-capable"), "video mode log");
   assertOk(manager.includes("updateSections"), "catalog updates existing list");
-  assertOk(manager.includes("installSingleListRootIfNeeded"), "single root install path");
+  assertOk(manager.includes("installSingleListRootIfNeeded"), "fallback root install path");
   assertOk(manager.includes("updateExistingRootListFromCatalog"), "in-place catalog update");
   assertOk(manager.includes("connectionGeneration"), "connection generation for stale guards");
+  assertOk(manager.includes("connect_idempotent_skip"), "idempotent connect guard");
   assertOk(manager.includes("emitCarPlayMediaSelection"), "playback bridge");
   assertOk(manager.includes("supportsVideoPlayback"), "video gating");
   assertOk(scene.includes("interface_controller_attached") || manager.includes("interface_controller_attached"), "interface_controller_attached");
@@ -102,15 +118,22 @@ function main() {
   assertOk(!manager.includes("tabBarTemplate"), "no tabBarTemplate property");
   assertOk(!manager.includes("CPTabBarTemplate"), "zero CPTabBarTemplate identifier in manager");
 
-  // Exactly one setRootTemplate call site (the single root install).
-  const setRootCount = countOccurrences(manager, "setRootTemplate(");
-  assertOk(setRootCount === 1, `exactly one setRootTemplate call (found ${setRootCount})`);
+  // Primary root install is inline in the scene delegate (Apple audio sample).
+  // Manager may keep one fallback setRootTemplate for non-scene entry only.
+  const sceneSetRoot = countOccurrences(scene, "setRootTemplate(");
+  const managerSetRoot = countOccurrences(manager, "setRootTemplate(");
+  assertOk(sceneSetRoot === 1, `scene has exactly one setRootTemplate (found ${sceneSetRoot})`);
+  assertOk(managerSetRoot === 1, `manager has exactly one fallback setRootTemplate (found ${managerSetRoot})`);
 
   // No force root replacement / concurrent reinstall paths.
   assertOk(!manager.includes("installRootTemplates(force: true"), "no force root reinstall");
   assertOk(!manager.includes("root_replacement"), "no root_replacement log/path");
-  assertOk(manager.includes("already_installed") || manager.includes("already_in_progress"), "blocks concurrent install");
-
+  assertOk(
+    manager.includes("already_installed") ||
+      manager.includes("already_in_progress") ||
+      manager.includes("connect_idempotent_skip"),
+    "blocks concurrent install"
+  );
   const catalog = read("plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioCarPlayCatalog.swift");
   assertOk(catalog.includes("ensureDefaultCatalog"), "default catalog");
   assertOk(catalog.includes("emptyNode(for:"), "empty node helper");

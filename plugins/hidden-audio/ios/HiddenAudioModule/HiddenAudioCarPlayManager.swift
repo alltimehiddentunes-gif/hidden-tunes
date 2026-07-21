@@ -42,9 +42,85 @@ final class HiddenAudioCarPlayManager: NSObject {
     NSLog("[HTCarPlay] manager_ready connected=%d", isConnected ? 1 : 0)
   }
 
+  /// Attach after the scene delegate has already installed the CPListTemplate root.
+  /// Never calls setRootTemplate — catalog/search/Now Playing update the existing root only.
+  func attachConnectedSession(
+    interfaceController: CPInterfaceController,
+    window: CPWindow? = nil,
+    preinstalledRoot: CPListTemplate
+  ) {
+    let work = { [weak self] in
+      guard let self else { return }
+
+      // Idempotent: same controller already attached with a live root.
+      if self.isConnected,
+         self.interfaceController === interfaceController,
+         self.rootListTemplate != nil,
+         (self.hasInstalledRoot || self.isInstallingRoot) {
+        if let window {
+          self.carWindow = window
+        }
+        NSLog("[HTCarPlay] connect_idempotent_skip")
+        return
+      }
+
+      self.connectionGeneration &+= 1
+      let generation = self.connectionGeneration
+      self.activeConnectionGeneration = generation
+      self.interfaceController = interfaceController
+      self.carWindow = window
+      self.isConnected = true
+      self.isInstallingRoot = false
+      self.hasInstalledRoot = true
+      self.rootListTemplate = preinstalledRoot
+      self.presentedSearchTemplate = nil
+      HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
+      self.ensureSessionConfiguration()
+      self.refreshVideoCapability(reason: "connected")
+      NSLog("[HTCarPlay] interface_controller_attached")
+      NSLog("[HTCarPlay] connected hasWindow=%d preinstalled_root=1", window != nil ? 1 : 0)
+      NSLog("[HTCarPlay] root_retained")
+
+      // Wire selection handlers onto the already-visible root without replacing it.
+      self.updateExistingRootListFromCatalog()
+
+      self.emitDiagnostic([
+        "event": "carplay_connected",
+        "hasInterfaceController": true,
+        "hasWindow": window != nil,
+        "supportsVideoPlayback": self.supportsVideoPlaybackCached,
+        "generation": generation,
+        "preinstalledRoot": true,
+      ])
+    }
+
+    if Thread.isMainThread {
+      work()
+    } else {
+      DispatchQueue.main.sync(execute: work)
+    }
+  }
+
+  /// Fallback only: prefer `attachConnectedSession` after the scene delegate installs the root.
   func connect(_ interfaceController: CPInterfaceController, window: CPWindow? = nil) {
     let work = { [weak self] in
       guard let self else { return }
+      if self.isConnected,
+         self.interfaceController === interfaceController,
+         self.rootListTemplate != nil {
+        NSLog("[HTCarPlay] connect_idempotent_skip")
+        return
+      }
+      // If CarPlay already has a root (scene delegate installed it), attach only.
+      if let existing = interfaceController.rootTemplate as? CPListTemplate {
+        self.attachConnectedSession(
+          interfaceController: interfaceController,
+          window: window,
+          preinstalledRoot: existing
+        )
+        return
+      }
+      let (list, _) = self.makeVisibleFallbackListTemplate()
       self.connectionGeneration &+= 1
       let generation = self.connectionGeneration
       self.activeConnectionGeneration = generation
@@ -67,6 +143,7 @@ final class HiddenAudioCarPlayManager: NSObject {
         "hasWindow": window != nil,
         "supportsVideoPlayback": self.supportsVideoPlaybackCached,
         "generation": generation,
+        "preinstalledRoot": false,
       ])
     }
 
