@@ -136,8 +136,30 @@ async function stopOwner(
     // Best-effort.
   }
   try {
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[handoff] old_owner_stop_requested", {
+        owner,
+        reason,
+        ts: Date.now(),
+      });
+    }
     await adapter.stopImmediately(reason);
-  } catch {
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[handoff] old_owner_stop_resolved", {
+        owner,
+        reason,
+        ts: Date.now(),
+      });
+    }
+  } catch (error) {
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[handoff] old_owner_stop_rejected", {
+        owner,
+        reason,
+        error: String((error as Error)?.message || error),
+        ts: Date.now(),
+      });
+    }
     // Peer stop must never block the new owner.
   }
   try {
@@ -169,6 +191,7 @@ export async function claimExclusivePlayback(input: {
   contentKind: PlaybackContentKind;
   mediaKey: string;
 }): Promise<PlaybackClaim> {
+  const previousOwner = state.activeOwner;
   const myGeneration = state.generation + 1;
   state.generation = myGeneration;
 
@@ -180,7 +203,27 @@ export async function claimExclusivePlayback(input: {
   state.contentKind = input.contentKind;
   state.mediaKey = input.mediaKey;
 
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[handoff] handoff_requested", {
+      from: previousOwner,
+      to: input.owner,
+      contentKind: input.contentKind,
+      mediaKey: input.mediaKey,
+      generation: myGeneration,
+      ts: Date.now(),
+    });
+  }
+
   await stopPeersImmediately(input.owner, "owner_transfer");
+
+  if (typeof __DEV__ !== "undefined" && __DEV__) {
+    console.log("[handoff] new_owner_activated", {
+      owner: input.owner,
+      contentKind: input.contentKind,
+      generation: myGeneration,
+      ts: Date.now(),
+    });
+  }
 
   const isCurrent = () =>
     state.generation === myGeneration &&

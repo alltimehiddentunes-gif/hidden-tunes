@@ -7,8 +7,8 @@ import PlayerScreenDebugOverlay from "../screens/PlayerScreenDebugOverlay";
 import {
   usePlayerActions,
   usePlayerNowPlaying,
-  usePlayerProgress,
 } from "../context/PlayerContext";
+import { bridgeGetProgress } from "../services/playbackBridge";
 import { loadHydratedCatalogOnce } from "../state/catalogFetchLayer";
 import {
   disableRemoteMediaControls,
@@ -22,7 +22,6 @@ const LOCKSCREEN_POSITION_SYNC_MS = 8000;
 
 function RemoteMediaControlsBridge() {
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
-  const { positionMillis, durationMillis } = usePlayerProgress();
   const { togglePlayPause, nextSong, previousSong, stopPlayback } =
     usePlayerActions();
 
@@ -34,8 +33,6 @@ function RemoteMediaControlsBridge() {
   const latestSongIdRef = useRef(String(currentSong?.id ?? ""));
   const currentSongRef = useRef(currentSong);
   const isLoadingRef = useRef(isLoading);
-  const positionMillisRef = useRef(positionMillis);
-  const durationMillisRef = useRef(durationMillis);
   const lastPositionSyncAtRef = useRef(0);
 
   isPlayingRef.current = isPlaying;
@@ -46,8 +43,6 @@ function RemoteMediaControlsBridge() {
   latestSongIdRef.current = String(currentSong?.id ?? "");
   currentSongRef.current = currentSong;
   isLoadingRef.current = isLoading;
-  positionMillisRef.current = positionMillis;
-  durationMillisRef.current = durationMillis;
 
   useEffect(() => {
     void loadHydratedCatalogOnce();
@@ -88,7 +83,7 @@ function RemoteMediaControlsBridge() {
     };
   }, []);
 
-  const syncSession = (forcePosition = false) => {
+  const syncSession = async (forcePosition = false) => {
     if (!isRemoteMediaControlsAvailable()) return;
 
     const now = Date.now();
@@ -101,12 +96,22 @@ function RemoteMediaControlsBridge() {
 
     lastPositionSyncAtRef.current = now;
 
+    let positionMillis = 0;
+    let durationMillis = 0;
+    try {
+      const progress = await bridgeGetProgress();
+      positionMillis = Math.max(0, Math.floor(progress.positionMillis || 0));
+      durationMillis = Math.max(0, Math.floor(progress.durationMillis || 0));
+    } catch {
+      // Fall back to zero position if native progress is briefly unavailable.
+    }
+
     const snapshot = {
       song: currentSongRef.current,
       isPlaying: isPlayingRef.current,
       isLoading: isLoadingRef.current,
-      positionMillis: positionMillisRef.current,
-      durationMillis: durationMillisRef.current,
+      positionMillis,
+      durationMillis,
     };
 
     void syncRemoteMediaSessionOrdered(snapshot, async (nextSnapshot) => {
@@ -122,14 +127,14 @@ function RemoteMediaControlsBridge() {
   };
 
   useEffect(() => {
-    syncSession(true);
+    void syncSession(true);
   }, [currentSong?.id, isPlaying, isLoading]);
 
   useEffect(() => {
     if (!isPlaying || !isRemoteMediaControlsAvailable()) return;
 
     const timer = setInterval(() => {
-      syncSession(false);
+      void syncSession(false);
     }, LOCKSCREEN_POSITION_SYNC_MS);
 
     return () => clearInterval(timer);

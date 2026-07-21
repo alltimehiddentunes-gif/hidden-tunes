@@ -482,9 +482,9 @@ function yieldToNextFrame(): Promise<void> {
   });
 }
 
-const PLAYBACK_UPDATE_INTERVAL_MS = 1000;
+const PLAYBACK_UPDATE_INTERVAL_MS = 1500;
 const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 5000;
-const POSITION_STATE_UPDATE_MIN_MS = 1000;
+const POSITION_STATE_UPDATE_MIN_MS = 1500;
 const POSITION_STATE_UPDATE_BACKGROUND_MS = 5000;
 const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_INTERVAL_BACKGROUND_MS = 30000;
@@ -2929,14 +2929,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const nativeRetainsPlayback = nativeSnapshotIndicatesLoadedPlayback(nativeSnapshot);
       const backgrounding = isBackgroundAppState(appStateRef.current);
       const userInitiatedStop = isUserInitiatedHiddenAudioStopReason(reason);
+      // Never "preserve" native audio on deliberate stops (Stop, media handoff).
+      // Preserving while native is still loaded was clearing JS/MiniPlayer state
+      // while HiddenAudio continued — ghost playback after Music → TV.
       const shouldPreserveHiddenAudio =
-        nativeRetainsPlayback ||
-        (backgrounding &&
-          Boolean(currentSongRef.current) &&
-          !userInitiatedStop) ||
-        (backgrounding &&
-          Boolean(currentSongRef.current) &&
-          (isPlayingRef.current || nativeRetainsPlayback));
+        !userInitiatedStop &&
+        (nativeRetainsPlayback ||
+          (backgrounding && Boolean(currentSongRef.current)) ||
+          (backgrounding &&
+            Boolean(currentSongRef.current) &&
+            (isPlayingRef.current || nativeRetainsPlayback)));
 
       if (shouldPreserveHiddenAudio) {
         if (nativeRetainsPlayback) {
@@ -6787,10 +6789,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       pendingSmartExtendRef.current = false;
       clearFinishWatchdog("stop_playback");
 
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[handoff] native_audio_stop_requested", {
+          owner: "shared-audio",
+          reason: "stop_playback",
+          ts: Date.now(),
+          songId: currentSongRef.current?.id || null,
+        });
+      }
+
       loadRequestIdRef.current += 1;
       inFlightPlaySongIdRef.current = null;
       await clearPreloadedSound();
       await unloadCurrentSound("stop_playback");
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[handoff] native_audio_stop_completed", {
+          owner: "shared-audio",
+          reason: "stop_playback",
+          ts: Date.now(),
+        });
+      }
 
       setIsPlaying(false);
       setIsLoading(false);
@@ -6800,11 +6819,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentSongRef.current = null;
       setCurrentSong(null);
 
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[handoff] old_ui_session_cleared", {
+          owner: "shared-audio",
+          ts: Date.now(),
+        });
+      }
+
       lastCurrentSongPersistRef.current = "";
       await removeStoredValues([CURRENT_SONG_KEY, POSITION_KEY]);
       releasePlaybackOwner("shared-audio");
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[handoff] old_owner_released", {
+          owner: "shared-audio",
+          ts: Date.now(),
+        });
+      }
     } catch (error) {
       console.log("Stop playback error:", error);
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[handoff] native_audio_stop_failed", {
+          owner: "shared-audio",
+          error: String((error as Error)?.message || error),
+          ts: Date.now(),
+        });
+      }
     } finally {
       isChangingTrackRef.current = false;
     }
@@ -6822,7 +6862,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return registerPlaybackOwnerAdapter({
       id: "shared-audio",
-      stopImmediately: async () => {
+      stopImmediately: async (reason) => {
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[handoff] old_owner_stop_entered", {
+            owner: "shared-audio",
+            reason,
+            ts: Date.now(),
+          });
+        }
         try {
           await stopPlayback();
         } catch {
@@ -7493,7 +7540,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         if (
           now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
-          Math.abs(progress.positionMillis - previousPosition) > 900
+          Math.abs(progress.positionMillis - previousPosition) > 1350
         ) {
           lastPositionStateUpdateRef.current = now;
           recordPlaybackProgressUpdate();

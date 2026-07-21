@@ -369,6 +369,7 @@ export function isInterruptionHiddenAudioStopReason(reason: string) {
 export function isUserInitiatedHiddenAudioStopReason(reason: string) {
   return (
     reason === "stop_playback" ||
+    reason === "owner_transfer" ||
     reason === "user_tap_interrupt" ||
     reason.startsWith("user_") ||
     isInterruptionHiddenAudioStopReason(reason)

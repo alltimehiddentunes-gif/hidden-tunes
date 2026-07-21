@@ -451,6 +451,14 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         section: input.sectionId ?? null,
       });
 
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[handoff] new_playback_started", {
+          owner: "tv",
+          mediaKey: String(input.item?.id || "tv"),
+          ts: Date.now(),
+        });
+      }
+
       return { ok: true };
     },
     [applyResolvedSession]
@@ -538,6 +546,14 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         index,
         presentation,
       });
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[handoff] new_playback_started", {
+          owner: "tv",
+          mediaKey: String(input.video?.id || "tv"),
+          ts: Date.now(),
+        });
+      }
 
       return { ok: true };
     },
