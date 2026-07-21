@@ -10,8 +10,5 @@ export const rokuFastChannelsAdapter = createMjhFastCatalogAdapter({
   catalogUrl: ROKU_CATALOG_URL,
   cacheKey: "mjh-roku-fast",
   defaultWebsite: "https://therokuchannel.roku.com/",
-  streamUrlForId: (channelId, _catalog, regionKey) =>
-    regionKey
-      ? `https://i.mjh.nz/Roku/${regionKey}/${channelId}.m3u8`
-      : `https://i.mjh.nz/Roku/${channelId}.m3u8`,
+  streamUrlForId: (channelId) => `https://jmp2.uk/rok-${channelId}.m3u8`,
 });

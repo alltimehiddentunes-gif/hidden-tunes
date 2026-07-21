@@ -152,19 +152,14 @@ async function loadOfficialFastEntries(seen: Set<string>) {
       catalogUrl: MJH_PLUTO_CATALOG,
       provider: "pluto",
       website: "https://pluto.tv/live-tv",
-      streamUrlForId: (id, _catalog, regionKey) =>
-        regionKey
-          ? `https://i.mjh.nz/PlutoTV/${regionKey}/${id}.m3u8`
-          : `https://i.mjh.nz/PlutoTV/${id}.m3u8`,
+      streamUrlForId: (id) => `https://jmp2.uk/plu-${id}.m3u8`,
     },
     {
       catalogUrl: MJH_SAMSUNG_CATALOG,
       provider: "samsung-tv-plus",
       website: "https://www.samsung.com/us/tvs/tvplus/",
-      streamUrlForId: (id, _catalog, regionKey) =>
-        regionKey
-          ? `https://i.mjh.nz/SamsungTVPlus/${regionKey}/${id}.m3u8`
-          : `https://i.mjh.nz/SamsungTVPlus/${id}.m3u8`,
+      streamUrlForId: (id, catalog) =>
+        `https://jmp2.uk/${(catalog.slug || "stvp-{id}").replace("{id}", id)}`,
       skip: (channel) => Boolean(channel.license_url),
     },
   ];

@@ -239,7 +239,12 @@ export async function probeStreamUrl(
     try {
       const response = await fetch(currentUrl, {
         method: "GET",
-        headers: { Accept: "application/vnd.apple.mpegurl,application/x-mpegURL,*/*" },
+        headers: {
+          Accept: "application/vnd.apple.mpegurl,application/x-mpegURL,*/*",
+          // FAST redirectors (jmp2.uk / stitchers) reject bare Node fetch without a UA.
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        },
         cache: "no-store",
         redirect: "manual",
         signal: AbortSignal.timeout(timeoutMs),
