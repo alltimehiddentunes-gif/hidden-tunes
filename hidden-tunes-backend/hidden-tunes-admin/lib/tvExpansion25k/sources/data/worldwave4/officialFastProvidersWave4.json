@@ -1012,14 +1012,14 @@
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
   },
   {
-    "id": "fast-pluto-62cdc75b1a1cbd0007ed45dc",
-    "title": "CBS News Chicago",
-    "url": "https://jmp2.uk/plu-62cdc75b1a1cbd0007ed45dc.m3u8",
+    "id": "fast-pluto-62cdc7c2a3e6270007f3f2f3",
+    "title": "CBS News Boston",
+    "url": "https://jmp2.uk/plu-62cdc7c2a3e6270007f3f2f3.m3u8",
     "country": "US",
     "language": null,
     "category": "News + Opinion",
     "website": "https://pluto.tv/live-tv",
-    "channelName": "CBS News Chicago",
+    "channelName": "CBS News Boston",
     "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
   },
   {
@@ -8107,6 +8107,17 @@
     "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
   },
   {
+    "id": "fast-pluto-69c3c6c912e978ee49277dc7",
+    "title": "That's 60s",
+    "url": "https://jmp2.uk/plu-69c3c6c912e978ee49277dc7.m3u8",
+    "country": "GB",
+    "language": null,
+    "category": "New on Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "That's 60s",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
     "id": "fast-samsung-tv-plus-gb1100001eb",
     "title": "The Diary Of A CEO",
     "url": "https://jmp2.uk/stvp-GB1100001EB",
@@ -8556,6 +8567,17 @@
     "website": "https://www.samsung.com/us/tvs/tvplus/",
     "channelName": "AFV with Alfonso Ribeiro",
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
+    "id": "fast-pluto-6a205abba7b5a6c560b8ac25",
+    "title": "All Reality We TV",
+    "url": "https://jmp2.uk/plu-6a205abba7b5a6c560b8ac25.m3u8",
+    "country": "CA",
+    "language": null,
+    "category": "Reality",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "All Reality We TV",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
   },
   {
     "id": "fast-samsung-tv-plus-caba3700001db",
@@ -13024,6 +13046,17 @@
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
   },
   {
+    "id": "fast-pluto-663a176ecb3ea10008edacf9",
+    "title": "Pluto TV Stimulierende Dokus",
+    "url": "https://jmp2.uk/plu-663a176ecb3ea10008edacf9.m3u8",
+    "country": "DE",
+    "language": null,
+    "category": "Sinnliche Fantasien",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Pluto TV Stimulierende Dokus",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
     "id": "fast-samsung-tv-plus-de700001bn",
     "title": "Pocoyo",
     "url": "https://jmp2.uk/stvp-DE700001BN",
@@ -13783,12 +13816,23 @@
     "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
   },
   {
+    "id": "fast-pluto-691b351d427d68a118fdda13",
+    "title": "Cut",
+    "url": "https://jmp2.uk/plu-691b351d427d68a118fdda13.m3u8",
+    "country": "FR",
+    "language": null,
+    "category": "Nouveau sur Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Cut",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
     "id": "fast-pluto-691b334a1308fa77bb056b0e",
     "title": "La Moderna",
     "url": "https://jmp2.uk/plu-691b334a1308fa77bb056b0e.m3u8",
     "country": "FR",
     "language": null,
-    "category": "Nouveau sur Pluto TV",
+    "category": "À Binge-Watch",
     "website": "https://pluto.tv/live-tv",
     "channelName": "La Moderna",
     "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
@@ -13997,7 +14041,7 @@
     "url": "https://jmp2.uk/plu-624da1cd2af90c0007c13205.m3u8",
     "country": "IT",
     "language": null,
-    "category": "Novità su Pluto TV",
+    "category": "Animazione",
     "website": "https://pluto.tv/live-tv",
     "channelName": "Avatar",
     "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
@@ -14584,6 +14628,17 @@
     "website": "https://www.samsung.com/us/tvs/tvplus/",
     "channelName": "Guardia Costiera",
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
+    "id": "fast-pluto-69fc903b201df02a8b0f3017",
+    "title": "H2O & Friends",
+    "url": "https://jmp2.uk/plu-69fc903b201df02a8b0f3017.m3u8",
+    "country": "IT",
+    "language": null,
+    "category": "Novità su Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "H2O & Friends",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
   },
   {
     "id": "fast-samsung-tv-plus-it1200004e6",
@@ -16434,6 +16489,17 @@
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
   },
   {
+    "id": "fast-pluto-69fc906b90dc413f536059a1",
+    "title": "H2O & Friends",
+    "url": "https://jmp2.uk/plu-69fc906b90dc413f536059a1.m3u8",
+    "country": "ES",
+    "language": null,
+    "category": "Nuevo en Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "H2O & Friends",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
     "id": "fast-samsung-tv-plus-es1200005z1",
     "title": "H2O & Friends",
     "url": "https://jmp2.uk/stvp-ES1200005Z1",
@@ -16863,6 +16929,17 @@
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
   },
   {
+    "id": "fast-pluto-6a0c25fe09705ebdf7e4599a",
+    "title": "Pippi Calzaslargas",
+    "url": "https://jmp2.uk/plu-6a0c25fe09705ebdf7e4599a.m3u8",
+    "country": "ES",
+    "language": null,
+    "category": "Nuevo en Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Pippi Calzaslargas",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
     "id": "fast-samsung-tv-plus-esbd130000205",
     "title": "Pitufo TV",
     "url": "https://jmp2.uk/stvp-ESBD130000205",
@@ -16916,17 +16993,6 @@
     "website": "https://www.samsung.com/us/tvs/tvplus/",
     "channelName": "Pluto TV Cocina",
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
-  },
-  {
-    "id": "fast-pluto-69f0bb1a00ad62de02a6b716",
-    "title": "Pluto TV Fútbol",
-    "url": "https://jmp2.uk/plu-69f0bb1a00ad62de02a6b716.m3u8",
-    "country": "ES",
-    "language": null,
-    "category": "Pluto TV Fútbol",
-    "website": "https://pluto.tv/live-tv",
-    "channelName": "Pluto TV Fútbol",
-    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
   },
   {
     "id": "fast-samsung-tv-plus-esaj38000046o",
@@ -22902,6 +22968,39 @@
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
   },
   {
+    "id": "fast-pluto-6a0f0de3e022927e1cf74c71",
+    "title": "Pluto TV Body Bags",
+    "url": "https://jmp2.uk/plu-6a0f0de3e022927e1cf74c71.m3u8",
+    "country": "NO",
+    "language": null,
+    "category": "Nytt på Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Pluto TV Body Bags",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
+    "id": "fast-pluto-6a0f0df0c3b940365926c3e9",
+    "title": "Pluto TV Body Bags",
+    "url": "https://jmp2.uk/plu-6a0f0df0c3b940365926c3e9.m3u8",
+    "country": "SE",
+    "language": null,
+    "category": "Nytt på Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Pluto TV Body Bags",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
+    "id": "fast-pluto-6a0f0dd902b6c1c00aa51cb9",
+    "title": "Pluto TV Body Bags",
+    "url": "https://jmp2.uk/plu-6a0f0dd902b6c1c00aa51cb9.m3u8",
+    "country": "DK",
+    "language": null,
+    "category": "Nyt på Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Pluto TV Body Bags",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
     "id": "fast-samsung-tv-plus-atak3504501a",
     "title": "Pluto TV Food",
     "url": "https://jmp2.uk/stvp-ATAK3504501A",
@@ -23032,6 +23131,39 @@
     "website": "https://www.samsung.com/us/tvs/tvplus/",
     "channelName": "Pluto TV Sitcoms",
     "legalBasis": "samsung-tv-plus official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
+    "id": "fast-pluto-69e1007eb7dabef981d8625e",
+    "title": "Pluto TV Urbex",
+    "url": "https://jmp2.uk/plu-69e1007eb7dabef981d8625e.m3u8",
+    "country": "NO",
+    "language": null,
+    "category": "Nytt på Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Pluto TV Urbex",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
+    "id": "fast-pluto-69e100b7805a68fcc951e433",
+    "title": "Pluto TV Urbex",
+    "url": "https://jmp2.uk/plu-69e100b7805a68fcc951e433.m3u8",
+    "country": "SE",
+    "language": null,
+    "category": "Nytt på Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Pluto TV Urbex",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
+  },
+  {
+    "id": "fast-pluto-69e100365db0e5b74f6c0e0c",
+    "title": "Pluto TV Urbex",
+    "url": "https://jmp2.uk/plu-69e100365db0e5b74f6c0e0c.m3u8",
+    "country": "DK",
+    "language": null,
+    "category": "Nyt på Pluto TV",
+    "website": "https://pluto.tv/live-tv",
+    "channelName": "Pluto TV Urbex",
+    "legalBasis": "pluto official free FAST catalog via public channel metadata (wave4)."
   },
   {
     "id": "fast-samsung-tv-plus-atbd2500001a8",

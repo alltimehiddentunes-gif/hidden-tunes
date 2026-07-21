@@ -88,6 +88,50 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-ar-telefederal-ar-hd",
+    "title": "Tele Federal (720p)",
+    "url": "https://lbgo.bozztv.com/giatv/giatv-federaltv/federaltv/playlist.m3u8",
+    "country": "AR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Tele Federal (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ar-telefederal-ar-hd",
+    "title": "Tele Federal (720p)",
+    "url": "https://183.bozztv.com/giatv/giatv-federaltv/federaltv/playlist.m3u8",
+    "country": "AR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Tele Federal (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ar-canalshowsport-ar-sd",
+    "title": "Canal Showsport (720p)",
+    "url": "https://livestream.lumpentv.com.ar/hls/lumpen.m3u8",
+    "country": "AR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Canal Showsport (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ar-teleposadas-ar-hd",
+    "title": "Tele Posadas HD (720p)",
+    "url": "https://lbgo.bozztv.com/giatv/giatv-teleposadaso01/teleposadaso01/playlist.m3u8",
+    "country": "AR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Tele Posadas HD (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-au-9go-au-sydney",
     "title": "9Go! (720p) [Geo-blocked]",
     "url": "https://9now-livestreams.akamaized.net/hls/live/2008312/go-syd/master.m3u8",
@@ -308,6 +352,17 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-br-vejaplustv-br-hd",
+    "title": "VEJA+ TV (1080p)",
+    "url": "https://gpa-vja.otteravision.com/gpa/vja/vja.m3u8",
+    "country": "BR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "VEJA+ TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-br-recordnews-br-sd",
     "title": "Record News",
     "url": "https://stream.ads.ottera.tv/playlist.m3u8?network_id=2116",
@@ -462,6 +517,39 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-br-record-br-sd",
+    "title": "Record (576p)",
+    "url": "https://media.cdntvms.com.br/record_nacional_sat/index.m3u8",
+    "country": "BR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Record (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-br-sbtnacional-br-sd",
+    "title": "SBT Nacional (576p)",
+    "url": "https://media.cdntvms.com.br/sbt_sat/index.m3u8",
+    "country": "BR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "SBT Nacional (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-br-band-br-sd",
+    "title": "Band (576p)",
+    "url": "https://media.cdntvms.com.br/band_sat/index.m3u8",
+    "country": "BR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Band (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-bg-citytv-bg-sd",
     "title": "City TV (576p) [Not 24/7]",
     "url": "https://tv.city.bg/play/tshls/citytv/index.m3u8",
@@ -470,6 +558,39 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "City TV (576p) [Not 24/7]",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-kh-tv5cambodia-kh-sd",
+    "title": "TV5 Cambodia",
+    "url": "https://ip.pdtvhd.com/Khmer/streams/CTV5.m3u8",
+    "country": "KH",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "TV5 Cambodia",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-kh-itvhd-kh-sd",
+    "title": "iTV HD",
+    "url": "https://ip.pdtvhd.com/Khmer/streams/ITVHD.m3u8",
+    "country": "KH",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "iTV HD",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-kh-ntv-kh-sd",
+    "title": "NTV",
+    "url": "https://stream.pdtvhd.com/LiveApp/streams/ntvhd.m3u8",
+    "country": "KH",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NTV",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -514,6 +635,39 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "ICI RDI (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ca-stingrayiconcerts-ca-hd",
+    "title": "Stingray iConcerts HD",
+    "url": "https://dash4.antik.sk/live/test_stingray_iconcerts_hd_hevc50/playlist.m3u8",
+    "country": "CA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Stingray iConcerts HD",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ca-ctvspeedchannel-ca-sd",
+    "title": "CTV Speed Channel (720p)",
+    "url": "https://gpuserver3.tier1streams.com/DISCOVERY_SCIENCE_HD/index.m3u8",
+    "country": "CA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "CTV Speed Channel (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ca-wnetwork-ca-east",
+    "title": "W Network (720p)",
+    "url": "https://starlite.best/api/stream/hurt/hurt/livetv.epg/w.wtn.east.ca.m3u8",
+    "country": "CA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "W Network (720p)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -605,14 +759,47 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
-    "id": "iptv-org-cn-xinjiangtv2-cn-sd",
-    "title": "Xinjiang TV 2",
-    "url": "https://hls.quklive.com/live/play-sh-21.quklive.com/1777511615189085.m3u8?auth_key=2092871636-a39d8614688744d0b170b856b086ba80-0-33900446b83fa0b5befeb6bedbcd51a0",
-    "country": "CN",
+    "id": "iptv-org-cl-tvn-cl-sd",
+    "title": "TVN (1080p)",
+    "url": "https://iptv2.intersurtv.cl/TVN/index.m3u8",
+    "country": "CL",
     "language": null,
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
-    "channelName": "Xinjiang TV 2",
+    "channelName": "TVN (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-cl-mega-cl-sd",
+    "title": "Mega (1080p)",
+    "url": "https://iptv.bitred.cl/mega/index.m3u8",
+    "country": "CL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Mega (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-cl-lared-cl-sd",
+    "title": "La Red [Geo-blocked]",
+    "url": "https://tv-mgmt.gtd.cl/bpk-tv/LARED/default/index.m3u8",
+    "country": "CL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "La Red [Geo-blocked]",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-cl-lared-cl-sd",
+    "title": "La Red (720p)",
+    "url": "https://iptv2.intersurtv.cl/LA_RED/index.m3u8",
+    "country": "CL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "La Red (720p)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -657,28 +844,6 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "TV Nova (720p)",
-    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
-  },
-  {
-    "id": "iptv-org-cy-brt1-cy-sd",
-    "title": "BRT 1 (720p) [Not 24/7]",
-    "url": "https://sc-kuzeykibrissmarttv.ercdn.net/brt1hd/bant1/playlist.m3u8",
-    "country": "CY",
-    "language": null,
-    "category": "General",
-    "website": "https://github.com/iptv-org/iptv",
-    "channelName": "BRT 1 (720p) [Not 24/7]",
-    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
-  },
-  {
-    "id": "iptv-org-cy-brt2-cy-sd",
-    "title": "BRT 2 (720p) [Not 24/7]",
-    "url": "https://sc-kuzeykibrissmarttv.ercdn.net/brt2hd/bant1/playlist.m3u8",
-    "country": "CY",
-    "language": null,
-    "category": "General",
-    "website": "https://github.com/iptv-org/iptv",
-    "channelName": "BRT 2 (720p) [Not 24/7]",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -968,6 +1133,50 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-fr-automotolachaine-fr-sd",
+    "title": "Automoto la chaine",
+    "url": "https://futbol9865.ultratv13.workers.dev/deportivo111/23.m3u8",
+    "country": "FR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Automoto la chaine",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-fr-tf1-fr-sd",
+    "title": "TF1 (576p)",
+    "url": "https://futbol9865.ultratv13.workers.dev/deportivo111/24.m3u8",
+    "country": "FR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "TF1 (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-fr-canalplussport360-fr-sd",
+    "title": "Canal+ Sport 360",
+    "url": "https://futbol9865.ultratv13.workers.dev/deportivo111/14.m3u8",
+    "country": "FR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Canal+ Sport 360",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-fr-mezzo-fr-sd",
+    "title": "Mezzo (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/mezzo/index.m3u8",
+    "country": "FR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Mezzo (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-ge-1tv-ge-sd",
     "title": "1TV (720p)",
     "url": "https://tv.cdn.xsg.ge/gpb-1tv/index.m3u8",
@@ -1207,6 +1416,28 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "WDR 1 Live (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-de-dw-de-english",
+    "title": "DW English (576p)",
+    "url": "https://cdn-7.pishow.tv/live/431/master.m3u8",
+    "country": "DE",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "DW English (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-de-yoltv-de-sd",
+    "title": "YOL TV",
+    "url": "https://live.yoltv.com/hls/stream.m3u8",
+    "country": "DE",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "YOL TV",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -1482,6 +1713,17 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "Vergina TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-hn-deportestvc-hn-sd",
+    "title": "Deportes TVC",
+    "url": "https://streaming.onnethn.com/DEPORTES_TVC/playlist.m3u8",
+    "country": "HN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Deportes TVC",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -1782,6 +2024,39 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-hu-rtlgold-hu-sd",
+    "title": "RTL Gold",
+    "url": "https://budapest-cache-1.antik.sk/live/test_film_plus_2_hungary_1200_atk/playlist.m3u8",
+    "country": "HU",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "RTL Gold",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-hu-galaxy4-hu-sd",
+    "title": "Galaxy4",
+    "url": "https://budapest-cache-1.antik.sk/live/test_galaxy_4_atk_1200/playlist.m3u8",
+    "country": "HU",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Galaxy4",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-hu-axnspin-hu-sd",
+    "title": "AXN Spin (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/axnspin/index.m3u8",
+    "country": "HU",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AXN Spin (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-is-althingi-is-sd",
     "title": "Althingi (1080p) [Not 24/7]",
     "url": "https://althingi-live.secure.footprint.net/althingi/live/index.m3u8",
@@ -1859,6 +2134,171 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-in-nkrtvkannada-in-sd",
+    "title": "NKR TV Kannada (576p)",
+    "url": "https://mumt05.tangotv.in/87NeALx2NKRTV/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NKR TV Kannada (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-mazhavilmanorama-in-hd",
+    "title": "Mazhavil Manorama HD (576p)",
+    "url": "https://mumt07.tangotv.in/zHjX9OFlMAZHAVILMANORAMAHD/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Mazhavil Manorama HD (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-madhimugamtv-in-sd",
+    "title": "Madhimugam TV (576p)",
+    "url": "https://mumt01.tangotv.in/O5aw8Zn3MATHIMUGAMTV/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Madhimugam TV (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-hidost-in-sd",
+    "title": "Hi Dost! (576p)",
+    "url": "https://mumt03.tangotv.in/Dsly5z3HHIDOST/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Hi Dost! (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-janamtv-in-sd",
+    "title": "Janam TV (576p)",
+    "url": "https://mumt03.tangotv.in/Dsly5z3HJANAMTV/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Janam TV (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-tamiljanam-in-sd",
+    "title": "Tamil Janam (576p)",
+    "url": "https://mumt01.tangotv.in/O5aw8Zn3JANAMTVTAMIL/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Tamil Janam (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-news24-in-sd",
+    "title": "News 24 (576p)",
+    "url": "https://mumt01.tangotv.in/O5aw8Zn3NEWS24/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "News 24 (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-news24-in-sd",
+    "title": "News 24 (576p)",
+    "url": "https://mumt03.tangotv.in/Dsly5z3HNEWS24/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "News 24 (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-pasandtv-in-sd",
+    "title": "Pasand TV (576p)",
+    "url": "https://mumt01.tangotv.in/O5aw8Zn3PASANDTV/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Pasand TV (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-oscarmoviesbhojpuri-in-sd",
+    "title": "Oscar Movies Bhojpuri (576p)",
+    "url": "https://mumt05.tangotv.in/87NeALx2OSCARMOVIESBHOJPURI/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Oscar Movies Bhojpuri (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-pitaara-in-sd",
+    "title": "Pitaara (576p)",
+    "url": "https://mumt04.tangotv.in/m18aqlK4PITAARA/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Pitaara (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-timesnownavbharat-in-sd",
+    "title": "Times Now Navbharat (576p)",
+    "url": "https://mumt03.tangotv.in/Dsly5z3HTIMESNOWNAVBHARAT/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Times Now Navbharat (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-sirikannada-in-sd",
+    "title": "Siri Kannada (576p)",
+    "url": "https://mumt03.tangotv.in/Dsly5z3HSIRIKANNADA/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Siri Kannada (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-punjabishorts-in-sd",
+    "title": "Punjabi Shorts (1080p)",
+    "url": "https://vglivessai.akamaized.net/ptnr-yupptv/title-Punjabi_Shorts/in/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/27c3fd7a-b01f-4b00-ac03-557ac77acd47/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Punjabi Shorts (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-in-sirikannadaalltime-in-sd",
+    "title": "Siri Kannada All Time (576p)",
+    "url": "https://mumt07.tangotv.in/zHjX9OFlSIRIKANNADAALLTIME/index.m3u8",
+    "country": "IN",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Siri Kannada All Time (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-id-cnbcindonesia-id-sd",
     "title": "CNBC Indonesia (720p)",
     "url": "https://live.cnbcindonesia.com/livecnbc/smil:cnbctv.smil/master.m3u8",
@@ -1867,6 +2307,17 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "CNBC Indonesia (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-id-allegro-id-hd",
+    "title": "Allegro (720p)",
+    "url": "https://gist.githubusercontent.com/edgechannels1-ai/60104c033fc6f258800cb589ab3265de/raw/0f4e1404ae6f3d3cf41b6ca5bd6ec8e6f67d17b6/allegroudp.m3u8",
+    "country": "ID",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Allegro (720p)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -3146,14 +3597,25 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
-    "id": "iptv-org-kz-channel7kazakhstan-kz-sd",
-    "title": "Channel 7 Kazakhstan (1080p) [Geo-blocked]",
-    "url": "https://adpnetworkhd-cmd.github.io/iptv/7_kanal_Kazakhstan.m3u8",
-    "country": "KZ",
+    "id": "iptv-org-jp-nhkworldjapan-jp-sd",
+    "title": "NHK World-Japan (576p)",
+    "url": "https://cdn-7.pishow.tv/live/455/master.m3u8",
+    "country": "JP",
     "language": null,
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
-    "channelName": "Channel 7 Kazakhstan (1080p) [Geo-blocked]",
+    "channelName": "NHK World-Japan (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-jp-nhkgeneraltv-jp-sd",
+    "title": "NHK General TV (720p)",
+    "url": "https://nhk4.mov3.co/hls/nhk.m3u8",
+    "country": "JP",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NHK General TV (720p)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -3333,6 +3795,28 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-md-primatvmoldova-md-sd",
+    "title": "Prima TV Moldova (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/primatvmd/index.m3u8",
+    "country": "MD",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Prima TV Moldova (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-md-cinemaratonmoldova-md-sd",
+    "title": "Cinemaraton Moldova",
+    "url": "https://aes.m3u8simplu.workers.dev/cinemaratonmoldova/index.m3u8",
+    "country": "MD",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Cinemaraton Moldova",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-me-tvcg1-me-sd",
     "title": "TVCG 1 (1080p) [Geo-blocked]",
     "url": "https://rtcg-live-open-geo.morescreens.com/RTCG_1_001/playlist.m3u8",
@@ -3366,6 +3850,61 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-mm-5plus-mm-sd",
+    "title": "5 Plus (720p)",
+    "url": "https://mmtvs.exliatycl.online/5plus/stream.m3u8",
+    "country": "MM",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "5 Plus (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-mm-fortunetv-mm-sd",
+    "title": "Fortune TV (720p)",
+    "url": "https://mmtvs.exliatycl.online/fortunetv/stream.m3u8",
+    "country": "MM",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Fortune TV (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-mm-channelk-mm-sd",
+    "title": "Channel K (720p)",
+    "url": "https://mmtvs.exliatycl.online/channelk/stream.m3u8",
+    "country": "MM",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Channel K (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-mm-channel9-mm-sd",
+    "title": "Channel 9 (720p)",
+    "url": "https://mmtvs.exliatycl.online/channel9/stream.m3u8",
+    "country": "MM",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Channel 9 (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-mm-mentertainmentchannel-mm-sd",
+    "title": "M Entertainment Channel (720p)",
+    "url": "https://mmtvs.exliatycl.online/mchannel/stream.m3u8",
+    "country": "MM",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "M Entertainment Channel (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-np-kantipurtv-np-hd",
     "title": "Kantipur TV",
     "url": "https://ktvhdsg.ekantipur.com:8443/high_quality_85840165/hd/kantipurtv/hd_1080/chunks.m3u8",
@@ -3385,6 +3924,83 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "Kantipur TV SD",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-np-kantipurmax-np-sd",
+    "title": "Kantipur Max [Geo-blocked]",
+    "url": "https://ktvhdsg.ekantipur.com:8443/ktvmax2025/match2/playlist.m3u8",
+    "country": "NP",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Kantipur Max [Geo-blocked]",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-nl-fightbox-nl-sd",
+    "title": "FightBox",
+    "url": "https://webtvstream.bhtelecom.ba/fightbox.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FightBox",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-nl-filmboxplusemotion-pl-adria",
+    "title": "FILMBOX+ Emotion Adria",
+    "url": "https://webtvstream.bhtelecom.ba/filmbox_extra.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FILMBOX+ Emotion Adria",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-nl-filmboxplushits-pl-adria",
+    "title": "FILMBOX+ Hits Adria",
+    "url": "https://webtvstream.bhtelecom.ba/filmbox_premium.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FILMBOX+ Hits Adria",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-nl-filmboxpluslovecrime-pl-adria",
+    "title": "FILMBOX+ Love & Crime Adria",
+    "url": "https://webtvstream.bhtelecom.ba/filmbox_stars.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FILMBOX+ Love & Crime Adria",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-nl-funboxuhd-nl-sd",
+    "title": "FunBox UHD",
+    "url": "https://webtvstream.bhtelecom.ba/funbox.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FunBox UHD",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-nl-gametoon-nl-sd",
+    "title": "Gametoon",
+    "url": "https://webtvstream.bhtelecom.ba/gametoon.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Gametoon",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -3421,6 +4037,17 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-nl-rn7-nl-sd",
+    "title": "RN7 TV (1080p)",
+    "url": "https://streams.rn7.nl/memfs/49823eea-a17d-4e39-a435-75b6d60df96e.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "RN7 TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-nl-rtvoost-nl-sd",
     "title": "RTV Oost (720p)",
     "url": "https://d34cg2bnc08ruf.cloudfront.net/live/rtvoost/tv/index.m3u8",
@@ -3443,6 +4070,61 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-nl-sleutelstadtv-nl-sd",
+    "title": "Sleutelstad TV (720p)",
+    "url": "https://video-eu1.streamerr.co/hls/s7fdeb27a49/live.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Sleutelstad TV (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-nl-fashionbox-nl-sd",
+    "title": "FashionBox",
+    "url": "https://dash2.antik.sk/live/test_fashionbox_medium_atk/playlist.m3u8",
+    "country": "NL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FashionBox",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ng-teleregencytv-ng-sd",
+    "title": "Tele Regency TV (576p)",
+    "url": "https://streams.playtv.com.ng/Tele-Regency_TRTV/index.m3u8",
+    "country": "NG",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Tele Regency TV (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ng-rapidtv-ng-sd",
+    "title": "Rapid TV",
+    "url": "https://stream-hls.castr-cdn.com/6a05a899db0ebd344a759542/live_9655bc604f8211f19e748901a3f596d0/index.m3u8",
+    "country": "NG",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Rapid TV",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ng-fortistv-ng-sd",
+    "title": "Fortis TV",
+    "url": "https://stream.fortistv.com/hls/fortis-news/index.m3u8",
+    "country": "NG",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Fortis TV",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-no-frikanalen-no-sd",
     "title": "Frikanalen (720p)",
     "url": "https://frikanalen.no/stream/index.m3u8",
@@ -3451,6 +4133,17 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "Frikanalen (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ps-serajtv-ps-sd",
+    "title": "Seraj TV (1080i)",
+    "url": "https://43869de4e1a0d641.servers.dvcloud.tv/hls/al_aqsa_channel/6udfi7v8a3eof6nlps6e9ovfrs65c7l7.m3u8",
+    "country": "PS",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Seraj TV (1080i)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -3465,6 +4158,28 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-ph-kapatidtv5-ph-sd",
+    "title": "Kapatid TV 5 (480p) [Geo-blocked]",
+    "url": "https://thinkkast.dpdns.org/tkk-ph/i7/kapatid_hd/kapatid.m3u8",
+    "country": "PH",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Kapatid TV 5 (480p) [Geo-blocked]",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ph-knowledgechannel-ph-sd",
+    "title": "Knowledge Channel (360p)",
+    "url": "https://thinkkast.dpdns.org/tkk-ph/i7/knowledge_channel/knowledge-channel.m3u8",
+    "country": "PH",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Knowledge Channel (360p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-pl-atmrozrywkarework-pl-hd",
     "title": "ATM Rozrywka REWORK (720p)",
     "url": "https://grupaatmrr.org.pl:8888/fallback/index.m3u8",
@@ -3473,6 +4188,61 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "ATM Rozrywka REWORK (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-pl-filmboxplusone-pl-romania",
+    "title": "FILMBOX+ One Romania (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/filmbox/index.m3u8",
+    "country": "PL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FILMBOX+ One Romania (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-pl-filmboxplushits-pl-romania",
+    "title": "FILMBOX+ Hits Romania (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/filmboxpremium/index.m3u8",
+    "country": "PL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FILMBOX+ Hits Romania (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-pl-filmboxpluslovecrime-pl-romania",
+    "title": "FILMBOX+ Love & Crime Romania (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/filmboxstars/index.m3u8",
+    "country": "PL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FILMBOX+ Love & Crime Romania (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-pl-filmboxplusemotion-pl-romania",
+    "title": "FILMBOX+ Emotion Romania (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/filmboxextra/index.m3u8",
+    "country": "PL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FILMBOX+ Emotion Romania (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-pl-filmboxplusfestival-pl-hd",
+    "title": "FILMBOX+ Festival HD",
+    "url": "https://webtvstream.bhtelecom.ba/filmbox_arthouse.m3u8",
+    "country": "PL",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FILMBOX+ Festival HD",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -3608,6 +4378,61 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-qa-qatartelevision-qa-sd",
+    "title": "Qatar Television (1080p)",
+    "url": "https://qatartv.akamaized.net/hls/live/20000609/qtv1/master.m3u8",
+    "country": "QA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Qatar Television (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-qa-qatartelevision2-qa-sd",
+    "title": "Qatar Television 2 (1080p)",
+    "url": "https://qatartv.akamaized.net/hls/live/20000611/qtv2/master.m3u8",
+    "country": "QA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Qatar Television 2 (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-qa-qbc-qa-hd",
+    "title": "QBC (1080p)",
+    "url": "https://googlecdn1.alkassdigital.net/livestream/qbc4/main.m3u8",
+    "country": "QA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "QBC (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-qa-qatartvtheholyquran-qa-hd",
+    "title": "Qatar TV The Holy Quran (1080p)",
+    "url": "https://qatartv.akamaized.net/hls/live/20000612/qtvquran/master.m3u8",
+    "country": "QA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Qatar TV The Holy Quran (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-qa-qbc-qa-hd",
+    "title": "QBC (1080p)",
+    "url": "https://live.kwikmotion.com/qbusinesslive/qbusiness.smil/playlist.m3u8",
+    "country": "QA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "QBC (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-ro-protvnews-ro-sd",
     "title": "Pro TV News (1080p)",
     "url": "https://cmero-ott-live.ssl.cdn.cra.cz/channels/cme-ro-voyo-news/playlist.m3u8?offsetSeconds=0&url=0",
@@ -3619,14 +4444,553 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
-    "id": "iptv-org-ro-romaniatv-ro-sd",
-    "title": "Romania TV (576p)",
-    "url": "https://livestream.romaniatv.net/clients/romaniatv/playlist.m3u8",
+    "id": "iptv-org-ro-timelessdizichannel-ro-sd",
+    "title": "Timeless Dizi Channel (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/dizi/index.m3u8",
     "country": "RO",
     "language": null,
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
-    "channelName": "Romania TV (576p)",
+    "channelName": "Timeless Dizi Channel (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-protvinternational-ro-sd",
+    "title": "PRO TV International (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/protvint/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "PRO TV International (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-protv-ro-sd",
+    "title": "PRO TV (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/protv/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "PRO TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-procinema-ro-sd",
+    "title": "Pro Cinema (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/procinema/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Pro Cinema (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-antena1-ro-sd",
+    "title": "Antena 1 (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/antena1/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Antena 1 (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-antenastars-ro-sd",
+    "title": "Antena Stars (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/antenastars/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Antena Stars (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-antenainternational-ro-sd",
+    "title": "Antena International (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/antenaint/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Antena International (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-kanald-ro-sd",
+    "title": "Kanal D (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/kanald/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Kanal D (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-kanald2-ro-sd",
+    "title": "Kanal D2 (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/kanald2/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Kanal D2 (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-zutv-ro-hd",
+    "title": "ZU TV HD (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/chefi/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "ZU TV HD (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-zutv-ro-sd",
+    "title": "ZU TV (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/zutv/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "ZU TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-primatv-ro-sd",
+    "title": "Prima TV (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/primatv/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Prima TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-b1-ro-sd",
+    "title": "B1 (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/b1/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "B1 (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-cinemaraton-ro-sd",
+    "title": "CineMaraton (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/cinemaraton/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "CineMaraton (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-diva-ro-sd",
+    "title": "Diva (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/diva/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Diva (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-happychannel-ro-sd",
+    "title": "Happy Channel (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/happy/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Happy Channel (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-acasa-ro-sd",
+    "title": "Acasa (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/acasa/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Acasa (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-acasagold-ro-sd",
+    "title": "Acasa Gold (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/acasagold/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Acasa Gold (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-disneychannel-ro-sd",
+    "title": "Disney Channel (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/disneychannel/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Disney Channel (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-disneyjunior-ro-sd",
+    "title": "Disney Junior (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/disneyjunior/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Disney Junior (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-realitateaplus-ro-sd",
+    "title": "Realitatea Plus (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/realitateaplus/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Realitatea Plus (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-nationalgeographic-ro-sd",
+    "title": "National Geographic (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/natgeo/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "National Geographic (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-nationalgeographicwild-ro-sd",
+    "title": "National Geographic Wild (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/natgeowild/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "National Geographic Wild (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-tv1000-ro-sd",
+    "title": "TV1000 (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/viasatkino/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "TV1000 (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-digisport3-ro-sd",
+    "title": "Digi Sport 3 (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/digi3/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Digi Sport 3 (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-digisport4-ro-sd",
+    "title": "Digi Sport 4 (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/digi4/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Digi Sport 4 (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-primasport5-ro-sd",
+    "title": "Prima Sport 5 (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/primasp5/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Prima Sport 5 (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-prima4k-ro-sd",
+    "title": "Prima 4K (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/prima4kk/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Prima 4K (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-proarena-ro-sd",
+    "title": "Pro Arena (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/proarena/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Pro Arena (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-sportextra-ro-sd",
+    "title": "Sport Extra (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/sportextra/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Sport Extra (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-filmnow-ro-sd",
+    "title": "Film Now (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/filmnow/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Film Now (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-comedycentral-ro-sd",
+    "title": "Comedy Central (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/comedycentral/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Comedy Central (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-bollywoodclassic-ro-hd",
+    "title": "Bollywood Classic (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/bollywood/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Bollywood Classic (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-history-ro-sd",
+    "title": "History (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/history/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "History (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-digilife-ro-sd",
+    "title": "Digi Life (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/digilife/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Digi Life (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-digiworld-ro-sd",
+    "title": "Digi World (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/digiworld/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Digi World (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-digianimalworld-ro-sd",
+    "title": "Digi Animal World (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/digianimalworld/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Digi Animal World (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-romaniatv-ro-sd",
+    "title": "Romania TV (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/romaniatv/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Romania TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-euronewsromania-ro-sd",
+    "title": "Euronews Romania (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/euronews/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Euronews Romania (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-primanews-ro-sd",
+    "title": "Prima News (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/primanews/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Prima News (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-nickelodeon-ro-sd",
+    "title": "Nickelodeon (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/nickelodeon/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Nickelodeon (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-nickjr-ro-sd",
+    "title": "Nick Jr. (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/nickjr/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Nick Jr. (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-nicktoons-ro-sd",
+    "title": "Nicktoons (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/nicktoons/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Nicktoons (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-jimjam-ro-sd",
+    "title": "JimJam (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/jimjam/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "JimJam (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-antenasport-ro-sd",
+    "title": "AntenaSport",
+    "url": "https://aes.m3u8simplu.workers.dev/antneassport/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AntenaSport",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-musicchannel-ro-sd",
+    "title": "Music Channel (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/musicchannel/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Music Channel (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-utv-ro-sd",
+    "title": "UTV (1080p)",
+    "url": "https://aes.m3u8simplu.workers.dev/utv/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "UTV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-emitv-ro-sd",
+    "title": "EMI TV",
+    "url": "https://astra.emitv.ro/hls/emi/index.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "EMI TV",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-hellotaste-ro-sd",
+    "title": "Hello Taste (720p)",
+    "url": "https://dai.google.com/linear/hls/pa/event/YeG0_KbLRjGeYKU2qVhl_Q/stream/daadc33b-fc6b-4c9e-a8d4-9ca1b7087d4d:BRU/master.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Hello Taste (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ro-medicooltv-ro-sd",
+    "title": "MediCOOL TV",
+    "url": "https://dai.google.com/linear/hls/pa/event/dpT7XJvhSzm5-pQkjgqRtg/stream/851625d8-0bfe-4ea1-a924-ddb3ff4d1e53:GRQ/master.m3u8",
+    "country": "RO",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "MediCOOL TV",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -3803,6 +5167,39 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "Radio Rossii (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ru-channel8novosibirsk-ru-sd",
+    "title": "Channel 8 Novosibirsk (480i)",
+    "url": "https://live-8knsk.cdnvideo.ru/8knsk/stream1/playlist.m3u8",
+    "country": "RU",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Channel 8 Novosibirsk (480i)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ru-prodvizhenie-ru-sd",
+    "title": "Prodvizhenie (1080p)",
+    "url": "https://streaming.astrakhan.ru/proastrakhanhd/index.m3u8",
+    "country": "RU",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Prodvizhenie (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ru-channel8krasnoyarsk-ru-hd",
+    "title": "Channel 8 Krasnoyarsk HD (1080p)",
+    "url": "https://tshift-1.telecoma.tv/8channel/tracks-v1a1/mono.ts.m3u8",
+    "country": "RU",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Channel 8 Krasnoyarsk HD (1080p)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -4015,6 +5412,28 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-es-la2-es-sd",
+    "title": "La 2",
+    "url": "https://rtvelivestream.rtve.es/rtvesec/la2/la2_main.m3u8",
+    "country": "ES",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "La 2",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-es-axncee-es-romania",
+    "title": "AXN CEE Romania (720p)",
+    "url": "https://aes.m3u8simplu.workers.dev/axn/index.m3u8",
+    "country": "ES",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AXN CEE Romania (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-se-aryentv-se-sd",
     "title": "Aryen TV (1080p) [Not 24/7]",
     "url": "https://aryen.tv/live/tv/playlist.m3u8",
@@ -4045,6 +5464,61 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "Expressen TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-sy-syriatv-sy-sd",
+    "title": "Syria TV (1080p)",
+    "url": "https://qmcconnect.qa/api/StreamServices/arabictvsyria1/master.m3u8",
+    "country": "SY",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Syria TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-sy-althania-sy-sd",
+    "title": "Althania",
+    "url": "https://qmcconnect.qa/api/StreamServices/arabictvsyria2/master.m3u8",
+    "country": "SY",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Althania",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-sy-prime-sy-hd",
+    "title": "Prime (1080p)",
+    "url": "https://mn-nl.mncdn.com/primetv/live/index.m3u8",
+    "country": "SY",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Prime (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-tz-mahaasintv-tz-sd",
+    "title": "Mahaasin TV",
+    "url": "https://mahaasintv.livebox.co.in/mahaasintvhls/mahaasintv.m3u8",
+    "country": "TZ",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Mahaasin TV",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-th-halaltv-th-sd",
+    "title": "Halal TV",
+    "url": "https://vdo.plathong.net/Halaltv/Halaltv/playlist.m3u8",
+    "country": "TH",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Halal TV",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -4191,6 +5665,17 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-tr-startv-tr-sd",
+    "title": "Star TV (720p)",
+    "url": "https://dogus.daioncdn.net/startv/startv_720p.m3u8?&sid=8l4w3lst4co5&app=a20ac41e-bdc3-4aa1-934d-26b484480ac9&ce=3",
+    "country": "TR",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Star TV (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-ug-krctv-ug-sd",
     "title": "KRC TV",
     "url": "https://channels.ad-ug.com/live/ch03/index.m3u8",
@@ -4254,6 +5739,61 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "Тернопіль 1 (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ua-myukrainaplus-ua-sd",
+    "title": "My Ukraina+",
+    "url": "https://api-tv.ipnet.ua/api/v1/manifest/2118742680.m3u8",
+    "country": "UA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "My Ukraina+",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ua-24kanal-ua-sd",
+    "title": "24 Kanal (720p)",
+    "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/news24-abr/playlist.m3u8",
+    "country": "UA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "24 Kanal (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ua-k2-ua-sd",
+    "title": "K2 (720p)",
+    "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/k2-abr/playlist.m3u8",
+    "country": "UA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "K2 (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ua-mega-ua-sd",
+    "title": "Mega (720p)",
+    "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/mega-abr/playlist.m3u8",
+    "country": "UA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Mega (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ua-pixeltv-ua-sd",
+    "title": "Pixel TV (720p)",
+    "url": "https://cdn15.live-tv.cloud/ua_infinitas_tv/pixel-abr/playlist.m3u8",
+    "country": "UA",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Pixel TV (720p)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
@@ -4323,6 +5863,39 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-us-heartland-us-eastern",
+    "title": "Heartland (720p)",
+    "url": "https://freecast-lukentvlive.vgcdn.net/out/v1/ef4c45af299c46aaabc3f8713f92f163/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Heartland (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-retrotv-us-east",
+    "title": "Retro TV (720p)",
+    "url": "https://freecast-lukentvlive.vgcdn.net/out/v1/665e9f91614b43b0a0654e9317f1d9f3/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Retro TV (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-revnaction-us-sd",
+    "title": "Rev'n Action (720p)",
+    "url": "https://freecast-lukentvlive.vgcdn.net/out/v1/a4f31f297fc5440f814bd2cffd77e689/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Rev'n Action (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-us-yahoofinance-us-sd",
     "title": "Yahoo! Finance (1080p)",
     "url": "https://d1ewctnvcwvvvu.cloudfront.net/playlist.m3u8",
@@ -4378,6 +5951,1051 @@
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   },
   {
+    "id": "iptv-org-us-poconotelevisionnetwork-us-hd",
+    "title": "Pocono Television Network (1080p)",
+    "url": "https://dfoiz3dv1euv7.cloudfront.net/ptnlive-s3/live1.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Pocono Television Network (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-jbs-us-sd",
+    "title": "JBS (720p)",
+    "url": "https://rpn3.bozztv.com/jbstv-srt/srt-push/jbstv/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "JBS (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-jewishlifetelevision-us-sd",
+    "title": "Jewish Life Television (1080p)",
+    "url": "https://jlt-jltv-strimm.otteravision.com/jlt/jltv/jltv.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Jewish Life Television (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-tvsapublicchannel-us-sd",
+    "title": "TVSA Public Channel (720p)",
+    "url": "https://edge-f.swagit.com/live/sanantoniotx/live-2-a/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "TVSA Public Channel (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-tvsagovernmentchannel-us-sd",
+    "title": "TVSA Government Channel (720p)",
+    "url": "https://edge-f.swagit.com/live/sanantoniotx/live-1-a/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "TVSA Government Channel (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-foxsports2-us-hd",
+    "title": "Fox Sports 2",
+    "url": "https://streamvidex.qzz.io/videx/fox2usa/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Fox Sports 2",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-espndeportes-us-sd",
+    "title": "ESPN Deportes (720p)",
+    "url": "https://gpuserver7.tier1streams.com/ESPN_DEPORTES/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "ESPN Deportes (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-telemundo-us-east",
+    "title": "Telemundo (720p)",
+    "url": "https://streaming.cnetplay.com/TELEMUNDOHD/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Telemundo (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-starchannellatinamerica-us-centralamerica",
+    "title": "Star Channel Latin America Central America (1080p)",
+    "url": "https://streamer.metronethn.com/StarChannel/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Star Channel Latin America Central America (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-mariavisionusa-us-sd",
+    "title": "Maria Vision USA (1080p)",
+    "url": "https://1601580044.rsc.cdn77.org/live/_jcn_/amls:PALMIAMI/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Maria Vision USA (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-newsoftheworld-us-global",
+    "title": "NOW News Global (720p)",
+    "url": "https://nowhls.wns.live/hls/stream.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NOW News Global (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-newsoftheworld-us-arabic",
+    "title": "NOW News Arabic (720p)",
+    "url": "https://live.nowtelly.com/now_arabic/live/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NOW News Arabic (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-newsoftheworld-us-spanish",
+    "title": "NOW News Spanish (1080p)",
+    "url": "https://live.nowtelly.com/now_spanish/live/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NOW News Spanish (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-newsoftheworld-us-usa",
+    "title": "NOW News USA (1080p)",
+    "url": "https://live.nowtelly.com/now_usa/live_usa/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NOW News USA (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-rvtv-us-hd",
+    "title": "RVTV (1080p)",
+    "url": "https://rvtv-on-freecast.b-cdn.net/RVTV-on-Freecast/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "RVTV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-winewatcheswhiskey-us-hd",
+    "title": "Wine Watches Whiskey (1080p)",
+    "url": "https://www-on-freecast.b-cdn.net/WWW-on-Freecast/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Wine Watches Whiskey (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-willowsports-us-sd",
+    "title": "Willow Sports (1080p) [Geo-blocked]",
+    "url": "https://amg01269-amg01269c1-sportstribal-emea-5204.playouts.now.amagi.tv/ts-eu-w1-n2/playlist/amg01269-willowtvfast-willowplus-sportstribalemea/playlist.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Willow Sports (1080p) [Geo-blocked]",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-dreamworkschannellatinamerica-us-sd",
+    "title": "DreamWorks Channel Latin America (1080p)",
+    "url": "https://live.nxplay.com.br/DREAMWORKS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "DreamWorks Channel Latin America (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-axnwhite-us-sd",
+    "title": "AXN White (576p)",
+    "url": "https://aes.m3u8simplu.workers.dev/axnwhite/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AXN White (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-axnblack-us-romania",
+    "title": "AXN Black Romania (406p)",
+    "url": "https://aes.m3u8simplu.workers.dev/axnblack/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AXN Black Romania (406p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-muslimnetworktv-us-sd",
+    "title": "Muslim Network TV",
+    "url": "https://afghantv.app/hls2/muslimnetwork/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Muslim Network TV",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-ae-us-east",
+    "title": "A&E (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/AE/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "A&E (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-abc-us-east",
+    "title": "ABC (720p)",
+    "url": "https://gpuserver3.tier1streams.com/ABC/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "ABC (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-accnetwork-us-sd",
+    "title": "ACC Network (720p)",
+    "url": "https://gpuserver3.tier1streams.com/ACC_NETWORK/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "ACC Network (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-accuweathernetwork-us-sd",
+    "title": "AccuWeather Network (720p)",
+    "url": "https://gpuserver3.tier1streams.com/AccuWeather/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AccuWeather Network (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-amcplus-us-sd",
+    "title": "AMC+ (720p)",
+    "url": "https://gpuserver3.tier1streams.com/AMC_PLUS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AMC+ (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-antennatv-us-sd",
+    "title": "Antenna TV (576p)",
+    "url": "https://gpuserver3.tier1streams.com/ANTENNA_TV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Antenna TV (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-aspire-us-sd",
+    "title": "Aspire (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/ASPIRE/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Aspire (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-awe-us-sd",
+    "title": "AWE (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/AWE/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AWE (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-axstv-us-sd",
+    "title": "AXS TV (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/AXS_TV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "AXS TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-bbcamerica-us-easthd",
+    "title": "BBC America East HD (720p)",
+    "url": "https://gpuserver3.tier1streams.com/BBC_AMERICA/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "BBC America East HD (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-bet-us-east",
+    "title": "BET (720p)",
+    "url": "https://gpuserver3.tier1streams.com/BET_EAST/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "BET (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-bet-us-west",
+    "title": "BET West (720p)",
+    "url": "https://gpuserver3.tier1streams.com/BET_WEST/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "BET West (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-bether-us-east",
+    "title": "BET Her (720p)",
+    "url": "https://gpuserver3.tier1streams.com/BET_HER/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "BET Her (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-betjams-us-sd",
+    "title": "BET Jams (576p)",
+    "url": "https://gpuserver3.tier1streams.com/BET_JAMS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "BET Jams (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-betsoul-us-sd",
+    "title": "BET Soul (576p)",
+    "url": "https://gpuserver3.tier1streams.com/BET_SOUL/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "BET Soul (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-bigtennetwork-us-sd",
+    "title": "Big Ten Network (720p)",
+    "url": "https://gpuserver3.tier1streams.com/BIG_TEN_NETWORK/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Big Ten Network (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-bloombergtv-us-us",
+    "title": "Bloomberg TV (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/BLOOMBERG/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Bloomberg TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-bravo-us-east",
+    "title": "Bravo (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/BRAVO/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Bravo (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-buzzr-us-sd",
+    "title": "Buzzr (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/BUZZR/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Buzzr (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cspan-us-sd",
+    "title": "C-SPAN (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/C-SPAN_HD/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "C-SPAN (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cspan2-us-sd",
+    "title": "C-SPAN 2 (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/C-SPAN_2/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "C-SPAN 2 (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cbssportsnetworkusa-us-sd",
+    "title": "CBS Sports Network USA (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/CBS_SPORTS_NETWORK/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "CBS Sports Network USA (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-charge-us-sd",
+    "title": "Charge! (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/CHARGE/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Charge! (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cheddarnews-us-sd",
+    "title": "Cheddar News (720p)",
+    "url": "https://gpuserver3.tier1streams.com/CHEDDAR_NEWS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Cheddar News (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cheddarbusiness-us-sd",
+    "title": "Cheddar Business (720p)",
+    "url": "https://gpuserver3.tier1streams.com/CHEDDAR_BUSINESS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Cheddar Business (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cleotv-us-sd",
+    "title": "Cleo TV (720p)",
+    "url": "https://gpuserver3.tier1streams.com/Cleo_TV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Cleo TV (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cmt-us-east",
+    "title": "CMT (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/CMT/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "CMT (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cnbc-us-sd",
+    "title": "CNBC (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/CNBC/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "CNBC (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cnbcworld-us-sd",
+    "title": "CNBC World (576p)",
+    "url": "https://gpuserver3.tier1streams.com/CNBC_WORLD/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "CNBC World (576p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-comedycentral-us-east",
+    "title": "Comedy Central (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/COMEDY_CENTRAL/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Comedy Central (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-comedytv-us-sd",
+    "title": "Comedy TV (720p)",
+    "url": "https://gpuserver3.tier1streams.com/COMEDY_TV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Comedy TV (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-comet-us-sd",
+    "title": "Comet (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/COMET/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Comet (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-courttv-us-sd",
+    "title": "Court TV (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/COURT_TV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Court TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cozitv-us-sd",
+    "title": "Cozi TV (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/COZI_TV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Cozi TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cw-us-east",
+    "title": "CW (720p)",
+    "url": "https://gpuserver3.tier1streams.com/CW/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "CW (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-daystartv-us-sd",
+    "title": "Daystar TV (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/DAYSTAR_TV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Daystar TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-disneychannel-us-east",
+    "title": "Disney Channel (720p)",
+    "url": "https://gpuserver3.tier1streams.com/Disney_Channel_HD/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Disney Channel (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-disneyjunior-us-east",
+    "title": "Disney Junior (720p)",
+    "url": "https://gpuserver3.tier1streams.com/Disney_JR/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Disney Junior (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-e-us-east",
+    "title": "E! (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/E_ENTERTAINMENT_EAST/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "E! (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-e-us-west",
+    "title": "E! West (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/E_ENTERTAINMENT_WEST/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "E! West (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-espnews-us-sd",
+    "title": "ESPNews (720p)",
+    "url": "https://gpuserver3.tier1streams.com/ESPN_NEWS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "ESPNews (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-espnu-us-sd",
+    "title": "ESPNU (720p)",
+    "url": "https://gpuserver3.tier1streams.com/ESPN_U/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "ESPNU (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-fetv-us-sd",
+    "title": "FETV (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FETV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FETV (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-flix-us-east",
+    "title": "Flix (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FLIX/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Flix (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-foxnewsinternational-us-sd",
+    "title": "Fox News International (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FOX/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Fox News International (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-foxnewschannel-us-sd",
+    "title": "Fox News Channel (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FOX_NEWS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Fox News Channel (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-foxsoccerplus-us-sd",
+    "title": "Fox Soccer Plus (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FOX_SOCCER_PLUS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Fox Soccer Plus (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-freeform-us-east",
+    "title": "Freeform (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FREEFORM/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Freeform (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-fuse-us-east",
+    "title": "Fuse (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FUSE/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Fuse (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-fx-us-east",
+    "title": "FX (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FX/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FX (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-fxm-us-east",
+    "title": "FXM (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FXM/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FXM (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-fxmoviechannel-us-sd",
+    "title": "FX Movie Channel (720p)",
+    "url": "https://starlite.best/api/stream/hurt/hurt/livetv.epg/fx.movie.channel.us.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FX Movie Channel (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-fxx-us-east",
+    "title": "FXX (720p)",
+    "url": "https://gpuserver3.tier1streams.com/FXX/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FXX (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-gameshownetwork-us-east",
+    "title": "Game Show Network (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/GSN/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Game Show Network (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-golfchannel-us-sd",
+    "title": "Golf Channel (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/GOLF_CHANNEL/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Golf Channel (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-greatamericanfaithliving-us-sd",
+    "title": "Great American Faith & Living (720p)",
+    "url": "https://gpuserver3.tier1streams.com/GAC_LIVING/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Great American Faith & Living (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-greatamericanfamily-us-sd",
+    "title": "Great American Family (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/GREAT_AMERICAN_COUNTRY/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Great American Family (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-greatentertainmenttelevision-us-sd",
+    "title": "Great Entertainment Television (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/GetTV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Great Entertainment Television (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-grit-us-sd",
+    "title": "Grit (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/GRIT/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Grit (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-marqueesportsnetwork-us-sd",
+    "title": "Marquee Sports Network (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/MARQUEE_SPORTS_NETWORK/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Marquee Sports Network (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-mlbnetwork-us-sd",
+    "title": "MLB Network (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/MLB_Network/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "MLB Network (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-msg-us-sd",
+    "title": "MSG (720p)",
+    "url": "https://gpuserver3.tier1streams.com/MSG/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "MSG (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-msgplus-us-sd",
+    "title": "MSG Plus (720p)",
+    "url": "https://gpuserver3.tier1streams.com/MSG_PLUS/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "MSG Plus (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-nesn-us-sd",
+    "title": "NESN (720p)",
+    "url": "https://gpuserver3.tier1streams.com/NESN/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NESN (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-racernetwork-us-sd",
+    "title": "Racer Network (720p)",
+    "url": "https://gpuserver3.tier1streams.com/MAV_TV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Racer Network (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-thecowboychannel-us-sd",
+    "title": "The Cowboy Channel (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/THE_COWBOY_CHANNEL/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "The Cowboy Channel (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-fx-us-east",
+    "title": "FX (720p)",
+    "url": "https://starlite.best/api/stream/hurt/hurt/livetv.epg/fx.networks.east.coast.us.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "FX (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-starz-us-east",
+    "title": "Starz (1080p)",
+    "url": "https://starlite.best/api/stream/hurt/hurt/livetv.epg/starz.eastern.us.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Starz (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-discoveryturbo-us-sd",
+    "title": "Discovery Turbo (720p)",
+    "url": "https://gpuserver3.tier1streams.com/MOTORTREND/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Discovery Turbo (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-nbatv-us-sd",
+    "title": "NBA TV (1080p)",
+    "url": "https://cdn1.ayitistream.com/NBATV/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "NBA TV (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-cnbc-us-sd",
+    "title": "CNBC (720p)",
+    "url": "https://starlite.best/api/stream/hurt/hurt/livetv.epg/cnbc.usa.us.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "CNBC (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-greatamericanfamily-us-sd",
+    "title": "Great American Family (1080p)",
+    "url": "https://starlite.best/api/stream/hurt/hurt/livetv.epg/gac.great.american.country.us.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "Great American Family (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-mgmplus-us-east",
+    "title": "MGM+ (1080p)",
+    "url": "https://gpuserver3.tier1streams.com/EPIX/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "MGM+ (1080p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-us-mgmplusdrivein-us-sd",
+    "title": "MGM+ Drive-In (720p)",
+    "url": "https://gpuserver3.tier1streams.com/EPIX_DRIVE-IN/index.m3u8",
+    "country": "US",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "MGM+ Drive-In (720p)",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
     "id": "iptv-org-ve-latinatv-ve-sd",
     "title": "Latina TV (1080p)",
     "url": "https://streamtv.latinamedios.com:3413/live/latinatvlive.m3u8",
@@ -4397,6 +7015,17 @@
     "category": "General",
     "website": "https://github.com/iptv-org/iptv",
     "channelName": "Vale TV (480p) [Not 24/7]",
+    "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
+  },
+  {
+    "id": "iptv-org-ve-showventv-ve-sd",
+    "title": "ShowVen TV (720p)",
+    "url": "https://cdnbarinas.tvzamora.com/showven/index.m3u8",
+    "country": "VE",
+    "language": null,
+    "category": "General",
+    "website": "https://github.com/iptv-org/iptv",
+    "channelName": "ShowVen TV (720p)",
     "legalBasis": "iptv-org public GitHub country stream directory (wave4 residual)."
   }
 ]
