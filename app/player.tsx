@@ -273,38 +273,74 @@ const PlayerProgressPanel = memo(function PlayerProgressPanel({
   compactLayout,
   disabled,
   isLoading,
-  isPlaying,
+  isPlaying: _isPlaying,
   onSeekComplete,
 }: {
   compactLayout: boolean;
   disabled: boolean;
   isLoading: boolean;
   isPlaying: boolean;
-  onSeekComplete: (value: number) => void;
+  onSeekComplete: (value: number) => void | Promise<void>;
 }) {
   const { positionMillis, durationMillis } = usePlayerProgress();
   const duration = Math.max(0, durationMillis || 0);
-  const position = Math.max(
+  const livePosition = Math.max(
     0,
     Math.min(positionMillis || 0, duration || positionMillis || 0)
   );
-  const progressDisabled = disabled || isLoading || !isPlaying;
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPosition, setScrubPosition] = useState(0);
+  const scrubbingRef = useRef(false);
+  const displayPosition = isScrubbing ? scrubPosition : livePosition;
+  const remaining = Math.max(0, duration - displayPosition);
+  // Allow scrub while paused; only block when no track or loading.
+  const progressDisabled = disabled || isLoading;
+
+  const handleSlidingStart = useCallback((value: number) => {
+    scrubbingRef.current = true;
+    setIsScrubbing(true);
+    setScrubPosition(value);
+  }, []);
+
+  const handleValueChange = useCallback((value: number) => {
+    if (!scrubbingRef.current) return;
+    setScrubPosition(value);
+  }, []);
+
+  const handleSlidingComplete = useCallback(
+    async (value: number) => {
+      const max = duration > 0 ? duration : value;
+      const clamped = Math.max(0, Math.min(value, max));
+      scrubbingRef.current = true;
+      setIsScrubbing(true);
+      setScrubPosition(clamped);
+      try {
+        await Promise.resolve(onSeekComplete(clamped));
+      } finally {
+        scrubbingRef.current = false;
+        setIsScrubbing(false);
+      }
+    },
+    [duration, onSeekComplete]
+  );
 
   return (
     <View style={[styles.progressPanel, compactLayout && styles.progressPanelCompact]}>
       <Slider
-        value={position}
+        value={displayPosition}
         minimumValue={0}
         maximumValue={duration > 0 ? duration : 1}
         minimumTrackTintColor={COLORS.primaryGlow}
         maximumTrackTintColor="rgba(255,255,255,0.16)"
         thumbTintColor={COLORS.primary}
         disabled={progressDisabled}
-        onSlidingComplete={onSeekComplete}
+        onSlidingStart={handleSlidingStart}
+        onValueChange={handleValueChange}
+        onSlidingComplete={handleSlidingComplete}
       />
       <View style={styles.timeRow}>
-        <Text style={styles.timeText}>{formatTime(position)}</Text>
-        <Text style={styles.timeText}>{formatTime(duration)}</Text>
+        <Text style={styles.timeText}>{formatTime(displayPosition)}</Text>
+        <Text style={styles.timeText}>-{formatTime(remaining)}</Text>
       </View>
     </View>
   );
@@ -673,9 +709,7 @@ export default function PlayerScreen() {
   }, []);
 
   const handleSeekComplete = useCallback(
-    (value: number) => {
-      void seekTo(value);
-    },
+    (value: number) => seekTo(value),
     [seekTo]
   );
 

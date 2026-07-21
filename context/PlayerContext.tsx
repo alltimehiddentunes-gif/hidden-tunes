@@ -482,9 +482,9 @@ function yieldToNextFrame(): Promise<void> {
   });
 }
 
-const PLAYBACK_UPDATE_INTERVAL_MS = 2000;
+const PLAYBACK_UPDATE_INTERVAL_MS = 1000;
 const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 5000;
-const POSITION_STATE_UPDATE_MIN_MS = 2000;
+const POSITION_STATE_UPDATE_MIN_MS = 1000;
 const POSITION_STATE_UPDATE_BACKGROUND_MS = 5000;
 const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_INTERVAL_BACKGROUND_MS = 30000;
@@ -7493,7 +7493,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         if (
           now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
-          Math.abs(progress.positionMillis - previousPosition) > 1800
+          Math.abs(progress.positionMillis - previousPosition) > 900
         ) {
           lastPositionStateUpdateRef.current = now;
           recordPlaybackProgressUpdate();
