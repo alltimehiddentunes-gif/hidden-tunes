@@ -22,7 +22,7 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Bound show-id resolution so category browse cannot pull the entire shows table. */
-const MAX_CATEGORY_SHOW_IDS = 400;
+const MAX_CATEGORY_SHOW_IDS = 100;
 
 async function resolvePublicShowId(showRef: string, options?: { includeMature?: boolean }) {
   const cleaned = String(showRef || "").trim();
