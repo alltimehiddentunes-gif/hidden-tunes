@@ -5,7 +5,7 @@ export const RADIO_PUBLIC_STATION_SELECT_WITH_STREAM =
   "id, name, favicon_url, country, country_code, state, language, tags, bitrate, codec, votes, click_count, category_slug, categories, quality_score, reliability_score, is_featured, is_mature, content_rating, stream_url";
 
 export const RADIO_PLAY_STATION_SELECT =
-  "id, name, stream_url, source_type, source_station_uuid, status, playback_status, is_active, is_verified, is_mature, quality_score, reliability_score, quarantined_at, disabled_at";
+  "id, name, stream_url, source_type, source_station_uuid, status, playback_status, is_active, is_verified, is_mature, quality_score, reliability_score, quarantined_at, disabled_at, mature_source_approved, mature_review_status, rights_status, is_free, requires_payment, requires_drm";
 
 export const RADIO_DEFAULT_PAGE_SIZE = 40;
 export const RADIO_MAX_PAGE_SIZE = 40;
@@ -136,6 +136,8 @@ export function buildRadioTextSearchOrFilter(searchQuery: string | null | undefi
   if (!cleaned) return null;
 
   const escaped = cleaned.replace(/[%_]/g, "\\$&");
+  // PostgREST `or=` treats whitespace as a separator unless the value is quoted.
+  const pattern = /[\s(),]/.test(escaped) ? `"%${escaped}%"` : `%${escaped}%`;
   const tagToken = cleaned
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
@@ -143,13 +145,13 @@ export function buildRadioTextSearchOrFilter(searchQuery: string | null | undefi
     .slice(0, 80);
 
   const parts = [
-    `name.ilike.%${escaped}%`,
-    `normalized_name.ilike.%${escaped}%`,
-    `country.ilike.%${escaped}%`,
-    `country_code.ilike.%${escaped}%`,
-    `state.ilike.%${escaped}%`,
-    `language.ilike.%${escaped}%`,
-    `category_slug.ilike.%${escaped}%`,
+    `name.ilike.${pattern}`,
+    `normalized_name.ilike.${pattern}`,
+    `country.ilike.${pattern}`,
+    `country_code.ilike.${pattern}`,
+    `state.ilike.${pattern}`,
+    `language.ilike.${pattern}`,
+    `category_slug.ilike.${pattern}`,
   ];
 
   if (tagToken) {
@@ -234,7 +236,24 @@ export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
       .eq("rights_status", "approved")
       .eq("is_free", true);
   } else {
-    next = next.eq("is_mature", false);
+    // Default /api/radio/stations|/search must return general rows PLUS public-eligible
+    // mature rows. Frozen mobile never sends includeMature/age_confirmed (those params
+    // previously 500'd production) and filters mature client-side via is_mature /
+    // content_rating when the user has not enabled mature content.
+    next = next.or(
+      [
+        "is_mature.eq.false",
+        [
+          "and(",
+          "is_mature.eq.true,",
+          "mature_source_approved.eq.true,",
+          "mature_review_status.eq.confirmed,",
+          "rights_status.eq.approved,",
+          "is_free.eq.true",
+          ")",
+        ].join(""),
+      ].join(",")
+    );
   }
 
   if (filters.httpsOnly) {

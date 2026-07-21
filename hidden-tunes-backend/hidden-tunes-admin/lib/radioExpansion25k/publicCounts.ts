@@ -81,6 +81,26 @@ export async function fetchProductionPublicCount(apiBase = "https://admin.hidden
   return Number(json.pagination?.total || 0);
 }
 
-export function remainingPublicPlayableGap(publicGeneral: number) {
-  return Math.max(0, RADIO_PUBLIC_PLAYABLE_TARGET - publicGeneral);
+export async function fetchProductionMaturePublicCount(apiBase = "https://admin.hiddentunes.com") {
+  const response = await fetch(
+    `${apiBase}/api/radio/mature/stations?limit=1&page=1&mature_enabled=true&age_confirmed=true`,
+    { cache: "no-store" }
+  );
+  if (!response.ok) {
+    throw new Error(`production_mature_public_count_${response.status}`);
+  }
+  const json = (await response.json()) as { pagination?: { total?: number } };
+  return Number(json.pagination?.total || 0);
+}
+
+export async function fetchProductionCombinedPublicCount(apiBase = "https://admin.hiddentunes.com") {
+  const [general, mature] = await Promise.all([
+    fetchProductionPublicCount(apiBase),
+    fetchProductionMaturePublicCount(apiBase).catch(() => 0),
+  ]);
+  return { general, mature, total: general + mature };
+}
+
+export function remainingPublicPlayableGap(publicEligibleTotal: number) {
+  return Math.max(0, RADIO_PUBLIC_PLAYABLE_TARGET - publicEligibleTotal);
 }
