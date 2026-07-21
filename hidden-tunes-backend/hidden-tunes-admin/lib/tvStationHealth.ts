@@ -397,13 +397,18 @@ export function dedupeTvGrowthCandidates(
   const accepted: TvGrowthCandidate[] = [];
 
   for (const candidate of candidates) {
+    const sourceType = candidate.source_type || TV_VIDEO_SOURCE_TYPE;
+    const sourceId = String(candidate.source_id || "").trim();
     const sourceKey =
-      candidate.source_key || `${candidate.source_type}:${candidate.source_id}`;
+      candidate.source_key || `${sourceType}:${sourceId}`;
+    // DB unique constraint is (source_type, source_id) — always check that key too.
+    const typedSourceKey = `${sourceType}:${sourceId}`;
     const urlKey = normalizeUrlKey(candidate.source_url);
     const titleCountryKey = normalizeTitleKey(candidate.title, candidate.country || candidate.region);
 
     if (
       existing.sourceKeys.has(sourceKey) ||
+      existing.sourceKeys.has(typedSourceKey) ||
       existing.urlKeys.has(urlKey) ||
       existing.titleCountryKeys.has(titleCountryKey)
     ) {
@@ -411,6 +416,7 @@ export function dedupeTvGrowthCandidates(
     }
 
     existing.sourceKeys.add(sourceKey);
+    existing.sourceKeys.add(typedSourceKey);
     existing.urlKeys.add(urlKey);
     existing.titleCountryKeys.add(titleCountryKey);
     accepted.push(candidate);

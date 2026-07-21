@@ -42,8 +42,11 @@ export class TvDedupeCache {
   registerAccepted(candidates: TvGrowthCandidate[]) {
     if (!this.index) return;
     for (const candidate of candidates) {
+      const sourceType = String(candidate.source_type || "hls_stream");
+      const sourceId = String(candidate.source_id || "").trim();
       const sourceKey =
-        candidate.source_key || `${candidate.source_type}:${candidate.source_id}`;
+        candidate.source_key || `${sourceType}:${sourceId}`;
+      const typedSourceKey = `${sourceType}:${sourceId}`;
       const urlKey = String(candidate.source_url || "")
         .trim()
         .replace(/\/+$/, "")
@@ -55,6 +58,7 @@ export class TvDedupeCache {
         .trim()
         .toLowerCase()}`;
       this.index.sourceKeys.add(sourceKey);
+      this.index.sourceKeys.add(typedSourceKey);
       if (urlKey) this.index.urlKeys.add(urlKey);
       this.index.titleCountryKeys.add(titleCountryKey);
     }

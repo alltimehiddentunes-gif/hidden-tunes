@@ -328,16 +328,37 @@ export async function bulkImportVerifiedCandidates(
     databaseRoundTrips += 1;
     const { error } = await supabaseAdmin.from("tv_videos").insert(chunk);
     if (error) {
-      rejected += chunk.length;
+      const code = (error as { code?: string }).code || null;
       console.error(
         JSON.stringify({
           event: "tv_fast_insert_error",
           chunkSize: chunk.length,
           message: error.message,
-          code: (error as { code?: string }).code || null,
+          code,
           details: (error as { details?: string }).details || null,
         })
       );
+      // Recover net-new rows when chunk hits (source_type, source_id) collisions.
+      for (const row of chunk) {
+        databaseRoundTrips += 1;
+        const { error: rowError } = await supabaseAdmin.from("tv_videos").insert(row);
+        if (rowError) {
+          rejected += 1;
+          continue;
+        }
+        imported += 1;
+        dedupeCache.registerAccepted([
+          {
+            source_type: row.source_type,
+            source_id: row.source_id,
+            source_key: row.source_key,
+            source_url: row.source_url,
+            title: row.title,
+            country: row.region,
+            region: row.region,
+          } as TvGrowthCandidate,
+        ]);
+      }
     } else {
       imported += chunk.length;
       dedupeCache.registerAccepted(
