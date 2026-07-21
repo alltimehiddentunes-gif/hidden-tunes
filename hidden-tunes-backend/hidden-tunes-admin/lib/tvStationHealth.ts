@@ -366,6 +366,90 @@ export async function runTvStationHealthChecks(limit = TV_HEALTH_BATCH_SIZE) {
   return { checked, playable, failed, quarantined, disabled };
 }
 
+function isRetryableHealthFailure(reason: string) {
+  const lower = String(reason || "").toLowerCase();
+  return (
+    lower.includes("timeout") ||
+    lower.includes("econnreset") ||
+    lower.includes("connection_reset") ||
+    lower.includes("socket hang up") ||
+    lower.includes("fetch failed") ||
+    lower.includes("network") ||
+    /http_5\d\d/.test(lower) ||
+    lower.includes("429") ||
+    lower.includes("temporarily")
+  );
+}
+
+/**
+ * Soft refresh for expansion recovery: re-probe oldest stations, promote successes,
+ * and avoid demoting previously playable rows on transient network failures.
+ */
+export async function runTvStationSoftHealthRefresh(limit = TV_HEALTH_BATCH_SIZE) {
+  const { data, error } = await supabaseAdmin
+    .from("tv_videos")
+    .select(
+      "id, source_type, source_id, source_url, embed_url, title, playback_status, status, is_active, reliability_score, consecutive_failures"
+    )
+    .in("status", ["approved", "pending"])
+    .order("last_health_checked_at", { ascending: true, nullsFirst: true })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+
+  let checked = 0;
+  let playable = 0;
+  let failed = 0;
+  let softSkipped = 0;
+  let quarantined = 0;
+  let disabled = 0;
+
+  for (const row of (data || []) as TvHealthRow[]) {
+    const probe = await probeTvStation(row);
+    checked += 1;
+
+    if (probe.playable) {
+      const update = applyTvHealthProbe(row, probe);
+      const { error: updateError } = await supabaseAdmin
+        .from("tv_videos")
+        .update(update)
+        .eq("id", row.id);
+      if (updateError) throw new Error(updateError.message);
+      playable += 1;
+      continue;
+    }
+
+    const wasPlayable = row.playback_status === "playable" && row.is_active !== false;
+    if (wasPlayable && isRetryableHealthFailure(probe.reason)) {
+      // Touch timestamp only — do not quarantine on transient probe noise.
+      const { error: touchError } = await supabaseAdmin
+        .from("tv_videos")
+        .update({
+          last_health_checked_at: new Date().toISOString(),
+          last_health_error: `soft_skip:${probe.reason}`,
+        })
+        .eq("id", row.id);
+      if (touchError) throw new Error(touchError.message);
+      softSkipped += 1;
+      failed += 1;
+      continue;
+    }
+
+    const update = applyTvHealthProbe(row, probe);
+    const { error: updateError } = await supabaseAdmin
+      .from("tv_videos")
+      .update(update)
+      .eq("id", row.id);
+    if (updateError) throw new Error(updateError.message);
+
+    failed += 1;
+    if (update.quarantined_at) quarantined += 1;
+    if (update.disabled_at) disabled += 1;
+  }
+
+  return { checked, playable, failed, softSkipped, quarantined, disabled };
+}
+
 async function loadDedupeKeys() {
   const { data, error } = await supabaseAdmin
     .from("tv_videos")

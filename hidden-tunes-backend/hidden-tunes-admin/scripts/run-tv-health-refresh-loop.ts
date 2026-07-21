@@ -29,16 +29,18 @@ loadEnvFile(path.join(adminRoot, ".env.local"));
 async function main() {
   const batches = Math.max(1, Number(process.argv[2] || 60));
   const limit = Math.max(1, Number(process.argv[3] || 150));
-  const { runTvStationHealthChecks } = await import("../lib/tvStationHealth");
+  const { runTvStationSoftHealthRefresh } = await import("../lib/tvStationHealth");
   const { getTvPlatformEligibleCounts } = await import("../lib/tvExpansion25k/platformCount");
 
   let totalChecked = 0;
   let totalPlayable = 0;
+  let totalSoftSkipped = 0;
 
   for (let i = 1; i <= batches; i += 1) {
-    const result = await runTvStationHealthChecks(limit);
+    const result = await runTvStationSoftHealthRefresh(limit);
     totalChecked += Number(result.checked || 0);
     totalPlayable += Number(result.playable || 0);
+    totalSoftSkipped += Number(result.softSkipped || 0);
     const counts = await getTvPlatformEligibleCounts();
     console.log(
       JSON.stringify({
@@ -46,8 +48,10 @@ async function main() {
         batch: i,
         checked: result.checked,
         playable: result.playable,
+        softSkipped: result.softSkipped,
         totalChecked,
         totalPlayable,
+        totalSoftSkipped,
         normalPlatformEligible: counts.normalPlatformEligible,
         searchDiscoveryEligible: counts.searchDiscoveryEligible,
         combinedPlayableEligible: counts.combinedPlayableEligible,
