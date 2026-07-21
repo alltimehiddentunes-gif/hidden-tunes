@@ -11,10 +11,12 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   AppState,
   BackHandler,
   FlatList,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -96,6 +98,11 @@ type TvPlayerHostProps = {
   onSelectSeedChannel: (channel: TVChannel) => void;
   onReportError: () => void;
 };
+
+/** Full-player overlay chrome: hide after idle while playing. */
+const TV_CONTROLS_HIDE_MS = 2800;
+/** Opacity-only fade for overlay chrome (no layout motion). */
+const TV_CONTROLS_FADE_MS = 220;
 
 function formatCategoryLabel(category: string) {
   const cleaned = String(category || "").trim();
@@ -232,6 +239,15 @@ function TvPlayerHost({
   const [relatedChannels, setRelatedChannels] = useState<TVChannel[]>([]);
   /** In-route UI fullscreen — same VideoView, distinct absoluteFill geometry. */
   const [isUiFullscreen, setIsUiFullscreen] = useState(false);
+  /**
+   * Single controls-visibility owner for the active full TV surface.
+   * Floating chrome stays always visible; only full/fullscreen overlays auto-hide.
+   */
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsVisibleRef = useRef(true);
+  const controlsOpacity = useRef(new Animated.Value(1)).current;
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeAnimRef = useRef<Animated.CompositeAnimation | null>(null);
   const full = presentationMode === "fullPlayer";
   const displayChannel = seedChannel;
   const rawTitle = displayChannel?.name || item.title || "Hidden Tunes TV";
@@ -484,6 +500,123 @@ function TvPlayerHost({
     void restoreTvPortraitOrientation();
   }, []);
 
+  const clearControlsHideTimer = useCallback(() => {
+    if (hideTimerRef.current != null) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const animateControlsOpacity = useCallback(
+    (visible: boolean) => {
+      fadeAnimRef.current?.stop();
+      fadeAnimRef.current = Animated.timing(controlsOpacity, {
+        toValue: visible ? 1 : 0,
+        duration: TV_CONTROLS_FADE_MS,
+        useNativeDriver: true,
+      });
+      fadeAnimRef.current.start(({ finished }) => {
+        if (finished) fadeAnimRef.current = null;
+      });
+    },
+    [controlsOpacity]
+  );
+
+  const applyControlsVisibility = useCallback(
+    (visible: boolean, options?: { immediate?: boolean }) => {
+      if (controlsVisibleRef.current === visible) {
+        if (visible) {
+          controlsOpacity.setValue(1);
+        }
+        return;
+      }
+      controlsVisibleRef.current = visible;
+      setControlsVisible(visible);
+      if (options?.immediate) {
+        fadeAnimRef.current?.stop();
+        fadeAnimRef.current = null;
+        controlsOpacity.setValue(visible ? 1 : 0);
+        return;
+      }
+      animateControlsOpacity(visible);
+    },
+    [animateControlsOpacity, controlsOpacity]
+  );
+
+  const canAutoHideControls =
+    full && isPlaying && !isLoading && !hasError;
+
+  const scheduleControlsHide = useCallback(() => {
+    clearControlsHideTimer();
+    if (!canAutoHideControls) return;
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null;
+      if (!mountedRef.current) return;
+      applyControlsVisibility(false);
+    }, TV_CONTROLS_HIDE_MS);
+  }, [
+    applyControlsVisibility,
+    canAutoHideControls,
+    clearControlsHideTimer,
+    mountedRef,
+  ]);
+
+  const revealControls = useCallback(() => {
+    clearControlsHideTimer();
+    applyControlsVisibility(true);
+    scheduleControlsHide();
+  }, [applyControlsVisibility, clearControlsHideTimer, scheduleControlsHide]);
+
+  const handleSurfaceTap = useCallback(() => {
+    // Reveal only — never pause, fullscreen, or forward to chrome buttons.
+    revealControls();
+  }, [revealControls]);
+
+  const bumpControlsInteraction = useCallback(() => {
+    revealControls();
+  }, [revealControls]);
+
+  // Playing → brief chrome then auto-hide. Paused / loading / error → stay visible.
+  useLayoutEffect(() => {
+    if (!full) {
+      clearControlsHideTimer();
+      applyControlsVisibility(true, { immediate: true });
+      return;
+    }
+    if (!isPlaying || isLoading || hasError) {
+      clearControlsHideTimer();
+      applyControlsVisibility(true, { immediate: true });
+      return;
+    }
+    revealControls();
+  }, [
+    applyControlsVisibility,
+    clearControlsHideTimer,
+    full,
+    hasError,
+    isLoading,
+    isPlaying,
+    isUiFullscreen,
+    revealControls,
+  ]);
+
+  // Cancel timers/animations on background or unmount — no stale updates.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active") {
+        clearControlsHideTimer();
+        fadeAnimRef.current?.stop();
+        fadeAnimRef.current = null;
+      }
+    });
+    return () => {
+      subscription.remove();
+      clearControlsHideTimer();
+      fadeAnimRef.current?.stop();
+      fadeAnimRef.current = null;
+    };
+  }, [clearControlsHideTimer]);
+
   const pipEligible = canUseTvPiP({
     platform: Platform.OS,
     sourceUri: streamUrl,
@@ -681,6 +814,9 @@ function TvPlayerHost({
     </View>
   );
 
+  const controlsPointerEvents = controlsVisible ? "box-none" : "none";
+  const controlsFadeStyle = { opacity: controlsOpacity };
+
   const floatingHeader = (
     <View style={styles.floatingHeader}>
       <View style={styles.floatingCopy}>
@@ -716,12 +852,20 @@ function TvPlayerHost({
   );
 
   const fullHeader = (
-    <View
-      style={[styles.topBar, { paddingTop: Math.max(insets.top, 10) }]}
+    <Animated.View
+      style={[
+        styles.topBar,
+        { paddingTop: Math.max(insets.top, 10) },
+        controlsFadeStyle,
+      ]}
+      pointerEvents={controlsPointerEvents}
     >
       <TouchableOpacity
         style={styles.backButton}
-        onPress={handleBack}
+        onPress={() => {
+          bumpControlsInteraction();
+          handleBack();
+        }}
         accessibilityRole="button"
         accessibilityLabel="Back"
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -734,20 +878,32 @@ function TvPlayerHost({
       </Text>
       <TouchableOpacity
         style={styles.iconButton}
-        onPress={onStop}
+        onPress={() => {
+          bumpControlsInteraction();
+          onStop();
+        }}
         accessibilityRole="button"
         accessibilityLabel="Close"
       >
         <Ionicons name="close" size={20} color={COLORS.text} />
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 
   const transportControls = (
-    <View style={full ? styles.controlsRow : styles.floatingControls}>
+    <Animated.View
+      style={[
+        full ? styles.controlsRow : styles.floatingControls,
+        full ? controlsFadeStyle : null,
+      ]}
+      pointerEvents={full ? controlsPointerEvents : "auto"}
+    >
       <TouchableOpacity
         style={full ? styles.fullControlButton : styles.controlButton}
-        onPress={onPrevious}
+        onPress={() => {
+          if (full) bumpControlsInteraction();
+          onPrevious();
+        }}
         accessibilityRole="button"
         accessibilityLabel="Previous channel"
       >
@@ -760,7 +916,10 @@ function TvPlayerHost({
       {full ? (
         <TouchableOpacity
           style={styles.playButton}
-          onPress={onTogglePlayback}
+          onPress={() => {
+            bumpControlsInteraction();
+            onTogglePlayback();
+          }}
           accessibilityRole="button"
           accessibilityLabel={isPlaying ? "Pause" : "Play"}
         >
@@ -781,7 +940,10 @@ function TvPlayerHost({
       )}
       <TouchableOpacity
         style={full ? styles.fullControlButton : styles.controlButton}
-        onPress={onNext}
+        onPress={() => {
+          if (full) bumpControlsInteraction();
+          onNext();
+        }}
         accessibilityRole="button"
         accessibilityLabel="Next channel"
       >
@@ -794,7 +956,10 @@ function TvPlayerHost({
       {full && pipEligible ? (
         <TouchableOpacity
           style={styles.fullControlButton}
-          onPress={() => void handleStartSystemPiP()}
+          onPress={() => {
+            bumpControlsInteraction();
+            void handleStartSystemPiP();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Picture in Picture"
         >
@@ -804,18 +969,21 @@ function TvPlayerHost({
       {full ? (
         <TouchableOpacity
           style={styles.fullControlButton}
-          onPress={handleEnterFullscreen}
+          onPress={() => {
+            bumpControlsInteraction();
+            handleEnterFullscreen();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Enter fullscreen"
         >
           <Ionicons name="expand" size={22} color={COLORS.text} />
         </TouchableOpacity>
       ) : null}
-    </View>
+    </Animated.View>
   );
 
   const fullscreenOverlay = (
-    <View
+    <Animated.View
       style={[
         styles.fullscreenOverlay,
         {
@@ -823,13 +991,17 @@ function TvPlayerHost({
           paddingLeft: Math.max(insets.left, isLandscapeLayout ? 12 : 0),
           paddingRight: Math.max(insets.right, isLandscapeLayout ? 12 : 0),
         },
+        controlsFadeStyle,
       ]}
-      pointerEvents="box-none"
+      pointerEvents={controlsPointerEvents}
     >
       <View style={styles.fullscreenTopBar} pointerEvents="box-none">
         <TouchableOpacity
           style={styles.fullControlButton}
-          onPress={handleExitFullscreen}
+          onPress={() => {
+            bumpControlsInteraction();
+            handleExitFullscreen();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Exit fullscreen"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -842,6 +1014,7 @@ function TvPlayerHost({
         <TouchableOpacity
           style={styles.fullControlButton}
           onPress={() => {
+            bumpControlsInteraction();
             setIsUiFullscreen(false);
             void restoreTvPortraitOrientation();
             onStop();
@@ -861,7 +1034,10 @@ function TvPlayerHost({
       >
         <TouchableOpacity
           style={styles.fullControlButton}
-          onPress={onPrevious}
+          onPress={() => {
+            bumpControlsInteraction();
+            onPrevious();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Previous channel"
         >
@@ -869,7 +1045,10 @@ function TvPlayerHost({
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.playButton}
-          onPress={onTogglePlayback}
+          onPress={() => {
+            bumpControlsInteraction();
+            onTogglePlayback();
+          }}
           accessibilityRole="button"
           accessibilityLabel={isPlaying ? "Pause" : "Play"}
         >
@@ -881,7 +1060,10 @@ function TvPlayerHost({
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.fullControlButton}
-          onPress={onNext}
+          onPress={() => {
+            bumpControlsInteraction();
+            onNext();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Next channel"
         >
@@ -890,7 +1072,10 @@ function TvPlayerHost({
         {pipEligible ? (
           <TouchableOpacity
             style={styles.fullControlButton}
-            onPress={() => void handleStartSystemPiP()}
+            onPress={() => {
+              bumpControlsInteraction();
+              void handleStartSystemPiP();
+            }}
             accessibilityRole="button"
             accessibilityLabel="Picture in Picture"
           >
@@ -899,14 +1084,17 @@ function TvPlayerHost({
         ) : null}
         <TouchableOpacity
           style={styles.fullControlButton}
-          onPress={handleExitFullscreen}
+          onPress={() => {
+            bumpControlsInteraction();
+            handleExitFullscreen();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Exit fullscreen"
         >
           <Ionicons name="contract" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 
   const floatingBody = (
@@ -927,6 +1115,14 @@ function TvPlayerHost({
         collapsable={false}
       >
         {playerCanvas}
+        {!hasError ? (
+          <Pressable
+            style={styles.surfaceTapCatcher}
+            onPress={handleSurfaceTap}
+            accessibilityRole="button"
+            accessibilityLabel="Show player controls"
+          />
+        ) : null}
         {isUiFullscreen ? fullscreenOverlay : null}
       </View>
       {!isUiFullscreen ? transportControls : null}
@@ -1174,6 +1370,10 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     justifyContent: "space-between",
     zIndex: 30,
+  },
+  surfaceTapCatcher: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 25,
   },
   fullscreenTopBar: {
     flexDirection: "row",
