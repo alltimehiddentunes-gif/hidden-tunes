@@ -7822,15 +7822,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const timer = setInterval(() => {
-      void pollHiddenAudioProgress();
-    }, getProgressUpdateIntervalMs(appStateRef.current));
+    // Self-scheduling timeout so background playback uses the 5s cadence.
+    // A mount-time setInterval captured the foreground 1.5s rate permanently.
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
+    const scheduleNextPoll = () => {
+      if (cancelled) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void pollHiddenAudioProgress().finally(() => {
+          scheduleNextPoll();
+        });
+      }, getProgressUpdateIntervalMs(appStateRef.current));
+    };
+
+    scheduleNextPoll();
     void pollHiddenAudioProgress();
 
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      if (timer) clearTimeout(timer);
     };
   }, [savePlaybackPosition, scheduleTrackAdvance]);
 

@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const TV_PLAYBACK_FAILURES_KEY = "hidden_tunes_tv_playback_failures_v1";
 const LOCAL_QUARANTINE_THRESHOLD = 3;
+const MAX_FAILURE_RECORDS = 100;
 
 type FailureRecord = {
   count: number;
@@ -9,6 +10,18 @@ type FailureRecord = {
 };
 
 let memoryCache: Record<string, FailureRecord> | null = null;
+
+function trimFailureRecords(records: Record<string, FailureRecord>) {
+  const entries = Object.entries(records);
+  if (entries.length <= MAX_FAILURE_RECORDS) return records;
+
+  entries.sort((a, b) => String(a[1]?.lastAt || "").localeCompare(String(b[1]?.lastAt || "")));
+  const trimmed: Record<string, FailureRecord> = {};
+  for (const [id, record] of entries.slice(entries.length - MAX_FAILURE_RECORDS)) {
+    trimmed[id] = record;
+  }
+  return trimmed;
+}
 
 async function loadRecords() {
   if (memoryCache) return memoryCache;
@@ -51,7 +64,7 @@ export async function recordTvPlaybackFailure(channelId: string) {
     lastAt: new Date().toISOString(),
   };
 
-  await persistRecords(records);
+  await persistRecords(trimFailureRecords(records));
   return next;
 }
 

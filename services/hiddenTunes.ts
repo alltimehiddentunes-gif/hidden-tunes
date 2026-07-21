@@ -195,15 +195,53 @@ function buildArtists(
   songs: HiddenTunesSong[],
   albums: HiddenTunesAlbumCatalogItem[]
 ): HiddenTunesArtistCatalogItem[] {
-  return Array.from(groupBy(songs, (song) => song.artist).entries()).map(
-    ([name, artistSongs]) => ({
-      id: slugify(name),
-      name,
+  // Group by slugified identity — raw display names that only differ by case /
+  // punctuation must not become separate rows with the same FlatList key
+  // (e.g. "Caasi Wills" + "Caasi wills" → both id "caasi-wills").
+  return Array.from(
+    groupBy(songs, (song) => {
+      const slug = slugify(cleanString(song.artist, "Unknown Artist"));
+      return slug || "unknown-artist";
+    }).entries()
+  ).map(([id, artistSongs]) => {
+    const nameCounts = new Map<string, number>();
+    artistSongs.forEach((song) => {
+      const name = cleanString(song.artist, "Unknown Artist");
+      nameCounts.set(name, (nameCounts.get(name) || 0) + 1);
+    });
+
+    let preferredName = "Unknown Artist";
+    let preferredCount = -1;
+    nameCounts.forEach((count, name) => {
+      if (count > preferredCount) {
+        preferredName = name;
+        preferredCount = count;
+      }
+    });
+
+    if (
+      typeof __DEV__ !== "undefined" &&
+      __DEV__ &&
+      nameCounts.size > 1
+    ) {
+      console.log("[list_key_collision] artist_name_variants_merged", {
+        key: id,
+        variants: Array.from(nameCounts.keys()),
+      });
+    }
+
+    return {
+      id,
+      name: preferredName,
       artwork: firstArtwork(artistSongs),
       songs: artistSongs,
-      albums: albums.filter((album) => album.artist === name),
-    })
-  );
+      albums: albums.filter(
+        (album) =>
+          slugify(cleanString(album.artist, "Unknown Artist")) === id ||
+          album.artist === preferredName
+      ),
+    };
+  });
 }
 
 function buildGenres(songs: HiddenTunesSong[]): HiddenTunesGenreCatalogItem[] {

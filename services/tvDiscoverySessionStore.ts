@@ -6,6 +6,8 @@ import type {
 } from "@/types/tvDiscovery";
 import { dedupeTvQueueItems } from "@/utils/tvStationItem";
 
+const MAX_TV_PLAYED_HISTORY = 200;
+
 let activeSession: TvDiscoverySession | null = null;
 
 export function getTvDiscoverySession() {
@@ -111,12 +113,21 @@ export function setTvSessionCurrentIndex(index: number, stationId: string) {
 
   if (activeSession.playedHistory[activeSession.playedHistory.length - 1] !== stationId) {
     activeSession.playedHistory.push(stationId);
+    if (activeSession.playedHistory.length > MAX_TV_PLAYED_HISTORY) {
+      const overflow = activeSession.playedHistory.length - MAX_TV_PLAYED_HISTORY;
+      activeSession.playedHistory = activeSession.playedHistory.slice(overflow);
+    }
   }
 
   activeSession.playedHistoryIndex = activeSession.playedHistory.length - 1;
 
   if (!activeSession.playedStationIds.includes(stationId)) {
     activeSession.playedStationIds.push(stationId);
+    if (activeSession.playedStationIds.length > MAX_TV_PLAYED_HISTORY) {
+      activeSession.playedStationIds = activeSession.playedStationIds.slice(
+        activeSession.playedStationIds.length - MAX_TV_PLAYED_HISTORY
+      );
+    }
   }
 
   return activeSession;

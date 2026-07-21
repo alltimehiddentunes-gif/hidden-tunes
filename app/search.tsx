@@ -974,7 +974,23 @@ export default function SearchScreen() {
       })
       .filter(Boolean) as HiddenTunesArtistCatalogItem[];
 
-    return rankApkArtistResults(fromBackbone, cleanSubmittedSearchQuery);
+    const ranked = rankApkArtistResults(fromBackbone, cleanSubmittedSearchQuery);
+    const seen = new Set<string>();
+    return ranked.filter((artist) => {
+      const key = String(artist.id || "").trim();
+      if (!key || seen.has(key)) {
+        if (typeof __DEV__ !== "undefined" && __DEV__ && key && seen.has(key)) {
+          console.log("[list_key_collision]", {
+            screen: "search",
+            key,
+            name: artist.name,
+          });
+        }
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }, [
     artistLookup,
     cleanSubmittedSearchQuery,

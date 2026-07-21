@@ -21,12 +21,21 @@ const lyricsPayloadCache = new Map<string, LyricsPayload>();
 const parsedLrcCache = new Map<string, LyricLine[]>();
 const plainLinesCache = new Map<string, LyricLine[]>();
 const MAX_PARSE_CACHE = 64;
+const MAX_LYRICS_PAYLOAD_CACHE = 64;
 
 function trimParseCache(cache: Map<string, LyricLine[]>) {
   if (cache.size <= MAX_PARSE_CACHE) return;
 
   const oldest = cache.keys().next().value;
   if (oldest) cache.delete(oldest);
+}
+
+function trimLyricsPayloadCache() {
+  while (lyricsPayloadCache.size > MAX_LYRICS_PAYLOAD_CACHE) {
+    const oldest = lyricsPayloadCache.keys().next().value;
+    if (!oldest) break;
+    lyricsPayloadCache.delete(oldest);
+  }
 }
 
 export function getLyricsMemoryCache(songId: string) {
@@ -36,6 +45,7 @@ export function getLyricsMemoryCache(songId: string) {
 export function setLyricsMemoryCache(songId: string, payload: LyricsPayload) {
   if (!songId) return;
   lyricsPayloadCache.set(songId, payload);
+  trimLyricsPayloadCache();
 }
 
 export function hasLrcTimestamps(text: string) {
