@@ -507,7 +507,8 @@ const withHiddenAudioAndroidProguard = (config) => {
 };
 
 const CARPLAY_SCENE_CONFIGURATION_METHOD = `
-  public override func application(
+  // ExpoAppDelegate does not declare this UIApplicationDelegate method, so do not mark override.
+  public func application(
     _ application: UIApplication,
     configurationForConnecting connectingSceneSession: UISceneSession,
     options: UIScene.ConnectionOptions
