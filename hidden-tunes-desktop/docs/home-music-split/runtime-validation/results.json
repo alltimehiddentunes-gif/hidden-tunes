@@ -1,0 +1,1050 @@
+{
+  "commit": "60d813ab48d48f40b5fd5e8fbb129f42ba8e8a53",
+  "runtime": "electron + vite renderer",
+  "rendererUrl": "http://localhost:5173",
+  "startedAt": "2026-07-22T11:23:49.483Z",
+  "catalogRequests": [
+    {
+      "url": "https://hidden-tunes-api.onrender.com/api/albums?limit=100&page=1",
+      "time": 1784719495479
+    },
+    {
+      "url": "https://hidden-tunes-api.onrender.com/api/songs?limit=100&page=1",
+      "time": 1784719495489
+    },
+    {
+      "url": "https://hidden-tunes-api.onrender.com/api/artists?limit=48&page=1",
+      "time": 1784719496529
+    }
+  ],
+  "checks": [
+    {
+      "check": "vite-ready",
+      "ok": true,
+      "detail": "http://localhost:5173"
+    },
+    {
+      "check": "electron-renderer-load",
+      "ok": true,
+      "detail": "http://localhost:5173"
+    },
+    {
+      "check": "home-ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-sidebar-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-overflow-1440",
+      "ok": true,
+      "detail": "scrollWidth check"
+    },
+    {
+      "check": "home-no-hero-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-catalog-rails-1440",
+      "ok": true,
+      "detail": "{\"hero\":false,\"recentlyAdded\":false,\"artistsOnRepeat\":false,\"freshReleases\":false,\"exploreSound\":false,\"musicForFeel\":false,\"collections\":false,\"exploreMoreGrid\":false,\"filterBtn\":false}"
+    },
+    {
+      "check": "home-no-filter-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-jump-in-1440",
+      "ok": true,
+      "detail": "chips=7"
+    },
+    {
+      "check": "home-sidebar-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-overflow-1280",
+      "ok": true,
+      "detail": "scrollWidth check"
+    },
+    {
+      "check": "home-no-hero-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-catalog-rails-1280",
+      "ok": true,
+      "detail": "{\"hero\":false,\"recentlyAdded\":false,\"artistsOnRepeat\":false,\"freshReleases\":false,\"exploreSound\":false,\"musicForFeel\":false,\"collections\":false,\"exploreMoreGrid\":false,\"filterBtn\":false}"
+    },
+    {
+      "check": "home-no-filter-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-jump-in-1280",
+      "ok": true,
+      "detail": "chips=7"
+    },
+    {
+      "check": "home-sidebar-1024",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-overflow-1024",
+      "ok": true,
+      "detail": "scrollWidth check"
+    },
+    {
+      "check": "home-no-hero-1024",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-catalog-rails-1024",
+      "ok": true,
+      "detail": "{\"hero\":false,\"recentlyAdded\":false,\"artistsOnRepeat\":false,\"freshReleases\":false,\"exploreSound\":false,\"musicForFeel\":false,\"collections\":false,\"exploreMoreGrid\":false,\"filterBtn\":false}"
+    },
+    {
+      "check": "home-no-filter-1024",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-jump-in-1024",
+      "ok": true,
+      "detail": "chips=7"
+    },
+    {
+      "check": "home-sidebar-narrow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-overflow-narrow",
+      "ok": true,
+      "detail": "scrollWidth check"
+    },
+    {
+      "check": "home-no-hero-narrow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-catalog-rails-narrow",
+      "ok": true,
+      "detail": "{\"hero\":false,\"recentlyAdded\":false,\"artistsOnRepeat\":false,\"freshReleases\":false,\"exploreSound\":false,\"musicForFeel\":false,\"collections\":false,\"exploreMoreGrid\":false,\"filterBtn\":false}"
+    },
+    {
+      "check": "home-no-filter-narrow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-jump-in-narrow",
+      "ok": true,
+      "detail": "chips=7"
+    },
+    {
+      "check": "music-sidebar-visible-1440",
+      "ok": true,
+      "detail": "app-shell app-shell--music"
+    },
+    {
+      "check": "music-subnav-present-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-no-downloads-tab-1440",
+      "ok": true,
+      "detail": ",Discover,,New Releases,,Top Charts,,Genres & Moods,,Songs,,Artists,,Albums,,Playlists,,Liked,,Recent"
+    },
+    {
+      "check": "music-no-home-personalization-1440",
+      "ok": true,
+      "detail": "{\"homeHero\":false,\"myMix\":false,\"madeForYou\":false,\"recentlyPlayed\":false,\"hiddenGems\":false,\"downloadsInSubNav\":false}"
+    },
+    {
+      "check": "music-no-overflow-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-browse-links-1440",
+      "ok": true,
+      "detail": "links=3"
+    },
+    {
+      "check": "music-sidebar-visible-1280",
+      "ok": true,
+      "detail": "app-shell app-shell--music"
+    },
+    {
+      "check": "music-subnav-present-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-no-downloads-tab-1280",
+      "ok": true,
+      "detail": ",Discover,,New Releases,,Top Charts,,Genres & Moods,,Songs,,Artists,,Albums,,Playlists,,Liked,,Recent"
+    },
+    {
+      "check": "music-no-home-personalization-1280",
+      "ok": true,
+      "detail": "{\"homeHero\":false,\"myMix\":false,\"madeForYou\":false,\"recentlyPlayed\":false,\"hiddenGems\":false,\"downloadsInSubNav\":false}"
+    },
+    {
+      "check": "music-no-overflow-1280",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-browse-links-1280",
+      "ok": true,
+      "detail": "links=3"
+    },
+    {
+      "check": "music-sidebar-visible-1024",
+      "ok": true,
+      "detail": "app-shell app-shell--music"
+    },
+    {
+      "check": "music-subnav-present-1024",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-no-downloads-tab-1024",
+      "ok": true,
+      "detail": ",Discover,,New Releases,,Top Charts,,Genres & Moods,,Songs,,Artists,,Albums,,Playlists,,Liked,,Recent"
+    },
+    {
+      "check": "music-no-home-personalization-1024",
+      "ok": true,
+      "detail": "{\"homeHero\":false,\"myMix\":false,\"madeForYou\":false,\"recentlyPlayed\":false,\"hiddenGems\":false,\"downloadsInSubNav\":false}"
+    },
+    {
+      "check": "music-no-overflow-1024",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-browse-links-1024",
+      "ok": true,
+      "detail": "links=3"
+    },
+    {
+      "check": "music-sidebar-visible-narrow",
+      "ok": true,
+      "detail": "app-shell app-shell--music"
+    },
+    {
+      "check": "music-subnav-present-narrow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-no-downloads-tab-narrow",
+      "ok": true,
+      "detail": ",Discover,,New Releases,,Top Charts,,Genres & Moods,,Songs,,Artists,,Albums,,Playlists,,Liked,,Recent"
+    },
+    {
+      "check": "music-no-home-personalization-narrow",
+      "ok": true,
+      "detail": "{\"homeHero\":false,\"myMix\":false,\"madeForYou\":false,\"recentlyPlayed\":false,\"hiddenGems\":false,\"downloadsInSubNav\":false}"
+    },
+    {
+      "check": "music-no-overflow-narrow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-browse-links-narrow",
+      "ok": true,
+      "detail": "links=3"
+    },
+    {
+      "check": "playback-start-click",
+      "ok": true,
+      "detail": "Play DEV Audio Versions: All Tiers by Hidden Tunes QA"
+    },
+    {
+      "check": "playback-started",
+      "ok": true,
+      "detail": "{\"audioCount\":1,\"videoCount\":1,\"playing\":false,\"currentTime\":null,\"paused\":null,\"src\":null,\"playerBarVisible\":true,\"titleHint\":\"←BackFullscreenDANow PlayingDEV Audio Versions: All TiersHidden Tunes QADesktop Audio Version HarnessAuto\"}"
+    },
+    {
+      "check": "single-audio-element",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "single-video-element",
+      "ok": true,
+      "detail": "video=1"
+    },
+    {
+      "check": "music-second-play-click",
+      "ok": true,
+      "detail": "Play DEV Audio Versions: All Tiers by Hidden Tunes QA"
+    },
+    {
+      "check": "no-duplicate-catalog-fetch-on-nav",
+      "ok": true,
+      "detail": "delta=0 total=0 network={\"songs\":0,\"albums\":0,\"artists\":0,\"other\":0,\"total\":0}"
+    },
+    {
+      "check": "empty-home-no-hero",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "empty-home-jump-in",
+      "ok": true,
+      "detail": "chips=7"
+    },
+    {
+      "check": "empty-home-no-explore-grid",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "empty-home-useful-content",
+      "ok": true,
+      "detail": "Home | Made for You | Hidden Gems | Jump In"
+    }
+  ],
+  "failures": [],
+  "screenshots": [
+    "home-1440.png",
+    "home-1280.png",
+    "home-1024.png",
+    "home-narrow.png",
+    "music-1440.png",
+    "music-1280.png",
+    "music-1024.png",
+    "music-narrow.png",
+    "playback-home-to-music.png",
+    "home-empty-history.png"
+  ],
+  "playback": {
+    "startedFrom": "Play DEV Audio Versions: All Tiers by Hidden Tunes QA",
+    "beforeNav": {
+      "audioCount": 1,
+      "videoCount": 1,
+      "playing": false,
+      "currentTime": null,
+      "paused": null,
+      "src": null,
+      "playerBarVisible": true,
+      "titleHint": "←BackFullscreenDANow PlayingDEV Audio Versions: All TiersHidden Tunes QADesktop Audio Version HarnessAuto"
+    },
+    "afterNav": {
+      "audioCount": 1,
+      "videoCount": 1,
+      "playing": false,
+      "currentTime": null,
+      "paused": null,
+      "src": null,
+      "playerBarVisible": true,
+      "titleHint": "1DEV Audio Versions: All TiersHidden Tunes QA0:422DEV Audio Versions: High Quality OnlyHidden Tunes QA0:423DEV Audio Versions: Legacy OnlyHidden Tunes QA0:424DE"
+    },
+    "secondTrack": {
+      "click": {
+        "ok": true,
+        "label": "Play DEV Audio Versions: All Tiers by Hidden Tunes QA"
+      },
+      "state": {
+        "audioCount": 1,
+        "videoCount": 1,
+        "playing": false,
+        "currentTime": null,
+        "paused": null,
+        "src": null,
+        "playerBarVisible": true,
+        "titleHint": "←BackFullscreenDANow PlayingDEV Audio Versions: All TiersHidden Tunes QADesktop Audio Version HarnessAuto"
+      }
+    }
+  },
+  "consoleErrors": [
+    {
+      "level": 2,
+      "message": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://"
+    },
+    {
+      "level": 2,
+      "message": "%cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security\n  Policy set or a policy with \"unsafe-eval\" enabled. This exposes users of\n  this app to unnecessary security risks.\n\nFor more information and help, consult\nhttps://"
+    }
+  ],
+  "consoleWarnings": [
+    {
+      "level": 1,
+      "message": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] cache miss"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] cache miss"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] index build [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] index build [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-tv-playback] media-event [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] queue extension [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-tv-playback] media-event [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] queue extension [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-tv-playback] media-event [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] cache miss"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] cache miss"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] index build [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] index build [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-tv-playback] media-event [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] fetch [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] index build [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] index build [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] album resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] artist resolve [object Object]"
+    },
+    {
+      "level": 1,
+      "message": "[ht-catalog] artist resolve [object Object]"
+    }
+  ],
+  "notes": [
+    "Isolated userData: C:\\Users\\Wills\\AppData\\Local\\Temp\\ht-home-music-validate-FrFERt",
+    "home-1440 headings: Home | Jump In (window 1440x960)",
+    "home-1280 headings: Home | Jump In (window 1280x860)",
+    "home-1024 headings: Home | Jump In (window 1024x800)",
+    "home-narrow headings: Home | Jump In (window 900x760)",
+    "music-1440 headings: Browse the catalog | New Releases | Popular on Hidden Tunes | Genres | Moods | Deep browse",
+    "music-1280 headings: Browse the catalog | New Releases | Popular on Hidden Tunes | Genres | Moods | Deep browse",
+    "music-1024 headings: Browse the catalog | New Releases | Popular on Hidden Tunes | Genres | Moods | Deep browse",
+    "music-narrow headings: Browse the catalog | New Releases | Popular on Hidden Tunes | Genres | Moods | Deep browse",
+    "Playback may not have started (catalog stream/CORS). Continuity checks limited.",
+    "localStorage music-ish keys before clear: [\"ht-desktop:music-history\",\"ht-desktop:active-page\"]"
+  ],
+  "finishedAt": "2026-07-22T11:24:57.387Z",
+  "networkCounts": {
+    "songs": 1,
+    "albums": 1,
+    "artists": 1,
+    "other": 0,
+    "total": 3
+  },
+  "passCount": 61,
+  "failCount": 0
+}
