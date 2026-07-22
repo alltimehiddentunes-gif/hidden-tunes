@@ -15,6 +15,8 @@ import type { AudiobookChapterMeta, PlayAudiobookChapterHandler } from '../../li
 import { useAudiobookBookData } from '../../lib/audiobooks/useAudiobookBookData'
 import { buildAudiobookLibraryItem } from '../../lib/library/builders'
 import { useDesktopLibrary } from '../../lib/library/useDesktopLibrary'
+import { useDesktopDownloads } from '../../lib/downloads/useDesktopDownloads'
+import { hasDesktopDownloadsBridge } from '../../lib/downloads/bridge'
 
 type ArtworkImageProps = {
   src: string | null
@@ -36,6 +38,8 @@ function ChapterRow({
   chapter,
   bookCoverUrl,
   onPlay,
+  onDownload,
+  downloadLabel,
   tuning,
   isActive,
   isCompleted,
@@ -45,6 +49,8 @@ function ChapterRow({
   chapter: AudiobookChapterMeta
   bookCoverUrl: string | null
   onPlay: () => void
+  onDownload?: () => void
+  downloadLabel?: string | null
   tuning: boolean
   isActive: boolean
   isCompleted: boolean
@@ -70,6 +76,11 @@ function ChapterRow({
           </div>
         ) : null}
       </div>
+      {onDownload && downloadLabel ? (
+        <button type="button" className="btn-ghost btn-sm" onClick={onDownload}>
+          {downloadLabel}
+        </button>
+      ) : null}
       <button
         type="button"
         className="audiobook-chapter-row-play"
@@ -94,6 +105,8 @@ export const AudiobookBookPage = memo(function AudiobookBookPage({
   const [tuningChapterId, setTuningChapterId] = useState<string | null>(null)
   const { currentTrack } = useDesktopPlayback()
   const library = useDesktopLibrary()
+  const downloads = useDesktopDownloads()
+  const canDownload = hasDesktopDownloadsBridge()
   const { book, chapters, loading, error } = useAudiobookBookData(bookId)
 
   const bookProgress = useMemo(
@@ -227,6 +240,38 @@ export const AudiobookBookPage = memo(function AudiobookBookPage({
                   chapter={chapter}
                   bookCoverUrl={book.coverUrl}
                   onPlay={() => playChapter(chapter)}
+                  onDownload={canDownload ? () => {
+                    const existing = downloads.getItem('audiobook_chapter', chapter.id)
+                    if (existing?.status === 'completed') return
+                    if (existing && ['queued', 'resolving', 'downloading'].includes(existing.status)) {
+                      void downloads.cancel(existing.downloadId)
+                      return
+                    }
+                    void downloads.start({
+                      type: 'audiobook_chapter',
+                      id: chapter.id,
+                      title: chapter.title,
+                      subtitle: book.title,
+                      artwork: book.coverUrl,
+                      bookId: book.id,
+                      parentId: book.id,
+                      chapterId: chapter.id,
+                      duration: chapter.durationSeconds,
+                      metadata: { bookTitle: book.title },
+                    })
+                  } : undefined}
+                  downloadLabel={
+                    !canDownload
+                      ? null
+                      : (() => {
+                          const existing = downloads.getItem('audiobook_chapter', chapter.id)
+                          if (!existing) return 'Download'
+                          if (existing.status === 'completed') return 'Downloaded'
+                          if (['queued', 'resolving', 'downloading'].includes(existing.status)) return 'Cancel'
+                          if (existing.status === 'failed') return 'Retry'
+                          return 'Download'
+                        })()
+                  }
                   tuning={tuningChapterId === chapter.id}
                   isActive={isActive}
                   isCompleted={isCompleted}

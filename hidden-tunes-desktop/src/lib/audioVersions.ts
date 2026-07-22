@@ -65,7 +65,9 @@ const AUDIO_QUALITY_FALLBACKS: Record<AudioQualityMode, AudioVersionTier[]> = {
 function asHttpUrl(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
-  return trimmed.startsWith('http') ? trimmed : null
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+  if (trimmed.startsWith('ht-download://')) return trimmed
+  return null
 }
 
 function versionWithUrl(

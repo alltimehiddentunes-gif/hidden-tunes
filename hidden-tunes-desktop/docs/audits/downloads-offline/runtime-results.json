@@ -1,0 +1,154 @@
+{
+  "startedAt": "2026-07-22T22:05:04.376Z",
+  "checks": [
+    {
+      "check": "UI ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Downloads page opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Empty state works",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Downloads bridge available",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024px layout",
+      "ok": true,
+      "detail": "width=1024"
+    },
+    {
+      "check": "Download finite Podcast episode accepted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Progress updates / reaches completed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion appears in metadata",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Finite Music download accepted",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Music download completed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completion appears on Downloads page",
+      "ok": true,
+      "detail": "completed=2"
+    },
+    {
+      "check": "Podcast family visible on Downloads page",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Music offline URL uses music download id",
+      "ok": true,
+      "detail": "ht-download://media/music/song-offline-1.wav"
+    },
+    {
+      "check": "Music ↔ offline Podcast ownership typed separately",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Retry target can start",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Controlled failed download recorded",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Cancel active download",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Offline playable URL resolved without network",
+      "ok": true,
+      "detail": "ht-download://media/podcasts/ep-offline-1.wav"
+    },
+    {
+      "check": "Play completed Podcast episode offline",
+      "ok": true,
+      "detail": "ht-download://media/podcasts/ep-offline-1.wav"
+    },
+    {
+      "check": "Network-disabled offline test executed",
+      "ok": true,
+      "detail": "blockedRemote=true"
+    },
+    {
+      "check": "Remove download preserves Library favorite",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Download metadata removed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Radio has no Download control",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "live TV has no Download control",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Mature gating hides mature download in general view",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "No duplicate player bar",
+      "ok": true,
+      "detail": "count=1"
+    },
+    {
+      "check": "TV ownership / page remains unaffected",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Podcast offline used podcast_episode identity",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Retry failed download accepted",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "finishedAt": "2026-07-22T22:05:13.776Z",
+  "passed": 29,
+  "failed": 0
+}

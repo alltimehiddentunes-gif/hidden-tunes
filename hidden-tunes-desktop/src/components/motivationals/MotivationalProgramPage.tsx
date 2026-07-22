@@ -16,6 +16,12 @@ import type { MotivationalSessionMeta, PlayMotivationalSessionHandler } from '..
 import { useMotivationalProgramData } from '../../lib/motivationals/useMotivationalProgramData'
 import { buildMotivationalLibraryItem } from '../../lib/library/builders'
 import { useDesktopLibrary } from '../../lib/library/useDesktopLibrary'
+import { hasDesktopDownloadsBridge } from '../../lib/downloads/bridge'
+import {
+  downloadControlLabel,
+  isActiveDownloadStatus,
+  useDesktopDownloads,
+} from '../../lib/downloads'
 
 type ArtworkImageProps = {
   src: string | null
@@ -37,6 +43,8 @@ function SessionRow({
   session,
   programArtworkUrl,
   onPlay,
+  onToggleDownload,
+  downloadLabel,
   tuning,
   isActive,
   isCompleted,
@@ -46,6 +54,8 @@ function SessionRow({
   session: MotivationalSessionMeta
   programArtworkUrl: string | null
   onPlay: () => void
+  onToggleDownload?: () => void
+  downloadLabel?: string | null
   tuning: boolean
   isActive: boolean
   isCompleted: boolean
@@ -84,17 +94,29 @@ function SessionRow({
           </div>
         ) : null}
       </div>
-      <button
-        type="button"
-        className="motivational-session-row-play"
-        disabled={tuning}
-        onClick={onPlay}
-        aria-label={`Play ${session.title}`}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </button>
+      <div className="motivational-session-row-actions">
+        {onToggleDownload && downloadLabel ? (
+          <button
+            type="button"
+            className="btn-ghost btn-sm ht-download-inline-btn"
+            onClick={onToggleDownload}
+            disabled={downloadLabel === 'Downloaded'}
+          >
+            {downloadLabel}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="motivational-session-row-play"
+          disabled={tuning}
+          onClick={onPlay}
+          aria-label={`Play ${session.title}`}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </button>
+      </div>
     </article>
   )
 }
@@ -108,6 +130,8 @@ export const MotivationalProgramPage = memo(function MotivationalProgramPage({
   const [tuningSessionId, setTuningSessionId] = useState<string | null>(null)
   const { currentTrack } = useDesktopPlayback()
   const library = useDesktopLibrary()
+  const downloads = useDesktopDownloads()
+  const canDownload = hasDesktopDownloadsBridge()
   const {
     program,
     sessions,
@@ -274,6 +298,29 @@ export const MotivationalProgramPage = memo(function MotivationalProgramPage({
                     session={session}
                     programArtworkUrl={program.artworkUrl}
                     onPlay={() => playSession(session)}
+                    onToggleDownload={canDownload ? () => {
+                      const existing = downloads.getItem('motivational', session.id)
+                      if (existing?.status === 'completed') return
+                      if (existing && isActiveDownloadStatus(existing.status)) {
+                        void downloads.cancel(existing.downloadId)
+                        return
+                      }
+                      void downloads.start({
+                        type: 'motivational',
+                        id: session.id,
+                        title: session.title,
+                        subtitle: program.title,
+                        artwork: session.artworkUrl ?? program.artworkUrl,
+                        parentId: program.id,
+                        duration: session.durationSeconds ?? null,
+                        metadata: { programTitle: program.title },
+                      })
+                    } : undefined}
+                    downloadLabel={
+                      canDownload
+                        ? downloadControlLabel(downloads.getItem('motivational', session.id))
+                        : null
+                    }
                     tuning={tuningSessionId === session.id}
                     isActive={isActive}
                     isCompleted={isCompleted}

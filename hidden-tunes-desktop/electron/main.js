@@ -2,10 +2,36 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { fetchApprovedCatalog } = require('./catalogBridge');
+const {
+  DownloadManager,
+  registerDownloadProtocol,
+  attachDownloadProtocolHandler,
+} = require('./downloads');
 
 const isDev = !app.isPackaged;
 const WINDOW_TITLE = 'Hidden Tunes Desktop';
 const WINDOW_BG = '#050508';
+
+registerDownloadProtocol(() => app.getPath('userData'));
+
+let mainWindow = null;
+let downloadManager = null;
+
+function getDownloadManager() {
+  if (!downloadManager) {
+    downloadManager = new DownloadManager({
+      getUserDataPath: () => app.getPath('userData'),
+      broadcast: (event, payload) => {
+        for (const win of BrowserWindow.getAllWindows()) {
+          if (!win.isDestroyed()) {
+            win.webContents.send('ht-downloads-event', { event, payload });
+          }
+        }
+      },
+    });
+  }
+  return downloadManager;
+}
 
 function logProduction(message, detail) {
   if (isDev) return;
@@ -127,6 +153,7 @@ function createWindow() {
     },
   });
 
+  mainWindow = win;
   win.setTitle(WINDOW_TITLE);
   attachWindowDiagnostics(win);
 
@@ -161,13 +188,32 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  ipcMain.handle('ht-catalog-get', async (_event, path) => {
-    const cleanPath = typeof path === 'string' ? path.trim() : ''
+  attachDownloadProtocolHandler(() => app.getPath('userData'))
+
+  ipcMain.handle('ht-catalog-get', async (_event, catalogPath) => {
+    const cleanPath = typeof catalogPath === 'string' ? catalogPath.trim() : ''
     if (!cleanPath.startsWith('/api/')) {
       throw new Error('Catalog path is not allowed.')
     }
     return fetchApprovedCatalog(cleanPath)
   })
+
+  const downloads = getDownloadManager()
+
+  ipcMain.handle('ht-downloads-list', async () => downloads.list())
+  ipcMain.handle('ht-downloads-start', async (_event, request) => downloads.start(request || {}))
+  ipcMain.handle('ht-downloads-pause', async (_event, downloadId) => downloads.pause(String(downloadId || '')))
+  ipcMain.handle('ht-downloads-resume', async (_event, downloadId) => downloads.resume(String(downloadId || '')))
+  ipcMain.handle('ht-downloads-cancel', async (_event, downloadId) => downloads.cancel(String(downloadId || '')))
+  ipcMain.handle('ht-downloads-remove', async (_event, downloadId) => downloads.remove(String(downloadId || '')))
+  ipcMain.handle('ht-downloads-get-playable-url', async (_event, downloadId) => (
+    downloads.getPlayableUrl(String(downloadId || ''))
+  ))
+  ipcMain.handle('ht-downloads-disk-usage', async () => downloads.getDiskUsage())
+  ipcMain.handle('ht-downloads-reconcile', async () => downloads.reconcile())
+
+  // Non-blocking startup reconciliation
+  void downloads.reconcile()
 
   createWindow();
 

@@ -28,6 +28,7 @@ import {
   buildUpgradeDiagnosticsContext,
   logAudioUpgrade,
 } from '../lib/desktopPlayback/audioUpgradeDiagnostics'
+import { isPlayableMediaUrl } from '../lib/desktopPlayback/isPlayableMediaUrl'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
 import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
 import { resolveRadioPlayUrl } from '../lib/radio/radioCatalogApi'
@@ -765,7 +766,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             : 0,
         )
 
-        if (!streamUrl.startsWith('http')) {
+        if (!isPlayableMediaUrl(streamUrl)) {
           videoService.releaseSource()
           setIsPlaying(false)
           setIsLoading(false)
@@ -1195,18 +1196,15 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         musicProgressTrackIdRef.current = null
       }
 
-      const needsRadioResolve = isRadioQueueSong(song)
-        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
-      const needsTvResolve = isTvQueueSong(song)
-        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
-      const needsPodcastResolve = isPodcastQueueSong(song)
-        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
-      const needsAudiobookResolve = isAudiobookQueueSong(song)
-        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
-      const needsMotivationalResolve = isMotivationalQueueSong(song)
-        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
-      const needsLectureResolve = isLectureQueueSong(song)
-        && !Boolean(song.audioUrl?.startsWith('http') || song.previewUrl?.startsWith('http'))
+      const hasPlayableSource = Boolean(
+        isPlayableMediaUrl(song.audioUrl) || isPlayableMediaUrl(song.previewUrl),
+      )
+      const needsRadioResolve = isRadioQueueSong(song) && !hasPlayableSource
+      const needsTvResolve = isTvQueueSong(song) && !hasPlayableSource
+      const needsPodcastResolve = isPodcastQueueSong(song) && !hasPlayableSource
+      const needsAudiobookResolve = isAudiobookQueueSong(song) && !hasPlayableSource
+      const needsMotivationalResolve = isMotivationalQueueSong(song) && !hasPlayableSource
+      const needsLectureResolve = isLectureQueueSong(song) && !hasPlayableSource
 
       if (!needsRadioResolve && !needsTvResolve && !needsPodcastResolve && !needsAudiobookResolve && !needsMotivationalResolve && !needsLectureResolve) {
         if (generation !== mediaResolveGenerationRef.current) return
@@ -2279,7 +2277,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
     if (usesDesktopVideoPath(currentTrack)) {
       const streamUrl = currentTrack.audioUrl?.trim() || currentTrack.previewUrl?.trim() || ''
-      if (!streamUrl.startsWith('http')) {
+      if (!isPlayableMediaUrl(streamUrl)) {
         setError(
           isTvQueueSong(currentTrack)
             ? 'Unable to play this TV channel.'

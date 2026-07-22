@@ -39,6 +39,12 @@ import { useRelatedLectures } from '../../lib/lectures/useRelatedLectures'
 import { formatPlaybackTime } from '../../lib/player/formatPlaybackTime'
 import { LectureEmptyState } from './LectureEmptyState'
 import { LectureErrorState } from './LectureErrorState'
+import { hasDesktopDownloadsBridge } from '../../lib/downloads/bridge'
+import {
+  downloadControlLabel,
+  isActiveDownloadStatus,
+  useDesktopDownloads,
+} from '../../lib/downloads'
 
 type ArtworkImageProps = {
   src: string | null
@@ -115,6 +121,8 @@ function SessionRow({
   session,
   seriesArtworkUrl,
   onPlay,
+  onToggleDownload,
+  downloadLabel,
   tuning,
   isActive,
   isPlaying,
@@ -125,6 +133,8 @@ function SessionRow({
   session: LectureItem
   seriesArtworkUrl: string | null
   onPlay: () => void
+  onToggleDownload?: () => void
+  downloadLabel?: string | null
   tuning: boolean
   isActive: boolean
   isPlaying: boolean
@@ -167,15 +177,27 @@ function SessionRow({
           </div>
         ) : null}
       </div>
-      <button
-        type="button"
-        className="lecture-detail-session-play"
-        disabled={tuning}
-        onClick={onPlay}
-        aria-label={`Play ${session.title}`}
-      >
-        <PlayIcon />
-      </button>
+      <div className="lecture-detail-session-actions">
+        {onToggleDownload && downloadLabel ? (
+          <button
+            type="button"
+            className="btn-ghost btn-sm ht-download-inline-btn"
+            onClick={onToggleDownload}
+            disabled={downloadLabel === 'Downloaded'}
+          >
+            {downloadLabel}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="lecture-detail-session-play"
+          disabled={tuning}
+          onClick={onPlay}
+          aria-label={`Play ${session.title}`}
+        >
+          <PlayIcon />
+        </button>
+      </div>
     </article>
   )
 }
@@ -214,6 +236,8 @@ export const LectureSeriesPage = memo(function LectureSeriesPage({
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const videoMountRef = useRef<HTMLDivElement | null>(null)
+  const downloads = useDesktopDownloads()
+  const canDownload = hasDesktopDownloadsBridge()
 
   const {
     currentTrack,
@@ -781,6 +805,34 @@ export const LectureSeriesPage = memo(function LectureSeriesPage({
                       session,
                       progress && !completed ? progress.positionSeconds : null,
                     )
+                  }
+                  onToggleDownload={canDownload ? () => {
+                    const existing = downloads.getItem('lecture', session.id)
+                    if (existing?.status === 'completed') return
+                    if (existing && isActiveDownloadStatus(existing.status)) {
+                      void downloads.cancel(existing.downloadId)
+                      return
+                    }
+                    void downloads.start({
+                      type: 'lecture',
+                      id: session.id,
+                      title: session.title,
+                      subtitle: series.title,
+                      artwork: session.artworkUrl ?? series.artworkUrl,
+                      parentId: series.id,
+                      seriesId: series.id,
+                      chapterId: session.id,
+                      duration: session.durationSeconds ?? null,
+                      metadata: {
+                        seriesTitle: series.title,
+                        categorySlug: series.category?.slug ?? null,
+                      },
+                    })
+                  } : undefined}
+                  downloadLabel={
+                    canDownload
+                      ? downloadControlLabel(downloads.getItem('lecture', session.id))
+                      : null
                   }
                   tuning={tuningSessionId === session.id}
                   isActive={isActive}

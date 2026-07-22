@@ -161,6 +161,7 @@ import { TvNowPlayingPanel } from './components/tv/TvNowPlayingPanel'
 import { PodcastsPage } from './components/podcasts/PodcastsPage'
 import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
 import { DesktopLibraryPage } from './components/library/DesktopLibraryPage'
+import { DesktopDownloadsPage } from './components/downloads/DesktopDownloadsPage'
 import { ensureLibraryMigrated } from './lib/library'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
@@ -176,6 +177,13 @@ import {
   resolveEditorialPlaylistTracks,
 } from './lib/home/editorialPlaylists'
 import { useMusicLikes } from './lib/home/useMusicLikes'
+import {
+  downloadControlLabel,
+  hasDesktopDownloadsBridge,
+  isActiveDownloadStatus,
+  isStableMusicDownloadUrl,
+  useDesktopDownloads,
+} from './lib/downloads'
 import { useMusicLocalState } from './lib/home/useMusicLocalState'
 import { isMusicCatalogSong } from './lib/home/isMusicCatalogSong'
 import {
@@ -4609,7 +4617,7 @@ function RecentPage({
   )
 }
 
-/* Phase D: Downloads stay honest until offline sync ships */
+/* Downloads destination — typed offline files via Electron main-process manager */
 function DownloadsPage({
   onOpenSong,
   query = '',
@@ -4617,25 +4625,16 @@ function DownloadsPage({
   onOpenSong: QueueSongHandler
   query?: string
 }) {
-  void onOpenSong
-  void query
-
   return (
-    <div className="psd-downloads-destination">
-      <PageFrame cinematic>
-        <h1 className="psd-downloads-title">Downloads</h1>
-        <section className="psd-downloads-storage" aria-label="Offline downloads status">
-          <div className="psd-downloads-storage-copy">
-            <strong>Offline downloads are not connected</strong>
-            <span>Device download storage and sync are not available in this desktop build yet.</span>
-          </div>
-        </section>
-        <CatalogEmpty
-          title="No downloaded content"
-          detail="When offline downloads ship, your saved playlists, albums, and songs will appear here."
-        />
-      </PageFrame>
-    </div>
+    <DesktopDownloadsPage
+      query={query}
+      onPlayQueueSong={(song, queue, startIndex, context, queueTitle) => {
+        onOpenSong(song, queue, startIndex, context, queueTitle, {
+          seedType: 'manual',
+          seedTracks: queue,
+        })
+      }}
+    />
   )
 }
 
@@ -5238,6 +5237,8 @@ const PlayerBar = memo(function PlayerBar({
   } = useDesktopPlayback()
   const { positionSeconds, durationSeconds } = useDesktopPlaybackProgress()
   const { isLiked, toggleLiked } = useMusicLikes()
+  const downloads = useDesktopDownloads()
+  const canDownloadMusic = hasDesktopDownloadsBridge()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
   const volumeTrackRef = useRef<HTMLDivElement>(null)
@@ -5267,6 +5268,22 @@ const PlayerBar = memo(function PlayerBar({
     && !isTvQueueSong(displayTrack)
   const canLikeTrack = Boolean(displayTrack && isMusicCatalogSong(displayTrack))
   const trackLiked = canLikeTrack ? isLiked(displayTrack!.id) : false
+  const musicCandidateUrl = displayTrack
+    ? (displayTrack.audioUrl?.trim() || displayTrack.previewUrl?.trim() || '')
+    : ''
+  const canDownloadTrack = Boolean(
+    canDownloadMusic
+    && displayTrack
+    && isMusicCatalogSong(displayTrack)
+    && isStableMusicDownloadUrl(musicCandidateUrl)
+    && !musicCandidateUrl.startsWith('ht-download://'),
+  )
+  const musicDownloadItem = canDownloadTrack && displayTrack
+    ? downloads.getItem('song', displayTrack.id)
+    : null
+  const musicDownloadLabel = canDownloadTrack
+    ? downloadControlLabel(musicDownloadItem)
+    : null
   const isTvLive = Boolean(displayTrack && isTvQueueSong(displayTrack))
   const progressMax = isTvLive ? 0 : (durationSeconds > 0 ? durationSeconds : 0)
   const progressValue = scrubSeconds ?? (progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0)
@@ -5399,6 +5416,36 @@ const PlayerBar = memo(function PlayerBar({
             <svg width="18" height="18" viewBox="0 0 24 24" fill={trackLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
             </svg>
+          </button>
+        ) : null}
+        {canDownloadTrack && musicDownloadLabel && displayTrack ? (
+          <button
+            type="button"
+            className="btn-ghost btn-sm ht-download-inline-btn player-download-btn"
+            disabled={musicDownloadLabel === 'Downloaded'}
+            aria-label={musicDownloadLabel}
+            onClick={() => {
+              if (musicDownloadItem?.status === 'completed') return
+              if (musicDownloadItem && isActiveDownloadStatus(musicDownloadItem.status)) {
+                void downloads.cancel(musicDownloadItem.downloadId)
+                return
+              }
+              void downloads.start({
+                type: 'song',
+                id: displayTrack.id,
+                title: displayTrack.title,
+                subtitle: displayTrack.artist,
+                artwork: displayTrack.artwork,
+                candidateUrl: musicCandidateUrl,
+                duration: displayTrack.durationSeconds,
+                metadata: {
+                  album: displayTrack.album,
+                  candidateUrl: musicCandidateUrl,
+                },
+              })
+            }}
+          >
+            {musicDownloadLabel}
           </button>
         ) : null}
       </div>

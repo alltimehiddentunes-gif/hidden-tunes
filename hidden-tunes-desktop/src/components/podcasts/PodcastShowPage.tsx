@@ -14,6 +14,16 @@ import { usePodcastLocalState } from '../../lib/podcasts/usePodcastLocalState'
 import { usePodcastShowData } from '../../lib/podcasts/usePodcastShowData'
 import { buildPodcastEpisodeLibraryItem, buildPodcastShowLibraryItem } from '../../lib/library/builders'
 import { useDesktopLibrary } from '../../lib/library/useDesktopLibrary'
+import { useDesktopDownloads } from '../../lib/downloads/useDesktopDownloads'
+import { hasDesktopDownloadsBridge } from '../../lib/downloads/bridge'
+import type { DesktopDownloadItem } from '../../lib/downloads/types'
+
+function downloadProgressLabel(item: DesktopDownloadItem) {
+  const total = item.fileSize || 0
+  const done = item.downloadedBytes || 0
+  if (total > 0) return `${Math.min(99, Math.round((done / total) * 100))}%`
+  return 'Downloading…'
+}
 
 type ArtworkImageProps = {
   src: string | null
@@ -41,6 +51,8 @@ function ShowEpisodeRow({
   showArtworkUrl,
   onPlay,
   onToggleFavorite,
+  onToggleDownload,
+  downloadLabel,
   isFavorite,
   tuning,
   isActive,
@@ -51,6 +63,8 @@ function ShowEpisodeRow({
   showArtworkUrl: string | null
   onPlay: () => void
   onToggleFavorite: () => void
+  onToggleDownload?: () => void
+  downloadLabel?: string | null
   isFavorite: boolean
   tuning: boolean
   isActive: boolean
@@ -98,6 +112,15 @@ function ShowEpisodeRow({
           <path d="M12 21s-7-4.5-9.5-9C1 8 3 4 7 4c2 0 3.5 1.5 5 3 1.5-1.5 3-3 5-3 4 0 6 4 3.5 8C19 16.5 12 21 12 21z" />
         </svg>
       </button>
+      {onToggleDownload && downloadLabel ? (
+        <button
+          type="button"
+          className="btn-ghost btn-sm ht-download-inline-btn"
+          onClick={onToggleDownload}
+        >
+          {downloadLabel}
+        </button>
+      ) : null}
       <button
         type="button"
         className="podcast-show-episode-play"
@@ -123,6 +146,8 @@ export const PodcastShowPage = memo(function PodcastShowPage({
   const { currentTrack } = useDesktopPlayback()
   const { continueListening } = usePodcastLocalState()
   const library = useDesktopLibrary()
+  const downloads = useDesktopDownloads()
+  const canDownload = hasDesktopDownloadsBridge()
 
   const {
     show,
@@ -368,7 +393,18 @@ export const PodcastShowPage = memo(function PodcastShowPage({
         ) : (
           <>
             <div className="podcast-show-episode-list">
-              {episodes.map((episode) => (
+              {episodes.map((episode) => {
+                const downloadItem = downloads.getItem('podcast_episode', episode.id)
+                const downloadLabel = !canDownload
+                  ? null
+                  : downloadItem?.status === 'completed'
+                    ? 'Downloaded'
+                    : downloadItem && ['queued', 'resolving', 'downloading'].includes(downloadItem.status)
+                      ? downloadProgressLabel(downloadItem)
+                      : downloadItem?.status === 'failed'
+                        ? 'Retry'
+                        : 'Download'
+                return (
                 <ShowEpisodeRow
                   key={episode.id}
                   episode={episode}
@@ -376,12 +412,31 @@ export const PodcastShowPage = memo(function PodcastShowPage({
                   onPlay={() => playEpisode(episode)}
                   onToggleFavorite={() => library.toggleFavorite(buildPodcastEpisodeLibraryItem(episode))}
                   isFavorite={library.isFavorite('podcast_episode', episode.id)}
+                  onToggleDownload={canDownload ? () => {
+                    if (downloadItem?.status === 'completed') return
+                    if (downloadItem && ['queued', 'resolving', 'downloading'].includes(downloadItem.status)) {
+                      void downloads.cancel(downloadItem.downloadId)
+                      return
+                    }
+                    void downloads.start({
+                      type: 'podcast_episode',
+                      id: episode.id,
+                      title: episode.title,
+                      subtitle: show.title,
+                      artwork: episode.artworkUrl ?? show.artworkUrl,
+                      showId: show.id,
+                      parentId: show.id,
+                      duration: episode.durationSeconds,
+                      metadata: { showTitle: show.title },
+                    })
+                  } : undefined}
+                  downloadLabel={downloadLabel}
                   tuning={tuningEpisodeId === episode.id}
                   isActive={activePodcastEpisodeId === episode.id}
                   hasProgress={progressEpisodeIds.has(episode.id)}
                   ArtworkImage={ArtworkImage}
                 />
-              ))}
+              )})}
             </div>
             {episodesPagination?.hasMore ? (
               <div className="podcasts-section-actions">
