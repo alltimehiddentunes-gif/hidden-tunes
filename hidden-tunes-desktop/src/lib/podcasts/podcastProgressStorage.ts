@@ -3,6 +3,7 @@ import {
   extractPodcastEpisodeId,
   isPodcastQueueSong,
 } from './podcastPlaybackAdapter'
+import { mirrorPodcastHistoryEntry } from '../history/mirrorFamilyHistory'
 
 export const PODCAST_PROGRESS_STORAGE_KEY = 'podcast-progress'
 export const PODCAST_HISTORY_STORAGE_KEY = 'podcast-history'
@@ -386,6 +387,7 @@ export function recordPodcastHistory(entry: PodcastHistoryEntry) {
   const nextHistory = history.filter((item) => item.episodeId !== entry.episodeId)
   nextHistory.unshift(entry)
   writePodcastHistoryStore(nextHistory)
+  mirrorPodcastHistoryEntry(entry)
 }
 
 export function progressEntryToEpisodeMeta(

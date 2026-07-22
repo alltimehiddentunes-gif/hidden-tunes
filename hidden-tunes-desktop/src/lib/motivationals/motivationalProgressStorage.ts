@@ -3,6 +3,7 @@ import {
   isMotivationalQueueSong,
   parseMotivationalSongId,
 } from './motivationalPlaybackAdapter'
+import { mirrorMotivationalHistoryEntry } from '../history/mirrorFamilyHistory'
 
 export const MOTIVATIONAL_PROGRESS_STORAGE_KEY = 'motivationals-progress'
 export const MOTIVATIONAL_HISTORY_STORAGE_KEY = 'motivationals-history'
@@ -298,6 +299,7 @@ export function recordMotivationalHistory(entry: MotivationalHistoryEntry) {
     (item) => !(item.programId === entry.programId && item.sessionId === entry.sessionId),
   )
   writeHistoryStore([entry, ...existing])
+  mirrorMotivationalHistoryEntry(entry)
 }
 
 export function progressEntryToHistoryEntry(entry: MotivationalProgressEntry): MotivationalHistoryEntry {

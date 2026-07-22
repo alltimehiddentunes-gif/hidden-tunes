@@ -1,5 +1,6 @@
 import type { ApiSong } from '../api'
 import { isMusicCatalogSong } from './isMusicCatalogSong'
+import { mirrorMusicHistoryEntry } from '../history/mirrorFamilyHistory'
 
 export const MUSIC_PROGRESS_STORAGE_KEY = 'music-progress'
 export const MUSIC_HISTORY_STORAGE_KEY = 'music-history'
@@ -254,6 +255,7 @@ export function recordMusicHistory(entry: MusicHistoryEntry) {
 
   writeJsonStore(MUSIC_HISTORY_STORAGE_KEY, next)
   notifyMusicLocalState()
+  mirrorMusicHistoryEntry(entry)
 }
 
 export function listMusicContinueListening(limit = MUSIC_MAX_CONTINUE_ENTRIES) {

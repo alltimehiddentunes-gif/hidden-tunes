@@ -1,5 +1,6 @@
 import { buildTvLibraryItemFromFavorite } from '../library/builders'
 import { addFavorite, removeFavorite } from '../library/libraryService'
+import { mirrorTvHistoryEntry } from '../history/mirrorFamilyHistory'
 
 const TV_FAVORITES_KEY = 'ht-desktop:tv-favorites'
 const TV_HISTORY_KEY = 'ht-desktop:tv-recently-watched'
@@ -106,6 +107,12 @@ export function recordTvHistory(entry: Omit<TvHistoryEntry, 'watchedAt'>) {
     },
     ...current,
   ].slice(0, TV_MAX_HISTORY))
+
+  mirrorTvHistoryEntry({
+    ...entry,
+    channelId,
+    watchedAt: new Date().toISOString(),
+  })
 }
 
 export function loadTvHistory(): TvHistoryEntry[] {

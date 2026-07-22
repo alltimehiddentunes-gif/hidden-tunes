@@ -5,6 +5,7 @@ import {
   isLectureQueueSong,
   parseLectureSongId,
 } from './lecturePlaybackAdapter'
+import { mirrorLectureHistoryEntry } from '../history/mirrorFamilyHistory'
 
 export const LECTURE_PROGRESS_STORAGE_KEY = 'lectures-progress'
 export const LECTURE_HISTORY_STORAGE_KEY = 'lectures-history'
@@ -353,6 +354,7 @@ export function recordLectureHistory(entry: LectureHistoryEntry) {
     (item) => !(item.seriesId === entry.seriesId && item.sessionId === entry.sessionId),
   )
   writeHistoryStore([entry, ...existing])
+  mirrorLectureHistoryEntry(entry)
 }
 
 export function progressEntryToHistoryEntry(entry: LectureProgressEntry): LectureHistoryEntry {

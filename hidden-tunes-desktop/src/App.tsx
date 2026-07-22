@@ -163,6 +163,7 @@ import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
 import { DesktopLibraryPage } from './components/library/DesktopLibraryPage'
 import { DesktopDownloadsPage } from './components/downloads/DesktopDownloadsPage'
 import { DesktopPlaylistsPage } from './components/playlists/DesktopPlaylistsPage'
+import { DesktopHistoryPage } from './components/history/DesktopHistoryPage'
 import { ensureLibraryMigrated } from './lib/library'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
@@ -6979,7 +6980,97 @@ function PageContent({
   void onPlaylistBack
   const { songs, indexes } = useCatalog()
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
-  if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} query={recentQuery} />
+  if (activeNavKey === 'recent') {
+    return (
+      <DesktopHistoryPage
+        query={recentQuery}
+        ArtworkImage={ArtworkImage}
+        onPlayHistoryItem={(item) => {
+          if (item.type === 'song') {
+            const song = indexes.songsById.get(item.id)
+            if (song) {
+              onOpenSong(song, [song], 0, 'manual', 'History', {
+                seedType: 'manual',
+                seedTracks: [song],
+              })
+            }
+            return
+          }
+          if (item.type === 'radio') {
+            const station: RadioStationMeta = {
+              id: item.id,
+              name: item.title,
+              artworkUrl: item.artwork ?? null,
+              country: item.subtitle ?? null,
+              countryCode: null,
+              language: null,
+              tags: [],
+              categories: [],
+              bitrate: null,
+              codec: null,
+              qualityScore: 0,
+              reliabilityScore: 0,
+              isFeatured: false,
+              isMature: item.isMature === true,
+              contentRating: item.contentRating ?? null,
+              popularity: { votes: 0, clickCount: 0 },
+            }
+            onPlayRadioStation?.(station, [station], 0, 'History Radio')
+            return
+          }
+          if (item.type === 'podcast_episode') {
+            const episode: PodcastEpisodeMeta = {
+              id: item.id,
+              showId: item.parentId || '',
+              showTitle: item.subtitle ?? null,
+              title: item.title,
+              description: null,
+              artworkUrl: item.artwork ?? null,
+              durationSeconds: null,
+              publishedAt: null,
+              episodeNumber: null,
+              seasonNumber: null,
+              isVerified: false,
+              lastCheckedAt: null,
+            }
+            onPlayPodcastEpisode?.(episode, [episode], 0, 'History Podcast')
+            return
+          }
+          if (item.type === 'tv') {
+            const channel: TvChannelMeta = {
+              id: item.id,
+              title: item.title,
+              channelName: item.subtitle || item.title,
+              artworkUrl: item.artwork ?? null,
+              country: null,
+              language: null,
+              categories: [],
+              tags: [],
+              isFeatured: false,
+              verified: false,
+              reliabilityScore: 0,
+              streamProtocol: null,
+              streamIsHttps: false,
+              description: null,
+            }
+            onPlayTvChannel?.(channel, [channel], 0, 'History TV')
+            return
+          }
+          if (item.type === 'motivational' && item.parentId) {
+            onOpenMotivationalProgram?.(item.parentId)
+            return
+          }
+          if (item.type === 'lecture' && item.parentId) {
+            onOpenLectureSeries?.(item.parentId)
+            return
+          }
+          if (item.type === 'audiobook_chapter' && item.parentId) {
+            onOpenAudiobookBook?.(item.parentId)
+          }
+        }}
+      />
+    )
+  }
   if (activeNavKey === 'downloads') {
     return <DownloadsPage onOpenSong={onOpenSong} query={downloadsQuery} />
   }

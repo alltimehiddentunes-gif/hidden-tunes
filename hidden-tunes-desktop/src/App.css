@@ -27012,3 +27012,123 @@ button.lecture-detail-crumb:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* —— Unified History —— */
+.ht-history-destination {
+  padding: 20px 24px 48px;
+  max-width: 960px;
+}
+
+.ht-history-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.ht-history-header h1 {
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+}
+
+.ht-history-header p {
+  margin: 0;
+  color: rgba(245, 243, 250, 0.62);
+}
+
+.ht-history-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ht-history-continue {
+  margin-bottom: 24px;
+}
+
+.ht-history-continue h2 {
+  margin: 0 0 12px;
+  font-size: 1.15rem;
+}
+
+.ht-history-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.ht-history-tab {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.ht-history-tab.is-active {
+  background: rgba(168, 85, 247, 0.22);
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.ht-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ht-history-row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ht-history-art {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ht-history-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ht-history-type {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(245, 243, 250, 0.5);
+}
+
+.ht-history-played {
+  font-size: 0.8rem;
+  color: rgba(245, 243, 250, 0.45);
+}
+
+.ht-history-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ht-history-empty {
+  margin-top: 24px;
+}
+
+@media (max-width: 1024px) {
+  .ht-history-destination {
+    padding-inline: 16px;
+  }
+  .ht-history-row {
+    grid-template-columns: 1fr;
+  }
+}

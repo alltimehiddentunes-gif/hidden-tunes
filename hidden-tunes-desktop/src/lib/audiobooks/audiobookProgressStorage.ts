@@ -3,6 +3,7 @@ import {
   isAudiobookQueueSong,
   parseAudiobookSongId,
 } from './audiobookPlaybackAdapter'
+import { mirrorAudiobookHistoryEntry } from '../history/mirrorFamilyHistory'
 
 export const AUDIOBOOK_PROGRESS_STORAGE_KEY = 'audiobook-progress'
 export const AUDIOBOOK_HISTORY_STORAGE_KEY = 'audiobook-history'
@@ -307,6 +308,7 @@ export function recordAudiobookHistory(entry: AudiobookHistoryEntry) {
     (item) => !(item.bookId === entry.bookId && item.chapterId === entry.chapterId),
   )
   writeHistoryStore([entry, ...existing])
+  mirrorAudiobookHistoryEntry(entry)
 }
 
 export function progressEntryToHistoryEntry(entry: AudiobookProgressEntry): AudiobookHistoryEntry {

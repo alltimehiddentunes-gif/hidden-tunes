@@ -1,0 +1,99 @@
+{
+  "startedAt": "2026-07-22T22:19:49.414Z",
+  "checks": [
+    {
+      "check": "UI ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "History opens via Recent sidebar",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "History shell renders",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Seeded history rows render",
+      "ok": true,
+      "detail": "rows=6"
+    },
+    {
+      "check": "Music / Radio / Podcast / TV present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Mature radio gated",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Continue listening section present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024px layout",
+      "ok": true,
+      "detail": "width=1024"
+    },
+    {
+      "check": "No duplicate player bar",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Remove history item",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Remove history preserves Library",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Remove history preserves Playlists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Home still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Music still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Radio still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "My Library still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Playlists still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Downloads still opens",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "finishedAt": "2026-07-22T22:19:58.136Z",
+  "passed": 18,
+  "failed": 0
+}

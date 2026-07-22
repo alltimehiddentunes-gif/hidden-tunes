@@ -89,6 +89,7 @@ import {
   isTvQueueSong,
 } from '../lib/tv/tvPlaybackAdapter'
 import { recordTvHistory } from '../lib/tv/tvLocalState'
+import { mirrorRadioHistoryEntry } from '../lib/history/mirrorFamilyHistory'
 import {
   AUDIOBOOK_PREVIOUS_RESTART_SECONDS,
   AUDIOBOOK_PROGRESS_THROTTLE_MS,
@@ -925,6 +926,18 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       void service
         .play(instantUrl, motivationalPlayOptions)
         .then(() => {
+          if (isRadioQueueSong(song) && currentTrackRef.current?.id === song.id) {
+            const stationId = extractRadioStationId(song.id) ?? song.id
+            mirrorRadioHistoryEntry({
+              stationId,
+              title: song.title,
+              artworkUrl: song.artwork,
+              country: song.album,
+              isMature: Boolean(song.tags?.includes('mature') || song.genre === 'adult'),
+              contentRating: null,
+            })
+          }
+
           if (
             pendingResumeSeconds
             && isPodcastQueueSong(song)
