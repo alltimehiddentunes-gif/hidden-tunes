@@ -198,6 +198,8 @@ import { MotivationalProgramPage } from './components/motivationals/Motivational
 import { LecturesPage } from './components/lectures/LecturesPage'
 import { LectureSeriesPage } from './components/lectures/LectureSeriesPage'
 import { useDiscoverLectureSearch } from './lib/lectures/useDiscoverLectureSearch'
+import { useGlobalDesktopSearch } from './lib/search/useGlobalDesktopSearch'
+import { GlobalSearchSections } from './components/search/GlobalSearchSections'
 import { formatLectureSeriesSubtitle } from './lib/lectures/lectureFormatters'
 import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
@@ -2804,6 +2806,11 @@ function DiscoverPage({
   onOpenAlbum,
   onNavigateNav,
   onOpenLectureSeries,
+  onOpenPodcastShow,
+  onOpenAudiobookBook,
+  onOpenMotivationalProgram,
+  onPlayRadioStation,
+  onPlayTvChannel,
   query: externalQuery,
   setQuery: externalSetQuery,
 }: {
@@ -2812,6 +2819,21 @@ function DiscoverPage({
   onOpenAlbum: (album: ApiAlbum) => void
   onNavigateNav: (navKey: NavKey) => void
   onOpenLectureSeries?: (seriesId: string) => void
+  onOpenPodcastShow?: (showId: string) => void
+  onOpenAudiobookBook?: (bookId: string) => void
+  onOpenMotivationalProgram?: (programId: string) => void
+  onPlayRadioStation?: (
+    station: RadioStationMeta,
+    queue: RadioStationMeta[],
+    startIndex: number,
+    queueTitle: string,
+  ) => void
+  onPlayTvChannel?: (
+    channel: TvChannelMeta,
+    queue: TvChannelMeta[],
+    startIndex: number,
+    queueTitle: string,
+  ) => void
   query?: string
   setQuery?: (value: string) => void
 }) {
@@ -2869,6 +2891,7 @@ function DiscoverPage({
     speakers: lectureSpeakers,
     hasResults: hasLectureResults,
   } = useDiscoverLectureSearch(debouncedQuery)
+  const globalSearch = useGlobalDesktopSearch(debouncedQuery)
 
   const playDiscoverSong = useCallback(
     (song: ApiSong, index: number) => {
@@ -3268,6 +3291,58 @@ function DiscoverPage({
                   ))}
                 </div>
               </section>
+            ) : null}
+
+            {searchTab === 'all' && hasEvaluatedQuery ? (
+              <GlobalSearchSections
+                search={globalSearch}
+                ArtworkImage={ArtworkImage}
+                onNavigateNav={onNavigateNav}
+                onOpenPodcastShow={onOpenPodcastShow}
+                onOpenAudiobook={onOpenAudiobookBook}
+                onOpenMotivational={onOpenMotivationalProgram}
+                Chevron={PsdIconChevronRight}
+                onPlayRadio={(stationId, title, artwork) => {
+                  const station: RadioStationMeta = {
+                    id: stationId,
+                    name: title,
+                    artworkUrl: artwork,
+                    country: null,
+                    countryCode: null,
+                    language: null,
+                    tags: [],
+                    categories: [],
+                    bitrate: null,
+                    codec: null,
+                    qualityScore: 0,
+                    reliabilityScore: 0,
+                    isFeatured: false,
+                    isMature: false,
+                    contentRating: null,
+                    popularity: { votes: 0, clickCount: 0 },
+                  }
+                  onPlayRadioStation?.(station, [station], 0, 'Search Radio')
+                }}
+                onPlayTv={(channelId, title, artwork) => {
+                  const channel: TvChannelMeta = {
+                    id: channelId,
+                    title,
+                    channelName: title,
+                    artworkUrl: artwork,
+                    country: null,
+                    language: null,
+                    categories: [],
+                    tags: [],
+                    isFeatured: false,
+                    verified: false,
+                    reliabilityScore: 0,
+                    streamProtocol: null,
+                    streamIsHttps: false,
+                    description: null,
+                  }
+                  onPlayTvChannel?.(channel, [channel], 0, 'Search TV')
+                }}
+              />
             ) : null}
           </>
         )}
@@ -7157,6 +7232,11 @@ function PageContent({
           onOpenAlbum={onOpenAlbum}
           onNavigateNav={onNavigateNav}
           onOpenLectureSeries={onOpenLectureSeries}
+          onOpenPodcastShow={onOpenPodcastShow}
+          onOpenAudiobookBook={onOpenAudiobookBook}
+          onOpenMotivationalProgram={onOpenMotivationalProgram}
+          onPlayRadioStation={onPlayRadioStation}
+          onPlayTvChannel={onPlayTvChannel}
           query={discoverQuery}
           setQuery={setDiscoverQuery}
         />

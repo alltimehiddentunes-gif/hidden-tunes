@@ -1,0 +1,63 @@
+{
+  "checks": [
+    {
+      "check": "UI ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Search opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Global search groups mount",
+      "ok": true,
+      "detail": "sections="
+    },
+    {
+      "check": "Empty query never blanked shell",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024px",
+      "ok": true,
+      "detail": "width=1024"
+    },
+    {
+      "check": "No duplicate player bar",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Cleared search keeps shell",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Home still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Music still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Radio still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "My Library still opens",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "finishedAt": "2026-07-22T22:29:16.997Z",
+  "passed": 11,
+  "failed": 0
+}
