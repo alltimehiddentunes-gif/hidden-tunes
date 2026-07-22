@@ -1905,13 +1905,6 @@ const HomeTopBar = memo(function HomeTopBar({
           </button>
         ) : null}
       </form>
-      {isSearchShell ? (
-        <button type="button" className="home-top-filter-btn" aria-label="Search filters">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-            <path d="M4 6h16M7 12h10M10 18h4" />
-          </svg>
-        </button>
-      ) : null}
     </header>
   )
 })
@@ -8044,9 +8037,7 @@ function AppShell() {
   return (
     <>
       <div className={`app-shell${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}>
-        {activeNavKey !== 'music' || activeView !== 'page' ? (
-          <Sidebar activeNavKey={activeNavKey} onNavigateNav={navigateNav} />
-        ) : null}
+        <Sidebar activeNavKey={activeNavKey} onNavigateNav={navigateNav} />
         <div className="main-area">
           <div
             className="main-composition"

@@ -1,16 +1,10 @@
-import type { ApiAlbum, ApiArtist, ApiSong } from '../api'
+import type { ApiAlbum, ApiSong } from '../api'
 import { sortAlbumsList, sortSongsList } from '../api'
 import type { CatalogIndexes } from '../catalogIndexes'
 import { inferSongGenre } from '../catalogIndexes'
 import { buildEmotionalLanes } from '../emotionalDiscovery'
 import type { MusicHistoryEntry } from '../home/musicProgressStorage'
-import {
-  buildMusicHeroContent,
-  buildPersonalMixes,
-  formatGenreLabel,
-  type MusicHeroContent,
-  type MusicPersonalMix,
-} from '../home/musicHomeSections'
+import { formatGenreLabel } from '../home/musicHomeSections'
 import { EDITORIAL_PLAYLIST_SPECS } from '../home/editorialPlaylists'
 
 export type MusicNewReleaseCard = {
@@ -71,27 +65,6 @@ const CHART_ACCENTS: MusicChartCard['accent'][] = [
   'mint',
   'sunset',
 ]
-
-export function buildMusicDiscoverHero(
-  songs: ApiSong[],
-  albums: ApiAlbum[],
-  artists: ApiArtist[],
-  indexes: CatalogIndexes,
-  continueListening: Parameters<typeof buildMusicHeroContent>[4],
-  history: MusicHistoryEntry[],
-): MusicHeroContent | null {
-  return buildMusicHeroContent(songs, albums, artists, indexes, continueListening, history)
-}
-
-export function buildMusicMix(
-  songs: ApiSong[],
-  artists: ApiArtist[],
-  indexes: CatalogIndexes,
-  history: MusicHistoryEntry[],
-): MusicPersonalMix | null {
-  const mixes = buildPersonalMixes(songs, artists, indexes, history)
-  return mixes[0] ?? null
-}
 
 export function buildNewReleaseCards(
   songs: ApiSong[],

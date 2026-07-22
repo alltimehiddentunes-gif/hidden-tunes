@@ -7812,8 +7812,73 @@
 .music-home {
   display: flex;
   flex-direction: column;
-  gap: clamp(22px, 3vw, 34px);
-  padding-bottom: clamp(24px, 4vw, 40px);
+  gap: clamp(18px, 2.4vw, 28px);
+  padding-bottom: clamp(20px, 3vw, 32px);
+}
+
+.music-home-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.music-home-page-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.music-home-page-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(245, 243, 250, 0.58);
+}
+
+.music-home-section--primary .music-home-section-header h2 {
+  font-size: clamp(1.15rem, 1.8vw, 1.4rem);
+}
+
+.music-home-section--compact {
+  gap: 10px;
+}
+
+.music-home-jump-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.music-home-jump-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.music-home-jump-chip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.music-home-jump-chip strong {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.music-home-jump-chip span {
+  font-size: 0.72rem;
+  color: rgba(245, 243, 250, 0.5);
 }
 
 .music-home-hero {
@@ -8193,18 +8258,14 @@
   }
 }
 
-/* —— Premium Music workspace —— */
+/* —— Premium Music workspace (secondary category nav beside main sidebar) —— */
 .app-shell--music {
-  --music-subnav-width: 212px;
-}
-
-.app-shell--music .main-area {
-  margin-left: 0;
+  --music-subnav-width: 188px;
 }
 
 .main-scroll--music {
-  padding-top: clamp(12px, 1.8vw, 18px);
-  padding-inline: clamp(14px, 2vw, 24px);
+  padding-top: clamp(10px, 1.4vw, 16px);
+  padding-inline: clamp(14px, 2vw, 22px);
 }
 
 .global-top-nav {
@@ -8266,10 +8327,10 @@
 }
 
 .global-top-nav-link.is-active {
-  color: #f4ecff;
-  border-color: rgba(168, 85, 247, 0.45);
-  background: rgba(124, 58, 237, 0.18);
-  box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.12);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
 }
 
 .global-top-nav-link.is-disabled {
@@ -8384,7 +8445,122 @@
 
 .music-discover {
   display: grid;
-  gap: clamp(18px, 2.4vw, 28px);
+  gap: clamp(16px, 2.2vw, 24px);
+}
+
+.music-discover-page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.85fr);
+  gap: clamp(14px, 2vw, 20px);
+  align-items: stretch;
+}
+
+.music-discover-page-eyebrow {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(245, 197, 66, 0.78);
+}
+
+.music-discover-page-title {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.music-discover-page-subtitle {
+  margin: 6px 0 0;
+  max-width: 48ch;
+  font-size: 0.88rem;
+  color: rgba(245, 243, 250, 0.58);
+}
+
+.music-discover-featured-release {
+  min-width: 0;
+}
+
+.music-discover-featured-release-hit {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(18, 16, 28, 0.96), rgba(10, 10, 16, 0.98));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.music-discover-featured-release-hit .art-frame {
+  width: 88px;
+  height: 88px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.music-discover-featured-release-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.music-discover-featured-release-badge {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(245, 197, 66, 0.82);
+}
+
+.music-discover-featured-release-copy strong {
+  font-size: 0.98rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.music-discover-featured-release-copy span:last-child {
+  font-size: 0.82rem;
+  color: rgba(245, 243, 250, 0.58);
+}
+
+.music-discover-browse-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.music-discover-browse-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.music-discover-browse-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.music-discover-browse-link strong {
+  font-size: 0.92rem;
+}
+
+.music-discover-browse-link span {
+  font-size: 0.78rem;
+  color: rgba(245, 243, 250, 0.52);
 }
 
 .music-discover-hero-row {
@@ -8750,7 +8926,12 @@
 }
 
 @media (max-width: 1180px) {
-  .music-discover-hero-row {
+  .music-discover-hero-row,
+  .music-discover-page-header {
+    grid-template-columns: 1fr;
+  }
+
+  .music-discover-browse-links {
     grid-template-columns: 1fr;
   }
 
@@ -8764,7 +8945,23 @@
   }
 
   .music-sub-nav-groups {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .music-sub-nav-group {
+    display: contents;
+  }
+
+  .music-sub-nav-label {
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .music-sub-nav-item {
+    flex: 0 0 auto;
+    width: auto;
   }
 }
 
@@ -9074,7 +9271,7 @@
 
 /* —— Phase 41C: PSD shell + home chrome —— */
 .main-scroll--home {
-  padding-top: clamp(16px, 2.2vw, 22px);
+  padding-top: clamp(12px, 1.6vw, 18px);
   padding-inline: clamp(16px, 2.4vw, 28px);
 }
 
@@ -9085,7 +9282,7 @@
   align-items: center;
   justify-content: space-between;
   gap: clamp(14px, 2vw, 22px);
-  margin-bottom: clamp(18px, 2.6vw, 26px);
+  margin-bottom: clamp(12px, 1.8vw, 18px);
   padding: 10px 14px;
   border-radius: calc(var(--radius-lg) + 2px);
   border: 1px solid rgba(255, 255, 255, 0.07);

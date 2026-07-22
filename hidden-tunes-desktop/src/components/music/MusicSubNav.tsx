@@ -13,16 +13,12 @@ const MUSIC_DISCOVERY_ITEMS: Array<{ id: MusicSectionId; label: string }> = [
   { id: 'new-releases', label: 'New Releases' },
   { id: 'top-charts', label: 'Top Charts' },
   { id: 'genres-moods', label: 'Genres & Moods' },
+  { id: 'songs', label: 'Songs' },
   { id: 'artists', label: 'Artists' },
   { id: 'albums', label: 'Albums' },
-  { id: 'songs', label: 'Songs' },
-  { id: 'liked', label: 'Liked Songs' },
-]
-
-const MUSIC_LIBRARY_ITEMS: Array<{ id: MusicSectionId; label: string }> = [
   { id: 'playlists', label: 'Playlists' },
-  { id: 'recent', label: 'Recently Played' },
-  { id: 'downloads', label: 'Downloads' },
+  { id: 'liked', label: 'Liked' },
+  { id: 'recent', label: 'Recent' },
 ]
 
 function MusicSubNavIcon({ children }: { children: ReactNode }) {
@@ -117,15 +113,6 @@ function sectionIcon(id: MusicSectionId) {
           </svg>
         </MusicSubNavIcon>
       )
-    case 'downloads':
-      return (
-        <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 4v10M8 10l4 4 4-4" />
-            <path d="M5 18h14" />
-          </svg>
-        </MusicSubNavIcon>
-      )
     default:
       return null
   }
@@ -135,31 +122,16 @@ export const MusicSubNav = memo(function MusicSubNav({
   activeSection,
   onSectionChange,
   onOpenSettings,
-  showDownloads,
+  showDownloads: _showDownloads,
 }: MusicSubNavProps) {
-  const libraryItems = MUSIC_LIBRARY_ITEMS.filter((item) => item.id !== 'downloads' || showDownloads)
+  void _showDownloads
 
   return (
-    <aside className="music-sub-nav" aria-label="Music navigation">
+    <aside className="music-sub-nav" aria-label="Music categories">
       <nav className="music-sub-nav-groups">
         <div className="music-sub-nav-group">
-          <span className="music-sub-nav-label">Music</span>
+          <span className="music-sub-nav-label">Browse</span>
           {MUSIC_DISCOVERY_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`music-sub-nav-item${activeSection === item.id ? ' is-active' : ''}`}
-              aria-current={activeSection === item.id ? 'page' : undefined}
-              onClick={() => onSectionChange(item.id)}
-            >
-              {sectionIcon(item.id)}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-        <div className="music-sub-nav-group">
-          <span className="music-sub-nav-label">Your Library</span>
-          {libraryItems.map((item) => (
             <button
               key={item.id}
               type="button"

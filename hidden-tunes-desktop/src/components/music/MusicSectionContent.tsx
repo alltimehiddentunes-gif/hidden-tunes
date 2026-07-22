@@ -363,11 +363,12 @@ export const MusicSectionContent = memo(function MusicSectionContent({
       )
 
     case 'downloads':
+      // Downloads are intentionally omitted from Music SubNav until offline is wired.
       return (
         <div className="music-section-page">
           <header className="music-section-page-header">
             <h1>Downloads</h1>
-            <p>Offline downloads are not connected on desktop yet.</p>
+            <p>Offline downloads are not available on desktop yet.</p>
           </header>
           <p className="music-section-empty">No downloaded tracks available in this build.</p>
         </div>
