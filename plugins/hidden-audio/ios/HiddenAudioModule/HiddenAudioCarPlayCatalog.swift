@@ -130,6 +130,12 @@ enum HiddenAudioCarPlayCatalog {
       return searchResults.isEmpty ? [emptyNode(for: parentId)] : searchResults
     }
 
+    // Favorites always go through sanitization so empty/malformed catalog
+    // data can never produce a blank or invalid Listen-tab section.
+    if parentId == "favorites" {
+      return sanitizedFavoritesNodes()
+    }
+
     if parentId == "recently_played" {
       if let cached = childrenByParent["recently_played"], !cached.isEmpty {
         return cached
@@ -151,6 +157,69 @@ enum HiddenAudioCarPlayCatalog {
 
     let nodes = childrenByParent[parentId] ?? []
     return nodes.isEmpty ? [emptyNode(for: parentId)] : nodes
+  }
+
+  /// Favorites helper used by CarPlay Listen tab sections.
+  ///
+  /// Defect this closes: an empty or malformed favorites catalog previously
+  /// fell through to a generic empty placeholder (or an empty item array),
+  /// which could leave the Listen tab without a safe Favorites section and
+  /// contribute to an invalid root hierarchy reaching `CPTabBarTemplate`.
+  ///
+  /// Contract:
+  /// - never returns an empty array
+  /// - ignores malformed rows (blank mediaId/title, empty: stubs)
+  /// - deduplicates by mediaId
+  /// - never requires artwork
+  /// - empty catalog yields exactly one "No favorites yet" row
+  static func sanitizedFavoritesNodes(
+    from rawNodes: [HiddenAudioCarPlayBrowseNode]? = nil
+  ) -> [HiddenAudioCarPlayBrowseNode] {
+    let source = rawNodes ?? (childrenByParent["favorites"] ?? [])
+    var seen = Set<String>()
+    var sanitized: [HiddenAudioCarPlayBrowseNode] = []
+
+    for node in source {
+      let mediaId = node.mediaId.trimmingCharacters(in: .whitespacesAndNewlines)
+      let title = node.title.trimmingCharacters(in: .whitespacesAndNewlines)
+
+      if mediaId.isEmpty || title.isEmpty {
+        continue
+      }
+      if mediaId.hasPrefix("empty:") {
+        continue
+      }
+      if !seen.insert(mediaId).inserted {
+        continue
+      }
+
+      sanitized.append(
+        HiddenAudioCarPlayBrowseNode(
+          mediaId: mediaId,
+          title: title,
+          subtitle: node.subtitle,
+          playable: node.playable
+        )
+      )
+
+      if sanitized.count >= limits.favorites {
+        break
+      }
+    }
+
+    if sanitized.isEmpty {
+      return [emptyFavoritesNode()]
+    }
+    return sanitized
+  }
+
+  static func emptyFavoritesNode() -> HiddenAudioCarPlayBrowseNode {
+    HiddenAudioCarPlayBrowseNode(
+      mediaId: "empty:favorites",
+      title: "No favorites yet",
+      subtitle: "Save audio on your phone",
+      playable: false
+    )
   }
 
   static func track(for mediaId: String) -> HiddenAudioCarPlayTrack? {
@@ -305,6 +374,7 @@ enum HiddenAudioCarPlayCatalog {
   private static func ensureSectionFallbacks() {
     let sectionIds = [
       "recently_played",
+      "favorites",
       "made_for_you",
       "playlists",
       "music",

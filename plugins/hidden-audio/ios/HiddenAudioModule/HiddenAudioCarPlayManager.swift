@@ -8,7 +8,9 @@ protocol HiddenAudioCarPlayPlaybackHandling: AnyObject {
 }
 
 /// Single native CarPlay UI owner.
-/// Exactly one CPListTemplate root. Tab-bar construction is intentionally absent.
+/// Scene connect always gets a minimum CPListTemplate root first.
+/// A validated Listen / Radio / Library CPTabBarTemplate may replace it later.
+/// Invalid tab arrays never reach `CPTabBarTemplate(templates:)`.
 final class HiddenAudioCarPlayManager: NSObject {
   static let shared = HiddenAudioCarPlayManager()
 
@@ -19,12 +21,17 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var interfaceController: CPInterfaceController?
   private var carWindow: CPWindow?
   private var rootListTemplate: CPListTemplate?
+  private var tabBarTemplate: CPTabBarTemplate?
+  private var listenTabTemplate: CPListTemplate?
+  private var radioTabTemplate: CPListTemplate?
+  private var libraryTabTemplate: CPListTemplate?
   private var presentedSearchTemplate: CPSearchTemplate?
   private var sessionConfiguration: CPSessionConfiguration?
   private var supportsVideoPlaybackCached = false
   private var isConnected = false
   private var hasInstalledRoot = false
   private var isInstallingRoot = false
+  private var hasUpgradedToTabs = false
   /// Increments on each connect; stale async callbacks must ignore older generations.
   private var connectionGeneration: UInt64 = 0
   private var activeConnectionGeneration: UInt64 = 0
@@ -42,8 +49,7 @@ final class HiddenAudioCarPlayManager: NSObject {
     NSLog("[HTCarPlay] manager_ready connected=%d", isConnected ? 1 : 0)
   }
 
-  /// Attach after the scene delegate has already installed the CPListTemplate root.
-  /// Never calls setRootTemplate — catalog/search/Now Playing update the existing root only.
+  /// Attach after the scene delegate has already installed the safe CPListTemplate root.
   func attachConnectedSession(
     interfaceController: CPInterfaceController,
     window: CPWindow? = nil,
@@ -52,10 +58,9 @@ final class HiddenAudioCarPlayManager: NSObject {
     let work = { [weak self] in
       guard let self else { return }
 
-      // Idempotent: same controller already attached with a live root.
       if self.isConnected,
          self.interfaceController === interfaceController,
-         self.rootListTemplate != nil,
+         self.rootListTemplate != nil || self.tabBarTemplate != nil,
          (self.hasInstalledRoot || self.isInstallingRoot) {
         if let window {
           self.carWindow = window
@@ -72,7 +77,12 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.isConnected = true
       self.isInstallingRoot = false
       self.hasInstalledRoot = true
+      self.hasUpgradedToTabs = false
       self.rootListTemplate = preinstalledRoot
+      self.tabBarTemplate = nil
+      self.listenTabTemplate = nil
+      self.radioTabTemplate = nil
+      self.libraryTabTemplate = nil
       self.presentedSearchTemplate = nil
       HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
       self.ensureSessionConfiguration()
@@ -81,8 +91,9 @@ final class HiddenAudioCarPlayManager: NSObject {
       NSLog("[HTCarPlay] connected hasWindow=%d preinstalled_root=1", window != nil ? 1 : 0)
       NSLog("[HTCarPlay] root_retained")
 
-      // Wire selection handlers onto the already-visible root without replacing it.
+      // Populate the visible safe list, then attempt a validated tab upgrade.
       self.updateExistingRootListFromCatalog()
+      self.tryUpgradeToValidatedTabRoot(generation: generation)
 
       self.emitDiagnostic([
         "event": "carplay_connected",
@@ -107,11 +118,10 @@ final class HiddenAudioCarPlayManager: NSObject {
       guard let self else { return }
       if self.isConnected,
          self.interfaceController === interfaceController,
-         self.rootListTemplate != nil {
+         self.rootListTemplate != nil || self.tabBarTemplate != nil {
         NSLog("[HTCarPlay] connect_idempotent_skip")
         return
       }
-      // If CarPlay already has a root (scene delegate installed it), attach only.
       if let existing = interfaceController.rootTemplate as? CPListTemplate {
         self.attachConnectedSession(
           interfaceController: interfaceController,
@@ -120,7 +130,24 @@ final class HiddenAudioCarPlayManager: NSObject {
         )
         return
       }
-      let (list, _) = self.makeVisibleFallbackListTemplate()
+      if let existingTabs = interfaceController.rootTemplate as? CPTabBarTemplate {
+        self.connectionGeneration &+= 1
+        let generation = self.connectionGeneration
+        self.activeConnectionGeneration = generation
+        self.interfaceController = interfaceController
+        self.carWindow = window
+        self.isConnected = true
+        self.hasInstalledRoot = true
+        self.hasUpgradedToTabs = true
+        self.tabBarTemplate = existingTabs
+        self.rootListTemplate = nil
+        HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
+        self.ensureSessionConfiguration()
+        self.refreshVideoCapability(reason: "connected")
+        self.updateTabSectionsFromCatalog()
+        return
+      }
+
       self.connectionGeneration &+= 1
       let generation = self.connectionGeneration
       self.activeConnectionGeneration = generation
@@ -129,14 +156,16 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.isConnected = true
       self.hasInstalledRoot = false
       self.isInstallingRoot = false
+      self.hasUpgradedToTabs = false
       self.rootListTemplate = nil
+      self.tabBarTemplate = nil
       self.presentedSearchTemplate = nil
       HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
       self.ensureSessionConfiguration()
       self.refreshVideoCapability(reason: "connected")
       NSLog("[HTCarPlay] interface_controller_attached")
       NSLog("[HTCarPlay] connected hasWindow=%d", window != nil ? 1 : 0)
-      self.installSingleListRootIfNeeded(generation: generation)
+      self.installSafeFallbackRoot(generation: generation)
       self.emitDiagnostic([
         "event": "carplay_connected",
         "hasInterfaceController": true,
@@ -160,10 +189,15 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.isConnected = false
       self.hasInstalledRoot = false
       self.isInstallingRoot = false
+      self.hasUpgradedToTabs = false
       self.activeConnectionGeneration = 0
       self.interfaceController = nil
       self.carWindow = nil
       self.rootListTemplate = nil
+      self.tabBarTemplate = nil
+      self.listenTabTemplate = nil
+      self.radioTabTemplate = nil
+      self.libraryTabTemplate = nil
       self.presentedSearchTemplate = nil
       NSLog("[HTCarPlay] scene_disconnect")
       NSLog("[HTCarPlay] disconnected playback_preserved=1")
@@ -185,10 +219,15 @@ final class HiddenAudioCarPlayManager: NSObject {
     }
   }
 
-  /// Catalog sync must never replace the root — only refresh sections in place.
+  /// Catalog sync refreshes sections in place — never blanks the screen.
   func reloadTemplates() {
     performOnMain { [weak self] in
-      self?.updateExistingRootListFromCatalog()
+      guard let self else { return }
+      if self.hasUpgradedToTabs {
+        self.updateTabSectionsFromCatalog()
+      } else {
+        self.updateExistingRootListFromCatalog()
+      }
     }
   }
 
@@ -238,8 +277,9 @@ final class HiddenAudioCarPlayManager: NSObject {
     }
   }
 
-  /// Exactly one root installation for the CarPlay session.
-  private func installSingleListRootIfNeeded(generation: UInt64) {
+  // MARK: - Safe fallback root
+
+  private func installSafeFallbackRoot(generation: UInt64) {
     guard let interfaceController else {
       NSLog("[HTCarPlay] root_install_skipped no_interface_controller")
       return
@@ -248,9 +288,9 @@ final class HiddenAudioCarPlayManager: NSObject {
       NSLog("[HTCarPlay] stale_update_ignored reason=install_stale_generation")
       return
     }
-    if hasInstalledRoot || rootListTemplate != nil {
+    if hasInstalledRoot || rootListTemplate != nil || tabBarTemplate != nil {
       NSLog("[HTCarPlay] root_install_skipped already_installed")
-      updateExistingRootListFromCatalog()
+      reloadTemplates()
       return
     }
     if isInstallingRoot {
@@ -263,6 +303,8 @@ final class HiddenAudioCarPlayManager: NSObject {
 
     let (list, itemCount) = makeVisibleFallbackListTemplate()
     rootListTemplate = list
+    tabBarTemplate = nil
+    hasUpgradedToTabs = false
     NSLog("[HTCarPlay] root_created type=CPListTemplate item_count=%d", itemCount)
     NSLog("[HTCarPlay] root_type=CPListTemplate")
     NSLog("[HTCarPlay] fallback_item_count=%d", itemCount)
@@ -288,6 +330,7 @@ final class HiddenAudioCarPlayManager: NSObject {
           "rootType": "CPListTemplate",
           "itemCount": itemCount,
         ])
+        self.tryUpgradeToValidatedTabRoot(generation: generation)
       } else {
         self.hasInstalledRoot = false
         self.rootListTemplate = nil
@@ -298,6 +341,35 @@ final class HiddenAudioCarPlayManager: NSObject {
           "message": message,
           "rootType": "CPListTemplate",
         ])
+      }
+    }
+  }
+
+  private func installSafeFallbackRoot(on interfaceController: CPInterfaceController) {
+    let (list, itemCount) = makeVisibleFallbackListTemplate()
+    rootListTemplate = list
+    tabBarTemplate = nil
+    listenTabTemplate = nil
+    radioTabTemplate = nil
+    libraryTabTemplate = nil
+    hasUpgradedToTabs = false
+    NSLog("[HTCarPlay] fallback_restored reason=invalid_tabs item_count=%d", itemCount)
+    NSLog("[HTCarPlay] setRootTemplate start")
+    interfaceController.setRootTemplate(list, animated: false) { [weak self] success, error in
+      guard let self else { return }
+      NSLog(
+        "[HTCarPlay] minimal root installed success=%d error=%@",
+        success ? 1 : 0,
+        String(describing: error)
+      )
+      if success {
+        self.hasInstalledRoot = true
+        self.rootListTemplate = list
+        self.updateExistingRootListFromCatalog()
+      } else {
+        self.hasInstalledRoot = false
+        self.rootListTemplate = nil
+        NSLog("[HTCarPlay] fallback_restored reason=setRoot_failed")
       }
     }
   }
@@ -342,10 +414,273 @@ final class HiddenAudioCarPlayManager: NSObject {
     return nodes.map { makeListItem(for: $0, parentId: HiddenAudioCarPlayCatalog.rootId) }
   }
 
-  /// Refresh the existing root list in place. Never calls setRootTemplate again.
+  // MARK: - Validated tab upgrade
+
+  /// After the safe list root is live, attempt Listen / Radio / Library tabs.
+  /// Never constructs CPTabBarTemplate unless validation succeeds.
+  private func tryUpgradeToValidatedTabRoot(generation: UInt64) {
+    guard let interfaceController else { return }
+    guard generation == activeConnectionGeneration, isConnected, hasInstalledRoot else {
+      NSLog("[HTCarPlay] stale_update_ignored reason=tab_upgrade_stale")
+      return
+    }
+    guard !hasUpgradedToTabs, !isInstallingRoot else {
+      NSLog("[HTCarPlay] tab_upgrade_skipped already_tabs_or_installing")
+      return
+    }
+
+    HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
+    NSLog("[HTCarPlay] root_template_creation_started type=CPTabBarTemplate")
+
+    let listen = makeListenTab()
+    let radio = makeRadioTab()
+    let library = makeLibraryTab()
+    let templates: [CPTemplate] = [listen, radio, library]
+
+    HiddenAudioCarPlayTabValidation.logTabDiagnostics(templates)
+
+    guard HiddenAudioCarPlayTabValidation.validateCarPlayTabs(templates) else {
+      NSLog("[HTCarPlay] tab_validation_failed keeping_safe_list_root")
+      emitDiagnostic([
+        "event": "carplay_tab_validation_failed",
+        "fallback": "CPListTemplate",
+      ])
+      // Keep the already-visible safe list root — never blank the screen.
+      return
+    }
+
+    isInstallingRoot = true
+    let tabBar = CPTabBarTemplate(templates: templates)
+    listenTabTemplate = listen
+    radioTabTemplate = radio
+    libraryTabTemplate = library
+    tabBarTemplate = tabBar
+
+    NSLog("[HTCarPlay] setRootTemplate start type=CPTabBarTemplate")
+    interfaceController.setRootTemplate(tabBar, animated: false) { [weak self] success, error in
+      guard let self else { return }
+      self.isInstallingRoot = false
+      guard generation == self.activeConnectionGeneration, self.isConnected else {
+        NSLog("[HTCarPlay] stale_update_ignored reason=tab_setRoot_completion")
+        return
+      }
+      NSLog(
+        "[HTCarPlay] tab root installed success=%d error=%@",
+        success ? 1 : 0,
+        String(describing: error)
+      )
+      NSLog("[HTCarPlay] setRootTemplate complete success=%d", success ? 1 : 0)
+      if success {
+        self.hasUpgradedToTabs = true
+        self.hasInstalledRoot = true
+        self.rootListTemplate = nil
+        NSLog("[HTCarPlay] root_retained")
+        NSLog("[HTCarPlay] root_template_installed type=CPTabBarTemplate")
+        self.emitDiagnostic([
+          "event": "carplay_tab_root_installed",
+          "success": true,
+          "tabCount": 3,
+          "rootType": "CPTabBarTemplate",
+        ])
+        self.updateTabSectionsFromCatalog()
+      } else {
+        self.hasUpgradedToTabs = false
+        self.tabBarTemplate = nil
+        self.listenTabTemplate = nil
+        self.radioTabTemplate = nil
+        self.libraryTabTemplate = nil
+        NSLog("[HTCarPlay] fallback_restored reason=tab_setRoot_failed")
+        self.installSafeFallbackRoot(on: interfaceController)
+        self.emitDiagnostic([
+          "event": "carplay_tab_root_install_failed",
+          "success": false,
+          "message": error?.localizedDescription ?? "",
+        ])
+      }
+    }
+  }
+
+  private func makeListenTab() -> CPListTemplate {
+    // Fresh instance every call — never reuse a template already in a hierarchy.
+    let sections = makeListenSections()
+    let template = CPListTemplate(title: "Listen", sections: sections)
+    template.tabTitle = "Listen"
+    template.tabImage = requiredTabImage(["headphones", "house.fill", "music.note"])
+    return template
+  }
+
+  private func makeRadioTab() -> CPListTemplate {
+    let sections = makeRadioSections()
+    let template = CPListTemplate(title: "Radio", sections: sections)
+    template.tabTitle = "Radio"
+    template.tabImage = requiredTabImage([
+      "radio",
+      "antenna.radiowaves.left.and.right",
+      "dot.radiowaves.left.and.right",
+      "music.note",
+    ])
+    return template
+  }
+
+  private func makeLibraryTab() -> CPListTemplate {
+    let sections = makeLibrarySections()
+    let template = CPListTemplate(title: "Library", sections: sections)
+    template.tabTitle = "Library"
+    template.tabImage = requiredTabImage(["music.note.list", "books.vertical", "music.note"])
+    return template
+  }
+
+  /// Guarantees a non-nil tab image so validation never rejects for missing artwork.
+  private func requiredTabImage(_ systemNames: [String]) -> UIImage {
+    for name in systemNames {
+      if let image = UIImage(systemName: name) {
+        return image
+      }
+    }
+    // Last-resort solid image — still non-nil for CPTabBarTemplate validation.
+    let size = CGSize(width: 30, height: 30)
+    let renderer = UIGraphicsImageRenderer(size: size)
+    return renderer.image { context in
+      UIColor.systemBlue.setFill()
+      context.fill(CGRect(origin: .zero, size: size))
+    }
+  }
+
+  private func makeListenSections() -> [CPListSection] {
+    var sections: [CPListSection] = []
+
+    let recent = nodesForSection("recently_played")
+    sections.append(
+      CPListSection(
+        items: recent.map { makeListItem(for: $0, parentId: "recently_played") },
+        header: "Recently Played",
+        sectionIndexTitle: nil
+      )
+    )
+
+    // Favorites helper: always a non-empty safe section (never blanks Listen).
+    sections.append(makeFavoritesSection())
+
+    let recommended = nodesForSection("made_for_you")
+    sections.append(
+      CPListSection(
+        items: recommended.map { makeListItem(for: $0, parentId: "made_for_you") },
+        header: "Recommended",
+        sectionIndexTitle: nil
+      )
+    )
+
+    // Always expose Search + Now Playing actions without using invalid tab classes.
+    let actions: [HiddenAudioCarPlayBrowseNode] = [
+      HiddenAudioCarPlayBrowseNode(
+        mediaId: "now_playing",
+        title: "Now Playing",
+        subtitle: "Current session",
+        playable: false
+      ),
+      HiddenAudioCarPlayBrowseNode(
+        mediaId: "search",
+        title: "Search",
+        subtitle: "Find tracks",
+        playable: false
+      ),
+    ]
+    sections.append(
+      CPListSection(
+        items: actions.map { makeListItem(for: $0, parentId: "listen_actions") },
+        header: "Controls",
+        sectionIndexTitle: nil
+      )
+    )
+
+    return ensureNonEmptySections(sections, header: "Listen")
+  }
+
+  /// Favorites section helper — never returns an empty section and never
+  /// requires artwork. Empty/malformed catalog → "No favorites yet".
+  private func makeFavoritesSection() -> CPListSection {
+    let favorites = HiddenAudioCarPlayCatalog.sanitizedFavoritesNodes()
+    let items = favorites.map { makeListItem(for: $0, parentId: "favorites") }
+    if items.isEmpty {
+      let empty = HiddenAudioCarPlayCatalog.emptyFavoritesNode()
+      return CPListSection(
+        items: [makeListItem(for: empty, parentId: "favorites")],
+        header: "Favorites",
+        sectionIndexTitle: nil
+      )
+    }
+    return CPListSection(items: items, header: "Favorites", sectionIndexTitle: nil)
+  }
+
+  private func makeRadioSections() -> [CPListSection] {
+    let nodes = nodesForSection("radio")
+    let section = CPListSection(
+      items: nodes.map { makeListItem(for: $0, parentId: "radio") },
+      header: "Stations",
+      sectionIndexTitle: nil
+    )
+    return ensureNonEmptySections([section], header: "Radio")
+  }
+
+  private func makeLibrarySections() -> [CPListSection] {
+    let groups: [(String, String)] = [
+      ("playlists", "Playlists"),
+      ("music", "Saved Music"),
+      ("podcasts", "Podcasts"),
+      ("audiobooks", "Audiobooks"),
+    ]
+    var sections: [CPListSection] = []
+    for (parentId, header) in groups {
+      let nodes = nodesForSection(parentId)
+      sections.append(
+        CPListSection(
+          items: nodes.map { makeListItem(for: $0, parentId: parentId) },
+          header: header,
+          sectionIndexTitle: nil
+        )
+      )
+    }
+    return ensureNonEmptySections(sections, header: "Library")
+  }
+
+  private func nodesForSection(_ sectionId: String) -> [HiddenAudioCarPlayBrowseNode] {
+    if sectionId == "favorites" {
+      return HiddenAudioCarPlayCatalog.sanitizedFavoritesNodes()
+    }
+
+    var nodes = HiddenAudioCarPlayCatalog.children(for: sectionId)
+    if nodes.isEmpty {
+      nodes = [
+        HiddenAudioCarPlayBrowseNode(
+          mediaId: "empty:\(sectionId)",
+          title: HiddenAudioCarPlayCatalog.emptyMessageTitle,
+          subtitle: HiddenAudioCarPlayCatalog.emptyMessageSubtitle,
+          playable: false
+        ),
+      ]
+    }
+    return nodes
+  }
+
+  private func ensureNonEmptySections(
+    _ sections: [CPListSection],
+    header: String
+  ) -> [CPListSection] {
+    let itemCount = sections.reduce(0) { $0 + $1.items.count }
+    if itemCount > 0 {
+      return sections
+    }
+    let placeholder = CPListItem(
+      text: "Unable to load library",
+      detailText: "Retry from your phone"
+    )
+    placeholder.isEnabled = false
+    return [CPListSection(items: [placeholder], header: header, sectionIndexTitle: nil)]
+  }
+
   private func updateExistingRootListFromCatalog() {
-    guard isConnected, hasInstalledRoot, let rootListTemplate else {
-      NSLog("[HTCarPlay] stale_update_ignored reason=catalog_no_root")
+    guard isConnected, hasInstalledRoot, let rootListTemplate, !hasUpgradedToTabs else {
+      NSLog("[HTCarPlay] stale_update_ignored reason=catalog_no_list_root")
       return
     }
     if isInstallingRoot {
@@ -368,7 +703,6 @@ final class HiddenAudioCarPlayManager: NSObject {
       )
     }
 
-    // Never blank: if somehow sections empty, restore fallback.
     if sections.isEmpty {
       NSLog("[HTCarPlay] fallback_restored reason=empty_catalog_sections")
       sections = [
@@ -391,6 +725,40 @@ final class HiddenAudioCarPlayManager: NSObject {
       "supportsVideoPlayback": supportsVideoPlaybackCached,
     ])
   }
+
+  private func updateTabSectionsFromCatalog() {
+    guard isConnected, hasUpgradedToTabs else {
+      NSLog("[HTCarPlay] stale_update_ignored reason=catalog_no_tab_root")
+      return
+    }
+    if isInstallingRoot {
+      NSLog("[HTCarPlay] catalog_update_skipped install_in_progress")
+      return
+    }
+
+    HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
+    listenTabTemplate?.updateSections(makeListenSections())
+    radioTabTemplate?.updateSections(makeRadioSections())
+    libraryTabTemplate?.updateSections(makeLibrarySections())
+
+    let listenCount = listenTabTemplate?.sections.reduce(0) { $0 + $1.items.count } ?? 0
+    let radioCount = radioTabTemplate?.sections.reduce(0) { $0 + $1.items.count } ?? 0
+    let libraryCount = libraryTabTemplate?.sections.reduce(0) { $0 + $1.items.count } ?? 0
+    NSLog(
+      "[HTCarPlay] existing_root_updated section_count=3 item_count=%d",
+      listenCount + radioCount + libraryCount
+    )
+    NSLog("[HTCarPlay] catalog_updated_existing_root")
+    emitDiagnostic([
+      "event": "carplay_catalog_updated_existing_root",
+      "sectionCount": 3,
+      "itemCount": listenCount + radioCount + libraryCount,
+      "rootType": "CPTabBarTemplate",
+      "supportsVideoPlayback": supportsVideoPlaybackCached,
+    ])
+  }
+
+  // MARK: - Search / session / selection
 
   private func presentSearchTemplate() {
     performOnMain { [weak self] in
@@ -431,6 +799,8 @@ final class HiddenAudioCarPlayManager: NSObject {
       reason
     )
     NSLog("[HTCarPlayVideo] mode=%@", mode)
+    // Never expose a Videos tab — audio-only CarPlay UI only.
+    NSLog("[HTCarPlayVideo] videos_tab_included=0 audio_only_ui=1")
     emitDiagnostic([
       "event": "carplay_video_capability",
       "supportsVideoPlayback": supports,
@@ -541,7 +911,8 @@ final class HiddenAudioCarPlayManager: NSObject {
   private func selectPlayable(mediaId: String) {
     NSLog("[HTCarPlay] item_selected id=%@", mediaId)
     if supportsVideoPlaybackCached && mediaId.hasPrefix("video:") {
-      NSLog("[HTCarPlayVideo] preferred_presentation=video mediaId=%@", mediaId)
+      // Audio-safe transition: still route through shared HiddenAudio, never render video in CarPlay.
+      NSLog("[HTCarPlayVideo] preferred_presentation=audio mediaId=%@", mediaId)
     } else {
       NSLog("[HTCarPlayVideo] preferred_presentation=audio mediaId=%@", mediaId)
     }

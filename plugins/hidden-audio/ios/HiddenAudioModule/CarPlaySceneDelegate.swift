@@ -38,19 +38,25 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
       NSLog("[HTCarPlay] window_absent")
     }
 
-    // Install the visible root inline (Apple audio-app sample pattern).
-    // Do not wait on Metro, network, catalog, or manager async work.
+    // Minimum safe root — install immediately.
+    // Do not wait on Metro, network, catalog, auth, or JS readiness.
+    NSLog("[HTCarPlay] root_template_creation_started type=CPListTemplate")
     let root = Self.makeImmediateFallbackRoot()
-    NSLog("[HTCarPlay] root_created type=CPListTemplate item_count=4")
+    NSLog("[HTCarPlay] root_created type=CPListTemplate item_count=1")
     NSLog("[HTCarPlay] root_type=CPListTemplate")
-    NSLog("[HTCarPlay] fallback_item_count=4")
     NSLog("[HTCarPlay] setRootTemplate start")
 
     interfaceController.setRootTemplate(root, animated: false) { success, error in
+      NSLog(
+        "[HTCarPlay] minimal root installed success=%d error=%@",
+        success ? 1 : 0,
+        String(describing: error)
+      )
       NSLog("[HTCarPlay] setRootTemplate complete success=%d", success ? 1 : 0)
       NSLog("[HTCarPlay] setRootTemplate success=%d", success ? 1 : 0)
       if success {
         NSLog("[HTCarPlay] root_retained")
+        NSLog("[HTCarPlay] root_template_installed")
       } else {
         let message = error?.localizedDescription ?? "unknown"
         NSLog("[HTCarPlay] setRootTemplate_failed message=%@", message)
@@ -58,8 +64,8 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
       }
     }
 
-    // Manager retains the controller and wires handlers / catalog updates
-    // onto this same root — it must not call setRootTemplate again.
+    // Manager may upgrade to a validated tab bar after this safe root is live.
+    // It must never leave the car screen blank.
     HiddenAudioCarPlayManager.shared.startIfNeeded()
     HiddenAudioCarPlayManager.shared.attachConnectedSession(
       interfaceController: interfaceController,
@@ -81,15 +87,15 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
 
   /// Hardcoded visible list — independent of Metro, JS, network, and catalog.
   private static func makeImmediateFallbackRoot() -> CPListTemplate {
-    let items: [CPListItem] = [
-      CPListItem(text: "Hidden Tunes is ready", detailText: "Native CarPlay interface"),
-      CPListItem(text: "Browse Library", detailText: "Music, radio, and more"),
-      CPListItem(text: "Now Playing", detailText: "Current session"),
-      CPListItem(text: "Search", detailText: "Find tracks"),
-    ]
+    let loadingItem = CPListItem(
+      text: "Hidden Tunes",
+      detailText: "Loading your audio…"
+    )
+    loadingItem.isEnabled = false
+    let section = CPListSection(items: [loadingItem])
     return CPListTemplate(
       title: "Hidden Tunes",
-      sections: [CPListSection(items: items)]
+      sections: [section]
     )
   }
 }
