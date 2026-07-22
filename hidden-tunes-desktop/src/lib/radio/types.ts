@@ -21,6 +21,9 @@ export type RadioStationMeta = {
   qualityScore: number
   reliabilityScore: number
   isFeatured: boolean
+  /** Backend mature flag — excluded from default desktop browse/search. */
+  isMature: boolean
+  contentRating: string | null
   popularity: {
     votes: number
     clickCount: number
@@ -50,6 +53,7 @@ export type RadioPlayResponse = {
   success: boolean
   id: string
   stream_url: string
+  delivery?: string | null
   source_type?: string | null
   source_station_uuid?: string | null
 }

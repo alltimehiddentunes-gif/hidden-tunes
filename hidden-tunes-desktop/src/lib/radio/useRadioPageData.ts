@@ -35,6 +35,14 @@ function readError(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback
 }
 
+function isCancelledError(reason: unknown) {
+  return (
+    (reason instanceof DOMException && reason.name === 'AbortError')
+    || (reason instanceof Error && reason.name === 'AbortError')
+    || (reason instanceof Error && /cancelled|canceled|aborted/i.test(reason.message))
+  )
+}
+
 export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
   const [featuredStations, setFeaturedStations] = useState<RadioStationMeta[]>([])
   const [browseStations, setBrowseStations] = useState<RadioStationMeta[]>([])
@@ -48,6 +56,7 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null)
   const bootstrapRequestRef = useRef(0)
   const browseRequestRef = useRef(0)
+  const browseAbortRef = useRef<AbortController | null>(null)
 
   const trimmedSearch = searchQuery.trim()
 
@@ -108,27 +117,37 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
   }, [])
 
   useEffect(() => {
-    void loadBootstrap()
+    const timer = globalThis.setTimeout(() => {
+      void loadBootstrap()
+    }, 0)
+    return () => globalThis.clearTimeout(timer)
   }, [loadBootstrap])
 
   useEffect(() => {
-    if (activeTab !== 'countries') {
-      setSelectedCountry(null)
-    }
-    if (activeTab === 'all' || activeTab === 'featured' || activeTab === 'countries') {
-      setSelectedGenre(null)
-    }
+    const frame = globalThis.requestAnimationFrame(() => {
+      if (activeTab !== 'countries') {
+        setSelectedCountry(null)
+      }
+      if (activeTab === 'all' || activeTab === 'featured' || activeTab === 'countries') {
+        setSelectedGenre(null)
+      }
+    })
+    return () => globalThis.cancelAnimationFrame(frame)
   }, [activeTab])
 
   useEffect(() => {
     if (loading) return
 
+    browseAbortRef.current?.abort()
+    const controller = new AbortController()
+    browseAbortRef.current = controller
+
     const requestId = ++browseRequestRef.current
-    setStationsLoading(true)
-    setStationsError(null)
 
     const timer = globalThis.setTimeout(() => {
       void (async () => {
+        setStationsLoading(true)
+        setStationsError(null)
         try {
           const category =
             selectedGenre
@@ -136,18 +155,24 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
               ? TAB_CATEGORY_MAP[activeTab]
               : undefined)
 
-          const response = await fetchRadioStations({
-            limit: 32,
-            featured: activeTab === 'featured' ? true : undefined,
-            category: category ?? undefined,
-            country: selectedCountry ?? undefined,
-            query: trimmedSearch || undefined,
-          })
+          const response = await fetchRadioStations(
+            {
+              limit: 32,
+              featured: activeTab === 'featured' ? true : undefined,
+              category: category ?? undefined,
+              country: selectedCountry ?? undefined,
+              query: trimmedSearch || undefined,
+            },
+            controller.signal,
+          )
 
-          if (requestId !== browseRequestRef.current) return
+          if (controller.signal.aborted || requestId !== browseRequestRef.current) return
           setBrowseStations(response.stations)
+          setStationsError(null)
         } catch (err) {
-          if (requestId !== browseRequestRef.current) return
+          if (controller.signal.aborted || requestId !== browseRequestRef.current || isCancelledError(err)) {
+            return
+          }
           setBrowseStations([])
           setStationsError(readError(err, 'Failed to load stations.'))
         } finally {
@@ -158,10 +183,13 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
       })()
     }, trimmedSearch ? SEARCH_DEBOUNCE_MS : 0)
 
-    return () => globalThis.clearTimeout(timer)
+    return () => {
+      globalThis.clearTimeout(timer)
+      controller.abort()
+    }
   }, [activeTab, loading, selectedCountry, selectedGenre, trimmedSearch])
 
-  const genreCards = useMemo(() => {
+  const genreCards = (() => {
     const byId = new Map(categories.map((entry) => [entry.id.toLowerCase(), entry]))
     const cards = GENRE_CARD_IDS.map((id) => {
       const match =
@@ -182,7 +210,7 @@ export function useRadioPageData(activeTab: RadioTabId, searchQuery: string) {
       label: titleCaseCategory(entry.name),
       count: entry.count,
     }))
-  }, [categories])
+  })()
 
   const visibleStations = useMemo(() => {
     if (activeTab === 'featured' && browseStations.length === 0 && featuredStations.length > 0) {

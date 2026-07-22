@@ -44,13 +44,25 @@ export async function requestCatalogJsonWithFallback(
   baseUrl: string,
   path: string,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<{ payload: unknown; status: number }> {
+  if (signal?.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+
   if (hasDesktopCatalogBridge()) {
     const result = await requestCatalogJson(path)
+    if (signal?.aborted) {
+      throw new DOMException('The operation was aborted.', 'AbortError')
+    }
     return { payload: result.payload, status: result.status }
   }
 
   const controller = new AbortController()
+  const onExternalAbort = () => controller.abort()
+  if (signal) {
+    signal.addEventListener('abort', onExternalAbort, { once: true })
+  }
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs)
 
   try {
@@ -62,10 +74,18 @@ export async function requestCatalogJsonWithFallback(
     })
 
     const payload = await response.json().catch(() => null)
+    if (signal?.aborted) {
+      throw new DOMException('The operation was aborted.', 'AbortError')
+    }
     return { payload, status: response.status }
   } catch (error) {
-    throw new Error(formatFetchFailure(error))
+    const externalAborted = Boolean(signal?.aborted)
+    if (externalAborted) {
+      throw new DOMException('The operation was aborted.', 'AbortError')
+    }
+    throw new Error(formatFetchFailure(error), { cause: error })
   } finally {
     globalThis.clearTimeout(timeout)
+    signal?.removeEventListener('abort', onExternalAbort)
   }
 }

@@ -1,0 +1,150 @@
+{
+  "startedAt": "2026-07-22T16:51:03.628Z",
+  "checks": [
+    {
+      "check": "shell-ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-podcasts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "podcast-page-renders",
+      "ok": true,
+      "detail": "{\"errText\":\"\",\"cards\":12,\"loading\":false,\"hasDestination\":true}"
+    },
+    {
+      "check": "podcast-no-blocking-error",
+      "ok": true,
+      "detail": "none"
+    },
+    {
+      "check": "podcast-has-shows",
+      "ok": true,
+      "detail": "cards=12"
+    },
+    {
+      "check": "podcast-search-jazz",
+      "ok": true,
+      "detail": "{\"cards\":3,\"err\":\"\",\"input\":\"jazz\"}"
+    },
+    {
+      "check": "podcast-show-detail",
+      "ok": true,
+      "detail": "{\"episodes\":161,\"err\":\"\"}"
+    },
+    {
+      "check": "podcast-play-attempt",
+      "ok": true,
+      "detail": "{\"bar\":true,\"title\":\"\"}"
+    },
+    {
+      "check": "nav-radio",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "radio-page-renders",
+      "ok": true,
+      "detail": "{\"cards\":32,\"err\":\"\",\"hasPage\":true,\"loading\":false,\"activeNav\":[\"\",\"Radio\"]}"
+    },
+    {
+      "check": "radio-has-stations",
+      "ok": true,
+      "detail": "cards=32"
+    },
+    {
+      "check": "radio-search-jazz",
+      "ok": true,
+      "detail": "{\"cards\":32,\"names\":[\"Bossa Jazz Brasil\",\"101 SMOOTH JAZZ MELLOW MIX\",\"The Jazz Groove - East\",\"Jazz Radio Only Women\",\"FIP Jazz\"],\"matureVisible\":false,\"input\":\"jazz\"}"
+    },
+    {
+      "check": "radio-mature-excluded-from-search",
+      "ok": true,
+      "detail": "{\"cards\":0,\"names\":[]}"
+    },
+    {
+      "check": "radio-play-attempt",
+      "ok": true,
+      "detail": "{\"title\":\"\",\"audioPlaying\":true,\"err\":\"\"}"
+    },
+    {
+      "check": "nav-music",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-back-radio",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-podcasts-again",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no-unscoped-episode-list",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no-episode-q-search",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "screenshots": [
+    "podcasts-home.png",
+    "podcast-show-detail.png",
+    "radio-home.png",
+    "radio-playing.png"
+  ],
+  "catalogPaths": [
+    "/api/podcasts/categories",
+    "/api/podcasts/featured?page=1&limit=12",
+    "/api/podcasts/shows?page=1&limit=12",
+    "/api/podcasts/shows?page=1&limit=24&q=jazz",
+    "/api/podcasts/shows/57a734a1-802b-4a01-a21a-e539ed9fe7e3",
+    "/api/podcasts/shows/57a734a1-802b-4a01-a21a-e539ed9fe7e3",
+    "/api/podcasts/episodes?page=1&limit=20&show_id=57a734a1-802b-4a01-a21a-e539ed9fe7e3",
+    "/api/podcasts/episodes/f0f4795b-0788-4fa7-aa36-2f1681cd80ab/play",
+    "/api/radio/categories",
+    "/api/radio/countries",
+    "/api/radio/stations?page=1&limit=12&featured=true",
+    "/api/radio/stations?page=1&limit=32",
+    "/api/radio/stations?page=1&limit=32&q=jazz",
+    "/api/radio/stations?page=1&limit=32&q=Sex+Sound+Radio",
+    "/api/radio/stations?page=1&limit=32&q=bbc",
+    "/api/radio/stations/7453505a-e1cb-4612-9135-eedfa898e05a/play",
+    "/api/radio/categories",
+    "/api/radio/countries",
+    "/api/radio/stations?page=1&limit=12&featured=true",
+    "/api/radio/stations?page=1&limit=32&q=bbc",
+    "/api/podcasts/categories",
+    "/api/podcasts/featured?page=1&limit=12",
+    "/api/podcasts/shows?page=1&limit=12"
+  ],
+  "endedAt": "2026-07-22T16:51:42.967Z",
+  "uniqueCatalogPaths": [
+    "/api/podcasts/categories",
+    "/api/podcasts/featured?page=1&limit=12",
+    "/api/podcasts/shows?page=1&limit=12",
+    "/api/podcasts/shows?page=1&limit=24&q=jazz",
+    "/api/podcasts/shows/57a734a1-802b-4a01-a21a-e539ed9fe7e3",
+    "/api/podcasts/episodes?page=1&limit=20&show_id=57a734a1-802b-4a01-a21a-e539ed9fe7e3",
+    "/api/podcasts/episodes/f0f4795b-0788-4fa7-aa36-2f1681cd80ab/play",
+    "/api/radio/categories",
+    "/api/radio/countries",
+    "/api/radio/stations?page=1&limit=12&featured=true",
+    "/api/radio/stations?page=1&limit=32",
+    "/api/radio/stations?page=1&limit=32&q=jazz",
+    "/api/radio/stations?page=1&limit=32&q=Sex+Sound+Radio",
+    "/api/radio/stations?page=1&limit=32&q=bbc",
+    "/api/radio/stations/7453505a-e1cb-4612-9135-eedfa898e05a/play"
+  ]
+}

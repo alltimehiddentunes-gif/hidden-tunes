@@ -33,11 +33,13 @@ export const PODCAST_REQUEST_TIMEOUT_MS = 20_000
 
 export class PodcastCatalogError extends Error {
   readonly status?: number
+  readonly cancelled: boolean
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, cancelled = false) {
     super(message)
     this.name = 'PodcastCatalogError'
     this.status = status
+    this.cancelled = cancelled
   }
 }
 
@@ -172,14 +174,18 @@ function buildQuery(
   return query
 }
 
+function isAbortError(error: unknown) {
+  return (
+    (error instanceof DOMException && error.name === 'AbortError')
+    || (error instanceof Error && error.name === 'AbortError')
+  )
+}
+
 function readPodcastRequestError(error: unknown, signal?: AbortSignal): PodcastCatalogError {
-  if (signal?.aborted) {
-    return new PodcastCatalogError('Podcast request was cancelled.')
+  if (signal?.aborted || isAbortError(error)) {
+    return new PodcastCatalogError('Podcast request was cancelled.', 0, true)
   }
   if (error instanceof PodcastCatalogError) return error
-  if (error instanceof DOMException && error.name === 'AbortError') {
-    return new PodcastCatalogError('Podcast request timed out. Try again.')
-  }
   if (error instanceof Error) {
     return new PodcastCatalogError(error.message)
   }
@@ -188,7 +194,7 @@ function readPodcastRequestError(error: unknown, signal?: AbortSignal): PodcastC
 
 async function podcastRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
   if (signal?.aborted) {
-    throw new PodcastCatalogError('Podcast request was cancelled.')
+    throw new PodcastCatalogError('Podcast request was cancelled.', 0, true)
   }
 
   try {
@@ -196,10 +202,11 @@ async function podcastRequest<T>(path: string, signal?: AbortSignal): Promise<T>
       PODCAST_CATALOG_BASE_URL,
       path,
       PODCAST_REQUEST_TIMEOUT_MS,
+      signal,
     )
 
     if (signal?.aborted) {
-      throw new PodcastCatalogError('Podcast request was cancelled.')
+      throw new PodcastCatalogError('Podcast request was cancelled.', 0, true)
     }
 
     if (status < 200 || status >= 300) {

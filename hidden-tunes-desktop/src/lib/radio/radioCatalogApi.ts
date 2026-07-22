@@ -34,12 +34,21 @@ function buildQuery(
   return query
 }
 
-async function radioRequest<T>(path: string): Promise<T> {
+async function radioRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
+  if (signal?.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+
   const { payload, status } = await requestCatalogJsonWithFallback(
     RADIO_CATALOG_BASE_URL,
     path,
     RADIO_REQUEST_TIMEOUT_MS,
+    signal,
   )
+
+  if (signal?.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
 
   if (status < 200 || status >= 300) {
     const message =
@@ -60,6 +69,14 @@ function normalizeStringArray(value: unknown): string[] {
     .slice(0, 12)
 }
 
+function isMatureStationRow(row: Record<string, unknown>) {
+  if (row.is_mature === true) return true
+  const rating = typeof row.content_rating === 'string' ? row.content_rating.toLowerCase() : ''
+  if (rating === 'adult' || rating === 'explicit' || rating === 'mature') return true
+  const categories = normalizeStringArray(row.categories).map((entry) => entry.toLowerCase())
+  return categories.includes('mature') || categories.includes('adult') || categories.includes('explicit')
+}
+
 function normalizeStation(row: Record<string, unknown>): RadioStationMeta | null {
   const id = typeof row.id === 'string' ? row.id.trim() : ''
   const name = typeof row.name === 'string' ? row.name.trim() : ''
@@ -69,6 +86,8 @@ function normalizeStation(row: Record<string, unknown>): RadioStationMeta | null
     row.popularity && typeof row.popularity === 'object'
       ? (row.popularity as Record<string, unknown>)
       : {}
+
+  const isMature = isMatureStationRow(row)
 
   return {
     id,
@@ -92,6 +111,8 @@ function normalizeStation(row: Record<string, unknown>): RadioStationMeta | null
       ? Number(row.reliability_score)
       : 0,
     isFeatured: row.is_featured === true,
+    isMature,
+    contentRating: typeof row.content_rating === 'string' ? row.content_rating : null,
     popularity: {
       votes: Math.max(0, Math.floor(Number(popularity.votes) || 0)),
       clickCount: Math.max(0, Math.floor(Number(popularity.click_count) || 0)),
@@ -99,9 +120,24 @@ function normalizeStation(row: Record<string, unknown>): RadioStationMeta | null
   }
 }
 
-export async function fetchRadioCategories(): Promise<RadioCategoryMeta[]> {
+/**
+ * Desktop has no mature radio settings UI yet — match CLEAN mobile default and
+ * exclude mature stations from general browse/search. Do not send includeMature /
+ * age_confirmed query params (historically caused catalog 500s when combined).
+ */
+function filterMatureStations(stations: RadioStationMeta[]) {
+  return stations.filter((station) => !station.isMature)
+}
+
+function isMatureCategoryId(id: string) {
+  const normalized = id.trim().toLowerCase()
+  return normalized === 'mature' || normalized === 'adult' || normalized === 'explicit'
+}
+
+export async function fetchRadioCategories(signal?: AbortSignal): Promise<RadioCategoryMeta[]> {
   const payload = await radioRequest<{ success?: boolean; categories?: unknown[] }>(
     '/api/radio/categories',
+    signal,
   )
   const rows = Array.isArray(payload.categories) ? payload.categories : []
   return rows
@@ -111,15 +147,16 @@ export async function fetchRadioCategories(): Promise<RadioCategoryMeta[]> {
       const id = typeof record.id === 'string' ? record.id.trim() : ''
       const name = typeof record.name === 'string' ? record.name.trim() : id
       const count = Number.isFinite(Number(record.count)) ? Number(record.count) : 0
-      if (!id || count <= 0) return null
+      if (!id || count <= 0 || isMatureCategoryId(id)) return null
       return { id, name, count }
     })
     .filter((entry): entry is RadioCategoryMeta => Boolean(entry))
 }
 
-export async function fetchRadioCountries(): Promise<RadioCountryMeta[]> {
+export async function fetchRadioCountries(signal?: AbortSignal): Promise<RadioCountryMeta[]> {
   const payload = await radioRequest<{ success?: boolean; countries?: unknown[] }>(
     '/api/radio/countries',
+    signal,
   )
   const rows = Array.isArray(payload.countries) ? payload.countries : []
   return rows
@@ -145,7 +182,9 @@ export type FetchRadioStationsOptions = PaginationOptions & {
 
 export async function fetchRadioStations(
   options?: FetchRadioStationsOptions,
+  signal?: AbortSignal,
 ): Promise<RadioStationsResponse> {
+  // Do not append includeMature / age_confirmed — CLEAN mobile omits them to avoid 500s.
   const query = buildQuery({
     page: options?.page ?? 1,
     limit: Math.min(Math.max(options?.limit ?? 24, 1), 40),
@@ -159,15 +198,17 @@ export async function fetchRadioStations(
     success?: boolean
     stations?: unknown[]
     pagination?: RadioStationsResponse['pagination']
-  }>(`/api/radio/stations?${query.toString()}`)
+  }>(`/api/radio/stations?${query.toString()}`, signal)
 
-  const stations = (Array.isArray(payload.stations) ? payload.stations : [])
-    .map((row) =>
-      row && typeof row === 'object'
-        ? normalizeStation(row as Record<string, unknown>)
-        : null,
-    )
-    .filter((station): station is RadioStationMeta => Boolean(station))
+  const stations = filterMatureStations(
+    (Array.isArray(payload.stations) ? payload.stations : [])
+      .map((row) =>
+        row && typeof row === 'object'
+          ? normalizeStation(row as Record<string, unknown>)
+          : null,
+      )
+      .filter((station): station is RadioStationMeta => Boolean(station)),
+  )
 
   return {
     success: payload.success === true,
@@ -182,14 +223,19 @@ export async function fetchRadioStations(
   }
 }
 
-export async function resolveRadioPlayUrl(stationId: string): Promise<string | null> {
+export async function resolveRadioPlayUrl(
+  stationId: string,
+  signal?: AbortSignal,
+): Promise<string | null> {
   const cleanId = stationId.trim()
   if (!cleanId) return null
 
   const payload = await radioRequest<RadioPlayResponse>(
     `/api/radio/stations/${encodeURIComponent(cleanId)}/play`,
+    signal,
   )
 
+  // Accept direct HTTPS and HTTPS relay URLs for HTTP-origin stations.
   const streamUrl = typeof payload.stream_url === 'string' ? payload.stream_url.trim() : ''
   return streamUrl.startsWith('http') ? streamUrl : null
 }

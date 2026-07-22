@@ -4,6 +4,7 @@ import {
   fetchPodcastEpisodes,
   fetchPodcastFeaturedShows,
   fetchPodcastShows,
+  PodcastCatalogError,
 } from './podcastCatalogApi'
 import { enrichPodcastEpisodesWithShowTitles } from './podcastShowEnrichment'
 import type {
@@ -24,6 +25,23 @@ export type PodcastFeaturedSource = 'featured' | 'fallback' | 'browse' | 'empty'
 
 function readError(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback
+}
+
+function isCancelledError(reason: unknown) {
+  return (
+    (reason instanceof PodcastCatalogError && reason.cancelled)
+    || (reason instanceof DOMException && reason.name === 'AbortError')
+    || (reason instanceof Error && reason.name === 'AbortError')
+    || (reason instanceof Error && /cancelled|canceled|aborted/i.test(reason.message))
+  )
+}
+
+/** Production global `/api/podcasts/episodes` (no show_id/category) times out with 500. */
+function canFetchScopedEpisodes(options: {
+  showId?: string | null
+  category?: string | null
+}) {
+  return Boolean(options.showId?.trim() || options.category?.trim())
 }
 
 function resolveCategoryFilter(
@@ -101,10 +119,11 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
     knownShowsRef.current = []
 
     try {
-      const [categoriesResult, featuredResult, episodesResult] = await Promise.allSettled([
+      // Do not call unscoped GET /api/podcasts/episodes — production returns 500 (statement timeout).
+      // CLEAN mobile home uses local recently-played + category/show-scoped episode lists only.
+      const [categoriesResult, featuredResult] = await Promise.allSettled([
         fetchPodcastCategories(),
         fetchPodcastFeaturedShows({ page: 1, limit: FEATURED_SHOWS_LIMIT }),
-        fetchPodcastEpisodes({ page: 1, limit: EPISODES_LIMIT }),
       ])
 
       if (requestId !== bootstrapRequestRef.current) return
@@ -112,7 +131,6 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
       const failures: string[] = []
       let nextFeatured: PodcastShowMeta[] = []
       let nextFallback: PodcastShowMeta[] = []
-      let nextEpisodes: PodcastEpisodeMeta[] = []
       let nextCategories: PodcastCategoryMeta[] = []
 
       if (categoriesResult.status === 'fulfilled') {
@@ -126,14 +144,6 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
         rememberShows(nextFeatured)
       } else {
         failures.push(readError(featuredResult.reason, 'Failed to load featured shows.'))
-      }
-
-      if (episodesResult.status === 'fulfilled') {
-        rememberShows(episodesResult.value.shows)
-        nextEpisodes = await enrichEpisodes(episodesResult.value.episodes)
-        setEpisodesPagination(episodesResult.value.pagination)
-      } else {
-        failures.push(readError(episodesResult.reason, 'Failed to load latest episodes.'))
       }
 
       if (nextFeatured.length === 0) {
@@ -158,7 +168,8 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
       setCategories(nextCategories)
       setFeaturedShows(nextFeatured)
       setFallbackShows(nextFallback)
-      setCatalogEpisodes(nextEpisodes)
+      setCatalogEpisodes([])
+      setEpisodesPagination(null)
       setBrowseShows([])
       setBrowseEpisodes([])
 
@@ -166,15 +177,9 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
         nextCategories.length > 0
         || nextFeatured.length > 0
         || nextFallback.length > 0
-        || nextEpisodes.length > 0
 
-      setError(
-        failures.length > 0
-          ? failures[0]
-          : hasRenderableData
-            ? null
-            : 'Failed to load podcast catalog.',
-      )
+      // Only surface bootstrap error when nothing useful rendered.
+      setError(hasRenderableData ? null : failures[0] ?? 'Failed to load podcast catalog.')
     } catch (err) {
       if (requestId !== bootstrapRequestRef.current) return
       setError(readError(err, 'Failed to load podcast catalog.'))
@@ -183,7 +188,7 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
         setLoading(false)
       }
     }
-  }, [enrichEpisodes, rememberShows])
+  }, [rememberShows])
 
   const runBrowse = useCallback(
     async (requestId: number, signal: AbortSignal) => {
@@ -197,39 +202,55 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
         return
       }
 
-      const [showsResponse, episodesResponse] = await Promise.all([
-        fetchPodcastShows(
-          {
-            page: 1,
-            limit: BROWSE_SHOWS_LIMIT,
-            query: trimmedSearch || undefined,
-            category: category ?? undefined,
-          },
-          signal,
-        ),
-        fetchPodcastEpisodes(
-          {
-            page: 1,
-            limit: EPISODES_LIMIT,
-            query: trimmedSearch || undefined,
-            category: category ?? undefined,
-          },
-          signal,
-        ),
-      ])
+      const showsResponse = await fetchPodcastShows(
+        {
+          page: 1,
+          limit: BROWSE_SHOWS_LIMIT,
+          query: trimmedSearch || undefined,
+          category: category ?? undefined,
+        },
+        signal,
+      )
 
       if (signal.aborted || requestId !== browseRequestRef.current) return
 
-      rememberShows([...showsResponse.shows, ...episodesResponse.shows])
-      const enrichedEpisodes = await enrichEpisodes(episodesResponse.episodes, signal)
+      // Episode list by `q=` alone times out with 500 in production. Only fetch when scoped.
+      let nextEpisodes: PodcastEpisodeMeta[] = []
+      let nextEpisodesPagination: PodcastPagination | null = null
+      let episodeWarning: string | null = null
+
+      if (canFetchScopedEpisodes({ category })) {
+        try {
+          const episodesResponse = await fetchPodcastEpisodes(
+            {
+              page: 1,
+              limit: EPISODES_LIMIT,
+              category: category ?? undefined,
+            },
+            signal,
+          )
+          if (signal.aborted || requestId !== browseRequestRef.current) return
+          rememberShows(episodesResponse.shows)
+          nextEpisodes = await enrichEpisodes(episodesResponse.episodes, signal)
+          nextEpisodesPagination = episodesResponse.pagination
+        } catch (episodeError) {
+          if (signal.aborted || isCancelledError(episodeError)) throw episodeError
+          episodeWarning = readError(episodeError, 'Failed to load podcast episodes.')
+        }
+      }
 
       if (signal.aborted || requestId !== browseRequestRef.current) return
 
+      rememberShows(showsResponse.shows)
       setBrowseShows(showsResponse.shows)
-      setBrowseEpisodes(enrichedEpisodes)
+      setBrowseEpisodes(nextEpisodes)
       setShowsPagination(showsResponse.pagination)
-      setEpisodesPagination(episodesResponse.pagination)
-      setContentError(null)
+      setEpisodesPagination(nextEpisodesPagination)
+      setContentError(
+        showsResponse.shows.length === 0 && nextEpisodes.length === 0 && episodeWarning
+          ? episodeWarning
+          : null,
+      )
     },
     [
       activeTab,
@@ -262,7 +283,9 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
     try {
       await runBrowse(requestId, controller.signal)
     } catch (err) {
-      if (controller.signal.aborted || requestId !== browseRequestRef.current) return
+      if (controller.signal.aborted || requestId !== browseRequestRef.current || isCancelledError(err)) {
+        return
+      }
       setBrowseShows([])
       setBrowseEpisodes([])
       setContentError(readError(err, 'Failed to load podcasts.'))
@@ -274,13 +297,19 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
   }, [activeTab, runBrowse, trimmedSearch])
 
   useEffect(() => {
-    void loadBootstrap()
+    const timer = globalThis.setTimeout(() => {
+      void loadBootstrap()
+    }, 0)
+    return () => globalThis.clearTimeout(timer)
   }, [loadBootstrap])
 
   useEffect(() => {
-    if (activeTab === 'all') {
-      setSelectedCategorySlug(null)
-    }
+    const frame = globalThis.requestAnimationFrame(() => {
+      if (activeTab === 'all') {
+        setSelectedCategorySlug(null)
+      }
+    })
+    return () => globalThis.cancelAnimationFrame(frame)
   }, [activeTab])
 
   useEffect(() => {
@@ -371,6 +400,10 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
     if (!episodesPagination?.hasMore || episodesLoadingMore) return
 
     const category = resolveCategoryFilter(activeTab, selectedCategorySlug, categories)
+    if (!canFetchScopedEpisodes({ category: filteredView ? category : null })) {
+      return
+    }
+
     const nextPage = episodesPagination.page + 1
     setEpisodesLoadingMore(true)
 
@@ -378,7 +411,6 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
       const response = await fetchPodcastEpisodes({
         page: nextPage,
         limit: EPISODES_LIMIT,
-        query: filteredView ? trimmedSearch || undefined : undefined,
         category: filteredView ? category ?? undefined : undefined,
       })
       rememberShows(response.shows)
@@ -390,6 +422,7 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
       }
       setEpisodesPagination(response.pagination)
     } catch (err) {
+      if (isCancelledError(err)) return
       setContentError(readError(err, 'Failed to load more episodes.'))
     } finally {
       setEpisodesLoadingMore(false)
@@ -403,7 +436,6 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
     filteredView,
     rememberShows,
     selectedCategorySlug,
-    trimmedSearch,
   ])
 
   const visibleTabs = useMemo(
