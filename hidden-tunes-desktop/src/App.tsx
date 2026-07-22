@@ -162,6 +162,7 @@ import { PodcastsPage } from './components/podcasts/PodcastsPage'
 import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
 import { DesktopLibraryPage } from './components/library/DesktopLibraryPage'
 import { DesktopDownloadsPage } from './components/downloads/DesktopDownloadsPage'
+import { DesktopPlaylistsPage } from './components/playlists/DesktopPlaylistsPage'
 import { ensureLibraryMigrated } from './lib/library'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
@@ -6976,7 +6977,7 @@ function PageContent({
 }) {
   void _onOpenMood
   void onPlaylistBack
-  const { indexes } = useCatalog()
+  const { songs, indexes } = useCatalog()
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} query={recentQuery} />
   if (activeNavKey === 'downloads') {
@@ -7165,10 +7166,18 @@ function PageContent({
       )
     case 'playlists':
       return (
-        <PlaylistsPage
-          onOpenSong={onOpenSong}
-          query={playlistsQuery}
-          setQuery={setPlaylistsQuery}
+        <DesktopPlaylistsPage
+          songs={songs}
+          songsById={indexes.songsById}
+          ArtworkImage={ArtworkImage}
+          onPlayQueue={(queue, startIndex, queueTitle) => {
+            const start = queue[startIndex] ?? queue[0]
+            if (!start) return
+            onOpenSong(start, queue, startIndex, 'manual', queueTitle, {
+              seedType: 'manual',
+              seedTracks: queue,
+            })
+          }}
         />
       )
     case 'tv':

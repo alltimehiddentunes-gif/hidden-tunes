@@ -1,0 +1,104 @@
+{
+  "startedAt": "2026-07-22T22:13:27.959Z",
+  "checks": [
+    {
+      "check": "UI ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Playlists opens via sidebar",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Playlists shell / empty state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024px layout",
+      "ok": true,
+      "detail": "width=1024"
+    },
+    {
+      "check": "No duplicate player bar",
+      "ok": true,
+      "detail": "count=1"
+    },
+    {
+      "check": "Create playlist",
+      "ok": true,
+      "detail": "Runtime Mix"
+    },
+    {
+      "check": "Open playlist detail",
+      "ok": true,
+      "detail": "Runtime Mix"
+    },
+    {
+      "check": "Seed typed items including same raw ID across families",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Playlist items render",
+      "ok": true,
+      "detail": "count=2"
+    },
+    {
+      "check": "Song and podcast episode both present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Reorder control works",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Reorder persists in storage",
+      "ok": true,
+      "detail": "first=podcast_episode"
+    },
+    {
+      "check": "Delete playlist clears playlist store entry",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Delete playlist preserves Library favorite",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Home still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Music still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Radio still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Podcasts still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "My Library still opens",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "finishedAt": "2026-07-22T22:13:39.663Z",
+  "passed": 19,
+  "failed": 0
+}
