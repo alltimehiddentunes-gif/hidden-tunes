@@ -103,6 +103,10 @@ type HiddenAudioNativeTrack = {
 };
 
 type HiddenAudioNativeModule = {
+  setup?: (
+    resolve: (value?: unknown) => void,
+    reject: (code: string, message: string, error?: unknown) => void
+  ) => void;
   loadTrack(track: HiddenAudioNativeTrack): Promise<void>;
   notifyAppBackgrounded(): Promise<void>;
   updateRemoteQueueAvailability?(
@@ -275,7 +279,10 @@ export async function syncHiddenAudioCarPlayCatalog(
   if (Platform.OS !== "ios" || !HiddenAudioNative) return;
   const sync = (HiddenAudioNative as { syncCarPlayCatalog?: (snapshot: Record<string, unknown>) => Promise<void> })
     .syncCarPlayCatalog;
-  if (typeof sync !== "function") return;
+  if (typeof sync !== "function") {
+    // Binding lifecycle logs live in carPlayCatalogBridge (single owner).
+    return;
+  }
   await sync(snapshot);
 }
 
@@ -284,6 +291,42 @@ export function isHiddenAudioNativeEngineAvailable(): boolean {
     (Platform.OS === "ios" || Platform.OS === "android") &&
     Boolean(HiddenAudioNative?.loadTrack)
   );
+}
+
+let hiddenAudioSetupPromise: Promise<boolean> | null = null;
+
+/**
+ * Existing native API — wires CarPlay manager diagnostics (`onCarPlayDiagnostic`)
+ * and playbackHandler. Safe to call more than once; coalesced per JS runtime.
+ */
+export async function ensureHiddenAudioNativeSetup(): Promise<boolean> {
+  if (Platform.OS !== "ios" || !HiddenAudioNative) return false;
+  if (hiddenAudioSetupPromise) return hiddenAudioSetupPromise;
+
+  const native = HiddenAudioNative as {
+    setup?: () => Promise<unknown>;
+  };
+  if (typeof native.setup !== "function") {
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[HTCarPlayJS] HiddenAudio setup unavailable on native module");
+    }
+    return false;
+  }
+
+  hiddenAudioSetupPromise = native
+    .setup()
+    .then(() => {
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[HTCarPlayJS] HiddenAudio setup completed");
+      }
+      return true;
+    })
+    .catch((error) => {
+      console.log("[HTCarPlayJS] HiddenAudio setup failed", error);
+      return false;
+    });
+
+  return hiddenAudioSetupPromise;
 }
 
 export function subscribeHiddenAudioPlaybackEnded(
@@ -391,13 +434,40 @@ export function subscribeHiddenAudioStateChanged(
   return () => subscription.remove();
 }
 
+/** Shared fan-out so multiple JS owners share one native diagnostic subscription. */
+const hiddenAudioDiagnosticHandlers = new Set<
+  (event: HiddenAudioNativeDiagnosticEvent) => void
+>();
+let hiddenAudioDiagnosticSubscription: { remove: () => void } | null = null;
+
 export function subscribeHiddenAudioNativeDiagnostics(
   handler: (event: HiddenAudioNativeDiagnosticEvent) => void
 ): () => void {
   if (!hiddenAudioEvents) return () => {};
 
-  const subscription = hiddenAudioEvents.addListener("HiddenAudioDiagnostic", handler);
-  return () => subscription.remove();
+  hiddenAudioDiagnosticHandlers.add(handler);
+  if (!hiddenAudioDiagnosticSubscription) {
+    hiddenAudioDiagnosticSubscription = hiddenAudioEvents.addListener(
+      "HiddenAudioDiagnostic",
+      (event: HiddenAudioNativeDiagnosticEvent) => {
+        for (const next of Array.from(hiddenAudioDiagnosticHandlers)) {
+          try {
+            next(event);
+          } catch {
+            // Keep other diagnostic owners alive if one handler throws.
+          }
+        }
+      }
+    );
+  }
+
+  return () => {
+    hiddenAudioDiagnosticHandlers.delete(handler);
+    if (hiddenAudioDiagnosticHandlers.size === 0 && hiddenAudioDiagnosticSubscription) {
+      hiddenAudioDiagnosticSubscription.remove();
+      hiddenAudioDiagnosticSubscription = null;
+    }
+  };
 }
 
 export async function notifyHiddenAudioAppBackgrounded(): Promise<void> {

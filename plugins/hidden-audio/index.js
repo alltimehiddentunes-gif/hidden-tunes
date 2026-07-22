@@ -507,72 +507,12 @@ const withHiddenAudioAndroidProguard = (config) => {
   ]);
 };
 
-const CARPLAY_SCENE_CONFIGURATION_METHOD = `
-  // ExpoAppDelegate does not declare this UIApplicationDelegate method, so do not mark override.
-  public func application(
-    _ application: UIApplication,
-    configurationForConnecting connectingSceneSession: UISceneSession,
-    options: UIScene.ConnectionOptions
-  ) -> UISceneConfiguration {
-    let role = connectingSceneSession.role.rawValue
-    NSLog("[HTCarPlay] configurationForConnecting role=%@", role)
-
-    if role == "CPTemplateApplicationSceneSessionRoleApplication" {
-      // Name matches Info.plist HiddenTunesCarPlay entry (CPTemplateApplicationScene).
-      let configuration = UISceneConfiguration(
-        name: "HiddenTunesCarPlay",
-        sessionRole: connectingSceneSession.role
-      )
-      configuration.delegateClass = CarPlaySceneDelegate.self
-      return configuration
-    }
-
-    if connectingSceneSession.role == .windowApplication {
-      let configuration = UISceneConfiguration(
-        name: "HiddenTunesPhone",
-        sessionRole: connectingSceneSession.role
-      )
-      configuration.delegateClass = PhoneSceneDelegate.self
-      return configuration
-    }
-
-    return UISceneConfiguration(
-      name: connectingSceneSession.configuration.name,
-      sessionRole: connectingSceneSession.role
-    )
-  }
-`;
-
-function ensureCarPlaySceneConfiguration(contents) {
-  if (contents.includes("configurationForConnecting connectingSceneSession")) {
-    return { contents, changed: false };
-  }
-
-  if (contents.includes("// Linking API")) {
-    return {
-      contents: contents.replace(
-        "  // Linking API",
-        `${CARPLAY_SCENE_CONFIGURATION_METHOD}\n  // Linking API`
-      ),
-      changed: true,
-    };
-  }
-
-  if (contents.includes("func attachReactNative(to window: UIWindow)")) {
-    const patched = contents.replace(
-      /func attachReactNative\(to window: UIWindow\) \{[\s\S]*?\n  \}\n/,
-      (match) => `${match}\n${CARPLAY_SCENE_CONFIGURATION_METHOD}\n`
-    );
-    if (patched !== contents) {
-      return { contents: patched, changed: true };
-    }
-  }
-
-  console.warn(
-    "[hidden-audio] Could not insert configurationForConnecting; AppDelegate shape unexpected."
-  );
-  return { contents, changed: false };
-}
+const {
+  CARPLAY_SCENE_CONFIGURATION_METHOD,
+  hasCompleteCarPlaySceneRouter,
+  countConfigurationForConnectingMethods,
+  ensureCarPlaySceneConfiguration,
+} = require("./carPlaySceneRouter");
 
 const withHiddenAudioAppDelegate = (config) => {
   return withDangerousMod(config, [
@@ -650,7 +590,15 @@ const withHiddenAudioAppDelegate = (config) => {
       if (sceneConfig.changed) {
         wrote = true;
         console.log(
-          "[hidden-audio] AppDelegate patched with CarPlay configurationForConnecting."
+          `[hidden-audio] AppDelegate patched with CarPlay configurationForConnecting (${sceneConfig.reason}).`
+        );
+      } else if (sceneConfig.reason === "already_complete") {
+        console.log(
+          "[hidden-audio] AppDelegate already has complete CarPlay configurationForConnecting."
+        );
+      } else {
+        console.warn(
+          `[hidden-audio] AppDelegate CarPlay scene router not applied (${sceneConfig.reason}).`
         );
       }
 
@@ -683,4 +631,10 @@ const withHiddenAudio = (config) => {
   return config;
 };
 
-module.exports = withHiddenAudio;
+module.exports = Object.assign(withHiddenAudio, {
+  ensureCarPlaySceneConfiguration,
+  hasCompleteCarPlaySceneRouter,
+  countConfigurationForConnectingMethods,
+  CARPLAY_SCENE_CONFIGURATION_METHOD,
+});
+// Prefer requiring ./carPlaySceneRouter directly in tests (plain object export).

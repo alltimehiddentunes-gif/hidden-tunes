@@ -15,7 +15,12 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
 
   override init() {
     super.init()
+    NSLog("[HTCarPlay] CarPlaySceneDelegate initialized")
     NSLog("[HTCarPlay] scene_delegate_init")
+    HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
+      "carplay_scene_delegate_initialized",
+      ["hasInterfaceController": false]
+    )
   }
 
   /// Audio apps: Apple calls the two-argument connect method.
@@ -24,12 +29,22 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     _ templateApplicationScene: CPTemplateApplicationScene,
     didConnect interfaceController: CPInterfaceController
   ) {
+    NSLog("[HTCarPlay] didConnect entered")
     NSLog("[HTCarPlay] scene_configuration_requested")
     NSLog("[HTCarPlay] scene_connection_start")
+    HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
+      "carplay_scene_did_connect_entered",
+      ["hasInterfaceController": true]
+    )
 
     self.interfaceController = interfaceController
+    NSLog("[HTCarPlay] interfaceController received")
     NSLog("[HTCarPlay] interface_controller_attached")
     NSLog("[HTCarPlay] interface_controller_received")
+    HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
+      "carplay_interface_controller_received",
+      ["hasInterfaceController": true]
+    )
 
     let window = templateApplicationScene.carWindow
     if window != nil {
@@ -66,12 +81,18 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
 
     // Manager may upgrade to a validated tab bar after this safe root is live.
     // It must never leave the car screen blank.
+    NSLog("[HTCarPlay] attachConnectedSession starting")
+    HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
+      "carplay_attach_started",
+      ["hasInterfaceController": true, "hasWindow": window != nil]
+    )
     HiddenAudioCarPlayManager.shared.startIfNeeded()
     HiddenAudioCarPlayManager.shared.attachConnectedSession(
       interfaceController: interfaceController,
       window: window,
       preinstalledRoot: root
     )
+    NSLog("[HTCarPlay] attachConnectedSession completed")
   }
 
   func templateApplicationScene(
@@ -80,6 +101,13 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
   ) {
     NSLog("[HTCarPlay] scene_disconnect")
     NSLog("[HTCarPlay] disconnect")
+    HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
+      "carplay_scene_did_disconnect",
+      [
+        "hasInterfaceController": self.interfaceController != nil,
+        "reason": "didDisconnectInterfaceController",
+      ]
+    )
     // Release CarPlay UI only — never stop the shared HiddenAudio session.
     HiddenAudioCarPlayManager.shared.disconnect()
     self.interfaceController = nil

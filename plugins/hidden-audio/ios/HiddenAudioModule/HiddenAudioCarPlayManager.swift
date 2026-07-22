@@ -49,6 +49,15 @@ final class HiddenAudioCarPlayManager: NSObject {
     NSLog("[HTCarPlay] manager_ready connected=%d", isConnected ? 1 : 0)
   }
 
+  /// Scene-lifecycle diagnostics for Metro (`ios_carplay_status`) when setup has wired the sink.
+  func emitLifecycleDiagnostic(_ event: String, _ extra: [String: Any] = [:]) {
+    var data = extra
+    data["event"] = event
+    data["connected"] = isConnected
+    data["hasInterfaceController"] = interfaceController != nil
+    emitDiagnostic(data)
+  }
+
   /// Attach after the scene delegate has already installed the safe CPListTemplate root.
   func attachConnectedSession(
     interfaceController: CPInterfaceController,
