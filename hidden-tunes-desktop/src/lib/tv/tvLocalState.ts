@@ -1,3 +1,6 @@
+import { buildTvLibraryItemFromFavorite } from '../library/builders'
+import { addFavorite, removeFavorite } from '../library/libraryService'
+
 const TV_FAVORITES_KEY = 'ht-desktop:tv-favorites'
 const TV_HISTORY_KEY = 'ht-desktop:tv-recently-watched'
 const TV_MAX_FAVORITES = 120
@@ -47,7 +50,15 @@ export function isTvFavorite(channelId: string): boolean {
   return loadTvFavorites().some((entry) => entry.channelId === id)
 }
 
-export function toggleTvFavorite(channelId: string): boolean {
+export function toggleTvFavorite(
+  channelId: string,
+  meta?: {
+    title?: string | null
+    channelName?: string | null
+    artworkUrl?: string | null
+    category?: string | null
+  } | null,
+): boolean {
   const id = channelId.trim()
   if (!id) return false
 
@@ -58,13 +69,25 @@ export function toggleTvFavorite(channelId: string): boolean {
       TV_FAVORITES_KEY,
       current.filter((entry) => entry.channelId !== id),
     )
+    removeFavorite('tv', id)
     return false
   }
 
+  const savedAt = new Date().toISOString()
   writeJsonArray(TV_FAVORITES_KEY, [
-    { channelId: id, savedAt: new Date().toISOString() },
+    { channelId: id, savedAt },
     ...current,
   ].slice(0, TV_MAX_FAVORITES))
+
+  const item = buildTvLibraryItemFromFavorite(id, savedAt)
+  addFavorite({
+    ...item,
+    title: meta?.title?.trim() || meta?.channelName?.trim() || item.title,
+    channelName: meta?.channelName ?? null,
+    artwork: meta?.artworkUrl ?? null,
+    subtitle: meta?.channelName ?? meta?.category ?? null,
+    category: meta?.category ?? null,
+  })
   return true
 }
 

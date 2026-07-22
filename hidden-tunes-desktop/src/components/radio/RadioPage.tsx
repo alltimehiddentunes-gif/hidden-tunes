@@ -1,5 +1,7 @@
 import { memo, useCallback, useMemo, useState, type ComponentType } from 'react'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
+import { buildRadioLibraryItem } from '../../lib/library/builders'
+import { useDesktopLibrary } from '../../lib/library/useDesktopLibrary'
 import type { RadioStationMeta, RadioTabId } from '../../lib/radio/types'
 import { useRadioPageData } from '../../lib/radio/useRadioPageData'
 import radioArtwork from '../../assets/section-headers/radio-headphones.png'
@@ -55,12 +57,16 @@ function formatStationMeta(station: RadioStationMeta) {
 function StationCard({
   station,
   tuning,
+  isFavorite,
   onPlay,
+  onToggleFavorite,
   ArtworkImage,
 }: {
   station: RadioStationMeta
   tuning: boolean
+  isFavorite: boolean
   onPlay: () => void
+  onToggleFavorite: () => void
   ArtworkImage: ComponentType<ArtworkImageProps>
 }) {
   return (
@@ -85,6 +91,20 @@ function StationCard({
           <p>{formatStationMeta(station)}</p>
         </div>
       </button>
+      <button
+        type="button"
+        className={`radio-favorite-btn${isFavorite ? ' is-active' : ''}`}
+        aria-label={isFavorite ? 'Remove from Library' : 'Save to Library'}
+        title={isFavorite ? 'Remove from Library' : 'Save to Library'}
+        onClick={(event) => {
+          event.stopPropagation()
+          onToggleFavorite()
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+          <path d="M12 21s-7-4.5-9.5-9C1 8 3 4 7 4c2 0 3.5 1.5 5 3 1.5-1.5 3-3 5-3 4 0 6 4 3.5 8C19 16.5 12 21 12 21z" />
+        </svg>
+      </button>
     </article>
   )
 }
@@ -97,6 +117,7 @@ export const RadioPage = memo(function RadioPage({
   const [activeTab, setActiveTab] = useState<RadioTabId>('all')
   const [tuningStationId, setTuningStationId] = useState<string | null>(null)
   const { currentTrack, isPlaying } = useDesktopPlayback()
+  const library = useDesktopLibrary()
 
   const {
     featuredStations,
@@ -117,7 +138,14 @@ export const RadioPage = memo(function RadioPage({
   const activeRadioStationId = useMemo(() => {
     if (!currentTrack?.id.startsWith('radio-')) return null
     return currentTrack.id.slice('radio-'.length)
-  }, [currentTrack?.id])
+  }, [currentTrack])
+
+  const toggleStationFavorite = useCallback(
+    (station: RadioStationMeta) => {
+      library.toggleFavorite(buildRadioLibraryItem(station))
+    },
+    [library],
+  )
 
   const playStation = useCallback(
     async (station: RadioStationMeta, queue: RadioStationMeta[], queueTitle: string) => {
@@ -207,7 +235,9 @@ export const RadioPage = memo(function RadioPage({
                 key={station.id}
                 station={station}
                 tuning={tuningStationId === station.id}
+                isFavorite={library.isFavorite('radio', station.id)}
                 onPlay={() => handleFeaturedPlay(station)}
+                onToggleFavorite={() => toggleStationFavorite(station)}
                 ArtworkImage={ArtworkImage}
               />
             ))}
@@ -299,7 +329,9 @@ export const RadioPage = memo(function RadioPage({
                 key={`browse-${station.id}`}
                 station={station}
                 tuning={tuningStationId === station.id}
+                isFavorite={library.isFavorite('radio', station.id)}
                 onPlay={() => handleBrowsePlay(station)}
+                onToggleFavorite={() => toggleStationFavorite(station)}
                 ArtworkImage={ArtworkImage}
               />
             ))}

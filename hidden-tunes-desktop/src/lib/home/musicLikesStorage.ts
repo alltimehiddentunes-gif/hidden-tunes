@@ -1,5 +1,9 @@
 /** Local liked-song IDs for desktop (per-device; not cloud-synced). */
 
+import type { ApiSong } from '../api'
+import { buildSongLibraryItem, buildSongLibraryItemFromId } from '../library/builders'
+import { addFavorite, removeFavorite } from '../library/libraryService'
+
 export const MUSIC_LIKES_STORAGE_KEY = 'music-likes'
 
 export type MusicLikeEntry = {
@@ -95,12 +99,18 @@ export function isSongLiked(songId: string | null | undefined): boolean {
   return getMusicLikesSnapshot().likedAtById[songId] != null
 }
 
-export function likeSong(songId: string): void {
+export function likeSong(songId: string, song?: Pick<ApiSong, 'id' | 'title' | 'artist' | 'album' | 'artwork' | 'durationSeconds' | 'genre'> | null): void {
   const cleaned = songId.trim()
   if (!cleaned) return
+  const likedAt = new Date().toISOString()
   const entries = listLikeEntries().filter((entry) => entry.songId !== cleaned)
-  entries.unshift({ songId: cleaned, likedAt: new Date().toISOString() })
+  entries.unshift({ songId: cleaned, likedAt })
   writeJsonStore(MUSIC_LIKES_STORAGE_KEY, entries)
+  addFavorite(
+    song && song.id
+      ? { ...buildSongLibraryItem(song, likedAt) }
+      : buildSongLibraryItemFromId(cleaned, likedAt),
+  )
   notify()
 }
 
@@ -109,14 +119,18 @@ export function unlikeSong(songId: string): void {
   if (!cleaned) return
   const entries = listLikeEntries().filter((entry) => entry.songId !== cleaned)
   writeJsonStore(MUSIC_LIKES_STORAGE_KEY, entries)
+  removeFavorite('song', cleaned)
   notify()
 }
 
-export function toggleSongLiked(songId: string): boolean {
+export function toggleSongLiked(
+  songId: string,
+  song?: Pick<ApiSong, 'id' | 'title' | 'artist' | 'album' | 'artwork' | 'durationSeconds' | 'genre'> | null,
+): boolean {
   if (isSongLiked(songId)) {
     unlikeSong(songId)
     return false
   }
-  likeSong(songId)
+  likeSong(songId, song)
   return true
 }

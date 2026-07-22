@@ -13,6 +13,8 @@ import {
 } from '../../lib/audiobooks/audiobookProgressStorage'
 import type { AudiobookChapterMeta, PlayAudiobookChapterHandler } from '../../lib/audiobooks/types'
 import { useAudiobookBookData } from '../../lib/audiobooks/useAudiobookBookData'
+import { buildAudiobookLibraryItem } from '../../lib/library/builders'
+import { useDesktopLibrary } from '../../lib/library/useDesktopLibrary'
 
 type ArtworkImageProps = {
   src: string | null
@@ -91,6 +93,7 @@ export const AudiobookBookPage = memo(function AudiobookBookPage({
 }: AudiobookBookPageProps) {
   const [tuningChapterId, setTuningChapterId] = useState<string | null>(null)
   const { currentTrack } = useDesktopPlayback()
+  const library = useDesktopLibrary()
   const { book, chapters, loading, error } = useAudiobookBookData(bookId)
 
   const bookProgress = useMemo(
@@ -181,6 +184,13 @@ export const AudiobookBookPage = memo(function AudiobookBookPage({
                 Resume
               </button>
             ) : null}
+            <button
+              type="button"
+              className={`btn-secondary btn-sm${library.isFavorite('audiobook', book.id) ? ' is-active' : ''}`}
+              onClick={() => library.toggleFavorite(buildAudiobookLibraryItem(book))}
+            >
+              {library.isFavorite('audiobook', book.id) ? 'Saved to Library' : 'Save to Library'}
+            </button>
           </div>
         </div>
       </header>

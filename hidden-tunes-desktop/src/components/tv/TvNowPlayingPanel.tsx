@@ -41,9 +41,14 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
   }, [channelId])
 
   const handleToggleFavorite = useCallback(() => {
-    if (!channelId) return
-    toggleTvFavorite(channelId)
-  }, [channelId])
+    if (!channelId || !activeTrack) return
+    toggleTvFavorite(channelId, {
+      title: activeTrack.title,
+      channelName: activeTrack.album,
+      artworkUrl: activeTrack.artwork,
+      category: activeTrack.genre,
+    })
+  }, [activeTrack, channelId])
 
   const handlePlayPause = useCallback(() => {
     if (isLoading) return

@@ -1,4 +1,6 @@
 import type { ApiSong } from '../api'
+import { buildLectureLibraryItem } from '../library/builders'
+import { addFavorite, removeFavorite } from '../library/libraryService'
 import {
   isLectureQueueSong,
   parseLectureSongId,
@@ -373,9 +375,11 @@ export function toggleSavedLectureSeries(entry: LectureSavedEntry) {
   const index = existing.findIndex((item) => item.seriesId === entry.seriesId)
   if (index >= 0) {
     writeSavedStore(existing.filter((item) => item.seriesId !== entry.seriesId))
+    removeFavorite('lecture', entry.seriesId)
     return false
   }
   writeSavedStore([entry, ...existing])
+  addFavorite(buildLectureLibraryItem(entry))
   return true
 }
 

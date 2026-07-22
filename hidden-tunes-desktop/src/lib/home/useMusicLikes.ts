@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import type { ApiSong } from '../api'
 import {
   getMusicLikesSnapshot,
   subscribeMusicLikes,
@@ -17,6 +18,9 @@ export function useMusicLikes() {
     likedSongIds: snapshot.likedSongIds,
     likedAtById: snapshot.likedAtById,
     isLiked: (songId: string | null | undefined) => isSongLiked(songId),
-    toggleLiked: (songId: string) => toggleSongLiked(songId),
+    toggleLiked: (
+      songId: string,
+      song?: Pick<ApiSong, 'id' | 'title' | 'artist' | 'album' | 'artwork' | 'durationSeconds' | 'genre'> | null,
+    ) => toggleSongLiked(songId, song),
   }
 }

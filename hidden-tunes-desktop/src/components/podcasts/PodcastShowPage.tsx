@@ -12,6 +12,8 @@ import { listPodcastProgressForShow, progressEntryToEpisodeMeta } from '../../li
 import type { PlayPodcastEpisodeHandler, PodcastEpisodeMeta } from '../../lib/podcasts/types'
 import { usePodcastLocalState } from '../../lib/podcasts/usePodcastLocalState'
 import { usePodcastShowData } from '../../lib/podcasts/usePodcastShowData'
+import { buildPodcastEpisodeLibraryItem, buildPodcastShowLibraryItem } from '../../lib/library/builders'
+import { useDesktopLibrary } from '../../lib/library/useDesktopLibrary'
 
 type ArtworkImageProps = {
   src: string | null
@@ -38,6 +40,8 @@ function ShowEpisodeRow({
   episode,
   showArtworkUrl,
   onPlay,
+  onToggleFavorite,
+  isFavorite,
   tuning,
   isActive,
   hasProgress,
@@ -46,6 +50,8 @@ function ShowEpisodeRow({
   episode: PodcastEpisodeMeta
   showArtworkUrl: string | null
   onPlay: () => void
+  onToggleFavorite: () => void
+  isFavorite: boolean
   tuning: boolean
   isActive: boolean
   hasProgress: boolean
@@ -84,6 +90,16 @@ function ShowEpisodeRow({
       </div>
       <button
         type="button"
+        className={`ht-library-fav-btn${isFavorite ? ' is-active' : ''}`}
+        aria-label={isFavorite ? 'Remove episode from Library' : 'Save episode to Library'}
+        onClick={onToggleFavorite}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+          <path d="M12 21s-7-4.5-9.5-9C1 8 3 4 7 4c2 0 3.5 1.5 5 3 1.5-1.5 3-3 5-3 4 0 6 4 3.5 8C19 16.5 12 21 12 21z" />
+        </svg>
+      </button>
+      <button
+        type="button"
         className="podcast-show-episode-play"
         disabled={tuning}
         onClick={onPlay}
@@ -106,6 +122,7 @@ export const PodcastShowPage = memo(function PodcastShowPage({
   const [tuningEpisodeId, setTuningEpisodeId] = useState<string | null>(null)
   const { currentTrack } = useDesktopPlayback()
   const { continueListening } = usePodcastLocalState()
+  const library = useDesktopLibrary()
 
   const {
     show,
@@ -135,7 +152,7 @@ export const PodcastShowPage = memo(function PodcastShowPage({
   const activePodcastEpisodeId = useMemo(() => {
     if (!currentTrack?.id.startsWith('podcast-')) return null
     return currentTrack.id.slice('podcast-'.length)
-  }, [currentTrack?.id])
+  }, [currentTrack])
 
   const playEpisode = useCallback(
     (episode: PodcastEpisodeMeta, resumePositionSeconds?: number | null) => {
@@ -265,6 +282,15 @@ export const PodcastShowPage = memo(function PodcastShowPage({
               <span className="podcast-show-pill podcast-show-pill--exclusive">Exclusive</span>
             ) : null}
           </div>
+          <div className="podcast-show-actions">
+            <button
+              type="button"
+              className={`btn-secondary btn-sm${library.isFavorite('podcast_show', show.id) ? ' is-active' : ''}`}
+              onClick={() => library.toggleFavorite(buildPodcastShowLibraryItem(show))}
+            >
+              {library.isFavorite('podcast_show', show.id) ? 'Saved to Library' : 'Save Show'}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -348,6 +374,8 @@ export const PodcastShowPage = memo(function PodcastShowPage({
                   episode={episode}
                   showArtworkUrl={show.artworkUrl}
                   onPlay={() => playEpisode(episode)}
+                  onToggleFavorite={() => library.toggleFavorite(buildPodcastEpisodeLibraryItem(episode))}
+                  isFavorite={library.isFavorite('podcast_episode', episode.id)}
                   tuning={tuningEpisodeId === episode.id}
                   isActive={activePodcastEpisodeId === episode.id}
                   hasProgress={progressEpisodeIds.has(episode.id)}

@@ -201,8 +201,19 @@ export const TvPage = memo(function TvPage({
     [onPlayTvChannel],
   )
 
-  const handleToggleFavorite = useCallback((channelId: string) => {
-    toggleTvFavorite(channelId)
+  const handleToggleFavorite = useCallback((channel: {
+    id: string
+    title: string
+    channelName: string | null
+    artworkUrl: string | null
+    categories: string[]
+  }) => {
+    toggleTvFavorite(channel.id, {
+      title: channel.title,
+      channelName: channel.channelName,
+      artworkUrl: channel.artworkUrl,
+      category: channel.categories[0] ?? null,
+    })
     setFavoriteRevision((value) => value + 1)
   }, [])
 
@@ -325,7 +336,7 @@ export const TvPage = memo(function TvPage({
                     onPlay={() => {
                       void playChannel(channel, featuredChannels, 'Featured Channels')
                     }}
-                    onToggleFavorite={() => handleToggleFavorite(channel.id)}
+                    onToggleFavorite={() => handleToggleFavorite(channel)}
                     ArtworkImage={ArtworkImage}
                   />
                 ))}
@@ -431,7 +442,7 @@ export const TvPage = memo(function TvPage({
                         const queue = catalogChannels.length > 0 ? catalogChannels : [channel]
                         void playChannel(channel, queue, 'TV Channels')
                       }}
-                      onToggleFavorite={() => handleToggleFavorite(channel.id)}
+                      onToggleFavorite={() => handleToggleFavorite(channel)}
                       ArtworkImage={ArtworkImage}
                     />
                   ))}

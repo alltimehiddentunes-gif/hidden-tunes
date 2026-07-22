@@ -21859,6 +21859,7 @@
 }
 
 .radio-station-card-v2 {
+  position: relative;
   min-width: 0;
 }
 
@@ -26475,5 +26476,193 @@ button.lecture-detail-crumb:focus-visible {
   .lecture-detail-main,
   .lecture-detail-skeleton {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Typed multi-family Library */
+.ht-library-destination {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 8px 4px 28px;
+  max-width: 1100px;
+}
+
+.ht-library-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ht-library-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.ht-library-subtitle {
+  margin: 0;
+  color: rgba(245, 243, 250, 0.62);
+  font-size: 0.95rem;
+  line-height: 1.45;
+  max-width: 42rem;
+}
+
+.ht-library-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ht-library-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(245, 243, 250, 0.78);
+  cursor: pointer;
+  font-size: 0.86rem;
+}
+
+.ht-library-tab.is-active {
+  background: rgba(168, 85, 247, 0.18);
+  border-color: rgba(168, 85, 247, 0.42);
+  color: #f5f3fa;
+}
+
+.ht-library-tab-count {
+  min-width: 1.4rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.ht-library-error {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+}
+
+.ht-library-empty {
+  padding: 36px 18px;
+  text-align: center;
+}
+
+.ht-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ht-library-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.ht-library-row-hit {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ht-library-row-art {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ht-library-row-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ht-library-row-type {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(196, 181, 253, 0.9);
+}
+
+.ht-library-row-copy h3,
+.ht-library-row-copy p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ht-library-row-copy h3 {
+  font-size: 0.98rem;
+}
+
+.ht-library-row-copy p {
+  font-size: 0.84rem;
+  color: rgba(245, 243, 250, 0.58);
+}
+
+.ht-library-row-remove,
+.ht-library-fav-btn,
+.radio-favorite-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 8, 12, 0.55);
+  color: rgba(245, 243, 250, 0.72);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.ht-library-row-remove.is-active,
+.ht-library-fav-btn.is-active,
+.radio-favorite-btn.is-active {
+  color: rgba(244, 114, 182, 0.95);
+  border-color: rgba(244, 114, 182, 0.42);
+}
+
+.radio-favorite-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+
+.podcast-show-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+@media (max-width: 1024px) {
+  .ht-library-destination {
+    max-width: 100%;
   }
 }

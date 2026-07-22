@@ -14,6 +14,8 @@ import {
 } from '../../lib/motivationals/motivationalProgressStorage'
 import type { MotivationalSessionMeta, PlayMotivationalSessionHandler } from '../../lib/motivationals/types'
 import { useMotivationalProgramData } from '../../lib/motivationals/useMotivationalProgramData'
+import { buildMotivationalLibraryItem } from '../../lib/library/builders'
+import { useDesktopLibrary } from '../../lib/library/useDesktopLibrary'
 
 type ArtworkImageProps = {
   src: string | null
@@ -105,6 +107,7 @@ export const MotivationalProgramPage = memo(function MotivationalProgramPage({
 }: MotivationalProgramPageProps) {
   const [tuningSessionId, setTuningSessionId] = useState<string | null>(null)
   const { currentTrack } = useDesktopPlayback()
+  const library = useDesktopLibrary()
   const {
     program,
     sessions,
@@ -223,6 +226,13 @@ export const MotivationalProgramPage = memo(function MotivationalProgramPage({
                 Resume
               </button>
             ) : null}
+            <button
+              type="button"
+              className={`btn-secondary btn-sm${library.isFavorite('motivational', program.id) ? ' is-active' : ''}`}
+              onClick={() => library.toggleFavorite(buildMotivationalLibraryItem(program))}
+            >
+              {library.isFavorite('motivational', program.id) ? 'Saved to Library' : 'Save to Library'}
+            </button>
           </div>
         </div>
       </header>

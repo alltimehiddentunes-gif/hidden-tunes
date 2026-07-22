@@ -1,0 +1,109 @@
+{
+  "startedAt": "2026-07-22T21:02:26.522Z",
+  "checks": [
+    {
+      "check": "UI ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "seeded library items",
+      "ok": true,
+      "detail": "count=6"
+    },
+    {
+      "check": "Library opens via sidebar",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Library shell from local storage",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "seeded items render",
+      "ok": true,
+      "detail": "rows=5"
+    },
+    {
+      "check": "Radio favorite appears as Radio",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Music favorite appears",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Podcast show present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Podcast episode present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "TV present",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Sex Sound Radio excluded from general Library",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024px layout viewport",
+      "ok": true,
+      "detail": "width=1024"
+    },
+    {
+      "check": "type filter works",
+      "ok": true,
+      "detail": "active=Radio2 count=1"
+    },
+    {
+      "check": "remove works",
+      "ok": true,
+      "detail": "5->4"
+    },
+    {
+      "check": "empty state",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "podcast show favorite opens show",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Library Radio selection does not crash",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Music page still opens after Library Radio",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "TV ownership surface unaffected",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Radio favorite buttons present",
+      "ok": true,
+      "detail": "buttons=0 cards=0"
+    }
+  ],
+  "failures": [],
+  "finishedAt": "2026-07-22T21:02:45.304Z",
+  "passed": 20,
+  "failed": 0
+}

@@ -160,6 +160,8 @@ import { TvPage } from './components/tv/TvPage'
 import { TvNowPlayingPanel } from './components/tv/TvNowPlayingPanel'
 import { PodcastsPage } from './components/podcasts/PodcastsPage'
 import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
+import { DesktopLibraryPage } from './components/library/DesktopLibraryPage'
+import { ensureLibraryMigrated } from './lib/library'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
 import { MusicHomePage } from './components/home/MusicHomePage'
@@ -216,45 +218,6 @@ import type {
 import type { RadioStationMeta } from './lib/radio/types'
 import type { TvChannelMeta } from './lib/tv/types'
 import './App.css'
-
-const LIBRARY_TABS = ['Overview', 'Songs', 'Albums', 'Artists', 'Playlists'] as const
-type LibraryTabId = (typeof LIBRARY_TABS)[number]
-
-const LIBRARY_CARD_TONES = [
-  'violet',
-  'sunset',
-  'moon',
-  'neon',
-  'jazz',
-  'love',
-  'forest',
-  'afro',
-  'lounge',
-  'run',
-  'drive',
-  'rain',
-] as const
-
-const LIBRARY_PLAYLIST_TONES = ['forest', 'afro', 'lounge', 'run', 'drive', 'rain'] as const
-
-const LIBRARY_RECENT_PREVIEW = 6
-const LIBRARY_TAB_LIMIT = 24
-
-function formatLibraryCount(value: number) {
-  return value.toLocaleString()
-}
-
-function filterSongsByLibraryQuery(songs: ApiSong[], query: string) {
-  const normalized = query.trim().toLowerCase()
-  if (!normalized) return songs
-  return songs.filter((song) => {
-    const haystack = [song.title, song.artist, song.album, song.genre, song.mood]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-    return haystack.includes(normalized)
-  })
-}
 
 function formatPlaylistDurationLabel(songs: ApiSong[]) {
   const totalSeconds = songs.reduce((sum, song) => sum + (song.durationSeconds ?? 0), 0)
@@ -322,7 +285,7 @@ const PSD_ALBUMS_GRID_CARDS = [
   { key: 'alb3', title: 'Vibes from Lagos', artist: 'Wills Afrobeats', year: '2023', songs: '14 songs' },
   { key: 'alb4', title: 'Love & Rhythm', artist: 'Wills Afrobeats', year: '2022', songs: '11 songs' },
   { key: 'alb5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs' },
-  { key: 'alb6', title: 'Jazz Café', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs' },
+  { key: 'alb6', title: 'Jazz CafÃ©', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs' },
   { key: 'alb7', title: 'Deep Focus', artist: 'Wills Afrobeats', year: '2019', songs: '15 songs' },
   { key: 'alb8', title: 'Moments of Us', artist: 'Wills Afrobeats', year: '2018', songs: '7 songs' },
   { key: 'alb9', title: 'Rainy Day Comfort', artist: 'Wills Afrobeats', year: '2017', songs: '13 songs' },
@@ -503,21 +466,21 @@ const PSD_LIKED_DESCRIPTION = 'Songs you heart on this device. Likes stay local 
 
 const PSD_DOWNLOADS_STORAGE_PERCENT = 72
 const PSD_DOWNLOADS_PLAYLISTS = [
-  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs • 3h 12m' },
-  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs • 2h 17m' },
-  { key: 'dw-pl3', title: 'Jazz Café', meta: '40 songs • 2h 45m' },
+  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs â€¢ 3h 12m' },
+  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs â€¢ 2h 17m' },
+  { key: 'dw-pl3', title: 'Jazz CafÃ©', meta: '40 songs â€¢ 2h 45m' },
 ] as const
 const PSD_DOWNLOADS_ALBUMS = [
-  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs • 45 min' },
-  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs • 38 min' },
+  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs â€¢ 45 min' },
+  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs â€¢ 38 min' },
 ] as const
 const PSD_DOWNLOADS_SONGS = [
-  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats • Night Drive' },
-  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats • Night Drive' },
-  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats • Night Drive' },
-  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats • Night Drive' },
-  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats • Night Drive' },
-  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats â€¢ Night Drive' },
+  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats â€¢ Night Drive' },
+  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats â€¢ Night Drive' },
+  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats â€¢ Night Drive' },
+  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats â€¢ Night Drive' },
+  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats â€¢ Night Drive' },
 ] as const
 const PSD_DOWNLOADS_TABS = ['All', 'Playlists', 'Albums', 'Songs', 'Podcasts'] as const
 
@@ -547,7 +510,7 @@ const PSD_LYRICS_LINES = [
   { tier: 'distant', text: 'resides' },
 ] as const
 
-/** PSD player design reference — not displayed as live playback data. */
+/** PSD player design reference â€” not displayed as live playback data. */
 void [
   PSD_PLAYER_SOURCE_ALBUM,
   PSD_PLAYER_LYRICS_LINES,
@@ -763,7 +726,7 @@ function resolveInitialCatalog() {
     }
     logCatalogCacheMiss()
   } catch {
-    // Ignore corrupt cache/bootstrap data — app should still open.
+    // Ignore corrupt cache/bootstrap data â€” app should still open.
   }
 
   return {
@@ -1064,24 +1027,24 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
 ]
 
 const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
-  home: 'Search songs, artists, moods…',
-  music: 'Search songs, artists, albums…',
-  radio: 'Search stations, genres, countries…',
-  podcasts: 'Search podcasts, episodes, categories…',
-  audiobooks: 'Search audiobooks, authors, narrators…',
-  motivationals: 'Search motivationals, speakers, topics…',
-  lectures: 'Search lectures, courses, speakers, subjects…',
-  tv: 'Search shows, channels, live events…',
-  worlds: 'Search emotional worlds…',
-  search: 'Search songs, artists, albums…',
+  home: 'Search songs, artists, moodsâ€¦',
+  music: 'Search songs, artists, albumsâ€¦',
+  radio: 'Search stations, genres, countriesâ€¦',
+  podcasts: 'Search podcasts, episodes, categoriesâ€¦',
+  audiobooks: 'Search audiobooks, authors, narratorsâ€¦',
+  motivationals: 'Search motivationals, speakers, topicsâ€¦',
+  lectures: 'Search lectures, courses, speakers, subjectsâ€¦',
+  tv: 'Search shows, channels, live eventsâ€¦',
+  worlds: 'Search emotional worldsâ€¦',
+  search: 'Search songs, artists, albumsâ€¦',
   library: 'Search songs, artists, albums, playlists...',
-  liked: 'Search liked songs…',
+  liked: 'Search liked songsâ€¦',
   recent: 'Search recently played...',
-  downloads: 'Search downloads…',
-  playlists: 'Search playlists…',
-  artists: 'Search artists…',
-  albums: 'Search albums…',
-  premium: 'Search premium perks…',
+  downloads: 'Search downloadsâ€¦',
+  playlists: 'Search playlistsâ€¦',
+  artists: 'Search artistsâ€¦',
+  albums: 'Search albumsâ€¦',
+  premium: 'Search premium perksâ€¦',
 }
 
 function isPsdDestinationNav(navKey: NavKey) {
@@ -1845,7 +1808,7 @@ function PageFrame({
 }
 
 const HomeTopBar = memo(function HomeTopBar({
-  placeholder = 'Search songs, artists, moods…',
+  placeholder = 'Search songs, artists, moodsâ€¦',
   onOpenDiscover,
   onSearchSubmit,
   variant = 'default',
@@ -1919,7 +1882,7 @@ const CatalogStaleBanner = memo(function CatalogStaleBanner() {
     <div className="catalog-stale-banner" role="status">
       <span className="catalog-stale-dot" aria-hidden="true" />
       <span>
-        Browsing your saved catalog — live refresh didn&apos;t complete. You can refresh again anytime.
+        Browsing your saved catalog â€” live refresh didn&apos;t complete. You can refresh again anytime.
       </span>
     </div>
   )
@@ -1948,7 +1911,7 @@ const CatalogStatusBar = memo(function CatalogStatusBar() {
         disabled={loading}
         aria-busy={loading}
       >
-        {loading ? 'Refreshing…' : 'Refresh catalog'}
+        {loading ? 'Refreshingâ€¦' : 'Refresh catalog'}
       </button>
     </div>
   )
@@ -2001,7 +1964,7 @@ function CatalogStatusSettings({
           disabled={loading}
           aria-busy={loading}
         >
-          {loading ? 'Refreshing…' : 'Refresh'}
+          {loading ? 'Refreshingâ€¦' : 'Refresh'}
         </button>
       </div>
       <div className="settings-row">
@@ -2075,7 +2038,7 @@ function EmotionalLanesSection({
           <p className="page-eyebrow emotional-lanes-eyebrow">Emotional discovery</p>
           <h2 id="emotional-lanes-heading">Emotional lanes</h2>
           <span className="section-hint">
-            Vibe groupings from catalog metadata — browse lanes, play on your terms
+            Vibe groupings from catalog metadata â€” browse lanes, play on your terms
           </span>
         </div>
         {selectedLaneId ? (
@@ -2182,7 +2145,7 @@ function SceneListeningSection({
           <p className="page-eyebrow scene-listening-eyebrow">Scene listening</p>
           <h2 id="scene-listening-heading">Scene collections</h2>
           <span className="section-hint">
-            Curated atmospheres from your catalog — step into a scene, play when ready
+            Curated atmospheres from your catalog â€” step into a scene, play when ready
           </span>
         </div>
         {selectedSceneId ? (
@@ -2319,7 +2282,7 @@ function RadioFoundationSection({
           <p className="page-eyebrow radio-foundation-eyebrow">Radio foundation</p>
           <h2 id="radio-foundation-heading">Build a station</h2>
           <span className="section-hint">
-            Preview a scored station from your catalog — start radio only when you choose
+            Preview a scored station from your catalog â€” start radio only when you choose
           </span>
         </div>
         <button
@@ -2533,7 +2496,7 @@ function resolveWorldPresentation(scene: BuiltListeningScene) {
   }
 }
 
-/** Reserved listening surfaces — removed from Home in 44F; kept for Worlds phases. */
+/** Reserved listening surfaces â€” removed from Home in 44F; kept for Worlds phases. */
 const HOME_LEGACY_SECTIONS = {
   EmotionalLanesSection,
   SceneListeningSection,
@@ -2781,7 +2744,7 @@ const SEARCH_ALBUM_EXPANDED_LIMIT = 16
 function formatSongDurationLabel(
   song: { durationSeconds: number | null } | null | undefined,
 ) {
-  if (!song?.durationSeconds || song.durationSeconds <= 0) return '—'
+  if (!song?.durationSeconds || song.durationSeconds <= 0) return 'â€”'
   const total = Math.floor(song.durationSeconds)
   const minutes = Math.floor(total / 60)
   const remainder = total % 60
@@ -2822,7 +2785,7 @@ function formatAlbumSearchMeta(
 ) {
   const artistName = album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist'
   const year = album.releaseYear ? String(album.releaseYear) : null
-  return year ? `${artistName} • ${year}` : artistName
+  return year ? `${artistName} â€¢ ${year}` : artistName
 }
 
 function DiscoverPage({
@@ -3339,70 +3302,70 @@ const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = [
     cardId: 'ew-midnight-reflection',
     sceneId: 'rainy-window',
     title: 'Midnight Reflection',
-    tags: 'Deep • Calm • Soul',
+    tags: 'Deep â€¢ Calm â€¢ Soul',
     chips: ['calm', 'chill', 'melancholy'],
   },
   {
     cardId: 'ew-afro-sunset',
     sceneId: 'sunday-morning',
     title: 'Afro Sunset',
-    tags: 'Warm • Groove • Soul',
+    tags: 'Warm â€¢ Groove â€¢ Soul',
     chips: ['happy', 'romantic'],
   },
   {
     cardId: 'ew-healing-slowly',
     sceneId: 'heartbreak-recovery',
     title: 'Healing Slowly',
-    tags: 'Soft • Reflective • Calm',
+    tags: 'Soft â€¢ Reflective â€¢ Calm',
     chips: ['calm', 'melancholy'],
   },
   {
     cardId: 'ew-night-drive',
     sceneId: 'midnight-drive',
     title: 'Night Drive',
-    tags: 'Urban • Late Night • Electronic',
+    tags: 'Urban â€¢ Late Night â€¢ Electronic',
     chips: ['energetic', 'chill'],
   },
   {
     cardId: 'ew-sunset-glow',
     sceneId: 'city-lights',
     title: 'Sunset Glow',
-    tags: 'Golden • Warm • R&B',
+    tags: 'Golden â€¢ Warm â€¢ R&B',
     chips: ['happy', 'romantic'],
   },
   {
     cardId: 'ew-velvet-emotions',
     sceneId: 'focus-room',
     title: 'Velvet Emotions',
-    tags: 'Intimate • Warm • Soul',
+    tags: 'Intimate â€¢ Warm â€¢ Soul',
     chips: ['romantic', 'calm'],
   },
   {
     cardId: 'ew-ocean-dreams',
     sceneId: 'city-lights',
     title: 'Ocean Dreams',
-    tags: 'Dreamy • Deep • Calm',
+    tags: 'Dreamy â€¢ Deep â€¢ Calm',
     chips: ['calm', 'chill'],
   },
   {
     cardId: 'ew-city-rain',
     sceneId: 'rainy-window',
     title: 'City Rain',
-    tags: 'Melancholy • Urban • Jazz',
+    tags: 'Melancholy â€¢ Urban â€¢ Jazz',
     chips: ['melancholy', 'chill'],
   },
   {
     cardId: 'ew-uplift-boost',
     sceneId: 'focus-room',
     title: 'Uplift Boost',
-    tags: 'Motivational • Bright • Pop',
+    tags: 'Motivational â€¢ Bright â€¢ Pop',
     chips: ['motivational', 'energetic', 'happy'],
   },
   {
     cardId: 'ew-melancholy-bloom',
     sceneId: 'heartbreak-recovery',
     title: 'Melancholy Bloom',
-    tags: 'Tender • Slow • Reflective',
+    tags: 'Tender â€¢ Slow â€¢ Reflective',
     chips: ['melancholy', 'calm'],
   },
 ]
@@ -3608,480 +3571,7 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
 }
 
 
-function buildLibraryStats({
-  songCount,
-  albumCount,
-  artistCount,
-  playlistCount,
-}: {
-  songCount: number
-  albumCount: number
-  artistCount: number
-  playlistCount: number
-}) {
-  return [
-    {
-      key: 'songs',
-      label: 'Songs',
-      value: formatLibraryCount(songCount),
-      hint: 'All Songs',
-      tone: 'violet',
-      tab: 'Songs' as LibraryTabId,
-    },
-    {
-      key: 'albums',
-      label: 'Albums',
-      value: formatLibraryCount(albumCount),
-      hint: 'In Collection',
-      tone: 'purple',
-      nav: 'albums' as NavKey,
-    },
-    {
-      key: 'artists',
-      label: 'Artists',
-      value: formatLibraryCount(artistCount),
-      hint: 'In Catalog',
-      tone: 'orange',
-      nav: 'artists' as NavKey,
-    },
-    {
-      key: 'playlists',
-      label: 'Playlists',
-      value: formatLibraryCount(playlistCount),
-      hint: 'Curated',
-      tone: 'pink',
-      tab: 'Playlists' as LibraryTabId,
-    },
-  ]
-}
 
-function PsdLibraryStatIcon({ type }: { type: string }) {
-  if (type === 'songs') return <MusicNoteIcon className="psd-library-stat-svg" />
-  if (type === 'albums') {
-    return (
-      <svg className="psd-library-stat-svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <rect x="5" y="5" width="14" height="14" rx="3" />
-        <circle cx="12" cy="12" r="3" fill="rgba(5,5,9,0.42)" />
-      </svg>
-    )
-  }
-  if (type === 'artists') {
-    return (
-      <svg className="psd-library-stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-        <path d="M12 4v10" />
-        <path d="M8.5 9.5A3.5 3.5 0 1012 13" />
-        <path d="M15.5 9.5A3.5 3.5 0 1112 13" />
-      </svg>
-    )
-  }
-  if (type === 'playlists') {
-    return (
-      <svg className="psd-library-stat-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-        <path d="M4 7h10M4 12h8M4 17h5" />
-        <circle cx="17" cy="17" r="3" fill="currentColor" stroke="none" />
-        <path d="M17 7v10" />
-      </svg>
-    )
-  }
-  return <PsdIconHeart className="psd-library-stat-svg" />
-}
-
-function LibraryPage({
-  onOpenSong,
-  onOpenArtist,
-  onOpenAlbum,
-  onNavigateNav,
-  query = '',
-  setPlaylistsQuery,
-}: {
-  onOpenSong: QueueSongHandler
-  onOpenArtist: (artist: ApiArtist) => void
-  onOpenAlbum: (album: ApiAlbum) => void
-  onNavigateNav: (navKey: NavKey) => void
-  query?: string
-  setPlaylistsQuery?: (value: string) => void
-}) {
-  const { songs, albums, artists, artistNames, indexes, artworkContext } = useCatalog()
-  const [tab, setTab] = useState<LibraryTabId>('Overview')
-  const recentRowRef = useRef<HTMLDivElement>(null)
-
-  const filteredSongs = useMemo(
-    () => sortSongsList(filterSongsByLibraryQuery(songs, query), 'latest'),
-    [query, songs],
-  )
-  const filteredAlbums = useMemo(
-    () => sortAlbumsList(filterAlbumsByQuery(albums, query, artistNames), 'latest'),
-    [albums, artistNames, query],
-  )
-  const filteredArtists = useMemo(
-    () => sortArtistsList(filterArtistsByQuery(artists, query), 'az'),
-    [artists, query],
-  )
-
-  const recentCards = useMemo(
-    () => filteredSongs.slice(0, LIBRARY_RECENT_PREVIEW),
-    [filteredSongs],
-  )
-  const songTabCards = useMemo(
-    () => filteredSongs.slice(0, LIBRARY_TAB_LIMIT),
-    [filteredSongs],
-  )
-  const albumTabCards = useMemo(
-    () => filteredAlbums.slice(0, LIBRARY_TAB_LIMIT),
-    [filteredAlbums],
-  )
-  const artistTabCards = useMemo(
-    () => filteredArtists.slice(0, LIBRARY_TAB_LIMIT),
-    [filteredArtists],
-  )
-
-  const playlistCards = useMemo(
-    () => EDITORIAL_PLAYLIST_SPECS.map((spec, index) => {
-      const playlistSongs = resolveEditorialPlaylistTracks(filteredSongs, spec.sceneId).slice(0, 24)
-      const coverArt = getArtworkForPlaylist(
-        { title: spec.title, songs: playlistSongs },
-        artworkContext,
-      )
-      return {
-        id: spec.id,
-        title: spec.title,
-        tone: LIBRARY_PLAYLIST_TONES[index % LIBRARY_PLAYLIST_TONES.length],
-        songCount: playlistSongs.length,
-        countLabel: `${playlistSongs.length} ${playlistSongs.length === 1 ? 'song' : 'songs'}`,
-        collage: getArtworkForPlaylistCollage(playlistSongs, artworkContext),
-        coverArt,
-      }
-    }).filter((playlist) => playlist.songCount >= 4),
-    [artworkContext, filteredSongs],
-  )
-
-  const libraryStats = useMemo(
-    () => buildLibraryStats({
-      songCount: songs.length,
-      albumCount: albums.length,
-      artistCount: artists.length,
-      playlistCount: playlistCards.length,
-    }),
-    [albums.length, artists.length, playlistCards.length, songs.length],
-  )
-
-  const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
-
-  const playLibrarySong = useCallback(
-    (song: ApiSong, queue: ApiSong[], queueTitle: string) => {
-      const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
-      onOpenSong(song, queue.length > 0 ? queue : [song], queueIndex, 'manual', queueTitle, {
-        seedType: 'manual',
-        seedTracks: buildQueueSeedPool('manual', queue, indexes, song),
-        candidatePools: queuePools,
-      })
-    },
-    [indexes, onOpenSong, queuePools],
-  )
-
-  const playRecentSong = useCallback(
-    (song: ApiSong) => {
-      playLibrarySong(song, filteredSongs, 'Recently Added')
-    },
-    [filteredSongs, playLibrarySong],
-  )
-
-  const openPlaylist = useCallback(
-    (title: string) => {
-      setPlaylistsQuery?.(title)
-      onNavigateNav('playlists')
-    },
-    [onNavigateNav, setPlaylistsQuery],
-  )
-
-  const scrollRecentRow = useCallback((direction: 'prev' | 'next') => {
-    const node = recentRowRef.current
-    if (!node) return
-    const amount = Math.max(220, node.clientWidth * 0.82)
-    node.scrollBy({
-      left: direction === 'next' ? amount : -amount,
-      behavior: 'smooth',
-    })
-  }, [])
-
-  const showSongs = tab === 'Overview' || tab === 'Songs'
-  const showAlbums = tab === 'Overview' || tab === 'Albums'
-  const showArtists = tab === 'Overview' || tab === 'Artists'
-  const showPlaylists = tab === 'Overview' || tab === 'Playlists'
-  const showStats = tab === 'Overview'
-  const hasVisibleContent =
-    filteredSongs.length > 0
-    || filteredAlbums.length > 0
-    || filteredArtists.length > 0
-    || playlistCards.some((playlist) => playlist.songCount > 0)
-
-  return (
-    <div className="psd-library-destination">
-      <PageFrame cinematic>
-        <header className="psd-library-header" aria-labelledby="library-heading">
-          <h1 id="library-heading" className="psd-library-title">My Library</h1>
-          <p className="psd-library-subtitle">All your music, in one place.</p>
-        </header>
-
-        <div className="psd-library-toolbar">
-          <div className="psd-library-tabs" role="tablist" aria-label="Library sections">
-            {LIBRARY_TABS.map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                role="tab"
-                className={`psd-library-tab${tab === entry ? ' is-active' : ''}`}
-                aria-selected={tab === entry}
-                onClick={() => setTab(entry)}
-              >
-                {entry}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {showStats ? (
-          <section className="psd-library-stats" aria-label="Library statistics">
-            {libraryStats.map((card) => (
-              <button
-                key={card.key}
-                type="button"
-                className="psd-library-stat-card"
-                data-tone={card.tone}
-                onClick={() => {
-                  if ('nav' in card && card.nav) {
-                    onNavigateNav(card.nav)
-                    return
-                  }
-                  if ('tab' in card && card.tab) {
-                    setTab(card.tab)
-                  }
-                }}
-              >
-                <span className="psd-library-stat-icon" aria-hidden="true">
-                  <PsdLibraryStatIcon type={card.key} />
-                </span>
-                <span className="psd-library-stat-copy">
-                  <span className="psd-library-stat-label">{card.label}</span>
-                  <strong className="psd-library-stat-value">{card.value}</strong>
-                  <span className="psd-library-stat-hint">{card.hint}</span>
-                </span>
-              </button>
-            ))}
-          </section>
-        ) : null}
-
-        {!hasVisibleContent ? (
-          <CatalogEmpty
-            title={query.trim() ? 'No library matches' : 'Your library is empty'}
-            detail={
-              query.trim()
-                ? `Nothing in your catalog matched "${query.trim()}".`
-                : 'Songs will appear here once your catalog loads.'
-            }
-          />
-        ) : null}
-
-        {showSongs && (tab === 'Songs' ? songTabCards : recentCards).length > 0 ? (
-          <section className="psd-library-section" aria-labelledby="recently-added-heading">
-            <header className="psd-library-section-header">
-              <h2 id="recently-added-heading">
-                {tab === 'Songs' ? 'Songs' : 'Recently Added'}
-              </h2>
-              {tab === 'Overview' && filteredSongs.length > LIBRARY_RECENT_PREVIEW ? (
-                <div className="psd-library-section-actions">
-                  <button
-                    type="button"
-                    className="psd-library-view-all"
-                    onClick={() => setTab('Songs')}
-                  >
-                    View all
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Previous recently added"
-                    className="psd-library-round-btn"
-                    onClick={() => scrollRecentRow('prev')}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path d="M15 18l-6-6 6-6" />
-                    </svg>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Next recently added"
-                    className="psd-library-round-btn"
-                    onClick={() => scrollRecentRow('next')}
-                  >
-                    <PsdIconChevronRight />
-                  </button>
-                </div>
-              ) : null}
-            </header>
-            <div
-              ref={tab === 'Overview' ? recentRowRef : undefined}
-              className={`psd-library-card-row${tab === 'Overview' ? ' psd-library-card-row--scroll' : ''}`}
-            >
-              {(tab === 'Songs' ? songTabCards : recentCards).map((song, index) => (
-                <article
-                  key={song.id}
-                  className="psd-library-cover-card"
-                  data-tone={LIBRARY_CARD_TONES[index % LIBRARY_CARD_TONES.length]}
-                >
-                  <div className="psd-library-cover-art">
-                    <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
-                    <span className="psd-library-cover-veil" aria-hidden="true" />
-                    <button
-                      type="button"
-                      className="psd-library-play-btn"
-                      aria-label={`Play ${song.title}`}
-                      onClick={() => playRecentSong(song)}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </button>
-                  </div>
-                  <div className="psd-library-cover-copy">
-                    <strong>{song.title}</strong>
-                    <span>{song.artist}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {showAlbums && tab === 'Albums' && albumTabCards.length > 0 ? (
-          <section className="psd-library-section" aria-labelledby="library-albums-heading">
-            <header className="psd-library-section-header">
-              <h2 id="library-albums-heading">Albums</h2>
-              {filteredAlbums.length > LIBRARY_TAB_LIMIT ? (
-                <button
-                  type="button"
-                  className="psd-library-view-all"
-                  onClick={() => onNavigateNav('albums')}
-                >
-                  View all
-                </button>
-              ) : null}
-            </header>
-            <div className="psd-library-card-row">
-              {albumTabCards.map((album, index) => (
-                <button
-                  key={album.id}
-                  type="button"
-                  className="psd-library-cover-card"
-                  data-tone={LIBRARY_CARD_TONES[index % LIBRARY_CARD_TONES.length]}
-                  onClick={() => onOpenAlbum(album)}
-                >
-                  <div className="psd-library-cover-art">
-                    <ArtworkImage
-                      src={album.artwork}
-                      alt=""
-                      seed={album.id}
-                      label={album.title}
-                    />
-                    <span className="psd-library-cover-veil" aria-hidden="true" />
-                  </div>
-                  <div className="psd-library-cover-copy">
-                    <strong>{album.title}</strong>
-                    <span>{formatAlbumSearchMeta(album, artistNames)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {showArtists && tab === 'Artists' && artistTabCards.length > 0 ? (
-          <section className="psd-library-section" aria-labelledby="library-artists-heading">
-            <header className="psd-library-section-header">
-              <h2 id="library-artists-heading">Artists</h2>
-              {filteredArtists.length > LIBRARY_TAB_LIMIT ? (
-                <button
-                  type="button"
-                  className="psd-library-view-all"
-                  onClick={() => onNavigateNav('artists')}
-                >
-                  View all
-                </button>
-              ) : null}
-            </header>
-            <div className="psd-library-card-row psd-library-card-row--artists">
-              {artistTabCards.map((artist) => (
-                <button
-                  key={artist.id}
-                  type="button"
-                  className="psd-library-cover-card psd-library-cover-card--artist"
-                  onClick={() => onOpenArtist(artist)}
-                >
-                  <div className="psd-library-cover-art psd-library-cover-art--artist">
-                    <ArtistAvatar artist={artist} />
-                  </div>
-                  <div className="psd-library-cover-copy">
-                    <strong>{artist.name}</strong>
-                    <span>{artist.songCount} {artist.songCount === 1 ? 'song' : 'songs'}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {showPlaylists && playlistCards.some((playlist) => playlist.songCount > 0) ? (
-          <section className="psd-library-section psd-library-section--playlists" aria-labelledby="your-playlists-heading">
-            <header className="psd-library-section-header">
-              <h2 id="your-playlists-heading">Editorial Playlists</h2>
-              {tab === 'Overview' ? (
-                <button
-                  type="button"
-                  className="psd-library-view-all"
-                  onClick={() => setTab('Playlists')}
-                >
-                  View all
-                </button>
-              ) : null}
-            </header>
-            <div className="psd-library-card-row">
-              {playlistCards.filter((playlist) => playlist.songCount > 0).map((playlist) => (
-                <button
-                  key={playlist.id}
-                  type="button"
-                  className="psd-library-cover-card psd-library-cover-card--playlist"
-                  data-tone={playlist.tone}
-                  onClick={() => openPlaylist(playlist.title)}
-                >
-                  <div className="psd-library-cover-art">
-                    {playlist.coverArt ? (
-                      <ArtworkImage
-                        src={playlist.coverArt}
-                        alt=""
-                        seed={playlist.title}
-                        label={playlist.title}
-                      />
-                    ) : (
-                      <ArtworkCollage
-                        urls={playlist.collage}
-                        seed={playlist.title}
-                        label={playlist.title}
-                      />
-                    )}
-                    <span className="psd-library-cover-veil" aria-hidden="true" />
-                  </div>
-                  <div className="psd-library-cover-copy">
-                    <strong>{playlist.title}</strong>
-                    <span>{playlist.countLabel}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </section>
-        ) : null}
-      </PageFrame>
-    </div>
-  )
-}
 
 
 
@@ -4372,7 +3862,7 @@ function ArtistsPage({
                           <strong>{album.title}</strong>
                           <span>{featuredArtist.name}</span>
                           <span className="psd-artist-album-meta">
-                            {album.releaseYear ? `${album.releaseYear} • ` : ''}
+                            {album.releaseYear ? `${album.releaseYear} â€¢ ` : ''}
                             {albumSongCount} {albumSongCount === 1 ? 'song' : 'songs'}
                           </span>
                         </button>
@@ -4449,7 +3939,7 @@ function AlbumsPage({
   const albumsFooterCount = visibleAlbums.length === 1
     ? '1 album'
     : `${visibleAlbums.length} albums`
-  const sortLabel = sort === 'latest' ? 'Recently Added' : 'A–Z'
+  const sortLabel = sort === 'latest' ? 'Recently Added' : 'Aâ€“Z'
 
   const albumTabs = [
     { id: 'all', label: 'All Albums' },
@@ -4522,12 +4012,12 @@ function AlbumsPage({
                     </span>
                   </div>
                   <div className="psd-albums-gallery-copy">
-                    <strong className="psd-albums-gallery-title">{album?.title ?? '—'}</strong>
+                    <strong className="psd-albums-gallery-title">{album?.title ?? 'â€”'}</strong>
                     <span className="psd-albums-gallery-artist">
-                      {album ? (album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist') : '—'}
+                      {album ? (album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist') : 'â€”'}
                     </span>
                     <span className="psd-albums-gallery-meta">
-                      {album?.releaseYear ?? '—'} • {album ? countSongsForAlbum(album, indexes) : 0} songs
+                      {album?.releaseYear ?? 'â€”'} â€¢ {album ? countSongsForAlbum(album, indexes) : 0} songs
                     </span>
                     <span className="psd-albums-gallery-more" aria-hidden="true"><PsdIconMore /></span>
                   </div>
@@ -4855,7 +4345,7 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const durationLabel = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-    return `${count} ${count === 1 ? 'song' : 'songs'} • ${durationLabel}`
+    return `${count} ${count === 1 ? 'song' : 'songs'} â€¢ ${durationLabel}`
   }, [likedSongs])
 
   return (
@@ -4956,7 +4446,7 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                         </button>
                       </td>
                       <td className="psd-liked-col-artist">{song.artist}</td>
-                      <td className="psd-liked-col-album">{song.album ?? '—'}</td>
+                      <td className="psd-liked-col-album">{song.album ?? 'â€”'}</td>
                       <td className="psd-liked-col-date">{formatLikedDateLabel(likedAtById[song.id])}</td>
                       <td className="psd-liked-col-duration">{formatSongDurationLabel(song)}</td>
                       <td className="psd-liked-col-menu">
@@ -5261,7 +4751,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
               <p className="psd-page-eyebrow">Hidden Tunes Premium</p>
               <h1 id="premium-heading">Unlock Every World</h1>
               <p className="psd-page-subtitle">
-                Cinematic listening, deeper worlds, and gold-tier atmosphere — built for emotional immersion.
+                Cinematic listening, deeper worlds, and gold-tier atmosphere â€” built for emotional immersion.
               </p>
               <div className="psd-hero-actions psd-premium-hero-actions">
                 <button
@@ -5313,7 +4803,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
             {PREMIUM_FEATURE_SPECS.map((feature) => (
               <article key={feature.id} className="psd-premium-card" data-status={feature.status}>
                 <div className="psd-premium-card-top">
-                  <span className="psd-premium-card-icon" aria-hidden="true">✦</span>
+                  <span className="psd-premium-card-icon" aria-hidden="true">âœ¦</span>
                   <span className={`psd-premium-status${feature.status === 'available' ? ' is-live' : ''}`}>
                     {feature.status === 'available' ? 'Available' : 'Coming soon'}
                   </span>
@@ -5341,7 +4831,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
         >
           <header className="psd-premium-section-header">
             <h2 id="premium-plans-heading">Plans</h2>
-            <p>Preview pricing only — checkout is not connected on desktop yet.</p>
+            <p>Preview pricing only â€” checkout is not connected on desktop yet.</p>
           </header>
           <div className="psd-premium-plan-grid">
             {PREMIUM_PLAN_SPECS.map((plan) => (
@@ -5496,7 +4986,7 @@ function SettingsPage({
           <section className="settings-panel">
             <h2>Desktop preferences</h2>
             <p className="settings-panel-desc">
-              Saved locally on this device — sidebar page, search terms, and sort options only.
+              Saved locally on this device â€” sidebar page, search terms, and sort options only.
             </p>
             <div className="settings-row">
               <div className="settings-label">
@@ -5904,7 +5394,7 @@ const PlayerBar = memo(function PlayerBar({
             className={`control-btn player-like-btn${trackLiked ? ' is-liked' : ''}`}
             aria-label={trackLiked ? `Remove ${title} from liked songs` : `Like ${title}`}
             aria-pressed={trackLiked}
-            onClick={() => displayTrack && toggleLiked(displayTrack.id)}
+            onClick={() => displayTrack && toggleLiked(displayTrack.id, displayTrack)}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill={trackLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
@@ -5957,7 +5447,7 @@ const PlayerBar = memo(function PlayerBar({
                 />
               </div>
               <span className="progress-time">
-                {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
+                {progressMax > 0 ? formatPlaybackTime(progressMax) : 'â€”'}
               </span>
             </>
           )}
@@ -6138,7 +5628,7 @@ function DetailTopBar({
   return (
     <div className="detail-topbar">
       <button type="button" className="detail-back" onClick={onBack}>
-        <span aria-hidden="true">←</span>
+        <span aria-hidden="true">â†</span>
         Back
       </button>
       <div className="detail-titles">
@@ -6185,7 +5675,7 @@ function PlayerWorkspace({
     >
       <header className="player-workspace-toolbar">
         <button type="button" className="player-workspace-back" onClick={onBack}>
-          <span aria-hidden="true">←</span>
+          <span aria-hidden="true">â†</span>
           Back
         </button>
         {onOpenCinema ? (
@@ -6473,7 +5963,7 @@ function ArtistDetailView({
         if (abortController.signal.aborted) return
         setProfileShell(shell)
 
-        // Follow comes from shell + local cache — no duplicate GET.
+        // Follow comes from shell + local cache â€” no duplicate GET.
         const cachedFollow = getCachedArtistFollowState(shell.artist.id)
         const initialFollowing =
           cachedFollow?.is_following ?? shell.viewer.is_following === true
@@ -6549,7 +6039,7 @@ function ArtistDetailView({
               setSimilarCursor(similarPage?.pagination.nextCursor || null)
             })
             .catch(() => {
-              // Optional section — keep profile usable when similar fails.
+              // Optional section â€” keep profile usable when similar fails.
             })
         }, 120)
       } catch {
@@ -6826,7 +6316,7 @@ function ArtistDetailView({
               }}
             >
               {followBusy
-                ? 'Updating…'
+                ? 'Updatingâ€¦'
                 : !followAvailable
                   ? 'Unavailable'
                   : isFollowing
@@ -6912,7 +6402,7 @@ function ArtistDetailView({
                     void loadMoreReleases()
                   }}
                 >
-                  {loadingMoreReleases ? 'Loading…' : 'See more releases'}
+                  {loadingMoreReleases ? 'Loadingâ€¦' : 'See more releases'}
                 </button>
               </div>
             ) : null}
@@ -6979,7 +6469,7 @@ function ArtistDetailView({
                   void loadMoreSimilar()
                 }}
               >
-                {loadingMoreSimilar ? 'Loading…' : 'See more artists'}
+                {loadingMoreSimilar ? 'Loadingâ€¦' : 'See more artists'}
               </button>
             </div>
           ) : null}
@@ -7439,6 +6929,7 @@ function PageContent({
 }) {
   void _onOpenMood
   void onPlaylistBack
+  const { indexes } = useCatalog()
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') return <RecentPage onOpenSong={onOpenSong} query={recentQuery} />
   if (activeNavKey === 'downloads') {
@@ -7533,17 +7024,82 @@ function PageContent({
       )
     case 'mood':
       return <EmotionalWorldsPage onOpenSong={onOpenSong} />
-    case 'library':
+    case 'library': {
       return (
-        <LibraryPage
-          onOpenSong={onOpenSong}
-          onOpenArtist={onOpenArtist}
-          onOpenAlbum={onOpenAlbum}
-          onNavigateNav={onNavigateNav}
+        <DesktopLibraryPage
           query={libraryQuery}
-          setPlaylistsQuery={setPlaylistsQuery}
+          songsById={indexes.songsById}
+          ArtworkImage={ArtworkImage}
+          onPlaySong={(song) => {
+            onOpenSong(song, [song], 0, 'manual', 'Library', {
+              seedType: 'manual',
+              seedTracks: [song],
+            })
+          }}
+          onPlayRadio={(stationId, title, artwork, meta) => {
+            const station: RadioStationMeta = {
+              id: stationId,
+              name: title,
+              artworkUrl: artwork,
+              country: meta?.country ?? null,
+              countryCode: null,
+              language: null,
+              tags: [],
+              categories: meta?.category ? [meta.category] : [],
+              bitrate: null,
+              codec: null,
+              qualityScore: 0,
+              reliabilityScore: 0,
+              isFeatured: false,
+              isMature: Boolean(meta?.isMature),
+              contentRating: meta?.contentRating ?? null,
+              popularity: { votes: 0, clickCount: 0 },
+            }
+            onPlayRadioStation?.(station, [station], 0, 'Library Radio')
+          }}
+          onPlayPodcastEpisode={(episodeId, title, showId, showTitle, artwork) => {
+            const episode: PodcastEpisodeMeta = {
+              id: episodeId,
+              showId: showId || '',
+              showTitle,
+              title,
+              description: null,
+              artworkUrl: artwork,
+              durationSeconds: null,
+              publishedAt: null,
+              episodeNumber: null,
+              seasonNumber: null,
+              isVerified: false,
+              lastCheckedAt: null,
+            }
+            onPlayPodcastEpisode?.(episode, [episode], 0, 'Library Podcast')
+          }}
+          onOpenPodcastShow={(showId) => onOpenPodcastShow?.(showId)}
+          onOpenAudiobook={(bookId) => onOpenAudiobookBook?.(bookId)}
+          onPlayTv={(channelId, title, artwork) => {
+            const channel: TvChannelMeta = {
+              id: channelId,
+              title,
+              channelName: title,
+              artworkUrl: artwork,
+              country: null,
+              language: null,
+              categories: [],
+              tags: [],
+              isFeatured: false,
+              verified: false,
+              reliabilityScore: 0,
+              streamProtocol: null,
+              streamIsHttps: false,
+              description: null,
+            }
+            onPlayTvChannel?.(channel, [channel], 0, 'Library TV')
+          }}
+          onOpenMotivational={(programId) => onOpenMotivationalProgram?.(programId)}
+          onOpenLecture={(seriesId) => onOpenLectureSeries?.(seriesId)}
         />
       )
+    }
     case 'artists':
       return (
         <ArtistsPage
@@ -7718,6 +7274,10 @@ function AppShell() {
     setSelectedPodcastShowId(null)
     setSelectedAudiobookId(null)
     setActiveView('song')
+  }, [])
+
+  useEffect(() => {
+    ensureLibraryMigrated()
   }, [])
 
   useEffect(() => {
