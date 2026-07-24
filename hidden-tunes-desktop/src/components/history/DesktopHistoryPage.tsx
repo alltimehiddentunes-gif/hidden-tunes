@@ -35,6 +35,7 @@ const FILTERS: { id: 'all' | HistoryItemType; label: string }[] = [
   { id: 'podcast_episode', label: 'Podcasts' },
   { id: 'audiobook_chapter', label: 'Audiobooks' },
   { id: 'tv', label: 'TV' },
+  { id: 'sports', label: 'Sports' },
   { id: 'motivational', label: 'Motivationals' },
   { id: 'lecture', label: 'Lectures' },
 ]
@@ -51,6 +52,8 @@ function familyLabel(type: HistoryItemType) {
       return 'Audiobook'
     case 'tv':
       return 'TV'
+    case 'sports':
+      return 'Sports'
     case 'motivational':
       return 'Motivational'
     case 'lecture':

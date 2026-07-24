@@ -19,6 +19,7 @@ export const QUEUE_CONTEXT_LABELS: Record<QueueContext, string> = {
   motivational: 'Motivational Sessions',
   lecture: 'Lecture Sessions',
   tv: 'TV Queue',
+  sports: 'Sports',
   scene: 'Scene Queue',
   smart: 'Smart Queue',
 }

@@ -11,6 +11,7 @@ export const HISTORY_ITEM_TYPES = [
   'podcast_episode',
   'audiobook_chapter',
   'tv',
+  'sports',
   'motivational',
   'lecture',
 ] as const

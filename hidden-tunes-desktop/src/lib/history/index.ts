@@ -29,3 +29,6 @@ export {
   __resetHistoryCacheForTests,
 } from './historyService'
 export { useDesktopHistory } from './useDesktopHistory'
+export {
+  mirrorSportsHistoryEntry,
+} from './mirrorFamilyHistory'

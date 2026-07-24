@@ -5,6 +5,7 @@ export type GlobalNavKey =
   | 'podcasts'
   | 'audiobooks'
   | 'tv'
+  | 'sports'
   | 'motivationals'
   | 'lectures'
 
@@ -21,6 +22,7 @@ export const PRIMARY_SECTION_NAV: ReadonlyArray<{
   { navKey: 'radio', label: 'Radio' },
   { navKey: 'podcasts', label: 'Podcasts' },
   { navKey: 'tv', label: 'TV' },
+  { navKey: 'sports', label: 'Sports' },
   { navKey: 'audiobooks', label: 'Audiobooks' },
   { navKey: 'motivationals', label: 'Motivationals' },
   { navKey: 'lectures', label: 'Lectures' },

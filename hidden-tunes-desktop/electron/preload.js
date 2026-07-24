@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('hiddenTunesDesktop', {
   catalog: {
     getJson: (path) => ipcRenderer.invoke('ht-catalog-get', path),
+    requestJson: (options) => ipcRenderer.invoke('ht-catalog-request', options),
   },
   downloads: {
     list: () => ipcRenderer.invoke('ht-downloads-list'),

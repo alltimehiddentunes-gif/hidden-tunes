@@ -185,6 +185,44 @@ export const GlobalSearchSections = memo(function GlobalSearchSections({
       </Section>
 
       <Section
+        id="search-sports-heading"
+        title="Sports"
+        viewAllNav="sports"
+        onNavigateNav={onNavigateNav}
+        loading={search.sports.loading}
+        error={search.sports.error}
+        count={search.sports.items.length}
+      >
+        {search.sports.items.map((fixture) => (
+          <button
+            key={fixture.id}
+            type="button"
+            className="psd-search-side-row"
+            onClick={() => onNavigateNav('sports')}
+          >
+            <span className="psd-search-side-art">
+              <ArtworkImage
+                src={fixture.artwork}
+                alt=""
+                seed={fixture.id}
+                label={fixture.title || fixture.homeTeam || 'Sports'}
+              />
+            </span>
+            <span className="psd-search-side-copy">
+              <strong>
+                {fixture.title
+                  || (fixture.homeTeam && fixture.awayTeam
+                    ? `${fixture.homeTeam} vs ${fixture.awayTeam}`
+                    : 'Sports fixture')}
+              </strong>
+              <span>{[fixture.league, fixture.sport, fixture.status].filter(Boolean).join(' · ') || 'Sports'}</span>
+            </span>
+            <Chevron className="psd-search-side-chevron" />
+          </button>
+        ))}
+      </Section>
+
+      <Section
         id="search-motivationals-heading"
         title="Motivationals"
         viewAllNav="motivationals"

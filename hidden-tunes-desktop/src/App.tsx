@@ -157,6 +157,7 @@ import { usePlayerOverlayController } from './lib/usePlayerOverlayController'
 import { useAutoOpenPreferredPlayer } from './lib/useAutoOpenPreferredPlayer'
 import { RadioPage } from './components/radio/RadioPage'
 import { TvPage } from './components/tv/TvPage'
+import { DesktopSportsPage } from './components/sports/DesktopSportsPage'
 import { TvNowPlayingPanel } from './components/tv/TvNowPlayingPanel'
 import { PodcastsPage } from './components/podcasts/PodcastsPage'
 import { PodcastShowPage } from './components/podcasts/PodcastShowPage'
@@ -203,6 +204,7 @@ import { GlobalSearchSections } from './components/search/GlobalSearchSections'
 import { formatLectureSeriesSubtitle } from './lib/lectures/lectureFormatters'
 import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
+import { isSportsQueueSong } from './lib/sports/sportsPlaybackAdapter'
 import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
 import { buildAudiobookQueueSongs } from './lib/audiobooks/audiobookPlaybackAdapter'
 import { buildMotivationalQueueSongs } from './lib/motivationals/motivationalPlaybackAdapter'
@@ -1005,6 +1007,7 @@ type NavKey =
   | 'motivationals'
   | 'lectures'
   | 'tv'
+  | 'sports'
   | 'worlds'
   | 'search'
   | 'library'
@@ -1026,6 +1029,7 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
   'motivationals',
   'lectures',
   'tv',
+  'sports',
   'worlds',
   'search',
   'library',
@@ -1046,8 +1050,9 @@ const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
   audiobooks: 'Search audiobooks, authors, narratorsâ€¦',
   motivationals: 'Search motivationals, speakers, topicsâ€¦',
   lectures: 'Search lectures, courses, speakers, subjectsâ€¦',
-  tv: 'Search shows, channels, live eventsâ€¦',
-  worlds: 'Search emotional worldsâ€¦',
+  tv: 'Search shows, channels, live events…',
+  sports: 'Search fixtures, leagues, teams…',
+  worlds: 'Search emotional worlds…',
   search: 'Search songs, artists, albumsâ€¦',
   library: 'Search songs, artists, albums, playlists...',
   liked: 'Search liked songsâ€¦',
@@ -1089,6 +1094,8 @@ function resolvePageFromNavKey(navKey: NavKey): PageId {
       return 'library'
     case 'tv':
       return 'tv'
+    case 'sports':
+      return 'sports'
     default:
       return navKey as PageId
   }
@@ -1182,6 +1189,20 @@ const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
           <rect x="3" y="6" width="18" height="12" rx="2" />
           <path d="M8 20h8" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'sports',
+    navKey: 'sports',
+    page: 'sports',
+    label: 'Sports',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 3v18M3 12h18M5.5 5.5c3 3 10 10 13 13M18.5 5.5c-3 3-10 10-13 13" />
         </svg>
       </SidebarNavIcon>
     ),
@@ -5343,6 +5364,7 @@ const PlayerBar = memo(function PlayerBar({
     && !isPodcastQueueSong(displayTrack)
     && !isRadioQueueSong(displayTrack)
     && !isTvQueueSong(displayTrack)
+    && !isSportsQueueSong(displayTrack)
   const canLikeTrack = Boolean(displayTrack && isMusicCatalogSong(displayTrack))
   const trackLiked = canLikeTrack ? isLiked(displayTrack!.id) : false
   const musicCandidateUrl = displayTrack
@@ -5361,7 +5383,9 @@ const PlayerBar = memo(function PlayerBar({
   const musicDownloadLabel = canDownloadTrack
     ? downloadControlLabel(musicDownloadItem)
     : null
-  const isTvLive = Boolean(displayTrack && isTvQueueSong(displayTrack))
+  const isTvLive = Boolean(
+    displayTrack && (isTvQueueSong(displayTrack) || isSportsQueueSong(displayTrack)),
+  )
   const progressMax = isTvLive ? 0 : (durationSeconds > 0 ? durationSeconds : 0)
   const progressValue = scrubSeconds ?? (progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0)
   const progressPercent =
@@ -7131,6 +7155,10 @@ function PageContent({
             onPlayTvChannel?.(channel, [channel], 0, 'History TV')
             return
           }
+          if (item.type === 'sports') {
+            onNavigateNav('sports')
+            return
+          }
           if (item.type === 'motivational' && item.parentId) {
             onOpenMotivationalProgram?.(item.parentId)
             return
@@ -7359,6 +7387,8 @@ function PageContent({
           ArtworkImage={ArtworkImage}
         />
       )
+    case 'sports':
+      return <DesktopSportsPage pageActive />
     case 'settings':
       return <SettingsPage onOpenPlayerByStyle={onOpenPlayerByStyle} />
     default:
@@ -7877,6 +7907,7 @@ function AppShell() {
                       || activeNavKey === 'motivationals'
                       || activeNavKey === 'lectures'
                       || activeNavKey === 'tv'
+                      || activeNavKey === 'sports'
                       ? 'search'
                       : 'default'
                   }
@@ -7909,6 +7940,8 @@ function AppShell() {
                                             ? lecturesQuery
                                           : activeNavKey === 'tv'
                                             ? tvQuery
+                                            : activeNavKey === 'sports'
+                                              ? ''
                                   : undefined
                   }
                   onSearchChange={
@@ -7940,6 +7973,8 @@ function AppShell() {
                                             ? setLecturesQuery
                                           : activeNavKey === 'tv'
                                             ? setTvQuery
+                                            : activeNavKey === 'sports'
+                                              ? undefined
                                   : undefined
                   }
                 />

@@ -32,17 +32,26 @@ function isMotivationalVideoSong(song) {
   )
 }
 
+function isSportsQueueSong(song) {
+  return Boolean(song?.id?.startsWith('sports-'))
+}
+
 function usesDesktopVideoPath(song) {
-  return isTvQueueSong(song) || isLectureVideoSong(song) || isMotivationalVideoSong(song)
+  return isTvQueueSong(song)
+    || isSportsQueueSong(song)
+    || isLectureVideoSong(song)
+    || isMotivationalVideoSong(song)
 }
 
 const cases = [
   [{ id: 'tv-1', tags: [] }, true, 'TV song uses video path'],
+  [{ id: 'sports-fixture-1', tags: ['sports', 'live'] }, true, 'Sports fixture uses video path'],
   [{ id: 'lecture-a--s1', tags: ['lecture-video'] }, true, 'Lecture video uses video path'],
   [{ id: 'lecture-a--s1', tags: ['lecture'] }, false, 'Lecture audio stays on audio path'],
   [{ id: 'motivation-p--s', tags: ['motivational-video'] }, true, 'Motivational video uses video path'],
   [{ id: 'motivation-p--s', tags: ['motivational'] }, false, 'Motivational audio stays on audio path'],
   [{ id: 'song-123', tags: [] }, false, 'Music stays on audio path'],
+  [{ id: 'radio-1', tags: [] }, false, 'Radio stays on audio path'],
 ]
 
 for (const [song, expected, label] of cases) {

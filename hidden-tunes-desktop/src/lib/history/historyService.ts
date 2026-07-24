@@ -49,9 +49,9 @@ export function normalizeHistoryItem(raw: unknown): DesktopHistoryItem | null {
       ? row.playedAt
       : nowIso()
 
-  // Live Radio must never keep a continuous position.
+  // Live Radio / TV / Sports must never keep a continuous resume position.
   const positionSeconds =
-    row.type === 'radio' || row.type === 'tv'
+    row.type === 'radio' || row.type === 'tv' || row.type === 'sports'
       ? null
       : typeof row.positionSeconds === 'number' && Number.isFinite(row.positionSeconds)
         ? Math.max(0, row.positionSeconds)
@@ -332,7 +332,7 @@ export function listContinueListening(limit = 24): ContinueListeningItem[] {
   return getHistoryStore()
     .items
     .filter((item) => {
-      if (item.type === 'radio' || item.type === 'tv') return false
+      if (item.type === 'radio' || item.type === 'tv' || item.type === 'sports') return false
       if (item.completed) return false
       const position = item.positionSeconds ?? 0
       return position >= 15

@@ -48,6 +48,7 @@ const PAGE_IDS = [
   'motivationals',
   'lectures',
   'tv',
+  'sports',
   'settings',
 ] as const
 

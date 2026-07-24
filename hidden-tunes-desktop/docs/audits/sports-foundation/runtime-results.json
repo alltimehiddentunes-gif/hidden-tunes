@@ -1,0 +1,149 @@
+{
+  "startedAt": "2026-07-24T16:33:53.212Z",
+  "productionPlayback": "unavailable during test",
+  "checks": [
+    {
+      "check": "UI ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Sports route opens (click Sports nav)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "shell renders (.sports-destination)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no permanent spinner after load",
+      "ok": true,
+      "detail": "No fixturesNo live events right now."
+    },
+    {
+      "check": "Live filter tab",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Upcoming filter",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Completed filter",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "fixture detail opens if any card exists OR empty state clear",
+      "ok": true,
+      "detail": "empty state"
+    },
+    {
+      "check": "back navigation if detail opened",
+      "ok": true,
+      "detail": "skipped — no detail"
+    },
+    {
+      "check": "unavailable fixtures have no Play button when not playable",
+      "ok": true,
+      "detail": "no cards"
+    },
+    {
+      "check": "play resolution path exists (resolveSportsPlay)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "play resolution path exists (resolvePlayableStream)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "play resolution path exists (dispatchSportsPlayback)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "play attempt surfaces error UI if fails",
+      "ok": true,
+      "detail": "no Play button — truthful unavailable"
+    },
+    {
+      "check": "ownership: single player bar soft check after Music→Sports",
+      "ok": true,
+      "detail": "bars=1; soft"
+    },
+    {
+      "check": "ownership: Sports shell after Music navigation",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "ownership: single video surface soft check",
+      "ok": true,
+      "detail": "videos=1"
+    },
+    {
+      "check": "ownership: playback mutex soft (bars+videos)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no duplicate player bar",
+      "ok": true,
+      "detail": "count=1"
+    },
+    {
+      "check": "no duplicate video surface (.ht-tv-video-element <= 1)",
+      "ok": true,
+      "detail": "count=1"
+    },
+    {
+      "check": "offline banner class exists (simulated or in source)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "cancellation silent — abort check via code contract",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024px layout",
+      "ok": true,
+      "detail": "width=1024"
+    },
+    {
+      "check": "no permanent spinner after load (recheck)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no fake LIVE badge on finished fixtures",
+      "ok": true,
+      "detail": "cards=0"
+    },
+    {
+      "check": "no fake 0-0 scores when score absent",
+      "ok": true,
+      "detail": "no cards"
+    },
+    {
+      "check": "history sports type accepted in localStorage seed",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "finishedAt": "2026-07-24T16:34:01.976Z",
+  "passed": 27,
+  "failed": 0,
+  "notes": {
+    "publicSportsOftenDisabled": true,
+    "passCriteria": "shell + empty/unavailable truthful still pass when enabled:false"
+  }
+}

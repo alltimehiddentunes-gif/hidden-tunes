@@ -169,3 +169,30 @@ export function mirrorRadioHistoryEntry(entry: {
     contentRating: entry.contentRating ?? null,
   })
 }
+
+export function mirrorSportsHistoryEntry(entry: {
+  fixtureId: string
+  title: string
+  sport?: string | null
+  league?: string | null
+  startTime?: string | null
+  status?: string | null
+  artworkUrl?: string | null
+  playedAt?: string
+}) {
+  recordDesktopHistory({
+    type: 'sports',
+    id: entry.fixtureId,
+    title: entry.title,
+    subtitle: [entry.league, entry.sport].filter(Boolean).join(' · ') || 'Sports',
+    artwork: entry.artworkUrl ?? null,
+    positionSeconds: null,
+    playedAt: entry.playedAt,
+    metadata: {
+      sport: entry.sport ?? null,
+      league: entry.league ?? null,
+      startTime: entry.startTime ?? null,
+      status: entry.status ?? null,
+    },
+  })
+}

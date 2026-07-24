@@ -42,7 +42,7 @@ function installLocalStorage() {
 }
 
 const HISTORY_STORAGE_KEY = 'ht-desktop:history:v1'
-const HISTORY_ITEM_TYPES = ['song', 'radio', 'podcast_episode', 'audiobook_chapter', 'tv', 'motivational', 'lecture']
+const HISTORY_ITEM_TYPES = ['song', 'radio', 'podcast_episode', 'audiobook_chapter', 'tv', 'sports', 'motivational', 'lecture']
 
 function historyItemIdentity(type, id) {
   return `${type}:${String(id).trim()}`
@@ -54,7 +54,7 @@ function normalizeHistoryItem(raw) {
   const title = typeof raw.title === 'string' ? raw.title.trim() : ''
   if (!id || !title || !HISTORY_ITEM_TYPES.includes(raw.type)) return null
   const positionSeconds =
-    raw.type === 'radio' || raw.type === 'tv'
+    raw.type === 'radio' || raw.type === 'tv' || raw.type === 'sports'
       ? null
       : typeof raw.positionSeconds === 'number'
         ? raw.positionSeconds
@@ -74,10 +74,11 @@ function main() {
 
   check('storage key versioned', HISTORY_STORAGE_KEY === 'ht-desktop:history:v1')
   check('same raw ID does not collide', historyItemIdentity('song', '1') !== historyItemIdentity('radio', '1'))
-  check('sports not in history types', !HISTORY_ITEM_TYPES.includes('sports'))
+  check('sports is in history types', HISTORY_ITEM_TYPES.includes('sports'))
   check('malformed rejected', normalizeHistoryItem({ type: 'song', id: '', title: 'x' }) === null)
   check('radio position forced null', normalizeHistoryItem({ type: 'radio', id: 'r1', title: 'R', positionSeconds: 99 }).positionSeconds === null)
   check('tv position forced null', normalizeHistoryItem({ type: 'tv', id: 't1', title: 'T', positionSeconds: 12 }).positionSeconds === null)
+  check('sports position forced null', normalizeHistoryItem({ type: 'sports', id: 'fx1', title: 'Match', positionSeconds: 55 }).positionSeconds === null)
   check('song may keep position', normalizeHistoryItem({ type: 'song', id: 's1', title: 'S', positionSeconds: 40 }).positionSeconds === 40)
 
   // Deduped record simulation

@@ -14,6 +14,7 @@ export type QueueContext =
   | 'motivational'
   | 'lecture'
   | 'tv'
+  | 'sports'
   | 'scene'
   | 'smart'
 

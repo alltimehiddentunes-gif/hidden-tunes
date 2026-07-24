@@ -6,6 +6,7 @@ import { isMotivationalQueueSong } from '../motivationals/motivationalPlaybackAd
 import { isLectureQueueSong } from '../lectures/lecturePlaybackAdapter'
 import { isRadioQueueSong } from '../radio/radioPlaybackAdapter'
 import { isTvQueueSong } from '../tv/tvPlaybackAdapter'
+import { isSportsQueueSong } from '../sports/sportsPlaybackAdapter'
 import {
   resolvePlayerArtist,
   resolvePlayerQualityLabel,
@@ -60,6 +61,7 @@ function inferKindFromContext(
 ): PlayerMediaKind {
   if (track && isRadioQueueSong(track)) return 'radio'
   if (track && isTvQueueSong(track)) return 'tv'
+  if (track && isSportsQueueSong(track)) return 'tv'
   if (track && isPodcastQueueSong(track)) return 'podcast'
   if (track && isAudiobookQueueSong(track)) return 'audiobook'
   if (track && isMotivationalQueueSong(track)) return 'motivational'
@@ -69,6 +71,7 @@ function inferKindFromContext(
   if (queueContext === 'audiobook') return 'audiobook'
   if (queueContext === 'motivational') return 'motivational'
   if (queueContext === 'lecture') return 'lecture'
+  if (queueContext === 'tv' || queueContext === 'sports') return 'tv'
 
   const titleHint = (queueTitle ?? '').toLowerCase()
   if (titleHint.includes('audiobook')) return 'audiobook'
@@ -79,6 +82,7 @@ function inferKindFromContext(
   const id = track?.id ?? ''
   if (id.startsWith('audiobook-')) return 'audiobook'
   if (id.startsWith('tv-')) return 'tv'
+  if (id.startsWith('sports-')) return 'tv'
   if (id.startsWith('motivation-')) return 'motivational'
   if (id.startsWith('lecture-')) return 'lecture'
 
@@ -188,6 +192,7 @@ export function resolvePlayerMediaAdapter(input: {
   const qualityLabel = resolvePlayerQualityLabel(track, audioQualityMode, isActive)
   const sourceLabel = normalizeText(queueTitle) ?? normalizeText(track?.album)
 
+  const isSportsTrack = Boolean(track && isSportsQueueSong(track)) || queueContext === 'sports'
   const liveIndicator = kind === 'radio' || kind === 'tv'
   const seekable = kind !== 'radio' && kind !== 'tv'
   const showDuration = seekable && Boolean(track?.durationSeconds && track.durationSeconds > 0)
@@ -202,7 +207,7 @@ export function resolvePlayerMediaAdapter(input: {
       : kind === 'audiobook'
         ? 'Audiobook'
         : kind === 'tv'
-          ? 'Live TV'
+          ? (isSportsTrack ? 'Sports' : 'Live TV')
           : kind === 'motivational'
             ? 'Motivational'
             : kind === 'lecture'

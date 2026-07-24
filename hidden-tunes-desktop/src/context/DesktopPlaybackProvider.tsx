@@ -88,8 +88,9 @@ import {
   extractTvChannelId,
   isTvQueueSong,
 } from '../lib/tv/tvPlaybackAdapter'
+import { isSportsQueueSong, extractSportsFixtureId } from '../lib/sports/sportsPlaybackAdapter'
 import { recordTvHistory } from '../lib/tv/tvLocalState'
-import { mirrorRadioHistoryEntry } from '../lib/history/mirrorFamilyHistory'
+import { mirrorRadioHistoryEntry, mirrorSportsHistoryEntry } from '../lib/history/mirrorFamilyHistory'
 import {
   AUDIOBOOK_PREVIOUS_RESTART_SECONDS,
   AUDIOBOOK_PROGRESS_THROTTLE_MS,
@@ -211,6 +212,9 @@ function playbackErrorMessage(song: ApiSong | null) {
   if (isTvQueueSong(song)) {
     return 'This TV channel is unavailable right now.'
   }
+  if (isSportsQueueSong(song)) {
+    return 'This event is not currently available to play.'
+  }
   if (isPodcastQueueSong(song)) {
     return 'This podcast episode is unavailable right now.'
   }
@@ -226,9 +230,9 @@ function playbackErrorMessage(song: ApiSong | null) {
   return 'Unable to play this track.'
 }
 
-/** TV, lecture video, and motivational video share the single video element path. */
+/** TV, Sports, lecture video, and motivational video share the single video element path. */
 function usesDesktopVideoPath(song: ApiSong | null | undefined) {
-  return isTvQueueSong(song) || isLectureVideoSong(song) || isMotivationalVideoSong(song)
+  return isTvQueueSong(song) || isSportsQueueSong(song) || isLectureVideoSong(song) || isMotivationalVideoSong(song)
 }
 
 export function useDesktopPlayback() {
@@ -795,6 +799,17 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
                 artworkUrl: song.artwork,
               })
             }
+            if (isSportsQueueSong(song)) {
+              const fixtureId = extractSportsFixtureId(song.id) ?? song.id.replace(/^sports-/, '')
+              mirrorSportsHistoryEntry({
+                fixtureId,
+                title: song.title,
+                sport: song.genre,
+                league: song.album !== 'Sports' ? song.album : null,
+                artworkUrl: song.artwork,
+                status: Array.isArray(song.tags) ? song.tags.find((tag) => ['live', 'upcoming', 'completed', 'postponed', 'cancelled', 'unknown'].includes(tag)) ?? null : null,
+              })
+            }
 
             if (pendingResumeSeconds == null) return
 
@@ -835,7 +850,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const selection = selectPlayableUrlForQualityMode(song, audioQualityMode)
       const instantUrl = selection?.url ?? null
       const upgradeTarget =
-        isPodcastQueueSong(song) || isRadioQueueSong(song) || isAudiobookQueueSong(song) || isMotivationalQueueSong(song) || isLectureQueueSong(song) || isTvQueueSong(song)
+        isPodcastQueueSong(song) || isRadioQueueSong(song) || isAudiobookQueueSong(song) || isMotivationalQueueSong(song) || isLectureQueueSong(song) || isTvQueueSong(song) || isSportsQueueSong(song)
           ? null
           : resolveUpgradeTargetForQualityMode(
               song,
@@ -2076,7 +2091,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       unshuffledQueueRef.current = playableQueue
       let resolvedQueue = playableQueue
       let resolvedIndex = safeIndex
-      if (shuffleEnabledRef.current && playableQueue.length > 1 && context !== 'audiobook' && context !== 'motivational' && context !== 'lecture' && context !== 'tv' && context !== 'radio') {
+      if (shuffleEnabledRef.current && playableQueue.length > 1 && context !== 'audiobook' && context !== 'motivational' && context !== 'lecture' && context !== 'tv' && context !== 'sports' && context !== 'radio') {
         resolvedQueue = shuffleQueueFromIndex(playableQueue, safeIndex)
         resolvedIndex = 0
       }

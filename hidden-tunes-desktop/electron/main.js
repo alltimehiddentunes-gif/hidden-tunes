@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { fetchApprovedCatalog } = require('./catalogBridge');
+const { fetchApprovedCatalog, fetchApprovedCatalogRequest } = require('./catalogBridge');
 const {
   DownloadManager,
   registerDownloadProtocol,
@@ -196,6 +196,29 @@ app.whenReady().then(() => {
       throw new Error('Catalog path is not allowed.')
     }
     return fetchApprovedCatalog(cleanPath)
+  })
+
+  ipcMain.handle('ht-catalog-request', async (_event, options) => {
+    const cleanPath = typeof options?.path === 'string' ? options.path.trim() : ''
+    const methodRaw = typeof options?.method === 'string' ? options.method.trim().toUpperCase() : 'GET'
+    const method = methodRaw === 'POST' ? 'POST' : methodRaw === 'GET' ? 'GET' : ''
+    const body = options?.body === undefined ? null : options.body
+
+    if (!cleanPath.startsWith('/api/')) {
+      throw new Error('Catalog path is not allowed.')
+    }
+    if (method !== 'GET' && method !== 'POST') {
+      throw new Error('Catalog method is not allowed.')
+    }
+    if (body !== null && (typeof body !== 'object' || Array.isArray(body))) {
+      throw new Error('Catalog body must be a plain object or null.')
+    }
+
+    return fetchApprovedCatalogRequest({
+      path: cleanPath,
+      method,
+      body,
+    })
   })
 
   const downloads = getDownloadManager()
