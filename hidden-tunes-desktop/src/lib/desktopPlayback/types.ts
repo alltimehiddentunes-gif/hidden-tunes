@@ -73,6 +73,16 @@ export type DesktopPlaybackActions = {
     queueTitle?: string,
     seedMetadata?: QueueSeedMetadata,
   ) => void
+  /** Activate existing queue identity or replace with a single-item play. */
+  playNow: (song: ApiSong) => void
+  /** Append without interrupting playback (typed identity de-duped). */
+  enqueue: (song: ApiSong, opts?: { allowDuplicate?: boolean }) => { added: boolean; index: number }
+  /** Insert after active item without interrupting. */
+  playNext: (song: ApiSong, opts?: { allowDuplicate?: boolean }) => { added: boolean; index: number }
+  removeQueueItem: (queueIndex: number) => void
+  moveQueueItem: (fromIndex: number, toIndex: number) => void
+  /** Stop playback and clear the entire queue. */
+  clearQueue: () => void
   next: () => void
   previous: () => void
   getUpcomingTracks: () => ApiSong[]

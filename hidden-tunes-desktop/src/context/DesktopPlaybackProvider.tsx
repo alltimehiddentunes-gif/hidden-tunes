@@ -64,6 +64,7 @@ import {
   patchAudiobookQueueWithResolvedChapters,
 } from '../lib/audiobooks/audiobookPlaybackAdapter'
 import { isMusicCatalogSong } from '../lib/home/isMusicCatalogSong'
+import { isMatureLibraryAccessEnabled } from '../lib/library/matureFilter'
 import {
   buildMusicProgressEntryFromSong,
   isMusicTrackCompleted,
@@ -91,6 +92,19 @@ import {
 import { isSportsQueueSong, extractSportsFixtureId } from '../lib/sports/sportsPlaybackAdapter'
 import { recordTvHistory } from '../lib/tv/tvLocalState'
 import { mirrorRadioHistoryEntry, mirrorSportsHistoryEntry } from '../lib/history/mirrorFamilyHistory'
+import {
+  QUEUE_PREVIOUS_RESTART_SECONDS,
+  clearPersistedQueue,
+  emitQueueDiagnostic,
+  enqueueSong,
+  findSongIndexById,
+  insertPlayNext,
+  isPersistableQueueSong,
+  moveIndex,
+  persistQueueSnapshot,
+  removeAtIndex,
+  restoreQueueSongs,
+} from '../lib/queue'
 import {
   AUDIOBOOK_PREVIOUS_RESTART_SECONDS,
   AUDIOBOOK_PROGRESS_THROTTLE_MS,
@@ -230,11 +244,40 @@ function playbackErrorMessage(song: ApiSong | null) {
   return 'Unable to play this track.'
 }
 
+const MATURE_CONTENT_RESTRICTED_MESSAGE = 'This item is restricted by your content settings.'
+/** Bound how many queue slots we may skip for mature gating (no infinite loops). */
+const MATURE_SKIP_WALK_LIMIT = 64
+
+function isQueueSongBlockedByMature(song: ApiSong): boolean {
+  if (isMatureLibraryAccessEnabled()) return false
+  return Boolean(
+    song.tags?.some((t) => /mature|adult|explicit/i.test(t))
+    || /adult|mature|explicit/i.test(song.genre || '')
+    || (isRadioQueueSong(song) && /sex sound/i.test(song.title || '')),
+  )
+}
+
+/**
+ * Walk forward from `fromIndex` (inclusive) looking for a non-mature-blocked song.
+ * Returns -1 when none found within the remaining queue / walk bound.
+ */
+function findNextUnblockedQueueIndex(queue: ApiSong[], fromIndex: number): number {
+  if (fromIndex < 0 || fromIndex >= queue.length) return -1
+  const end = Math.min(queue.length, fromIndex + MATURE_SKIP_WALK_LIMIT)
+  for (let i = fromIndex; i < end; i++) {
+    const song = queue[i]
+    if (song && !isQueueSongBlockedByMature(song)) return i
+  }
+  return -1
+}
+
 /** TV, Sports, lecture video, and motivational video share the single video element path. */
 function usesDesktopVideoPath(song: ApiSong | null | undefined) {
   return isTvQueueSong(song) || isSportsQueueSong(song) || isLectureVideoSong(song) || isMotivationalVideoSong(song)
 }
 
+/* Context hooks are intentionally co-located with the provider. */
+/* eslint-disable react-refresh/only-export-components -- hooks + provider share this module */
 export function useDesktopPlayback() {
   const value = useContext(DesktopPlaybackContext)
   if (!value) {
@@ -250,6 +293,7 @@ export function useDesktopPlaybackProgress() {
   }
   return value
 }
+/* eslint-enable react-refresh/only-export-components */
 
 export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const serviceRef = useRef<HtmlAudioPlaybackService | null>(null)
@@ -715,12 +759,66 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     queueIndexRef.current = index
     setCurrentQueue(queue)
     setCurrentIndex(index)
+
+    // Persist finite audio queue metadata only (TV/Sports stripped by classify).
+    const persistable = queue.filter((song) => isPersistableQueueSong(song))
+    if (persistable.length === 0) {
+      clearPersistedQueue()
+      return
+    }
+    const mappedIndex = index >= 0 && queue[index]
+      ? persistable.findIndex((song) => song.id === queue[index].id)
+      : -1
+    persistQueueSnapshot({
+      songs: persistable,
+      activeIndex: mappedIndex,
+      queueContext: queueContextRef.current,
+      queueTitle: undefined,
+    })
   }, [])
 
   const setQueueContextState = useCallback((context: QueueContext) => {
     queueContextRef.current = context
     setQueueContext(context)
   }, [])
+
+  const queueRestoredRef = useRef(false)
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- one-shot paused queue restore on mount */
+    if (queueRestoredRef.current) return
+    queueRestoredRef.current = true
+    const restored = restoreQueueSongs()
+    if (!restored || restored.songs.length === 0) return
+
+    applyQueueState(restored.songs, restored.activeIndex)
+    const ctx = restored.queueContext
+    if (
+      ctx === 'home'
+      || ctx === 'discover'
+      || ctx === 'album'
+      || ctx === 'artist'
+      || ctx === 'mood'
+      || ctx === 'manual'
+      || ctx === 'radio'
+      || ctx === 'podcast'
+      || ctx === 'audiobook'
+      || ctx === 'motivational'
+      || ctx === 'lecture'
+      || ctx === 'tv'
+      || ctx === 'sports'
+      || ctx === 'scene'
+      || ctx === 'smart'
+    ) {
+      setQueueContextState(ctx)
+    }
+    if (restored.queueTitle) setQueueTitle(restored.queueTitle)
+    emitQueueDiagnostic('queue_restored', {
+      count: restored.songs.length,
+      activeIndex: restored.activeIndex,
+      autoplay: false,
+    })
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [applyQueueState, setQueueContextState])
 
   const extendQueueIfNeeded = useCallback((queue: ApiSong[], index: number) => {
     if (
@@ -1778,25 +1876,46 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       const nextIndex = currentIndexValue + 1
 
       if (nextIndex < queue.length) {
-        queueIndexRef.current = nextIndex
-        setCurrentIndex(nextIndex)
-        const extendedQueue = extendQueueIfNeeded(queue, nextIndex)
-        playSongRef.current(extendedQueue[nextIndex])
+        const playableIndex = findNextUnblockedQueueIndex(queue, nextIndex)
+        if (playableIndex < 0) {
+          setIsPlaying(false)
+          emitPositionSeconds(0, true)
+          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+          return
+        }
+        queueIndexRef.current = playableIndex
+        setCurrentIndex(playableIndex)
+        const extendedQueue = extendQueueIfNeeded(queue, playableIndex)
+        playSongRef.current(extendedQueue[playableIndex])
         return
       }
 
       const extendedQueue = extendQueueIfNeeded(queue, queueIndexRef.current)
       if (nextIndex < extendedQueue.length) {
-        queueIndexRef.current = nextIndex
-        setCurrentIndex(nextIndex)
-        playSongRef.current(extendedQueue[nextIndex])
+        const playableIndex = findNextUnblockedQueueIndex(extendedQueue, nextIndex)
+        if (playableIndex < 0) {
+          setIsPlaying(false)
+          emitPositionSeconds(0, true)
+          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+          return
+        }
+        queueIndexRef.current = playableIndex
+        setCurrentIndex(playableIndex)
+        playSongRef.current(extendedQueue[playableIndex])
         return
       }
 
       if (repeatModeRef.current === 'all' && queue.length > 0) {
-        queueIndexRef.current = 0
-        setCurrentIndex(0)
-        playSongRef.current(queue[0])
+        const playableIndex = findNextUnblockedQueueIndex(queue, 0)
+        if (playableIndex < 0) {
+          setIsPlaying(false)
+          emitPositionSeconds(0, true)
+          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+          return
+        }
+        queueIndexRef.current = playableIndex
+        setCurrentIndex(playableIndex)
+        playSongRef.current(queue[playableIndex])
         return
       }
 
@@ -1888,13 +2007,18 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         && isRadioQueueSong(track)
         && currentIndexValue + 1 < queue.length
       ) {
+        const playableIndex = findNextUnblockedQueueIndex(queue, currentIndexValue + 1)
+        if (playableIndex < 0) {
+          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+          setIsPlaying(false)
+          return
+        }
         setError('Station unavailable — trying next.')
-        const nextIndex = currentIndexValue + 1
-        queueIndexRef.current = nextIndex
-        setCurrentIndex(nextIndex)
-        currentTrackRef.current = queue[nextIndex]
-        setCurrentTrack(queue[nextIndex])
-        playSongRef.current(queue[nextIndex])
+        queueIndexRef.current = playableIndex
+        setCurrentIndex(playableIndex)
+        currentTrackRef.current = queue[playableIndex]
+        setCurrentTrack(queue[playableIndex])
+        playSongRef.current(queue[playableIndex])
         return
       }
 
@@ -2018,16 +2142,30 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
       const nextIndex = currentIndexValue + 1
       if (nextIndex < queue.length) {
-        queueIndexRef.current = nextIndex
-        setCurrentIndex(nextIndex)
-        playSongRef.current(queue[nextIndex])
+        const playableIndex = findNextUnblockedQueueIndex(queue, nextIndex)
+        if (playableIndex < 0) {
+          setIsPlaying(false)
+          emitPositionSeconds(0, true)
+          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+          return
+        }
+        queueIndexRef.current = playableIndex
+        setCurrentIndex(playableIndex)
+        playSongRef.current(queue[playableIndex])
         return
       }
 
       if (repeatModeRef.current === 'all' && queue.length > 0) {
-        queueIndexRef.current = 0
-        setCurrentIndex(0)
-        playSongRef.current(queue[0])
+        const playableIndex = findNextUnblockedQueueIndex(queue, 0)
+        if (playableIndex < 0) {
+          setIsPlaying(false)
+          emitPositionSeconds(0, true)
+          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+          return
+        }
+        queueIndexRef.current = playableIndex
+        setCurrentIndex(playableIndex)
+        playSongRef.current(queue[playableIndex])
         return
       }
 
@@ -2141,21 +2279,134 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     [playQueue],
   )
 
+  const playNow = useCallback(
+    (song: ApiSong) => {
+      const existing = findSongIndexById(queueRef.current, song.id)
+      if (existing >= 0) {
+        emitQueueDiagnostic('queue_active_changed', { reason: 'playNow-existing', index: existing })
+        applyQueueState(queueRef.current, existing)
+        playSong(queueRef.current[existing])
+        return
+      }
+      emitQueueDiagnostic('queue_play_started', { reason: 'playNow-replace', id: song.id })
+      playQueue([song], 0, DEFAULT_QUEUE_CONTEXT)
+    },
+    [applyQueueState, playQueue, playSong],
+  )
+
+  const enqueue = useCallback(
+    (song: ApiSong, opts?: { allowDuplicate?: boolean }) => {
+      const result = enqueueSong(queueRef.current, song, opts)
+      if (result.added) {
+        applyQueueState(result.queue, queueIndexRef.current < 0 ? 0 : queueIndexRef.current)
+        emitQueueDiagnostic('queue_item_added', { id: song.id, index: result.index })
+      }
+      return { added: result.added, index: result.index }
+    },
+    [applyQueueState],
+  )
+
+  const playNextSong = useCallback(
+    (song: ApiSong, opts?: { allowDuplicate?: boolean }) => {
+      const result = insertPlayNext(queueRef.current, queueIndexRef.current, song, opts)
+      if (result.added) {
+        applyQueueState(result.queue, queueIndexRef.current)
+        emitQueueDiagnostic('queue_item_added', { id: song.id, mode: 'playNext', index: result.index })
+      }
+      return { added: result.added, index: result.index }
+    },
+    [applyQueueState],
+  )
+
+  const removeQueueItem = useCallback(
+    (queueIndex: number) => {
+      const result = removeAtIndex(queueRef.current, queueIndexRef.current, queueIndex)
+      if (result.queue === queueRef.current && !result.removedActive) return
+
+      emitQueueDiagnostic('queue_item_removed', { index: queueIndex, removedActive: result.removedActive })
+
+      if (result.queue.length === 0) {
+        applyQueueState([], -1)
+        mediaResolveGenerationRef.current += 1
+        cancelUpgradeSession()
+        if (activeMediaRef.current === 'video') {
+          getVideoService().stop()
+          activeMediaRef.current = 'audio'
+        } else {
+          getService().stop()
+        }
+        currentTrackRef.current = null
+        setCurrentTrack(null)
+        setIsPlaying(false)
+        setIsLoading(false)
+        setError(null)
+        emitPositionSeconds(0, true)
+        setDurationSeconds(0)
+        return
+      }
+
+      if (result.removedActive) {
+        applyQueueState(result.queue, result.activeIndex)
+        const nextSong = result.queue[result.activeIndex]
+        if (nextSong) {
+          playSong(nextSong)
+        } else {
+          mediaResolveGenerationRef.current += 1
+          cancelUpgradeSession()
+          if (activeMediaRef.current === 'video') {
+            getVideoService().stop()
+            activeMediaRef.current = 'audio'
+          } else {
+            getService().stop()
+          }
+          currentTrackRef.current = null
+          setCurrentTrack(null)
+          setIsPlaying(false)
+          setIsLoading(false)
+        }
+        return
+      }
+
+      applyQueueState(result.queue, result.activeIndex)
+    },
+    [applyQueueState, cancelUpgradeSession, emitPositionSeconds, getService, getVideoService, playSong],
+  )
+
+  const moveQueueItem = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const result = moveIndex(queueRef.current, queueIndexRef.current, fromIndex, toIndex)
+      applyQueueState(result.queue, result.activeIndex)
+      emitQueueDiagnostic('queue_reordered', { fromIndex, toIndex })
+    },
+    [applyQueueState],
+  )
+
   const next = useCallback(() => {
     const queue = queueRef.current
-    const nextIndex = queueIndexRef.current + 1
-    if (nextIndex >= queue.length) {
+    const startIndex = queueIndexRef.current + 1
+    if (startIndex >= queue.length) {
       if (repeatModeRef.current === 'all' && queue.length > 0) {
-        applyQueueState(queue, 0)
-        playSong(queue[0])
+        const playableIndex = findNextUnblockedQueueIndex(queue, 0)
+        if (playableIndex < 0) {
+          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+          return
+        }
+        applyQueueState(queue, playableIndex)
+        playSong(queue[playableIndex])
       }
       return
     }
 
-    applyQueueState(queue, nextIndex)
-    playSong(queue[nextIndex])
+    const playableIndex = findNextUnblockedQueueIndex(queue, startIndex)
+    if (playableIndex < 0) {
+      setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+      return
+    }
+
+    applyQueueState(queue, playableIndex)
+    playSong(queue[playableIndex])
     queueMicrotask(() => {
-      extendQueueIfNeeded(queue, nextIndex)
+      extendQueueIfNeeded(queue, playableIndex)
     })
   }, [applyQueueState, extendQueueIfNeeded, playSong])
 
@@ -2194,6 +2445,22 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         flushLectureProgressRef.current(true)
         return
       }
+    }
+
+    // Finite Music / Podcast: restart when past threshold. Radio never restarts mid-stream.
+    if (
+      track
+      && !isRadioQueueSong(track)
+      && !isTvQueueSong(track)
+      && !isSportsQueueSong(track)
+      && (isMusicCatalogSong(track) || isPodcastQueueSong(track))
+      && positionSecondsRef.current > QUEUE_PREVIOUS_RESTART_SECONDS
+    ) {
+      getService().seekTo(0)
+      emitPositionSeconds(0, true)
+      if (isPodcastQueueSong(track)) flushPodcastProgressRef.current(true)
+      if (isMusicCatalogSong(track)) flushMusicProgressRef.current(true)
+      return
     }
 
     const queue = queueRef.current
@@ -2352,6 +2619,15 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     (seconds: number) => {
       if (!currentTrack || !Number.isFinite(seconds)) return
 
+      // Live / non-seekable owners
+      if (isRadioQueueSong(currentTrack) || isTvQueueSong(currentTrack) || isSportsQueueSong(currentTrack)) {
+        emitQueueDiagnostic('player_seek_rejected', {
+          id: currentTrack.id,
+          reason: 'live-or-non-seekable',
+        })
+        return
+      }
+
       if (usesDesktopVideoPath(currentTrack)) {
         const video = getVideoService().getVideoElement()
         const max =
@@ -2458,6 +2734,17 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     setCurrentTrack(null)
   }, [cancelUpgradeSession, emitPositionSeconds, getService, getVideoService])
 
+  const clearQueue = useCallback(() => {
+    emitQueueDiagnostic('queue_cleared', { previousLength: queueRef.current.length })
+    applyQueueState([], -1)
+    unshuffledQueueRef.current = []
+    queueSeedTracksRef.current = []
+    setQueueTitle(undefined)
+    setQueueContextState('manual')
+    stopPlayback()
+    clearPersistedQueue()
+  }, [applyQueueState, setQueueContextState, stopPlayback])
+
   const mountTvVideo = useCallback((container: HTMLElement | null) => {
     getVideoService().mount(container)
   }, [getVideoService])
@@ -2524,6 +2811,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       audiobookPlaybackRate,
       playTrack,
       playQueue,
+      playNow,
+      enqueue,
+      playNext: playNextSong,
+      removeQueueItem,
+      moveQueueItem,
+      clearQueue,
       next,
       previous,
       getUpcomingTracks,
@@ -2559,6 +2852,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       audiobookPlaybackRate,
       playTrack,
       playQueue,
+      playNow,
+      enqueue,
+      playNextSong,
+      removeQueueItem,
+      moveQueueItem,
+      clearQueue,
       next,
       previous,
       getUpcomingTracks,

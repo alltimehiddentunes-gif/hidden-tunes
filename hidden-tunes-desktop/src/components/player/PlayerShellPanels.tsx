@@ -6,6 +6,8 @@ import {
   PLAYER_QUEUE_PANEL_EMPTY_DETAIL,
   PLAYER_QUEUE_PANEL_EMPTY_TITLE,
 } from '../../lib/playerQueueDisplay'
+import { familyLabelForSong } from '../../lib/queue'
+import { isRadioQueueSong } from '../../lib/radio/radioPlaybackAdapter'
 import { ArtworkImage } from '../ArtworkImage'
 
 export const PlayerQueuePanel = memo(function PlayerQueuePanel({
@@ -13,7 +15,14 @@ export const PlayerQueuePanel = memo(function PlayerQueuePanel({
 }: {
   showHeader?: boolean
 }) {
-  const { currentQueue, currentIndex, playQueueAtIndex } = useDesktopPlayback()
+  const {
+    currentQueue,
+    currentIndex,
+    playQueueAtIndex,
+    removeQueueItem,
+    moveQueueItem,
+    clearQueue,
+  } = useDesktopPlayback()
   const queueRows = useMemo(
     () => buildPlayerQueueRows(currentQueue, currentIndex),
     [currentIndex, currentQueue],
@@ -34,48 +43,92 @@ export const PlayerQueuePanel = memo(function PlayerQueuePanel({
   }
 
   return (
-    <div className="player-queue-panel" role="tabpanel" aria-label="Queue">
-      {showHeader ? (
-        <header className="player-queue-panel-header">
-          <h3 className="player-queue-panel-title">Queue</h3>
-          <span className="player-queue-panel-count">
-            {queueStats.songCount} tracks · {queueStats.remainingCount} remaining · {queueStats.remainingDurationLabel}
-          </span>
-        </header>
-      ) : null}
+    <div className="player-queue-panel" role="tabpanel" aria-label="Queue" data-ht-queue-panel="true">
+      <header className="player-queue-panel-header">
+        {showHeader ? <h3 className="player-queue-panel-title">Queue</h3> : <h3 className="player-queue-panel-title">Up next</h3>}
+        <span className="player-queue-panel-count">
+          {queueStats.songCount} items · {queueStats.remainingCount} remaining
+          {queueStats.remainingDurationLabel ? ` · ${queueStats.remainingDurationLabel}` : ''}
+        </span>
+        <button
+          type="button"
+          className="player-queue-clear"
+          onClick={() => clearQueue()}
+          aria-label="Clear queue"
+        >
+          Clear
+        </button>
+      </header>
       <ol className="player-queue-list">
-        {queueRows.map((row) => (
-          <li
-            key={row.key}
-            className={
-              (row.isCurrent ? 'is-current ' : '')
-              + (row.isPrevious ? 'is-previous ' : '')
-              + (row.status === 'played' ? 'is-played ' : '')
-              + (row.isNext ? 'is-next ' : '')
-            }
-            data-ht-queue-status={row.status}
-          >
-            <button
-              type="button"
-              className="player-queue-row"
-              onClick={() => playQueueAtIndex(row.queueIndex)}
-              aria-current={row.isCurrent ? 'true' : undefined}
+        {queueRows.map((row) => {
+          const family = familyLabelForSong(row.track)
+          const live = isRadioQueueSong(row.track)
+          return (
+            <li
+              key={row.key}
+              className={
+                (row.isCurrent ? 'is-current ' : '')
+                + (row.isPrevious ? 'is-previous ' : '')
+                + (row.status === 'played' ? 'is-played ' : '')
+                + (row.isNext ? 'is-next ' : '')
+              }
+              data-ht-queue-status={row.status}
+              data-ht-queue-family={family}
             >
-              <span className="player-queue-index">{row.queueIndex + 1}</span>
-              <ArtworkImage
-                src={row.artwork}
-                alt=""
-                seed={row.track.id}
-                label={row.title}
-              />
-              <span className="player-queue-copy">
-                <strong>{row.title}</strong>
-                <span>{row.artist}</span>
-              </span>
-              <span className="player-queue-duration">{row.duration}</span>
-            </button>
-          </li>
-        ))}
+              <button
+                type="button"
+                className="player-queue-row"
+                onClick={() => playQueueAtIndex(row.queueIndex)}
+                aria-current={row.isCurrent ? 'true' : undefined}
+              >
+                <span className="player-queue-index">{row.queueIndex + 1}</span>
+                <ArtworkImage
+                  src={row.artwork}
+                  alt=""
+                  seed={row.track.id}
+                  label={row.title}
+                />
+                <span className="player-queue-copy">
+                  <strong>{row.title}</strong>
+                  <span>
+                    {family}
+                    {live ? ' · Live' : ''}
+                    {row.artist ? ` · ${row.artist}` : ''}
+                  </span>
+                </span>
+                <span className="player-queue-duration">{live ? 'LIVE' : row.duration}</span>
+              </button>
+              <div className="player-queue-row-actions">
+                <button
+                  type="button"
+                  className="player-queue-move"
+                  aria-label="Move up"
+                  disabled={row.queueIndex <= 0}
+                  onClick={() => moveQueueItem(row.queueIndex, row.queueIndex - 1)}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className="player-queue-move"
+                  aria-label="Move down"
+                  disabled={row.queueIndex >= currentQueue.length - 1}
+                  onClick={() => moveQueueItem(row.queueIndex, row.queueIndex + 1)}
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className="player-queue-remove"
+                  aria-label="Remove from queue"
+                  onClick={() => removeQueueItem(row.queueIndex)}
+                >
+                  ✕
+                </button>
+              </div>
+            </li>
+          )
+        })}
       </ol>
     </div>
   )

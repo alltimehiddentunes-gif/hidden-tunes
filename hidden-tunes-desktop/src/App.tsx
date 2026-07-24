@@ -115,7 +115,6 @@ import { formatPlaybackTime } from './lib/player/formatPlaybackTime'
 import { resolvePlayerShellMetadata, resolvePlayerSubtitle } from './lib/playerDisplayMetadata'
 import { isAudiobookQueueSong } from './lib/audiobooks/audiobookPlaybackAdapter'
 import { isPodcastQueueSong } from './lib/podcasts/podcastPlaybackAdapter'
-import { isRadioQueueSong } from './lib/radio/radioPlaybackAdapter'
 import { getPreferredNowPlayingStyle } from './lib/nowPlayingStyle'
 import { PlayerModeLauncher } from './components/PlayerModeLauncher'
 import { PremiumAudioVisualizerProvider } from './components/PremiumAudioVisualizerProvider'
@@ -202,7 +201,7 @@ import { useDiscoverLectureSearch } from './lib/lectures/useDiscoverLectureSearc
 import { useGlobalDesktopSearch } from './lib/search/useGlobalDesktopSearch'
 import { GlobalSearchSections } from './components/search/GlobalSearchSections'
 import { formatLectureSeriesSubtitle } from './lib/lectures/lectureFormatters'
-import { buildRadioQueueSongs } from './lib/radio/radioPlaybackAdapter'
+import { buildRadioQueueSongs, isRadioQueueSong } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
 import { isSportsQueueSong } from './lib/sports/sportsPlaybackAdapter'
 import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
@@ -5386,7 +5385,9 @@ const PlayerBar = memo(function PlayerBar({
   const isTvLive = Boolean(
     displayTrack && (isTvQueueSong(displayTrack) || isSportsQueueSong(displayTrack)),
   )
-  const progressMax = isTvLive ? 0 : (durationSeconds > 0 ? durationSeconds : 0)
+  const isRadioLive = Boolean(displayTrack && isRadioQueueSong(displayTrack))
+  const isLiveProgress = isTvLive || isRadioLive
+  const progressMax = isLiveProgress ? 0 : (durationSeconds > 0 ? durationSeconds : 0)
   const progressValue = scrubSeconds ?? (progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0)
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
@@ -5557,11 +5558,11 @@ const PlayerBar = memo(function PlayerBar({
           showShuffleRepeat={showShuffleRepeat}
         />
         <div
-          className={`progress-wrap${isTvLive ? ' progress-wrap--live' : ''}`}
+          className={`progress-wrap${isLiveProgress ? ' progress-wrap--live' : ''}`}
           role="group"
-          aria-label={isTvLive ? 'Live TV status' : 'Playback progress'}
+          aria-label={isLiveProgress ? (isRadioLive ? 'Live radio status' : 'Live video status') : 'Playback progress'}
         >
-          {isTvLive ? (
+          {isLiveProgress ? (
             <>
               <span className="progress-time progress-time--live">LIVE</span>
               <div className="progress-track progress-track--live" aria-hidden="true">
@@ -5595,7 +5596,7 @@ const PlayerBar = memo(function PlayerBar({
                 />
               </div>
               <span className="progress-time">
-                {progressMax > 0 ? formatPlaybackTime(progressMax) : 'â€”'}
+                {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
               </span>
             </>
           )}
@@ -5611,6 +5612,8 @@ const PlayerBar = memo(function PlayerBar({
         <div className="player-quality">
           {isTvLive ? (
             <span className="player-quality-live" aria-label="Live TV">LIVE TV</span>
+          ) : isRadioLive ? (
+            <span className="player-quality-live" aria-label="Live Radio">LIVE</span>
           ) : (
             <AudioQualitySelector
               value={audioQualityMode}

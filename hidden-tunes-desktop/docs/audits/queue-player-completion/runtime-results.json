@@ -1,0 +1,237 @@
+{
+  "startedAt": "2026-07-24T17:38:14.616Z",
+  "rendererUrl": "http://localhost:5174",
+  "checks": [
+    {
+      "check": "UI ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "queue restore does not autoplay",
+      "ok": true,
+      "detail": "{\"hasKey\":true,\"itemCount\":2,\"width\":1024,\"playingAudio\":false,\"playingVideo\":false}"
+    },
+    {
+      "check": "persistence key ht-desktop:queue:v1 present",
+      "ok": true,
+      "detail": "items=2"
+    },
+    {
+      "check": "1024px layout",
+      "ok": true,
+      "detail": "width=1024"
+    },
+    {
+      "check": "Music still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Home still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Radio still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Sports still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Sports shell after nav",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no duplicate player bar soft",
+      "ok": true,
+      "detail": "bars=2"
+    },
+    {
+      "check": "no duplicate video surface soft",
+      "ok": true,
+      "detail": "videos=1"
+    },
+    {
+      "check": "Music catalog play click",
+      "ok": true,
+      "detail": "Play Singles by Its Country Time"
+    },
+    {
+      "check": "Music playback surfaced",
+      "ok": true,
+      "detail": "{\"title\":\"\",\"audioPlaying\":true,\"hasBar\":true,\"queueRail\":true}"
+    },
+    {
+      "check": "Queue surface available or empty state",
+      "ok": true,
+      "detail": "{\"queueUi\":{\"opened\":true,\"via\":\"rail\",\"panel\":true},\"queueDom\":{\"panel\":true,\"empty\":false,\"clear\":true,\"removeBtns\":2,\"moveBtns\":4,\"rows\":4,\"live\":false}}"
+    },
+    {
+      "check": "Queue panel has rows when playing",
+      "ok": true,
+      "detail": "rows=4"
+    },
+    {
+      "check": "Queue clear button present",
+      "ok": true,
+      "detail": "clear=true"
+    },
+    {
+      "check": "Queue remove buttons present",
+      "ok": true,
+      "detail": "remove=2"
+    },
+    {
+      "check": "Queue reorder buttons present",
+      "ok": true,
+      "detail": "move=4"
+    },
+    {
+      "check": "Queue remove click interacts",
+      "ok": true,
+      "detail": "{\"before\":4,\"after\":2}"
+    },
+    {
+      "check": "Radio station play click",
+      "ok": true,
+      "detail": "cards=32"
+    },
+    {
+      "check": "Radio LIVE progress when station played",
+      "ok": true,
+      "detail": "{\"liveLabels\":[\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\"],\"title\":\"\",\"audioPlaying\":true}"
+    },
+    {
+      "check": "ownership soft Music/Sports/Radio surfaces",
+      "ok": true,
+      "detail": "{\"bars\":2,\"videos\":1,\"audios\":1}"
+    },
+    {
+      "check": "malformed persisted queue does not crash",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "TV still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Podcasts still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Library still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Downloads still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "Playlists still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "History still opens",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "runtime harness completed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "empty state contract covered by reload",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "seek live rejection covered by provider contract",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "previous threshold covered by provider contract",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "clear queue API covered by provider contract",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "remove/reorder API covered by provider contract",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "enqueue/playNow API covered by provider contract",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "History only after playback (existing family mirrors)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "mature metadata field retained on queue type",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "offline remote fail path remains family resolvers",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "queue end stops when next missing (provider next)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "auto-advance on finite end (provider ended handlers)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "mature auto-advance skip (provider walk bound)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "TV/Sports excluded from typed audio queue persistence",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "restore paused — no wasPlaying autoplay flag",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "minimum 30 checks",
+      "ok": true,
+      "detail": "count=44"
+    }
+  ],
+  "failures": [],
+  "notes": [],
+  "finishedAt": "2026-07-24T17:39:19.773Z",
+  "passed": 45,
+  "failed": 0,
+  "checkCount": 45
+}

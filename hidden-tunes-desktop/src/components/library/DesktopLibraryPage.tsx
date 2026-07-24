@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState, type ComponentType } from 'react'
 import type { ApiSong } from '../../lib/api'
+import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import {
   dispatchLibraryItem,
   enrichSongLibraryItem,
@@ -9,6 +10,10 @@ import {
   useDesktopLibrary,
 } from '../../lib/library'
 import { removeLibraryItemMirrored } from '../../lib/library/removeMirrored'
+import { buildPodcastQueueSongs } from '../../lib/podcasts/podcastPlaybackAdapter'
+import type { PodcastEpisodeMeta } from '../../lib/podcasts/types'
+import { buildRadioQueueSongs } from '../../lib/radio/radioPlaybackAdapter'
+import type { RadioStationMeta } from '../../lib/radio/types'
 
 type ArtworkImageProps = {
   src: string | null
@@ -70,11 +75,13 @@ function matchesQuery(item: DesktopLibraryItem, query: string) {
 function LibraryRow({
   item,
   onOpen,
+  onEnqueue,
   onRemove,
   ArtworkImage,
 }: {
   item: DesktopLibraryItem
   onOpen: () => void
+  onEnqueue?: () => void
   onRemove: () => void
   ArtworkImage: ComponentType<ArtworkImageProps>
 }) {
@@ -90,6 +97,16 @@ function LibraryRow({
           <p>{item.subtitle || typeLabel(item.type)}</p>
         </div>
       </button>
+      {onEnqueue ? (
+        <button
+          type="button"
+          className="ht-library-row-enqueue"
+          aria-label={`Add ${item.title} to queue`}
+          onClick={onEnqueue}
+        >
+          Queue
+        </button>
+      ) : null}
       <button
         type="button"
         className="ht-library-row-remove"
@@ -118,8 +135,10 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
   ArtworkImage,
 }: DesktopLibraryPageProps) {
   const library = useDesktopLibrary()
+  const { enqueue } = useDesktopPlayback()
   const [filter, setFilter] = useState<DesktopLibraryFilterId>('all')
   const [actionError, setActionError] = useState<string | null>(null)
+  const [queueFeedback, setQueueFeedback] = useState<string | null>(null)
 
   const availableFilters = useMemo(() => {
     return FILTERS.filter((entry) => {
@@ -208,6 +227,77 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
     removeLibraryItemMirrored(item)
   }, [])
 
+  const handleEnqueue = useCallback(
+    (item: DesktopLibraryItem) => {
+      setActionError(null)
+      setQueueFeedback(null)
+      if (item.type === 'song') {
+        const catalogSong = songsById.get(item.id)
+        if (!catalogSong) {
+          setActionError('That song is no longer in the music catalog.')
+          return
+        }
+        const result = enqueue(catalogSong)
+        setQueueFeedback(result.added ? 'Added to queue' : 'Already in queue')
+        return
+      }
+      if (item.type === 'radio') {
+        const station: RadioStationMeta = {
+          id: item.id,
+          name: item.title,
+          artworkUrl: item.artwork ?? null,
+          country: item.country ?? null,
+          countryCode: null,
+          language: null,
+          tags: [],
+          categories: item.category ? [item.category] : [],
+          bitrate: null,
+          codec: null,
+          qualityScore: 0,
+          reliabilityScore: 0,
+          isFeatured: false,
+          isMature: Boolean(item.isMature),
+          contentRating: item.contentRating ?? null,
+          popularity: { votes: 0, clickCount: 0 },
+        }
+        const [song] = buildRadioQueueSongs([station])
+        if (!song) {
+          setActionError('Unable to queue this radio station.')
+          return
+        }
+        const result = enqueue(song)
+        setQueueFeedback(result.added ? 'Added to queue' : 'Already in queue')
+        return
+      }
+      if (item.type === 'podcast_episode') {
+        const episode: PodcastEpisodeMeta = {
+          id: item.id,
+          showId: item.showId || '',
+          showTitle: item.showTitle ?? null,
+          title: item.title,
+          description: null,
+          artworkUrl: item.artwork ?? null,
+          durationSeconds: null,
+          publishedAt: null,
+          episodeNumber: null,
+          seasonNumber: null,
+          isVerified: false,
+          lastCheckedAt: null,
+        }
+        const [song] = buildPodcastQueueSongs([episode])
+        if (!song) {
+          setActionError('Unable to queue this podcast episode.')
+          return
+        }
+        const result = enqueue(song)
+        setQueueFeedback(result.added ? 'Added to queue' : 'Already in queue')
+        return
+      }
+      setActionError('Open this item to play it — queue add is available for Music, Radio, and Episodes.')
+    },
+    [enqueue, songsById],
+  )
+
   const totalVisible = library.filterItems('all').length
 
   return (
@@ -242,6 +332,9 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
       {actionError ? (
         <div className="ht-library-error" role="alert">{actionError}</div>
       ) : null}
+      {queueFeedback ? (
+        <div className="ht-library-queue-feedback" role="status">{queueFeedback}</div>
+      ) : null}
 
       {visibleItems.length === 0 ? (
         <div className="ht-library-empty catalog-empty">
@@ -254,15 +347,22 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
         </div>
       ) : (
         <div className="ht-library-list" role="list">
-          {visibleItems.map((item) => (
-            <LibraryRow
-              key={library.itemKey(item)}
-              item={item}
-              onOpen={() => handleOpen(item)}
-              onRemove={() => handleRemove(item)}
-              ArtworkImage={ArtworkImage}
-            />
-          ))}
+          {visibleItems.map((item) => {
+            const canEnqueue =
+              item.type === 'song'
+              || item.type === 'radio'
+              || item.type === 'podcast_episode'
+            return (
+              <LibraryRow
+                key={library.itemKey(item)}
+                item={item}
+                onOpen={() => handleOpen(item)}
+                onEnqueue={canEnqueue ? () => handleEnqueue(item) : undefined}
+                onRemove={() => handleRemove(item)}
+                ArtworkImage={ArtworkImage}
+              />
+            )
+          })}
         </div>
       )}
     </div>

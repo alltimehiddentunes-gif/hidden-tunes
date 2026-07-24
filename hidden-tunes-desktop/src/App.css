@@ -26551,6 +26551,31 @@ button.lecture-detail-crumb:focus-visible {
   color: #fecaca;
 }
 
+.ht-library-queue-feedback {
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  background: rgba(6, 78, 59, 0.28);
+  color: #a7f3d0;
+  font-size: 0.86rem;
+}
+
+.ht-library-row-enqueue {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 8, 12, 0.55);
+  color: rgba(245, 243, 250, 0.82);
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ht-library-row-enqueue:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
 .ht-library-empty {
   padding: 36px 18px;
   text-align: center;
@@ -27432,4 +27457,48 @@ button.lecture-detail-crumb:focus-visible {
     flex-direction: row;
     flex-wrap: wrap;
   }
+}
+
+/* Queue panel management — Phase 6 */
+.player-queue-panel-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+.player-queue-clear {
+  margin-left: auto;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.player-queue-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+.player-queue-row-actions {
+  display: inline-flex;
+  gap: 0.2rem;
+}
+.player-queue-move,
+.player-queue-remove {
+  border: 0;
+  background: rgba(255,255,255,0.06);
+  color: inherit;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+.player-queue-move:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
