@@ -210,8 +210,12 @@ export default function RadioStationsHomeScreen() {
           cacheKey,
         });
 
-        const result = await playRadioStation(normalizeRadioStation(station), session);
+        const result = await playRadioStation(normalizeRadioStation(station), {
+          ...session,
+          origin: "station_card",
+        });
         if (generation !== hubPlayGenerationRef.current) return;
+        if (result.aborted) return;
         if (!result.ok) {
           Alert.alert("Unavailable", result.error || "This station is unavailable right now.");
         }

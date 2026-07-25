@@ -1,8 +1,16 @@
 import { Stack } from "expo-router";
 
-import { useMotivationPlaybackBinding } from "@/hooks/useMotivationPlayback";
+import {
+  MotivationPlaybackBinding,
+  MotivationProgressPersistence,
+} from "@/hooks/useMotivationPlayback";
 
 export default function MotivationLayout() {
-  useMotivationPlaybackBinding();
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <>
+      <MotivationPlaybackBinding />
+      <MotivationProgressPersistence />
+      <Stack screenOptions={{ headerShown: false }} />
+    </>
+  );
 }

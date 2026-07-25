@@ -25,6 +25,7 @@ import {
 } from "../services/tv/tvMediaHandoff";
 import {
   claimExclusivePlayback,
+  getActivePlaybackOwner,
   registerPlaybackOwnerAdapter,
   releasePlaybackOwner,
 } from "../services/playback/PlaybackHandoffCoordinator";
@@ -36,6 +37,14 @@ import {
 } from "../services/tv/tvPlaybackSurface";
 import { clearTvPlaybackSession } from "../services/tv/tvPlaybackSession";
 import { recordTvRecentlyWatched } from "../services/tv/tvRecentlyWatched";
+import {
+  beginTvMediaSessionTrace,
+  endTvMediaSessionTrace,
+  logTvMediaSessionDiag,
+  noteTvMediaOwnerIfChanged,
+} from "../services/tv/tvMediaSessionDiagnostics";
+import { clearTvPresentedNowPlaying } from "../services/tv/tvPresentedNowPlaying";
+import { clearRemoteMediaPresentedState } from "../services/remoteMediaControls";
 import {
   registerTvSessionController,
   type StartCatalogTvSessionInput,
@@ -69,6 +78,7 @@ type TvPlaybackContextValue = {
   stopTv: () => void;
   nextTvChannel: () => void;
   previousTvChannel: () => void;
+  toggleTvPlayback: () => void;
   minimizeTv: () => void;
   restoreTv: () => void;
   setPresentationMode: (mode: TvPresentationMode) => void;
@@ -277,6 +287,9 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const watchedSavedRef = useRef<string | null>(null);
   const isPlayingRef = useRef(false);
   const surfaceRef = useRef<TvPlaybackSurface>("native");
+  const currentItemRef = useRef<HiddenTunesTvVideo | null>(null);
+  const tvQueueRef = useRef<HiddenTunesTvVideo[]>([]);
+  const queueIndexRef = useRef(0);
 
   const [currentItem, setCurrentItem] = useState<HiddenTunesTvVideo | null>(
     null
@@ -291,7 +304,6 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const [presentationMode, setPresentationModeState] =
     useState<TvPresentationMode>("closed");
   const presentationModeRef = useRef<TvPresentationMode>("closed");
-  presentationModeRef.current = presentationMode;
   const [isTvPlaying, setIsTvPlaying] = useState(false);
   const [isTvLoading, setIsTvLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -299,11 +311,26 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const [surface, setSurface] = useState<TvPlaybackSurface>("native");
 
   const activeItemIdRef = useRef<string | null>(null);
-  activeItemIdRef.current = currentItem?.id ?? null;
   const sessionActiveRef = useRef(false);
-  sessionActiveRef.current = Boolean(currentItem && currentPlayback);
-  isPlayingRef.current = isTvPlaying;
-  surfaceRef.current = surface;
+
+  useEffect(() => {
+    presentationModeRef.current = presentationMode;
+    activeItemIdRef.current = currentItem?.id ?? null;
+    sessionActiveRef.current = Boolean(currentItem && currentPlayback);
+    isPlayingRef.current = isTvPlaying;
+    surfaceRef.current = surface;
+    currentItemRef.current = currentItem;
+    tvQueueRef.current = tvQueue;
+    queueIndexRef.current = queueIndex;
+  }, [
+    currentItem,
+    currentPlayback,
+    isTvPlaying,
+    presentationMode,
+    queueIndex,
+    surface,
+    tvQueue,
+  ]);
 
   // Playing proves the stream is live — never keep a preparing spinner on top of it.
   useEffect(() => {
@@ -355,6 +382,11 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     sessionActiveRef.current = false;
     activeItemIdRef.current = null;
     releasePlaybackOwner("tv");
+    void clearTvPresentedNowPlaying("tv_stop");
+    void clearRemoteMediaPresentedState("tv_stop");
+    logTvMediaSessionDiag("tv_owner_released", { reason: "stopTv" });
+    endTvMediaSessionTrace("stopTv");
+    noteTvMediaOwnerIfChanged("stopTv");
   }, [unloadSurface]);
 
   const setPresentationMode = useCallback((mode: TvPresentationMode) => {
@@ -410,11 +442,24 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       const sessionId = ++sessionIdRef.current;
       const presentation =
         input.presentation === "fullPlayer" ? "fullPlayer" : "floating";
+      const mediaKey = String(input.item?.id || "tv");
+      const previousOwner = getActivePlaybackOwner();
+
+      beginTvMediaSessionTrace({
+        mediaKey,
+        mediaType: "tv",
+        title: String(input.item?.title || "").slice(0, 80),
+      });
+      logTvMediaSessionDiag("media_owner_claim_requested", {
+        owner: "tv",
+        mediaKey,
+        previousOwner,
+      });
 
       const claim = await claimExclusivePlayback({
         owner: "tv",
         contentKind: "tv",
-        mediaKey: String(input.item?.id || "tv"),
+        mediaKey,
       });
 
       if (
@@ -422,8 +467,27 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         sessionId !== sessionIdRef.current ||
         !isCurrentTvMediaTransition(transitionId)
       ) {
+        logTvMediaSessionDiag("tv_session_released", {
+          reason: "claim_replaced",
+        });
         return { ok: false, error: "TV request was replaced." };
       }
+
+      if (previousOwner && previousOwner !== "tv") {
+        logTvMediaSessionDiag("previous_media_owner_released", {
+          previousOwner,
+          nextOwner: "tv",
+        });
+      }
+      logTvMediaSessionDiag("tv_media_owner_claimed", {
+        mediaKey,
+        claimGeneration: claim.generation,
+      });
+      logTvMediaSessionDiag("tv_owner_claimed", {
+        channelId: mediaKey,
+        title: String(input.item?.title || "").slice(0, 80),
+      });
+      noteTvMediaOwnerIfChanged("tv_claim");
 
       if (!input.playback?.stream_url) {
         return {
@@ -454,7 +518,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       if (typeof __DEV__ !== "undefined" && __DEV__) {
         console.log("[handoff] new_playback_started", {
           owner: "tv",
-          mediaKey: String(input.item?.id || "tv"),
+          mediaKey,
           ts: Date.now(),
         });
       }
@@ -472,13 +536,27 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       const sessionId = ++sessionIdRef.current;
       const presentation =
         input.presentation === "fullPlayer" ? "fullPlayer" : "floating";
+      const mediaKey = String(input.video?.id || "tv");
+      const previousOwner = getActivePlaybackOwner();
 
       setIsTvLoading(true);
+
+      beginTvMediaSessionTrace({
+        mediaKey,
+        mediaType: "tv",
+        title: String(input.video?.title || "").slice(0, 80),
+        path: "catalog",
+      });
+      logTvMediaSessionDiag("media_owner_claim_requested", {
+        owner: "tv",
+        mediaKey,
+        previousOwner,
+      });
 
       const claim = await claimExclusivePlayback({
         owner: "tv",
         contentKind: "tv",
-        mediaKey: String(input.video?.id || "tv"),
+        mediaKey,
       });
 
       if (
@@ -486,8 +564,23 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         sessionId !== sessionIdRef.current ||
         !isCurrentTvMediaTransition(transitionId)
       ) {
+        logTvMediaSessionDiag("tv_session_released", {
+          reason: "claim_replaced",
+        });
         return { ok: false, error: "TV request was replaced." };
       }
+
+      if (previousOwner && previousOwner !== "tv") {
+        logTvMediaSessionDiag("previous_media_owner_released", {
+          previousOwner,
+          nextOwner: "tv",
+        });
+      }
+      logTvMediaSessionDiag("tv_media_owner_claimed", {
+        mediaKey,
+        claimGeneration: claim.generation,
+      });
+      noteTvMediaOwnerIfChanged("tv_claim_catalog");
 
       let playback = input.playback ?? null;
       if (!playback?.stream_url) {
@@ -675,6 +768,25 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const setTvPlayingState = useCallback((playing: boolean) => {
+    if (playing === isPlayingRef.current) return;
+    setIsTvPlaying(playing);
+    logTvMediaSessionDiag("tv_playback_state_update", {
+      isPlaying: playing,
+      source: "remote_or_transport",
+    });
+    if (surfaceRef.current === "native") {
+      if (playing) nativePlayerRef.current?.play();
+      else nativePlayerRef.current?.pause();
+      return;
+    }
+    webViewRef.current?.injectJavaScript(
+      `window.togglePlayback && window.togglePlayback(${
+        playing ? "true" : "false"
+      }); true;`
+    );
+  }, []);
+
   const handleRetry = useCallback(() => {
     setHasError(false);
     setIsTvLoading(true);
@@ -750,6 +862,15 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       getPresentationMode: () => presentationModeRef.current,
       isSessionActive: () => sessionActiveRef.current,
       getActiveItemId: () => activeItemIdRef.current,
+      setPlaying: setTvPlayingState,
+      isPlaying: () => isPlayingRef.current,
+      nextChannel: nextTvChannel,
+      previousChannel: previousTvChannel,
+      canGoNext: () => (tvQueueRef.current?.length || 0) > 1,
+      canGoPrevious: () => (tvQueueRef.current?.length || 0) > 1,
+      getActiveVideo: () => currentItemRef.current,
+      getQueueLength: () => tvQueueRef.current?.length || 0,
+      getQueueIndex: () => queueIndexRef.current,
     });
 
     const unregisterAdapter = registerPlaybackOwnerAdapter({
@@ -764,8 +885,11 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
             ts: Date.now(),
           });
         }
-        // TV has no separate lock-screen publisher today; stopTv already
-        // unloads the surface. Keep the hook so peer-stop always invokes it.
+        void clearTvPresentedNowPlaying("peer_owner_claim");
+        void clearRemoteMediaPresentedState("tv_peer_clear");
+        logTvMediaSessionDiag("tv_metadata_replaced_by_other", {
+          reason: "clearPresentedState",
+        });
       },
       isActive: () => sessionActiveRef.current,
     });
@@ -775,7 +899,10 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       unregisterAdapter();
     };
   }, [
+    nextTvChannel,
+    previousTvChannel,
     setPresentationMode,
+    setTvPlayingState,
     startCatalogSession,
     startResolvedSession,
     startSeedSession,
@@ -811,12 +938,14 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       stopTv,
       nextTvChannel,
       previousTvChannel,
+      toggleTvPlayback: handleTogglePlayback,
       minimizeTv,
       restoreTv,
       setPresentationMode,
     }),
     [
       currentItem,
+      handleTogglePlayback,
       isTvPlaying,
       minimizeTv,
       nextTvChannel,

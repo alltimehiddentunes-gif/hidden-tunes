@@ -36,8 +36,9 @@ type LocalizationProviderProps = {
 
 /**
  * English is bundled synchronously so the first paint never falls back to raw keys.
- * Persisted / device locale is resolved asynchronously, then applied before the
- * splash is dismissed and children mount.
+ * Persisted / device locale is resolved asynchronously; the native splash stays up
+ * until bootstrap finishes. Children (including the root Stack) always mount so
+ * Expo Router never navigates before a navigator exists.
  */
 export default function LocalizationProvider({
   children,
@@ -200,15 +201,8 @@ export default function LocalizationProvider({
     [direction, isChangingLanguage, isReady, locale, setLocale, t]
   );
 
-  // Centralized gate: do not mount Home / navigation until a valid dictionary is active.
-  if (!isReady) {
-    return (
-      <LocalizationContext.Provider value={value}>
-        {null}
-      </LocalizationContext.Provider>
-    );
-  }
-
+  // Always render children so the Root Layout Stack stays mounted on first paint.
+  // English dictionary is the safe fallback until bootstrap sets isReady.
   return (
     <LocalizationContext.Provider value={value}>
       {children}

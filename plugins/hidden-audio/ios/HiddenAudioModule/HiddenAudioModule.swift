@@ -23,6 +23,12 @@ class HiddenAudioModule: RCTEventEmitter {
   private var lastProgressDiagnosticAt = 0.0
   private var lastNowPlayingElapsedDiagnosticAt = 0.0
   private var lastBufferDiagnosticAt = 0.0
+  private var lastEmittedProgressPositionMs: Int64 = -1
+  private var lastEmittedProgressStatus = ""
+  private var lastEmittedProgressIsPlaying = false
+  private var lastNowPlayingElapsedFloor = -1
+  private var lastNowPlayingRate: Double = -1
+  private let progressEmitMinDeltaMs: Int64 = 400
   private var nowPlayingArtworkUrl: String?
   private var nowPlayingArtwork: MPMediaItemArtwork?
   private var remoteCommandsRegistered = false
@@ -37,6 +43,10 @@ class HiddenAudioModule: RCTEventEmitter {
   private let intentionalPauseCooldownSeconds: TimeInterval = 8.0
   private var lastIntentionalPauseAt: TimeInterval = 0
   private var intentionalPauseReason = ""
+  private var presentedNowPlaying: [String: Any]?
+  private var presentedPlaybackRate: Double = 0
+  private var presentedHasNext = false
+  private var presentedHasPrevious = false
 
   override static func requiresMainQueueSetup() -> Bool {
     return true
@@ -267,13 +277,18 @@ class HiddenAudioModule: RCTEventEmitter {
     // Ownership transfer / unload must wipe Now Playing — never republish the
     // previous track title while another owner (TV/video) is audible.
     activeTrack = nil
-    nowPlayingArtwork = nil
-    nowPlayingArtworkUrl = ""
-    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    if presentedNowPlaying == nil {
+      nowPlayingArtwork = nil
+      nowPlayingArtworkUrl = ""
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    } else {
+      applyPresentedNowPlayingInfo(presentedNowPlaying!)
+    }
     updateRemoteCommandAvailability()
     emitDiagnostic("hidden_audio_now_playing_cleared", [
       "reason": "stop",
-      "status": playerStatus
+      "status": playerStatus,
+      "presentedActive": presentedNowPlaying != nil
     ])
     emitState()
     resolve(nil)
@@ -496,28 +511,34 @@ class HiddenAudioModule: RCTEventEmitter {
 
   private func activateAudioSession() throws {
     let session = AVAudioSession.sharedInstance()
-    emitDiagnostic("hidden_audio_audio_session_config_start", [
-      "category": "playback",
-      "mode": "default",
-      "options": "none"
-    ])
+    let needsCategory =
+      session.category != .playback || session.mode != .default
 
-    do {
-      try session.setCategory(.playback, mode: .default, options: [])
-      emitDiagnostic("ios_audio_session_category_success", [
-        "category": session.category.rawValue,
-        "mode": session.mode.rawValue
+    // Skip redundant setCategory on every Play/load — only reconfigure when wrong.
+    if needsCategory {
+      emitDiagnostic("hidden_audio_audio_session_config_start", [
+        "category": "playback",
+        "mode": "default",
+        "options": "none"
       ])
-      emitDiagnostic("hidden_audio_audio_session_category_success", [
-        "category": session.category.rawValue,
-        "mode": session.mode.rawValue
-      ])
-    } catch {
-      emitDiagnostic("hidden_audio_audio_session_config_failed", [
-        "message": error.localizedDescription,
-        "phase": "setCategory"
-      ])
-      throw error
+
+      do {
+        try session.setCategory(.playback, mode: .default, options: [])
+        emitDiagnostic("ios_audio_session_category_success", [
+          "category": session.category.rawValue,
+          "mode": session.mode.rawValue
+        ])
+        emitDiagnostic("hidden_audio_audio_session_category_success", [
+          "category": session.category.rawValue,
+          "mode": session.mode.rawValue
+        ])
+      } catch {
+        emitDiagnostic("hidden_audio_audio_session_config_failed", [
+          "message": error.localizedDescription,
+          "phase": "setCategory"
+        ])
+        throw error
+      }
     }
 
     do {
@@ -706,8 +727,19 @@ class HiddenAudioModule: RCTEventEmitter {
     updateRemoteCommandAvailability()
 
     commandCenter.playCommand.addTarget { [weak self] _ in
-      guard let self = self, self.player != nil else {
-        self?.emitRemoteCommandResult("play", success: false, reason: "no_player")
+      guard let self = self else { return .commandFailed }
+      if self.presentedNowPlaying != nil {
+        self.emitDiagnostic("remote_command_received", ["command": "play", "owner": "presented"])
+        self.emitDiagnostic("ios_remote_command_received", ["command": "play", "owner": "presented"])
+        self.emitDiagnostic("remote_play_received")
+        self.emitDiagnostic("remote_command_dispatched_to_js", ["command": "play", "owner": "presented"])
+        self.presentedPlaybackRate = 1
+        self.applyPresentedNowPlayingInfo(self.presentedNowPlaying!)
+        self.emitRemoteCommandResult("play", success: true)
+        return .success
+      }
+      guard self.player != nil else {
+        self.emitRemoteCommandResult("play", success: false, reason: "no_player")
         return .commandFailed
       }
       self.emitDiagnostic("remote_command_received", [
@@ -742,8 +774,19 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     commandCenter.pauseCommand.addTarget { [weak self] _ in
-      guard let self = self, self.player != nil else {
-        self?.emitRemoteCommandResult("pause", success: false, reason: "no_player")
+      guard let self = self else { return .commandFailed }
+      if self.presentedNowPlaying != nil {
+        self.emitDiagnostic("remote_command_received", ["command": "pause", "owner": "presented"])
+        self.emitDiagnostic("ios_remote_command_received", ["command": "pause", "owner": "presented"])
+        self.emitDiagnostic("remote_pause_received")
+        self.emitDiagnostic("remote_command_dispatched_to_js", ["command": "pause", "owner": "presented"])
+        self.presentedPlaybackRate = 0
+        self.applyPresentedNowPlayingInfo(self.presentedNowPlaying!)
+        self.emitRemoteCommandResult("pause", success: true)
+        return .success
+      }
+      guard self.player != nil else {
+        self.emitRemoteCommandResult("pause", success: false, reason: "no_player")
         return .commandFailed
       }
       self.emitDiagnostic("remote_command_received", [
@@ -771,8 +814,20 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
-      guard let self = self, self.player != nil else {
-        self?.emitRemoteCommandResult("toggle", success: false, reason: "no_player")
+      guard let self = self else { return .commandFailed }
+      if self.presentedNowPlaying != nil {
+        let nextPlaying = self.presentedPlaybackRate <= 0
+        self.emitDiagnostic("ios_remote_command_received", [
+          "command": nextPlaying ? "play" : "pause",
+          "owner": "presented"
+        ])
+        self.presentedPlaybackRate = nextPlaying ? 1 : 0
+        self.applyPresentedNowPlayingInfo(self.presentedNowPlaying!)
+        self.emitRemoteCommandResult("toggle", success: true)
+        return .success
+      }
+      guard self.player != nil else {
+        self.emitRemoteCommandResult("toggle", success: false, reason: "no_player")
         return .commandFailed
       }
       self.emitDiagnostic("ios_remote_command_received", [
@@ -853,22 +908,28 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
-      guard let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
-        self?.emitRemoteCommandResult("seek", success: false, reason: "invalid_event")
+      guard let self = self else { return .commandFailed }
+      if self.presentedNowPlaying != nil {
+        // Live TV / presented sessions do not support seek.
+        self.emitRemoteCommandResult("seek", success: false, reason: "presented_live_no_seek")
         return .commandFailed
       }
-      self?.emitDiagnostic("ios_remote_command_received", [
+      guard let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
+        self.emitRemoteCommandResult("seek", success: false, reason: "invalid_event")
+        return .commandFailed
+      }
+      self.emitDiagnostic("ios_remote_command_received", [
         "command": "seek"
       ])
-      self?.emitDiagnostic("hidden_audio_remote_seek_received", [
+      self.emitDiagnostic("hidden_audio_remote_seek_received", [
         "positionSeconds": positionEvent.positionTime
       ])
-      self?.player?.seek(
+      self.player?.seek(
         to: CMTime(seconds: positionEvent.positionTime, preferredTimescale: 600)
       )
-      self?.emitProgress()
-      self?.updateNowPlayingInfo()
-      self?.emitRemoteCommandResult("seek", success: true)
+      self.emitProgress()
+      self.updateNowPlayingInfo()
+      self.emitRemoteCommandResult("seek", success: true)
       return .success
     }
 
@@ -878,6 +939,15 @@ class HiddenAudioModule: RCTEventEmitter {
   private func updateRemoteCommandAvailability() {
     guard remoteCommandsRegistered else { return }
     let commandCenter = MPRemoteCommandCenter.shared()
+    if presentedNowPlaying != nil {
+      commandCenter.playCommand.isEnabled = true
+      commandCenter.pauseCommand.isEnabled = true
+      commandCenter.togglePlayPauseCommand.isEnabled = true
+      commandCenter.nextTrackCommand.isEnabled = presentedHasNext
+      commandCenter.previousTrackCommand.isEnabled = presentedHasPrevious
+      commandCenter.changePlaybackPositionCommand.isEnabled = false
+      return
+    }
     let effectiveQueueLength = max(queue.count, jsQueueLength)
     let effectiveIndex = jsQueueLength > 0 ? jsActiveIndex : activeIndex
     let hasNext = effectiveIndex >= 0 && effectiveIndex + 1 < effectiveQueueLength
@@ -927,9 +997,19 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func updateNowPlayingInfo() {
+    // External owner (TV) presents metadata without an AVPlayer track.
+    if activeTrack == nil, let presented = presentedNowPlaying {
+      applyPresentedNowPlayingInfo(presented)
+      return
+    }
+
     // No active track → clear center so a peer owner (TV) is not masked by
     // stale Hidden Tunes song metadata.
     guard let track = activeTrack else {
+      if presentedNowPlaying != nil {
+        applyPresentedNowPlayingInfo(presentedNowPlaying!)
+        return
+      }
       MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
       emitDiagnostic("hidden_audio_now_playing_cleared", [
         "reason": "update_without_track"
@@ -947,11 +1027,133 @@ class HiddenAudioModule: RCTEventEmitter {
       info[MPMediaItemPropertyArtwork] = artwork
     }
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    let positionSeconds = progressPayload()["positionSeconds"] ?? 0
+    lastNowPlayingElapsedFloor = Int(floor(positionSeconds))
+    lastNowPlayingRate = playerStatus == "playing" ? 1 : 0
     emitDiagnostic("hidden_audio_now_playing_set", [
       "trackId": track["id"] as? String ?? "",
       "durationSeconds": progressPayload()["durationSeconds"] ?? 0,
       "playbackRate": playerStatus == "playing" ? 1 : 0
     ])
+  }
+
+  private func applyPresentedNowPlayingInfo(_ presented: [String: Any]) {
+    var info: [String: Any] = [:]
+    info[MPMediaItemPropertyTitle] = presented["title"] as? String ?? "Live TV"
+    info[MPMediaItemPropertyArtist] = presented["artist"] as? String ?? "Hidden Tunes TV"
+    info[MPMediaItemPropertyAlbumTitle] = presented["album"] as? String ?? "Hidden Tunes TV"
+    // Live TV: never invent duration / elapsed from music sessions.
+    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = 0
+    info[MPMediaItemPropertyPlaybackDuration] = 0
+    info[MPNowPlayingInfoPropertyPlaybackRate] = presentedPlaybackRate
+    if #available(iOS 10.0, *) {
+      info[MPNowPlayingInfoPropertyIsLiveStream] = true
+    }
+    if let artwork = nowPlayingArtwork {
+      info[MPMediaItemPropertyArtwork] = artwork
+    }
+    MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    emitDiagnostic("hidden_audio_presented_now_playing_set", [
+      "title": presented["title"] as? String ?? "",
+      "playbackRate": presentedPlaybackRate
+    ])
+  }
+
+  @objc(setPresentedNowPlaying:resolver:rejecter:)
+  func setPresentedNowPlaying(
+    _ info: NSDictionary,
+    resolver resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    configureRemoteCommands()
+    let title = (info["title"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Live TV"
+    let artist = (info["artist"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Hidden Tunes TV"
+    let album = (info["album"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Hidden Tunes TV"
+    let artworkUrl = (info["artworkUrl"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let isPlaying = (info["isPlaying"] as? Bool) ?? ((info["isPlaying"] as? NSNumber)?.boolValue ?? false)
+    presentedHasNext = (info["hasNext"] as? Bool) ?? ((info["hasNext"] as? NSNumber)?.boolValue ?? false)
+    presentedHasPrevious = (info["hasPrevious"] as? Bool) ?? ((info["hasPrevious"] as? NSNumber)?.boolValue ?? false)
+    presentedPlaybackRate = isPlaying ? 1 : 0
+    presentedNowPlaying = [
+      "title": title.isEmpty ? "Live TV" : title,
+      "artist": artist.isEmpty ? "Hidden Tunes TV" : artist,
+      "album": album.isEmpty ? "Hidden Tunes TV" : album,
+      "artworkUrl": artworkUrl
+    ]
+    // Clear audio track presentation so TV replaces music metadata atomically.
+    activeTrack = nil
+    loadPresentedArtworkIfNeeded(artworkUrl)
+    applyPresentedNowPlayingInfo(presentedNowPlaying!)
+    updateRemoteCommandAvailability()
+    emitDiagnostic("hidden_audio_presented_owner_claimed", [
+      "title": title
+    ])
+    resolve(nil)
+  }
+
+  @objc(updatePresentedPlaybackState:resolver:rejecter:)
+  func updatePresentedPlaybackState(
+    _ info: NSDictionary,
+    resolver resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    guard presentedNowPlaying != nil else {
+      resolve(nil)
+      return
+    }
+    let isPlaying = (info["isPlaying"] as? Bool) ?? ((info["isPlaying"] as? NSNumber)?.boolValue ?? false)
+    if info["hasNext"] != nil {
+      presentedHasNext = (info["hasNext"] as? Bool) ?? ((info["hasNext"] as? NSNumber)?.boolValue ?? false)
+    }
+    if info["hasPrevious"] != nil {
+      presentedHasPrevious = (info["hasPrevious"] as? Bool) ?? ((info["hasPrevious"] as? NSNumber)?.boolValue ?? false)
+    }
+    presentedPlaybackRate = isPlaying ? 1 : 0
+    applyPresentedNowPlayingInfo(presentedNowPlaying!)
+    updateRemoteCommandAvailability()
+    resolve(nil)
+  }
+
+  @objc(clearPresentedNowPlaying:rejecter:)
+  func clearPresentedNowPlaying(
+    resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    presentedNowPlaying = nil
+    presentedPlaybackRate = 0
+    presentedHasNext = false
+    presentedHasPrevious = false
+    if activeTrack == nil {
+      MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+      nowPlayingArtwork = nil
+      nowPlayingArtworkUrl = ""
+    }
+    updateRemoteCommandAvailability()
+    emitDiagnostic("hidden_audio_presented_owner_released")
+    resolve(nil)
+  }
+
+  private func loadPresentedArtworkIfNeeded(_ artworkUrl: String) {
+    guard !artworkUrl.isEmpty, artworkUrl != nowPlayingArtworkUrl, let url = URL(string: artworkUrl) else {
+      return
+    }
+    nowPlayingArtworkUrl = artworkUrl
+    nowPlayingArtwork = nil
+    URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+      guard let self = self,
+            self.nowPlayingArtworkUrl == artworkUrl,
+            let data = data,
+            let image = UIImage(data: data) else {
+        return
+      }
+      let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+      DispatchQueue.main.async {
+        self.nowPlayingArtwork = artwork
+        if let presented = self.presentedNowPlaying {
+          self.applyPresentedNowPlayingInfo(presented)
+        }
+      }
+    }.resume()
   }
 
   private func loadNowPlayingArtworkIfNeeded() {
@@ -984,11 +1186,13 @@ class HiddenAudioModule: RCTEventEmitter {
   private func startProgressObserver() {
     guard progressObserverToken == nil, let currentPlayer = player else { return }
 
+    // 1.0s matches Android PROGRESS_LOOP_INTERVAL_MS — lock-screen elapsed
+    // still updates at whole-second resolution via updateNowPlayingElapsed.
     progressObserverToken = currentPlayer.addPeriodicTimeObserver(
-      forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
+      forInterval: CMTime(seconds: 1.0, preferredTimescale: 600),
       queue: .main
     ) { [weak self] _ in
-      self?.emitProgress()
+      self?.emitProgress(force: false)
       self?.updateNowPlayingElapsed()
       self?.emitEndedFallbackIfNeeded()
       self?.confirmPlayingIfNeeded()
@@ -1056,18 +1260,28 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func updateNowPlayingElapsed() {
-    var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
     let progress = progressPayload()
-    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = progress["positionSeconds"]
+    let positionSeconds = progress["positionSeconds"] ?? 0
+    let elapsedFloor = Int(floor(positionSeconds))
+    let rate: Double = playerStatus == "playing" ? 1 : 0
+    // Preserve whole-second lock-screen accuracy; skip unchanged writes.
+    if elapsedFloor == lastNowPlayingElapsedFloor && rate == lastNowPlayingRate {
+      return
+    }
+    lastNowPlayingElapsedFloor = elapsedFloor
+    lastNowPlayingRate = rate
+
+    var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = positionSeconds
     info[MPMediaItemPropertyPlaybackDuration] = progress["durationSeconds"]
-    info[MPNowPlayingInfoPropertyPlaybackRate] = playerStatus == "playing" ? 1 : 0
+    info[MPNowPlayingInfoPropertyPlaybackRate] = rate
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
     let now = Date().timeIntervalSince1970
     if now - lastNowPlayingElapsedDiagnosticAt >= 15 {
       lastNowPlayingElapsedDiagnosticAt = now
       emitDiagnostic("hidden_audio_now_playing_elapsed_updated", [
-        "positionSeconds": progress["positionSeconds"] ?? 0,
+        "positionSeconds": positionSeconds,
         "durationSeconds": progress["durationSeconds"] ?? 0,
         "isPlaying": playerStatus == "playing"
       ])
@@ -1136,20 +1350,33 @@ class HiddenAudioModule: RCTEventEmitter {
     ])
   }
 
-  private func emitProgress() {
+  private func emitProgress(force: Bool = true) {
     let progress = progressPayload()
-    sendEvent(withName: "HiddenAudioProgress", body: [
-      "type": "progress",
-      "progress": progress
-    ])
+    let positionSeconds = progress["positionSeconds"] ?? 0
+    let positionMs = Int64((positionSeconds.isFinite ? positionSeconds : 0) * 1000)
+    let isPlaying =
+      playerStatus == "playing" ||
+      playerStatus == "buffering" ||
+      (player?.rate ?? 0) > 0
+    if !force,
+       playerStatus == lastEmittedProgressStatus,
+       isPlaying == lastEmittedProgressIsPlaying,
+       abs(positionMs - lastEmittedProgressPositionMs) < progressEmitMinDeltaMs {
+      return
+    }
+    lastEmittedProgressPositionMs = positionMs
+    lastEmittedProgressStatus = playerStatus
+    lastEmittedProgressIsPlaying = isPlaying
+
+    // JS only subscribes to HiddenAudioProgressChanged — avoid duplicate bridge traffic.
     sendEvent(withName: "HiddenAudioProgressChanged", body: [
       "type": "progress",
       "progress": progress
     ])
 
     let now = Date().timeIntervalSince1970
-    let positionSeconds = progress["positionSeconds"] ?? 0
-    let diagnosticInterval = positionSeconds >= 15 && positionSeconds <= 25 ? 1.0 : 5.0
+    // Dev diagnostic throttle — keep progress events for UI; only slow Metro spam.
+    let diagnosticInterval = 15.0
     if now - lastProgressDiagnosticAt >= diagnosticInterval {
       lastProgressDiagnosticAt = now
       emitDiagnostic("hidden_audio_native_progress", [

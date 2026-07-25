@@ -17,10 +17,10 @@ import { safeRouterBack } from "../../utils/safeNavigation";
 import { COLORS } from "../../constants/theme";
 import { claimExclusivePlayback } from "../../services/playback/PlaybackHandoffCoordinator";
 import {
+  AudiobookProgressPersistence,
   useAudiobookPlaybackActions,
-  useAudiobookProgressTracker,
 } from "../../hooks/useAudiobookPlayback";
-import { usePlayerState } from "../../context/PlayerContext";
+import { usePlayerNowPlaying } from "../../context/PlayerContext";
 import {
   fetchAudiobookChapterQueuePlay,
   fetchAudiobookDetail,
@@ -94,7 +94,7 @@ export default function AudiobookDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const audiobookId = String(params.id || "").trim();
   const { playSong, seekTo } = useAudiobookPlaybackActions();
-  const { currentSong } = usePlayerState();
+  const { currentSong } = usePlayerNowPlaying();
   const [detail, setDetail] = useState<AudiobookDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -139,12 +139,6 @@ export default function AudiobookDetailScreen() {
   const audiobook = detail?.audiobook;
   const chapters = detail?.chapters || [];
   const firstChapter = chapters[0] || null;
-
-  useAudiobookProgressTracker({
-    bookId: audiobook?.id || audiobookId,
-    chapters,
-    enabled: Boolean(audiobook?.id && chapters.length),
-  });
 
   useEffect(() => {
     if (!audiobook?.id) {
@@ -420,6 +414,11 @@ export default function AudiobookDetailScreen() {
 
   return (
     <LinearGradient colors={["#101514", "#050706"]} style={styles.container}>
+      <AudiobookProgressPersistence
+        bookId={audiobook?.id || audiobookId}
+        chapters={chapters}
+        enabled={Boolean(audiobook?.id && chapters.length)}
+      />
       <FlatList
         data={chapters}
         keyExtractor={(item) => item.id}

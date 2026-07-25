@@ -21,21 +21,32 @@ const SAVE_INTERVAL_MS = 7000;
 const COMPLETION_PERCENT = 92;
 const COMPLETION_REMAINING_MS = 20_000;
 
+/**
+ * Layout host: binds player actions + resolve-on-demand without subscribing to
+ * progress (avoids re-rendering the whole Motivation stack every position tick).
+ */
+export function MotivationPlaybackBinding() {
+  useMotivationPlaybackBinding();
+  return null;
+}
+
+/** Sibling host that owns the progress subscription only. */
+export function MotivationProgressPersistence() {
+  useMotivationProgressTracker();
+  return null;
+}
+
 export function useMotivationPlaybackBinding() {
   const { playSong } = usePlayerActions();
   const { currentSong } = usePlayerNowPlaying();
-  const { position } = usePlayerProgress();
   const { activeQueueContext, activeQueue, activeQueueIndex } = usePlayerState();
 
   const currentSongRef = useRef(currentSong);
-  const positionRef = useRef(position);
   const activeQueueRef = useRef(activeQueue);
   const activeQueueIndexRef = useRef(activeQueueIndex);
-  const lastSavedAtRef = useRef(0);
   const resolvingRef = useRef<string | null>(null);
 
   currentSongRef.current = currentSong;
-  positionRef.current = position;
   activeQueueRef.current = activeQueue;
   activeQueueIndexRef.current = activeQueueIndex;
 
@@ -72,6 +83,13 @@ export function useMotivationPlaybackBinding() {
         if (resolvingRef.current === songId) resolvingRef.current = null;
       });
   }, [activeQueueContext, currentSong, currentSong?.id, currentSong?.streamUrl, currentSong?.url]);
+}
+
+function useMotivationProgressTracker() {
+  const { currentSong } = usePlayerNowPlaying();
+  const { position } = usePlayerProgress();
+  const { activeQueueContext } = usePlayerState();
+  const lastSavedAtRef = useRef(0);
 
   useEffect(() => {
     const session = MotivationPlaybackController.getSession();

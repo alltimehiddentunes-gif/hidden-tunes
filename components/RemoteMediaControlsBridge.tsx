@@ -8,6 +8,7 @@ import {
   usePlayerActions,
   usePlayerNowPlaying,
 } from "../context/PlayerContext";
+import { useTvPlayback } from "../context/TvPlaybackContext";
 import {
   getActivePlaybackOwner,
   getPlaybackHandoffGeneration,
@@ -21,6 +22,17 @@ import {
   isRemoteMediaControlsAvailable,
   syncRemoteMediaSession,
 } from "../services/remoteMediaControls";
+import {
+  logTvMediaSessionDiag,
+  summarizeTvMetadataForDiag,
+} from "../services/tv/tvMediaSessionDiagnostics";
+import { FALLBACK_ARTWORK } from "../utils/artwork";
+import { buildTvNowPlayingMetadata } from "../services/tv/tvNowPlayingMetadata";
+import {
+  clearTvPresentedNowPlaying,
+  publishTvPresentedNowPlaying,
+  updateTvPresentedPlaybackState,
+} from "../services/tv/tvPresentedNowPlaying";
 import { syncRemoteMediaSessionOrdered } from "../utils/remoteMediaSessionLayer";
 
 const LOCKSCREEN_POSITION_SYNC_MS = 8000;
@@ -29,10 +41,23 @@ function isSharedAudioRemoteOwner() {
   return getActivePlaybackOwner() === "shared-audio";
 }
 
+function isTvRemoteOwner() {
+  return getActivePlaybackOwner() === "tv";
+}
+
 function RemoteMediaControlsBridge() {
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
   const { togglePlayPause, nextSong, previousSong, stopPlayback } =
     usePlayerActions();
+  const {
+    currentTvChannel,
+    isTvPlaying,
+    tvQueue,
+    nextTvChannel,
+    previousTvChannel,
+    stopTv,
+    toggleTvPlayback,
+  } = useTvPlayback();
 
   const isPlayingRef = useRef(isPlaying);
   const togglePlayPauseRef = useRef(togglePlayPause);
@@ -44,14 +69,48 @@ function RemoteMediaControlsBridge() {
   const isLoadingRef = useRef(isLoading);
   const lastPositionSyncAtRef = useRef(0);
 
-  isPlayingRef.current = isPlaying;
-  togglePlayPauseRef.current = togglePlayPause;
-  nextSongRef.current = nextSong;
-  previousSongRef.current = previousSong;
-  stopPlaybackRef.current = stopPlayback;
-  latestSongIdRef.current = String(currentSong?.id ?? "");
-  currentSongRef.current = currentSong;
-  isLoadingRef.current = isLoading;
+  const isTvPlayingRef = useRef(isTvPlaying);
+  const currentTvChannelRef = useRef(currentTvChannel);
+  const tvQueueRef = useRef(tvQueue);
+  const nextTvChannelRef = useRef(nextTvChannel);
+  const previousTvChannelRef = useRef(previousTvChannel);
+  const stopTvRef = useRef(stopTv);
+  const toggleTvPlaybackRef = useRef(toggleTvPlayback);
+  const lastTvPresentedKeyRef = useRef("");
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+    togglePlayPauseRef.current = togglePlayPause;
+    nextSongRef.current = nextSong;
+    previousSongRef.current = previousSong;
+    stopPlaybackRef.current = stopPlayback;
+    latestSongIdRef.current = String(currentSong?.id ?? "");
+    currentSongRef.current = currentSong;
+    isLoadingRef.current = isLoading;
+
+    isTvPlayingRef.current = isTvPlaying;
+    currentTvChannelRef.current = currentTvChannel;
+    tvQueueRef.current = tvQueue;
+    nextTvChannelRef.current = nextTvChannel;
+    previousTvChannelRef.current = previousTvChannel;
+    stopTvRef.current = stopTv;
+    toggleTvPlaybackRef.current = toggleTvPlayback;
+  }, [
+    currentSong,
+    currentTvChannel,
+    isLoading,
+    isPlaying,
+    isTvPlaying,
+    nextSong,
+    nextTvChannel,
+    previousSong,
+    previousTvChannel,
+    stopPlayback,
+    stopTv,
+    togglePlayPause,
+    toggleTvPlayback,
+    tvQueue,
+  ]);
 
   useEffect(() => {
     void loadHydratedCatalogOnce();
@@ -64,26 +123,59 @@ function RemoteMediaControlsBridge() {
 
     void enableRemoteMediaControls({
       onPlay: async () => {
+        if (isTvRemoteOwner()) {
+          logTvMediaSessionDiag("tv_remote_play_received", { path: "remote_media" });
+          if (!isTvPlayingRef.current) {
+            toggleTvPlaybackRef.current();
+          }
+          return;
+        }
         if (!isSharedAudioRemoteOwner()) return;
         if (!isPlayingRef.current) {
           await togglePlayPauseRef.current();
         }
       },
       onPause: async () => {
+        if (isTvRemoteOwner()) {
+          logTvMediaSessionDiag("tv_remote_pause_received", { path: "remote_media" });
+          if (isTvPlayingRef.current) {
+            toggleTvPlaybackRef.current();
+          }
+          return;
+        }
         if (!isSharedAudioRemoteOwner()) return;
         if (isPlayingRef.current) {
           await togglePlayPauseRef.current();
         }
       },
       onNext: async () => {
+        if (isTvRemoteOwner()) {
+          if ((tvQueueRef.current?.length || 0) < 2) return;
+          logTvMediaSessionDiag("tv_remote_next_received", { path: "remote_media" });
+          nextTvChannelRef.current();
+          return;
+        }
         if (!isSharedAudioRemoteOwner()) return;
         await nextSongRef.current();
       },
       onPrevious: async () => {
+        if (isTvRemoteOwner()) {
+          if ((tvQueueRef.current?.length || 0) < 2) return;
+          logTvMediaSessionDiag("tv_remote_previous_received", {
+            path: "remote_media",
+          });
+          previousTvChannelRef.current();
+          return;
+        }
         if (!isSharedAudioRemoteOwner()) return;
         await previousSongRef.current();
       },
       onStop: async () => {
+        if (isTvRemoteOwner()) {
+          logTvMediaSessionDiag("tv_remote_stop_received", { path: "remote_media" });
+          stopTvRef.current();
+          return;
+        }
         if (!isSharedAudioRemoteOwner()) return;
         await stopPlaybackRef.current();
       },
@@ -97,11 +189,109 @@ function RemoteMediaControlsBridge() {
     };
   }, []);
 
-  const syncSession = async (forcePosition = false) => {
-    if (!isRemoteMediaControlsAvailable()) return;
+  const syncTvPresentedNative = async (force = false) => {
+    if (!isTvRemoteOwner()) return;
+    const channel = currentTvChannelRef.current;
+    const metadata = buildTvNowPlayingMetadata(channel);
+    if (!metadata) return;
 
-    // TV / video / sports own playback — never republish shared-audio metadata.
+    logTvMediaSessionDiag("tv_metadata_created", summarizeTvMetadataForDiag(metadata));
+
+    const queueLen = tvQueueRef.current?.length || 0;
+    const hasNav = queueLen > 1;
+    const key = `${metadata.id}|${metadata.title}|${metadata.artist}|${metadata.artworkUri}|${isTvPlayingRef.current}|${hasNav}`;
+    if (!force && key === lastTvPresentedKeyRef.current) {
+      await updateTvPresentedPlaybackState({
+        isPlaying: isTvPlayingRef.current,
+        hasNext: hasNav,
+        hasPrevious: hasNav,
+      });
+      return;
+    }
+    lastTvPresentedKeyRef.current = key;
+    await publishTvPresentedNowPlaying({
+      metadata: {
+        ...metadata,
+        artworkUri: metadata.artworkUri || FALLBACK_ARTWORK,
+      },
+      isPlaying: isTvPlayingRef.current,
+      hasNext: hasNav,
+      hasPrevious: hasNav,
+    });
+  };
+
+  const syncSession = async (forcePosition = false) => {
+    const owner = getActivePlaybackOwner();
+
+    // TV owns the system media session — publish channel metadata, not stale audio.
+    if (owner === "tv") {
+      const channel = currentTvChannelRef.current;
+      const metadata = buildTvNowPlayingMetadata(channel);
+      if (!metadata) {
+        await clearRemoteMediaPresentedState("tv_no_channel");
+        return;
+      }
+
+      logTvMediaSessionDiag("tv_owner_claimed", {
+        channelId: metadata.id,
+        title: metadata.title,
+      });
+
+      await syncTvPresentedNative(forcePosition);
+
+      if (!isRemoteMediaControlsAvailable()) return;
+
+      const presented = {
+        id: metadata.id,
+        title: metadata.title,
+        artist: metadata.artist,
+        album: metadata.album,
+        artworkUri: metadata.artworkUri || FALLBACK_ARTWORK,
+        isLive: true as const,
+      };
+
+      const snapshot = {
+        song: null,
+        presented,
+        isPlaying: isTvPlayingRef.current,
+        isLoading: false,
+        positionMillis: 0,
+        durationMillis: 0,
+      };
+
+      const syncGeneration = getPlaybackHandoffGeneration();
+      void syncRemoteMediaSessionOrdered(snapshot, async (nextSnapshot) => {
+        if (getActivePlaybackOwner() !== "tv") {
+          logTvMediaSessionDiag("tv_metadata_replaced_by_other", {
+            activeOwner: getActivePlaybackOwner(),
+          });
+          return;
+        }
+        if (getPlaybackHandoffGeneration() !== syncGeneration) return;
+        await syncRemoteMediaSession(nextSnapshot);
+        logTvMediaSessionDiag("tv_metadata_published", {
+          path: "remote_media",
+          title: nextSnapshot.presented?.title,
+          isPlaying: nextSnapshot.isPlaying,
+        });
+      });
+      return;
+    }
+
+    if (!isRemoteMediaControlsAvailable()) {
+      if (owner !== "shared-audio") {
+        lastTvPresentedKeyRef.current = "";
+        await clearTvPresentedNowPlaying("non_audio_owner");
+      }
+      return;
+    }
+
+    // Non-audio / non-TV owners: wipe RemoteMedia so previous titles cannot linger.
     if (!isSharedAudioRemoteOwner() || !currentSongRef.current) {
+      lastTvPresentedKeyRef.current = "";
+      if (!isSharedAudioRemoteOwner()) {
+        await clearTvPresentedNowPlaying("non_audio_owner");
+      }
       await clearRemoteMediaPresentedState(
         !isSharedAudioRemoteOwner() ? "non_audio_owner" : "no_current_song"
       );
@@ -130,6 +320,7 @@ function RemoteMediaControlsBridge() {
 
     const snapshot = {
       song: currentSongRef.current,
+      presented: null,
       isPlaying: isPlayingRef.current,
       isLoading: isLoadingRef.current,
       positionMillis,
@@ -186,7 +377,17 @@ function RemoteMediaControlsBridge() {
 
   useEffect(() => {
     void syncSession(true);
-  }, [currentSong?.id, isPlaying, isLoading]);
+    // syncSession reads latest values via refs; re-run on media identity/state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    currentSong?.id,
+    isPlaying,
+    isLoading,
+    currentTvChannel?.id,
+    currentTvChannel?.title,
+    isTvPlaying,
+    tvQueue.length,
+  ]);
 
   useEffect(() => {
     if (!isPlaying || !isRemoteMediaControlsAvailable()) return;
@@ -197,7 +398,14 @@ function RemoteMediaControlsBridge() {
     }, LOCKSCREEN_POSITION_SYNC_MS);
 
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSong?.id, isPlaying]);
+
+  // Keep HiddenAudio presented playback rate in sync while TV owns (iOS/CarPlay).
+  useEffect(() => {
+    if (!isTvRemoteOwner()) return;
+    void syncTvPresentedNative(false);
+  }, [isTvPlaying, currentTvChannel?.id, tvQueue.length]);
 
   return (
     <>

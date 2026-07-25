@@ -79,7 +79,7 @@ export default function FavoritesScreen() {
           void playSong(song as any, queue as any, index, context as any);
         },
         playRadioStation: (station, options) => {
-          void playRadioStation(station as any, options);
+          void playRadioStation(station as any, options as any);
         },
         songFavoritesQueue: songFavorites as any,
         radioFavorites: visibleFavorites.filter(

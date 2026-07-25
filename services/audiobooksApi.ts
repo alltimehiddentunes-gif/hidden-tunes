@@ -9,6 +9,7 @@ import type {
   AudiobookPagination,
   AudiobookPlayResponse,
 } from "../types/audiobooks";
+import { orderAudiobookChapters } from "../utils/audiobookOrdering";
 import {
   catalogJsonFetch,
   isCatalogAbortError,
@@ -556,9 +557,11 @@ export async function fetchAudiobookDetail(
 
   return {
     audiobook,
-    chapters: (payload.chapters || [])
-      .map((chapter) => normalizeChapter(chapter))
-      .filter((chapter): chapter is AudiobookChapter => Boolean(chapter)),
+    chapters: orderAudiobookChapters(
+      (payload.chapters || [])
+        .map((chapter) => normalizeChapter(chapter))
+        .filter((chapter): chapter is AudiobookChapter => Boolean(chapter))
+    ),
   };
 }
 
@@ -615,9 +618,11 @@ export async function fetchAudiobookChapterQueuePlay(
     throw new Error("audiobook_not_found");
   }
 
-  const chapters = (payload.chapters || [])
-    .map((chapter) => normalizeChapterPlayItem(chapter))
-    .filter((chapter): chapter is AudiobookChapterPlayItem => Boolean(chapter));
+  const chapters = orderAudiobookChapters(
+    (payload.chapters || [])
+      .map((chapter) => normalizeChapterPlayItem(chapter))
+      .filter((chapter): chapter is AudiobookChapterPlayItem => Boolean(chapter))
+  );
 
   if (!chapters.length) {
     throw new Error("audiobook_chapter_audio_unavailable");

@@ -374,6 +374,11 @@ export default function MotivationProgramScreen() {
           data={visibleItems}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={60}
+          windowSize={7}
+          removeClippedSubviews
           ListHeaderComponent={
             <View style={styles.hero}>
               <TouchableOpacity

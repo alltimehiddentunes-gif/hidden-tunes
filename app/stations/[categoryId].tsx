@@ -82,7 +82,12 @@ export default function RadioCategoryScreen() {
         cacheKey: categoryId,
       });
 
-      const result = await playRadioStation(normalizeRadioStation(station), session);
+      const result = await playRadioStation(normalizeRadioStation(station), {
+        ...session,
+        origin: "station_card",
+      });
+
+      if (result.aborted) return;
 
       if (!result.ok) {
         Alert.alert(

@@ -70,10 +70,13 @@ class HiddenAudioPlaybackService : Service() {
       stopSelf()
       return START_NOT_STICKY
     }
-    return START_STICKY
+    // Never sticky-restart after the user swipes the task away.
+    return START_NOT_STICKY
   }
 
   override fun onTaskRemoved(rootIntent: Intent?) {
+    // Product rule: deliberate Recents clear always full-stops, even if Android Auto
+    // is connected. Normal backgrounding never reaches onTaskRemoved.
     HiddenAudioCore.handleTaskRemoved()
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
       stopForeground(STOP_FOREGROUND_REMOVE)
@@ -83,6 +86,23 @@ class HiddenAudioPlaybackService : Service() {
     }
     stopSelf()
     super.onTaskRemoved(rootIntent)
+  }
+
+  override fun onDestroy() {
+    // Recents swipe already latched shutdown; never reassert or resurrect notification.
+    if (HiddenAudioCore.isAppTaskRemoved()) {
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+          stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+          @Suppress("DEPRECATION")
+          stopForeground(true)
+        }
+      } catch (_: Throwable) {
+        // Best-effort cleanup during destroy.
+      }
+    }
+    super.onDestroy()
   }
 
   companion object {

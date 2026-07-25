@@ -22,6 +22,11 @@ export function isEducationalSessionAppSong(song?: AppSong | null) {
   return Boolean(parseEducationalSessionSongId(song?.id));
 }
 
+export function educationalSongNeedsResolve(song?: AppSong | null) {
+  if (!isEducationalSessionAppSong(song)) return false;
+  return !String(song?.streamUrl || song?.url || song?.audioUrl || "").trim();
+}
+
 export function isEducationalProgressiveMediaUrl(playableUrl: string) {
   const url = String(playableUrl || "").trim();
   if (!/^https:\/\//i.test(url)) return false;

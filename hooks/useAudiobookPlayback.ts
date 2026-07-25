@@ -17,6 +17,19 @@ type UseAudiobookProgressTrackerArgs = {
   enabled?: boolean;
 };
 
+/**
+ * Isolates playback-position subscription so the audiobook detail list does not
+ * re-render on every throttled position tick. Mount beside the screen content.
+ */
+export function AudiobookProgressPersistence({
+  bookId,
+  chapters = [],
+  enabled = true,
+}: UseAudiobookProgressTrackerArgs) {
+  useAudiobookProgressTracker({ bookId, chapters, enabled });
+  return null;
+}
+
 export function useAudiobookProgressTracker({
   bookId,
   chapters = [],

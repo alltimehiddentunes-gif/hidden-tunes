@@ -273,6 +273,8 @@ const ANDROID_FILES = [
   "HiddenAudioAutoCatalog.kt",
   "HiddenAudioMediaSessionManager.kt",
   "HiddenAudioMediaBrowserService.kt",
+  "HiddenAudioPlaybackTransaction.kt",
+  "HiddenAudioPendingCommandQueue.kt",
 ];
 
 function getAndroidSourceDir(projectRoot) {
@@ -334,6 +336,41 @@ const withHiddenAudioAndroidGradle = (config) => {
   ]);
 };
 
+function ensureAndroidManifestReceiver(mainApplication, receiver) {
+  const receivers = Array.isArray(mainApplication.receiver)
+    ? mainApplication.receiver
+    : mainApplication.receiver
+      ? [mainApplication.receiver]
+      : [];
+
+  const existingIndex = receivers.findIndex(
+    (entry) => entry?.$?.["android:name"] === receiver.name
+  );
+  const receiverEntry = {
+    $: {
+      "android:name": receiver.name,
+      "android:exported": receiver.exported,
+      "android:enabled": receiver.enabled ?? "true",
+    },
+  };
+  if (receiver.intentFilterActions?.length) {
+    receiverEntry["intent-filter"] = [
+      {
+        action: receiver.intentFilterActions.map((actionName) => ({
+          $: { "android:name": actionName },
+        })),
+      },
+    ];
+  }
+  if (existingIndex >= 0) {
+    receivers[existingIndex] = receiverEntry;
+  } else {
+    receivers.push(receiverEntry);
+  }
+  mainApplication.receiver = receivers;
+  return mainApplication;
+}
+
 // Android Auto manifest: MediaBrowserService + automotive_app_desc media
 const withHiddenAudioAndroidManifest = (config) => {
   return withAndroidManifest(config, (config) => {
@@ -348,15 +385,20 @@ const withHiddenAudioAndroidManifest = (config) => {
       foregroundServiceType: "mediaPlayback",
     });
 
+    // MediaBrowserService must be exported for Android Auto discovery.
+    // Do NOT mark it as a foreground-service type — playback FGS is separate.
     ensureAndroidManifestService(mainApplication, {
       name: ANDROID_AUTO_MEDIA_BROWSER_SERVICE,
       exported: "true",
       enabled: "true",
       label: "@string/app_name",
-      foregroundServiceType: "mediaPlayback",
       intentFilterActions: ["android.media.browse.MediaBrowserService"],
       intentFilterCategory: "android.intent.category.DEFAULT",
     });
+
+    // Do NOT register a second MEDIA_BUTTON BroadcastReceiver.
+    // expo-media-control already declares androidx.media.session.MediaButtonReceiver.
+    // Duplicate receivers break Expo Video / Media3 (Expected 1, found 2).
 
     addMetaDataItemToMainApplication(
       mainApplication,
@@ -500,6 +542,8 @@ const withHiddenAudioAndroidProguard = (config) => {
         contents += "-keep class com.hiddentunes.app.audio.HiddenAudioMediaBrowserService { *; }\n";
         contents += "-keep class com.hiddentunes.app.audio.HiddenAudioMediaSessionManager { *; }\n";
         contents += "-keep class com.hiddentunes.app.audio.HiddenAudioAutoCatalog { *; }\n";
+        contents += "-keep class com.hiddentunes.app.audio.HiddenAudioPlaybackTransaction { *; }\n";
+        contents += "-keep class com.hiddentunes.app.audio.HiddenAudioPendingCommandQueue { *; }\n";
         fs.writeFileSync(proguardPath, contents);
       }
       return config;

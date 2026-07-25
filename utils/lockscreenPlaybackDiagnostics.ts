@@ -51,8 +51,8 @@ let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let lastSerializedPersistPayload = "";
 const lastThrottledDiagAtByEvent = new Map<string, number>();
 
-const FOREGROUND_HOT_EVENT_THROTTLE_MS = 8000;
-const BACKGROUND_HOT_EVENT_THROTTLE_MS = 15000;
+const FOREGROUND_HOT_EVENT_THROTTLE_MS = 15000;
+const BACKGROUND_HOT_EVENT_THROTTLE_MS = 30000;
 
 const THROTTLED_LOCKSCREEN_EVENTS = new Set([
   "native_playback_position",
@@ -62,6 +62,8 @@ const THROTTLED_LOCKSCREEN_EVENTS = new Set([
   "hidden_audio_native_progress",
   "hidden_audio_now_playing_elapsed_updated",
   "native_playback_state_changed",
+  "playback_state_published",
+  "android_media_session_active_for_auto",
 ]);
 
 const listeners = new Set<() => void>();

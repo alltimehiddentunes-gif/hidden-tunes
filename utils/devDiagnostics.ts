@@ -37,8 +37,18 @@ export const ENABLE_MATURE_DISCOVERY_DIAGNOSTICS = false;
 /** Discovery request/render timing — dev-only, flip during heat QA. */
 export const ENABLE_DISCOVERY_PERF_DIAGNOSTICS = false;
 
+/**
+ * Audiobooks / Podcasts / Motivationals / Lectures browse+queue heat diagnostics.
+ * Off by default — flip true only during content thermal QA ([HTContentPerformance]).
+ */
+export const ENABLE_CONTENT_PERF_DIAGNOSTICS = false;
+
 export function isDiscoveryPerfDiagnosticsEnabled() {
   return isDevEnvironment() && ENABLE_DISCOVERY_PERF_DIAGNOSTICS;
+}
+
+export function isContentPerfDiagnosticsEnabled() {
+  return isDevEnvironment() && ENABLE_CONTENT_PERF_DIAGNOSTICS;
 }
 
 export function isMatureDiscoveryDiagnosticsEnabled() {

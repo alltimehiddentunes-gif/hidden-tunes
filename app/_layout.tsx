@@ -12,7 +12,7 @@ import { markAppMounted } from "../utils/startupDiagnostics";
 import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
 
 // Keep the native splash visible until LocalizationProvider finishes bootstrap
-// and hides it. Prevents a frame of raw translation keys on Home.
+// and hides it. Root Stack always mounts (provider never returns null children).
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Splash may already be hidden on fast reload — safe to ignore.
 });

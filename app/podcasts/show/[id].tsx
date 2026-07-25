@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   View,
@@ -370,6 +370,152 @@ export default function PodcastShowScreen() {
     safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: relatedShowId } });
   }, []);
 
+  const latestUnavailable =
+    Boolean(show) && !isBackendShow && !episodesLoading && episodes.length > 0 && !latestEpisode;
+  const displayEpisodes = useMemo(() => {
+    if (!show) return [] as PodcastEpisode[];
+    return isBackendShow
+      ? catalogEpisodes.map((item) => catalogEpisodeToDisplayEpisode(item, show.title))
+      : episodes;
+  }, [catalogEpisodes, episodes, isBackendShow, show]);
+  const hasEpisodes = displayEpisodes.length > 0;
+
+  const listHeader = useMemo(() => {
+    if (!show) return null;
+    return (
+      <FadeInView style={styles.hero}>
+        <View style={styles.artworkWrap}>
+          {show.artworkUrl ? (
+            <HTImage
+              uri={show.artworkUrl}
+              style={styles.artwork}
+              contentFit="cover"
+              maxDecodeWidth={416}
+              maxDecodeHeight={416}
+            />
+          ) : (
+            <View style={styles.artworkFallback}>
+              <Ionicons name="mic-outline" size={40} color={COLORS.textMuted} />
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.title} accessibilityRole="header">
+          {show.title}
+        </Text>
+        <Text style={styles.publisher}>{show.publisher}</Text>
+        {show.isExplicit ? <Text style={styles.explicit}>EXPLICIT</Text> : null}
+
+        <View style={styles.actionRow}>
+          <ScalePressable
+            onPress={toggleFollow}
+            accessibilityLabel={following ? "Unfollow podcast show" : "Follow podcast show"}
+            style={styles.followButton}
+          >
+            <Ionicons name={following ? "checkmark" : "add"} size={16} color={COLORS.text} />
+            <Text style={styles.followText}>{following ? "Following" : "Follow show"}</Text>
+          </ScalePressable>
+
+          <ScalePressable
+            onPress={playLatest}
+            disabled={!latestEpisode}
+            accessibilityLabel={
+              latestEpisode ? "Play latest episode" : "Latest episode unavailable"
+            }
+            style={[styles.playLatestButton, !latestEpisode && styles.playLatestDisabled]}
+          >
+            <Ionicons name="play" size={16} color={COLORS.text} />
+            <Text style={styles.playLatestText}>Play Latest</Text>
+          </ScalePressable>
+        </View>
+
+        {latestUnavailable ? (
+          <Text style={styles.latestUnavailable}>Latest episode unavailable</Text>
+        ) : null}
+
+        <ScalePressable
+          onPress={shuffleEpisodesPlay}
+          disabled={!hasEpisodes}
+          accessibilityLabel="Shuffle loaded podcast episodes"
+          style={[styles.shuffleButton, !hasEpisodes && styles.shuffleButtonDisabled]}
+        >
+          <Ionicons name="shuffle" size={16} color={COLORS.primaryGlow} />
+          <Text style={styles.shuffleText}>Shuffle Episodes</Text>
+        </ScalePressable>
+
+        {cleanedDescription ? <PodcastReadMoreText text={cleanedDescription} /> : null}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Latest Episodes</Text>
+          {episodesLoading ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color={COLORS.primary} size="small" />
+              <Text style={styles.loadingText}>Loading episodes...</Text>
+            </View>
+          ) : null}
+          {!episodesLoading && episodesError ? (
+            <View style={styles.errorPanel}>
+              <Text style={styles.emptyText}>{episodesError}</Text>
+            </View>
+          ) : null}
+        </View>
+      </FadeInView>
+    );
+  }, [
+    cleanedDescription,
+    episodesError,
+    episodesLoading,
+    following,
+    hasEpisodes,
+    latestEpisode,
+    latestUnavailable,
+    playLatest,
+    show,
+    shuffleEpisodesPlay,
+    toggleFollow,
+  ]);
+
+  const listFooter = useMemo(() => {
+    if (!relatedShows.length) return null;
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Related Podcasts</Text>
+        {relatedShows.map((related) => (
+          <PodcastShowCard
+            key={`related-${related.id}`}
+            show={related}
+            onPress={() => openRelatedShow(related.id)}
+          />
+        ))}
+      </View>
+    );
+  }, [openRelatedShow, relatedShows]);
+
+  const renderEpisode = useCallback(
+    ({ item, index }: { item: PodcastEpisode; index: number }) => (
+      <PodcastEpisodeCard
+        episode={item}
+        index={index}
+        browseOnly={isBackendShow}
+        disabled={isBackendShow && resolvingEpisodeId === item.id}
+        onPress={() => {
+          if (isBackendShow) {
+            void playResolvedEpisode(catalogEpisodes[index]);
+            return;
+          }
+          playEpisode(item);
+        }}
+      />
+    ),
+    [
+      catalogEpisodes,
+      isBackendShow,
+      playEpisode,
+      playResolvedEpisode,
+      resolvingEpisodeId,
+    ]
+  );
+
   if (!show) {
     return (
       <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
@@ -385,129 +531,24 @@ export default function PodcastShowScreen() {
     );
   }
 
-  const latestUnavailable =
-    !isBackendShow && !episodesLoading && episodes.length > 0 && !latestEpisode;
-  const displayEpisodes = isBackendShow
-    ? catalogEpisodes.map((item) => catalogEpisodeToDisplayEpisode(item, show.title))
-    : episodes;
-  const hasEpisodes = displayEpisodes.length > 0;
-
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
       <PodcastShowBackBar />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <FadeInView style={styles.hero}>
-          <View style={styles.artworkWrap}>
-            {show.artworkUrl ? (
-              <HTImage uri={show.artworkUrl} style={styles.artwork} contentFit="cover" />
-            ) : (
-              <View style={styles.artworkFallback}>
-                <Ionicons name="mic-outline" size={40} color={COLORS.textMuted} />
-              </View>
-            )}
-          </View>
-
-          <Text style={styles.title} accessibilityRole="header">
-            {show.title}
-          </Text>
-          <Text style={styles.publisher}>{show.publisher}</Text>
-          {show.isExplicit ? <Text style={styles.explicit}>EXPLICIT</Text> : null}
-
-          <View style={styles.actionRow}>
-            <ScalePressable
-              onPress={toggleFollow}
-              accessibilityLabel={following ? "Unfollow podcast show" : "Follow podcast show"}
-              style={styles.followButton}
-            >
-              <Ionicons name={following ? "checkmark" : "add"} size={16} color={COLORS.text} />
-              <Text style={styles.followText}>{following ? "Following" : "Follow show"}</Text>
-            </ScalePressable>
-
-            <ScalePressable
-              onPress={playLatest}
-              disabled={!latestEpisode}
-              accessibilityLabel={
-                latestEpisode ? "Play latest episode" : "Latest episode unavailable"
-              }
-              style={[styles.playLatestButton, !latestEpisode && styles.playLatestDisabled]}
-            >
-              <Ionicons name="play" size={16} color={COLORS.text} />
-              <Text style={styles.playLatestText}>Play Latest</Text>
-            </ScalePressable>
-          </View>
-
-          {latestUnavailable ? (
-            <Text style={styles.latestUnavailable}>Latest episode unavailable</Text>
-          ) : null}
-
-          <ScalePressable
-            onPress={shuffleEpisodesPlay}
-            disabled={!hasEpisodes}
-            accessibilityLabel="Shuffle loaded podcast episodes"
-            style={[
-              styles.shuffleButton,
-              !hasEpisodes && styles.shuffleButtonDisabled,
-            ]}
-          >
-            <Ionicons name="shuffle" size={16} color={COLORS.primaryGlow} />
-            <Text style={styles.shuffleText}>Shuffle Episodes</Text>
-          </ScalePressable>
-
-          {cleanedDescription ? <PodcastReadMoreText text={cleanedDescription} /> : null}
-        </FadeInView>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Latest Episodes</Text>
-
-          {episodesLoading ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator color={COLORS.primary} size="small" />
-              <Text style={styles.loadingText}>Loading episodes...</Text>
-            </View>
-          ) : null}
-
-          {!episodesLoading && hasEpisodes ? (
-            <FadeInView delay={80}>
-              {displayEpisodes.map((episode, index) => (
-                <PodcastEpisodeCard
-                  key={episode.id}
-                  episode={episode}
-                  index={index}
-                  browseOnly={isBackendShow}
-                  disabled={isBackendShow && resolvingEpisodeId === episode.id}
-                  onPress={() => {
-                    if (isBackendShow) {
-                      void playResolvedEpisode(catalogEpisodes[index]);
-                      return;
-                    }
-                    playEpisode(episode);
-                  }}
-                />
-              ))}
-            </FadeInView>
-          ) : null}
-
-          {!episodesLoading && episodesError ? (
-            <View style={styles.errorPanel}>
-              <Text style={styles.emptyText}>{episodesError}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {relatedShows.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Related Podcasts</Text>
-            {relatedShows.map((related) => (
-              <PodcastShowCard
-                key={`related-${related.id}`}
-                show={related}
-                onPress={() => openRelatedShow(related.id)}
-              />
-            ))}
-          </View>
-        ) : null}
-      </ScrollView>
+      <FlatList
+        data={!episodesLoading && hasEpisodes ? displayEpisodes : []}
+        keyExtractor={(item) => item.id}
+        renderItem={renderEpisode}
+        ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={60}
+        windowSize={7}
+        removeClippedSubviews
+      />
 
       <MaturePodcastConsentModal
         visible={consentVisible}

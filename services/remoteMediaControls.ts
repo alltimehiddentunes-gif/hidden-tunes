@@ -232,8 +232,9 @@ function resolvePlaybackState(
   snapshot: RemoteMediaSessionSnapshot
 ) {
   const { PlaybackState } = mediaModule;
+  const hasPresented = Boolean(snapshot.presented?.id || snapshot.presented?.title);
 
-  if (!snapshot.song) {
+  if (!snapshot.song && !hasPresented) {
     return PlaybackState.STOPPED;
   }
 
@@ -293,7 +294,10 @@ export async function syncRemoteMediaSession(
   const { MediaControl } = mediaModule;
 
   try {
-    if (!snapshot.song) {
+    const hasPresented = Boolean(
+      snapshot.presented?.id || snapshot.presented?.title
+    );
+    if (!snapshot.song && !hasPresented) {
       await clearRemoteMediaPresentedState("sync_null_song");
       return;
     }
@@ -301,17 +305,18 @@ export async function syncRemoteMediaSession(
     const metadata = buildRemoteMediaMetadata(
       snapshot.song,
       snapshot.positionMillis,
-      snapshot.durationMillis
+      snapshot.durationMillis,
+      snapshot.presented
     );
 
     if (metadata) {
       await MediaControl.updateMetadata(metadata);
     }
 
-    const positionSeconds = Math.max(
-      0,
-      Math.round(snapshot.positionMillis / 1000)
-    );
+    // Live / presented sessions must not inherit elapsed time from music.
+    const positionSeconds = hasPresented
+      ? 0
+      : Math.max(0, Math.round(snapshot.positionMillis / 1000));
 
     await MediaControl.updatePlaybackState(
       resolvePlaybackState(mediaModule, snapshot),

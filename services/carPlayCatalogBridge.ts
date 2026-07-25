@@ -93,6 +93,8 @@ function trackPayload(song: HiddenTunesSong): AndroidAutoTrackPayload | null {
     artworkUrl: String(song.artwork || song.cover || song.thumbnail || ""),
     durationSeconds:
       typeof song.duration === "number" && song.duration > 0 ? song.duration : 0,
+    contentType: "music",
+    isLive: false,
   };
 }
 
@@ -207,6 +209,8 @@ function buildMinimalOneItemCatalogSnapshot(): AndroidAutoCatalogSnapshot {
         album: "Probe",
         artworkUrl: "",
         durationSeconds: 30,
+        contentType: "music",
+        isLive: false,
       },
     ],
   };

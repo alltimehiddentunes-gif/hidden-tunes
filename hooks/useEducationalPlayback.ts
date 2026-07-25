@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import {
   usePlayerActions,
@@ -11,6 +11,7 @@ import {
   EducationalPlaybackController,
 } from "@/utils/EducationalPlaybackController";
 import {
+  educationalSongNeedsResolve,
   isEducationalQueueContext,
   isEducationalSessionAppSong,
   parseEducationalSessionSongId,
@@ -21,6 +22,9 @@ const SAVE_INTERVAL_MS = 7000;
 const COMPLETION_REMAINING_MS = 30_000;
 const COMPLETION_PERCENT = 95;
 
+/** Shared position for controller previous/restart without layout progress subscription. */
+let educationalPositionMillis = 0;
+
 type UseEducationalProgressTrackerArgs = {
   programId?: string | null;
   programTitle?: string | null;
@@ -30,23 +34,36 @@ type UseEducationalProgressTrackerArgs = {
   enabled?: boolean;
 };
 
+/**
+ * Layout host: binds playSong + resolve-on-demand without progress subscription,
+ * so lecture browse screens do not re-render on position ticks.
+ */
+export function EducationalPlaybackBinding() {
+  useEducationalPlaybackBinding();
+  return null;
+}
+
+export function EducationalProgressPersistence(args?: UseEducationalProgressTrackerArgs) {
+  useEducationalProgressTracker(args);
+  return null;
+}
+
 export function useEducationalPlaybackBinding() {
   const { playSong, seekTo } = usePlayerActions();
   const { currentSong } = usePlayerNowPlaying();
-  const { position } = usePlayerProgress();
+  const { activeQueueContext } = usePlayerState();
 
   const currentSongRef = useRef(currentSong);
-  const positionRef = useRef(position);
+  const resolvingRef = useRef<string | null>(null);
 
   currentSongRef.current = currentSong;
-  positionRef.current = position;
 
   useEffect(() => {
     EducationalPlaybackController.bindPlayerActions({
       playSong,
       seekTo,
       getCurrentSongId: () => currentSongRef.current?.id || null,
-      getPositionMillis: () => Math.max(0, Math.floor(positionRef.current || 0)),
+      getPositionMillis: () => Math.max(0, Math.floor(educationalPositionMillis || 0)),
     });
 
     return () => {
@@ -54,7 +71,33 @@ export function useEducationalPlaybackBinding() {
     };
   }, [playSong, seekTo]);
 
-  useEducationalProgressTracker();
+  // MiniPlayer next/prev may land on metadata-only lecture rows — resolve on demand.
+  useEffect(() => {
+    if (!isEducationalSessionAppSong(currentSong)) return;
+    if (!isEducationalQueueContext(activeQueueContext)) return;
+    if (!educationalSongNeedsResolve(currentSong)) return;
+    const songId = currentSong?.id || null;
+    if (!songId || resolvingRef.current === songId) return;
+    resolvingRef.current = songId;
+    void EducationalPlaybackController.resolveCurrentIfNeeded(songId)
+      .catch((error) => {
+        if (__DEV__) {
+          console.warn("[lecture] resolve-on-demand failed", {
+            songId,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      })
+      .finally(() => {
+        if (resolvingRef.current === songId) resolvingRef.current = null;
+      });
+  }, [
+    activeQueueContext,
+    currentSong,
+    currentSong?.id,
+    currentSong?.streamUrl,
+    currentSong?.url,
+  ]);
 }
 
 export function useEducationalProgressTracker(args?: UseEducationalProgressTrackerArgs) {
@@ -63,6 +106,8 @@ export function useEducationalProgressTracker(args?: UseEducationalProgressTrack
   const { activeQueueContext } = usePlayerState();
   const lastSavedAtRef = useRef(0);
   const sessionsRef = useRef(args?.sessions || []);
+
+  educationalPositionMillis = Math.max(0, Math.floor(position || 0));
 
   useEffect(() => {
     sessionsRef.current = args?.sessions || [];

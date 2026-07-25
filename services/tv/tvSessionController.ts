@@ -49,6 +49,16 @@ export type TvSessionControllerApi = {
   getPresentationMode: () => TvPresentationMode;
   isSessionActive: () => boolean;
   getActiveItemId: () => string | null;
+  /** Lock-screen / car transport — pause/resume the same TV surface. */
+  setPlaying?: (playing: boolean) => void;
+  isPlaying?: () => boolean;
+  nextChannel?: () => void;
+  previousChannel?: () => void;
+  canGoNext?: () => boolean;
+  canGoPrevious?: () => boolean;
+  getActiveVideo?: () => HiddenTunesTvVideo | null;
+  getQueueLength?: () => number;
+  getQueueIndex?: () => number;
 };
 
 let api: TvSessionControllerApi | null = null;

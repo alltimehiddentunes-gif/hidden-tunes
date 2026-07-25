@@ -6,6 +6,10 @@ import type {
 import { isPlayablePodcastAudioUrl } from "./podcastPlaybackAdapter";
 
 export const AUDIOBOOK_CHAPTER_SONG_PREFIX = "audiobook-chapter-";
+export const AUDIOBOOK_QUEUE_TYPE = "audiobook";
+export const AUDIOBOOK_CONTEXT_TYPE = "audiobook";
+/** Bounded consecutive skips for unplayable chapters in the same book. */
+export const AUDIOBOOK_MAX_AUTO_NEXT_FAILURES = 5;
 
 export function audiobookChapterSongId(chapterId: string) {
   return `${AUDIOBOOK_CHAPTER_SONG_PREFIX}${chapterId}`;
@@ -54,6 +58,7 @@ export function audiobookChapterToAppSong(
     sourceName: "Audiobook",
     type: "r2",
     isOnline: true,
+    albumId: book.id,
   };
 }
 
@@ -68,4 +73,35 @@ export function buildAudiobookChapterAppSongs(
         isPlayableAudiobookChapterAudioUrl(chapter.audio_url)
     )
     .map((chapter) => audiobookChapterToAppSong(book, chapter));
+}
+
+export function buildAudiobookQueueContext(book: AudiobookItem) {
+  return {
+    source: "playlist" as const,
+    label: book.title || "Audiobooks",
+    albumId: book.id,
+    albumTitle: book.title || undefined,
+    artistName: book.author_name || book.narrator_name || book.publisher || undefined,
+    queueType: AUDIOBOOK_QUEUE_TYPE,
+    contextType: AUDIOBOOK_CONTEXT_TYPE,
+    contextId: book.id,
+    contextTitle: book.title || undefined,
+  };
+}
+
+export function isAudiobookQueueContext(context?: {
+  queueType?: string | null;
+  contextType?: string | null;
+  source?: string | null;
+  label?: string | null;
+  albumId?: string | null;
+  contextId?: string | null;
+} | null) {
+  if (!context) return false;
+  return (
+    context.queueType === AUDIOBOOK_QUEUE_TYPE ||
+    context.contextType === AUDIOBOOK_CONTEXT_TYPE ||
+    (String(context.label || "").toLowerCase().includes("audiobook") &&
+      Boolean(context.albumId || context.contextId))
+  );
 }

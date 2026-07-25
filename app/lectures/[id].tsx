@@ -420,6 +420,11 @@ export default function EducationalProgramDetailScreen() {
         contentContainerStyle={styles.listContent}
         onEndReached={() => void loadMoreSessions()}
         onEndReachedThreshold={0.35}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        updateCellsBatchingPeriod={60}
+        windowSize={7}
+        removeClippedSubviews
         ListHeaderComponent={
           <View style={styles.hero}>
             {program.artworkUrl ? (
@@ -432,7 +437,11 @@ export default function EducationalProgramDetailScreen() {
             <Text style={styles.title}>{program.title}</Text>
             {program.subtitle ? <Text style={styles.subtitle}>{program.subtitle}</Text> : null}
             {meta ? <Text style={styles.meta}>{meta}</Text> : null}
-            {program.description ? <Text style={styles.description}>{program.description}</Text> : null}
+            {program.description ? (
+              <Text style={styles.description} numberOfLines={8}>
+                {program.description}
+              </Text>
+            ) : null}
             {program.rightsType ? (
               <Text style={styles.rights}>Rights: {program.rightsType}</Text>
             ) : null}

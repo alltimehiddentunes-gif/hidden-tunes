@@ -193,17 +193,18 @@ export default function AudiobooksHomeScreen() {
       setPage(cached.pagination.page);
       setLoadingItems(false);
       setLoadError(false);
-    } else {
-      setLoadingItems(true);
-      setLoadError(false);
-      setPage(1);
+      // Reuse warm in-memory page cache — do not force a network revalidation.
+      return undefined;
     }
+
+    setLoadingItems(true);
+    setLoadError(false);
+    setPage(1);
 
     void fetchAudiobookCategory(selectedCategory, {
       page: 1,
       limit: PAGE_LIMIT,
       signal: controller.signal,
-      bypassCache: Boolean(cached?.items.length),
     })
       .then((result) => {
         if (requestId !== categoryRequestRef.current) return;
@@ -214,7 +215,6 @@ export default function AudiobooksHomeScreen() {
       })
       .catch((error) => {
         if (hasAbortError(error) || requestId !== categoryRequestRef.current) return;
-        if (cached?.items.length) return;
         setItems([]);
         setHasMore(false);
         setLoadError(true);
@@ -248,17 +248,17 @@ export default function AudiobooksHomeScreen() {
       setSearchPage(cached.pagination.page);
       setSearchLoading(false);
       setSearchError(false);
-    } else {
-      setSearchLoading(true);
-      setSearchError(false);
+      return undefined;
     }
+
+    setSearchLoading(true);
+    setSearchError(false);
 
     const timer = setTimeout(() => {
       void searchAudiobooks(query, {
         page: 1,
         limit: PAGE_LIMIT,
         signal: controller.signal,
-        bypassCache: Boolean(cached?.items.length),
       })
         .then((result) => {
           if (requestId !== searchRequestRef.current) return;
@@ -269,7 +269,6 @@ export default function AudiobooksHomeScreen() {
         })
         .catch((error) => {
           if (hasAbortError(error) || requestId !== searchRequestRef.current) return;
-          if (cached?.items.length) return;
           setSearchItems([]);
           setSearchHasMore(false);
           setSearchError(true);

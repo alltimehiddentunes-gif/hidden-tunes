@@ -34,17 +34,35 @@ import {
 } from "../services/radio/radioPlaybackSession";
 import { notifyRadioPlaybackMessage } from "../services/radio/radioPlaybackFeedback";
 import {
+  beginRadioStationSwitch,
+  claimRadioPlayerOwner,
+  invalidateRadioStationSwitch,
+  isRadioSessionCurrent,
+  isRadioSwitchAbortError,
+  logRadioSwitchDiagnostic,
+  mapRemoteOrigin,
+  preemptRadioStationSwitch,
+  registerRadioStopSilencer,
+  shouldAcceptRemoteRadioCommand,
+  RADIO_MAX_FAILURE_SKIPS,
+} from "../services/radio/radioStationSwitchController";
+import { resolveRadioStationStreamUrl } from "../services/radio/radioCatalogApi";
+import { isCatalogAbortError } from "../services/catalogJsonFetch";
+import {
   isRadioStreamSong,
+  radioStationSongId,
   radioStationToAppSong,
 } from "../services/playback/radioPlaybackAdapter";
 import {
   claimExclusivePlayback,
+  getActivePlaybackOwner,
   isPlaybackOwnerActive,
   registerPlaybackOwnerAdapter,
   releasePlaybackOwner,
 } from "../services/playback/PlaybackHandoffCoordinator";
 import { inferSharedAudioContentKind } from "../services/playback/inferSharedAudioContentKind";
 import { clearRemoteMediaPresentedState } from "../services/remoteMediaControls";
+import { dispatchTvRemoteTransportCommand } from "../services/tv/tvRemoteTransport";
 import { loadRadioCategoryPage, loadRadioSearchPage } from "../services/radio/radioBrowserApi";
 import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 
@@ -121,6 +139,10 @@ import type { PlaybackProgress } from "../services/playbackBridge";
 import type { HiddenAudioNativeSnapshot } from "../src/hidden-audio/hiddenAudioBridge";
 import { resetHiddenAudioLoadedUrl, notifyHiddenAudioAppBackgrounded } from "../src/hidden-audio/hiddenAudioBridge";
 import { getArtworkValue } from "../utils/artwork";
+import {
+  beginAndroidContinuousPlaybackTap,
+  mirrorNativeContinuousPlaybackDiagnostic,
+} from "../utils/androidContinuousPlaybackTrace";
 import { scheduleStartupTask } from "../utils/startupScheduler";
 import {
   recordAppStateTransition,
@@ -188,6 +210,14 @@ import {
   repairQueueIndexForSong,
   shouldIgnoreDuplicatePlayRequest,
 } from "../utils/playbackGuards";
+import {
+  buildImmediatePlaybackQueueWindow,
+  PLAYBACK_QUEUE_IMMEDIATE_LIMIT,
+} from "../utils/playbackBootstrapQueue";
+import {
+  beginPlaybackCriticalSection,
+  endPlaybackCriticalSection,
+} from "../utils/playbackSearchPriority";
 import {
   buildContextualPlaybackQueue,
   logContextualQueueBuilt,
@@ -519,11 +549,20 @@ function logTapLatencyDiagnostic(
   details: Record<string, unknown> = {}
 ) {
   if (!__DEV__) return;
-  console.log("[HTTapLatency]", event, {
+  const songId = details.songId ?? details.itemId ?? null;
+  const requestId =
+    details.requestId ?? details.tapRequestId ?? details.loadRequestId ?? null;
+  const payload = {
+    requestId,
+    songId,
+    timestamp: Date.now(),
     elapsedMs: Math.max(0, Date.now() - startedAt),
-    at: Date.now(),
     ...details,
-  });
+  };
+  console.log("[HTTapLatency]", event, payload);
+  if (Platform.OS === "android") {
+    console.log("[HTAndroidPerformance]", event, payload);
+  }
 }
 
 const DEFAULT_QUEUE_CONTEXT: PlaybackQueueContext = { source: "unknown" };
@@ -592,6 +631,28 @@ function isMotivationPlaybackDomain(
   if (String(context?.label || "").toLowerCase() === "motivationals") return true;
   if (String(song?.id || "").startsWith("motivation-item-")) return true;
   if (String(song?.sourceName || "").toLowerCase() === "motivationals") return true;
+  return false;
+}
+
+function isEducationalPlaybackDomain(
+  context?: PlaybackQueueContext | null,
+  song?: AppSong | null
+): boolean {
+  if (context?.queueType === "educational") return true;
+  if (context?.contextType === "educational-program") return true;
+  if (String(song?.id || "").startsWith("lecture-session-")) return true;
+  if (String(song?.sourceName || "").toLowerCase() === "lectures") return true;
+  return false;
+}
+
+function isAudiobookPlaybackDomain(
+  context?: PlaybackQueueContext | null,
+  song?: AppSong | null
+): boolean {
+  if (context?.queueType === "audiobook") return true;
+  if (context?.contextType === "audiobook") return true;
+  if (String(song?.id || "").startsWith("audiobook-chapter-")) return true;
+  if (String(song?.sourceName || "").toLowerCase() === "audiobook") return true;
   return false;
 }
 
@@ -916,6 +977,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const preloadInFlightRef = useRef(false);
   const pendingSmartExtendRef = useRef(false);
   const hiddenAudioActiveRef = useRef(false);
+  /** When true, Android HiddenAudio progress events own UI updates — skip duplicate poll. */
+  /** Native HiddenAudioProgressChanged subscription active (Android + iOS). */
+  const nativeProgressEventsActiveRef = useRef(false);
   const lastLockscreenProgressDiagnosticRef = useRef(0);
   const lastNativePlaybackStateRef = useRef("");
   const lastUnexpectedPlaybackStopRef = useRef({ songId: "", at: 0 });
@@ -1266,15 +1330,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
           pendingSeekTargetRef.current = null;
           pendingSeekUntilRef.current = 0;
+          // Force the next position publish so scrubbed UI does not wait on the throttle.
+          lastPositionStateUpdateRef.current = 0;
         }
       }
 
       if (progress.positionMillis > 0 || progress.isPlaying) {
         positionMillisRef.current = progress.positionMillis;
-        const positionStateMinMs = getPositionStateUpdateMinMs(appStateRef.current);
+        const isLiveRadio =
+          activeQueueModeRef.current === "live_stream" ||
+          isRadioStreamSong(currentSongRef.current);
+        // Live radio has no seekable timeline — avoid high-frequency React updates/heat.
+        const positionStateMinMs = isLiveRadio
+          ? isBackgroundAppState(appStateRef.current)
+            ? 15_000
+            : 8_000
+          : getPositionStateUpdateMinMs(appStateRef.current);
+        // Require the time gate. Do NOT OR a small delta — that defeated the throttle
+        // (native ticks ~500ms with ~500ms position advance → setState every tick).
+        const positionDeltaMinMs = isLiveRadio ? 5_000 : 400;
         if (
-          now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
-          Math.abs(progress.positionMillis - previousPosition) > 250
+          now - lastPositionStateUpdateRef.current >= positionStateMinMs &&
+          Math.abs(progress.positionMillis - previousPosition) >= positionDeltaMinMs
         ) {
           lastPositionStateUpdateRef.current = now;
           recordPlaybackProgressUpdate();
@@ -1284,14 +1361,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (progress.durationMillis > 0) {
-        if (
-          Math.abs(progress.durationMillis - durationMillisRef.current) >=
-            DURATION_UPDATE_THRESHOLD_MS ||
-          durationMillisRef.current <= 0
-        ) {
-          durationMillisRef.current = progress.durationMillis;
-          recordPlaybackReactStateUpdate("duration");
-          setDurationMillisState(progress.durationMillis);
+        const isLiveRadio =
+          activeQueueModeRef.current === "live_stream" ||
+          isRadioStreamSong(currentSongRef.current);
+        // Do not publish fake/live durations into UI for radio streams.
+        if (!isLiveRadio) {
+          if (
+            Math.abs(progress.durationMillis - durationMillisRef.current) >=
+              DURATION_UPDATE_THRESHOLD_MS ||
+            durationMillisRef.current <= 0
+          ) {
+            durationMillisRef.current = progress.durationMillis;
+            recordPlaybackReactStateUpdate("duration");
+            setDurationMillisState(progress.durationMillis);
+          }
         }
       }
 
@@ -3137,20 +3220,81 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const deferPlaybackStartWork = useCallback(
-    (label: string, work: () => void | Promise<void>) => {
+    (
+      label: string,
+      work: () => void | Promise<void>,
+      options?: { loadRequestId?: number }
+    ) => {
       if (typeof __DEV__ !== "undefined" && __DEV__) {
         logPlayerContextDebug("persistence_deferred", { label });
       }
 
       const deferredStartedAt = Date.now();
+      const expectedLoadRequestId = options?.loadRequestId;
       InteractionManager.runAfterInteractions(() => {
         setTimeout(() => {
           try {
+            if (
+              typeof expectedLoadRequestId === "number" &&
+              loadRequestIdRef.current !== expectedLoadRequestId
+            ) {
+              logTapLatencyDiagnostic("non_critical_work_discarded_stale", deferredStartedAt, {
+                label,
+                expectedLoadRequestId,
+                activeLoadRequestId: loadRequestIdRef.current,
+                requestId: expectedLoadRequestId,
+                songId: currentSongRef.current?.id || null,
+              });
+              logTapLatencyDiagnostic("stale_work_discarded", deferredStartedAt, {
+                label,
+                requestId: expectedLoadRequestId,
+                songId: currentSongRef.current?.id || null,
+              });
+              return;
+            }
+
+            if (__DEV__) {
+              logTapLatencyDiagnostic(`${label}_start`, deferredStartedAt, {
+                label,
+                requestId: expectedLoadRequestId ?? loadRequestIdRef.current,
+                songId: currentSongRef.current?.id || null,
+              });
+            }
+
             void Promise.resolve(work())
               .then(() => {
+                if (
+                  typeof expectedLoadRequestId === "number" &&
+                  loadRequestIdRef.current !== expectedLoadRequestId
+                ) {
+                  logTapLatencyDiagnostic("non_critical_work_discarded_stale", deferredStartedAt, {
+                    label,
+                    expectedLoadRequestId,
+                    activeLoadRequestId: loadRequestIdRef.current,
+                    phase: "after_work",
+                    requestId: expectedLoadRequestId,
+                    songId: currentSongRef.current?.id || null,
+                  });
+                  logTapLatencyDiagnostic("stale_work_discarded", deferredStartedAt, {
+                    label,
+                    requestId: expectedLoadRequestId,
+                    songId: currentSongRef.current?.id || null,
+                    phase: "after_work",
+                  });
+                  return;
+                }
                 logTapLatencyDiagnostic("non_critical_work_completed", deferredStartedAt, {
                   label,
+                  requestId: expectedLoadRequestId ?? loadRequestIdRef.current,
+                  songId: currentSongRef.current?.id || null,
                 });
+                if (__DEV__) {
+                  logTapLatencyDiagnostic(`${label}_end`, deferredStartedAt, {
+                    label,
+                    requestId: expectedLoadRequestId ?? loadRequestIdRef.current,
+                    songId: currentSongRef.current?.id || null,
+                  });
+                }
               })
               .catch((error) => {
                 console.log("Deferred playback start work error:", label, error);
@@ -3456,7 +3600,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         trackIds: normalizedQueue.slice(0, 20).map((song) => song.id).join(","),
       });
 
+      const expectedPersistSongId = String(
+        normalizedQueue[safeIndex]?.id || currentSongRef.current?.id || ""
+      );
       deferPlaybackStartWork("active_queue_and_smart_queue", () => {
+        const activeSongId = String(currentSongRef.current?.id || "");
+        if (
+          expectedPersistSongId &&
+          activeSongId &&
+          activeSongId !== expectedPersistSongId
+        ) {
+          logTapLatencyDiagnostic("non_critical_work_discarded_stale", Date.now(), {
+            label: "active_queue_and_smart_queue",
+            expectedPersistSongId,
+            activeSongId,
+          });
+          return;
+        }
         void persistActiveQueue(normalizedQueue, safeIndex, mode, normalizedContext);
         void saveSmartQueue(normalizedQueue as any);
       });
@@ -3884,6 +4044,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const interruptCurrentPlaybackForUserTap = useCallback(
     async (targetSongId?: string) => {
+      const interruptStartedAt = Date.now();
+      if (__DEV__) {
+        logTapLatencyDiagnostic("interrupt_start", interruptStartedAt, {
+          songId: targetSongId || currentSongRef.current?.id || null,
+          requestId: loadRequestIdRef.current,
+        });
+      }
       const sound = soundRef.current;
 
       if (typeof __DEV__ !== "undefined" && __DEV__) {
@@ -3970,6 +4137,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       setIsPlaying(false);
+      if (__DEV__) {
+        logTapLatencyDiagnostic("interrupt_end", interruptStartedAt, {
+          songId: targetSongId || currentSongRef.current?.id || null,
+          requestId: loadRequestIdRef.current,
+        });
+      }
     },
     [clearFinishWatchdog, clearPreloadedSound, getPlayableUri, setIsPlaying]
   );
@@ -4006,7 +4179,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Latest-intent wins: cancel any in-flight resolve/load before we queue.
       if (!fromFailure) {
+        preemptRadioStationSwitch("live_radio_navigate");
         liveRadioSkipCycleRef.current = createLiveRadioSkipCycle(direction);
       } else if (!liveRadioSkipCycleRef.current) {
         liveRadioSkipCycleRef.current = createLiveRadioSkipCycle(direction);
@@ -4017,13 +4192,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (options?.failedSongId) {
         cycle.failedIds.add(options.failedSongId);
       }
+      if (fromFailure && cycle.failedIds.size > RADIO_MAX_FAILURE_SKIPS) {
+        notifyRadioPlaybackMessage(RADIO_ALL_FAILED_MESSAGE);
+        setIsPlaying(false);
+        setPositionMillis(0);
+        setDurationMillis(0);
+        liveRadioSkipCycleRef.current = null;
+        return;
+      }
 
-      const generation = cycle.generation;
+      const skipGeneration = cycle.generation;
       liveRadioNavigateInFlightRef.current = true;
 
       try {
         await runQueueTransition(async () => {
-          if (liveRadioSkipCycleRef.current?.generation !== generation) {
+          if (liveRadioSkipCycleRef.current?.generation !== skipGeneration) {
             return;
           }
 
@@ -4054,7 +4237,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                     append: true,
                   });
               if (
-                liveRadioSkipCycleRef.current?.generation === generation &&
+                liveRadioSkipCycleRef.current?.generation === skipGeneration &&
                 page?.stations?.length
               ) {
                 const existingIds = new Set(queue.map((song) => song.id));
@@ -4079,7 +4262,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          if (liveRadioSkipCycleRef.current?.generation !== generation) {
+          if (liveRadioSkipCycleRef.current?.generation !== skipGeneration) {
             return;
           }
 
@@ -4090,21 +4273,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             failedIds: cycle.failedIds,
           });
 
-          while (nextIndex !== null) {
-            const candidate = queue[nextIndex];
-            if (candidate && liveRadioStationHasPlayableStream(candidate)) {
-              break;
-            }
-            if (candidate) {
-              cycle.failedIds.add(candidate.id);
-            }
-            nextIndex = pickNextEligibleLiveRadioIndex({
-              currentIndex: nextIndex ?? activeQueueIndexRef.current,
-              queue,
-              direction: cycle.direction,
-              failedIds: cycle.failedIds,
-            });
-          }
+          // Catalog siblings often lack stream URLs until /play — resolve below
+          // instead of marking them failed here.
 
           if (nextIndex === null) {
             notifyRadioPlaybackMessage(RADIO_ALL_FAILED_MESSAGE);
@@ -4118,15 +4288,106 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             notifyRadioPlaybackMessage(RADIO_SKIP_MESSAGE);
           }
 
-          const song = normalizeSong(queue[nextIndex]);
+          let song = normalizeSong(queue[nextIndex]);
+
+          // Advance UI immediately so rapid skips feel responsive.
           setActiveQueueIndex(nextIndex);
           activeQueueIndexRef.current = nextIndex;
           setCurrentSong(song);
           currentSongRef.current = song;
+          setIsPlaying(false);
+          setIsLoading(true);
+
+          const origin = mapRemoteOrigin(options?.source, direction);
+          const switchSession = await beginRadioStationSwitch({
+            stationId: song.id,
+            mediaKey: radioStationSongId(song.id),
+            origin,
+          });
+
+          if (
+            !isRadioSessionCurrent(switchSession.generation) ||
+            liveRadioSkipCycleRef.current?.generation !== skipGeneration
+          ) {
+            logRadioSwitchDiagnostic("stale_resolution_ignored", {
+              generation: switchSession.generation,
+              skipGeneration,
+              phase: "navigate_after_begin",
+            });
+            return;
+          }
+
+          if (!liveRadioStationHasPlayableStream(song)) {
+            logRadioSwitchDiagnostic("play_resolution_started", {
+              stationId: song.id,
+              generation: switchSession.generation,
+              origin,
+            });
+            try {
+              const catalogId = String(song.id || "").replace(/^radio-/, "");
+              const resolved =
+                (await resolveRadioStationStreamUrl(
+                  {
+                    id: catalogId,
+                    streamUrl: String(song.streamUrl || song.url || ""),
+                  },
+                  switchSession.signal
+                )) || "";
+              if (
+                !isRadioSessionCurrent(switchSession.generation) ||
+                liveRadioSkipCycleRef.current?.generation !== skipGeneration
+              ) {
+                logRadioSwitchDiagnostic("stale_resolution_ignored", {
+                  generation: switchSession.generation,
+                  phase: "navigate_after_resolve",
+                });
+                return;
+              }
+              if (!String(resolved).startsWith("https://")) {
+                cycle.failedIds.add(song.id);
+                void navigateLiveRadioStationRef.current?.(direction, {
+                  source: "failure",
+                  failedSongId: song.id,
+                });
+                return;
+              }
+              song = normalizeSong({
+                ...song,
+                streamUrl: resolved,
+                url: resolved,
+              });
+              queue[nextIndex] = song;
+              activeQueueRef.current = [...queue];
+              setActiveQueue(activeQueueRef.current);
+              setCurrentSong(song);
+              currentSongRef.current = song;
+            } catch (error) {
+              if (
+                isRadioSwitchAbortError(error) ||
+                isCatalogAbortError(error) ||
+                (error as Error)?.name === "AbortError"
+              ) {
+                return;
+              }
+              cycle.failedIds.add(song.id);
+              void navigateLiveRadioStationRef.current?.(direction, {
+                source: "failure",
+                failedSongId: song.id,
+              });
+              return;
+            }
+          }
 
           await removeStoredValues([POSITION_KEY]);
 
-          if (liveRadioSkipCycleRef.current?.generation !== generation) {
+          if (
+            !isRadioSessionCurrent(switchSession.generation) ||
+            liveRadioSkipCycleRef.current?.generation !== skipGeneration
+          ) {
+            return;
+          }
+
+          if (!claimRadioPlayerOwner(switchSession.generation)) {
             return;
           }
 
@@ -4137,22 +4398,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             queueLength: queue.length,
             fromFailure,
             source: options?.source || "app",
+            radioGeneration: switchSession.generation,
           });
 
           await loadAndPlayRef.current?.(song, {
             userInitiated: !fromFailure,
+            userInterruptDone: true,
             liveRadioSkipOnFailure: true,
           });
 
-          if (liveRadioSkipCycleRef.current?.generation === generation) {
-            // Successful start of a station ends the failure-skip cycle.
+          if (
+            isRadioSessionCurrent(switchSession.generation) &&
+            liveRadioSkipCycleRef.current?.generation === skipGeneration
+          ) {
+            logRadioSwitchDiagnostic("radio_play_started", {
+              stationId: song.id,
+              generation: switchSession.generation,
+              origin,
+            });
             if (!fromFailure) {
               liveRadioSkipCycleRef.current = null;
             }
           }
         });
       } finally {
-        if (liveRadioSkipCycleRef.current?.generation === generation || !liveRadioSkipCycleRef.current) {
+        if (
+          liveRadioSkipCycleRef.current?.generation === skipGeneration ||
+          !liveRadioSkipCycleRef.current
+        ) {
           liveRadioNavigateInFlightRef.current = false;
         }
       }
@@ -4163,6 +4436,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       removeStoredValues,
       runQueueTransition,
       setIsPlaying,
+      setIsLoading,
+      setPositionMillis,
+      setDurationMillis,
     ]
   );
 
@@ -4468,6 +4744,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Lectures: one authoritative Next coordinator resolves the next lesson
+      // in the same course. Do not fall through to generic empty-URL siblings
+      // or music smart-extend at course end.
+      if (
+        isEducationalPlaybackDomain(
+          activeQueueContextRef.current,
+          currentSongRef.current
+        )
+      ) {
+        const { handleEducationalSessionFinished } = await import(
+          "../utils/educationalPlayback"
+        );
+        const advanced = await handleEducationalSessionFinished();
+        if (advanced) {
+          logAutoNextSuccess({ reason: "educational_session_finished" });
+        } else {
+          logAutoNextSkipped("educational_course_ended", {
+            songId: currentSongRef.current?.id,
+          });
+          setIsPlaying(false);
+        }
+        return;
+      }
+
+      // Audiobooks / Motivationals / Podcasts: same-parent queues are already
+      // bounded; generic nextSong advances within the active queue only.
       await nextSong({ source: "auto" });
     } finally {
       void removeStoredValues([POSITION_KEY]);
@@ -5218,15 +5520,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           openPlayerForPlayableTap(normalizedSong, "load_and_play");
         }
 
-        if (
-          !skipEmotionalQueueRefreshRef.current &&
-          !radioModeRef.current
-        ) {
-          deferPlaybackStartWork("emotional_queue_refresh", () =>
-            refreshEmotionalQueueForTrack(appSongToTrack(normalizedSong), 20).then(() => undefined)
-          );
-        }
-
         isChangingTrackRef.current = true;
         setIsLoading(true);
 
@@ -5486,6 +5779,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               platform: Platform.OS,
               hasPlayableUri: Boolean(playableUri),
             });
+            logTapLatencyDiagnostic("hidden_audio_load_start", audioLoadStartedAt, {
+              songId: normalizedSong.id,
+              requestId,
+            });
             logTapToLoadTrackRequired({
               songId: normalizedSong.id,
               source: "load_and_play",
@@ -5518,6 +5815,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               durationSeconds,
               positionSeconds: startPositionSeconds,
               artworkUrl,
+            });
+            logTapLatencyDiagnostic("native_load_ready", audioLoadStartedAt, {
+              songId: normalizedSong.id,
+              requestId,
+            });
+            logTapLatencyDiagnostic("native_play_called", audioLoadStartedAt, {
+              songId: normalizedSong.id,
+              requestId,
             });
 
             if (isAutoAdvanceLoad) {
@@ -5608,6 +5913,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   source: "load_and_play",
                   mode: "native_reload",
                 });
+                if (
+                  !skipEmotionalQueueRefreshRef.current &&
+                  !radioModeRef.current
+                ) {
+                  deferPlaybackStartWork(
+                    "emotional_queue_refresh",
+                    () =>
+                      refreshEmotionalQueueForTrack(
+                        appSongToTrack(normalizedSong),
+                        20
+                      ).then(() => undefined),
+                    { loadRequestId: requestId }
+                  );
+                }
                 if (options?.userInitiated) {
                   logLockscreenPlaybackDiagnostic("manual_replace_new_track_play_confirmed", {
                     source: "load_and_play",
@@ -5947,6 +6266,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
+      if (isEducationalPlaybackDomain(context, current)) {
+        logLockscreenPlaybackDiagnostic("smart_continuation_blocked_domain", {
+          contextSource: context.source,
+          queueType: context.queueType || null,
+          currentSongId: current.id,
+          reason: "educational_domain",
+        });
+        return false;
+      }
+
+      if (isAudiobookPlaybackDomain(context, current)) {
+        logLockscreenPlaybackDiagnostic("smart_continuation_blocked_domain", {
+          contextSource: context.source,
+          queueType: context.queueType || null,
+          currentSongId: current.id,
+          reason: "audiobook_domain",
+        });
+        return false;
+      }
+
       const memory = await getSmartQueue();
       const currentQueue = activeQueueRef.current.filter(
         (song) => !isYouTubeSong(song)
@@ -6245,17 +6584,76 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         requestedIndex: startIndex,
         contextSource: queueContext.source,
       });
-      const resolved = resolvePlaybackQueue(
-        seedSong,
-        queueContext,
-        queue,
-        startIndex
-      );
-      const nativeQueue = resolved.queue;
-      if (!nativeQueue.length) return;
 
-      const safeIndex = resolved.index;
-      const normalizedContext = resolved.context;
+      const shouldDeferFullQueue =
+        queueContext.source === "full_catalog" ||
+        queue.length > PLAYBACK_QUEUE_IMMEDIATE_LIMIT;
+
+      let nativeQueue: AppSong[];
+      let safeIndex: number;
+      let normalizedContext: PlaybackQueueContext;
+      let deferredFullQueue: AppSong[] | null = null;
+      let deferredFullIndex = 0;
+
+      if (shouldDeferFullQueue) {
+        const bootstrap = buildImmediatePlaybackQueueWindow({
+          queue,
+          index: startIndex,
+          forceDefer: true,
+        });
+        const windowSongs = bootstrap.immediateQueue
+          .map((item) => normalizeSong(item))
+          .filter((item) => !isYouTubeSong(item));
+        const seedNormalized = normalizeSong(seedSong);
+        let windowIndex = windowSongs.findIndex(
+          (item) => String(item.id) === String(seedNormalized.id)
+        );
+        if (windowIndex < 0) {
+          nativeQueue = [seedNormalized];
+          safeIndex = 0;
+        } else {
+          nativeQueue = windowSongs;
+          safeIndex = windowIndex;
+        }
+        normalizedContext = normalizePlaybackQueueContext(queueContext);
+        deferredFullQueue = queue;
+        deferredFullIndex = bootstrap.fullIndex;
+
+        logLockscreenPlaybackDiagnostic("playable_tap_queue_bootstrapped", {
+          source: "playQueue",
+          fullQueueLength: queue.length,
+          bootstrapLength: nativeQueue.length,
+          queueIndex: safeIndex,
+          fullIndex: deferredFullIndex,
+          contextSource: normalizedContext.source,
+          songId: nativeQueue[safeIndex]?.id,
+        });
+        logTapLatencyDiagnostic("playable_tap_queue_bootstrapped", Date.now(), {
+          songId: nativeQueue[safeIndex]?.id,
+          requestId: loadRequestIdRef.current,
+          fullQueueLength: queue.length,
+          bootstrapLength: nativeQueue.length,
+        });
+      } else {
+        const resolved = resolvePlaybackQueue(
+          seedSong,
+          queueContext,
+          queue,
+          startIndex
+        );
+        nativeQueue = resolved.queue;
+        safeIndex = resolved.index;
+        normalizedContext = resolved.context;
+        logTapLatencyDiagnostic("playable_tap_queue_bootstrapped", Date.now(), {
+          songId: nativeQueue[safeIndex]?.id,
+          requestId: loadRequestIdRef.current,
+          fullQueueLength: nativeQueue.length,
+          bootstrapLength: nativeQueue.length,
+          deferred: false,
+        });
+      }
+
+      if (!nativeQueue.length) return;
 
       logLockscreenPlaybackDiagnostic("playable_tap_queue_built", {
         source: "playQueue",
@@ -6263,6 +6661,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queueIndex: safeIndex,
         contextSource: normalizedContext.source,
         songId: nativeQueue[safeIndex]?.id,
+        deferredFullQueue: Boolean(deferredFullQueue),
       });
       logTapToQueueReady({
         source: "playQueue",
@@ -6310,7 +6709,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       radioModeRef.current = false;
       void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
-      void syncActiveQueue(nativeQueue, safeIndex, resolvedMode, normalizedContext);
+      // Persist only after play for large/full_catalog queues (deferred expand).
+      // Small queues still sync immediately so Next/Previous + AA stay available.
+      if (!deferredFullQueue) {
+        void syncActiveQueue(nativeQueue, safeIndex, resolvedMode, normalizedContext);
+      } else {
+        updateActiveQueueLength(nativeQueue.length);
+        void syncNativeRemoteQueueAvailability();
+      }
       void removeStoredValues([POSITION_KEY]);
 
       let interruptDone = priorInterruptDone;
@@ -6373,10 +6779,64 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         } catch {}
       }
 
+      const expandSongId = selectedNormalized.id;
+
       await loadAndPlay(selectedSong, {
         userInitiated: true,
         userInterruptDone: interruptDone,
       });
+
+      if (deferredFullQueue?.length) {
+        const fullQueueSnapshot = deferredFullQueue;
+        const fullIndexSnapshot = deferredFullIndex;
+        const expandContext = normalizedContext;
+        const expandMode = resolvedMode;
+        // Capture after loadAndPlay so the token matches the active load request.
+        const expandRequestId = loadRequestIdRef.current;
+        deferPlaybackStartWork(
+          "deferred_full_queue_expand",
+          async () => {
+            if (loadRequestIdRef.current !== expandRequestId) {
+              return;
+            }
+            if (String(currentSongRef.current?.id || "") !== String(expandSongId)) {
+              return;
+            }
+
+            const resolved = resolvePlaybackQueue(
+              selectedNormalized,
+              expandContext,
+              fullQueueSnapshot,
+              fullIndexSnapshot
+            );
+
+            if (loadRequestIdRef.current !== expandRequestId) {
+              return;
+            }
+            if (String(currentSongRef.current?.id || "") !== String(expandSongId)) {
+              return;
+            }
+            if (!resolved.queue.length) {
+              return;
+            }
+
+            await syncActiveQueue(
+              resolved.queue,
+              resolved.index,
+              expandMode,
+              resolved.context
+            );
+            logLockscreenPlaybackDiagnostic("deferred_full_queue_applied", {
+              songId: expandSongId,
+              queueLength: resolved.queue.length,
+              queueIndex: resolved.index,
+              contextSource: resolved.context.source,
+              loadRequestId: expandRequestId,
+            });
+          },
+          { loadRequestId: expandRequestId }
+        );
+      }
     },
     [
       normalizeSong,
@@ -6392,6 +6852,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying,
       deferPlaybackSideEffects,
       resolveQueueModeForSong,
+      updateActiveQueueLength,
+      syncNativeRemoteQueueAvailability,
     ]
   );
 
@@ -6422,7 +6884,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
       }
 
+      logTapLatencyDiagnostic("tap_received", tapStartedAt, {
+        songId: normalizedSong.id,
+        requestId: tapRequestId,
+        hasQueue: Boolean(queue?.length),
+        requestedIndex: index,
+      });
+      beginAndroidContinuousPlaybackTap({
+        requestId: String(tapRequestId),
+        songId: String(normalizedSong.id || ""),
+        source: String(queueContext.source || "playSong"),
+        canonicalSongIdentity: String(normalizedSong.id || ""),
+      });
+      logTapLatencyDiagnostic("playback_request_created", tapStartedAt, {
+        songId: normalizedSong.id,
+        requestId: tapRequestId,
+        contextSource: queueContext.source,
+      });
+      logTapLatencyDiagnostic("handoff_start", tapStartedAt, {
+        songId: normalizedSong.id,
+        requestId: tapRequestId,
+      });
+      beginPlaybackCriticalSection();
+
       // Global handoff: silence TV/video/sports immediately before audio resolve/load.
+      try {
       const handoff = await claimExclusivePlayback({
         owner: "shared-audio",
         contentKind: inferSharedAudioContentKind({
@@ -6433,6 +6919,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           songId: normalizedSong.id,
         }),
         mediaKey: normalizedSong.id,
+      });
+      logTapLatencyDiagnostic("handoff_end", tapStartedAt, {
+        songId: normalizedSong.id,
+        requestId: tapRequestId,
+        handoffGeneration: handoff.generation,
+        isCurrent: handoff.isCurrent(),
       });
       if (!handoff.isCurrent() || !isLatestTap()) {
         if (typeof __DEV__ !== "undefined" && __DEV__) {
@@ -6446,6 +6938,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         logTapLatencyDiagnostic("stale_tap_ignored_after_handoff", tapStartedAt, {
           songId: normalizedSong.id,
           tapRequestId,
+          requestId: tapRequestId,
         });
         return;
       }
@@ -6459,12 +6952,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           ts: Date.now(),
         });
       }
-
-      logTapLatencyDiagnostic("tap_received", tapStartedAt, {
-        songId: normalizedSong.id,
-        hasQueue: Boolean(queue?.length),
-        requestedIndex: index,
-      });
 
       logTapToPlayStart({
         songId: normalizedSong.id,
@@ -6609,18 +7096,51 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const resolved = resolvePlaybackQueue(
-        normalizedSong,
-        queueContext,
-        queue?.length ? queue : activeQueueRef.current,
-        queue?.length ? index : activeQueueIndexRef.current
-      );
-      logTapLatencyDiagnostic("playable_url_resolved", tapStartedAt, {
-        songId: normalizedSong.id,
-        hasPlayableUri: Boolean(getPlayableUri(normalizedSong)),
-        queueLength: resolved.queue.length,
-        queueIndex: resolved.index,
-      });
+      const sourceQueue = queue?.length ? queue : activeQueueRef.current;
+      const sourceIndex = queue?.length
+        ? typeof index === "number"
+          ? index
+          : 0
+        : activeQueueIndexRef.current;
+      const shouldSkipFullResolveBeforePlay =
+        queueContext.source === "full_catalog" ||
+        sourceQueue.length > PLAYBACK_QUEUE_IMMEDIATE_LIMIT;
+
+      let playQueueSongs: AppSong[];
+      let playQueueIndex: number;
+      let playQueueContext: PlaybackQueueContext = queueContext;
+
+      if (shouldSkipFullResolveBeforePlay) {
+        // Keep the tapped catalog array raw until after HiddenAudio.loadTrack.
+        playQueueSongs = sourceQueue.length ? sourceQueue : [normalizedSong];
+        playQueueIndex = Math.max(
+          0,
+          Math.min(sourceIndex, Math.max(playQueueSongs.length - 1, 0))
+        );
+        logTapLatencyDiagnostic("playable_url_resolved", tapStartedAt, {
+          songId: normalizedSong.id,
+          hasPlayableUri: Boolean(getPlayableUri(normalizedSong)),
+          queueLength: playQueueSongs.length,
+          queueIndex: playQueueIndex,
+          deferredFullResolve: true,
+        });
+      } else {
+        const resolved = resolvePlaybackQueue(
+          normalizedSong,
+          queueContext,
+          sourceQueue,
+          sourceIndex
+        );
+        playQueueSongs = resolved.queue;
+        playQueueIndex = resolved.index;
+        playQueueContext = resolved.context;
+        logTapLatencyDiagnostic("playable_url_resolved", tapStartedAt, {
+          songId: normalizedSong.id,
+          hasPlayableUri: Boolean(getPlayableUri(normalizedSong)),
+          queueLength: resolved.queue.length,
+          queueIndex: resolved.index,
+        });
+      }
 
       if (!isLatestTap()) {
         logTapLatencyDiagnostic("stale_tap_ignored_before_queue", tapStartedAt, {
@@ -6631,45 +7151,50 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      if (!resolved.queue.length) {
+      if (!playQueueSongs.length) {
         setIsLoading(false);
         setIsPlaying(false);
         return;
       }
 
-      recordQueueControl("play_song", resolved.queue.length, {
+      recordQueueControl("play_song", playQueueSongs.length, {
         songId: normalizedSong.id,
       });
       logLockscreenPlaybackDiagnostic("playable_tap_queue_built", {
         source: "playSong",
         songId: normalizedSong.id,
-        queueLength: resolved.queue.length,
-        queueIndex: resolved.index,
-        contextSource: resolved.context.source,
+        queueLength: playQueueSongs.length,
+        queueIndex: playQueueIndex,
+        contextSource: playQueueContext.source,
+        deferredFullResolve: shouldSkipFullResolveBeforePlay,
       });
       logTapToQueueReady({
         source: "playSong",
         songId: normalizedSong.id,
-        queueLength: resolved.queue.length,
-        queueIndex: resolved.index,
+        queueLength: playQueueSongs.length,
+        queueIndex: playQueueIndex,
       });
       logPlaybackCritical("tap_to_queue_ready", {
         source: "playSong",
         songId: normalizedSong.id,
-        queueLength: resolved.queue.length,
-        queueIndex: resolved.index,
+        queueLength: playQueueSongs.length,
+        queueIndex: playQueueIndex,
       });
       logTapLatencyDiagnostic("audio_load_started", tapStartedAt, {
         songId: normalizedSong.id,
         tapRequestId,
+        requestId: tapRequestId,
       });
       await playQueue(
-        resolved.queue,
-        resolved.index,
+        playQueueSongs,
+        playQueueIndex,
         switchingToNewSong,
-        resolved.context,
+        playQueueContext,
         queueMode || resolveQueueModeForSong(normalizedSong)
       );
+      } finally {
+        endPlaybackCriticalSection();
+      }
     },
     [
       normalizeSong,
@@ -6866,6 +7391,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isChangingTrackRef.current = true;
       pendingSmartExtendRef.current = false;
       clearFinishWatchdog("stop_playback");
+      invalidateRadioStationSwitch("stop_playback");
+      liveRadioSkipCycleRef.current = null;
 
       if (typeof __DEV__ !== "undefined" && __DEV__) {
         console.log("[handoff] native_audio_stop_requested", {
@@ -6940,6 +7467,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return registerPlaybackOwnerAdapter({
       id: "shared-audio",
+      cancelPendingStart: () => {
+        loadRequestIdRef.current += 1;
+        latestPlaySongTapIdRef.current += 1;
+        invalidateRadioStationSwitch("peer_cancel_pending");
+        liveRadioSkipCycleRef.current = null;
+      },
       stopImmediately: async (reason) => {
         if (typeof __DEV__ !== "undefined" && __DEV__) {
           console.log("[handoff] old_owner_stop_entered", {
@@ -6949,6 +7482,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
         }
         try {
+          invalidateRadioStationSwitch(`peer_stop:${reason}`);
+          liveRadioSkipCycleRef.current = null;
           await stopPlayback();
         } catch {
           // Peer stop must never throw into the claiming owner.
@@ -6966,6 +7501,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       isActive: () => Boolean(currentSongRef.current),
     });
   }, [stopPlayback]);
+
+  useEffect(() => {
+    const unregister = registerRadioStopSilencer(async () => {
+      // Invalidate in-flight loads and silence native audio immediately.
+      loadRequestIdRef.current += 1;
+      inFlightPlaySongIdRef.current = null;
+      try {
+        await interruptCurrentPlaybackForUserTap();
+      } catch {
+        // Best-effort silence for station switches.
+      }
+      setIsPlaying(false);
+    });
+    return unregister;
+  }, [interruptCurrentPlaybackForUserTap, setIsPlaying]);
 
   const togglePlayPause = useCallback(async () => {
     if (!queueControlTapGuardRef.current("toggle_play_pause")) return;
@@ -6994,8 +7544,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
 
           setIsPlaying(false);
-          setPositionMillis(0);
-          setDurationMillis(0);
+          // Preserve paused position — do not zero UI; syncHiddenAudioState restores native ms.
         } else {
           clearIntentionalPause("play");
           const snapshot = await bridgeProbeNativePlayback();
@@ -7583,6 +8132,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const pollHiddenAudioProgress = async () => {
       if (cancelled) return;
 
+      // Native progress events already drive UI on Android and iOS. Polling
+      // duplicates bridge traffic and React setState — keep only as a slow
+      // fallback when the event subscription is not active.
+      if (
+        nativeProgressEventsActiveRef.current &&
+        hiddenAudioActiveRef.current
+      ) {
+        return;
+      }
+
       if (
         isBackgroundAppState(appStateRef.current) &&
         !isPlayingRef.current &&
@@ -7677,8 +8236,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (progress.isPlaying) {
           const positionSeconds = progress.positionMillis / 1000;
           const progressDiagnosticIntervalMs = isBackgroundAppState(appStateRef.current)
-            ? 15000
-            : 5000;
+            ? 30000
+            : 15000;
 
           if (now - lastLockscreenProgressDiagnosticRef.current >= progressDiagnosticIntervalMs) {
             lastLockscreenProgressDiagnosticRef.current = now;
@@ -7742,9 +8301,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           appStateRef.current
         );
 
+        // Same contract as applyHiddenAudioProgressToUi: time AND meaningful delta.
         if (
-          now - lastPositionStateUpdateRef.current >= positionStateMinMs ||
-          Math.abs(progress.positionMillis - previousPosition) > 1350
+          now - lastPositionStateUpdateRef.current >= positionStateMinMs &&
+          Math.abs(progress.positionMillis - previousPosition) >= 400
         ) {
           lastPositionStateUpdateRef.current = now;
           recordPlaybackProgressUpdate();
@@ -7860,6 +8420,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const normalizedCommand = String(command || "").toLowerCase();
       if (!normalizedCommand) return;
 
+      // TV owns transport — never route car/lock-screen commands into the music queue.
+      if (getActivePlaybackOwner() === "tv") {
+        const mapped =
+          normalizedCommand === "play" ||
+          normalizedCommand === "pause" ||
+          normalizedCommand === "toggle" ||
+          normalizedCommand === "next" ||
+          normalizedCommand === "previous" ||
+          normalizedCommand === "stop"
+            ? normalizedCommand
+            : null;
+        if (mapped) {
+          dispatchTvRemoteTransportCommand(mapped);
+          logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
+            command: mapped,
+            owner: "tv",
+          });
+        }
+        return;
+      }
+
       logLockscreenPlaybackDiagnostic("remote_command_received", {
         command: normalizedCommand,
         ...data,
@@ -7934,29 +8515,83 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
           case "play_from_media_id": {
             const mediaId = String((data as Record<string, unknown>).mediaId || "");
-            const catalog = getCachedHiddenTunesCatalog();
-            if (!mediaId || !catalog) {
+            const transactionId = Number(
+              (data as Record<string, unknown>).transactionId || 0
+            );
+            const correlationId = String(
+              (data as Record<string, unknown>).correlationId || ""
+            );
+            if (!mediaId) {
               logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", {
                 ...data,
                 mediaId,
               });
               break;
             }
-            const resolved = resolveAndroidAutoMediaId(catalog, mediaId);
-            if (!resolved) {
-              logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", {
-                ...data,
+            const { acceptAndroidAutoTransaction, isAndroidAutoTransactionCurrent } =
+              await import("../services/androidAutoTapAuthority");
+            acceptAndroidAutoTransaction(transactionId);
+            if (!isAndroidAutoTransactionCurrent(transactionId)) {
+              logLockscreenPlaybackDiagnostic("remote_command_stale_transaction", {
+                command: "play_from_media_id",
                 mediaId,
+                transactionId,
+                correlationId,
               });
               break;
             }
-            await playSong(resolved.song, resolved.queue, 0, {
-              source: Platform.OS === "ios" ? "carplay" : "android_auto",
-              label: Platform.OS === "ios" ? "CarPlay" : "Android Auto",
+            const { playAndroidAutoMediaId } = await import(
+              "../services/androidAutoMediaResolver"
+            );
+            if (!isAndroidAutoTransactionCurrent(transactionId)) {
+              logLockscreenPlaybackDiagnostic("remote_command_stale_transaction", {
+                command: "play_from_media_id",
+                mediaId,
+                transactionId,
+                phase: "after_resolver_import",
+              });
+              break;
+            }
+            const result = await playAndroidAutoMediaId(mediaId, {
+              playSong: playSong as any,
+              playQueue: async () => undefined,
+              stopPlayback: async () => undefined,
+              correlationId,
+              transactionId,
             });
+            if (!result.ok) {
+              if (result.reason === "stale_transaction") {
+                break;
+              }
+              if (!isAndroidAutoTransactionCurrent(transactionId)) {
+                break;
+              }
+              // Music fallback for legacy song: ids when resolver misses.
+              const catalog = getCachedHiddenTunesCatalog();
+              const resolved = catalog
+                ? resolveAndroidAutoMediaId(catalog, mediaId)
+                : null;
+              if (!resolved) {
+                logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", {
+                  ...data,
+                  mediaId,
+                  reason: result.reason,
+                });
+                break;
+              }
+              if (!isAndroidAutoTransactionCurrent(transactionId)) {
+                break;
+              }
+              await playSong(resolved.song, resolved.queue, 0, {
+                source: Platform.OS === "ios" ? "carplay" : "android_auto",
+                label: Platform.OS === "ios" ? "CarPlay" : "Android Auto",
+              });
+            }
             logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
               command: "play_from_media_id",
               mediaId,
+              correlationId,
+              transactionId,
               source: Platform.OS === "ios" ? "carplay" : "android_auto",
             });
             break;
@@ -7973,6 +8608,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 liveRadioActive &&
                 canNavigateLiveRadioSession(activeQueueRef.current)
               ) {
+                if (!shouldAcceptRemoteRadioCommand("next")) {
+                  break;
+                }
                 await nextSong({ source: "remote" });
                 await syncNativeRemoteQueueAvailability();
                 break;
@@ -8019,6 +8657,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 liveRadioActive &&
                 canNavigateLiveRadioSession(activeQueueRef.current)
               ) {
+                if (!shouldAcceptRemoteRadioCommand("previous")) {
+                  break;
+                }
                 await previousSong({ source: "remote" });
                 await syncNativeRemoteQueueAvailability();
                 break;
@@ -8097,13 +8738,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== "android" || !isHiddenAudioNativePlaybackEnabled()) {
+    if (
+      (Platform.OS !== "android" && Platform.OS !== "ios") ||
+      !isHiddenAudioNativePlaybackEnabled()
+    ) {
       return;
     }
 
-    return subscribeHiddenAudioProgress((progress) => {
-      applyHiddenAudioProgressToUi(progress, "android_hidden_audio_progress_event");
+    nativeProgressEventsActiveRef.current = true;
+    const source =
+      Platform.OS === "ios"
+        ? "ios_hidden_audio_progress_event"
+        : "android_hidden_audio_progress_event";
+    const unsubscribe = subscribeHiddenAudioProgress((progress) => {
+      applyHiddenAudioProgressToUi(progress, source);
     });
+    return () => {
+      nativeProgressEventsActiveRef.current = false;
+      unsubscribe();
+    };
   }, [applyHiddenAudioProgressToUi]);
 
   useEffect(() => {
@@ -8204,7 +8857,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         );
       }
 
+      if (
+        nativeEventName === "ht_android_continuous_playback" ||
+        nativeEventName === "ht_android_lifecycle"
+      ) {
+        // Bounded perf path: mirror to HT* tags only; skip lockscreen createEntry.
+        mirrorNativeContinuousPlaybackDiagnostic(
+          nativeEventName,
+          data as Record<string, unknown>
+        );
+        return;
+      }
+
       logAndRememberLockscreenDiagnostic(eventName, data, remember);
+      mirrorNativeContinuousPlaybackDiagnostic(
+        nativeEventName,
+        data as Record<string, unknown>
+      );
     });
   }, [handleIosRemoteLockscreenCommand, removeStoredValues]);
 
@@ -8488,7 +9157,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           );
           backgroundWatchTimersRef.current.push(
             setTimeout(() => {
-              void bridgeProbeNativePlayback().then((snapshot) => {
+              void bridgeProbeNativePlayback().then(async (snapshot) => {
                 logLockscreenPlaybackDiagnostic("background_30s_watch_alive", {
                   songId: currentSongRef.current?.id || null,
                   nativeStatus: snapshot?.nativeStatus || null,
@@ -8507,6 +9176,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                       songId: currentSongRef.current?.id || null,
                     });
                     return;
+                  }
+                  if (Platform.OS === "android") {
+                    try {
+                      const intentionalClose = await AsyncStorage.getItem(
+                        INTENTIONAL_APP_CLOSE_KEY
+                      );
+                      if (intentionalClose) {
+                        logLockscreenPlaybackDiagnostic(
+                          "background_recovery_blocked_by_interruption",
+                          {
+                            reason: "background_30s_watch_task_removed",
+                            songId: currentSongRef.current?.id || null,
+                          }
+                        );
+                        return;
+                      }
+                    } catch {
+                      // ignore storage errors
+                    }
                   }
                   if (hasRecentIntentionalPause()) {
                     logLockscreenPlaybackDiagnostic("background_recovery_skipped_intentional_pause", {
@@ -8569,29 +9257,52 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             });
             return;
           }
-          logLockscreenPlaybackDiagnostic("background_recovery_allowed_no_intentional_pause", {
-            reason: "app_state_background_reassert",
-            songId: currentSongRef.current?.id || null,
-          });
-          logLockscreenPlaybackDiagnostic("ios_background_reassert_playback", {
-            songId: currentSongRef.current?.id || null,
-            positionMillis: positionMillisRef.current,
-          });
 
-          const backgroundPlayReassert = Platform.OS === "android"
-            ? bridgeHiddenAudioReassertBackgroundPlay
-            : bridgeHiddenAudioPlay;
+          void (async () => {
+            if (Platform.OS === "android") {
+              try {
+                const intentionalClose = await AsyncStorage.getItem(
+                  INTENTIONAL_APP_CLOSE_KEY
+                );
+                if (intentionalClose) {
+                  logLockscreenPlaybackDiagnostic(
+                    "background_recovery_blocked_by_interruption",
+                    {
+                      reason: "app_state_background_reassert_task_removed",
+                      songId: currentSongRef.current?.id || null,
+                    }
+                  );
+                  return;
+                }
+              } catch {
+                // ignore storage errors; native appTaskRemoved still blocks reassert
+              }
+            }
 
-          void backgroundPlayReassert()
-            .then(() => syncHiddenAudioState("app_state_background_hidden_audio"))
-            .then(() => {
+            logLockscreenPlaybackDiagnostic("background_recovery_allowed_no_intentional_pause", {
+              reason: "app_state_background_reassert",
+              songId: currentSongRef.current?.id || null,
+            });
+            if (Platform.OS === "ios") {
+              logLockscreenPlaybackDiagnostic("ios_background_reassert_playback", {
+                songId: currentSongRef.current?.id || null,
+                positionMillis: positionMillisRef.current,
+              });
+            }
+
+            const backgroundPlayReassert =
+              Platform.OS === "android"
+                ? bridgeHiddenAudioReassertBackgroundPlay
+                : bridgeHiddenAudioPlay;
+
+            try {
+              await backgroundPlayReassert();
+              await syncHiddenAudioState("app_state_background_hidden_audio");
               logLockscreenPlaybackDiagnostic("native_status_probe_start", {
                 source: "background",
                 songId: currentSongRef.current?.id || null,
               });
-              return bridgeProbeNativePlayback();
-            })
-            .then((snapshot) => {
+              const snapshot = await bridgeProbeNativePlayback();
               logLockscreenPlaybackDiagnostic("native_status_probe_result", {
                 source: "background",
                 snapshotAvailable: Boolean(snapshot),
@@ -8615,13 +9326,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   hasLoadedTrack: snapshot?.hasLoadedTrack ?? null,
                 });
               }
-            })
-            .catch((error) => {
+            } catch (error) {
               logLockscreenPlaybackDiagnostic("ios_background_reassert_failed", {
                 songId: currentSongRef.current?.id || null,
                 message: String((error as Error)?.message || error),
               });
-            });
+            }
+          })();
           return;
         }
 

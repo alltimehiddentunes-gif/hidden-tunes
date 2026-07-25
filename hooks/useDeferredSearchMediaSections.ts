@@ -75,6 +75,14 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
       void (async () => {
         const radioStartedAt = Date.now();
         logHeatRequestStart("search:radio", { query, generation });
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[HTSearchTiming]", "search_radio_request_start", {
+            elapsedMs: 0,
+            at: radioStartedAt,
+            query,
+            generation,
+          });
+        }
         const radioResult =
           (await discoveryControllerRef.current.run(`search:radio:${query}`, () =>
             loadRadioSearchPage(query, {
@@ -99,6 +107,14 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
           query,
           count: radioResult.stations.length,
         });
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[HTSearchTiming]", "search_radio_request_end", {
+            elapsedMs: Math.max(0, Date.now() - radioStartedAt),
+            at: Date.now(),
+            query,
+            count: radioResult.stations.length,
+          });
+        }
         safeSetState((current) => ({
           ...current,
           radioStations: radioResult.stations

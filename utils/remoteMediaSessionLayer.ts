@@ -11,8 +11,18 @@ type RemoteMediaSongLike = {
   [key: string]: unknown;
 };
 
+export type RemoteMediaPresentedLike = {
+  id?: string;
+  title?: string;
+  artist?: string;
+  album?: string;
+  artworkUri?: string;
+  isLive?: boolean;
+};
+
 export type RemoteMediaSessionSnapshotLike = {
   song: RemoteMediaSongLike | null;
+  presented?: RemoteMediaPresentedLike | null;
   isPlaying: boolean;
   isLoading: boolean;
   positionMillis: number;
@@ -69,10 +79,36 @@ export async function syncRemoteMediaSessionOrdered<T extends RemoteMediaSession
   syncFn: (snapshot: T) => Promise<void>
 ) {
   const generation = ++syncGeneration;
+  const presentedId = String(snapshot.presented?.id ?? "");
   const songId = String(snapshot.song?.id ?? "");
+  const mediaId = presentedId || songId;
 
-  if (!snapshot.song) {
+  if (!snapshot.song && !presentedId) {
     lastSyncedSongId = "";
+    await syncFn(snapshot);
+    return;
+  }
+
+  if (presentedId) {
+    const artworkUri =
+      String(snapshot.presented?.artworkUri || "").trim() || FALLBACK_ARTWORK;
+    if (!shouldApplyRemoteArtwork(presentedId, artworkUri)) {
+      return;
+    }
+
+    if (presentedId !== lastSyncedSongId) {
+      lastSyncedSongId = presentedId;
+      await syncFn({
+        ...snapshot,
+        song: null,
+        positionMillis: 0,
+        durationMillis: 0,
+      } as T);
+      if (generation !== syncGeneration) {
+        return;
+      }
+    }
+
     await syncFn(snapshot);
     return;
   }
@@ -82,8 +118,8 @@ export async function syncRemoteMediaSessionOrdered<T extends RemoteMediaSession
     return;
   }
 
-  if (songId && songId !== lastSyncedSongId) {
-    lastSyncedSongId = songId;
+  if (mediaId && mediaId !== lastSyncedSongId) {
+    lastSyncedSongId = mediaId;
 
     await syncFn({
       ...snapshot,

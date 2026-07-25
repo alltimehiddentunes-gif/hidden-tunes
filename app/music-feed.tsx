@@ -85,6 +85,11 @@ import {
   hydrateDiscoveryPreferredGenres,
   sortItemsByPreferredGenres,
 } from "@/utils/discoveryPreferences";
+import {
+  albumGroupKey,
+  canonicalAlbumSlug,
+  canonicalArtistId,
+} from "@/utils/hiddenTunesAlbumIdentity";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
 import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
@@ -1057,10 +1062,65 @@ export default function MusicFeedScreen() {
     () => (showDeferredHomeSections ? artists.slice(0, HOME_SECTION_PREVIEW_LIMIT) : []),
     [artists, showDeferredHomeSections]
   );
-  const visibleAlbums = useMemo(
-    () => (showDeferredHomeSections ? albums.slice(0, HOME_SECTION_PREVIEW_LIMIT) : []),
-    [albums, showDeferredHomeSections]
-  );
+  const visibleAlbums = useMemo(() => {
+    if (!showDeferredHomeSections) return [];
+    const preview = albums.slice(0, HOME_SECTION_PREVIEW_LIMIT);
+
+    if (typeof __DEV__ !== "undefined" && __DEV__ && preview.length > 0) {
+      const rows = preview.map((album) => {
+        const id = String(album.id || "").trim();
+        const reactKey =
+          id ||
+          `album:${String(album.artist || "").trim()}:${String(album.title || "").trim()}`;
+        return {
+          id,
+          title: album.title,
+          artist: album.artist,
+          canonicalArtist: canonicalArtistId(album.artist),
+          canonicalAlbum: canonicalAlbumSlug(album.title),
+          sourceSongCount: album.songs?.length ?? 0,
+          originalGroupingKey: albumGroupKey(album.artist, album.title),
+          finalReactKey: reactKey,
+          songsSample: (album.songs || []).slice(0, 3).map((song) => ({
+            id: song.id,
+            artist: song.artist,
+            album: song.album,
+            groupKey: albumGroupKey(song.artist, song.album),
+          })),
+        };
+      });
+      console.log("[home_albums_audit] rendered_rows", rows);
+
+      const byId = new Map<string, typeof preview>();
+      for (const album of preview) {
+        const id = String(album.id || "").trim();
+        if (!id) continue;
+        const list = byId.get(id) || [];
+        list.push(album);
+        byId.set(id, list);
+      }
+      const dups = [...byId.entries()].filter(([, list]) => list.length > 1);
+      if (dups.length) {
+        for (const [id, list] of dups) {
+          console.warn("[home_albums_audit] DUPLICATE_ALBUM_ID", id, {
+            left: list[0],
+            right: list[1],
+            all: list,
+          });
+        }
+        console.assert(
+          false,
+          `[home_albums_audit] album ids must be unique; duplicates: ${dups
+            .map(([id, list]) => `${id} x${list.length}`)
+            .join(", ")}`
+        );
+      } else {
+        console.log("[home_albums_audit] album_ids_unique", preview.length);
+      }
+    }
+
+    return preview;
+  }, [albums, showDeferredHomeSections]);
   const genreSignature = useMemo(() => buildSongListSignature(genres), [genres]);
   const visibleGenres = useMemo(
     () =>
@@ -1701,7 +1761,11 @@ export default function MusicFeedScreen() {
                         <Text style={styles.sectionTitle}>{homeUi.sections.albumsWorthStaying}</Text>
                         <PremiumContentGrid
                           data={visibleAlbums}
-                          keyExtractor={(album) => album.id}
+                          keyExtractor={(album) => {
+                            const id = String(album.id || "").trim();
+                            if (id) return id;
+                            return `album:${String(album.artist || "").trim()}:${String(album.title || "").trim()}`;
+                          }}
                           renderItem={renderAlbumGridItem}
                           maxItems={HOME_SECTION_PREVIEW_LIMIT}
                           scrollEnabled={false}

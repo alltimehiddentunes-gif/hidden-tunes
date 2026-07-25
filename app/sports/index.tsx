@@ -379,7 +379,7 @@ function SportsHomeInner() {
       {error ? (
         <View style={styles.topError}>
           <Text style={styles.topErrorText}>{error}</Text>
-          <Pressable onPress={load} hitSlop={10}>
+          <Pressable onPress={() => { void load(); }} hitSlop={10}>
             <Text style={styles.topErrorRetry}>Retry</Text>
           </Pressable>
         </View>

@@ -1,5 +1,5 @@
 import type { AppSong } from "../context/PlayerContext";
-import { getArtworkUri } from "../utils/artwork";
+import { FALLBACK_ARTWORK, getArtworkUri } from "../utils/artwork";
 
 export type RemoteMediaHandlers = {
   onPlay: () => void | Promise<void>;
@@ -9,8 +9,19 @@ export type RemoteMediaHandlers = {
   onStop?: () => void | Promise<void>;
 };
 
+/** Owner-agnostic presented item (TV live, etc.). */
+export type RemoteMediaPresentedItem = {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string;
+  artworkUri?: string;
+  isLive?: boolean;
+};
+
 export type RemoteMediaSessionSnapshot = {
   song: AppSong | null;
+  presented?: RemoteMediaPresentedItem | null;
   isPlaying: boolean;
   isLoading: boolean;
   positionMillis: number;
@@ -20,8 +31,23 @@ export type RemoteMediaSessionSnapshot = {
 export function buildRemoteMediaMetadata(
   song: AppSong | null,
   positionMillis: number,
-  durationMillis: number
+  durationMillis: number,
+  presented?: RemoteMediaPresentedItem | null
 ) {
+  if (presented) {
+    return {
+      title: presented.title || "Live TV",
+      artist: String(presented.artist || "Hidden Tunes TV"),
+      album: String(presented.album || "Hidden Tunes TV"),
+      artwork: {
+        uri: presented.artworkUri || FALLBACK_ARTWORK,
+      },
+      // Live TV: never invent duration / elapsed from prior music sessions.
+      duration: 0,
+      elapsedTime: 0,
+    };
+  }
+
   if (!song) return null;
 
   const artist =

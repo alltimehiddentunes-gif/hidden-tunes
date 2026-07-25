@@ -4,9 +4,9 @@ import { usePlayerActions } from "../context/PlayerContext";
 import {
   routeRadioPlayback,
   type PlaybackRouterDeps,
+  type RouteRadioPlaybackOptions,
 } from "../services/playback/playbackRouter";
 import { claimExclusivePlayback } from "../services/playback/PlaybackHandoffCoordinator";
-import type { LiveRadioSessionOptions } from "../services/radio/radioPlaybackSession";
 import { addPodcastRecentlyPlayed } from "../services/podcastRecentlyPlayed";
 import { invalidateTvMediaTransitions } from "../services/tv/tvMediaHandoff";
 import { stopTvSession } from "../services/tv/tvSessionController";
@@ -83,13 +83,9 @@ export function usePlaybackRouter() {
     return {
       playRadioStation: async (
         station: RadioStation,
-        sessionOptions?: LiveRadioSessionOptions
+        sessionOptions?: RouteRadioPlaybackOptions
       ) => {
-        await claimExclusivePlayback({
-          owner: "shared-audio",
-          contentKind: "radio",
-          mediaKey: String(station.id || "radio"),
-        });
+        // Canonical switch owns stop → abort → resolve → claim → play.
         return routeRadioPlayback(station, deps, sessionOptions);
       },
       playPodcastEpisodeFromShow: playPodcastEpisodeFromShowWithRecent,

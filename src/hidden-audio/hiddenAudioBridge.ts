@@ -273,6 +273,15 @@ export async function syncHiddenAudioAndroidAutoCatalog(
   await sync(snapshot);
 }
 
+export async function notifyHiddenAudioReactHostReady(): Promise<void> {
+  if (Platform.OS !== "android" || !HiddenAudioNative) return;
+  const notify = (
+    HiddenAudioNative as { notifyReactHostReady?: () => Promise<void> }
+  ).notifyReactHostReady;
+  if (typeof notify !== "function") return;
+  await notify();
+}
+
 export async function syncHiddenAudioCarPlayCatalog(
   snapshot: Record<string, unknown>
 ): Promise<void> {

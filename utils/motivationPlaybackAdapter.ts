@@ -281,8 +281,9 @@ async function fetchWithBudget<T>(factory: () => Promise<T>, budgetMs: number): 
 
 /**
  * Deterministic Motivationals queue:
- * selected program (ordered) → same speaker → same category → closely related.
- * Never includes non-Motivational domains.
+ * selected program (ordered) → same speaker/artist only.
+ * Never mixes unrelated speakers via broad category or related search.
+ * Organization/category expansion is fail-closed unless parentScope opts in.
  */
 export async function buildHierarchicalMotivationItems(input: {
   program: MotivationProgram;
@@ -290,6 +291,8 @@ export async function buildHierarchicalMotivationItems(input: {
   startItemId: string;
   speakerName?: string | null;
   categorySlug?: string | null;
+  /** User-selected browse parent. Default: program-only + same-speaker fallback. */
+  parentScope?: "program" | "speaker" | "organization" | "category";
 }): Promise<{
   items: MotivationItem[];
   startIndex: number;
@@ -304,6 +307,7 @@ export async function buildHierarchicalMotivationItems(input: {
   const categorySlug = String(
     input.categorySlug || input.program.category_slug || ""
   ).trim();
+  const parentScope = input.parentScope || "program";
 
   const programOrdered = orderMotivationItems(dedupeMotivationItems(input.programItems));
   const selectedId = String(input.startItemId || "").trim();
@@ -331,56 +335,46 @@ export async function buildHierarchicalMotivationItems(input: {
     if (added > 0) sources.push(source);
   };
 
-  const relatedQuery =
-    extractMotivationProgramTitle(input.program.title) ||
-    String(input.program.title || "").trim();
-
-  const [speakerResult, categoryResult, relatedResult] = await Promise.all([
-    speakerKey && queue.length < MOTIVATION_MAX_QUEUE_ITEMS
-      ? fetchWithBudget(
-          () =>
-            searchMotivationItems(speakerName, {
-              page: 1,
-              limit: 24,
-              categorySlug: categorySlug || undefined,
-            }),
-          MOTIVATION_CONTINUATION_FETCH_MS
-        )
-      : Promise.resolve(null),
-    categorySlug && queue.length < MOTIVATION_MAX_QUEUE_ITEMS
-      ? fetchWithBudget(
-          () => fetchMotivationCategoryPage(categorySlug, { page: 1, limit: 24 }),
-          MOTIVATION_CONTINUATION_FETCH_MS
-        )
-      : Promise.resolve(null),
-    relatedQuery.length >= 2 && queue.length < MOTIVATION_MAX_QUEUE_ITEMS
-      ? fetchWithBudget(
-          () =>
-            searchMotivationItems(relatedQuery, {
-              page: 1,
-              limit: 16,
-              categorySlug: categorySlug || undefined,
-            }),
-          MOTIVATION_CONTINUATION_FETCH_MS
-        )
-      : Promise.resolve(null),
-  ]);
-
-  // Append in hierarchy order: speaker → category → related (never interleaved).
-  if (speakerResult?.items?.length) {
-    appendGroup(
-      speakerResult.items.filter((item) => itemMatchesSpeaker(item, speakerKey)),
-      "speaker"
+  // Same speaker/artist continuation — never broad category bleed.
+  if (speakerKey && queue.length < MOTIVATION_MAX_QUEUE_ITEMS) {
+    const speakerResult = await fetchWithBudget(
+      () =>
+        searchMotivationItems(speakerName, {
+          page: 1,
+          limit: 24,
+          categorySlug: categorySlug || undefined,
+        }),
+      MOTIVATION_CONTINUATION_FETCH_MS
     );
+    if (speakerResult?.items?.length) {
+      appendGroup(
+        speakerResult.items.filter((item) => itemMatchesSpeaker(item, speakerKey)),
+        "speaker"
+      );
+    }
   }
-  if (categoryResult?.items?.length) {
-    appendGroup(
-      categoryResult.items.filter((item) => itemMatchesCategory(item, categorySlug)),
-      "category"
+
+  // Fail-closed: only expand category when the user explicitly browsed that category.
+  // Still require same-speaker match so unrelated speakers are never mixed.
+  if (
+    parentScope === "category" &&
+    categorySlug &&
+    speakerKey &&
+    queue.length < MOTIVATION_MAX_QUEUE_ITEMS
+  ) {
+    const categoryResult = await fetchWithBudget(
+      () => fetchMotivationCategoryPage(categorySlug, { page: 1, limit: 24 }),
+      MOTIVATION_CONTINUATION_FETCH_MS
     );
-  }
-  if (relatedResult?.items?.length) {
-    appendGroup(relatedResult.items, "related");
+    if (categoryResult?.items?.length) {
+      appendGroup(
+        categoryResult.items.filter(
+          (item) =>
+            itemMatchesCategory(item, categorySlug) && itemMatchesSpeaker(item, speakerKey)
+        ),
+        "category-same-speaker"
+      );
+    }
   }
 
   queue = queue.slice(0, MOTIVATION_MAX_QUEUE_ITEMS);

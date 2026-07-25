@@ -696,7 +696,8 @@ async function loadRadioPage(
         rawBackendRowsReturned: result.rawBackendRowsReturned,
         source: result.source,
         stopReason: result.stopReason,
-        catalogError: result.catalogError,
+        catalogError:
+          "catalogError" in result ? result.catalogError : undefined,
       };
     } catch (error) {
       // External cancellation (unmount / query replace) — silent empty page.

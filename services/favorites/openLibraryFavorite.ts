@@ -43,6 +43,7 @@ export type OpenLibraryFavoriteDeps = {
       startIndex: number;
       label: string;
       cacheKey: string;
+      origin?: string;
     }
   ) => void | Promise<void>;
   songFavoritesQueue: ReturnType<typeof songFavoriteToAppSong>[];
@@ -91,6 +92,7 @@ function openRadioFavorite(item: UnifiedFavoriteItem, deps: OpenLibraryFavoriteD
     ),
     label: "Radio Favorites",
     cacheKey: "favorites",
+    origin: "favorites",
   });
 }
 

@@ -305,10 +305,16 @@ function searchSongs(
     );
   }
 
-  if (lyricHits.length < LIMITS.lyrics) {
+  // Full-catalog lyric scan is expensive (~1k+ songs). Only run when metadata
+  // hits are thin; otherwise keep Search keystroke→local results under budget.
+  const shouldScanFullCatalogLyrics =
+    songHits.length < 6 && lyricHits.length < Math.min(4, LIMITS.lyrics);
+
+  if (shouldScanFullCatalogLyrics && lyricHits.length < LIMITS.lyrics) {
+    const lyricScanBudget = Math.min(LIMITS.lyricScan, 400);
     for (const song of songs) {
       if (lyricHits.length >= LIMITS.lyrics) break;
-      if (scanned++ > LIMITS.lyricScan) break;
+      if (scanned++ > lyricScanBudget) break;
 
       const songId = String(song.id || "");
       if (!songId || songIds.has(songId)) continue;
@@ -1060,13 +1066,20 @@ export function buildTrustedInternetAudioHits(
   return rankSearchHits(hits, LIMITS.internetAudio) as UniversalSearchSongHit[];
 }
 
-function mergeHitGroups<T extends { id: string }>(primary: T[], fallback: T[], limit?: number) {
+function mergeHitGroups<T extends { id: string }>(
+  primary: T[],
+  fallback: T[],
+  limit?: number,
+  getDedupeKey?: (hit: T) => string
+) {
   const seen = new Set<string>();
   const merged: T[] = [];
 
   for (const hit of [...primary, ...fallback]) {
-    if (!hit?.id || seen.has(hit.id)) continue;
-    seen.add(hit.id);
+    if (!hit?.id) continue;
+    const key = getDedupeKey ? getDedupeKey(hit) : hit.id;
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
     merged.push(hit);
     if (limit && merged.length >= limit) break;
   }
@@ -1097,8 +1110,26 @@ export function mergeGroupedSearchResults(
     merged.topResults = mergeHitGroups(merged.topResults, group.topResults, LIMITS.top);
     merged.songs = mergeHitGroups(merged.songs, group.songs, LIMITS.songs);
     merged.lyrics = mergeHitGroups(merged.lyrics, group.lyrics, LIMITS.lyrics);
-    merged.artists = mergeHitGroups(merged.artists, group.artists, LIMITS.artists);
-    merged.albums = mergeHitGroups(merged.albums, group.albums, LIMITS.albums);
+    merged.artists = mergeHitGroups(
+      merged.artists,
+      group.artists,
+      LIMITS.artists,
+      (hit) =>
+        `artist:${normalizeSearchText(
+          (hit.payload as HiddenTunesArtist)?.name || hit.id
+        )}`
+    );
+    merged.albums = mergeHitGroups(
+      merged.albums,
+      group.albums,
+      LIMITS.albums,
+      (hit) => {
+        const album = hit.payload as HiddenTunesAlbum;
+        return `album:${normalizeSearchText(album?.artist)}::${normalizeSearchText(
+          album?.title
+        )}`;
+      }
+    );
     merged.genreMoods = mergeHitGroups(merged.genreMoods, group.genreMoods, LIMITS.genres);
     merged.moodRooms = mergeHitGroups(merged.moodRooms, group.moodRooms, LIMITS.moodRooms);
     merged.playlists = mergeHitGroups(merged.playlists, group.playlists, LIMITS.playlists);

@@ -65,6 +65,15 @@ class HiddenAudioModule(
       HiddenAudioCore.attachReactContext(reactContext)
       emitDiagnostic("android_foreground_service_status", simpleData("status", "not_started_by_hidden_audio_module"))
       HiddenAudioCore.setup(reactContext)
+      HiddenAudioCore.notifyReactHostReady()
+    }
+  }
+
+  @ReactMethod
+  fun notifyReactHostReady(promise: Promise) {
+    runOnMain(promise, "HIDDEN_AUDIO_REACT_READY_FAILED", "android_auto_react_ready_failed") {
+      HiddenAudioCore.attachReactContext(reactContext)
+      HiddenAudioCore.notifyReactHostReady()
     }
   }
 
@@ -230,13 +239,59 @@ class HiddenAudioModule(
   fun syncAndroidAutoCatalog(snapshot: ReadableMap, promise: Promise) {
     mainHandler.post {
       try {
-        HiddenAudioAutoCatalog.applySnapshot(snapshot)
+        val changedParents = HiddenAudioAutoCatalog.applySnapshot(snapshot)
+        if (changedParents.isNotEmpty()) {
+          HiddenAudioMediaBrowserService.notifyBrowseParentsChanged(changedParents)
+        }
         emitDiagnostic("android_auto_catalog_synced")
         promise.resolve(null)
       } catch (error: Throwable) {
         emitDiagnostic("android_auto_media_session_error", errorData(error))
         promise.reject("ANDROID_AUTO_CATALOG_SYNC_FAILED", error)
       }
+    }
+  }
+
+  @ReactMethod
+  fun setPresentedNowPlaying(info: ReadableMap, promise: Promise) {
+    runOnMain(promise, "HIDDEN_AUDIO_SET_PRESENTED_FAILED", "hidden_audio_set_presented_failed") {
+      HiddenAudioCore.attachReactContext(reactContext)
+      val title = if (info.hasKey("title")) info.getString("title") ?: "Live TV" else "Live TV"
+      val artist = if (info.hasKey("artist")) info.getString("artist") ?: "Hidden Tunes TV" else "Hidden Tunes TV"
+      val album = if (info.hasKey("album")) info.getString("album") ?: "Hidden Tunes TV" else "Hidden Tunes TV"
+      val artworkUrl = if (info.hasKey("artworkUrl")) info.getString("artworkUrl") ?: "" else ""
+      val isPlaying = if (info.hasKey("isPlaying")) info.getBoolean("isPlaying") else false
+      val hasNext = if (info.hasKey("hasNext")) info.getBoolean("hasNext") else false
+      val hasPrevious = if (info.hasKey("hasPrevious")) info.getBoolean("hasPrevious") else false
+      HiddenAudioMediaSessionManager.setPresentedNowPlaying(
+        reactContext,
+        title,
+        artist,
+        album,
+        artworkUrl,
+        isPlaying,
+        hasNext,
+        hasPrevious
+      )
+      emitDiagnostic("hidden_audio_presented_owner_claimed", simpleData("title", title))
+    }
+  }
+
+  @ReactMethod
+  fun updatePresentedPlaybackState(info: ReadableMap, promise: Promise) {
+    runOnMain(promise, "HIDDEN_AUDIO_UPDATE_PRESENTED_FAILED", "hidden_audio_update_presented_failed") {
+      val isPlaying = if (info.hasKey("isPlaying")) info.getBoolean("isPlaying") else false
+      val hasNext = if (info.hasKey("hasNext")) info.getBoolean("hasNext") else false
+      val hasPrevious = if (info.hasKey("hasPrevious")) info.getBoolean("hasPrevious") else false
+      HiddenAudioMediaSessionManager.updatePresentedPlaybackState(isPlaying, hasNext, hasPrevious)
+    }
+  }
+
+  @ReactMethod
+  fun clearPresentedNowPlaying(promise: Promise) {
+    runOnMain(promise, "HIDDEN_AUDIO_CLEAR_PRESENTED_FAILED", "hidden_audio_clear_presented_failed") {
+      HiddenAudioMediaSessionManager.clearPresentedNowPlaying()
+      emitDiagnostic("hidden_audio_presented_owner_released")
     }
   }
 

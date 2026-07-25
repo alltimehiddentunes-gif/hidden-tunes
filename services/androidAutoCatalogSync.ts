@@ -1,16 +1,25 @@
 import { Platform } from "react-native";
 
 import { isHiddenAudioEnabledOnAndroid } from "../constants/playbackConfig";
+import type { UnifiedFavoriteItem } from "../types/favorites";
 import type { HiddenTunesDerivedCatalog, HiddenTunesSong } from "./hiddenTunes";
+import type { RecentlyPlayedTrack } from "./recentlyPlayedEngine";
 
-const AUTO_ROOT_ID = "hidden_tunes_root";
 const LIMITS = {
   recent: 24,
+  favorites: 24,
   artists: 30,
   albums: 24,
   genres: 12,
   playlists: 8,
   songsPerBucket: 16,
+  radio: 24,
+  podcasts: 16,
+  audiobooks: 12,
+  motivation: 12,
+  lectures: 12,
+  search: 24,
+  tracks: 420,
 };
 
 export type AndroidAutoBrowseItem = {
@@ -18,6 +27,8 @@ export type AndroidAutoBrowseItem = {
   title: string;
   subtitle: string;
   playable: boolean;
+  artworkUrl?: string;
+  contentType?: string;
 };
 
 export type AndroidAutoTrackPayload = {
@@ -29,15 +40,57 @@ export type AndroidAutoTrackPayload = {
   album: string;
   artworkUrl: string;
   durationSeconds: number;
+  contentType?: string;
+  isLive?: boolean;
 };
 
 export type AndroidAutoCatalogSnapshot = {
   roots: AndroidAutoBrowseItem[];
-  sections: Array<{ parentId: string; items: AndroidAutoBrowseItem[] }>;
+  sections: { parentId: string; items: AndroidAutoBrowseItem[] }[];
   tracks: AndroidAutoTrackPayload[];
 };
 
-function songMediaId(song: HiddenTunesSong) {
+export type AndroidAutoCatalogExtras = {
+  recentlyPlayed?: RecentlyPlayedTrack[];
+  favorites?: UnifiedFavoriteItem[];
+  radioStations?: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    streamUrl?: string;
+    artworkUrl?: string;
+  }[];
+  podcastEpisodes?: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    audioUrl?: string;
+    artworkUrl?: string;
+    durationSeconds?: number;
+  }[];
+  audiobooks?: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    artworkUrl?: string;
+  }[];
+  motivationItems?: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    artworkUrl?: string;
+    audioUrl?: string;
+  }[];
+  lectureItems?: {
+    id: string;
+    title: string;
+    subtitle?: string;
+    artworkUrl?: string;
+    audioUrl?: string;
+  }[];
+};
+
+function songMediaId(song: { id?: string | number }) {
   return `song:${String(song.id || "").trim()}`;
 }
 
@@ -51,6 +104,8 @@ function playableSongItem(song: HiddenTunesSong): AndroidAutoBrowseItem {
     title: song.title || "Untitled",
     subtitle: song.artist || "Hidden Tunes",
     playable: true,
+    artworkUrl: String(song.artwork || song.cover || song.thumbnail || ""),
+    contentType: "music",
   };
 }
 
@@ -69,11 +124,13 @@ function trackPayload(song: HiddenTunesSong): AndroidAutoTrackPayload | null {
     artworkUrl: String(song.artwork || song.cover || song.thumbnail || ""),
     durationSeconds:
       typeof song.duration === "number" && song.duration > 0 ? song.duration : 0,
+    contentType: "music",
+    isLive: false,
   };
 }
 
 function dedupeTracks(tracks: AndroidAutoTrackPayload[]) {
-  const seen = new Set<string>();
+  const seen = setOf();
   return tracks.filter((track) => {
     if (!track.mediaId || seen.has(track.mediaId)) return false;
     seen.add(track.mediaId);
@@ -81,49 +138,139 @@ function dedupeTracks(tracks: AndroidAutoTrackPayload[]) {
   });
 }
 
+function setOf() {
+  return new Set<string>();
+}
+
+const HIDDEN_AA_ROOTS = new Set(["audiobooks", "motivationals", "lectures"]);
+
+let playableTrackRegistry = new Map<string, AndroidAutoTrackPayload>();
+
+/** Remember playable AA tracks from the last snapshot (podcast/radio/music URLs). */
+export function rememberAndroidAutoPlayableTracks(
+  tracks: AndroidAutoTrackPayload[]
+) {
+  const next = new Map<string, AndroidAutoTrackPayload>();
+  for (const track of tracks) {
+    const mediaId = String(track.mediaId || "").trim();
+    const url = String(track.url || "").trim();
+    if (!mediaId || !url) continue;
+    next.set(mediaId, track);
+  }
+  playableTrackRegistry = next;
+}
+
+export function getAndroidAutoPlayableTrack(
+  mediaId: string
+): AndroidAutoTrackPayload | null {
+  return playableTrackRegistry.get(String(mediaId || "").trim()) || null;
+}
+
+function rootEntry(
+  mediaId: string,
+  title: string,
+  subtitle: string,
+  contentType: string
+): AndroidAutoBrowseItem {
+  return { mediaId, title, subtitle, playable: false, contentType };
+}
+
+function buildVisibleRoots(sections: AndroidAutoCatalogSnapshot["sections"]): AndroidAutoBrowseItem[] {
+  const byParent = new Map(sections.map((section) => [section.parentId, section.items]));
+  const order: Array<{
+    id: string;
+    title: string;
+    subtitle: string;
+    contentType: string;
+    always?: boolean;
+  }> = [
+    {
+      id: "recently_played",
+      title: "Recently Played",
+      subtitle: "Continue listening",
+      contentType: "recent",
+    },
+    {
+      id: "favorites",
+      title: "Favorites",
+      subtitle: "Saved audio",
+      contentType: "favorites",
+    },
+    {
+      id: "music",
+      title: "Music",
+      subtitle: "Songs and collections",
+      contentType: "music",
+      always: true,
+    },
+    { id: "radio", title: "Radio", subtitle: "Live stations", contentType: "radio" },
+    { id: "podcasts", title: "Podcasts", subtitle: "Episodes", contentType: "podcast" },
+  ];
+
+  const roots: AndroidAutoBrowseItem[] = [];
+  for (const entry of order) {
+    if (HIDDEN_AA_ROOTS.has(entry.id)) continue;
+    if (entry.always) {
+      roots.push(rootEntry(entry.id, entry.title, entry.subtitle, entry.contentType));
+      continue;
+    }
+    const items = byParent.get(entry.id) || [];
+    if (!items.some((item) => item.playable)) continue;
+    roots.push(rootEntry(entry.id, entry.title, entry.subtitle, entry.contentType));
+  }
+  return roots;
+}
+
 export function buildAndroidAutoMinimalCatalogSnapshot(): AndroidAutoCatalogSnapshot {
-  return {
-    roots: [
-      {
-        mediaId: "hidden_tunes",
-        title: "Hidden Tunes",
-        subtitle: "Your music library",
-        playable: false,
-      },
-      {
-        mediaId: "recently_added",
-        title: "Recently Added",
-        subtitle: "Latest songs",
-        playable: false,
-      },
-      {
-        mediaId: "artists",
-        title: "Artists",
-        subtitle: "Browse by artist",
-        playable: false,
-      },
-      {
-        mediaId: "albums",
-        title: "Albums",
-        subtitle: "Browse by album",
-        playable: false,
-      },
-      {
-        mediaId: "genres",
-        title: "Genres",
-        subtitle: "Browse by genre",
-        playable: false,
-      },
-      {
-        mediaId: "playlists",
-        title: "Playlists",
-        subtitle: "Collections and rooms",
-        playable: false,
-      },
-    ],
-    sections: [],
-    tracks: [],
+  const sections = [
+    {
+      parentId: "music",
+      items: [
+        {
+          mediaId: "recently_added",
+          title: "Recently Added",
+          subtitle: "Latest songs",
+          playable: false,
+          contentType: "music",
+        },
+        {
+          mediaId: "artists",
+          title: "Artists",
+          subtitle: "Browse by artist",
+          playable: false,
+          contentType: "music",
+        },
+        {
+          mediaId: "albums",
+          title: "Albums",
+          subtitle: "Browse by album",
+          playable: false,
+          contentType: "music",
+        },
+        {
+          mediaId: "genres",
+          title: "Genres",
+          subtitle: "Browse by genre",
+          playable: false,
+          contentType: "music",
+        },
+        {
+          mediaId: "playlists",
+          title: "Playlists",
+          subtitle: "Collections",
+          playable: false,
+          contentType: "music",
+        },
+      ],
+    },
+  ];
+  const snapshot = {
+    roots: buildVisibleRoots(sections),
+    sections,
+    tracks: [] as AndroidAutoTrackPayload[],
   };
+  rememberAndroidAutoPlayableTracks(snapshot.tracks);
+  return snapshot;
 }
 
 export function buildAndroidAutoFallbackQueue(
@@ -132,7 +279,7 @@ export function buildAndroidAutoFallbackQueue(
   if (!catalog?.songs?.length) return [];
 
   const queue: HiddenTunesSong[] = [];
-  const seen = new Set<string>();
+  const seen = setOf();
   for (const song of catalog.songs) {
     const id = String(song.id || "").trim();
     if (!id || seen.has(id)) continue;
@@ -146,51 +293,146 @@ export function buildAndroidAutoFallbackQueue(
 }
 
 export function buildAndroidAutoCatalogSnapshot(
-  catalog: HiddenTunesDerivedCatalog
+  catalog: HiddenTunesDerivedCatalog,
+  extras: AndroidAutoCatalogExtras = {}
 ): AndroidAutoCatalogSnapshot {
   const tracks: AndroidAutoTrackPayload[] = [];
   const sections: AndroidAutoCatalogSnapshot["sections"] = [];
 
-  const roots: AndroidAutoBrowseItem[] = [
+  // --- Recently Played ---
+  const recentItems: AndroidAutoBrowseItem[] = [];
+  for (const entry of (extras.recentlyPlayed || []).slice(0, LIMITS.recent)) {
+    const id = String(entry.id || "").trim();
+    if (!id) continue;
+    const url = String(entry.streamUrl || "").trim();
+    const mediaId = `song:${id}`;
+    recentItems.push({
+      mediaId,
+      title: entry.title || "Untitled",
+      subtitle: entry.artist || "Hidden Tunes",
+      playable: Boolean(url) || Boolean(id),
+      artworkUrl: String(entry.artwork || entry.cover || entry.thumbnail || ""),
+      contentType: "music",
+    });
+    if (url) {
+      tracks.push({
+        mediaId,
+        id,
+        url,
+        title: entry.title || "Untitled",
+        artist: entry.artist || "Hidden Tunes",
+        album: "",
+        artworkUrl: String(entry.artwork || entry.cover || entry.thumbnail || ""),
+        durationSeconds: 0,
+        contentType: "music",
+        isLive: false,
+      });
+    }
+  }
+  sections.push({ parentId: "recently_played", items: recentItems });
+
+  // --- Favorites (audio only: song + radio) ---
+  const favoriteItems: AndroidAutoBrowseItem[] = [];
+  for (const fav of (extras.favorites || []).slice(0, LIMITS.favorites)) {
+    if (fav.type === "song") {
+      const mediaId = `fav:song:${fav.id}`;
+      const url = String(fav.metadata?.streamUrl || "").trim();
+      favoriteItems.push({
+        mediaId,
+        title: fav.title,
+        subtitle: fav.subtitle || "Favorite",
+        playable: true,
+        artworkUrl: fav.artwork || "",
+        contentType: "music",
+      });
+      if (url) {
+        tracks.push({
+          mediaId,
+          id: String(fav.id),
+          url,
+          title: fav.title,
+          artist: fav.subtitle || "Hidden Tunes",
+          album: "",
+          artworkUrl: fav.artwork || "",
+          durationSeconds: 0,
+          contentType: "music",
+          isLive: false,
+        });
+      }
+    } else if (fav.type === "radio_station") {
+      const mediaId = `fav:radio:${fav.id}`;
+      const url = String(fav.metadata?.streamUrl || "").trim();
+      favoriteItems.push({
+        mediaId,
+        title: fav.title,
+        subtitle: fav.subtitle || "Live radio",
+        playable: true,
+        artworkUrl: fav.artwork || "",
+        contentType: "radio",
+      });
+      tracks.push({
+        mediaId,
+        id: String(fav.id),
+        url,
+        title: fav.title,
+        artist: fav.subtitle || "Live radio",
+        album: "Radio",
+        artworkUrl: fav.artwork || "",
+        durationSeconds: 0,
+        contentType: "radio",
+        isLive: true,
+      });
+    }
+  }
+  sections.push({ parentId: "favorites", items: favoriteItems });
+
+  // --- Music (bounded, nested under music) ---
+  const musicHome: AndroidAutoBrowseItem[] = [
     {
       mediaId: "recently_added",
       title: "Recently Added",
       subtitle: "Latest songs",
       playable: false,
+      contentType: "music",
     },
     {
       mediaId: "artists",
       title: "Artists",
       subtitle: "Browse by artist",
       playable: false,
+      contentType: "music",
     },
     {
       mediaId: "albums",
       title: "Albums",
       subtitle: "Browse by album",
       playable: false,
+      contentType: "music",
     },
     {
       mediaId: "genres",
       title: "Genres",
       subtitle: "Browse by genre",
       playable: false,
+      contentType: "music",
     },
     {
       mediaId: "playlists",
       title: "Playlists",
-      subtitle: "Collections and rooms",
+      subtitle: "Collections",
       playable: false,
+      contentType: "music",
     },
   ];
+  sections.push({ parentId: "music", items: musicHome });
 
   const recentSongs = (catalog.songs || []).slice(0, LIMITS.recent);
-  const recentItems = recentSongs.map(playableSongItem);
+  const recentMusicItems = recentSongs.map(playableSongItem);
   for (const song of recentSongs) {
     const payload = trackPayload(song);
     if (payload) tracks.push(payload);
   }
-  sections.push({ parentId: "recently_added", items: recentItems });
+  sections.push({ parentId: "recently_added", items: recentMusicItems });
 
   const artistItems: AndroidAutoBrowseItem[] = [];
   for (const artist of (catalog.artists || []).slice(0, LIMITS.artists)) {
@@ -200,6 +442,7 @@ export function buildAndroidAutoCatalogSnapshot(
       title: artist.name,
       subtitle: `${artist.songs?.length || 0} songs`,
       playable: false,
+      contentType: "music",
     });
 
     const artistSongs = (artist.songs || []).slice(0, LIMITS.songsPerBucket);
@@ -222,6 +465,7 @@ export function buildAndroidAutoCatalogSnapshot(
       title: album.title,
       subtitle: album.artist,
       playable: false,
+      contentType: "music",
     });
 
     const albumSongs = (album.songs || []).slice(0, LIMITS.songsPerBucket);
@@ -244,6 +488,7 @@ export function buildAndroidAutoCatalogSnapshot(
       title: genre.title,
       subtitle: `${genre.songs?.length || 0} tracks`,
       playable: false,
+      contentType: "music",
     });
 
     const genreSongs = (genre.songs || []).slice(0, LIMITS.songsPerBucket);
@@ -266,6 +511,7 @@ export function buildAndroidAutoCatalogSnapshot(
       title: playlist.title,
       subtitle: playlist.description || "Collection",
       playable: false,
+      contentType: "music",
     });
 
     const playlistSongs = (playlist.songs || []).slice(0, LIMITS.songsPerBucket);
@@ -280,10 +526,75 @@ export function buildAndroidAutoCatalogSnapshot(
   }
   sections.push({ parentId: "playlists", items: playlistItems });
 
+  // --- Radio (bounded favorites / recent only — never full station dump) ---
+  const radioItems: AndroidAutoBrowseItem[] = [];
+  for (const station of (extras.radioStations || []).slice(0, LIMITS.radio)) {
+    const id = String(station.id || "").trim();
+    if (!id) continue;
+    const mediaId = `radio:${id}`;
+    radioItems.push({
+      mediaId,
+      title: station.title || "Radio",
+      subtitle: station.subtitle || "Live",
+      playable: true,
+      artworkUrl: station.artworkUrl || "",
+      contentType: "radio",
+    });
+    tracks.push({
+      mediaId,
+      id,
+      url: String(station.streamUrl || "").trim(),
+      title: station.title || "Radio",
+      artist: station.subtitle || "Live radio",
+      album: "Radio",
+      artworkUrl: station.artworkUrl || "",
+      durationSeconds: 0,
+      contentType: "radio",
+      isLive: true,
+    });
+  }
+  sections.push({ parentId: "radio", items: radioItems });
+
+  // --- Podcasts (playable only when episode has an audio URL) ---
+  const podcastItems: AndroidAutoBrowseItem[] = [];
+  for (const episode of (extras.podcastEpisodes || []).slice(0, LIMITS.podcasts)) {
+    const id = String(episode.id || "").trim();
+    if (!id) continue;
+    const url = String(episode.audioUrl || "").trim();
+    if (!url) continue;
+    const mediaId = `podcast:${id}`;
+    podcastItems.push({
+      mediaId,
+      title: episode.title || "Episode",
+      subtitle: episode.subtitle || "Podcast",
+      playable: true,
+      artworkUrl: episode.artworkUrl || "",
+      contentType: "podcast",
+    });
+    tracks.push({
+      mediaId,
+      id,
+      url,
+      title: episode.title || "Episode",
+      artist: episode.subtitle || "Podcast",
+      album: "Podcasts",
+      artworkUrl: episode.artworkUrl || "",
+      durationSeconds: episode.durationSeconds || 0,
+      contentType: "podcast",
+      isLive: false,
+    });
+  }
+  sections.push({ parentId: "podcasts", items: podcastItems });
+
+  // Audiobooks / Motivationals / Lectures: intentionally omitted from AA roots
+  // until a reliable car-tap resolver exists (prefer hidden over dead roots).
+
+  const dedupedTracks = dedupeTracks(tracks).slice(0, LIMITS.tracks);
+  rememberAndroidAutoPlayableTracks(dedupedTracks);
   return {
-    roots,
+    roots: buildVisibleRoots(sections),
     sections,
-    tracks: dedupeTracks(tracks).slice(0, 420),
+    tracks: dedupedTracks,
   };
 }
 
@@ -292,14 +603,47 @@ export function resolveAndroidAutoMediaId(
   mediaId: string
 ): { song: HiddenTunesSong; queue: HiddenTunesSong[] } | null {
   const cleanId = String(mediaId || "").trim();
-  if (!cleanId.startsWith("song:")) return null;
+  let songId = "";
+  if (cleanId.startsWith("song:")) {
+    songId = cleanId.slice("song:".length);
+  } else if (cleanId.startsWith("fav:song:")) {
+    songId = cleanId.slice("fav:song:".length);
+  } else {
+    return null;
+  }
 
-  const songId = cleanId.slice("song:".length);
   const allSongs = catalog.songs || [];
   const song = allSongs.find((entry) => String(entry.id) === songId);
   if (!song) return null;
 
   return { song, queue: [song] };
+}
+
+export function parseAndroidAutoMediaId(mediaId: string): {
+  kind:
+    | "song"
+    | "radio"
+    | "podcast"
+    | "audiobook"
+    | "motivation"
+    | "lecture"
+    | "unknown";
+  id: string;
+  raw: string;
+} {
+  const raw = String(mediaId || "").trim();
+  if (raw.startsWith("song:")) return { kind: "song", id: raw.slice(5), raw };
+  if (raw.startsWith("fav:song:")) return { kind: "song", id: raw.slice(9), raw };
+  if (raw.startsWith("radio:")) return { kind: "radio", id: raw.slice(6), raw };
+  if (raw.startsWith("fav:radio:")) return { kind: "radio", id: raw.slice(10), raw };
+  if (raw.startsWith("podcast:")) return { kind: "podcast", id: raw.slice(8), raw };
+  if (raw.startsWith("audiobook:")) return { kind: "audiobook", id: raw.slice(10), raw };
+  if (raw.startsWith("motivation:")) return { kind: "motivation", id: raw.slice(11), raw };
+  if (raw.startsWith("lecture:") || raw.startsWith("edu:")) {
+    const id = raw.startsWith("lecture:") ? raw.slice(8) : raw.slice(4);
+    return { kind: "lecture", id, raw };
+  }
+  return { kind: "unknown", id: raw, raw };
 }
 
 export function isAndroidAutoCatalogSyncEnabled() {

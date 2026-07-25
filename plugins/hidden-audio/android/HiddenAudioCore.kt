@@ -2,6 +2,7 @@ package com.hiddentunes.app.audio
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
@@ -11,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -37,10 +39,14 @@ object HiddenAudioCore {
     val artist: String,
     val album: String,
     val artworkUrl: String,
-    val durationSeconds: Double
+    val durationSeconds: Double,
+    val mediaId: String = "",
+    val contentType: String = "music",
+    val isLive: Boolean = false
   )
 
   private var reactContext: ReactApplicationContext? = null
+  private var applicationContext: Context? = null
   private var player: ExoPlayer? = null
   private var playerStatus = "idle"
   private var activeTrack: ActiveTrackData? = null
@@ -51,13 +57,21 @@ object HiddenAudioCore {
   private var audioFocusRequest: AudioFocusRequest? = null
   private var audioFocusChangeListener: AudioManager.OnAudioFocusChangeListener? = null
   private const val AUDIO_FOCUS_STABILITY_WINDOW_MS = 3000L
-  private const val TASK_REMOVED_BACKGROUND_GRACE_MS = 3000L
+  private const val TASK_REMOVED_PREFS = "hidden_audio_task_removed"
+  private const val TASK_REMOVED_KEY = "dismissed"
+
   private var lastAppBackgroundAtMs = 0L
+  private var androidAutoBrowserClients = 0
 
   private var hasAudioFocus = false
   private var shouldPlayWhenReady = false
   private var backgroundPlaybackIntended = false
+  /**
+   * Legacy interruption latch kept in sync with the call state machine so
+   * existing recovery gates continue to work.
+   */
   private var phoneCallInterruptionActive = false
+  /** True after explicit Recents swipe-away until the next user play/load. */
   private var appTaskRemoved = false
   private var wasPlayingBeforeAudioFocusLoss = false
   private var playbackEndedHandled = false
@@ -72,13 +86,59 @@ object HiddenAudioCore {
   private var loadedMediaKey: String? = null
   private var pendingLoadSeekToStart = false
   private var hasReachedReadyForCurrentTrack = false
+  private var firstAudioPlayingEmittedForSession = false
+  private var continuousTapStartedAtMs = 0L
+  private var continuousCommandSource = "unknown"
+  private var isVolumeDucked = false
+  private var unduckedVolume = 1.0f
+  private var loadTrackCallCountForSession = 0
+  private var prepareCallCountForSession = 0
+  private var playCallCountForSession = 0
+  private var automaticPauseCallCountForSession = 0
+  private var lastEmittedProgressPositionMs = -1L
+  private var lastEmittedProgressStatus = ""
+  private var lastEmittedProgressIsPlaying = false
+  private var lastJsDiagnosticEmitAtMs = 0L
+  private const val PROGRESS_LOOP_INTERVAL_MS = 1000L
+  private const val PROGRESS_EMIT_MIN_DELTA_MS = 400L
+  private const val JS_DIAGNOSTIC_MIN_INTERVAL_MS = 250L
+
+  private enum class CallState {
+    IDLE,
+    RINGING,
+    OFFHOOK
+  }
+
+  private var callState = CallState.IDLE
+  private var callInterruptionGeneration = 0L
+  private var pausedByCall = false
+  private var userOverrideDuringCall = false
+  private var userPausedDuringCall = false
+  private var wasPlayingBeforeCall = false
+  private var interruptedMediaKey: String? = null
+  private var interruptedPositionMs = 0L
+  private var taskRemovalShutdown = false
   private const val HTTP_USER_AGENT = "HiddenTunes/1.0 (Linux; Android)"
+  private const val CONTINUOUS_TRACE_TAG = "HTAndroidContinuousPlayback"
+  private const val LIFECYCLE_TRACE_TAG = "HTAndroidLifecycle"
+  /**
+   * HiddenAudio owns audio focus via [requestAudioFocus]. ExoPlayer must NOT also
+   * handle focus — dual ownership causes LOSS↔GAIN churn and a play/pause loop.
+   */
+  private const val EXOPLAYER_HANDLES_AUDIO_FOCUS = false
+
+  fun attachApplicationContext(context: Context) {
+    applicationContext = context.applicationContext
+    if (audioManager == null) {
+      audioManager = context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+    HiddenAudioAutoCatalog.attachContext(context.applicationContext)
+  }
 
   fun attachReactContext(context: ReactApplicationContext) {
     reactContext = context
-    if (audioManager == null) {
-      audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    }
+    attachApplicationContext(context)
+    HiddenAudioPendingCommandQueue.markReactReady(context.hasActiveReactInstance())
   }
 
   fun setup(context: ReactApplicationContext) {
@@ -86,7 +146,14 @@ object HiddenAudioCore {
     ensurePlayer(context)
     HiddenAudioAutoCatalog.ensureDefaultCatalog()
     HiddenAudioMediaSessionManager.warmUpForAndroidAuto(context)
+    HiddenAudioPendingCommandQueue.markReactReady(true)
+    flushPendingRemoteCommands()
     emitDiagnostic("android_hidden_audio_setup_complete")
+  }
+
+  fun notifyReactHostReady() {
+    HiddenAudioPendingCommandQueue.markReactReady(true)
+    flushPendingRemoteCommands()
   }
 
 
@@ -135,11 +202,22 @@ object HiddenAudioCore {
 
   fun loadTrack(context: ReactApplicationContext, track: ReadableMap) {
     attachReactContext(context)
+    clearUserDismissedTaskFlag("load_track")
     ensurePlayer(context)
     clearPlaybackCallbacks()
     val sessionId = bumpPlaybackSession()
     committedPlaySessionId = sessionId
     lastLoadTrackAtMs = SystemClock.elapsedRealtime()
+    continuousTapStartedAtMs = lastLoadTrackAtMs
+    continuousCommandSource = "load_track"
+    firstAudioPlayingEmittedForSession = false
+    loadTrackCallCountForSession = 0
+    prepareCallCountForSession = 0
+    playCallCountForSession = 0
+    automaticPauseCallCountForSession = 0
+    clearAudioFocusDuck(restoreVolume = true)
+    // New explicit media selection invalidates any prior call-end resume.
+    invalidateCallResumeForNewMediaSelection("load_track")
     val nextTrack = trackToMap(track)
     val url = nextTrack.url
     if (url.isBlank()) {
@@ -158,6 +236,7 @@ object HiddenAudioCore {
         (playbackStateBeforeLoad == Player.STATE_BUFFERING ||
           playbackStateBeforeLoad == Player.STATE_READY ||
           playbackStateBeforeLoad == Player.STATE_ENDED)
+    emitContinuousPlaybackTrace("playback_request_created", "load_track")
     val parsedUri = Uri.parse(url)
     val extension = urlPathExtension(url)
     val guessedMimeType = guessMimeTypeFromExtension(extension)
@@ -172,9 +251,15 @@ object HiddenAudioCore {
       .setUri(parsedUri)
       .setMediaId(nextTrack.id)
       .build()
+    if (previousMediaKey != null && previousMediaKey != mediaKey) {
+      emitContinuousPlaybackTrace("source_replaced", "load_track", mapOf("previousMediaKey" to previousMediaKey))
+    }
     exo.stop()
     exo.clearMediaItems()
     exo.setMediaItem(mediaItem, 0L)
+    loadTrackCallCountForSession += 1
+    emitContinuousPlaybackTrace("loadTrack_called", "load_track")
+    emitContinuousPlaybackTrace("native_media_item_set", "load_track")
     forceSeekToStart(exo, emitDiagnostic = true, reason = "load_track_set_media_item")
     shouldPlayWhenReady = false
     val urlDiagnostics = Arguments.createMap()
@@ -194,14 +279,15 @@ object HiddenAudioCore {
       playbackStateName(playbackStateBeforeLoad)
     )
     emitDiagnostic("android_load_track_url_diagnostics", urlDiagnostics)
-    exo.prepare()
+    preparePlayerOnce(exo, "load_track")
     playerStatus = "ready"
     emitTrackChanged()
     emitState()
   }
 
   fun play() {
-    val context = reactContext ?: return
+    val context = resolvePlaybackContext() ?: return
+    clearUserDismissedTaskFlag("play")
     ensurePlayer(context)
     clearPlaybackCallbacks()
     committedPlaySessionId = playbackSessionId
@@ -213,21 +299,49 @@ object HiddenAudioCore {
       emitState()
       throw IllegalStateException("HiddenAudio cannot play without a loaded track")
     }
+    // Idempotent: already outputting or preparing with playWhenReady — do not re-issue play.
+    if (
+      exoForPlay.isPlaying ||
+        (exoForPlay.playWhenReady &&
+          (exoForPlay.playbackState == Player.STATE_BUFFERING ||
+            exoForPlay.playbackState == Player.STATE_READY) &&
+          shouldPlayWhenReady)
+    ) {
+      continuousCommandSource = "play_idempotent"
+      emitContinuousPlaybackTrace(
+        "native_play_called",
+        "play_idempotent",
+        mapOf("skipped" to true, "reason" to "already_playing_or_buffering")
+      )
+      startForegroundService()
+      startProgressLoop()
+      emitState()
+      emitProgress()
+      return
+    }
     lastPlayRequestAtMs = SystemClock.elapsedRealtime()
-    phoneCallInterruptionActive = false
+    if (continuousTapStartedAtMs <= 0L) {
+      continuousTapStartedAtMs = lastPlayRequestAtMs
+    }
+    continuousCommandSource = "play"
+    noteExplicitUserPlayCommand("play")
+    clearAudioFocusDuck(restoreVolume = true)
     HiddenAudioMediaSessionManager.activateSessionForAuto(context, "native_play")
     emitAudioRouteDiagnostic("native_play")
+    emitContinuousPlaybackTrace("audio_focus_requested", "play")
     requestAudioFocus()
     shouldPlayWhenReady = true
     startForegroundService()
     player?.playWhenReady = true
     when (player?.playbackState) {
-      Player.STATE_IDLE -> player?.prepare()
+      Player.STATE_IDLE -> preparePlayerOnce(player!!, "play_idle")
       Player.STATE_ENDED -> {
         player?.seekTo(0)
-        player?.prepare()
+        preparePlayerOnce(player!!, "play_ended")
       }
     }
+    playCallCountForSession += 1
+    emitContinuousPlaybackTrace("native_play_called", "play")
     player?.play()
     emitDiagnostic("android_auto_native_player_play_called")
     playerStatus = when (player?.playbackState) {
@@ -246,6 +360,7 @@ object HiddenAudioCore {
       emitDiagnostic("android_playback_stale_session_ignored", simpleData("source", "pause"))
       return
     }
+    noteExplicitUserPauseCommand("user_pause")
     pauseForInterruption("user_pause", permanent = true, markUserPause = true)
   }
 
@@ -264,7 +379,7 @@ object HiddenAudioCore {
     permanent: Boolean,
     markUserPause: Boolean = false
   ) {
-    if (appTaskRemoved) return
+    if (appTaskRemoved || taskRemovalShutdown) return
     val exo = player
     val wasPlaying = exo?.isPlaying == true || exo?.playWhenReady == true || shouldPlayWhenReady
     if (wasPlaying && !markUserPause) {
@@ -273,6 +388,8 @@ object HiddenAudioCore {
     if (markUserPause) {
       wasPlayingBeforeAudioFocusLoss = false
     }
+    // Preserve position: pause only — never stop/clear/seek.
+    val positionMsBeforePause = exo?.currentPosition?.coerceAtLeast(0L) ?: 0L
     exo?.pause()
     exo?.playWhenReady = false
     if (permanent) {
@@ -281,9 +398,17 @@ object HiddenAudioCore {
     }
     playerStatus = "paused"
     stopProgressLoop()
+    if (!markUserPause) {
+      automaticPauseCallCountForSession += 1
+    }
     if (source.startsWith("audio_focus")) {
+      emitContinuousPlaybackTrace("pause_called", source, mapOf("automatic" to true, "permanent" to permanent, "positionMs" to positionMsBeforePause))
       emitDiagnostic("android_audio_focus_pause_for_interruption", simpleData("source", source))
+    } else if (markUserPause) {
+      emitContinuousPlaybackTrace("pause_called", source, mapOf("automatic" to false, "permanent" to permanent, "positionMs" to positionMsBeforePause))
+      emitDiagnostic("hidden_audio_pause_called", simpleData("source", source))
     } else {
+      emitContinuousPlaybackTrace("pause_called", source, mapOf("automatic" to true, "permanent" to permanent, "positionMs" to positionMsBeforePause))
       emitDiagnostic("hidden_audio_pause_called", simpleData("source", source))
     }
     emitState()
@@ -303,6 +428,7 @@ object HiddenAudioCore {
     backgroundPlaybackIntended = false
     phoneCallInterruptionActive = false
     wasPlayingBeforeAudioFocusLoss = false
+    resetCallInterruptionState("stop")
     playerStatus = "idle"
     activeTrack = null
     activeIndex = 0
@@ -314,11 +440,13 @@ object HiddenAudioCore {
     lastPlayRequestAtMs = 0L
     lastReassertRequestAtMs = 0L
     abandonAudioFocus()
+    emitLifecycleTrace("audio_focus_abandoned", "stop")
     stopForegroundService()
     // Clear MediaSession metadata so TV/video ownership is not masked by the
     // previous song title after peer stop.
     HiddenAudioMediaSessionManager.clearPresentedState()
     emitDiagnostic("hidden_audio_unload_called")
+    emitContinuousPlaybackTrace("stop_called", "stop")
     emitState()
     emitProgress()
   }
@@ -330,12 +458,19 @@ object HiddenAudioCore {
   }
 
   fun reassertBackgroundPlayback(reason: String = "background_reassert") {
-    if (appTaskRemoved || phoneCallInterruptionActive) {
+    syncTaskRemovedFromDisk()
+    if (appTaskRemoved || taskRemovalShutdown || phoneCallInterruptionActive) {
       val blocked = Arguments.createMap()
       blocked.putString("reason", reason)
       blocked.putBoolean("appTaskRemoved", appTaskRemoved)
+      blocked.putBoolean("taskRemovalShutdown", taskRemovalShutdown)
       blocked.putBoolean("phoneCallInterruptionActive", phoneCallInterruptionActive)
       emitDiagnostic("background_recovery_blocked_by_interruption", blocked)
+      emitLifecycleTrace("recovery_blocked", reason, mapOf("reason" to "interruption_or_task_removed"))
+      return
+    }
+    if (isCallActive() && !isCallResumeEligible() && !userOverrideDuringCall) {
+      emitLifecycleTrace("recovery_blocked", reason, mapOf("reason" to "call_not_eligible"))
       return
     }
     val context = reactContext ?: return
@@ -383,13 +518,16 @@ object HiddenAudioCore {
     backgroundPlaybackIntended = true
     shouldPlayWhenReady = true
     if (!hasAudioFocus) {
+      emitContinuousPlaybackTrace("audio_focus_requested", "reassert_$reason")
       requestAudioFocus()
     }
     startForegroundService()
     if (player?.playbackState == Player.STATE_IDLE) {
-      player?.prepare()
+      preparePlayerOnce(player!!, "reassert_$reason")
     }
     player?.playWhenReady = true
+    playCallCountForSession += 1
+    emitContinuousPlaybackTrace("play_called", "reassert_$reason")
     player?.play()
     playerStatus = when (player?.playbackState) {
       Player.STATE_BUFFERING -> "buffering"
@@ -442,8 +580,9 @@ object HiddenAudioCore {
     progress.putDouble("durationSeconds", durationSeconds)
     progress.putDouble("currentTime", positionSeconds)
     progress.putDouble("duration", durationSeconds)
-    progress.putDouble("bufferedSeconds", 0.0)
-    progress.putDouble("bufferedPosition", 0.0)
+    val bufferedMs = exo?.bufferedPosition?.coerceAtLeast(0) ?: 0L
+    progress.putDouble("bufferedSeconds", bufferedMs / 1000.0)
+    progress.putDouble("bufferedPosition", bufferedMs / 1000.0)
     progress.putDouble("isPlaying", if (isPlaying) 1.0 else 0.0)
     progress.putString("status", playerStatus)
     return progress
@@ -469,27 +608,26 @@ object HiddenAudioCore {
 
     val creatingPlayer = player == null
     if (creatingPlayer) {
+      // Single focus owner: manual AudioFocusRequest only. ExoPlayer must not also own focus.
       player = ExoPlayer.Builder(context)
         .setMediaSourceFactory(buildMediaSourceFactory(context))
-        .setAudioAttributes(audioAttributes, true)
+        .setAudioAttributes(audioAttributes, EXOPLAYER_HANDLES_AUDIO_FOCUS)
         .setHandleAudioBecomingNoisy(true)
         .build()
+      val attributesData = Arguments.createMap()
+      attributesData.putInt("usage", androidx.media3.common.C.USAGE_MEDIA)
+      attributesData.putInt("contentType", androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+      attributesData.putBoolean("handleAudioFocus", EXOPLAYER_HANDLES_AUDIO_FOCUS)
+      attributesData.putBoolean("handleAudioBecomingNoisy", true)
+      attributesData.putBoolean("manualAudioFocusOwner", true)
+      emitDiagnostic("android_audio_attributes_configured", attributesData)
     } else {
-      player?.setAudioAttributes(audioAttributes, true)
-    }
-
-    val attributesData = Arguments.createMap()
-    attributesData.putInt("usage", androidx.media3.common.C.USAGE_MEDIA)
-    attributesData.putInt("contentType", androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
-    attributesData.putBoolean("handleAudioFocus", true)
-    attributesData.putBoolean("handleAudioBecomingNoisy", true)
-    emitDiagnostic("android_audio_attributes_configured", attributesData)
-
-    val exoPlayer = player ?: return
-    if (!creatingPlayer) {
+      // Do not re-set audio attributes on every ensurePlayer — that rebinds focus handling.
       HiddenAudioMediaSessionManager.ensureSession(context)
       return
     }
+
+    val exoPlayer = player ?: return
 
     exoPlayer.addListener(object : Player.Listener {
       override fun onPlaybackStateChanged(playbackState: Int) {
@@ -497,10 +635,13 @@ object HiddenAudioCore {
           Player.STATE_IDLE -> {
             if (playerStatus != "stopped") playerStatus = "idle"
             emitPlaybackStateDiagnostic("android_player_state_idle", playbackState)
+            emitContinuousPlaybackTrace("native_state_changed", "player_listener", mapOf("playbackState" to "idle"))
           }
           Player.STATE_BUFFERING -> {
             playerStatus = "buffering"
             emitPlaybackStateDiagnostic("android_player_state_buffering", playbackState)
+            emitContinuousPlaybackTrace("buffering_started", "player_listener")
+            emitContinuousPlaybackTrace("native_state_changed", "player_listener", mapOf("playbackState" to "buffering"))
           }
           Player.STATE_READY -> {
             hasReachedReadyForCurrentTrack = true
@@ -512,9 +653,13 @@ object HiddenAudioCore {
               else -> "paused"
             }
             emitPlaybackStateDiagnostic("android_player_state_ready", playbackState)
+            emitContinuousPlaybackTrace("native_ready", "player_listener")
+            emitContinuousPlaybackTrace("buffering_ended", "player_listener")
+            emitContinuousPlaybackTrace("native_state_changed", "player_listener", mapOf("playbackState" to "ready"))
           }
           Player.STATE_ENDED -> {
             emitPlaybackStateDiagnostic("android_player_state_ended", playbackState)
+            emitContinuousPlaybackTrace("playback_ended", "player_listener")
             handlePlaybackEnded()
             return
           }
@@ -531,9 +676,52 @@ object HiddenAudioCore {
           )
           return
         }
+        emitContinuousPlaybackTrace(
+          "native_is_playing_changed",
+          "player_listener",
+          mapOf("isPlaying" to isPlaying)
+        )
         if (isPlaying) {
           lastPlayingStartedAtMs = SystemClock.elapsedRealtime()
+          if (!firstAudioPlayingEmittedForSession) {
+            firstAudioPlayingEmittedForSession = true
+            emitContinuousPlaybackTrace("first_audio_playing", "player_listener")
+          }
         } else if (shouldPlayWhenReady) {
+          val exo = player
+          // BUFFERING / preparing with playWhenReady=true is NOT paused — never echo play().
+          if (exo?.playWhenReady == true) {
+            playerStatus = when (exo.playbackState) {
+              Player.STATE_BUFFERING -> "buffering"
+              Player.STATE_READY -> "buffering"
+              else -> "buffering"
+            }
+            emitPlaybackStateDiagnostic(
+              "android_player_is_playing_changed",
+              exo.playbackState
+            )
+            emitDiagnostic(
+              "android_player_state_changed",
+              simpleData("state", playerStatus)
+            )
+            startProgressLoop()
+            emitState()
+            emitProgress()
+            return
+          }
+          // Real focus interruption: wait for AUDIOFOCUS_GAIN; do not fight it with recover.
+          if (phoneCallInterruptionActive) {
+            playerStatus = "paused"
+            stopProgressLoop()
+            emitPlaybackStateDiagnostic(
+              "android_player_is_playing_changed",
+              exo?.playbackState ?: Player.STATE_IDLE
+            )
+            emitDiagnostic("android_player_state_changed", simpleData("state", playerStatus))
+            emitState()
+            emitProgress()
+            return
+          }
           val nowMs = SystemClock.elapsedRealtime()
           if (isInPlaybackProtectionWindow(nowMs)) {
             emitDiagnostic(
@@ -571,6 +759,14 @@ object HiddenAudioCore {
           data.putString("trackUrl", failedTrack.url)
         }
         emitDiagnostic("android_player_error", data)
+        emitContinuousPlaybackTrace(
+          "player_error",
+          "player_listener",
+          mapOf(
+            "message" to (error.message ?: "unknown"),
+            "errorCodeName" to error.errorCodeName
+          )
+        )
         if (
           error.errorCode ==
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
@@ -722,6 +918,289 @@ object HiddenAudioCore {
 
   private fun mediaKeyFor(track: ActiveTrackData): String = "${track.id}::${track.url}"
 
+  private fun preparePlayerOnce(exo: ExoPlayer, reason: String) {
+    val state = exo.playbackState
+    if (state == Player.STATE_BUFFERING || state == Player.STATE_READY) {
+      emitContinuousPlaybackTrace(
+        "native_prepare_called",
+        reason,
+        mapOf("skipped" to true, "playbackState" to playbackStateName(state))
+      )
+      return
+    }
+    prepareCallCountForSession += 1
+    emitContinuousPlaybackTrace("native_prepare_called", reason)
+    exo.prepare()
+  }
+
+  private fun applyAudioFocusDuck() {
+    val exo = player ?: return
+    if (!isVolumeDucked) {
+      unduckedVolume = exo.volume.coerceIn(0.05f, 1.0f)
+      isVolumeDucked = true
+    }
+    exo.volume = (unduckedVolume * 0.2f).coerceIn(0.05f, 1.0f)
+    emitDiagnostic("android_audio_focus_duck_applied", simpleData("volume", exo.volume.toString()))
+  }
+
+  private fun clearAudioFocusDuck(restoreVolume: Boolean) {
+    if (!isVolumeDucked) return
+    if (restoreVolume) {
+      player?.volume = unduckedVolume.coerceIn(0.05f, 1.0f)
+    }
+    isVolumeDucked = false
+    emitDiagnostic("android_audio_focus_duck_cleared")
+  }
+
+  private fun isCallActive(): Boolean = callState != CallState.IDLE
+
+  private fun isCallResumeEligible(): Boolean {
+    if (taskRemovalShutdown || appTaskRemoved) return false
+    if (userPausedDuringCall) return false
+    if (userOverrideDuringCall) return false
+    if (!pausedByCall) return false
+    if (!wasPlayingBeforeCall) return false
+    if (callState == CallState.IDLE && interruptedMediaKey == null) return false
+    if (interruptedMediaKey != null && interruptedMediaKey != loadedMediaKey) return false
+    return true
+  }
+
+  private fun shouldSuppressTransientPauseForUserOverride(): Boolean {
+    return isCallActive() && userOverrideDuringCall && !userPausedDuringCall
+  }
+
+  private fun beginTransientCallLikeInterruption(source: String) {
+    val exo = player
+    val wasPlaying = exo?.isPlaying == true || exo?.playWhenReady == true || shouldPlayWhenReady
+    if (isCallActive() && pausedByCall && !userOverrideDuringCall) {
+      // Duplicate focus event for same call — pause once only.
+      emitLifecycleTrace("call_duplicate_pause_suppressed", source)
+      phoneCallInterruptionActive = true
+      return
+    }
+    callInterruptionGeneration += 1L
+    callState = CallState.OFFHOOK
+    wasPlayingBeforeCall = wasPlaying
+    pausedByCall = wasPlaying
+    userOverrideDuringCall = false
+    userPausedDuringCall = false
+    interruptedMediaKey = loadedMediaKey
+    interruptedPositionMs = exo?.currentPosition?.coerceAtLeast(0L) ?: 0L
+    phoneCallInterruptionActive = wasPlaying
+    wasPlayingBeforeAudioFocusLoss = wasPlaying
+    emitLifecycleTrace(
+      if (wasPlaying) "call_off_hook" else "call_idle",
+      source,
+      mapOf(
+        "pausedByCall" to pausedByCall,
+        "wasPlayingBeforeCall" to wasPlayingBeforeCall,
+        "interruptedPositionMs" to interruptedPositionMs
+      )
+    )
+  }
+
+  private fun noteExplicitUserPlayCommand(source: String) {
+    if (isCallActive()) {
+      userOverrideDuringCall = true
+      pausedByCall = false
+      userPausedDuringCall = false
+      phoneCallInterruptionActive = false
+      emitLifecycleTrace("explicit_user_play", source)
+    } else {
+      phoneCallInterruptionActive = false
+    }
+  }
+
+  private fun noteExplicitUserPauseCommand(source: String) {
+    if (isCallActive()) {
+      userPausedDuringCall = true
+      pausedByCall = false
+      wasPlayingBeforeCall = false
+      phoneCallInterruptionActive = false
+      emitLifecycleTrace("explicit_user_pause", source)
+    }
+  }
+
+  private fun invalidateCallResumeForNewMediaSelection(source: String) {
+    if (!isCallActive() && interruptedMediaKey == null && !pausedByCall) return
+    callInterruptionGeneration += 1L
+    pausedByCall = false
+    wasPlayingBeforeCall = false
+    userOverrideDuringCall = true
+    userPausedDuringCall = false
+    interruptedMediaKey = null
+    interruptedPositionMs = 0L
+    phoneCallInterruptionActive = false
+    wasPlayingBeforeAudioFocusLoss = false
+    emitLifecycleTrace("call_resume_invalidated_new_media", source)
+  }
+
+  private fun endCallInterruptionWithoutResume(reason: String) {
+    phoneCallInterruptionActive = false
+    resetCallInterruptionState(reason)
+  }
+
+  private fun resetCallInterruptionState(reason: String) {
+    callState = CallState.IDLE
+    pausedByCall = false
+    userOverrideDuringCall = false
+    userPausedDuringCall = false
+    wasPlayingBeforeCall = false
+    interruptedMediaKey = null
+    interruptedPositionMs = 0L
+    phoneCallInterruptionActive = false
+    emitLifecycleTrace("call_idle", reason)
+  }
+
+  private fun urlIdentity(url: String): String {
+    if (url.isBlank()) return ""
+    return try {
+      val uri = Uri.parse(url)
+      "${uri.scheme ?: ""}://${uri.host ?: ""}${uri.path ?: ""}"
+    } catch (_: Throwable) {
+      url.take(96)
+    }
+  }
+
+  private fun putCallFields(data: WritableMap) {
+    data.putString("callState", callState.name.lowercase())
+    data.putDouble("callInterruptionGeneration", callInterruptionGeneration.toDouble())
+    data.putBoolean("pausedByCall", pausedByCall)
+    data.putBoolean("userOverrideDuringCall", userOverrideDuringCall)
+    data.putBoolean("userPausedDuringCall", userPausedDuringCall)
+    data.putBoolean("callResumeEligible", isCallResumeEligible())
+    data.putBoolean("wasPlayingBeforeCall", wasPlayingBeforeCall)
+    data.putBoolean("taskRemovalShutdown", taskRemovalShutdown)
+    data.putString("interruptedMediaKey", interruptedMediaKey ?: "")
+    data.putDouble("interruptedPositionMs", interruptedPositionMs.toDouble())
+  }
+
+  private fun emitLifecycleTrace(
+    event: String,
+    commandSource: String,
+    extras: Map<String, Any?> = emptyMap()
+  ) {
+    val nowMs = SystemClock.elapsedRealtime()
+    val exo = player
+    val track = activeTrack
+    val data = Arguments.createMap()
+    data.putString("event", event)
+    data.putString("commandSource", commandSource.ifBlank { continuousCommandSource })
+    data.putDouble("requestId", playbackSessionId.toDouble())
+    data.putString("canonicalMediaId", loadedMediaKey ?: track?.id ?: "")
+    data.putString("mediaDomain", track?.contentType ?: "music")
+    data.putDouble("nativePlayerInstanceId", System.identityHashCode(exo).toDouble())
+    data.putString("currentPlaybackState", playerStatus)
+    data.putBoolean("playWhenReady", exo?.playWhenReady == true)
+    data.putBoolean("isPlaying", exo?.isPlaying == true)
+    data.putBoolean("isBuffering", exo?.playbackState == Player.STATE_BUFFERING || playerStatus == "buffering")
+    data.putDouble("currentPositionMs", (exo?.currentPosition ?: 0L).toDouble())
+    data.putDouble("bufferedPositionMs", (exo?.bufferedPosition ?: 0L).toDouble())
+    data.putDouble("durationMs", (exo?.duration?.coerceAtLeast(0L) ?: 0L).toDouble())
+    data.putBoolean("hasAudioFocus", hasAudioFocus)
+    data.putBoolean("phoneCallInterruptionActive", phoneCallInterruptionActive)
+    putCallFields(data)
+    data.putDouble("timestamp", nowMs.toDouble())
+    data.putDouble(
+      "elapsedMsFromTap",
+      if (continuousTapStartedAtMs > 0L) elapsedSince(continuousTapStartedAtMs, nowMs).toDouble() else -1.0
+    )
+    for ((key, value) in extras) {
+      when (value) {
+        null -> data.putNull(key)
+        is Boolean -> data.putBoolean(key, value)
+        is Int -> data.putInt(key, value)
+        is Long -> data.putDouble(key, value.toDouble())
+        is Float -> data.putDouble(key, value.toDouble())
+        is Double -> data.putDouble(key, value)
+        is String -> data.putString(key, value)
+        else -> data.putString(key, value.toString())
+      }
+    }
+    Log.i(LIFECYCLE_TRACE_TAG, "$event $data")
+    emitJsDiagnosticThrottled("ht_android_lifecycle", data)
+  }
+
+  private fun emitContinuousPlaybackTrace(
+    event: String,
+    commandSource: String,
+    extras: Map<String, Any?> = emptyMap()
+  ) {
+    val nowMs = SystemClock.elapsedRealtime()
+    val exo = player
+    val track = activeTrack
+    val data = Arguments.createMap()
+    data.putString("event", event)
+    data.putDouble("requestId", playbackSessionId.toDouble())
+    data.putString("songId", track?.id ?: "")
+    data.putString("canonicalSongIdentity", loadedMediaKey ?: track?.id ?: "")
+    data.putDouble("nativeSessionId", playbackSessionId.toDouble())
+    data.putDouble("playerInstanceId", System.identityHashCode(exo).toDouble())
+    data.putString("commandSource", commandSource.ifBlank { continuousCommandSource })
+    data.putString("jsPlaybackState", playerStatus)
+    data.putString("nativePlaybackState", playbackStateName(exo?.playbackState ?: Player.STATE_IDLE))
+    data.putBoolean("isPlaying", exo?.isPlaying == true)
+    data.putBoolean(
+      "isBuffering",
+      exo?.playbackState == Player.STATE_BUFFERING || playerStatus == "buffering"
+    )
+    data.putBoolean("playWhenReady", exo?.playWhenReady == true)
+    data.putBoolean("shouldPlayWhenReady", shouldPlayWhenReady)
+    data.putBoolean("hasAudioFocus", hasAudioFocus)
+    data.putBoolean("phoneCallInterruptionActive", phoneCallInterruptionActive)
+    putCallFields(data)
+    data.putBoolean("isVolumeDucked", isVolumeDucked)
+    data.putString("appState", if (lastAppBackgroundAtMs > 0L) "may_be_background" else "foreground_or_unknown")
+    data.putDouble("currentPositionMs", (exo?.currentPosition ?: 0L).toDouble())
+    data.putDouble("bufferedPositionMs", (exo?.bufferedPosition ?: 0L).toDouble())
+    data.putDouble("durationMs", (exo?.duration?.coerceAtLeast(0L) ?: 0L).toDouble())
+    data.putString("sourceUrlIdentity", urlIdentity(track?.url ?: ""))
+    data.putDouble("timestamp", nowMs.toDouble())
+    data.putDouble(
+      "elapsedMsFromTap",
+      if (continuousTapStartedAtMs > 0L) elapsedSince(continuousTapStartedAtMs, nowMs).toDouble() else -1.0
+    )
+    data.putInt("loadTrackCalls", loadTrackCallCountForSession)
+    data.putInt("prepareCalls", prepareCallCountForSession)
+    data.putInt("playCalls", playCallCountForSession)
+    data.putInt("automaticPauseCalls", automaticPauseCallCountForSession)
+    for ((key, value) in extras) {
+      when (value) {
+        null -> data.putNull(key)
+        is Boolean -> data.putBoolean(key, value)
+        is Int -> data.putInt(key, value)
+        is Long -> data.putDouble(key, value.toDouble())
+        is Float -> data.putDouble(key, value.toDouble())
+        is Double -> data.putDouble(key, value)
+        is String -> data.putString(key, value)
+        else -> data.putString(key, value.toString())
+      }
+    }
+    Log.i(CONTINUOUS_TRACE_TAG, "$event $data")
+    emitJsDiagnosticThrottled("ht_android_continuous_playback", data)
+  }
+
+  private fun isDebuggableBuild(): Boolean {
+    val context = applicationContext ?: reactContext ?: return false
+    return try {
+      (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+    } catch (_: Throwable) {
+      false
+    }
+  }
+
+  /**
+   * Keep Logcat traces always; only bridge to JS in debuggable builds and
+   * rate-limit to avoid heating the JS thread during bursty state transitions.
+   */
+  private fun emitJsDiagnosticThrottled(eventName: String, data: WritableMap) {
+    if (!isDebuggableBuild()) return
+    val nowMs = SystemClock.elapsedRealtime()
+    if (nowMs - lastJsDiagnosticEmitAtMs < JS_DIAGNOSTIC_MIN_INTERVAL_MS) return
+    lastJsDiagnosticEmitAtMs = nowMs
+    emitDiagnostic(eventName, data)
+  }
+
   private fun forceSeekToStart(
     exo: ExoPlayer,
     emitDiagnostic: Boolean,
@@ -774,6 +1253,11 @@ object HiddenAudioCore {
   }
 
   private fun trackToMap(track: ReadableMap): ActiveTrackData {
+    val mediaId = track.getStringSafe("mediaId", "")
+    val contentType = track.getStringSafe("contentType", "music")
+    val isLive =
+      if (track.hasKey("isLive") && !track.isNull("isLive")) track.getBoolean("isLive")
+      else contentType.equals("radio", ignoreCase = true)
     return ActiveTrackData(
       id = track.getStringSafe("id", "hidden-audio-track"),
       url = track.getStringSafe("url", ""),
@@ -781,7 +1265,10 @@ object HiddenAudioCore {
       artist = track.getStringSafe("artist", "Hidden Tunes"),
       album = track.getStringSafe("album", ""),
       artworkUrl = track.getStringSafe("artworkUrl", ""),
-      durationSeconds = track.getDoubleSafe("durationSeconds", 0.0)
+      durationSeconds = if (isLive) 0.0 else track.getDoubleSafe("durationSeconds", 0.0),
+      mediaId = mediaId,
+      contentType = contentType,
+      isLive = isLive
     )
   }
 
@@ -815,25 +1302,44 @@ object HiddenAudioCore {
 
 
   private fun recoverPlaybackWhenReady(source: String) {
-    if (appTaskRemoved || phoneCallInterruptionActive) {
+    syncTaskRemovedFromDisk()
+    if (appTaskRemoved || taskRemovalShutdown || phoneCallInterruptionActive) {
       val blocked = Arguments.createMap()
       blocked.putString("source", source)
       blocked.putBoolean("appTaskRemoved", appTaskRemoved)
+      blocked.putBoolean("taskRemovalShutdown", taskRemovalShutdown)
       blocked.putBoolean("phoneCallInterruptionActive", phoneCallInterruptionActive)
       emitDiagnostic("background_recovery_blocked_by_interruption", blocked)
+      emitLifecycleTrace("recovery_blocked", source, mapOf("reason" to "interruption_or_task_removed"))
       return
     }
     if (!shouldPlayWhenReady) return
     val exo = player ?: return
     if (exo.isPlaying && exo.playWhenReady) return
+    // Still preparing with intent to play — do not issue another play/prepare.
+    if (exo.playWhenReady &&
+      (exo.playbackState == Player.STATE_BUFFERING || exo.playbackState == Player.STATE_READY)
+    ) {
+      playerStatus = "buffering"
+      emitContinuousPlaybackTrace(
+        "play_called",
+        "recover_skipped_buffering",
+        mapOf("skipped" to true, "source" to source)
+      )
+      return
+    }
+    emitLifecycleTrace("recovery_attempted", source)
     if (!hasAudioFocus) {
+      emitContinuousPlaybackTrace("audio_focus_requested", "recover_$source")
       requestAudioFocus()
     }
     startForegroundService()
     if (exo.playbackState == Player.STATE_IDLE) {
-      exo.prepare()
+      preparePlayerOnce(exo, "recover_$source")
     }
     exo.playWhenReady = true
+    playCallCountForSession += 1
+    emitContinuousPlaybackTrace("play_called", "recover_$source")
     exo.play()
     playerStatus = when (exo.playbackState) {
       Player.STATE_BUFFERING -> "buffering"
@@ -869,49 +1375,106 @@ object HiddenAudioCore {
 
     when (change) {
       AudioManager.AUDIOFOCUS_LOSS -> {
+        emitContinuousPlaybackTrace("audio_focus_lost", "focus_listener", mapOf("focusChange" to "LOSS"))
+        emitLifecycleTrace("audio_focus_loss", "focus_listener")
         emitDiagnostic("android_audio_focus_lost", data)
         if (shouldIgnorePermanentAudioFocusLoss(nowMs)) {
           emitDiagnostic("android_audio_focus_loss_ignored_startup_window", data)
           return
         }
-        phoneCallInterruptionActive = true
+        clearAudioFocusDuck(restoreVolume = true)
+        // Permanent loss (another app): pause permanently; not a call-resume case.
+        resetCallInterruptionState("permanent_focus_loss")
+        phoneCallInterruptionActive = false
+        wasPlayingBeforeAudioFocusLoss = false
         postPlaybackCallback {
           pauseForInterruption("audio_focus_loss", permanent = true)
         }
       }
       AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+        emitContinuousPlaybackTrace("audio_focus_lost", "focus_listener", mapOf("focusChange" to "LOSS_TRANSIENT"))
+        emitLifecycleTrace("transient_loss", "focus_listener")
         emitDiagnostic("android_audio_focus_lost", data)
-        phoneCallInterruptionActive = true
+        clearAudioFocusDuck(restoreVolume = true)
+        if (shouldSuppressTransientPauseForUserOverride()) {
+          emitLifecycleTrace(
+            "call_re_pause_suppressed_user_override",
+            "focus_listener",
+            mapOf("callInterruptionGeneration" to callInterruptionGeneration)
+          )
+          return
+        }
+        beginTransientCallLikeInterruption("audio_focus_transient")
         postPlaybackCallback {
           pauseForInterruption("audio_focus_transient", permanent = false)
         }
       }
       AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+        // Duck only — never pause and never mark a phone-call interruption.
+        emitContinuousPlaybackTrace("audio_focus_duck", "focus_listener")
+        emitLifecycleTrace("can_duck", "focus_listener")
         emitDiagnostic("android_audio_focus_lost", data)
-        phoneCallInterruptionActive = true
-        postPlaybackCallback {
-          pauseForInterruption("audio_focus_duck", permanent = false)
-        }
+        applyAudioFocusDuck()
       }
       AudioManager.AUDIOFOCUS_GAIN -> {
+        emitContinuousPlaybackTrace("audio_focus_gain", "focus_listener")
+        emitLifecycleTrace("focus_gain", "focus_listener")
         emitDiagnostic("android_audio_focus_gained", data)
-        if (appTaskRemoved) {
+        clearAudioFocusDuck(restoreVolume = true)
+        if (appTaskRemoved || taskRemovalShutdown) {
           emitDiagnostic("android_audio_focus_gain_resume_blocked", simpleData("reason", "app_task_removed"))
+          emitLifecycleTrace("recovery_blocked", "focus_gain", mapOf("reason" to "task_removed"))
           return
         }
-        if (!wasPlayingBeforeAudioFocusLoss) {
+        if (!isCallResumeEligible() && !wasPlayingBeforeAudioFocusLoss) {
           emitDiagnostic("android_audio_focus_gain_resume_blocked", simpleData("reason", "not_playing_before_interruption"))
-          phoneCallInterruptionActive = false
+          endCallInterruptionWithoutResume("not_playing_before_interruption")
           return
         }
-        if (!shouldPlayWhenReady) {
+        if (!shouldPlayWhenReady && !isCallResumeEligible()) {
           emitDiagnostic("android_audio_focus_gain_resume_blocked", simpleData("reason", "should_not_play"))
-          phoneCallInterruptionActive = false
+          endCallInterruptionWithoutResume("should_not_play")
+          return
+        }
+        if (userOverrideDuringCall && player?.isPlaying == true) {
+          // Explicit Play during call already succeeded — do nothing on call end.
+          emitLifecycleTrace("call_end_noop_already_playing", "focus_gain")
+          endCallInterruptionWithoutResume("already_playing_user_override")
+          return
+        }
+        if (!isCallResumeEligible() && !wasPlayingBeforeAudioFocusLoss) {
+          endCallInterruptionWithoutResume("ineligible")
           return
         }
         emitDiagnostic("android_audio_focus_gain_resume_allowed", data)
+        val resumeGeneration = callInterruptionGeneration
         phoneCallInterruptionActive = false
-        postPlaybackCallback { reassertBackgroundPlayback("audio_focus_gain") }
+        shouldPlayWhenReady = true
+        postPlaybackCallback {
+          if (appTaskRemoved || taskRemovalShutdown) {
+            emitLifecycleTrace("recovery_blocked", "focus_gain_callback", mapOf("reason" to "task_removed"))
+            return@postPlaybackCallback
+          }
+          if (resumeGeneration != 0L && resumeGeneration != callInterruptionGeneration) {
+            emitLifecycleTrace(
+              "recovery_blocked",
+              "focus_gain_callback",
+              mapOf("reason" to "stale_call_generation")
+            )
+            return@postPlaybackCallback
+          }
+          if (interruptedMediaKey != null && interruptedMediaKey != loadedMediaKey) {
+            emitLifecycleTrace(
+              "recovery_blocked",
+              "focus_gain_callback",
+              mapOf("reason" to "media_replaced")
+            )
+            resetCallInterruptionState("media_replaced")
+            return@postPlaybackCallback
+          }
+          reassertBackgroundPlayback("audio_focus_gain")
+          resetCallInterruptionState("resumed_after_focus_gain")
+        }
       }
     }
   }
@@ -938,6 +1501,7 @@ object HiddenAudioCore {
 
     if (hasAudioFocus) {
       emitDiagnostic("android_audio_focus_request_reused")
+      emitContinuousPlaybackTrace("audio_focus_granted", "request_reused")
       return true
     }
 
@@ -949,6 +1513,7 @@ object HiddenAudioCore {
       hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
       if (hasAudioFocus) {
         emitDiagnostic("android_audio_focus_request_granted")
+        emitContinuousPlaybackTrace("audio_focus_granted", "request_new")
       } else {
         emitDiagnostic("android_audio_focus_request_failed")
       }
@@ -969,6 +1534,7 @@ object HiddenAudioCore {
     hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     if (hasAudioFocus) {
       emitDiagnostic("android_audio_focus_request_granted")
+      emitContinuousPlaybackTrace("audio_focus_granted", "request_legacy")
     } else {
       emitDiagnostic("android_audio_focus_request_failed")
     }
@@ -989,7 +1555,15 @@ object HiddenAudioCore {
   }
 
   private fun startForegroundService() {
-    val context = reactContext ?: return
+    syncTaskRemovedFromDisk()
+    if (appTaskRemoved || taskRemovalShutdown) {
+      emitDiagnostic(
+        "android_foreground_service_start_blocked_task_removed",
+        simpleData("reason", "user_dismissed_recents")
+      )
+      return
+    }
+    val context = applicationContext ?: reactContext ?: return
     val intent = Intent(context, HiddenAudioPlaybackService::class.java)
     try {
       ContextCompat.startForegroundService(context, intent)
@@ -1003,7 +1577,7 @@ object HiddenAudioCore {
   }
 
   private fun stopForegroundService() {
-    val context = reactContext ?: return
+    val context = applicationContext ?: reactContext ?: return
     context.stopService(Intent(context, HiddenAudioPlaybackService::class.java))
     emitDiagnostic("android_foreground_service_status", simpleData("status", "stopped"))
   }
@@ -1012,8 +1586,8 @@ object HiddenAudioCore {
     stopProgressLoop()
     progressTick = object : Runnable {
       override fun run() {
-        emitProgress()
-        mainHandler.postDelayed(this, 500)
+        emitProgress(force = false)
+        mainHandler.postDelayed(this, PROGRESS_LOOP_INTERVAL_MS)
       }
     }
     mainHandler.post(progressTick!!)
@@ -1032,15 +1606,31 @@ object HiddenAudioCore {
     syncMediaSession()
   }
 
-  private fun emitProgress() {
-    val progressBody = Arguments.createMap()
-    progressBody.putString("type", "progress")
-    progressBody.putMap("progress", progress())
-    emit("HiddenAudioProgress", progressBody)
+  private fun emitProgress(force: Boolean = true) {
+    val snapshot = progress()
+    val positionSeconds =
+      if (snapshot.hasKey("positionSeconds")) snapshot.getDouble("positionSeconds") else 0.0
+    val positionMs = (positionSeconds * 1000.0).toLong()
+    val status =
+      if (snapshot.hasKey("status")) snapshot.getString("status") ?: playerStatus else playerStatus
+    val isPlaying =
+      if (snapshot.hasKey("isPlaying")) snapshot.getDouble("isPlaying") >= 0.5 else false
+    if (
+      !force &&
+        status == lastEmittedProgressStatus &&
+        isPlaying == lastEmittedProgressIsPlaying &&
+        kotlin.math.abs(positionMs - lastEmittedProgressPositionMs) < PROGRESS_EMIT_MIN_DELTA_MS
+    ) {
+      return
+    }
+    lastEmittedProgressPositionMs = positionMs
+    lastEmittedProgressStatus = status
+    lastEmittedProgressIsPlaying = isPlaying
 
+    // JS only subscribes to HiddenAudioProgressChanged — avoid duplicate bridge traffic.
     val progressChangedBody = Arguments.createMap()
     progressChangedBody.putString("type", "progress")
-    progressChangedBody.putMap("progress", progress())
+    progressChangedBody.putMap("progress", copyWritableMap(snapshot))
     emit("HiddenAudioProgressChanged", progressChangedBody)
   }
 
@@ -1123,7 +1713,15 @@ object HiddenAudioCore {
   }
 
   fun playForcedFromSession() {
-    val context = reactContext ?: return
+    if (HiddenAudioMediaSessionManager.isPresentedExternalOwner()) {
+      emitRemoteCommand("play")
+      return
+    }
+    val context = resolvePlaybackContext()
+    if (context == null) {
+      emitRemoteCommand("play")
+      return
+    }
     ensurePlayer(context)
     HiddenAudioMediaSessionManager.activateSessionForAuto(context, "auto_play_command")
     emitAudioRouteDiagnostic("auto_play_command")
@@ -1150,21 +1748,12 @@ object HiddenAudioCore {
       return
     }
 
-    if (context.hasActiveReactInstance()) {
-      emitRemoteCommand("play")
-      return
-    }
-
-    emitDiagnostic(
-      "android_auto_play_forced",
-      simpleData("state", "no_loaded_track_or_catalog")
-    )
+    emitRemoteCommand("play")
   }
 
   fun skipToNextFromSession() {
     emitAutoDiagnostic("android_auto_next_received")
-    val context = reactContext
-    if (context != null && context.hasActiveReactInstance()) {
+    if (isReactBridgeLive()) {
       emitRemoteCommand("next")
       return
     }
@@ -1179,8 +1768,7 @@ object HiddenAudioCore {
 
   fun skipToPreviousFromSession() {
     emitAutoDiagnostic("android_auto_previous_received")
-    val context = reactContext
-    if (context != null && context.hasActiveReactInstance()) {
+    if (isReactBridgeLive()) {
       emitRemoteCommand("previous")
       return
     }
@@ -1195,11 +1783,16 @@ object HiddenAudioCore {
 
   private fun activeTrackMediaId(): String? {
     val track = activeTrack ?: return null
+    if (track.mediaId.isNotBlank()) return track.mediaId
     return HiddenAudioAutoCatalog.findMediaIdByUrl(track.url)
       ?: if (track.id.isNotBlank()) "song:${track.id}" else null
   }
 
   fun pauseForcedFromSession() {
+    if (HiddenAudioMediaSessionManager.isPresentedExternalOwner()) {
+      emitRemoteCommand("pause")
+      return
+    }
     if (player?.isPlaying != true && player?.playWhenReady != true) {
       playerStatus = "paused"
       player?.pause()
@@ -1211,66 +1804,229 @@ object HiddenAudioCore {
     pause()
   }
 
-  fun playFromAutoMediaId(mediaId: String) {
-    val startData = Arguments.createMap()
-    startData.putString("mediaId", mediaId)
-    emitAutoDiagnostic("android_auto_play_from_media_id", startData)
-
-    val track = HiddenAudioAutoCatalog.getTrack(mediaId)
-    if (track == null) {
-      val failData = Arguments.createMap()
-      failData.putString("mediaId", mediaId)
-      failData.putString("reason", "track_not_in_catalog")
-      emitAutoDiagnostic("android_auto_play_from_media_id_failed", failData)
-      emitRemoteCommand("play_from_media_id", mediaId)
+  fun stopForcedFromSession() {
+    if (HiddenAudioMediaSessionManager.isPresentedExternalOwner()) {
+      emitRemoteCommand("stop")
       return
     }
-
-    val context = reactContext
-    if (context == null) {
-      val failData = Arguments.createMap()
-      failData.putString("mediaId", mediaId)
-      failData.putString("trackId", track.id)
-      failData.putString("reason", "react_context_unavailable")
-      emitAutoDiagnostic("android_auto_play_from_media_id_failed", failData)
-      emitRemoteCommand("play_from_media_id", mediaId)
-      return
-    }
-
     try {
-      val trackMap = HiddenAudioAutoCatalog.trackToWritableMap(track)
-      loadTrack(context, trackMap)
-      playForcedFromSession()
-      val successData = Arguments.createMap()
-      successData.putString("mediaId", mediaId)
-      successData.putString("trackId", track.id)
-      successData.putString("title", track.title)
-      successData.putString("artist", track.artist)
-      emitAutoDiagnostic("android_auto_play_from_media_id_success", successData)
-    } catch (error: Throwable) {
-      val failData = Arguments.createMap()
-      failData.putString("mediaId", mediaId)
-      failData.putString("trackId", track.id)
-      failData.putString("reason", error.message ?: "load_failed")
-      emitAutoDiagnostic("android_auto_play_from_media_id_failed", failData)
-      emitDiagnostic("android_auto_media_session_error", failData)
+      stop()
+    } catch (_: Throwable) {
+      emitRemoteCommand("stop")
     }
-    emitRemoteCommand("play_from_media_id", mediaId)
   }
 
-  fun emitRemoteCommand(command: String, mediaId: String? = null) {
+  /**
+   * Android Auto media selection.
+   * Prefer the canonical JS playback path when React Native is ready.
+   * Native ExoPlayer is only used as cold-start fallback for catalog tracks
+   * that already include a stream URL — never a second long-lived player.
+   */
+  fun playFromAutoMediaId(mediaId: String) {
+    val handle = HiddenAudioPlaybackTransaction.begin(mediaId, "play_from_media_id")
+    val startData = handle.toDiagnosticMap()
+    startData.putString("mediaId", mediaId)
+    emitAutoDiagnostic("android_auto_play_from_media_id", startData)
+    emitAutoDiagnostic("android_auto_media_selected", startData)
+
+    emitAutoDiagnostic("previous_owner_released", handle.toDiagnosticMap())
+    emitAutoDiagnostic("media_owner_claimed", handle.toDiagnosticMap())
+
+    // Canonical path: when JS is live, route through PlayerContext only.
+    if (isReactBridgeLive()) {
+      emitRemoteCommand("play_from_media_id", mediaId, handle)
+      return
+    }
+
+    val track = HiddenAudioAutoCatalog.getTrack(mediaId)
+    val context = resolvePlaybackContext()
+    if (track != null && track.url.isNotBlank() && context != null) {
+      if (!HiddenAudioPlaybackTransaction.isCurrent(handle.transactionId)) {
+        HiddenAudioPlaybackTransaction.markStaleIgnored(handle.transactionId, "before_native_load")
+        return
+      }
+      try {
+        val trackMap = HiddenAudioAutoCatalog.trackToWritableMap(track)
+        loadTrackFromAutoCatalog(context, trackMap, track)
+        if (!HiddenAudioPlaybackTransaction.isCurrent(handle.transactionId)) {
+          HiddenAudioPlaybackTransaction.markStaleIgnored(handle.transactionId, "after_native_load")
+          return
+        }
+        playForcedFromSession()
+        emitAutoDiagnostic("canonical_player_invoked", handle.toDiagnosticMap().apply {
+          putString("path", "native_cold_start")
+          putString("title", track.title)
+        })
+        val successData = handle.toDiagnosticMap()
+        successData.putString("mediaId", mediaId)
+        successData.putString("trackId", track.id)
+        successData.putString("title", track.title)
+        successData.putString("artist", track.artist)
+        emitAutoDiagnostic("android_auto_play_from_media_id_success", successData)
+        // Do not re-dispatch play_from_media_id — that would double-start when RN wakes.
+        return
+      } catch (error: Throwable) {
+        val failData = handle.toDiagnosticMap()
+        failData.putString("mediaId", mediaId)
+        failData.putString("trackId", track.id)
+        failData.putString("reason", error.message ?: "load_failed")
+        emitAutoDiagnostic("android_auto_play_from_media_id_failed", failData)
+      }
+    }
+
+    // No native URL / no context — wait for JS (bounded pending queue).
+    val failData = handle.toDiagnosticMap()
+    failData.putString("mediaId", mediaId)
+    failData.putString("reason", if (track == null) "track_not_in_catalog" else "awaiting_react_native")
+    emitAutoDiagnostic("android_auto_play_from_media_id_failed", failData)
+    emitRemoteCommand("play_from_media_id", mediaId, handle)
+  }
+
+  private fun loadTrackFromAutoCatalog(
+    context: Context,
+    trackMap: WritableMap,
+    track: HiddenAudioAutoCatalog.AutoTrack
+  ) {
+    // Prefer ReactApplicationContext path when available.
+    val react = reactContext
+    if (react != null) {
+      loadTrack(react, trackMap)
+      // Enrich active track with AA metadata after load.
+      activeTrack = activeTrack?.copy(
+        mediaId = track.mediaId,
+        contentType = track.contentType,
+        isLive = track.isLive,
+        durationSeconds = if (track.isLive) 0.0 else track.durationSeconds
+      )
+      return
+    }
+    // Cold-start without RN: ensure player and load directly.
+    ensurePlayer(context)
+    clearPlaybackCallbacks()
+    val sessionId = bumpPlaybackSession()
+    committedPlaySessionId = sessionId
+    lastLoadTrackAtMs = SystemClock.elapsedRealtime()
+    val nextTrack = ActiveTrackData(
+      id = track.id,
+      url = track.url,
+      title = track.title,
+      artist = track.artist,
+      album = track.album,
+      artworkUrl = track.artworkUrl,
+      durationSeconds = if (track.isLive) 0.0 else track.durationSeconds,
+      mediaId = track.mediaId,
+      contentType = track.contentType,
+      isLive = track.isLive
+    )
+    if (nextTrack.url.isBlank()) {
+      throw IllegalArgumentException("HiddenAudio track URL is required")
+    }
+    val exo = player ?: throw IllegalStateException("HiddenAudio player is not initialized")
+    activeTrack = nextTrack
+    activeIndex = 0
+    playbackEndedHandled = false
+    lastPlayingStartedAtMs = 0L
+    loadedMediaKey = mediaKeyFor(nextTrack)
+    pendingLoadSeekToStart = !track.isLive
+    hasReachedReadyForCurrentTrack = false
+    val mediaItem = MediaItem.Builder()
+      .setUri(Uri.parse(nextTrack.url))
+      .setMediaId(nextTrack.mediaId.ifBlank { nextTrack.id })
+      .build()
+    exo.stop()
+    exo.clearMediaItems()
+    exo.setMediaItem(mediaItem, 0L)
+    if (!track.isLive) {
+      forceSeekToStart(exo, emitDiagnostic = true, reason = "auto_cold_load")
+    }
+    shouldPlayWhenReady = false
+    exo.prepare()
+    playerStatus = "ready"
+    emitState()
+  }
+
+  fun emitRemoteCommand(
+    command: String,
+    mediaId: String? = null,
+    handle: HiddenAudioPlaybackTransaction.Handle? = null,
+    forcePending: Boolean = false
+  ) {
+    val tx = handle ?: HiddenAudioPlaybackTransaction.current()
     val data = Arguments.createMap()
     data.putString("command", command)
     if (!mediaId.isNullOrBlank()) {
       data.putString("mediaId", mediaId)
     }
-    emitDiagnostic("android_remote_command_received", data)
-    val forwardedData = Arguments.createMap()
-    forwardedData.putString("command", command)
-    if (!mediaId.isNullOrBlank()) {
-      forwardedData.putString("mediaId", mediaId)
+    if (tx != null) {
+      data.putDouble("transactionId", tx.transactionId.toDouble())
+      data.putString("correlationId", tx.correlationId)
     }
-    emitDiagnostic("remote_command_dispatched_to_js", forwardedData)
+    emitDiagnostic("android_remote_command_received", data)
+    emitDiagnostic("remote_command_received", copyWritableMap(data))
+
+    val reactLive = isReactBridgeLive() && !forcePending
+    if (reactLive) {
+      val forwardedData = Arguments.createMap()
+      forwardedData.putString("command", command)
+      if (!mediaId.isNullOrBlank()) {
+        forwardedData.putString("mediaId", mediaId)
+      }
+      if (tx != null) {
+        forwardedData.putDouble("transactionId", tx.transactionId.toDouble())
+        forwardedData.putString("correlationId", tx.correlationId)
+      }
+      emitDiagnostic("remote_command_dispatched_to_js", forwardedData)
+      return
+    }
+
+    HiddenAudioPendingCommandQueue.enqueue(
+      command = command,
+      mediaId = mediaId,
+      transactionId = tx?.transactionId ?: 0L,
+      correlationId = tx?.correlationId ?: ""
+    )
+  }
+
+  fun flushPendingRemoteCommands() {
+    if (!isReactBridgeLive()) return
+    val due = HiddenAudioPendingCommandQueue.drainDue()
+    for (pending in due) {
+      if (pending.transactionId != 0L &&
+        !HiddenAudioPlaybackTransaction.isCurrent(pending.transactionId) &&
+        (pending.command == "play_from_media_id" || pending.command == "play")
+      ) {
+        HiddenAudioPlaybackTransaction.markStaleIgnored(
+          pending.transactionId,
+          "pending_flush"
+        )
+        continue
+      }
+      val data = Arguments.createMap()
+      data.putString("command", pending.command)
+      if (!pending.mediaId.isNullOrBlank()) {
+        data.putString("mediaId", pending.mediaId)
+      }
+      data.putDouble("transactionId", pending.transactionId.toDouble())
+      data.putString("correlationId", pending.correlationId)
+      emitDiagnostic("android_remote_command_received", data)
+      emitDiagnostic("remote_command_dispatched_to_js", copyWritableMap(data))
+    }
+  }
+
+  private fun isReactBridgeLive(): Boolean {
+    val context = reactContext ?: return false
+    return context.hasActiveReactInstance()
+  }
+
+  private fun resolvePlaybackContext(): Context? =
+    reactContext ?: applicationContext
+
+  private fun HiddenAudioPlaybackTransaction.Handle.toDiagnosticMap(): WritableMap {
+    val data = Arguments.createMap()
+    data.putDouble("transactionId", transactionId.toDouble())
+    data.putString("mediaId", mediaId)
+    data.putString("correlationId", correlationId)
+    return data
   }
 
   private fun emitAudioRouteDiagnostic(source: String) {
@@ -1319,7 +2075,8 @@ object HiddenAudioCore {
   private fun syncMediaSession() {
     val exo = player
     val track = activeTrack
-    reactContext?.let {
+    val ctx = resolvePlaybackContext()
+    ctx?.let {
       HiddenAudioMediaSessionManager.activateSessionForAuto(it, "sync_media_session")
     }
     HiddenAudioMediaSessionManager.syncFromPlayer(
@@ -1327,16 +2084,48 @@ object HiddenAudioCore {
       artist = track?.artist ?: "Hidden Tunes",
       album = track?.album ?: "",
       artworkUrl = track?.artworkUrl ?: "",
-      durationSeconds = track?.durationSeconds ?: 0.0,
-      positionSeconds = (exo?.currentPosition?.coerceAtLeast(0) ?: 0L) / 1000.0,
+      durationSeconds = if (track?.isLive == true) 0.0 else (track?.durationSeconds ?: 0.0),
+      positionSeconds = if (track?.isLive == true) {
+        0.0
+      } else {
+        (exo?.currentPosition?.coerceAtLeast(0) ?: 0L) / 1000.0
+      },
       player = exo,
-      status = playerStatus
+      status = playerStatus,
+      mediaId = track?.mediaId ?: "",
+      contentType = track?.contentType ?: "",
+      isLive = track?.isLive == true
     )
   }
 
 
   fun notifyAppBackgrounded() {
     lastAppBackgroundAtMs = SystemClock.elapsedRealtime()
+  }
+
+  fun noteAndroidAutoBrowserConnected(clientPackageName: String) {
+    androidAutoBrowserClients += 1
+    val data = Arguments.createMap()
+    data.putString("clientPackageName", clientPackageName)
+    data.putInt("connectedClients", androidAutoBrowserClients)
+    emitAutoDiagnostic("android_auto_browser_client_connected", data)
+  }
+
+  fun noteAndroidAutoBrowserDisconnected() {
+    androidAutoBrowserClients = (androidAutoBrowserClients - 1).coerceAtLeast(0)
+    val data = Arguments.createMap()
+    data.putInt("connectedClients", androidAutoBrowserClients)
+    emitAutoDiagnostic("android_auto_browser_client_disconnected", data)
+  }
+
+  /** Deliberate Recents clear always stops — never preserve for Android Auto. */
+  fun shouldPreservePlaybackAfterTaskRemoved(): Boolean {
+    return false
+  }
+
+  fun isAppTaskRemoved(): Boolean {
+    syncTaskRemovedFromDisk()
+    return appTaskRemoved || taskRemovalShutdown
   }
 
   private fun isPlaybackActive(): Boolean {
@@ -1351,25 +2140,93 @@ object HiddenAudioCore {
       (exo.isPlaying || (exo.playWhenReady && playerStatus == "buffering"))
   }
 
-  fun handleTaskRemoved() {
-    val nowMs = SystemClock.elapsedRealtime()
-    val recentBackground =
-      lastAppBackgroundAtMs > 0L &&
-      nowMs - lastAppBackgroundAtMs <= TASK_REMOVED_BACKGROUND_GRACE_MS
-    if (recentBackground || isPlaybackActive()) {
-      emitDiagnostic("android_task_removed_ignored_recent_background")
-      return
+  private fun persistTaskRemovedDismissed(dismissed: Boolean) {
+    val context = applicationContext ?: reactContext ?: return
+    try {
+      context
+        .getSharedPreferences(TASK_REMOVED_PREFS, Context.MODE_PRIVATE)
+        .edit()
+        .putBoolean(TASK_REMOVED_KEY, dismissed)
+        .apply()
+    } catch (_: Throwable) {
+      // persistence must never block stop
     }
+  }
+
+  private fun syncTaskRemovedFromDisk() {
+    if (appTaskRemoved || taskRemovalShutdown) return
+    val context = applicationContext ?: reactContext ?: return
+    try {
+      val dismissed =
+        context
+          .getSharedPreferences(TASK_REMOVED_PREFS, Context.MODE_PRIVATE)
+          .getBoolean(TASK_REMOVED_KEY, false)
+      if (dismissed) {
+        appTaskRemoved = true
+        taskRemovalShutdown = true
+      }
+    } catch (_: Throwable) {
+      // ignore
+    }
+  }
+
+  private fun clearUserDismissedTaskFlag(source: String) {
+    syncTaskRemovedFromDisk()
+    if (!appTaskRemoved && !taskRemovalShutdown) return
+    appTaskRemoved = false
+    taskRemovalShutdown = false
+    persistTaskRemovedDismissed(false)
+    emitDiagnostic("android_task_removed_cleared", simpleData("source", source))
+    emitLifecycleTrace("task_removal_cleared_for_user_play", source)
+  }
+
+  /**
+   * Explicit Recents swipe-away. Always full shutdown — Android Auto connection
+   * must not preserve playback after deliberate task removal. Normal Home/lock
+   * backgrounding never reaches here without task removal.
+   */
+  fun handleTaskRemoved() {
+    // Latch shutdown BEFORE stop so recovery/focus-gain / AA reconnect cannot race a restart.
+    taskRemovalShutdown = true
     appTaskRemoved = true
     phoneCallInterruptionActive = false
     wasPlayingBeforeAudioFocusLoss = false
-    emitDiagnostic("android_task_removed")
+    shouldPlayWhenReady = false
+    backgroundPlaybackIntended = false
+    resetCallInterruptionState("task_removed")
+    callInterruptionGeneration += 1L
+    emitLifecycleTrace("task_removed", "onTaskRemoved", mapOf("shutdownReason" to "task_removed"))
+    emitDiagnostic(
+      "android_task_removed",
+      Arguments.createMap().apply {
+        putBoolean("preservedForAndroidAuto", false)
+        putBoolean("taskRemovalShutdown", true)
+        putInt("androidAutoBrowserClients", androidAutoBrowserClients)
+        if (lastAppBackgroundAtMs > 0L) {
+          putDouble(
+            "msSinceBackground",
+            (SystemClock.elapsedRealtime() - lastAppBackgroundAtMs).toDouble()
+          )
+        }
+      }
+    )
     emitDiagnostic("intentional_app_close_detected")
     try {
-      pauseForInterruption("task_removed", permanent = true)
+      val exo = player
+      exo?.pause()
+      exo?.playWhenReady = false
+      playerStatus = "paused"
       stop()
+      // Fully release MediaSession so notification/lock-screen cannot resurrect playback.
+      HiddenAudioMediaSessionManager.release()
+      emitLifecycleTrace("media_session_released", "task_removed")
+      emitLifecycleTrace("foreground_service_stopped", "task_removed")
+      persistTaskRemovedDismissed(true)
       emitDiagnostic("intentional_app_close_native_stop_success")
     } catch (error: Throwable) {
+      persistTaskRemovedDismissed(true)
+      taskRemovalShutdown = true
+      appTaskRemoved = true
       val data = Arguments.createMap()
       data.putString("message", error.message ?: "task_removed_stop_failed")
       emitDiagnostic("intentional_app_close_native_stop_failed", data)

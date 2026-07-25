@@ -606,6 +606,20 @@ export const EducationalPlaybackController = {
 
     return false;
   },
+
+  async resolveCurrentIfNeeded(songId?: string | null): Promise<boolean> {
+    const session = getEducationalPlaybackSession();
+    if (!session || !playerBindings) return false;
+    const sessionId = parseSessionIdFromSongId(songId) || parseEducationalSessionSongId(songId);
+    if (!sessionId) return false;
+    const index = findEducationalSessionIndex(session.loadedSessions, sessionId);
+    if (index < 0) return false;
+    const requestId = ++activePlayRequestId;
+    const result = await this.playSessionIndex(index, requestId, {
+      playGeneration: session.queueGeneration,
+    });
+    return requestId === activePlayRequestId && result.ok;
+  },
 };
 
 export async function handleEducationalSessionFinished() {

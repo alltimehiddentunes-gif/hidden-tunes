@@ -38,7 +38,26 @@ export type SearchDiagnosticEvent =
   | "merge_complete"
   | "fallback_shown"
   | "search_direct_match_count"
-  | "search_fallback_demoted";
+  | "search_fallback_demoted"
+  | "search_input_event"
+  | "search_debounce_start"
+  | "search_debounce_end"
+  | "search_local_filter_start"
+  | "search_local_filter_end"
+  | "search_albums_artists_group_end"
+  | "search_tv_request_start"
+  | "search_tv_request_end"
+  | "search_radio_request_start"
+  | "search_radio_request_end"
+  | "search_podcast_request_start"
+  | "search_podcast_request_end"
+  | "search_merge_end"
+  | "search_dedupe_end"
+  | "search_rank_end"
+  | "search_set_state"
+  | "search_first_result_render"
+  | "search_duplicate_keys"
+  | "search_stale_response_ignored";
 
 export type SearchDiagnosticDetails = Record<
   string,
@@ -57,6 +76,20 @@ export function logSearchDiagnostic(
 ) {
   if (!shouldLog()) return;
   console.log("[HiddenTunes:search]", event, {
+    at: Date.now(),
+    ...details,
+  });
+}
+
+/** Always-on __DEV__ timing for Search bottleneck audits (independent of verbose flag). */
+export function logSearchTiming(
+  event: SearchDiagnosticEvent,
+  startedAt: number,
+  details: SearchDiagnosticDetails = {}
+) {
+  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+  console.log("[HTSearchTiming]", event, {
+    elapsedMs: Math.max(0, Date.now() - startedAt),
     at: Date.now(),
     ...details,
   });

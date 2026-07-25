@@ -5,6 +5,13 @@
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
+import {
+  assignUniqueAlbumCatalogId,
+  buildAlbumsFromSongs,
+  slugifyCatalogToken,
+} from "../utils/hiddenTunesAlbumIdentity";
+
+export { assignUniqueAlbumCatalogId } from "../utils/hiddenTunesAlbumIdentity";
 
 export interface HiddenTunesSong {
   id: string;
@@ -76,12 +83,7 @@ function cleanString(value: unknown, fallback = "") {
 }
 
 function slugify(value: string) {
-  return String(value || "")
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return slugifyCatalogToken(value);
 }
 
 function firstString(...values: unknown[]) {
@@ -167,28 +169,21 @@ function firstArtwork(songs: HiddenTunesSong[]) {
   return songs.find((song) => song.cover || song.artwork)?.cover || FALLBACK_COVER;
 }
 
-function normalizeAlbumLabel(value: unknown) {
-  return cleanString(value).replace(/\s+/g, " ").toLowerCase();
-}
-
-function albumKey(song: HiddenTunesSong) {
-  const album = normalizeAlbumLabel(song.album) || "singles";
-  return `${normalizeAlbumLabel(song.artist)}:${album}`;
-}
-
 function buildAlbums(songs: HiddenTunesSong[]): HiddenTunesAlbumCatalogItem[] {
-  return Array.from(groupBy(songs, albumKey).entries()).map(([key, albumSongs]) => {
-    const lead = albumSongs[0];
-    const title = lead.album || "Singles";
+  return buildAlbumsFromSongs(songs, FALLBACK_COVER).map((album) => ({
+    id: album.id,
+    title: album.title,
+    artist: album.artist,
+    artwork: album.artwork,
+    songs: album.songs as HiddenTunesSong[],
+  }));
+}
 
-    return {
-      id: slugify(key),
-      title,
-      artist: lead.artist,
-      artwork: firstArtwork(albumSongs),
-      songs: albumSongs,
-    };
-  });
+/** Test/helper: build album rows from songs without full catalog derive. */
+export function buildHiddenTunesAlbumsFromSongs(
+  songs: HiddenTunesSong[]
+): HiddenTunesAlbumCatalogItem[] {
+  return buildAlbums(songs);
 }
 
 function buildArtists(
@@ -505,7 +500,20 @@ export function getCachedHiddenTunesCatalog() {
  * Returns any non-empty cache (including untrusted slices) so Home is not blocked.
  */
 export async function hydrateCachedHiddenTunesCatalog(): Promise<HiddenTunesDerivedCatalog | null> {
+  // Fast path: avoid re-parsing / re-deriving when memory already holds a catalog.
+  if (derivedCatalogCache && derivedCatalogCache.songs.length > 0) {
+    return derivedCatalogCache;
+  }
+
   await hydrateHiddenTunesCatalogCache();
+
+  // Yield once so navigation / taps are not starved by synchronous derive on large caches.
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  if (derivedCatalogCache && derivedCatalogCache.songs.length > 0) {
+    return derivedCatalogCache;
+  }
+
   syncDerivedCatalogFromSnapshot();
   const cached = derivedCatalogCache;
   return cached && cached.songs.length > 0 ? cached : null;

@@ -3,18 +3,21 @@ import type {
   AudiobookChapterPlayItem,
   AudiobookItem,
 } from "../types/audiobooks";
+import { orderAudiobookChapters } from "./audiobookOrdering";
 import {
   buildAudiobookChapterAppSongs,
+  buildAudiobookQueueContext,
   isPlayableAudiobookChapterAudioUrl,
 } from "./audiobookPlaybackAdapter";
+import { logContentPerfQueueBuild } from "./contentPerformanceDiagnostics";
 
-const AUDIOBOOK_QUEUE_CONTEXT = { source: "unknown" as const, label: "Audiobooks" };
+type AudiobookQueueContext = ReturnType<typeof buildAudiobookQueueContext>;
 
 type PlaySongFn = (
   song: AppSong,
   queue?: AppSong[],
   index?: number,
-  queueContext?: typeof AUDIOBOOK_QUEUE_CONTEXT,
+  queueContext?: AudiobookQueueContext,
   queueMode?: "standard"
 ) => Promise<void>;
 
@@ -37,10 +40,12 @@ export async function playAudiobookChapterQueue({
   seekTo,
   startPositionMillis = 0,
 }: PlayAudiobookChapterQueueArgs) {
-  const playableChapters = chapters.filter(
-    (chapter) =>
-      Boolean(chapter.audio_url?.trim()) &&
-      isPlayableAudiobookChapterAudioUrl(chapter.audio_url)
+  const playableChapters = orderAudiobookChapters(
+    chapters.filter(
+      (chapter) =>
+        Boolean(chapter.audio_url?.trim()) &&
+        isPlayableAudiobookChapterAudioUrl(chapter.audio_url)
+    )
   );
 
   if (!playableChapters.length) {
@@ -60,14 +65,11 @@ export async function playAudiobookChapterQueue({
     Math.min(resolvedIndex >= 0 ? resolvedIndex : 0, songs.length - 1)
   );
 
+  const queueContext = buildAudiobookQueueContext(book);
+  logContentPerfQueueBuild("audiobook", "playback", songs.length);
+
   try {
-    await playSong(
-      songs[safeIndex],
-      songs,
-      safeIndex,
-      { ...AUDIOBOOK_QUEUE_CONTEXT, label: book.title || "Audiobooks" },
-      "standard"
-    );
+    await playSong(songs[safeIndex], songs, safeIndex, queueContext, "standard");
 
     const resumeMs = Math.max(0, Math.floor(startPositionMillis || 0));
     if (resumeMs > 0 && seekTo) {

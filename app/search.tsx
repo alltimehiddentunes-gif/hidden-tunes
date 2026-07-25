@@ -94,7 +94,11 @@ import {
   type SearchStationResult,
 } from "../utils/searchApkParity";
 import { logPlaybackCritical } from "../utils/playbackCriticalLogs";
-import { logSearchDiagnostic, logSearchRankingDiagnostics } from "../utils/searchDiagnostics";
+import {
+  logSearchDiagnostic,
+  logSearchRankingDiagnostics,
+  logSearchTiming,
+} from "../utils/searchDiagnostics";
 import { isHeavyPerfDiagnosticsEnabled } from "../utils/devDiagnostics";
 import { logVisibleFeatureChecklist } from "../utils/visibleFeatureDiagnostics";
 import { logEntityTapReceived } from "../utils/entityDiagnostics";
@@ -106,6 +110,14 @@ import {
   shouldCacheBackendSearchResult,
   shouldShowGenuineZeroMatches,
 } from "../utils/searchPerformance";
+import {
+  albumSearchCanonicalId,
+  artistSearchCanonicalId,
+  buildSearchKeyDiagnostics,
+  buildSearchReactKey,
+  dedupeSearchRowsByCanonicalId,
+  findDuplicateSearchReactKeys,
+} from "../utils/searchResultIdentity";
 import { resolveStationEntity } from "../utils/entityResolution";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
@@ -115,6 +127,7 @@ import {
   buildSongFavoriteItem,
 } from "../services/favorites/favoriteItemBuilders";
 import { markFastScrolling } from "../utils/performanceMode";
+import { runSearchWorkAfterPlaybackYield } from "../utils/playbackSearchPriority";
 import {
   getUserFacingArtist,
   getUserFacingRadioSubtitle,
@@ -503,8 +516,38 @@ export default function SearchScreen() {
   const localSearchResults = useMemo(() => {
     if (!cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
     const cached = localSearchCacheRef.current.get(localSearchCacheKey);
-    if (cached) return cached;
+    if (cached) {
+      if (__DEV__) {
+        logSearchTiming("search_local_filter_end", Date.now(), {
+          query: cleanSubmittedSearchQuery,
+          cacheHit: true,
+          songHits: cached.songs.length,
+        });
+      }
+      return cached;
+    }
+    const startedAt = Date.now();
+    if (__DEV__) {
+      logSearchTiming("search_local_filter_start", startedAt, {
+        query: cleanSubmittedSearchQuery,
+        catalogSongs: searchCatalog.songs.length,
+      });
+    }
     const results = runUniversalCatalogSearch(searchCatalog, cleanSubmittedSearchQuery);
+    if (__DEV__) {
+      logSearchTiming("search_local_filter_end", startedAt, {
+        query: cleanSubmittedSearchQuery,
+        cacheHit: false,
+        songHits: results.songs.length,
+        albumHits: results.albums.length,
+        artistHits: results.artists.length,
+      });
+      logSearchTiming("search_albums_artists_group_end", startedAt, {
+        query: cleanSubmittedSearchQuery,
+        albumHits: results.albums.length,
+        artistHits: results.artists.length,
+      });
+    }
     setBoundedCache(localSearchCacheRef.current, localSearchCacheKey, results, SEARCH_LOCAL_CACHE_LIMIT);
     return results;
   }, [cleanSubmittedSearchQuery, localSearchCacheKey, searchCatalog]);
@@ -556,9 +599,17 @@ export default function SearchScreen() {
     setBackendSearchCompletedQuery("");
     setBackendSearchError(null);
     setBackendSearchSongs([]);
+    if (__DEV__) {
+      logSearchTiming("search_set_state", Date.now(), {
+        query,
+        phase: "backend_pending_clear",
+        requestId,
+      });
+    }
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
+      const backendStartedAt = Date.now();
       logSearchDiagnostic("search_backend_immediate_start", {
         query,
         limit: SEARCH_BACKEND_RESULT_LIMIT,
@@ -567,6 +618,12 @@ export default function SearchScreen() {
         query,
         limit: SEARCH_BACKEND_RESULT_LIMIT,
       });
+      if (__DEV__) {
+        logSearchTiming("search_backend_query_start", backendStartedAt, {
+          query,
+          requestId,
+        });
+      }
 
       void searchHiddenTunesSongs(query, {
         signal: controller.signal,
@@ -575,8 +632,24 @@ export default function SearchScreen() {
         retries: SEARCH_COLD_START_MAX_ATTEMPTS - 1,
         retryDelayMs: SEARCH_COLD_START_RETRY_DELAY_MS,
       })
-        .then((results) => {
-          if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
+        .then(async (results) => {
+          if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) {
+            if (__DEV__) {
+              logSearchDiagnostic("search_stale_response_ignored", {
+                source: "backend",
+                query,
+                requestId,
+              });
+            }
+            return;
+          }
+          if (__DEV__) {
+            logSearchTiming("search_backend_query_success", backendStartedAt, {
+              query,
+              requestId,
+              count: results.length,
+            });
+          }
           if (shouldCacheBackendSearchResult(false)) {
             backendSearchCacheRef.current.set(cacheKey, results);
             if (backendSearchCacheRef.current.size > SEARCH_BACKEND_CACHE_LIMIT) {
@@ -584,8 +657,11 @@ export default function SearchScreen() {
               if (oldestQuery) backendSearchCacheRef.current.delete(oldestQuery);
             }
           }
-          setBackendSearchSongs(results);
-          setBackendSearchError(null);
+          // Playback taps outrank Search setState; yield if a tap is in flight.
+          await runSearchWorkAfterPlaybackYield(() => {
+            setBackendSearchSongs(results);
+            setBackendSearchError(null);
+          });
           logSearchDiagnostic("search_backend_immediate_success", {
             query,
             count: results.length,
@@ -609,7 +685,9 @@ export default function SearchScreen() {
           const message = error instanceof Error ? error.message : String(error);
           console.log("Search backend query error:", error);
           // Preserve any prior successful songs for this screen; never cache failures as [].
-          setBackendSearchError(message || "search_backend_failed");
+          void runSearchWorkAfterPlaybackYield(() => {
+            setBackendSearchError(message || "search_backend_failed");
+          });
           logSearchDiagnostic("search_backend_immediate_failed", {
             query,
             error: message,
@@ -622,7 +700,9 @@ export default function SearchScreen() {
         .finally(() => {
           if (controller.signal.aborted) return;
           if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
-          setBackendSearchCompletedQuery(query);
+          void runSearchWorkAfterPlaybackYield(() => {
+            setBackendSearchCompletedQuery(query);
+          });
         });
     }, SEARCH_BACKEND_DEBOUNCE_MS);
 
@@ -804,10 +884,8 @@ export default function SearchScreen() {
   const externalSearchPendingForQuery =
     shouldRunExternalSearch && externalSearchCompletedQuery !== cleanSubmittedSearchQuery;
 
-  const shouldRunTvSearch =
-    cleanSubmittedSearchQuery.length >= 2 &&
-    !backendSearchPendingForQuery &&
-    !externalSearchPendingForQuery;
+  // TV hydrates in parallel with backend/external so one slow category cannot block others.
+  const shouldRunTvSearch = cleanSubmittedSearchQuery.length >= 2;
 
   useEffect(() => {
     const query = cleanSubmittedSearchQuery;
@@ -828,10 +906,30 @@ export default function SearchScreen() {
     tvSearchRequestIdRef.current = requestId;
     setTvSearchQuery(query);
     setTvSearchCompletedQuery("");
+    const tvStartedAt = Date.now();
+    if (__DEV__) {
+      logSearchTiming("search_tv_request_start", tvStartedAt, { query, requestId });
+    }
 
     void fetchTvSearchVideos(query, { signal: controller.signal, limit: SEARCH_TV_LIMIT })
       .then((videos) => {
-        if (tvSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
+        if (tvSearchRequestIdRef.current !== requestId || !mountedRef.current) {
+          if (__DEV__) {
+            logSearchDiagnostic("search_stale_response_ignored", {
+              source: "tv",
+              query,
+              requestId,
+            });
+          }
+          return;
+        }
+        if (__DEV__) {
+          logSearchTiming("search_tv_request_end", tvStartedAt, {
+            query,
+            requestId,
+            count: videos.length,
+          });
+        }
         setTvSearchVideos(videos);
       })
       .catch((error) => {
@@ -881,24 +979,25 @@ export default function SearchScreen() {
   );
 
   const searchResultSongs = useMemo(() => {
+    const rankStartedAt = Date.now();
     const backendSongs = songsFromSearchHits(backendSearchResults);
     const internalSongs = songsFromSearchHits(internalSearchResults);
     const merged = dedupeSongs([...backendSongs, ...internalSongs]);
-    return unwrapRankedSearchItems(rankSearchSongs(merged, cleanSubmittedSearchQuery));
+    const ranked = unwrapRankedSearchItems(
+      rankSearchSongs(merged, cleanSubmittedSearchQuery, { limit: 80 })
+    );
+    if (__DEV__ && cleanSubmittedSearchQuery) {
+      logSearchTiming("search_rank_end", rankStartedAt, {
+        query: cleanSubmittedSearchQuery,
+        mergedCount: merged.length,
+        rankedCount: ranked.length,
+      });
+    }
+    return ranked;
   }, [backendSearchResults, cleanSubmittedSearchQuery, internalSearchResults]);
 
-  const reliableCatalogSongResults = useMemo(() => {
-    if (!cleanSubmittedSearchQuery) return [] as HiddenTunesSong[];
-
-    return unwrapRankedSearchItems(
-      rankSearchSongs(searchResultSongs, cleanSubmittedSearchQuery, { limit: 80 })
-    );
-  }, [cleanSubmittedSearchQuery, searchResultSongs]);
-
-  const reliableCatalogSongIds = useMemo(
-    () => new Set(reliableCatalogSongResults.map((song) => String(song.id || ""))),
-    [reliableCatalogSongResults]
-  );
+  // Already ranked + bounded above — avoid a second full re-rank on every merge.
+  const reliableCatalogSongResults = searchResultSongs;
 
   const apkSongRanked = useMemo(() => {
     if (!cleanSubmittedSearchQuery) return [] as ReturnType<typeof rankApkSongResults>;
@@ -918,6 +1017,7 @@ export default function SearchScreen() {
   const apkAlbumResults = useMemo(() => {
     if (cleanSubmittedSearchQuery.length < 2) return [] as HiddenTunesAlbumCatalogItem[];
 
+    const dedupeStartedAt = Date.now();
     const fromBackbone = internalSearchResults.albums
       .map((hit) => {
         const album = hit.payload;
@@ -944,7 +1044,19 @@ export default function SearchScreen() {
       })
       .filter(Boolean) as HiddenTunesAlbumCatalogItem[];
 
-    return rankApkAlbumResults(fromBackbone, cleanSubmittedSearchQuery);
+    const ranked = rankApkAlbumResults(fromBackbone, cleanSubmittedSearchQuery);
+    const deduped = dedupeSearchRowsByCanonicalId(ranked, (album) =>
+      albumSearchCanonicalId(album)
+    );
+    if (__DEV__) {
+      logSearchTiming("search_dedupe_end", dedupeStartedAt, {
+        query: cleanSubmittedSearchQuery,
+        kind: "album",
+        before: ranked.length,
+        after: deduped.length,
+      });
+    }
+    return deduped;
   }, [
     albumLookup,
     cleanSubmittedSearchQuery,
@@ -975,22 +1087,9 @@ export default function SearchScreen() {
       .filter(Boolean) as HiddenTunesArtistCatalogItem[];
 
     const ranked = rankApkArtistResults(fromBackbone, cleanSubmittedSearchQuery);
-    const seen = new Set<string>();
-    return ranked.filter((artist) => {
-      const key = String(artist.id || "").trim();
-      if (!key || seen.has(key)) {
-        if (typeof __DEV__ !== "undefined" && __DEV__ && key && seen.has(key)) {
-          console.log("[list_key_collision]", {
-            screen: "search",
-            key,
-            name: artist.name,
-          });
-        }
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
+    return dedupeSearchRowsByCanonicalId(ranked, (artist) =>
+      artistSearchCanonicalId(artist)
+    );
   }, [
     artistLookup,
     cleanSubmittedSearchQuery,
@@ -1114,17 +1213,18 @@ export default function SearchScreen() {
   const cleanSearchQuery = searchQuery.trim();
   const searchDebouncePending =
     cleanSearchQuery.length > 0 && cleanSearchQuery !== cleanSubmittedSearchQuery;
+  // Local catalog results must paint immediately; do not wait on backend/TV/radio.
   const showSearchResults =
-    cleanSubmittedSearchQuery.length > 0 &&
-    !searchDebouncePending &&
-    !backendSearchPendingForQuery;
-  const tvSearchPendingForQuery =
-    shouldRunTvSearch && tvSearchCompletedQuery !== cleanSubmittedSearchQuery;
+    cleanSubmittedSearchQuery.length > 0 && !searchDebouncePending;
+  const hasImmediateLocalHits =
+    localSearchResults.hasAnyResults ||
+    apkSongResults.length > 0 ||
+    apkAlbumResults.length > 0 ||
+    apkArtistResults.length > 0;
   const showSearchLoading =
     hasSearchText &&
     (searchDebouncePending ||
-      backendSearchPendingForQuery ||
-      externalSearchPendingForQuery);
+      (backendSearchPendingForQuery && !hasImmediateLocalHits));
 
   const showDiscovery = !hasSearchText || cleanSubmittedSearchQuery.length === 0;
 
@@ -1670,6 +1770,14 @@ export default function SearchScreen() {
   );
 
   const handleSearchImmediateChange = useCallback((text: string) => {
+    if (__DEV__) {
+      logSearchTiming("search_input_event", Date.now(), {
+        queryLength: text.length,
+      });
+      logSearchTiming("search_debounce_start", Date.now(), {
+        queryLength: text.length,
+      });
+    }
     setSearchQuery(text);
     if (text.trim().length === 0) {
       setSubmittedSearchQuery("");
@@ -1682,11 +1790,97 @@ export default function SearchScreen() {
   }, []);
 
   const lastSearchDiagnosticsKeyRef = useRef("");
+  const searchQueryStartedAtRef = useRef(0);
+  const firstResultLoggedKeyRef = useRef("");
 
   useEffect(() => {
-    if (!cleanSubmittedSearchQuery) return;
+    if (!cleanSubmittedSearchQuery) {
+      firstResultLoggedKeyRef.current = "";
+      return;
+    }
+    searchQueryStartedAtRef.current = Date.now();
     logSearchDiagnostic("search_started", { query: cleanSubmittedSearchQuery });
+    if (__DEV__) {
+      logSearchTiming("search_debounce_end", searchQueryStartedAtRef.current, {
+        query: cleanSubmittedSearchQuery,
+      });
+    }
   }, [cleanSubmittedSearchQuery]);
+
+  useEffect(() => {
+    if (!__DEV__ || !showSearchResults || !cleanSubmittedSearchQuery) return;
+    if (!hasImmediateLocalHits && apkResultCount === 0) return;
+    if (firstResultLoggedKeyRef.current === cleanSubmittedSearchQuery) return;
+    firstResultLoggedKeyRef.current = cleanSubmittedSearchQuery;
+    logSearchTiming("search_first_result_render", searchQueryStartedAtRef.current || Date.now(), {
+      query: cleanSubmittedSearchQuery,
+      localSongs: apkSongResults.length,
+      localAlbums: apkAlbumResults.length,
+      backendPending: backendSearchPendingForQuery,
+    });
+  }, [
+    apkAlbumResults.length,
+    apkResultCount,
+    apkSongResults.length,
+    backendSearchPendingForQuery,
+    cleanSubmittedSearchQuery,
+    hasImmediateLocalHits,
+    showSearchResults,
+  ]);
+
+  useEffect(() => {
+    if (!__DEV__ || !showSearchResults || !cleanSubmittedSearchQuery) return;
+
+    const diagnostics = buildSearchKeyDiagnostics({
+      songs: apkSongResults.slice(0, 18),
+      albums: apkAlbumResults,
+      artists: apkArtistResults,
+      genres: apkRoomResults,
+      stations: apkStationResults,
+      playlists: apkPlaylistResults,
+      tv: apkTvResults.map((hit) => ({
+        id: hit.payload?.id,
+        title: hit.payload?.title,
+        channel: (hit.payload as { channelTitle?: string; creator?: string })?.channelTitle,
+      })),
+      radio: deferredMedia.radioStations,
+      podcasts: deferredPodcasts.results,
+      external: apkExternalAudioResults,
+    });
+    const duplicates = findDuplicateSearchReactKeys(diagnostics);
+    if (duplicates.length) {
+      console.log("[HTSearchTiming] search_duplicate_keys", {
+        query: cleanSubmittedSearchQuery,
+        count: duplicates.length,
+        keys: duplicates.map((row) => ({
+          reactKey: row.reactKey,
+          contentType: row.contentType,
+          rawId: row.rawId,
+          canonicalId: row.canonicalId,
+          title: row.title,
+          secondary: row.secondary,
+          source: row.source,
+        })),
+      });
+      logSearchDiagnostic("search_duplicate_keys", {
+        query: cleanSubmittedSearchQuery,
+        count: duplicates.length,
+      });
+    }
+  }, [
+    apkAlbumResults,
+    apkArtistResults,
+    apkExternalAudioResults,
+    apkPlaylistResults,
+    apkRoomResults,
+    apkSongResults,
+    apkStationResults,
+    apkTvResults,
+    cleanSubmittedSearchQuery,
+    deferredMedia.radioStations,
+    deferredPodcasts.results,
+    showSearchResults,
+  ]);
 
   useEffect(() => {
     if (!isHeavyPerfDiagnosticsEnabled()) return;
@@ -1846,9 +2040,9 @@ export default function SearchScreen() {
                 {apkSongResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>{searchUi.sections.songs}</Text>
-                    {apkSongResults.slice(0, 18).map((song, index) => (
+                    {apkSongResults.slice(0, 18).map((song) => (
                       <SearchApkSongRow
-                        key={`song-${song.id}-${index}`}
+                        key={buildSearchReactKey("song", String(song.id || ""))}
                         song={song as unknown as HiddenTunesNormalizedSong}
                         onPress={() => playSearchResultSong(song, "song")}
                         styles={styles}
@@ -1863,7 +2057,9 @@ export default function SearchScreen() {
                     <FlatList
                       horizontal
                       data={apkAlbumResults}
-                      keyExtractor={(album) => String(album.id)}
+                      keyExtractor={(album) =>
+                        buildSearchReactKey("album", albumSearchCanonicalId(album))
+                      }
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.rail}
                       initialNumToRender={4}
@@ -1900,7 +2096,9 @@ export default function SearchScreen() {
                     <FlatList
                       horizontal
                       data={apkArtistResults}
-                      keyExtractor={(artist) => String(artist.id)}
+                      keyExtractor={(artist) =>
+                        buildSearchReactKey("artist", artistSearchCanonicalId(artist))
+                      }
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.rail}
                       initialNumToRender={4}
@@ -1935,7 +2133,12 @@ export default function SearchScreen() {
                     <Text style={styles.sectionEyebrow}>{searchUi.sections.genresRooms}</Text>
                     <View style={styles.roomGrid}>
                       {apkRoomResults.map((genre) => (
-                        <TouchableOpacity key={genre.id} activeOpacity={0.86} style={styles.roomCard} onPress={() => playGenreResult(genre)}>
+                        <TouchableOpacity
+                          key={buildSearchReactKey("genre", String(genre.id || genre.title || ""))}
+                          activeOpacity={0.86}
+                          style={styles.roomCard}
+                          onPress={() => playGenreResult(genre)}
+                        >
                           <HTImage source={genre} style={styles.roomImage} contentFit="cover" />
                           <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
                           <Text numberOfLines={1} style={styles.roomTitle}>{genre.title}</Text>
@@ -1954,7 +2157,7 @@ export default function SearchScreen() {
                     <View style={styles.roomGrid}>
                       {apkStationResults.map((station) => (
                         <TouchableOpacity
-                          key={`station-${station.id}`}
+                          key={buildSearchReactKey("station", String(station.id || ""))}
                           activeOpacity={0.86}
                           style={styles.roomCard}
                           onPress={() => startSearchStation(station)}
@@ -1988,7 +2191,9 @@ export default function SearchScreen() {
                     <FlatList
                       horizontal
                       data={apkPlaylistResults}
-                      keyExtractor={(playlist) => String(playlist.id)}
+                      keyExtractor={(playlist) =>
+                        buildSearchReactKey("playlist", String(playlist.id || ""))
+                      }
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.rail}
                       initialNumToRender={4}
@@ -2015,9 +2220,9 @@ export default function SearchScreen() {
                 {apkExternalAudioResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>{searchUi.sections.moreListening}</Text>
-                    {apkExternalAudioResults.map((song, index) => (
+                    {apkExternalAudioResults.map((song) => (
                       <TouchableOpacity
-                        key={`external-${song.id}-${index}`}
+                        key={buildSearchReactKey("external", String(song.id || ""))}
                         activeOpacity={0.86}
                         style={styles.songRow}
                         onPress={() => playSearchResultSong(song, "external")}
@@ -2050,7 +2255,7 @@ export default function SearchScreen() {
                 {apkTvResults.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>{searchUi.sections.videos}</Text>
-                    {apkTvResults.map((hit, index) => {
+                    {apkTvResults.map((hit) => {
                       const video = hit.payload as HiddenTunesTvVideo;
                       const item = normalizeVideoItem(video);
                       const displayTitle =
@@ -2062,7 +2267,7 @@ export default function SearchScreen() {
                         searchUi.video;
                       return (
                         <TouchableOpacity
-                          key={`tv-${video.id}-${index}`}
+                          key={buildSearchReactKey("tv", String(video.id || ""))}
                           activeOpacity={0.86}
                           style={styles.songRow}
                           onPress={() => openTv(video)}
@@ -2124,7 +2329,7 @@ export default function SearchScreen() {
                     </View>
                     {deferredMedia.radioStations.map((station) => (
                       <RadioStationCard
-                        key={`search-radio-${station.id}`}
+                        key={buildSearchReactKey("radio", String(station.id || ""))}
                         item={station}
                         onPress={() => playSearchRadioStation(station)}
                       />
@@ -2149,10 +2354,13 @@ export default function SearchScreen() {
                 deferredPodcasts.results.length > 0 ? (
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>{searchUi.sections.podcasts}</Text>
-                    {deferredPodcasts.results.map((result, index) =>
+                    {deferredPodcasts.results.map((result) =>
                       result.kind === "show" && result.show ? (
                         <PodcastShowCard
-                          key={`search-podcast-show-${result.show.id}-${index}`}
+                          key={buildSearchReactKey(
+                            "podcast",
+                            `show:${String(result.show.id || "")}`
+                          )}
                           show={result.show}
                           onPress={() =>
                             router.push({
@@ -2163,7 +2371,10 @@ export default function SearchScreen() {
                         />
                       ) : result.episode ? (
                         <PodcastEpisodeCard
-                          key={`search-podcast-episode-${result.episode.id}-${index}`}
+                          key={buildSearchReactKey(
+                            "podcast",
+                            `episode:${String(result.episode.id || "")}`
+                          )}
                           episode={result.episode}
                           onPress={() => playSearchPodcastEpisode(result.episode!)}
                         />
@@ -2248,8 +2459,13 @@ export default function SearchScreen() {
                   <View style={styles.sectionBlock}>
                     <Text style={styles.sectionEyebrow}>{searchUi.forYou}</Text>
                     <Text style={styles.sectionTitle}>{searchUi.quickPicks}</Text>
-                    {discoverySongs.map((song, index) => (
-                      <TouchableOpacity key={`pick-${song.id}-${index}`} activeOpacity={0.86} style={styles.songRow} onPress={() => playDiscoverySong(song, searchUi.quickPicksSource)}>
+                    {discoverySongs.map((song) => (
+                      <TouchableOpacity
+                        key={buildSearchReactKey("song", `pick:${String(song.id || "")}`)}
+                        activeOpacity={0.86}
+                        style={styles.songRow}
+                        onPress={() => playDiscoverySong(song, searchUi.quickPicksSource)}
+                      >
                         <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
                           <HTImage source={song} style={styles.cover} contentFit="cover" />
                         </LinearGradient>

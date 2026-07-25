@@ -28,9 +28,6 @@ import { loadRadioSearchPage } from "../../services/radio/radioBrowserApi";
 import { normalizeRadioSearchCacheKey } from "../../services/radio/radioCache";
 import { normalizeRadioStation } from "../../services/radio/radioNormalizer";
 import { buildRadioSessionFromListItems } from "../../services/radio/buildRadioPlaybackSession";
-import { resolveRadioStationStreamUrl } from "../../services/radio/radioCatalogApi";
-import { claimExclusivePlayback } from "../../services/playback/PlaybackHandoffCoordinator";
-import { isCatalogAbortError } from "../../services/catalogJsonFetch";
 import type { RadioStationListItem } from "../../types/radio";
 import {
   createStableKeyExtractor,
@@ -113,14 +110,6 @@ export default function RadioSearchScreen() {
       setPendingStationId(stationId);
 
       try {
-        // Silence TV/video/sports before slow /play resolve — last tap wins.
-        await claimExclusivePlayback({
-          owner: "shared-audio",
-          contentKind: "radio",
-          mediaKey: stationId,
-        });
-        if (generation !== playGenerationRef.current) return;
-
         const station = resolveStationRef.current(stationId);
         if (!station) {
           if (generation === playGenerationRef.current) {
@@ -128,26 +117,6 @@ export default function RadioSearchScreen() {
           }
           return;
         }
-
-        let streamUrl = "";
-        try {
-          streamUrl = (await resolveRadioStationStreamUrl(station)) || "";
-        } catch (error) {
-          if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
-            return;
-          }
-          streamUrl = "";
-        }
-
-        if (generation !== playGenerationRef.current) return;
-
-        if (!streamUrl) {
-          Alert.alert("Unavailable", STATION_UNAVAILABLE_MESSAGE);
-          return;
-        }
-
-        const playableStation = { ...station, streamUrl };
-        upsertStationRef.current(playableStation);
 
         // Bound session window so tap does not remap thousands of rows on the JS thread.
         const allItems = listItemsRef.current;
@@ -158,12 +127,9 @@ export default function RadioSearchScreen() {
 
         const session = buildRadioSessionFromListItems(
           sessionItems,
-          (id) => {
-            if (id === playableStation.id) return playableStation;
-            return resolveStationRef.current(id);
-          },
+          (id) => resolveStationRef.current(id),
           {
-            startStationId: playableStation.id,
+            startStationId: station.id,
             label: debouncedQueryRef.current
               ? `Search: ${debouncedQueryRef.current}`
               : "Radio Search",
@@ -174,12 +140,22 @@ export default function RadioSearchScreen() {
 
         if (generation !== playGenerationRef.current) return;
 
-        const result = await playRadioStation(
-          normalizeRadioStation(playableStation),
-          session
-        );
+        // Canonical switch: stop previous → abort old /play → resolve → play latest.
+        const result = await playRadioStation(normalizeRadioStation(station), {
+          ...session,
+          origin: "search",
+        });
 
         if (generation !== playGenerationRef.current) return;
+
+        if (result.aborted) return;
+
+        if (result.ok) {
+          const resolvedStream = String(result.streamUrl || "").trim();
+          if (resolvedStream.startsWith("https://")) {
+            upsertStationRef.current({ ...station, streamUrl: resolvedStream });
+          }
+        }
 
         if (!result.ok) {
           Alert.alert(
