@@ -64,20 +64,12 @@ export function attachLegalCandidateMeta(
 ): TvGrowthCandidate {
   const tagPrefix = `expansion:${meta.provider}`;
   const tags = [...new Set([...(candidate.tags || []), tagPrefix, ...(meta.category ? [meta.category] : [])])];
-  const metaNote = [
-    `Provider: ${meta.provider}`,
-    meta.officialPage ? `Official: ${meta.officialPage}` : null,
-    meta.officialStationId ? `Station ID: ${meta.officialStationId}` : null,
-    `Legal basis: ${meta.legalBasis}`,
-    `Discovered: ${meta.discoveredAt}`,
-  ]
-    .filter(Boolean)
-    .join(" | ");
-
+  // Provenance (provider / legal basis / discovered-at) belongs in tags, source_key,
+  // reports, and logs — never in the public consumer-facing description field.
   return {
     ...candidate,
     tags,
-    description: candidate.description ? `${candidate.description} | ${metaNote}` : metaNote,
+    description: candidate.description || null,
     country: candidate.country || meta.country || null,
     region: candidate.region || meta.country || null,
     language: candidate.language || meta.language || null,

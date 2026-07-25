@@ -1,3 +1,5 @@
+import { cleanPublicTvDescription } from "@/lib/tvDescriptionSanitizer";
+
 export const TV_SOURCE_TYPES = [
   "youtube_channel",
   "youtube_playlist",
@@ -175,7 +177,7 @@ export function toTvPublicStation(row: Record<string, unknown>): TvPublicStation
   return {
     id: String(row.id || ""),
     title: String(row.title || "Untitled"),
-    description: cleanText(row.description, 2000),
+    description: cleanPublicTvDescription(cleanText(row.description, 2000)),
     logo: cleanText(row.thumbnail_url, 2000),
     country: cleanText(row.region, 120),
     language: cleanText(row.language, 80),

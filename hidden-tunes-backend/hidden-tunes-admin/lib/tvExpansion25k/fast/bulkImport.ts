@@ -1,4 +1,5 @@
 import { TV_VIDEO_SOURCE_TYPE } from "@/lib/tvCatalog";
+import { cleanPublicTvDescription } from "@/lib/tvDescriptionSanitizer";
 import {
   type TvGrowthCandidate,
   type TvGrowthImportOptions,
@@ -75,7 +76,7 @@ function buildInsertRow(
     source_url: url,
     embed_url: candidate.embed_url || null,
     title: candidate.title,
-    description: candidate.description || null,
+    description: cleanPublicTvDescription(candidate.description),
     channel_name: candidate.channel_name || null,
     thumbnail_url: candidate.thumbnail_url || null,
     category: candidate.category || candidate.categories?.[0] || null,

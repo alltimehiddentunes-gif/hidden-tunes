@@ -1,0 +1,1028 @@
+{
+  "audited_with_description": 9491,
+  "flagged": 9440,
+  "byPhrase": {
+    "provider_legal_basis": 9368,
+    "discovered_via": 63,
+    "deep_city_search": 55,
+    "national_television_stream": 33,
+    "_national": 33,
+    "country_channel_website_dash": 30,
+    "excessive_underscores": 23,
+    "bracketed_internal": 23,
+    "iptv_org_public_directory": 10,
+    "candidate": 9,
+    "africa_expansion": 9,
+    "verification": 5,
+    "europe_expansion": 5,
+    "_local": 4
+  },
+  "byCountry": {
+    "?": 3353,
+    "US": 679,
+    "FR": 366,
+    "DE": 358,
+    "IT": 330,
+    "CA": 322,
+    "ES": 320,
+    "GB": 318,
+    "SW": 316,
+    "RU_SMOTRIM": 180,
+    "SE_PLUTO": 174,
+    "NO": 171,
+    "NO_PLUTO": 164,
+    "SO": 162,
+    "IN": 144,
+    "AU": 142,
+    "INT": 140,
+    "MX": 133,
+    "US_PLUTO": 121,
+    "US_TUBI": 87,
+    "BR": 74,
+    "US_SAMSUNG": 71,
+    "IN_DISTRO": 62,
+    "RO": 50,
+    "UK_SAMSUNG": 46,
+    "US_DISTRO": 44,
+    "DK_PLUTO": 43,
+    "US_XUMO": 41,
+    "NZ_SAMSUNG": 40,
+    "IT_PLUTO": 33,
+    "RU": 32,
+    "US_KLOWDTV": 30,
+    "CA_PLUTO": 26,
+    "RU_ZABAVA": 25,
+    "CZ": 25,
+    "SK_ANTIK": 24,
+    "UK_RAKUTEN": 23,
+    "SP": 22,
+    "DE_PLUTO": 22,
+    "SK": 19,
+    "CH": 18,
+    "NL": 18,
+    "CL": 17,
+    "GR": 17,
+    "QA": 17,
+    "SA": 17,
+    "SE_SAMSUNG": 17,
+    "US_STIRR": 16,
+    "FR_PLUTO": 15,
+    "PL": 14,
+    "UA": 13,
+    "NL_SAMSUNG": 13,
+    "IN_PISHOW": 13,
+    "PE": 12,
+    "MN_SKYGO": 12,
+    "TR": 11,
+    "BY": 11,
+    "FI": 11,
+    "MM": 11,
+    "US_PLEX": 10,
+    "CO": 10,
+    "AT": 9,
+    "ID": 9,
+    "VN": 9,
+    "US_VIZIO": 9,
+    "NO_SAMSUNG": 9,
+    "FI_SAMSUNG": 9,
+    "DK": 8,
+    "TM": 8,
+    "US_UPLYNK": 8,
+    "SE": 7,
+    "AR": 7,
+    "HU": 7,
+    "FR_RAKUTEN": 7,
+    "PL_RAKUTEN": 7,
+    "DK_SAMSUNG": 7,
+    "CN": 6,
+    "AE": 6,
+    "DO": 6,
+    "BG": 6,
+    "RU_BONUSTV": 6,
+    "KR": 6,
+    "PT": 6,
+    "US_ROKU": 6,
+    "US_WCETV": 6,
+    "NG": 5,
+    "VE": 5,
+    "CR": 5,
+    "EE": 5,
+    "RU_TELEVIZOR24": 5,
+    "US_FIRETV": 5,
+    "BE": 5,
+    "FR_BFM": 5,
+    "HN": 4,
+    "BO": 4,
+    "IQ": 4,
+    "MK": 4,
+    "SC": 4,
+    "US_LOCAL": 4,
+    "PS": 4,
+    "US_SOFAST": 4,
+    "IN_DOORDARSHAN": 4,
+    "JP": 4,
+    "IN_SAMSUNG": 4,
+    "RS": 3,
+    "SG": 3,
+    "PY": 3,
+    "RU_NTV": 3,
+    "MW": 3,
+    "ES_RAKUTEN": 3,
+    "BA": 3,
+    "FR_TRACEPLUS": 3,
+    "KW": 3,
+    "LU_SAMSUNG": 3,
+    "MD": 3,
+    "MX_SAMSUNG": 3,
+    "SY": 3,
+    "US_GLEWEDTV": 3,
+    "IR": 3,
+    "IR_TELEWEBION": 3,
+    "US_CBSN": 3,
+    "PK": 3,
+    "RU_RT": 3,
+    "UG": 2,
+    "MA": 2,
+    "KH": 2,
+    "AL": 2,
+    "NI": 2,
+    "TH": 2,
+    "BR_PLUTO": 2,
+    "BD": 2,
+    "SV": 2,
+    "CA_SAMSUNG": 2,
+    "TW": 2,
+    "ES_SAMSUNG": 2,
+    "RU_CATCAST": 2,
+    "FI_RAKUTEN": 2,
+    "US_TCL": 2,
+    "TN": 2,
+    "ZA": 2,
+    "KE": 2,
+    "DZ": 2,
+    "DE_RAKUTEN": 2,
+    "EC": 2,
+    "GE": 2,
+    "MX_PLUTO": 2,
+    "NZ": 2,
+    "UK_BBC": 2,
+    "GH": 2,
+    "PH": 2,
+    "RW": 2,
+    "CM": 1,
+    "EG": 1,
+    "ML": 1,
+    "MZ": 1,
+    "FO": 1,
+    "PA": 1,
+    "EU": 1,
+    "VC": 1,
+    "LV": 1,
+    "BF": 1,
+    "UY": 1,
+    "UK_PLUTO": 1,
+    "US_AMAGI": 1,
+    "HK": 1,
+    "SI": 1,
+    "IE_SAMSUNG": 1,
+    "LK": 1,
+    "OM": 1,
+    "PH_COMCLARK": 1,
+    "PR": 1,
+    "PT_SAMSUNG": 1,
+    "ZZ": 1,
+    "AF": 1,
+    "CY": 1,
+    "CD": 1,
+    "CG": 1,
+    "IE": 1,
+    "NP": 1,
+    "US_30A": 1,
+    "US_CANELATV": 1,
+    "US_CINEVERSETV": 1,
+    "US_3ABN": 1,
+    "US_FREQUENCY": 1,
+    "CN_CGTN": 1,
+    "MY": 1,
+    "KZ": 1,
+    "YE": 1,
+    "UZ": 1,
+    "IS": 1,
+    "TT": 1,
+    "TZ": 1,
+    "EH": 1,
+    "IT_RAKUTEN": 1,
+    "JO": 1
+  },
+  "bySourceKeyPrefix": {
+    "iptv-org-api-residual-wave3": 2673,
+    "samsung-tv-plus-fast": 1628,
+    "pluto-tv-global-mjh": 1233,
+    "iptv-org-live": 696,
+    "free-tv": 418,
+    "roku-fast-channels": 350,
+    "buddy-xumo-fast": 305,
+    "buddy-localnow-fast": 296,
+    "buddy-samsung-all-fast": 243,
+    "tdtchannels": 216,
+    "mjh-all-tv": 133,
+    "paratv-official": 118,
+    "iptv-org": 117,
+    "xumo-official-wave3": 105,
+    "buddy-tcl-fast": 101,
+    "iptv-org-github-countries-wave4": 95,
+    "public-americas-wave3": 89,
+    "json-teles-community-wave3": 87,
+    "buddy-rakuten-fast": 72,
+    "paratv-stream-manifests": 68,
+    "europe-deep": 55,
+    "buddy-tubi-fast": 54,
+    "buddy-plex-all-fast": 36,
+    "official-fast-providers-wave4": 30,
+    "buddy-pluto-all-fast": 29,
+    "official-global-hls-ext": 28,
+    "buddy-airy-fast": 21,
+    "buddy-lg-channels-fast": 19,
+    "official-fast-providers": 16,
+    "sports-broadcasters": 11,
+    "news-broadcasters": 10,
+    "religious-broadcasters": 10,
+    "africa-deep": 9,
+    "iptv-org-github-io-index": 8,
+    "buddy-distro-fast": 8,
+    "iptv-org-unseen-worldwave": 7,
+    "official-global-hls": 6,
+    "europe-continuous": 5,
+    "cultural-broadcasters": 4,
+    "music-tv": 4,
+    "africa-continuous": 3,
+    "official-broadcasters": 3,
+    "free-tv-world-countries": 3,
+    "youtube-official-wave3": 3,
+    "official-youtube-live": 2,
+    "parliamentary-tv": 2,
+    "youtube-official-worldwave": 2,
+    "regional-community-wave4": 2,
+    "buddy-roku-alt-fast": 1,
+    "government-tv": 1,
+    "public-asia-pacific-wave2": 1,
+    "public-europe-wave2": 1,
+    "youtube-official-global": 1,
+    "free-community-playlists-wave4": 1,
+    "education-tv": 1
+  },
+  "byDay": {
+    "2026-07-14": 4118,
+    "2026-07-15": 2911,
+    "2026-07-21": 2339,
+    "2026-07-25": 72
+  },
+  "byTier": {
+    "verified": 7220,
+    "search_only": 2220
+  },
+  "byState": {
+    "public_verified": 7030,
+    "search_only": 2176,
+    "quarantined": 231,
+    "approved/failed": 3
+  },
+  "rtm_plus_hits": [
+    {
+      "id": "c10b2837-6de5-4c4c-b4da-7948ea8e8b96",
+      "title": "WDR Fernsehen Dortmund (720p) [Geo-blocked]",
+      "description": "Provider: iptv-org-api-residual-wave3 | Official: https://iptv-org.github.io/ | Station ID: iptv-org-index-wdrfernsehen-de-dortmund-10523 | Legal basis: iptv-org public index residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:41:37.318Z",
+      "region": null,
+      "source_key": "iptv-org-api-residual-wave3:iptv-org-index-wdrfernsehen-de-dortmund-10523",
+      "created_at": "2026-07-15T03:48:47.880368+00:00"
+    },
+    {
+      "id": "cd0abe3f-83da-4d43-8c59-cb24a48d7ad2",
+      "title": "South Park: Colecao Cartman",
+      "description": null,
+      "region": "US",
+      "source_key": "iptv-org:SouthParkColecaoCartman.us",
+      "created_at": "2026-07-10T13:59:29.896003+00:00"
+    },
+    {
+      "id": "460c4f63-8cfe-428e-a8f1-da54e7bb39e9",
+      "title": "South Park: Cartman Collection",
+      "description": null,
+      "region": "SE",
+      "source_key": "iptv-org:SouthParkCartmanCollection.se",
+      "created_at": "2026-07-10T13:59:27.633697+00:00"
+    },
+    {
+      "id": "605f8580-1f81-4c03-812c-e2bb6e4d515d",
+      "title": "ORTM 1",
+      "description": null,
+      "region": "ML",
+      "source_key": "iptv-org:ORTM1.ml",
+      "created_at": "2026-07-10T11:23:12.046442+00:00"
+    },
+    {
+      "id": "d96c0593-536c-40ca-b2d1-3ef9bad6efa2",
+      "title": "RTM TV",
+      "description": null,
+      "region": "IT",
+      "source_key": "iptv-org:RTMTV.it",
+      "created_at": "2026-07-10T11:54:06.584597+00:00"
+    },
+    {
+      "id": "1d6dc332-7880-4714-8e43-5740c4bb34ba",
+      "title": "South Park: Cartman Collection",
+      "description": "Provider: iptv-org-live-countries | Official: https://raw.githubusercontent.com/iptv-org/iptv/master/streams/no_pluto.m3u | Station ID: SouthParkCartmanCollection.se@NO | Legal basis: iptv-org public GitHub country playlist stream linked to an identified channel listing. | Discovered: 2026-07-21T14:59:05.495Z",
+      "region": "NO_PLUTO",
+      "source_key": "iptv-org-live:SouthParkCartmanCollection.se@NO",
+      "created_at": "2026-07-21T15:00:14.364661+00:00"
+    },
+    {
+      "id": "8f30fc88-416a-4e44-bf1f-0d07399b562d",
+      "title": "RTM+",
+      "description": "Czechia _national television stream discovered via Europe deep city search (country-channel-website:_national).",
+      "region": "CZ",
+      "source_key": "europe-deep:CZ:deep-CZ-aHR0cHM6Ly93d3cucnRtcGx1cy5j",
+      "created_at": "2026-07-25T22:45:04.562536+00:00"
+    },
+    {
+      "id": "0f4ffd47-e80a-438f-80d4-0c121a69ff8b",
+      "title": "South Park: Cartman Collection",
+      "description": "Provider: pluto-tv-global-mjh | Official: https://pluto.tv/live-tv | Station ID: 65d881b1332fec000833a122 | Legal basis: Pluto TV free FAST channels across regional Pluto TV catalogs exposed via public channel metadata. | Discovered: 2026-07-14T16:10:05.942Z",
+      "region": "SW",
+      "source_key": "pluto-tv-global-mjh:65d881b1332fec000833a122",
+      "created_at": "2026-07-14T16:18:20.128821+00:00"
+    },
+    {
+      "id": "3dc4cbcc-4f02-4ba9-aaa0-ad011fb62de5",
+      "title": "South Park: Cartman Collection",
+      "description": "Provider: iptv-org-live-countries | Official: https://raw.githubusercontent.com/iptv-org/iptv/master/streams/se_pluto.m3u | Station ID: SouthParkCartmanCollection.se@SE | Legal basis: iptv-org public GitHub country playlist stream linked to an identified channel listing. | Discovered: 2026-07-21T15:00:40.677Z",
+      "region": "SE_PLUTO",
+      "source_key": "iptv-org-live:SouthParkCartmanCollection.se@SE",
+      "created_at": "2026-07-21T15:01:58.882261+00:00"
+    },
+    {
+      "id": "3449c55f-8114-4fbc-a56b-074b970826f5",
+      "title": "South Park: Cartman Collection",
+      "description": "Provider: pluto-tv-global-mjh | Official: https://pluto.tv/live-tv | Station ID: 65d87fa0f7f0af0008b2358b | Legal basis: Pluto TV free FAST channels across regional Pluto TV catalogs exposed via public channel metadata. | Discovered: 2026-07-14T16:10:05.942Z",
+      "region": "NO",
+      "source_key": "pluto-tv-global-mjh:65d87fa0f7f0af0008b2358b",
+      "created_at": "2026-07-14T16:15:20.162333+00:00"
+    },
+    {
+      "id": "b0343850-5df1-415f-b10f-000bae127592",
+      "title": "South Park: Coleccion Cartman",
+      "description": null,
+      "region": "US",
+      "source_key": "iptv-org:SouthParkColeccionCartman.us",
+      "created_at": "2026-07-10T13:59:34.610931+00:00"
+    },
+    {
+      "id": "810b18a0-c0fe-4881-9eda-38e10d70b0ea",
+      "title": "South Park: Cartman Collection",
+      "description": null,
+      "region": "DE",
+      "source_key": "iptv-org:SouthParkCartmanCollection.de",
+      "created_at": "2026-07-10T13:59:26.494759+00:00"
+    },
+    {
+      "id": "4b9655a8-39d2-474d-9b81-66a97957330f",
+      "title": "South Park: Cartman Collection",
+      "description": null,
+      "region": "US",
+      "source_key": "iptv-org:SouthParkCartmanCollection.us",
+      "created_at": "2026-07-10T13:59:28.758843+00:00"
+    },
+    {
+      "id": "162651aa-10c8-4b50-a5af-373aca007635",
+      "title": "South Park: Cartman Collection",
+      "description": "Provider: iptv-org-api-residual-wave3 | Official: https://iptv-org.github.io/ | Station ID: iptv-org-index-southparkcartmancollection-se-no-8425 | Legal basis: iptv-org public index residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:27:50.340Z",
+      "region": null,
+      "source_key": "iptv-org-api-residual-wave3:iptv-org-index-southparkcartmancollection-se-no-8425",
+      "created_at": "2026-07-15T03:33:49.179551+00:00"
+    }
+  ],
+  "samples": {
+    "MA": [
+      {
+        "id": "0c942b7c-abb7-4408-8055-4eaba04d3b9e",
+        "title": "Chada TV (720p)",
+        "description": "Provider: iptv-org-api-residual-wave3 | Official: https://github.com/iptv-org/iptv | Station ID: iptv-org-github-ma-chadatv-ma-sd-6787 | Legal basis: iptv-org GitHub country stream residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T04:01:42.407Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "iptv-org-api-residual-wave3:iptv-org-github-ma-chadatv-ma-sd-6787",
+        "created_at": "2026-07-15T04:05:37.672038+00:00"
+      },
+      {
+        "id": "5d7c5096-3278-4a6d-8036-5de5df92d2ed",
+        "title": "Medi1TV Afrique (1080p) (DVR) (1080p)",
+        "description": "Provider: iptv-org-live-countries | Official: https://raw.githubusercontent.com/iptv-org/iptv/master/streams/ma.m3u | Station ID: Medi1TVAfrique.ma@SD | Legal basis: iptv-org public GitHub country playlist stream linked to an identified channel listing. | Discovered: 2026-07-21T14:58:05.552Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "iptv-org-live:Medi1TVAfrique.ma@SD",
+        "created_at": "2026-07-21T14:59:04.812383+00:00"
+      }
+    ],
+    "GH": [
+      {
+        "id": "625ea2b5-e8d3-4f70-94bd-b149da3e9f00",
+        "title": "Joy News",
+        "description": "Provider: free-tv-world-countries | Station ID: zz-joynews-gh | Legal basis: Free-TV/IPTV country directory entry for officially free-to-air television. | Discovered: 2026-07-14T17:44:15.524Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "free-tv-world-countries:zz-joynews-gh",
+        "created_at": "2026-07-14T17:44:44.214241+00:00"
+      },
+      {
+        "id": "dc0fa444-13bf-469d-b2e4-474317d90e12",
+        "title": "G-eye TV",
+        "description": "Provider: iptv-org-api-residual-wave3 | Official: https://iptv-org.github.io/ | Station ID: iptv-org-index-g-eye-tv-1080p-3471 | Legal basis: iptv-org public index residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:05:51.407Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "iptv-org-api-residual-wave3:iptv-org-index-g-eye-tv-1080p-3471",
+        "created_at": "2026-07-15T03:07:08.108951+00:00"
+      }
+    ],
+    "NG": [
+      {
+        "id": "45f1e916-92f0-4277-8c5d-3bbc48e80bea",
+        "title": "Silverbird News 24",
+        "description": "Provider: news-broadcasters | Official: https://iptv-org.github.io/ | Station ID: SilverbirdNews24.ng | Legal basis: iptv-org indexed news broadcaster streams. | Discovered: 2026-07-21T10:48:26.831Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "news-broadcasters:SilverbirdNews24.ng",
+        "created_at": "2026-07-21T10:49:33.321457+00:00"
+      },
+      {
+        "id": "41cde636-c406-4f98-b524-0b6e12556ccc",
+        "title": "Tele Regency TV",
+        "description": "Provider: iptv-org | Official: https://iptv-org.github.io/ | Station ID: iptv-org-TeleRegencyTV.ng | Legal basis: Public iptv-org directory stream entry linked to an identified broadcaster channel. | Discovered: 2026-07-21T10:50:15.800Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "iptv-org:TeleRegencyTV.ng",
+        "created_at": "2026-07-21T10:50:43.843433+00:00"
+      },
+      {
+        "id": "d9d93424-c531-46d0-81dd-502f98a2e1ae",
+        "title": "Channels TV Nigeria",
+        "description": "Provider: youtube-official-global | Official: https://www.channelstv.com/live/ | Station ID: 1w7OgIMMRc4 | Legal basis: Official broadcaster-owned YouTube live channels supported by the existing Hidden Tunes YouTube playback path. | Discovered: 2026-07-14T14:47:53.564Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "youtube-official-global:1w7OgIMMRc4",
+        "created_at": "2026-07-14T14:48:02.289464+00:00"
+      }
+    ],
+    "FR": [
+      {
+        "id": "377d2d16-f4e9-4a1f-b7e5-a13f3ea7dee3",
+        "title": "125. FRANCE 3 ALSACE [1080p-france.tv]",
+        "description": "Provider: paratv-official | Official: https://github.com/Paradise-91/ParaTV | Station ID: paratv-playlist-125-france-3-alsace-1080p-france-tv | Legal basis: ParaTV curated official free-to-air broadcaster stream. | Discovered: 2026-07-14T17:59:46.365Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "paratv-official:paratv-playlist-125-france-3-alsace-1080p-france-tv",
+        "created_at": "2026-07-14T18:00:08.439103+00:00"
+      },
+      {
+        "id": "0023d5ff-a73e-4eb2-90bd-fe2d6b35821e",
+        "title": "Lofi Girl",
+        "description": "Provider: official-youtube-live | Official: https://www.youtube.com/@LofiGirl | Station ID: jfKfPfyJRdk | Legal basis: Official public YouTube live channel supported by existing player. | Discovered: 2026-07-14T11:10:38.871Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "official-youtube-live:jfKfPfyJRdk",
+        "created_at": "2026-07-14T11:10:55.799739+00:00"
+      },
+      {
+        "id": "c7dcee44-1c71-487e-811d-773f939d15c5",
+        "title": "TV5 Monde Europe",
+        "description": "Provider: free-tv-legal | Official: https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8 | Station ID: TV5MondeEurope.fr | Legal basis: Free-TV/IPTV legal-only curated playlist entry intended for public redistribution. | Discovered: 2026-07-14T11:39:25.761Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "free-tv:TV5MondeEurope.fr",
+        "created_at": "2026-07-14T11:43:45.100446+00:00"
+      }
+    ],
+    "DE": [
+      {
+        "id": "a2ee4a68-0b26-44c5-9039-2acc0293dbad",
+        "title": "KiKa Ⓖ",
+        "description": "Provider: free-tv-legal | Official: https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8 | Station ID: KIKA.de | Legal basis: Free-TV/IPTV legal-only curated playlist entry intended for public redistribution. | Discovered: 2026-07-14T11:39:25.761Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "free-tv:KIKA.de",
+        "created_at": "2026-07-14T11:43:48.754587+00:00"
+      },
+      {
+        "id": "4b62396c-1b46-42c4-abbc-8137b7ce95ba",
+        "title": "RBB Brandenburg Ⓖ",
+        "description": "Provider: free-tv-legal | Official: https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8 | Station ID: RBBBrandenburg.de | Legal basis: Free-TV/IPTV legal-only curated playlist entry intended for public redistribution. | Discovered: 2026-07-14T11:39:25.761Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "free-tv:RBBBrandenburg.de",
+        "created_at": "2026-07-14T11:43:52.150667+00:00"
+      },
+      {
+        "id": "f0a7d3d6-caa9-4b45-a8af-f15d607d6d37",
+        "title": "ONE Ⓖ",
+        "description": "Provider: free-tv-legal | Official: https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8 | Station ID: One.de | Legal basis: Free-TV/IPTV legal-only curated playlist entry intended for public redistribution. | Discovered: 2026-07-14T11:39:25.761Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "free-tv:One.de",
+        "created_at": "2026-07-14T11:43:48.958761+00:00"
+      }
+    ],
+    "US": [
+      {
+        "id": "44f7f6bb-0b60-47ed-9a23-c6407674229f",
+        "title": "Creator TV",
+        "description": "Provider: public-americas-wave3 | Official: https://play.xumo.com/ | Station ID: xumo-99951437 | Legal basis: Xumo Play official public FAST live HLS stream. | Discovered: 2026-07-15T02:46:20.252Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "public-americas-wave3:xumo-99951437",
+        "created_at": "2026-07-15T02:48:08.36207+00:00"
+      },
+      {
+        "id": "a900ab87-23dd-4aa3-aed4-b386df917d9f",
+        "title": "Say Yes to the Dress",
+        "description": "Provider: xumo-official-wave3 | Official: https://play.xumo.com/ | Station ID: xumo-99951394 | Legal basis: Xumo Play official public FAST live HLS stream. | Discovered: 2026-07-15T02:46:20.264Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "xumo-official-wave3:xumo-99951394",
+        "created_at": "2026-07-15T02:48:12.477762+00:00"
+      },
+      {
+        "id": "37b08107-d585-407b-8e00-28efc174d267",
+        "title": "iHeart90s",
+        "description": "Provider: public-americas-wave3 | Official: https://play.xumo.com/ | Station ID: xumo-9995100 | Legal basis: Xumo Play official public FAST live HLS stream. | Discovered: 2026-07-15T02:46:20.252Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "public-americas-wave3:xumo-9995100",
+        "created_at": "2026-07-15T02:48:02.534521+00:00"
+      }
+    ],
+    "CA": [
+      {
+        "id": "58a01897-a02c-4f24-8e3c-e0c8096e4915",
+        "title": "Romance 365",
+        "description": "Provider: pluto-tv-global-mjh | Official: https://pluto.tv/live-tv | Station ID: 62fb6cd97b90e60007bc318a | Legal basis: Pluto TV free FAST channels across regional Pluto TV catalogs exposed via public channel metadata. | Discovered: 2026-07-14T15:44:30.601Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "pluto-tv-global-mjh:62fb6cd97b90e60007bc318a",
+        "created_at": "2026-07-14T15:47:33.31365+00:00"
+      },
+      {
+        "id": "5fa2ab44-263c-43cd-a9f1-f1e4cdf27898",
+        "title": "Christmas 365",
+        "description": "Provider: pluto-tv-global-mjh | Official: https://pluto.tv/live-tv | Station ID: 62fb6d4308f5ec0007453c09 | Legal basis: Pluto TV free FAST channels across regional Pluto TV catalogs exposed via public channel metadata. | Discovered: 2026-07-14T15:44:30.601Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "pluto-tv-global-mjh:62fb6d4308f5ec0007453c09",
+        "created_at": "2026-07-14T15:47:34.463142+00:00"
+      },
+      {
+        "id": "9126df32-3cd9-4dbe-9696-6229ea330868",
+        "title": "Epic Gardening TV",
+        "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: CA2000008F8 | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:28:26.103Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "samsung-tv-plus-fast:CA2000008F8",
+        "created_at": "2026-07-14T15:30:34.046552+00:00"
+      }
+    ],
+    "SE": [
+      {
+        "id": "24ae7eaa-a394-4ee5-8cf6-d0504d3fd29e",
+        "title": "From Dusk Till Dawn: The Series",
+        "description": "Provider: official-fast-providers-wave4 | Official: https://pluto.tv/live-tv | Station ID: fast-pluto-69afee7a3bd16a4ed071080d | Legal basis: pluto official free FAST catalog via public channel metadata (wave4). | Discovered: 2026-07-21T09:52:37.799Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "official-fast-providers-wave4:fast-pluto-69afee7a3bd16a4ed071080d",
+        "created_at": "2026-07-21T09:53:55.813119+00:00"
+      },
+      {
+        "id": "2054daf0-e52b-4375-8849-4135b093c554",
+        "title": "MTV Dating",
+        "description": "Provider: official-fast-providers | Official: https://pluto.tv/live-tv/mtv-dating-se/details | Station ID: MTVDating.se | Legal basis: iptv-org indexed free ad-supported style public streams from identified broadcaster sources. | Discovered: 2026-07-21T10:47:25.583Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "official-fast-providers:MTVDating.se",
+        "created_at": "2026-07-21T10:47:52.71425+00:00"
+      },
+      {
+        "id": "4ef0492c-0741-430a-8370-979d41d909fc",
+        "title": "Tidlösa klassiker från Viafree",
+        "description": "Provider: official-fast-providers-wave4 | Official: https://pluto.tv/live-tv | Station ID: fast-pluto-6964b9560e5b3f70cc9263bc | Legal basis: pluto official free FAST catalog via public channel metadata (wave4). | Discovered: 2026-07-21T09:52:37.799Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "official-fast-providers-wave4:fast-pluto-6964b9560e5b3f70cc9263bc",
+        "created_at": "2026-07-21T09:53:55.813119+00:00"
+      }
+    ],
+    "ZA": [
+      {
+        "id": "43abb36a-49b1-46f0-9a6f-95e4fac7ad9d",
+        "title": "WildEarth (1080p)",
+        "description": "Provider: iptv-org-api-residual-wave3 | Official: https://github.com/iptv-org/iptv | Station ID: iptv-org-github-za-wildearth-za-sd-13936 | Legal basis: iptv-org GitHub country stream residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T04:13:28.890Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "iptv-org-api-residual-wave3:iptv-org-github-za-wildearth-za-sd-13936",
+        "created_at": "2026-07-15T04:15:31.042627+00:00"
+      },
+      {
+        "id": "92fb0ab4-a334-4ca7-96a3-b086277df501",
+        "title": "LoveworldSAT",
+        "description": "Provider: iptv-org-api-residual-wave3 | Official: https://github.com/iptv-org/iptv | Station ID: iptv-org-github-za-loveworldsat-ng-sd-13924 | Legal basis: iptv-org GitHub country stream residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T04:14:06.795Z",
+        "matched": [
+          "provider_legal_basis"
+        ],
+        "source_key": "iptv-org-api-residual-wave3:iptv-org-github-za-loveworldsat-ng-sd-13924",
+        "created_at": "2026-07-15T04:15:30.06898+00:00"
+      }
+    ]
+  },
+  "flagged_sample": [
+    {
+      "id": "57f7be9f-d92f-42a8-bbe1-46dbbd2c850f",
+      "title": "KNDO (NBC) News 23 Yakima WA",
+      "description": "Provider: buddy-localnow-fast | Official: https://www.apsattv.com/localnow.m3u | Station ID: LN_D28FD0E9-288B-4D20-A4C6-86E8DF83973E | Legal basis: Public Local Now free ad-supported linear channel playlist redistributed via apsattv/BuddyChewChew. | Discovered: 2026-07-21T15:08:18.406Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-localnow-fast:LN_D28FD0E9-288B-4D20-A4C6-86E8DF83973E",
+      "created_at": "2026-07-21T15:08:47.600267+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "9366055e-e81d-4d00-ac1e-87e4ab3ee6ee",
+      "title": "KNDU (NBC) News 25 Richland WA",
+      "description": "Provider: buddy-localnow-fast | Official: https://www.apsattv.com/localnow.m3u | Station ID: LN_FC1E0DFB-1B6B-4408-8A88-79146078BBA8 | Legal basis: Public Local Now free ad-supported linear channel playlist redistributed via apsattv/BuddyChewChew. | Discovered: 2026-07-21T15:08:18.406Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-localnow-fast:LN_FC1E0DFB-1B6B-4408-8A88-79146078BBA8",
+      "created_at": "2026-07-21T15:08:47.600267+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "b3444cdd-9678-46f2-b185-8c115356ad22",
+      "title": "KERO 23 News Bakersfield",
+      "description": "Provider: buddy-localnow-fast | Official: https://www.apsattv.com/localnow.m3u | Station ID: LN_BC955D44-FD17-4FDD-81CA-CA8B75F67CBC | Legal basis: Public Local Now free ad-supported linear channel playlist redistributed via apsattv/BuddyChewChew. | Discovered: 2026-07-21T15:08:18.406Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-localnow-fast:LN_BC955D44-FD17-4FDD-81CA-CA8B75F67CBC",
+      "created_at": "2026-07-21T15:08:47.600267+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "f6fdbba4-5a98-40b7-bc1b-b4a58e33b7a5",
+      "title": "UFC (720p)",
+      "description": "Provider: iptv-org-api-residual-wave3 | Official: https://iptv-org.github.io/ | Station ID: iptv-org-index-ufc-720p-10109 | Legal basis: iptv-org public index residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:41:37.318Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "iptv-org-api-residual-wave3:iptv-org-index-ufc-720p-10109",
+      "created_at": "2026-07-15T03:45:41.281114+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "3b27f43c-415b-4488-9bdc-f9e0333c5c03",
+      "title": "ABC TV VIC (720p)",
+      "description": "Provider: iptv-org-live-countries | Official: https://raw.githubusercontent.com/iptv-org/iptv/master/streams/au.m3u | Station ID: ABCTV.au@VIC | Legal basis: iptv-org public GitHub country playlist stream linked to an identified channel listing. | Discovered: 2026-07-21T14:52:52.705Z",
+      "region": "AU",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "iptv-org-live:ABCTV.au@VIC",
+      "created_at": "2026-07-21T14:53:27.740974+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "c23462e3-6754-4557-b04b-d8bb035173ec",
+      "title": "KTVH News Helena",
+      "description": "Provider: buddy-localnow-fast | Official: https://www.apsattv.com/localnow.m3u | Station ID: LN_2D5C8F57-B650-4F77-A837-4DE7F4EF97FD | Legal basis: Public Local Now free ad-supported linear channel playlist redistributed via apsattv/BuddyChewChew. | Discovered: 2026-07-21T15:08:18.406Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-localnow-fast:LN_2D5C8F57-B650-4F77-A837-4DE7F4EF97FD",
+      "created_at": "2026-07-21T15:08:47.302995+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "ccfcf3bf-7f76-4a08-bd29-9e773d92e4d7",
+      "title": "KXLY Spokane Washington",
+      "description": "Provider: buddy-localnow-fast | Official: https://www.apsattv.com/localnow.m3u | Station ID: LN_A6CD2156-BD42-4CAC-B530-0C17F406A408 | Legal basis: Public Local Now free ad-supported linear channel playlist redistributed via apsattv/BuddyChewChew. | Discovered: 2026-07-21T15:08:18.406Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-localnow-fast:LN_A6CD2156-BD42-4CAC-B530-0C17F406A408",
+      "created_at": "2026-07-21T15:08:47.600267+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "a05a649a-a238-4ba4-a621-48be65f3627c",
+      "title": "Gusto TV",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: INBA5100020HQ | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:54:55.079Z",
+      "region": "IN",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:INBA5100020HQ",
+      "created_at": "2026-07-14T15:59:40.051863+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "5dca3d74-6a99-4718-91b5-caf049dde072",
+      "title": "The Lallantop",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: IN3800002VK | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:54:55.079Z",
+      "region": "IN",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:IN3800002VK",
+      "created_at": "2026-07-14T15:57:27.280753+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "2e86e845-5ffb-4ed7-8538-a8101591e21d",
+      "title": "RADIO DISCOunt TV",
+      "description": "Switzerland television stream discovered via public directory verification for Europe expansion.",
+      "region": "CH",
+      "matched": [
+        "discovered_via",
+        "verification",
+        "europe_expansion"
+      ],
+      "source_key": "europe-continuous:CH:iptv-org-RADIODISCOuntTV.ch",
+      "created_at": "2026-07-25T21:05:58.535625+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "88b405b7-ce0d-48f8-8815-75cfa532d0b3",
+      "title": "Servus TV Ⓖ",
+      "description": "Provider: free-tv-legal | Official: https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8 | Station ID: ServusTVOsterreich.at | Legal basis: Free-TV/IPTV legal-only curated playlist entry intended for public redistribution. | Discovered: 2026-07-14T11:10:40.245Z",
+      "region": "AT",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "free-tv:ServusTVOsterreich.at",
+      "created_at": "2026-07-14T11:15:18.166484+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "1fc77746-3e4c-4bbb-944f-d90fc45532f9",
+      "title": "Kids Net",
+      "description": "Provider: buddy-airy-fast | Official: https://raw.githubusercontent.com/BuddyChewChew/airy-playlist-generator/main/airy_channels.m3u | Station ID: airy-633 | Legal basis: Public Airy free linear channel playlist maintained by BuddyChewChew/airy-playlist-generator. | Discovered: 2026-07-21T15:23:10.817Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-airy-fast:airy-633",
+      "created_at": "2026-07-21T15:23:13.553983+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "21a69f80-ccae-4a40-8915-f5f480446a35",
+      "title": "Wheel World",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: IN460000250 | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:54:55.079Z",
+      "region": "IN",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:IN460000250",
+      "created_at": "2026-07-14T15:59:27.164098+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "55651271-e2d0-4d26-9460-9638c6f4bbf8",
+      "title": "Welt",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: AT2200004OF | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:24:05.573Z",
+      "region": "AU",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:AT2200004OF",
+      "created_at": "2026-07-14T15:25:20.023768+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "48ae65dd-2b85-47f5-ae3e-a369cd0b81a0",
+      "title": "Sony One Shark Tank",
+      "description": "Provider: buddy-samsung-all-fast | Official: https://raw.githubusercontent.com/BuddyChewChew/app-m3u-generator/main/playlists/samsungtvplus_all.m3u | Station ID: ES300004C9 | Legal basis: Public Samsung TV Plus multi-region FAST playlist via BuddyChewChew/app-m3u-generator (jmp2 redirect masters). | Discovered: 2026-07-21T15:12:08.503Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-samsung-all-fast:ES300004C9",
+      "created_at": "2026-07-21T15:12:57.218218+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "45f1e916-92f0-4277-8c5d-3bbc48e80bea",
+      "title": "Silverbird News 24",
+      "description": "Provider: news-broadcasters | Official: https://iptv-org.github.io/ | Station ID: SilverbirdNews24.ng | Legal basis: iptv-org indexed news broadcaster streams. | Discovered: 2026-07-21T10:48:26.831Z",
+      "region": "NG",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "news-broadcasters:SilverbirdNews24.ng",
+      "created_at": "2026-07-21T10:49:33.321457+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "d60dc450-5372-43a8-9deb-31cd8bc15a0f",
+      "title": "Go Wild",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: IN2400002A3 | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:51:11.148Z",
+      "region": "IN",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:IN2400002A3",
+      "created_at": "2026-07-14T15:59:18.73935+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "ca6eedc0-8af1-413a-bd4d-534e0cb0afd3",
+      "title": "PeekFlick (1080p)",
+      "description": "Provider: iptv-org-api-residual-wave3 | Official: https://iptv-org.github.io/ | Station ID: iptv-org-index-peekflick-1080p-6460 | Legal basis: iptv-org public index residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:24:49.589Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "iptv-org-api-residual-wave3:iptv-org-index-peekflick-1080p-6460",
+      "created_at": "2026-07-15T03:25:01.454644+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "4bb3d51f-f3dc-428c-b782-f64463457870",
+      "title": "Sony One Serie Thriller",
+      "description": "Provider: buddy-samsung-all-fast | Official: https://raw.githubusercontent.com/BuddyChewChew/app-m3u-generator/main/playlists/samsungtvplus_all.m3u | Station ID: IT300007SE | Legal basis: Public Samsung TV Plus multi-region FAST playlist via BuddyChewChew/app-m3u-generator (jmp2 redirect masters). | Discovered: 2026-07-21T15:12:08.503Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-samsung-all-fast:IT300007SE",
+      "created_at": "2026-07-21T15:12:57.218218+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "46bb2b90-e687-4ffc-8309-3265cfe4cd6f",
+      "title": "FS1 Salzburg (720p) [Not 24/7]",
+      "description": "Provider: iptv-org-api-residual-wave3 | Official: https://github.com/iptv-org/iptv | Station ID: iptv-org-github-at-fs1salzburg-at-sd-256 | Legal basis: iptv-org GitHub country stream residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:49:14.243Z",
+      "region": "AT",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "iptv-org-api-residual-wave3:iptv-org-github-at-fs1salzburg-at-sd-256",
+      "created_at": "2026-07-15T03:53:00.106331+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "69ebf3aa-0ae0-462b-bb1d-62322a0975ff",
+      "title": "Wild Flix",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: IN460000585 | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:51:11.148Z",
+      "region": "IN",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:IN460000585",
+      "created_at": "2026-07-14T15:59:11.737807+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "6eae3e49-893c-49da-9c0a-854eea2a2cc6",
+      "title": "RN7",
+      "description": "Provider: iptv-org | Official: https://iptv-org.github.io/ | Station ID: iptv-org-RN7.nl | Legal basis: Public iptv-org directory stream entry linked to an identified broadcaster channel. | Discovered: 2026-07-21T10:49:36.051Z",
+      "region": "NL",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "iptv-org:RN7.nl",
+      "created_at": "2026-07-21T10:50:13.768671+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "5f83bb21-a0e3-465e-a1cd-8495a1a249e1",
+      "title": "Landlust TV",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: AT1100001B5 | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:24:05.573Z",
+      "region": "AU",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:AT1100001B5",
+      "created_at": "2026-07-14T15:24:35.135969+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "5df93e01-f708-4915-98f1-8c20cb4a1cb3",
+      "title": "@K-MUSIC",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: IN4900011OU | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:54:55.079Z",
+      "region": "IN",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:IN4900011OU",
+      "created_at": "2026-07-14T15:58:34.158601+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "38442f3d-acc5-4a77-83a2-0ee7301bb854",
+      "title": "Red Bull TV (1080p)",
+      "description": "Provider: iptv-org-api-residual-wave3 | Official: https://github.com/iptv-org/iptv | Station ID: iptv-org-github-at-redbulltv-at-eumena-271 | Legal basis: iptv-org GitHub country stream residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:49:14.243Z",
+      "region": "AT",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "iptv-org-api-residual-wave3:iptv-org-github-at-redbulltv-at-eumena-271",
+      "created_at": "2026-07-15T03:53:01.11753+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "ee2d01a9-d4d9-410d-a2df-e3b8aac4ae20",
+      "title": "Asfalten kalder",
+      "description": "Provider: official-fast-providers-wave4 | Official: https://pluto.tv/live-tv | Station ID: fast-pluto-698ddf8fe93b210d1aaaa2fc | Legal basis: pluto official free FAST catalog via public channel metadata (wave4). | Discovered: 2026-07-21T09:51:49.203Z",
+      "region": "DK",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "official-fast-providers-wave4:fast-pluto-698ddf8fe93b210d1aaaa2fc",
+      "created_at": "2026-07-21T09:52:37.776079+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "fbee83b5-67d2-42b0-b41b-9a79cb9fb5df",
+      "title": "MovieSphere UK (1080p)",
+      "description": "Provider: iptv-org-api-residual-wave3 | Official: https://iptv-org.github.io/ | Station ID: iptv-org-index-moviesphere-us-uk-5553 | Legal basis: iptv-org public index residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:20:24.106Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "iptv-org-api-residual-wave3:iptv-org-index-moviesphere-us-uk-5553",
+      "created_at": "2026-07-15T03:21:11.013139+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "a18d412e-22ac-4d46-b237-19784cb5a656",
+      "title": "Golf Network",
+      "description": "Provider: samsung-tv-plus-fast | Official: https://www.samsung.com/us/tvs/tvplus/ | Station ID: IN400057EZ | Legal basis: Samsung TV Plus free ad-supported FAST channels from Samsung's public TV Plus service catalog. | Discovered: 2026-07-14T15:51:11.148Z",
+      "region": "IN",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "samsung-tv-plus-fast:IN400057EZ",
+      "created_at": "2026-07-14T15:59:09.600256+00:00",
+      "tier": "verified"
+    },
+    {
+      "id": "8f8cae5e-06ee-4c52-bc66-977da32be609",
+      "title": "Sony One Hits Comedia",
+      "description": "Provider: buddy-samsung-all-fast | Official: https://raw.githubusercontent.com/BuddyChewChew/app-m3u-generator/main/playlists/samsungtvplus_all.m3u | Station ID: ES300007KS | Legal basis: Public Samsung TV Plus multi-region FAST playlist via BuddyChewChew/app-m3u-generator (jmp2 redirect masters). | Discovered: 2026-07-21T15:12:08.503Z",
+      "region": null,
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "buddy-samsung-all-fast:ES300007KS",
+      "created_at": "2026-07-21T15:12:57.218218+00:00",
+      "tier": "search_only"
+    },
+    {
+      "id": "55677324-283c-42b2-8cb2-8b2e1385acd9",
+      "title": "CNN Headlines International",
+      "description": "Provider: official-fast-providers-wave4 | Official: https://pluto.tv/live-tv | Station ID: fast-pluto-69c2940612e978ee4920d9b0 | Legal basis: pluto official free FAST catalog via public channel metadata (wave4). | Discovered: 2026-07-21T09:52:37.799Z",
+      "region": "DK",
+      "matched": [
+        "provider_legal_basis"
+      ],
+      "source_key": "official-fast-providers-wave4:fast-pluto-69c2940612e978ee4920d9b0",
+      "created_at": "2026-07-21T09:53:55.813119+00:00",
+      "tier": "verified"
+    }
+  ]
+}

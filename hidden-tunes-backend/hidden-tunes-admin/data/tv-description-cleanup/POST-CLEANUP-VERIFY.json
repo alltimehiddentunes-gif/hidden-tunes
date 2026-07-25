@@ -1,0 +1,214 @@
+{
+  "remaining_with_description": 51,
+  "remaining_internal": 0,
+  "leftover": [],
+  "patternHits": {
+    "discovered via": 0,
+    "country-channel-website": 0,
+    "country_channel_website": 0,
+    "Legal basis:": 0,
+    "Provider:": 0,
+    "deep-source candidate": 0,
+    "Europe deep city search": 0
+  },
+  "underscore_slug_hits": 0,
+  "samples": {
+    "rtm_plus": {
+      "id": "8f30fc88-416a-4e44-bf1f-0d07399b562d",
+      "title": "RTM+",
+      "description": null,
+      "region": "CZ",
+      "source_key": "europe-deep:CZ:deep-CZ-aHR0cHM6Ly93d3cucnRtcGx1cy5j",
+      "status": "approved",
+      "playback_status": "playable",
+      "is_active": true,
+      "public": null
+    },
+    "africa_za": [
+      {
+        "id": "43abb36a-49b1-46f0-9a6f-95e4fac7ad9d",
+        "title": "WildEarth (1080p)",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org-api-residual-wave3:iptv-org-github-za-wildearth-za-sd-13936"
+      },
+      {
+        "id": "92fb0ab4-a334-4ca7-96a3-b086277df501",
+        "title": "LoveworldSAT",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org-api-residual-wave3:iptv-org-github-za-loveworldsat-ng-sd-13924"
+      },
+      {
+        "id": "74ba978b-576b-4b4d-a021-42d7a47edf42",
+        "title": "WildEarth",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org:WildEarth.za"
+      },
+      {
+        "id": "69859b94-383b-4bad-81a2-c8b83b21c9a1",
+        "title": "TV BRICS Africa",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org:TVBRICSAfrica.za"
+      },
+      {
+        "id": "c5f84e01-eb1f-417a-9265-557722ca12fa",
+        "title": "Tshwane TV",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org:TshwaneTV.za"
+      }
+    ],
+    "europe_cz": [
+      {
+        "id": "8f30fc88-416a-4e44-bf1f-0d07399b562d",
+        "title": "RTM+",
+        "description": null,
+        "public_description": null,
+        "source_key": "europe-deep:CZ:deep-CZ-aHR0cHM6Ly93d3cucnRtcGx1cy5j"
+      },
+      {
+        "id": "05a46db3-6de4-4f14-8a0d-3fe573a54ebe",
+        "title": "ČT :D",
+        "description": null,
+        "public_description": null,
+        "source_key": "free-tv:CTDecko.cz"
+      },
+      {
+        "id": "0f391fc6-c4b3-42f7-aaf4-ac13ec652d21",
+        "title": "Retro Music TV Ⓢ",
+        "description": null,
+        "public_description": null,
+        "source_key": "free-tv:RetroMusicTV.cz"
+      },
+      {
+        "id": "012b773b-62eb-47cb-9dff-3075654c79d5",
+        "title": "Óčko Ⓢ",
+        "description": null,
+        "public_description": null,
+        "source_key": "free-tv:Ocko.cz"
+      },
+      {
+        "id": "911f01a7-38ba-405d-98d0-9ffa67bce766",
+        "title": "CS Mystery",
+        "description": null,
+        "public_description": null,
+        "source_key": "free-tv:CSMystery.cz"
+      }
+    ],
+    "europe_fr": [
+      {
+        "id": "3f03872e-d413-4388-88be-291c5a9f67a3",
+        "title": "TV5Monde France Belgium Switzerland Monaco",
+        "description": null,
+        "public_description": null,
+        "source_key": "europe-deep:FR:deep-FR-aHR0cHM6Ly9vdHQudHY1bW9uZGUu"
+      },
+      {
+        "id": "6c551b1e-cb8a-450c-9a9a-094552448481",
+        "title": "Novocomedy",
+        "description": null,
+        "public_description": null,
+        "source_key": "europe-deep:FR:deep-FR-aHR0cHM6Ly9saXZlY2RuLnByZW1p"
+      },
+      {
+        "id": "ec2fb841-44de-43b0-8ab7-1366cad20f34",
+        "title": "ici Elsass",
+        "description": null,
+        "public_description": null,
+        "source_key": "europe-deep:FR:deep-FR-aHR0cHM6Ly9zdHJlYW0ucmFkaW9m"
+      },
+      {
+        "id": "1d6697c8-b8f8-44a0-93aa-ca5ef384cebf",
+        "title": "Canal 32",
+        "description": null,
+        "public_description": null,
+        "source_key": "europe-deep:FR:deep-FR-aHR0cHM6Ly9jYW5hbDMyLWxpbmVh"
+      },
+      {
+        "id": "6a1b489b-3287-45d9-835d-2770a3b3fa49",
+        "title": "TV Tours",
+        "description": null,
+        "public_description": null,
+        "source_key": "europe-deep:FR:deep-FR-aHR0cHM6Ly9hc3NldHMuZGlnaXRl"
+      }
+    ],
+    "us": [
+      {
+        "id": "f9a3805e-3956-4d71-a2fb-54d774be6b02",
+        "title": "KWBA-TV 9.1 live",
+        "description": null,
+        "public_description": null,
+        "source_key": "usa-canada:US-AZ:deep-US-AZ-aHR0cHM6Ly9jb250ZW50LnVwbHlu"
+      },
+      {
+        "id": "c7fc4127-e11f-42ab-954d-b30f7ee9ebf3",
+        "title": "Bally Sports Arizona",
+        "description": null,
+        "public_description": null,
+        "source_key": "usa-canada:US-AZ:deep-US-AZ-aHR0cHM6Ly9sbnIwNC5jaGFubmVs"
+      },
+      {
+        "id": "a2782fe9-0ee6-434f-9681-1dd290914c7a",
+        "title": "Access 19",
+        "description": null,
+        "public_description": null,
+        "source_key": "usa-canada:US-AL:deep-US-AL-aHR0cHM6Ly9yZWZsZWN0LW1vbnRn"
+      },
+      {
+        "id": "cfe38805-69c6-4de0-9f1e-af4a8dfaa79e",
+        "title": "CNBC (720p)",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org-live:CNBC.us@SD"
+      },
+      {
+        "id": "d92460f8-a803-4356-bda7-554034fd8687",
+        "title": "AXN Black Romania (406p)",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org-live:AXNBlack.us@Romania"
+      }
+    ],
+    "canada": [
+      {
+        "id": "4ed678fe-6038-4307-a98e-e8c2e3de5061",
+        "title": "W Network",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org:WNetwork.ca"
+      },
+      {
+        "id": "386ead59-9b64-444b-8ec9-1e156d752d1a",
+        "title": "Stingray iConcerts",
+        "description": null,
+        "public_description": null,
+        "source_key": "music-tv:StingrayiConcerts.ca"
+      },
+      {
+        "id": "ff3cf423-5897-432d-8fd6-4ca0fd0f6f97",
+        "title": "CTV Speed Channel",
+        "description": null,
+        "public_description": null,
+        "source_key": "iptv-org:CTVSpeedChannel.ca"
+      },
+      {
+        "id": "cadcf777-ee9b-44c5-b051-375411029f97",
+        "title": "All Reality We TV",
+        "description": null,
+        "public_description": null,
+        "source_key": "pluto-tv-global-mjh:6a205abba7b5a6c560b8ac25"
+      },
+      {
+        "id": "e2ac1662-801b-4594-91ab-1a1b62cea996",
+        "title": "BuzzFeed Celeb",
+        "description": null,
+        "public_description": null,
+        "source_key": "official-fast-providers-wave4:fast-samsung-tv-plus-ca4000007k0"
+      }
+    ]
+  },
+  "ok": true
+}

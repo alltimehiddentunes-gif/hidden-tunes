@@ -1,0 +1,44 @@
+{
+  "before_flagged": 9440,
+  "after_remaining_with_description": 51,
+  "after_remaining_internal": 0,
+  "updated": 1,
+  "preserved_good": 51,
+  "failures": [],
+  "patternHits": {
+    "discovered via": 0,
+    "country-channel-website": 0,
+    "country_channel_website": 0,
+    "Legal basis:": 0,
+    "Provider:": 0,
+    "deep-source candidate": 0,
+    "Europe deep city search": 0
+  },
+  "ok": true,
+  "samples": {
+    "RTM_plus": {
+      "before": "Czechia _national television stream discovered via Europe deep city search (country-channel-website:_national).",
+      "after": null,
+      "public_after": null
+    },
+    "Africa_ZA_WildEarth": {
+      "before": "Provider: iptv-org-api-residual-wave3 | Official: https://github.com/iptv-org/iptv | Station ID: iptv-org-github-za-wildearth-za-sd-13936 | Legal basis: iptv-org GitHub country stream residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T04:13:28.890Z",
+      "after": null
+    },
+    "Europe_FR": {
+      "before": "Provider: paratv-official | Official: https://github.com/Paradise-91/ParaTV | Station ID: paratv-playlist-125-france-3-alsace-1080p-france-tv | Legal basis: ParaTV curated official",
+      "after": null,
+      "title_after": "TV5Monde France Belgium Switzerland Monaco"
+    },
+    "US": {
+      "before": "Provider: public-americas-wave3 | Official: https://play.xumo.com/ | Station ID: xumo-99951437 | Legal basis: Xumo Play official public FAST live HLS stream. | Discovered: 2026-07-",
+      "after": null,
+      "title_after": "Access 19"
+    },
+    "Canada": {
+      "before": "Provider: pluto-tv-global-mjh | Official: https://pluto.tv/live-tv | Station ID: 62fb6cd97b90e60007bc318a | Legal basis: Pluto TV free FAST channels across regional Pluto TV catalo",
+      "after": null,
+      "title_after": "W Network"
+    }
+  }
+}

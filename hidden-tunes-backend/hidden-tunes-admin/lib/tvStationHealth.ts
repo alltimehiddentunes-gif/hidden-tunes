@@ -18,6 +18,7 @@ import {
   TV_CATALOG_ELIGIBILITY_SEARCH_ONLY,
   TV_CATALOG_ELIGIBILITY_VERIFIED,
 } from "@/lib/tvPlatformPolicy";
+import { cleanPublicTvDescription } from "@/lib/tvDescriptionSanitizer";
 
 export const TV_RELIABILITY_THRESHOLD = 60;
 export const TV_AUTO_DISABLE_THRESHOLD = 30;
@@ -539,6 +540,7 @@ export async function importVerifiedTvGrowthCandidates(
 
   let imported = 0;
   let rejected = candidates.length - uniqueCandidates.length;
+  const rejectReasons: Array<{ title: string; reason: string }> = [];
   const isMature = options.isMature === true;
   const matureSourceApproved = options.matureSourceApproved === true;
 
@@ -548,6 +550,7 @@ export async function importVerifiedTvGrowthCandidates(
       unique: uniqueCandidates.length,
       imported: 0,
       rejected: candidates.length,
+      rejectReasons: [{ title: "*", reason: "mature_source_not_approved" }],
     };
   }
 
@@ -555,6 +558,10 @@ export async function importVerifiedTvGrowthCandidates(
     const urlCheck = validatePublicTvUrl(candidate.source_url);
     if (!urlCheck.ok) {
       rejected += 1;
+      rejectReasons.push({
+        title: candidate.title,
+        reason: `url:${"reason" in urlCheck ? urlCheck.reason : "invalid"}`,
+      });
       continue;
     }
 
@@ -574,6 +581,7 @@ export async function importVerifiedTvGrowthCandidates(
 
     if (!probe.playable) {
       rejected += 1;
+      rejectReasons.push({ title: candidate.title, reason: `probe:${probe.reason}` });
       continue;
     }
 
@@ -590,13 +598,16 @@ export async function importVerifiedTvGrowthCandidates(
       ),
     ];
 
-    const { error } = await supabaseAdmin.from("tv_videos").insert({
+    // Production tv_videos currently has no is_mature / mature_* columns.
+    // Inserting them rejects every row (proven Nigeria Phase 2 blocker).
+    // Mature separation continues via dedicated mature catalogue paths when present.
+    const insertRow: Record<string, unknown> = {
       source_type: candidate.source_type || TV_VIDEO_SOURCE_TYPE,
       source_id: candidate.source_id,
       source_url: urlCheck.url,
       embed_url: candidate.embed_url || null,
       title: candidate.title,
-      description: candidate.description || null,
+      description: cleanPublicTvDescription(candidate.description),
       channel_name: candidate.channel_name || null,
       thumbnail_url: candidate.thumbnail_url || null,
       category: candidate.category || candidate.categories?.[0] || null,
@@ -625,16 +636,30 @@ export async function importVerifiedTvGrowthCandidates(
         options.catalogEligibilityTier === "search_only"
           ? TV_CATALOG_ELIGIBILITY_SEARCH_ONLY
           : TV_CATALOG_ELIGIBILITY_VERIFIED,
-      is_mature: isMature || candidate.is_mature === true,
-      mature_rating: options.matureRating || candidate.mature_rating || null,
-      mature_source_approved: matureSourceApproved || candidate.mature_source_approved === true,
-    });
+    };
+    if (isMature || candidate.is_mature === true) {
+      // Soft-tag via tags until mature columns exist in production schema.
+      const matureTags = new Set([...(tags || []), "mature", "mature:pending_schema"]);
+      insertRow.tags = [...matureTags];
+    }
 
-    if (error) rejected += 1;
-    else imported += 1;
+    const { error } = await supabaseAdmin.from("tv_videos").insert(insertRow);
+
+    if (error) {
+      rejected += 1;
+      rejectReasons.push({ title: candidate.title, reason: `insert:${error.message}` });
+    } else {
+      imported += 1;
+    }
   }
 
-  return { found: candidates.length, unique: uniqueCandidates.length, imported, rejected };
+  return {
+    found: candidates.length,
+    unique: uniqueCandidates.length,
+    imported,
+    rejected,
+    rejectReasons,
+  };
 }
 
 export async function getTvHealthSummary() {

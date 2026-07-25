@@ -1,0 +1,186 @@
+{
+  "mode": "dry-run",
+  "audited_with_description": 9493,
+  "flagged_to_null": 9442,
+  "preserved_good": 51,
+  "updated": 0,
+  "failures": [],
+  "byReason": {
+    "provider_legal_meta": 9369,
+    "discovered_via": 64,
+    "deep_source_candidate": 9
+  },
+  "byCountry": {
+    "?": 3353,
+    "US": 679,
+    "FR": 366,
+    "DE": 358,
+    "IT": 330,
+    "CA": 322,
+    "ES": 320,
+    "GB": 318,
+    "SW": 316,
+    "RU_SMOTRIM": 180,
+    "SE_PLUTO": 175,
+    "NO": 171,
+    "NO_PLUTO": 164,
+    "SO": 162,
+    "IN": 144,
+    "AU": 142,
+    "INT": 140,
+    "MX": 133,
+    "US_PLUTO": 121,
+    "US_TUBI": 87,
+    "BR": 74,
+    "US_SAMSUNG": 71,
+    "IN_DISTRO": 62,
+    "RO": 50,
+    "UK_SAMSUNG": 46,
+    "US_DISTRO": 44,
+    "DK_PLUTO": 43,
+    "US_XUMO": 41,
+    "NZ_SAMSUNG": 40,
+    "IT_PLUTO": 33,
+    "RU": 32,
+    "US_KLOWDTV": 30,
+    "CA_PLUTO": 26,
+    "RU_ZABAVA": 25,
+    "CZ": 25,
+    "SK_ANTIK": 24,
+    "UK_RAKUTEN": 23,
+    "SP": 22,
+    "DE_PLUTO": 22,
+    "SK": 20,
+    "CH": 18,
+    "NL": 18,
+    "CL": 17,
+    "GR": 17,
+    "QA": 17,
+    "SA": 17,
+    "SE_SAMSUNG": 17,
+    "US_STIRR": 16,
+    "FR_PLUTO": 15,
+    "PL": 14
+  },
+  "proof_samples_before": [
+    {
+      "id": "8f30fc88-416a-4e44-bf1f-0d07399b562d",
+      "title": "RTM+",
+      "region": "CZ",
+      "reason": "discovered_via",
+      "before": "Czechia _national television stream discovered via Europe deep city search (country-channel-website:_national).",
+      "source_key": "europe-deep:CZ:deep-CZ-aHR0cHM6Ly93d3cucnRtcGx1cy5j"
+    },
+    {
+      "id": "dc0fa444-13bf-469d-b2e4-474317d90e12",
+      "title": "G-eye TV",
+      "region": "GH",
+      "reason": "provider_legal_meta",
+      "before": "Provider: iptv-org-api-residual-wave3 | Official: https://iptv-org.github.io/ | Station ID: iptv-org-index-g-eye-tv-1080p-3471 | Legal basis: iptv-org public index residual pass (derived organisational inventory, wave3). | Discovered: 2026-07-15T03:05:51.407Z",
+      "source_key": "iptv-org-api-residual-wave3:iptv-org-index-g-eye-tv-1080p-3471"
+    }
+  ],
+  "preserved_sample": [
+    {
+      "id": "fdd6c101-3d97-4636-8972-5c1b06413313",
+      "title": "Yobe TV",
+      "description": "Yobe State television live stream (Nigeria)."
+    },
+    {
+      "id": "28bf07bb-4a3b-44e7-a9de-ed2d020864f9",
+      "title": "UTV Africa",
+      "description": "UTV Africa live stream listed under Nigeria public IPTV directory."
+    },
+    {
+      "id": "c78ee841-1825-46b6-9f0d-2bd4f1c7fe4d",
+      "title": "Red Bull TV",
+      "description": "Official live sports, music, and culture from Red Bull."
+    },
+    {
+      "id": "f054eedd-887d-4ca5-8f1b-31c812783ce0",
+      "title": "ABC News Australia",
+      "description": "Australian public broadcaster news."
+    },
+    {
+      "id": "204fbaa5-a224-4b60-bc64-cf6ac8081a2a",
+      "title": "Bloomberg Originals",
+      "description": "Business culture and documentary originals from Bloomberg."
+    },
+    {
+      "id": "f18b8fd1-abe0-4df9-a2c5-9307e3b7d3db",
+      "title": "Documentary+",
+      "description": "Award-winning documentaries on authorized FAST."
+    },
+    {
+      "id": "435c1c43-08a7-4282-abe4-9f92a38cf71b",
+      "title": "Bloomberg TV",
+      "description": "Business and financial news official stream."
+    },
+    {
+      "id": "b9b2c440-e360-4c01-9982-7e1ad504283e",
+      "title": "DW English",
+      "description": "Deutsche Welle international news official stream."
+    },
+    {
+      "id": "9abd608b-a8c3-420c-b1c8-72b72c8945f1",
+      "title": "Vevo Hip-Hop",
+      "description": "Official hip-hop videos from Vevo FAST."
+    },
+    {
+      "id": "ae157b91-9c20-4f31-813e-eff53fc3b16b",
+      "title": "CNA Originals",
+      "description": "Documentary originals from Channel NewsAsia."
+    },
+    {
+      "id": "22d86567-c79f-4ac3-8d2f-cf7f59b1bfae",
+      "title": "Smithsonian Channel Selects",
+      "description": "Culture and history programming on authorized FAST."
+    },
+    {
+      "id": "3033579e-453d-48db-a0f2-aed3a81a31d4",
+      "title": "France 24 English",
+      "description": "International news from France"
+    },
+    {
+      "id": "15eef5e8-1a11-4a8c-b5e1-5ea834bdf63e",
+      "title": "Maverick Black Cinema",
+      "description": "Black cinema classics and hits on authorized Roku FAST."
+    },
+    {
+      "id": "9c685ef9-52d6-4bf4-bb2b-0d64f7e4a413",
+      "title": "ARTFLIX Movie Classics",
+      "description": "Classic films on Samsung TV Plus authorized FAST."
+    },
+    {
+      "id": "6a35efff-a235-4846-b0f1-26755e587ea2",
+      "title": "Cinevault 80s",
+      "description": "1980s movies on authorized Roku FAST."
+    },
+    {
+      "id": "fcfcc4f7-2383-46fb-b8eb-4de7dc4c1233",
+      "title": "Cinevault Westerns",
+      "description": "Western movies on authorized Roku FAST."
+    },
+    {
+      "id": "8205be7f-1293-436c-84ca-a2c60766f75b",
+      "title": "Gravitas Movies",
+      "description": "Independent films on authorized FAST."
+    },
+    {
+      "id": "94c58b3d-8310-4ce1-9c02-c6743987f0d0",
+      "title": "The Film Detective",
+      "description": "Restored public-domain classics on Cinedigm FAST."
+    },
+    {
+      "id": "0937328e-1aaf-489c-a009-95a2fee68c31",
+      "title": "EWTN",
+      "description": "Eternal Word Television Network official live stream."
+    },
+    {
+      "id": "030c91c0-48aa-4985-937e-af3ceff781c2",
+      "title": "Fashion TV Paris",
+      "description": "Fashion and design culture from Fashion TV official stream."
+    }
+  ],
+  "finishedAt": "2026-07-25T23:00:23.957Z"
+}
