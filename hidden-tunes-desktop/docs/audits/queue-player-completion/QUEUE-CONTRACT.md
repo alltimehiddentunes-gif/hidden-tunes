@@ -14,9 +14,13 @@ Persistence strips secrets and remote stream URLs (`sanitizeQueueMetadata`). TV 
 
 ## Item types
 
-`song` · `radio` · `podcast_episode` · `audiobook_chapter` · `motivational` · `lecture` · `offline_audio`
+`song` · `radio` · `podcast_episode` · `audiobook_chapter` · `motivational` · `lecture`
 
 Identity is typed: `type:id` (`queueItemIdentity`). Same raw id across families does not collide.
+
+Downloads keep the original family and set `localDownloadId` / local markers. Legacy `offline_audio` rows migrate on load.
+
+TV / Sports are session video owners (shared video element) and are **not** persisted into the typed audio queue; capabilities still cover them via `resolvePlaybackCapabilities`.
 
 ## Duplicate policy
 

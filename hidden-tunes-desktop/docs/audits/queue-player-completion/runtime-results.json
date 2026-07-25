@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-07-24T17:38:14.616Z",
-  "rendererUrl": "http://localhost:5174",
+  "startedAt": "2026-07-25T09:40:19.605Z",
+  "rendererUrl": "http://localhost:5175",
   "checks": [
     {
       "check": "UI ready",
@@ -230,7 +230,7 @@
   ],
   "failures": [],
   "notes": [],
-  "finishedAt": "2026-07-24T17:39:19.773Z",
+  "finishedAt": "2026-07-25T09:41:17.424Z",
   "passed": 45,
   "failed": 0,
   "checkCount": 45

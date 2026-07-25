@@ -13,9 +13,17 @@ Playback URLs are resolved at play time inside `DesktopPlaybackProvider.playSong
 | Sports | `isSportsQueueSong` | sports video path |
 | Music | catalog / offline | quality mode + audio versions |
 
-## Offline
+## Offline / Downloads
 
-`offline_audio` / `ht-download://` tags keep family presentation via `metadata.originalType`. Remote fail paths stay on family resolvers — no invented streams.
+Downloads keep the **original family** discriminator. Local markers:
+
+- `localDownloadId`
+- `metadata.localSource`
+- `offline` / `download` tags and `ht-download://` only for local resolution at play time
+
+Legacy WIP rows typed `offline_audio` migrate on load via `LEGACY_OFFLINE_QUEUE_ITEM_TYPE`.
+
+Remote fail paths stay on family resolvers — no invented streams.
 
 ## History
 

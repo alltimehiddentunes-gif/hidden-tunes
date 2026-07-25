@@ -2,36 +2,37 @@
 
 ## Previous threshold
 
-| Family | Restart current when elapsed > |
-| ------ | ------------------------------ |
-| Music / Podcast | `QUEUE_PREVIOUS_RESTART_SECONDS` = **3s** |
-| Audiobook | `AUDIOBOOK_PREVIOUS_RESTART_SECONDS` = **8s** |
-| Motivational | `MOTIVATIONAL_PREVIOUS_RESTART_SECONDS` = **8s** |
-| Lecture | `LECTURE_PREVIOUS_RESTART_SECONDS` = **8s** |
-| Radio | **Never** restarts mid-stream — always goes to previous queue item when available |
-| TV / Sports | No finite restart seek — previous walks the queue |
+One consistent finite-media restart threshold:
 
-Below threshold (or radio), previous moves to `queueIndex - 1` (with repeat-all wrap when enabled).
+| Constant | Value |
+| -------- | ----- |
+| `QUEUE_PREVIOUS_RESTART_SECONDS` | **3** (within required 3–5s) |
+
+Applies to Music, Podcast, Audiobook, Motivational, Lecture, and downloaded finite audio of those families.
+
+| Family | Behavior |
+| ------ | -------- |
+| Finite seekable | Restart current when elapsed > 3s; else previous queue item |
+| Radio / TV live | Never fake-restart; previous walks queue when capability allows |
+| Sports live | Previous/next disabled by default (`resolvePlaybackCapabilities`) |
 
 ## Seek
 
-`seekTo` rejects live / non-seekable owners:
+`seekTo` rejects live / non-seekable owners (Radio, TV, Sports).
+`resolvePlaybackCapabilities` / `canSeekQueueTrack` drive UI.
 
-- Radio
-- TV
-- Sports
+## Keyboard
 
-Emits `player_seek_rejected` diagnostic with reason `live-or-non-seekable`.
+Provider `keydown` (single listener):
 
-`canSeekQueueTrack` in `family.ts` mirrors the same policy for UI.
+- Space → play / pause
+- ArrowLeft / ArrowRight → previous / next when capability allows
+- Ignored inside `input`, `textarea`, `select`, and contenteditable
 
 ## Queue UI
 
-`PlayerQueuePanel` (`.player-queue-panel` / `.player-queue-empty`):
+`PlayerQueuePanel`:
 
-- Clear (`.player-queue-clear`)
-- Move up/down (`.player-queue-move`)
-- Remove (`.player-queue-remove`)
-- Radio rows show **LIVE** in `.player-queue-duration`
-
-Workspace Up Next rail (`QueueUpNextPanel`) mounts only when `hasPlayback` (active track + queue). Fullscreen shell can open the Queue tab independently.
+- Clear / move / remove
+- Family label + LIVE + Downloaded markers
+- Uses stored queue metadata (no catalog fetch to render rows)

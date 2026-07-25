@@ -1,5 +1,6 @@
 export {
   DESKTOP_QUEUE_ITEM_TYPES,
+  LEGACY_OFFLINE_QUEUE_ITEM_TYPE,
   QUEUE_MAX_ITEMS,
   QUEUE_PREVIOUS_RESTART_SECONDS,
   QUEUE_SCHEMA_VERSION,
@@ -27,8 +28,12 @@ export {
   inferOriginalFamilyType,
   inferQueueItemType,
   queueItemToApiSong,
+  songHasLocalDownloadMarker,
 } from './family'
 export type { ApiSongToQueueItemExtras } from './family'
+
+export { resolvePlaybackCapabilities } from './capabilities'
+export type { PlaybackCapabilities } from './capabilities'
 
 export {
   emptyQueueStore,

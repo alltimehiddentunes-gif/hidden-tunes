@@ -50,7 +50,12 @@ function trimOrNull(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
-function songHasOfflineTag(song: ApiSong, extras?: ApiSongToQueueItemExtras): boolean {
+/** Local/download marker only — never used as the family discriminator. */
+export function songHasLocalDownloadMarker(
+  song: ApiSong | null | undefined,
+  extras?: ApiSongToQueueItemExtras,
+): boolean {
+  if (!song) return false
   const offlineDownloadId =
     extras?.localDownloadId
     ?? (song as OfflinePlaybackSong).offlineDownloadId
@@ -61,29 +66,22 @@ function songHasOfflineTag(song: ApiSong, extras?: ApiSongToQueueItemExtras): bo
 }
 
 /**
- * Infer audio-queue family from an ApiSong.
+ * Infer audio-queue family from an ApiSong using family adapters.
  * TV / Sports are video session owners — not part of the typed audio queue.
+ * Downloads keep the original family (never remapped to a generic offline type).
  */
 export function inferQueueItemType(
   song: ApiSong | null | undefined,
-  extras?: ApiSongToQueueItemExtras,
+  _extras?: ApiSongToQueueItemExtras,
 ): DesktopQueueItemType | null {
+  void _extras
   if (!song?.id) return null
   if (isTvQueueSong(song) || isSportsQueueSong(song)) return null
-
-  if (songHasOfflineTag(song, extras)) return 'offline_audio'
-  if (isRadioQueueSong(song)) return 'radio'
-  if (isPodcastQueueSong(song)) return 'podcast_episode'
-  if (isAudiobookQueueSong(song)) return 'audiobook_chapter'
-  if (isMotivationalQueueSong(song)) return 'motivational'
-  if (isLectureQueueSong(song)) return 'lecture'
-  return 'song'
+  return inferOriginalFamilyType(song)
 }
 
-/** Original family for offline presentation (before offline_audio remap). */
-export function inferOriginalFamilyType(
-  song: ApiSong,
-): Exclude<DesktopQueueItemType, 'offline_audio'> {
+/** Original playable family for queue identity and presentation. */
+export function inferOriginalFamilyType(song: ApiSong): DesktopQueueItemType {
   if (isRadioQueueSong(song)) return 'radio'
   if (isPodcastQueueSong(song)) return 'podcast_episode'
   if (isAudiobookQueueSong(song)) return 'audiobook_chapter'
@@ -123,20 +121,10 @@ function buildBaseApiSong(
 /**
  * Map a typed queue item to the existing ApiSong queue shape.
  * Never embeds permanent remote stream URLs.
- * Offline: preserves original family presentation via metadata.originalType;
- * `ht-download://` is attached only at play time by the caller.
+ * Local downloads keep original family tags; `ht-download://` is attached only at play time.
  */
 export function queueItemToApiSong(item: DesktopQueueItem): ApiSong {
-  const originalType =
-    item.type === 'offline_audio'
-      && isDesktopQueueItemType(item.metadata?.originalType)
-      && item.metadata?.originalType !== 'offline_audio'
-      ? (item.metadata.originalType as Exclude<DesktopQueueItemType, 'offline_audio'>)
-      : item.type === 'offline_audio'
-        ? 'song'
-        : item.type
-
-  const presentationType = item.type === 'offline_audio' ? originalType : item.type
+  const presentationType = isDesktopQueueItemType(item.type) ? item.type : 'song'
   let song: ApiSong
 
   switch (presentationType) {
@@ -197,8 +185,11 @@ export function queueItemToApiSong(item: DesktopQueueItem): ApiSong {
       break
   }
 
-  if (item.type === 'offline_audio') {
-    const tags = new Set([...(song.tags || []), 'offline'])
+  const localSource =
+    Boolean(item.localDownloadId)
+    || item.metadata?.localSource === true
+  if (localSource) {
+    const tags = new Set([...(song.tags || []), 'offline', 'download'])
     song = { ...song, tags: [...tags], audioUrl: null, previewUrl: null }
     if (item.localDownloadId) {
       return Object.assign(song, { offlineDownloadId: item.localDownloadId })
@@ -219,13 +210,11 @@ export function apiSongToQueueItem(
   if (!song?.id?.trim() || !song.title?.trim()) return null
   if (isTvQueueSong(song) || isSportsQueueSong(song)) return null
 
-  const offline = songHasOfflineTag(song, extras)
-  const originalType = inferOriginalFamilyType(song)
-  const type: DesktopQueueItemType = offline ? 'offline_audio' : originalType
-
+  const type = inferOriginalFamilyType(song)
   const localDownloadId =
     trimOrNull(extras?.localDownloadId)
     ?? trimOrNull((song as OfflinePlaybackSong).offlineDownloadId)
+  const localSource = Boolean(localDownloadId) || songHasLocalDownloadMarker(song, extras)
 
   const base: DesktopQueueItem = {
     queueId: newQueueId(),
@@ -242,39 +231,45 @@ export function apiSongToQueueItem(
     duration: typeof song.durationSeconds === 'number' ? song.durationSeconds : null,
     parentId: trimOrNull(song.albumId),
     localDownloadId,
-    isLive: originalType === 'radio',
+    isLive: type === 'radio',
     isMature: extras?.isMature === true,
     contentRating: trimOrNull(extras?.contentRating),
-    metadata: extras?.metadata ?? null,
+    metadata: {
+      ...(extras?.metadata || {}),
+      ...(localSource && !localDownloadId ? { localSource: true } : {}),
+    },
+  }
+  if (base.metadata && Object.keys(base.metadata).length === 0) {
+    base.metadata = null
   }
 
-  if (originalType === 'radio') {
+  if (type === 'radio') {
     const stationId = extractRadioStationId(song.id) || song.id.replace(/^radio-/, '')
     base.id = stationId
     base.isLive = true
     base.duration = null
     base.subtitle = trimOrNull(song.artist) || 'Live radio'
-  } else if (originalType === 'podcast_episode') {
+  } else if (type === 'podcast_episode') {
     const episodeId = extractPodcastEpisodeId(song.id) || song.id.replace(/^podcast-/, '')
     base.id = episodeId
     base.episodeId = episodeId
     base.parentId = trimOrNull(song.albumId)
     base.showTitle = trimOrNull(song.album) || trimOrNull(song.artist)
     base.subtitle = base.showTitle
-  } else if (originalType === 'audiobook_chapter') {
+  } else if (type === 'audiobook_chapter') {
     const parsed = parseAudiobookSongId(song.id)
     base.id = parsed?.chapterId || song.id
     base.chapterId = parsed?.chapterId || null
     base.parentId = parsed?.bookId || trimOrNull(song.albumId)
     base.bookTitle = trimOrNull(song.album)
     base.subtitle = base.bookTitle
-  } else if (originalType === 'motivational') {
+  } else if (type === 'motivational') {
     const parsed = parseMotivationalSongId(song.id)
     base.id = parsed?.sessionId || song.id
     base.parentId = parsed?.programId || trimOrNull(song.albumId)
     base.seriesTitle = trimOrNull(song.album)
     base.subtitle = base.seriesTitle
-  } else if (originalType === 'lecture') {
+  } else if (type === 'lecture') {
     const parsed = parseLectureSongId(song.id)
     base.id = parsed?.sessionId || song.id
     base.parentId = parsed?.seriesId || trimOrNull(song.albumId)
@@ -284,11 +279,7 @@ export function apiSongToQueueItem(
     base.id = song.id.trim()
   }
 
-  if (type === 'offline_audio') {
-    base.metadata = {
-      ...(base.metadata || {}),
-      originalType,
-    }
+  if (localSource) {
     base.isLive = false
   }
 
@@ -321,8 +312,6 @@ export function familyLabelForSong(song: ApiSong | null | undefined): string {
       return 'Motivational'
     case 'lecture':
       return 'Lecture'
-    case 'offline_audio':
-      return 'Offline'
     case 'song':
     default:
       return 'Music'

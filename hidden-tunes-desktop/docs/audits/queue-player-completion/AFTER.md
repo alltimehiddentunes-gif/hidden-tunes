@@ -1,8 +1,14 @@
-# After (Phase 6 completion)
+# After (Phase 6 completion — recovery repair)
 
-- Mature auto-advance skip in `DesktopPlaybackProvider` for audio `ended`, video `ended`, `next()`, and radio error fallback — bounded walk, clear restricted error.
-- `PlayerQueuePanel` management: clear, remove, reorder with LIVE labels for radio.
-- Library **Queue** action for Music / Radio / Episodes via `enqueue` (typed identity, duplicate skip, lightweight status feedback).
-- `validate-queue-runtime.mjs`: catalog get + request IPC, download stubs, Music/Radio DOM play, queue remove after React settle, ownership soft checks, **45** checks.
-- Audit pack under `docs/audits/queue-player-completion/` documents owner, contract, routing, controls, auto-advance, and validation from actual code.
-- Persistence contract: `ht-desktop:queue:v1`, max 500, restore paused, TV/Sports excluded from typed audio queue.
+Final state after recovering committed WIP `3d49ff2` and applying requirement repairs:
+
+- Typed queue families without `offline_audio` discriminator; downloads keep original family
+- Centralized `resolvePlaybackCapabilities`
+- Mature-gated queue restore (no autoplay)
+- Unified 3s previous-restart threshold
+- Editable-aware keyboard shortcuts on the single playback owner
+- Queue panel: family / LIVE / Downloaded, clear / remove / reorder
+- Library typed enqueue for Music / Radio / Episodes
+- Live radio/TV progress (no fake `0:00 / 0:00`)
+- Contract + Electron runtime harnesses
+- Audit pack includes CAPABILITIES / OWNERSHIP / PERSISTENCE / WIP-REVIEW / RECOVERY-STATE

@@ -1,8 +1,10 @@
 import {
+  LEGACY_OFFLINE_QUEUE_ITEM_TYPE,
   QUEUE_MAX_ITEMS,
   QUEUE_SCHEMA_VERSION,
   QUEUE_STORAGE_KEY,
   type DesktopQueueItem,
+  type DesktopQueueItemType,
   type QueueStoreV1,
   isDesktopQueueItemType,
 } from './types'
@@ -78,10 +80,28 @@ function trimOrNull(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function resolvePersistedItemType(row: Record<string, unknown>): DesktopQueueItemType | null {
+  if (isDesktopQueueItemType(row.type)) return row.type
+
+  // Migrate legacy WIP discriminator offline_audio → original family.
+  if (row.type === LEGACY_OFFLINE_QUEUE_ITEM_TYPE) {
+    const metadata =
+      row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+        ? (row.metadata as Record<string, unknown>)
+        : null
+    const original = metadata?.originalType
+    if (isDesktopQueueItemType(original)) return original
+    return 'song'
+  }
+
+  return null
+}
+
 export function normalizeQueueItem(raw: unknown): DesktopQueueItem | null {
   if (!raw || typeof raw !== 'object') return null
   const row = raw as Record<string, unknown>
-  if (!isDesktopQueueItemType(row.type)) return null
+  const type = resolvePersistedItemType(row)
+  if (!type) return null
 
   const id = trimOrNull(row.id)
   const title = trimOrNull(row.title)
@@ -93,10 +113,26 @@ export function normalizeQueueItem(raw: unknown): DesktopQueueItem | null {
       : nowIso()
 
   const queueId = trimOrNull(row.queueId) || newQueueId()
+  const metadata = sanitizeQueueMetadata(
+    row.metadata && typeof row.metadata === 'object'
+      ? (row.metadata as Record<string, unknown>)
+      : null,
+  )
+
+  let localDownloadId = trimOrNull(row.localDownloadId)
+  if (!localDownloadId && row.type === LEGACY_OFFLINE_QUEUE_ITEM_TYPE) {
+    localDownloadId = trimOrNull(metadata?.localDownloadId) || `legacy-offline:${id}`
+  }
+
+  const cleanedMetadata = metadata
+    ? Object.fromEntries(
+        Object.entries(metadata).filter(([key]) => key !== 'originalType'),
+      )
+    : null
 
   return {
     queueId,
-    type: row.type,
+    type,
     id,
     title,
     addedAt,
@@ -110,15 +146,21 @@ export function normalizeQueueItem(raw: unknown): DesktopQueueItem | null {
     parentId: trimOrNull(row.parentId),
     chapterId: trimOrNull(row.chapterId),
     episodeId: trimOrNull(row.episodeId),
-    localDownloadId: trimOrNull(row.localDownloadId),
-    isLive: row.isLive === true || row.type === 'radio',
+    localDownloadId,
+    isLive: row.isLive === true || type === 'radio',
     isMature: row.isMature === true,
     contentRating: trimOrNull(row.contentRating),
-    metadata: sanitizeQueueMetadata(
-      row.metadata && typeof row.metadata === 'object'
-        ? (row.metadata as Record<string, unknown>)
-        : null,
-    ),
+    metadata:
+      cleanedMetadata && Object.keys(cleanedMetadata).length > 0
+        ? {
+            ...cleanedMetadata,
+            ...(localDownloadId || row.type === LEGACY_OFFLINE_QUEUE_ITEM_TYPE
+              ? { localSource: true }
+              : {}),
+          }
+        : localDownloadId || row.type === LEGACY_OFFLINE_QUEUE_ITEM_TYPE
+          ? { localSource: true }
+          : null,
   }
 }
 

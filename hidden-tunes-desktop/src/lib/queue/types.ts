@@ -6,6 +6,11 @@ export const QUEUE_MAX_ITEMS = 500
 /** Previous: restart current finite item when elapsed exceeds this threshold (seconds). */
 export const QUEUE_PREVIOUS_RESTART_SECONDS = 3
 
+/**
+ * Persistable typed audio-queue families.
+ * TV / Sports remain session video owners (shared video element) and are not persisted here.
+ * Downloads keep their original family — never remapped to a generic offline type.
+ */
 export const DESKTOP_QUEUE_ITEM_TYPES = [
   'song',
   'radio',
@@ -13,8 +18,10 @@ export const DESKTOP_QUEUE_ITEM_TYPES = [
   'audiobook_chapter',
   'motivational',
   'lecture',
-  'offline_audio',
 ] as const
+
+/** Legacy Phase-6 WIP discriminator — migrated on load to original family + localDownloadId. */
+export const LEGACY_OFFLINE_QUEUE_ITEM_TYPE = 'offline_audio' as const
 
 export type DesktopQueueItemType = (typeof DESKTOP_QUEUE_ITEM_TYPES)[number]
 
@@ -40,6 +47,7 @@ export type DesktopQueueItem = {
   parentId?: string | null
   chapterId?: string | null
   episodeId?: string | null
+  /** When set, item resolves from verified Downloads — family remains original. */
   localDownloadId?: string | null
   isLive?: boolean
   isMature?: boolean

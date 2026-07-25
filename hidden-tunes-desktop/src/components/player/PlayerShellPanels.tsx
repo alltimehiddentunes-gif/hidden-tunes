@@ -6,8 +6,7 @@ import {
   PLAYER_QUEUE_PANEL_EMPTY_DETAIL,
   PLAYER_QUEUE_PANEL_EMPTY_TITLE,
 } from '../../lib/playerQueueDisplay'
-import { familyLabelForSong } from '../../lib/queue'
-import { isRadioQueueSong } from '../../lib/radio/radioPlaybackAdapter'
+import { familyLabelForSong, resolvePlaybackCapabilities, songHasLocalDownloadMarker } from '../../lib/queue'
 import { ArtworkImage } from '../ArtworkImage'
 
 export const PlayerQueuePanel = memo(function PlayerQueuePanel({
@@ -61,8 +60,10 @@ export const PlayerQueuePanel = memo(function PlayerQueuePanel({
       </header>
       <ol className="player-queue-list">
         {queueRows.map((row) => {
+          const caps = resolvePlaybackCapabilities(row.track)
           const family = familyLabelForSong(row.track)
-          const live = isRadioQueueSong(row.track)
+          const live = caps.isLive
+          const local = caps.isLocalDownload || songHasLocalDownloadMarker(row.track)
           return (
             <li
               key={row.key}
@@ -74,6 +75,7 @@ export const PlayerQueuePanel = memo(function PlayerQueuePanel({
               }
               data-ht-queue-status={row.status}
               data-ht-queue-family={family}
+              data-ht-queue-local={local ? 'true' : undefined}
             >
               <button
                 type="button"
@@ -93,6 +95,7 @@ export const PlayerQueuePanel = memo(function PlayerQueuePanel({
                   <span>
                     {family}
                     {live ? ' · Live' : ''}
+                    {local ? ' · Downloaded' : ''}
                     {row.artist ? ` · ${row.artist}` : ''}
                   </span>
                 </span>

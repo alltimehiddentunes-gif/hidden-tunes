@@ -103,10 +103,10 @@ import {
   moveIndex,
   persistQueueSnapshot,
   removeAtIndex,
+  resolvePlaybackCapabilities,
   restoreQueueSongs,
 } from '../lib/queue'
 import {
-  AUDIOBOOK_PREVIOUS_RESTART_SECONDS,
   AUDIOBOOK_PROGRESS_THROTTLE_MS,
   AUDIOBOOK_MIN_CONTINUE_SECONDS,
   buildAudiobookProgressEntryFromSong,
@@ -125,7 +125,6 @@ import {
   patchMotivationalSessionWithPlayUrl,
 } from '../lib/motivationals/motivationalPlaybackAdapter'
 import {
-  MOTIVATIONAL_PREVIOUS_RESTART_SECONDS,
   MOTIVATIONAL_PROGRESS_THROTTLE_MS,
   MOTIVATIONAL_MIN_CONTINUE_SECONDS,
   buildMotivationalProgressEntryFromSong,
@@ -145,7 +144,6 @@ import {
   buildLectureQueueSongs,
 } from '../lib/lectures/lecturePlaybackAdapter'
 import {
-  LECTURE_PREVIOUS_RESTART_SECONDS,
   LECTURE_PROGRESS_THROTTLE_MS,
   LECTURE_MIN_CONTINUE_SECONDS,
   buildLectureProgressEntryFromSong,
@@ -367,6 +365,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const [queueSeedId, setQueueSeedId] = useState<string | undefined>(undefined)
   const [queueTitle, setQueueTitle] = useState<string | undefined>(undefined)
   const [isPlaying, setIsPlaying] = useState(false)
+  const isPlayingRef = useRef(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [positionSeconds, setPositionSeconds] = useState(0)
@@ -777,6 +776,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  useEffect(() => {
+    isPlayingRef.current = isPlaying
+  }, [isPlaying])
+
   const setQueueContextState = useCallback((context: QueueContext) => {
     queueContextRef.current = context
     setQueueContext(context)
@@ -790,7 +793,31 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     const restored = restoreQueueSongs()
     if (!restored || restored.songs.length === 0) return
 
-    applyQueueState(restored.songs, restored.activeIndex)
+    // Mature-content gating: do not hydrate blocked items into the restored queue.
+    const allowedSongs = restored.songs.filter((song) => !isQueueSongBlockedByMature(song))
+    if (allowedSongs.length === 0) {
+      emitQueueDiagnostic('queue_restored', {
+        count: 0,
+        activeIndex: -1,
+        autoplay: false,
+        matureFiltered: restored.songs.length,
+      })
+      return
+    }
+
+    let activeIndex = restored.activeIndex
+    if (activeIndex >= 0) {
+      const activeSong = restored.songs[activeIndex]
+      if (!activeSong || isQueueSongBlockedByMature(activeSong)) {
+        activeIndex = -1
+      } else {
+        const mapped = allowedSongs.findIndex((song) => song.id === activeSong.id)
+        activeIndex = mapped >= 0 ? mapped : -1
+      }
+    }
+    if (activeIndex >= allowedSongs.length) activeIndex = -1
+
+    applyQueueState(allowedSongs, activeIndex)
     const ctx = restored.queueContext
     if (
       ctx === 'home'
@@ -813,9 +840,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     }
     if (restored.queueTitle) setQueueTitle(restored.queueTitle)
     emitQueueDiagnostic('queue_restored', {
-      count: restored.songs.length,
-      activeIndex: restored.activeIndex,
+      count: allowedSongs.length,
+      activeIndex,
       autoplay: false,
+      matureFiltered: restored.songs.length - allowedSongs.length,
     })
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [applyQueueState, setQueueContextState])
@@ -2412,56 +2440,48 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const previous = useCallback(() => {
     const track = currentTrackRef.current
-    if (track && isAudiobookQueueSong(track)) {
-      if (positionSecondsRef.current > AUDIOBOOK_PREVIOUS_RESTART_SECONDS) {
-        getService().seekTo(0)
-        emitPositionSeconds(0, true)
-        flushAudiobookProgressRef.current(true)
-        return
-      }
-    }
+    const caps = resolvePlaybackCapabilities(track)
 
-    if (track && isMotivationalQueueSong(track)) {
-      if (positionSecondsRef.current > MOTIVATIONAL_PREVIOUS_RESTART_SECONDS) {
-        if (isMotivationalVideoSong(track)) {
-          getVideoService().getVideoElement().currentTime = 0
-        } else {
-          getService().seekTo(0)
+    // Live / non-seekable: never fake-restart; walk previous queue item only.
+    if (track && !caps.seek && caps.isLive) {
+      const queue = queueRef.current
+      const previousIndex = queueIndexRef.current - 1
+      if (previousIndex < 0) {
+        if (repeatModeRef.current === 'all' && queue.length > 1 && caps.previous) {
+          const lastIndex = queue.length - 1
+          applyQueueState(queue, lastIndex)
+          playSong(queue[lastIndex])
         }
-        emitPositionSeconds(0, true)
-        flushMotivationalProgressRef.current(true)
         return
       }
+      if (!caps.previous) return
+      applyQueueState(queue, previousIndex)
+      playSong(queue[previousIndex])
+      return
     }
 
-    if (track && isLectureQueueSong(track)) {
-      if (positionSecondsRef.current > LECTURE_PREVIOUS_RESTART_SECONDS) {
-        if (isLectureVideoSong(track)) {
-          getVideoService().getVideoElement().currentTime = 0
-        } else {
-          getService().seekTo(0)
-        }
-        emitPositionSeconds(0, true)
-        flushLectureProgressRef.current(true)
-        return
-      }
-    }
-
-    // Finite Music / Podcast: restart when past threshold. Radio never restarts mid-stream.
+    // Finite media: one consistent restart threshold (3s) across Music / Podcast /
+    // Audiobook / Motivational / Lecture (and downloaded finite audio of those families).
     if (
       track
-      && !isRadioQueueSong(track)
-      && !isTvQueueSong(track)
-      && !isSportsQueueSong(track)
-      && (isMusicCatalogSong(track) || isPodcastQueueSong(track))
+      && caps.seek
       && positionSecondsRef.current > QUEUE_PREVIOUS_RESTART_SECONDS
     ) {
-      getService().seekTo(0)
+      if (isMotivationalVideoSong(track) || isLectureVideoSong(track)) {
+        getVideoService().getVideoElement().currentTime = 0
+      } else {
+        getService().seekTo(0)
+      }
       emitPositionSeconds(0, true)
+      if (isAudiobookQueueSong(track)) flushAudiobookProgressRef.current(true)
+      if (isMotivationalQueueSong(track)) flushMotivationalProgressRef.current(true)
+      if (isLectureQueueSong(track)) flushLectureProgressRef.current(true)
       if (isPodcastQueueSong(track)) flushPodcastProgressRef.current(true)
       if (isMusicCatalogSong(track)) flushMusicProgressRef.current(true)
       return
     }
+
+    if (!caps.previous) return
 
     const queue = queueRef.current
     const previousIndex = queueIndexRef.current - 1
@@ -2776,6 +2796,44 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       },
     })
   }, [next, pause, previous, resume, seekTo, skipRelative])
+
+  useEffect(() => {
+    const isEditableKeyboardTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false
+      const tag = target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
+      if (target.isContentEditable) return true
+      return Boolean(target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]'))
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
+      if (isEditableKeyboardTarget(event.target)) return
+
+      const caps = resolvePlaybackCapabilities(currentTrackRef.current)
+      if (event.code === 'Space' || event.key === ' ') {
+        if (!currentTrackRef.current) return
+        event.preventDefault()
+        if (isPlayingRef.current) pause()
+        else void resume()
+        return
+      }
+      if (event.key === 'ArrowRight' || event.key === 'MediaTrackNext') {
+        if (!caps.next) return
+        event.preventDefault()
+        next()
+        return
+      }
+      if (event.key === 'ArrowLeft' || event.key === 'MediaTrackPrevious') {
+        if (!caps.previous) return
+        event.preventDefault()
+        previous()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [next, pause, previous, resume])
 
   useEffect(() => {
     updateMediaSessionMetadata(currentTrack)
