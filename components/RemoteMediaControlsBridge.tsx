@@ -1,6 +1,7 @@
 import ActiveWorldRouteSync from "./ActiveWorldRouteSync";
 import DebugModeGesture from "./DebugModeGesture";
 import { memo, useEffect, useRef } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import PlayerScreenDebugOverlay from "../screens/PlayerScreenDebugOverlay";
 
@@ -34,6 +35,7 @@ import {
   updateTvPresentedPlaybackState,
 } from "../services/tv/tvPresentedNowPlaying";
 import { syncRemoteMediaSessionOrdered } from "../utils/remoteMediaSessionLayer";
+
 
 const LOCKSCREEN_POSITION_SYNC_MS = 8000;
 
@@ -406,6 +408,31 @@ function RemoteMediaControlsBridge() {
     if (!isTvRemoteOwner()) return;
     void syncTvPresentedNative(false);
   }, [isTvPlaying, currentTvChannel?.id, tvQueue.length]);
+
+  // Re-assert TV Now Playing when locking / backgrounding so Lock Screen and
+  // vehicle controls keep the presented session (no second owner).
+  useEffect(() => {
+    const onChange = (next: AppStateStatus) => {
+      if (!isTvRemoteOwner()) return;
+      if (next === "background" || next === "inactive") {
+        logTvMediaSessionDiag("app_entered_background", {
+          isTvPlaying: isTvPlayingRef.current,
+          channelId: currentTvChannelRef.current?.id,
+        });
+        void syncTvPresentedNative(true);
+        return;
+      }
+      if (next === "active") {
+        logTvMediaSessionDiag("app_returned_foreground", {
+          isTvPlaying: isTvPlayingRef.current,
+          channelId: currentTvChannelRef.current?.id,
+        });
+        void syncTvPresentedNative(true);
+      }
+    };
+    const sub = AppState.addEventListener("change", onChange);
+    return () => sub.remove();
+  }, []);
 
   return (
     <>

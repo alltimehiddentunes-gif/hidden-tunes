@@ -13,6 +13,8 @@ export type TvNowPlayingProgramme = {
 
 export type TvNowPlayingMetadata = {
   id: string;
+  /** Content-type-safe media kind — never coerce TV to song/youtube. */
+  mediaType: "tv";
   title: string;
   artist: string;
   album: string;
@@ -104,6 +106,7 @@ export function buildTvNowPlayingMetadata(
 
   return {
     id: String(video.id || "tv"),
+    mediaType: "tv",
     title,
     artist,
     album: "Hidden Tunes TV",

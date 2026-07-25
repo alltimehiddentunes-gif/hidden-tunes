@@ -815,6 +815,10 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       setIsTvPlaying(true);
       setIsTvLoading(false);
       setHasError(false);
+      logTvMediaSessionDiag("tv_native_player_ready", {
+        channelId: activeItemIdRef.current,
+        surface: "webview",
+      });
       return;
     }
     if (message === "paused") {
@@ -832,6 +836,10 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     setIsTvPlaying(true);
     setIsTvLoading(false);
     setHasError(false);
+    logTvMediaSessionDiag("tv_native_player_ready", {
+      channelId: activeItemIdRef.current,
+      surface: surfaceRef.current,
+    });
   }, []);
 
   const handleNativePaused = useCallback(() => {

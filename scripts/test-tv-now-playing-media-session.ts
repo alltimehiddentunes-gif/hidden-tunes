@@ -54,9 +54,15 @@ async function main() {
   assertEqual(mapped!.positionMillis, 0, "live TV has no inherited elapsed");
   assertEqual(mapped!.canSeek, false, "live TV cannot seek");
   assertEqual(mapped!.isLive, true, "marked live");
+  assertEqual(mapped!.mediaType, "tv", "content-type-safe mediaType is tv");
   assert(
     mapped!.artworkUri.includes("bbc-news.png") || mapped!.artworkUri.length > 0,
     "artwork resolved"
+  );
+  // Never coerce TV into song/youtube identity.
+  assert(
+    mapped!.id === "tv-bbc-news" && mapped!.mediaType === "tv",
+    "preserves TV station id without YouTube coercion"
   );
 
   const withProgramme = buildTvNowPlayingMetadata(sampleVideo(), {

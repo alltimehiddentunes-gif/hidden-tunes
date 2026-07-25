@@ -1,7 +1,9 @@
 /**
- * Dev-only TV media-session diagnostics for one correlated playback attempt.
+ * Dev-only TV Now Playing / media-session diagnostics for one correlated playback attempt.
  * No timers, no listeners, no ownership/playback side effects.
  * Never logs stream URLs or signed tokens.
+ *
+ * Prefix: [HTTVNowPlayingDiag]
  */
 
 import {
@@ -9,11 +11,25 @@ import {
   getActivePlaybackOwner,
 } from "../playback/PlaybackHandoffCoordinator";
 
+function safeAppState(): string {
+  try {
+    // Lazy require so Node contract tests (no RN runtime) still load this module.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { AppState } = require("react-native") as {
+      AppState?: { currentState?: string };
+    };
+    return String(AppState?.currentState || "unknown");
+  } catch {
+    return "node";
+  }
+}
+
 export type TvMediaSessionDiagEvent =
   | "tv_playback_requested"
   | "media_owner_claim_requested"
   | "previous_media_owner_released"
   | "tv_media_owner_claimed"
+  | "tv_native_player_ready"
   | "tv_metadata_created"
   | "publish_now_playing_invoked"
   | "native_bridge_method_checked"
@@ -23,6 +39,10 @@ export type TvMediaSessionDiagEvent =
   | "metadata_clear_invoked"
   | "media_owner_changed"
   | "tv_session_released"
+  | "app_entered_background"
+  | "app_returned_foreground"
+  | "competing_metadata_publication_detected"
+  | "remote_command_routed"
   // Legacy aliases kept for existing call sites.
   | "tv_owner_claimed"
   | "tv_metadata_published"
@@ -69,18 +89,22 @@ export function endTvMediaSessionTrace(reason?: string) {
 
 export function summarizeTvMetadataForDiag(meta: {
   id?: string;
+  mediaType?: string;
   title?: string;
   artist?: string;
   artworkUri?: string;
   durationMillis?: number;
   isLive?: boolean;
+  canSeek?: boolean;
 }) {
   return {
     title: String(meta.title || "").slice(0, 80),
     artist: String(meta.artist || "").slice(0, 80),
+    mediaType: String(meta.mediaType || "tv"),
     artworkPresent: Boolean(String(meta.artworkUri || "").trim()),
     durationKnown: Number(meta.durationMillis || 0) > 0,
     live: meta.isLive === true,
+    canSeek: meta.canSeek === true,
     mediaIdentifier: String(meta.id || "").slice(0, 64),
   };
 }
@@ -107,10 +131,11 @@ export function logTvMediaSessionDiag(
   details?: Record<string, unknown>
 ): void {
   if (typeof __DEV__ === "undefined" || !__DEV__) return;
-  console.log("[HTTVMediaSession]", event, {
+  console.log("[HTTVNowPlayingDiag]", event, {
     correlationId: activeCorrelationId,
     currentOwner: getActivePlaybackOwner(),
     contentKind: getActivePlaybackContentKind(),
+    appState: safeAppState(),
     ...details,
     ts: Date.now(),
   });
