@@ -296,7 +296,7 @@ const ko = {
       rooms: "룸",
       openRooms: "오픈 룸",
       genres: "장르",
-      moodGenreSpotlights: "무드 룸 / 장르 스포트라이트",
+      moodGenreSpotlights: "?? ??????",
       fullCatalog: "전체 카탈로그",
       allSongs: "모든 곡",
     },

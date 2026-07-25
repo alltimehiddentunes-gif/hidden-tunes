@@ -296,7 +296,7 @@ const pl = {
       rooms: "POKOJE",
       openRooms: "Otwarte pokoje",
       genres: "GATUNKI",
-      moodGenreSpotlights: "Pokoje nastroju / Gatunki w centrum",
+      moodGenreSpotlights: "Gatunki w centrum",
       fullCatalog: "PEŁNY KATALOG",
       allSongs: "Wszystkie utwory",
     },

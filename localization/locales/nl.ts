@@ -296,7 +296,7 @@ const nl = {
       rooms: "RUIMTES",
       openRooms: "Open ruimtes",
       genres: "GENRES",
-      moodGenreSpotlights: "Stemmingruimtes / Genre-spotlights",
+      moodGenreSpotlights: "Genre-spotlights",
       fullCatalog: "VOLLEDIGE CATALOGUS",
       allSongs: "Alle nummers",
     },

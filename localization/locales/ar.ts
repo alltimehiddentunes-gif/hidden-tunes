@@ -296,7 +296,7 @@ const ar = {
       rooms: "غرف",
       openRooms: "غرف مفتوحة",
       genres: "أنواع",
-      moodGenreSpotlights: "غرف المزاج / أنواع مميّزة",
+      moodGenreSpotlights: "????? ??????",
       fullCatalog: "الفهرس الكامل",
       allSongs: "كل الأغاني",
     },

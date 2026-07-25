@@ -289,7 +289,7 @@ const de = {
       rooms: "RÄUME",
       openRooms: "Offene Räume",
       genres: "GENRES",
-      moodGenreSpotlights: "Stimmungsräume / Genre-Fokus",
+      moodGenreSpotlights: "Genre-Fokus",
       fullCatalog: "GESAMTKATALOG",
       allSongs: "Alle Titel",
     },

@@ -294,7 +294,7 @@ const zhCN = {
       rooms: "房间",
       openRooms: "开放房间",
       genres: "流派",
-      moodGenreSpotlights: "心情房间 / 流派聚焦",
+      moodGenreSpotlights: "????",
       fullCatalog: "完整目录",
       allSongs: "全部歌曲",
     },

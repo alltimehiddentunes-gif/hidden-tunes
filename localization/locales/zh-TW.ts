@@ -294,7 +294,7 @@ const zhTW = {
       rooms: "房間",
       openRooms: "開放房間",
       genres: "類型",
-      moodGenreSpotlights: "心情房間 / 類型聚焦",
+      moodGenreSpotlights: "????",
       fullCatalog: "完整目錄",
       allSongs: "全部歌曲",
     },

@@ -296,7 +296,7 @@ const ru = {
       rooms: "КОМНАТЫ",
       openRooms: "Открытые комнаты",
       genres: "ЖАНРЫ",
-      moodGenreSpotlights: "Комнаты настроения / Жанры в фокусе",
+      moodGenreSpotlights: "????? ? ??????",
       fullCatalog: "ПОЛНЫЙ КАТАЛОГ",
       allSongs: "Все песни",
     },

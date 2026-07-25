@@ -296,7 +296,7 @@ const pt = {
       rooms: "SALAS",
       openRooms: "Salas abertas",
       genres: "GÉNEROS",
-      moodGenreSpotlights: "Salas de humor / Géneros em destaque",
+      moodGenreSpotlights: "G�neros em destaque",
       fullCatalog: "CATÁLOGO COMPLETO",
       allSongs: "Todas as músicas",
     },

@@ -437,15 +437,38 @@ export function pickBestArtworkSong<T extends Record<string, unknown>>(
 }
 
 export function resolveGroupArtworkSource(group: {
+  id?: string;
   title?: string;
   type?: string;
   artwork?: unknown;
   songs?: any[];
-}) {
+}, fallback = FALLBACK_ARTWORK) {
+  // 1. Explicit room/group artwork already resolved into the Home payload.
+  if (hasCatalogArtwork(group.artwork, fallback)) {
+    return {
+      id: group.id,
+      title: group.title,
+      mood: group.title,
+      type: group.type,
+      artwork: group.artwork,
+    };
+  }
+
+  if (group.artwork && typeof group.artwork === "object") {
+    return group.artwork;
+  }
+
+  // 3/4. Deterministic first song in the room with resolvable catalogue artwork.
   const primarySong = pickBestArtworkSong(group.songs || []);
+  if (primarySong && hasResolvableArtwork(primarySong, fallback)) {
+    return primarySong;
+  }
+
+  // Keep song payload available so HTImage can still mine nested aliases.
   if (primarySong) return primarySong;
 
   return {
+    id: group.id,
     title: group.title,
     mood: group.title,
     type: group.type,

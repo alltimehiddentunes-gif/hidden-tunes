@@ -289,7 +289,7 @@ const fr = {
       rooms: "SALLES",
       openRooms: "Salles ouvertes",
       genres: "GENRES",
-      moodGenreSpotlights: "Salles d'humeur / Genres à la une",
+      moodGenreSpotlights: "Genres � la une",
       fullCatalog: "CATALOGUE COMPLET",
       allSongs: "Tous les titres",
     },

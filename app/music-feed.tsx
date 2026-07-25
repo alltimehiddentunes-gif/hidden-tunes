@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Image,
   InteractionManager,
   useWindowDimensions,
@@ -12,6 +13,7 @@ import {
   Pressable,
   TouchableOpacity,
   View,
+  type AppStateStatus,
 } from "react-native";
 
 import { router, useFocusEffect } from "expo-router";
@@ -32,7 +34,6 @@ import { EmotionalDiscoveryChips } from "@/components/EmotionalDiscoveryChips";
 import { HomeHeroCard, type HomeHeroCardData } from "@/components/home/HomeHeroCard";
 import { usePlayerFeedSnapshot } from "@/utils/playerFeedStore";
 import HTImage from "@/components/HTImage";
-import UnifiedMediaCard from "@/components/UnifiedMediaCard";
 import { HomeCatalogSongRow, HomeFeaturedCard } from "@/components/catalog/HomePlaybackRows";
 import { PremiumContentGrid } from "@/components/catalog/PremiumContentGrid";
 import AppShell from "@/components/navigation/AppShell";
@@ -68,7 +69,9 @@ import {
 } from "@/services/hiddenTunesApi";
 import type { HiddenTunesGenre } from "@/utils/genres";
 import {
+  FALLBACK_ARTWORK_ASSET,
   getArtworkUri,
+  pickBestArtworkFromSongs,
   resolveGroupArtworkSource,
 } from "@/utils/artwork";
 import {
@@ -81,10 +84,8 @@ import { logPerformanceOffscreenWorkPaused } from "@/utils/performanceLogs";
 import { navigateToRoute } from "@/utils/primaryNavigation";
 import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
 import PremiumEmptyState from "@/components/PremiumEmptyState";
-import {
-  hydrateDiscoveryPreferredGenres,
-  sortItemsByPreferredGenres,
-} from "@/utils/discoveryPreferences";
+import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
+import GenreSpotlightCard from "@/components/home/GenreSpotlightCard";
 import {
   albumGroupKey,
   canonicalAlbumSlug,
@@ -92,13 +93,32 @@ import {
 } from "@/utils/hiddenTunesAlbumIdentity";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
-import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
 import { useLocalization } from "@/localization";
 import type { TranslationKey } from "@/localization";
 import {
   getSharedDiscoverySnapshot,
   MAX_DISCOVERY_INPUT_SONGS,
 } from "@/services/discoveryCache";
+import {
+  getDiscoveryPreferredGenres,
+  hydrateDiscoveryPreferredGenres,
+} from "@/utils/discoveryPreferences";
+import {
+  hydrateGenreSpotlightEngagement,
+  recordGenreSpotlightOpen,
+  recordMoodRoomGenreEngagement,
+  getGenreSpotlightEngagementSnapshot,
+} from "@/utils/genreSpotlightEngagement";
+import {
+  buildGenreSpotlightSignalHash,
+  collectGenreWeightsFromSongs,
+  emptyGenreSpotlightSignals,
+  hasPersonalGenreSpotlightSignals,
+  rankGenreSpotlights,
+  resolveGenreSpotlightLimit,
+  type GenreSpotlightSignals,
+} from "@/utils/genreSpotlights";
+import { listFreshCachedSearchQueries } from "@/utils/searchQueryCache";
 
 const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
@@ -121,6 +141,22 @@ type CatalogGroup = {
 
 function getArtwork(song?: HiddenTunesSong | null) {
   return getArtworkUri(song);
+}
+
+/** Stable local cover when catalogue URLs are missing/failed — keyed by room id. */
+const MOOD_ROOM_LOCAL_FALLBACKS: Record<string, number> = {
+  healing: require("../assets/images/cover1.jpg"),
+  "late-night": require("../assets/images/cover2.jpg"),
+  calm: require("../assets/images/cover3.jpg"),
+  energy: require("../assets/images/cover1.jpg"),
+  "calm-instrumentals": require("../assets/images/cover3.jpg"),
+  "night-drive": require("../assets/images/cover2.jpg"),
+  "worship-focus": require("../assets/images/cover1.jpg"),
+  "healing-room": require("../assets/images/cover1.jpg"),
+};
+
+function moodRoomFallbackArtwork(roomId: string) {
+  return MOOD_ROOM_LOCAL_FALLBACKS[roomId] || FALLBACK_ARTWORK_ASSET;
 }
 
 function songText(song: HiddenTunesSong) {
@@ -166,11 +202,13 @@ function buildMatchedGroup(
   });
   const groupSongs = uniqSongs(matches).slice(0, 18);
   if (!groupSongs.length) return null;
+  // Deterministic: first valid song artwork in room order (not random, not first-only blind).
+  const artwork = pickBestArtworkFromSongs(groupSongs) || getArtwork(groupSongs[0]);
   return {
     id,
     title,
     subtitle: `${groupSongs.length} song${groupSongs.length === 1 ? "" : "s"}`,
-    artwork: getArtwork(groupSongs[0]),
+    artwork,
     songs: groupSongs,
     type,
   };
@@ -812,6 +850,7 @@ export default function MusicFeedScreen() {
         openRooms: t("home.sections.openRooms"),
         genres: t("home.sections.genres"),
         moodGenreSpotlights: t("home.sections.moodGenreSpotlights"),
+        madeForYou: t("music.playlist.madeForYou"),
         fullCatalog: t("home.sections.fullCatalog"),
         allSongs: t("home.sections.allSongs"),
       },
@@ -851,6 +890,10 @@ export default function MusicFeedScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
   const [showDeferredHomeSections, setShowDeferredHomeSections] = useState(false);
+  const [genreSpotlightSignals, setGenreSpotlightSignals] = useState<GenreSpotlightSignals>(
+    emptyGenreSpotlightSignals
+  );
+  const genreSpotlightSignalHashRef = useRef("");
   const [homeLogoFailed, setHomeLogoFailed] = useState(false);
   const [homeAnimationsPaused, setHomeAnimationsPaused] = useState(false);
   const [homeFocused, setHomeFocused] = useState(true);
@@ -1045,7 +1088,6 @@ export default function MusicFeedScreen() {
       songsSignature,
     ]
   );
-  const moodGenreChips = useMemo(() => genres.slice(0, 4), [genres]);
   const recentlyAddedSongs = useMemo(
     () => (showDeferredHomeSections ? sharedDiscovery.recentlyDiscovered : []),
     [sharedDiscovery.recentlyDiscovered, showDeferredHomeSections]
@@ -1122,12 +1164,97 @@ export default function MusicFeedScreen() {
     return preview;
   }, [albums, showDeferredHomeSections]);
   const genreSignature = useMemo(() => buildSongListSignature(genres), [genres]);
-  const visibleGenres = useMemo(
-    () =>
-      showDeferredHomeSections
-        ? sortItemsByPreferredGenres(genres).slice(0, HOME_SECTION_PREVIEW_LIMIT)
-        : [],
-    [genreSignature, showDeferredHomeSections]
+  const catalogGenreById = useMemo(() => {
+    const map = new Map<string, { genre?: unknown }>();
+    for (const song of songs) {
+      const id = String(song.id || "").trim();
+      if (!id) continue;
+      map.set(id, { genre: song.genre });
+    }
+    return map;
+  }, [songsSignature]);
+
+  const refreshGenreSpotlightSignals = useCallback(async () => {
+    await Promise.all([
+      hydrateDiscoveryPreferredGenres(),
+      hydrateGenreSpotlightEngagement(),
+    ]);
+
+    const engagement = getGenreSpotlightEngagementSnapshot();
+    const recentItems = Array.isArray(playerFeed.recentlyPlayed)
+      ? (playerFeed.recentlyPlayed as Array<{
+          id?: unknown;
+          genre?: unknown;
+          playCount?: unknown;
+        }>)
+      : [];
+    const favoriteItems = Array.isArray(playerFeed.favorites)
+      ? (playerFeed.favorites as Array<{
+          id?: unknown;
+          type?: unknown;
+          metadata?: { genre?: unknown };
+          genre?: unknown;
+        }>)
+          .filter((item) => !item.type || item.type === "song")
+          .map((item) => ({
+            id: item.id,
+            genre: item.genre || item.metadata?.genre,
+          }))
+      : [];
+
+    const next: GenreSpotlightSignals = {
+      onboardingGenres: getDiscoveryPreferredGenres(),
+      recentPlayGenres: collectGenreWeightsFromSongs(recentItems, catalogGenreById),
+      favoriteGenres: collectGenreWeightsFromSongs(favoriteItems, catalogGenreById),
+      searchQueries: listFreshCachedSearchQueries(24),
+      openedGenres: engagement.openedGenres.map((item) => ({
+        genre: item.genre,
+        openedAt: item.openedAt,
+      })),
+      moodEngagementGenres: engagement.moodEngagementGenres.map((item) => ({
+        genre: item.genre,
+        weight: item.weight,
+      })),
+    };
+
+    const hash = buildGenreSpotlightSignalHash(next);
+    if (hash === genreSpotlightSignalHashRef.current) return;
+    genreSpotlightSignalHashRef.current = hash;
+    setGenreSpotlightSignals(next);
+  }, [catalogGenreById, playerFeed.favorites, playerFeed.recentlyPlayed]);
+
+  useEffect(() => {
+    void refreshGenreSpotlightSignals();
+  }, [refreshGenreSpotlightSignals, showDeferredHomeSections]);
+
+  useEffect(() => {
+    const onAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === "active") {
+        void refreshGenreSpotlightSignals();
+      }
+    };
+    const subscription = AppState.addEventListener("change", onAppStateChange);
+    return () => subscription.remove();
+  }, [refreshGenreSpotlightSignals]);
+
+  const genreSpotlightLimit = useMemo(
+    () => resolveGenreSpotlightLimit(viewportWidth),
+    [viewportWidth]
+  );
+
+  const visibleGenres = useMemo(() => {
+    if (!showDeferredHomeSections) return [];
+    return rankGenreSpotlights(genres, genreSpotlightSignals, genreSpotlightLimit);
+  }, [
+    genreSignature,
+    genreSpotlightLimit,
+    genreSpotlightSignals,
+    showDeferredHomeSections,
+  ]);
+
+  const genreSpotlightsPersonalized = useMemo(
+    () => hasPersonalGenreSpotlightSignals(genreSpotlightSignals),
+    [genreSpotlightSignals]
   );
   const visibleCatalogSongs = useMemo(() => songs.slice(0, visibleCatalogCount), [songs, visibleCatalogCount]);
   const canLoadMore = visibleCatalogCount < songs.length;
@@ -1195,6 +1322,7 @@ export default function MusicFeedScreen() {
   useFocusEffect(
     useCallback(() => {
       setHomeFocused(true);
+      void refreshGenreSpotlightSignals();
       const interaction = InteractionManager.runAfterInteractions(() => {
         setShowDeferredHomeSections(true);
       });
@@ -1202,7 +1330,7 @@ export default function MusicFeedScreen() {
         setHomeFocused(false);
         interaction.cancel();
       };
-    }, [])
+    }, [refreshGenreSpotlightSignals])
   );
 
   const listeningBrief = useMemo(() => {
@@ -1275,16 +1403,37 @@ export default function MusicFeedScreen() {
     } as any);
   }, []);
 
-  const openGenre = useCallback((genre: HiddenTunesGenreCatalogItem | HiddenTunesGenre | CatalogGroup) => {
-    router.push({
-      pathname: "/genre",
-      params: {
-        title: genre.title,
-        query: genre.title,
-        id: genre.id,
-        type: "type" in genre ? genre.type : "genre",
-      },
-    } as any);
+  const openGenre = useCallback(
+    (genre: HiddenTunesGenreCatalogItem | HiddenTunesGenre | CatalogGroup) => {
+      void recordGenreSpotlightOpen(genre.title);
+      if (
+        "type" in genre &&
+        genre.type === "mood" &&
+        Array.isArray(genre.songs)
+      ) {
+        const moodGenres = genre.songs
+          .slice(0, 8)
+          .map((song) => String((song as HiddenTunesSong)?.genre || "").trim())
+          .filter(Boolean);
+        if (moodGenres.length) {
+          void recordMoodRoomGenreEngagement(moodGenres);
+        }
+      }
+      router.push({
+        pathname: "/genre",
+        params: {
+          title: genre.title,
+          query: genre.title,
+          id: genre.id,
+          type: "type" in genre ? genre.type : "genre",
+        },
+      } as any);
+    },
+    []
+  );
+
+  const openGenreSeeAll = useCallback(() => {
+    navigateToRoute("/worlds", { source: "music-feed.genreSpotlightsSeeAll" });
   }, []);
 
   const openTv = useCallback((video: any) => {
@@ -1348,11 +1497,15 @@ export default function MusicFeedScreen() {
           style={[styles.roomCard, styles.roomCardGrid]}
           onPress={() => openGenre(room)}
         >
-          <HTImage
-            source={resolveGroupArtworkSource(room)}
-            style={styles.roomImage}
-            contentFit="cover"
-          />
+          {/* HTImage sizes from width/height only — absoluteFill alone collapses to 0×0. */}
+          <View pointerEvents="none" style={styles.roomImage}>
+            <HTImage
+              source={resolveGroupArtworkSource(room)}
+              fallback={moodRoomFallbackArtwork(room.id)}
+              style={styles.roomImageFill}
+              contentFit="cover"
+            />
+          </View>
           <LinearGradient
             pointerEvents="none"
             colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.72)"]}
@@ -1445,11 +1598,14 @@ export default function MusicFeedScreen() {
           style={[styles.roomCard, styles.roomCardGrid]}
           onPress={() => openGenre(room)}
         >
-          <HTImage
-            source={resolveGroupArtworkSource(room)}
-            style={styles.roomImage}
-            contentFit="cover"
-          />
+          <View pointerEvents="none" style={styles.roomImage}>
+            <HTImage
+              source={resolveGroupArtworkSource(room)}
+              fallback={moodRoomFallbackArtwork(room.id)}
+              style={styles.roomImageFill}
+              contentFit="cover"
+            />
+          </View>
           <LinearGradient
             pointerEvents="none"
             colors={["transparent", "rgba(0,0,0,0.2)", "rgba(0,0,0,0.72)"]}
@@ -1467,20 +1623,16 @@ export default function MusicFeedScreen() {
     [openGenre]
   );
 
-  const renderGenreGridItem = useCallback(
+  const renderGenreSpotlightItem = useCallback(
     ({ item: genre }: { item: HiddenTunesGenreCatalogItem }) => (
-      <View style={styles.gridCell}>
-        <View style={styles.surfaceCardShellGrid}>
-          <UnifiedMediaCard
-            title={genre.title}
-            subtitle={homeUiRef.current.formatSongCount(genre.songs.length)}
-            image={genre}
-            rightIcon="sparkles"
-            onPress={() => openGenre(genre)}
-            onRightPress={() => openGenre(genre)}
-          />
-        </View>
-      </View>
+      <GenreSpotlightCard
+        id={genre.id}
+        title={genre.title}
+        songCountLabel={homeUiRef.current.formatSongCount(genre.songs.length)}
+        artwork={genre.artwork}
+        songs={genre.songs}
+        onPress={() => openGenre(genre)}
+      />
     ),
     [openGenre]
   );
@@ -1793,17 +1945,42 @@ export default function MusicFeedScreen() {
 
                     {visibleGenres.length > 0 ? (
                       <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>{homeUi.sections.genres}</Text>
-                        <Text style={styles.sectionTitle}>{homeUi.sections.moodGenreSpotlights}</Text>
-                        <PremiumContentGrid
-                          data={visibleGenres}
-                          keyExtractor={(genre) => genre.id}
-                          renderItem={renderGenreGridItem}
-                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
-                          scrollEnabled={false}
-                          horizontalPadding={0}
-                          listKey="home-genre-spotlights"
-                        />
+                        <View style={styles.sectionHeaderRow}>
+                          <View style={styles.genreSpotlightHeaderCopy}>
+                            <Text style={styles.sectionEyebrow}>{homeUi.sections.genres}</Text>
+                            <Text style={styles.sectionTitle}>
+                              {genreSpotlightsPersonalized
+                                ? homeUi.sections.madeForYou
+                                : homeUi.sections.moodGenreSpotlights}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            activeOpacity={0.86}
+                            onPress={openGenreSeeAll}
+                            accessibilityRole="button"
+                            accessibilityLabel="See all genres"
+                            hitSlop={8}
+                          >
+                            <Text style={styles.sectionSeeAll}>See all</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          scrollEnabled={visibleGenres.length > 2}
+                          nestedScrollEnabled
+                          style={styles.genreSpotlightRail}
+                          contentContainerStyle={styles.genreSpotlightRailContent}
+                        >
+                          {visibleGenres.map((genre, index) => (
+                            <View
+                              key={genre.id}
+                              style={index === visibleGenres.length - 1 ? undefined : styles.genreSpotlightItem}
+                            >
+                              {renderGenreSpotlightItem({ item: genre })}
+                            </View>
+                          ))}
+                        </ScrollView>
                       </View>
                     ) : null}
                 </>
@@ -2313,6 +2490,31 @@ const styles = StyleSheet.create({
     marginBottom: 13,
     paddingHorizontal: 2,
   },
+  genreSpotlightHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
+  },
+  genreSpotlightRail: {
+    marginTop: -2,
+    marginHorizontal: -2,
+  },
+  genreSpotlightRailContent: {
+    paddingRight: 12,
+    paddingLeft: 2,
+  },
+  genreSpotlightGap: {
+    width: 12,
+  },
+  genreSpotlightItem: {
+    marginRight: 12,
+  },
+  sectionSeeAll: {
+    color: COLORS.primaryGlow,
+    fontSize: 12,
+    fontWeight: "800",
+    marginBottom: 2,
+  },
   sectionEyebrow: {
     color: COLORS.cyan,
     fontSize: 10,
@@ -2511,6 +2713,10 @@ const styles = StyleSheet.create({
   },
   roomImage: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),
+  },
+  roomImageFill: {
+    width: "100%",
+    height: "100%",
   },
   roomShade: {
     ...StyleSheet.flatten(StyleSheet.absoluteFill),

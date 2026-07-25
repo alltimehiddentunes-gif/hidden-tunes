@@ -296,7 +296,7 @@ const id = {
       rooms: "RUANG",
       openRooms: "Ruang Terbuka",
       genres: "GENRE",
-      moodGenreSpotlights: "Ruang Suasana / Sorotan Genre",
+      moodGenreSpotlights: "Sorotan Genre",
       fullCatalog: "KATALOG LENGKAP",
       allSongs: "Semua Lagu",
     },

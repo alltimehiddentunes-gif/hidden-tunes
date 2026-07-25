@@ -296,7 +296,7 @@ const hi = {
       rooms: "कमरे",
       openRooms: "खुले कमरे",
       genres: "शैलियाँ",
-      moodGenreSpotlights: "मूड रूम / शैली स्पॉटलाइट",
+      moodGenreSpotlights: "???? ?????????",
       fullCatalog: "पूरा कैटलॉग",
       allSongs: "सभी गाने",
     },

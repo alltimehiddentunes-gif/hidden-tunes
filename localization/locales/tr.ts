@@ -296,7 +296,7 @@ const tr = {
       rooms: "ODALAR",
       openRooms: "Açık odalar",
       genres: "TÜRLER",
-      moodGenreSpotlights: "Ruh hali odaları / Tür vitrinleri",
+      moodGenreSpotlights: "T�r vitrinleri",
       fullCatalog: "TAM KATALOG",
       allSongs: "Tüm şarkılar",
     },

@@ -83,6 +83,27 @@ export function clearSearchQueryCache() {
   memoryCache.clear();
 }
 
+/**
+ * Read-only peek at in-memory search query cache for Home personalisation.
+ * Does not change Search behaviour or touch AsyncStorage.
+ */
+export function listFreshCachedSearchQueries(limit = 24): string[] {
+  const queries: string[] = [];
+  const seen = new Set<string>();
+
+  for (const [key, entry] of memoryCache.entries()) {
+    if (!entry || !isFresh(entry.cachedAt)) continue;
+    const separator = key.indexOf(":");
+    const query = separator >= 0 ? key.slice(separator + 1).trim() : "";
+    if (!query || seen.has(query)) continue;
+    seen.add(query);
+    queries.push(query);
+    if (queries.length >= limit) break;
+  }
+
+  return queries;
+}
+
 export function hasFreshSearchResults(query: string, source: SearchSource) {
   const key = normalizeSearchQueryKey(query, source);
   const memoryEntry = memoryCache.get(key);

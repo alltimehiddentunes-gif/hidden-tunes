@@ -296,7 +296,7 @@ const it = {
       rooms: "STANZE",
       openRooms: "Stanze aperte",
       genres: "GENERI",
-      moodGenreSpotlights: "Stanze d'umore / Generi in evidenza",
+      moodGenreSpotlights: "Generi in evidenza",
       fullCatalog: "CATALOGO COMPLETO",
       allSongs: "Tutti i brani",
     },

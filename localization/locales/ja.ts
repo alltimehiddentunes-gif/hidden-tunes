@@ -296,7 +296,7 @@ const ja = {
       rooms: "ルーム",
       openRooms: "オープンルーム",
       genres: "ジャンル",
-      moodGenreSpotlights: "ムードルーム / ジャンル特集",
+      moodGenreSpotlights: "??????",
       fullCatalog: "全カタログ",
       allSongs: "すべての曲",
     },

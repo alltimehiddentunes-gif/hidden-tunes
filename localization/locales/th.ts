@@ -296,7 +296,7 @@ const th = {
       rooms: "ห้อง",
       openRooms: "ห้องเปิด",
       genres: "แนวเพลง",
-      moodGenreSpotlights: "ห้องอารมณ์ / ไฮไลต์แนวเพลง",
+      moodGenreSpotlights: "?????????????",
       fullCatalog: "แคตตาล็อกทั้งหมด",
       allSongs: "เพลงทั้งหมด",
     },

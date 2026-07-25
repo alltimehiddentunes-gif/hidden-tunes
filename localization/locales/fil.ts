@@ -296,7 +296,7 @@ const fil = {
       rooms: "MGA ROOM",
       openRooms: "Bukas na Rooms",
       genres: "MGA GENRE",
-      moodGenreSpotlights: "Mood Rooms / Genre Spotlights",
+      moodGenreSpotlights: "Genre Spotlights",
       fullCatalog: "BUONG CATALOG",
       allSongs: "Lahat ng Kanta",
     },

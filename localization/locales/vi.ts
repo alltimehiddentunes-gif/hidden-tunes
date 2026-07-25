@@ -296,7 +296,7 @@ const vi = {
       rooms: "PHÒNG",
       openRooms: "Phòng mở",
       genres: "THỂ LOẠI",
-      moodGenreSpotlights: "Phòng tâm trạng / Thể loại nổi bật",
+      moodGenreSpotlights: "Th? lo?i n?i b?t",
       fullCatalog: "TOÀN BỘ DANH MỤC",
       allSongs: "Tất cả bài hát",
     },

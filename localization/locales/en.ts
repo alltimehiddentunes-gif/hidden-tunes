@@ -296,7 +296,7 @@ const en = {
       rooms: "ROOMS",
       openRooms: "Open Rooms",
       genres: "GENRES",
-      moodGenreSpotlights: "Mood Rooms / Genre Spotlights",
+      moodGenreSpotlights: "Genre Spotlights",
       fullCatalog: "FULL CATALOG",
       allSongs: "All Songs",
     },
