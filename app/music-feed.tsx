@@ -982,6 +982,7 @@ export default function MusicFeedScreen() {
         }
 
         // 2) Cold / partial: start full catalog, but surface first page ASAP.
+        // Do not await the multi-page crawl — apply when ready so Home stays interactive.
         const networkStarted = Date.now();
         const fullPromise = fetchHiddenTunesCatalog();
 
@@ -1004,13 +1005,21 @@ export default function MusicFeedScreen() {
           });
         }
 
-        const data = await fullPromise;
-        applyCatalog(data);
-        logHomeLoad("full_catalog", {
-          ms: Date.now() - networkStarted,
-          totalMs: Date.now() - startedAt,
-          songs: data.songs.length,
-        });
+        void fullPromise
+          .then((data) => {
+            if (!mountedRef.current) return;
+            applyCatalog(data);
+            logHomeLoad("full_catalog", {
+              ms: Date.now() - networkStarted,
+              totalMs: Date.now() - startedAt,
+              songs: data.songs.length,
+            });
+          })
+          .catch((error) => {
+            logHomeLoad("full_catalog_error", {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
       } catch (error) {
         logHomeLoad("load_error", {
           error: error instanceof Error ? error.message : String(error),

@@ -1,7 +1,8 @@
 /**
  * Sports event availability — drives Watch button visibility.
- * Only live_in_app may show "Watch Live".
+ * Only live_in_app may show "Watch Live", and only when sports_streams_enabled.
  */
+import { isSportsClientEnabled } from "../../../constants/sportsFlags";
 import type { SportsMatchCard } from "../../../types/sports";
 
 export const SPORTS_AVAILABILITY_STATES = [
@@ -24,7 +25,23 @@ export type SportsWatchAction =
   | { kind: "remind"; label: "Remind Me" }
   | { kind: "replay"; label: "Watch Replay" }
   | { kind: "highlights"; label: "Watch Highlights" }
+  | { kind: "fixture_only"; label: "Live score" | "Match details" | "Stream not available" | "Updates unavailable"; meta?: string }
   | { kind: "none"; label: null; meta?: string };
+
+function fixtureOnlyAction(card: SportsMatchCard): SportsWatchAction {
+  const code = normalizeStatusCode(card.status?.code);
+  if (card.status?.live || isLiveCode(code)) {
+    return {
+      kind: "fixture_only",
+      label: "Live score",
+      meta: "Stream not available",
+    };
+  }
+  if (code === "unavailable" || code === "delayed") {
+    return { kind: "fixture_only", label: "Updates unavailable" };
+  }
+  return { kind: "fixture_only", label: "Match details" };
+}
 
 /** Module flag — Sports player route is the only place that sets this. */
 let sportsPlayerRouteActive = false;
@@ -143,32 +160,42 @@ export function isLiveInAppPlayable(card: SportsMatchCard): boolean {
 
 export function getSportsWatchAction(card: SportsMatchCard): SportsWatchAction {
   const availability = deriveSportsAvailability(card);
+  const streamsEnabled = isSportsClientEnabled("sports_streams_enabled");
+  const code = normalizeStatusCode(card.status?.code);
+
+  if (code === "cancelled" || code === "postponed") {
+    return { kind: "none", label: null };
+  }
+
   switch (availability) {
     case "live_in_app":
+      if (!streamsEnabled) return fixtureOnlyAction(card);
       return { kind: "watch_live", label: "Watch Live" };
     case "live_external":
+      if (!streamsEnabled) return fixtureOnlyAction(card);
       return { kind: "watch_external", label: "Watch on Official Provider" };
     case "live_subscription":
+      if (!streamsEnabled) return fixtureOnlyAction(card);
       return { kind: "subscription", label: "Subscription Required" };
     case "upcoming":
       return { kind: "remind", label: "Remind Me" };
     case "replay_available":
+      if (!streamsEnabled) return { kind: "fixture_only", label: "Match details" };
       return { kind: "replay", label: "Watch Replay" };
     case "highlights_available":
+      if (!streamsEnabled) return { kind: "fixture_only", label: "Match details" };
       return { kind: "highlights", label: "Watch Highlights" };
     case "finished":
       return { kind: "none", label: null };
     case "live_unavailable":
+      return fixtureOnlyAction(card);
     default:
-      return {
-        kind: "none",
-        label: null,
-        meta: card.status?.live ? "Live score · No stream available" : undefined,
-      };
+      return fixtureOnlyAction(card);
   }
 }
 
 export function canShowWatchAction(card: SportsMatchCard): boolean {
+  if (!isSportsClientEnabled("sports_streams_enabled")) return false;
   const action = getSportsWatchAction(card);
   return (
     action.kind === "watch_live" ||

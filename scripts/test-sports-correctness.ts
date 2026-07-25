@@ -5,6 +5,7 @@
 import assert from "assert/strict";
 
 import {
+  deriveSportsAvailability,
   getSportsWatchAction,
   isSportsPlayerRouteActive,
   needsSportsCountdownClock,
@@ -156,11 +157,14 @@ function main() {
   assert.equal(isSportsResolveAbortError(new Error("Network down")), false);
 
   // --- Match card semantic actions ---
+  // Streams remain disabled by default — fixture_only labels, never Watch Live.
   assert.equal(getSportsWatchAction(upcoming).kind, "remind");
-  assert.equal(getSportsWatchAction(livePlayable).kind, "watch_live");
+  assert.equal(getSportsWatchAction(livePlayable).kind, "fixture_only");
+  assert.equal(getSportsWatchAction(livePlayable).label, "Live score");
+  assert.equal(deriveSportsAvailability(livePlayable), "live_in_app");
   assert.equal(getSportsWatchAction(finished).kind, "none");
   assert.equal(shouldOpenSportsPlayer(upcoming), false);
-  assert.equal(shouldOpenSportsPlayer(livePlayable), true);
+  assert.equal(shouldOpenSportsPlayer(livePlayable), false);
   assert.equal(shouldOpenSportsPlayer(finished), false);
 
   // Finished status beats stale availabilityState=live_in_app

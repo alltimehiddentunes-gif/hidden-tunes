@@ -23,6 +23,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   SportsCompetitionShelf,
   SportsCountryGrid,
+  SportsEmptyState,
   SportsHero,
   SportsHeroSkeleton,
   SportsHeader,
@@ -35,9 +36,14 @@ import {
   SportsVideoCard,
   SportsWorldGrid,
 } from "../../components/sports";
-import { isSportsClientEnabled } from "../../constants/sportsFlags";
+import {
+  isSportsClientEnabled,
+  sportsLiveScoresEnabled,
+  sportsStreamsEnabled,
+} from "../../constants/sportsFlags";
 import {
   boundSectionItems,
+  ensureLiveNowSection,
   omitEmptySportsSections,
   pickSportsHero,
   sectionItemLimit,
@@ -144,7 +150,6 @@ function filterUnsupportedHomeSections(sections: SportsHomeSection[]): SportsHom
 
 function SportsHomeInner() {
   const gate = useSportsFullUiGate();
-  const nowMs = useSportsNowClock();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,6 +159,24 @@ function SportsHomeInner() {
   const [remindedIds, setRemindedIds] = useState<Set<string>>(new Set());
   const [savedFixtureIds, setSavedFixtureIds] = useState<Set<string>>(new Set());
   const [followedCompetitionIds, setFollowedCompetitionIds] = useState<Set<string>>(new Set());
+
+  const countdownNeeded = useMemo(() => {
+    for (const section of sections) {
+      if (!Array.isArray(section.items)) continue;
+      for (const item of section.items) {
+        if (
+          item &&
+          typeof item === "object" &&
+          "status" in item &&
+          needsSportsCountdownClock(item as SportsMatchCardType)
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }, [sections]);
+  const nowMs = useSportsNowClock(countdownNeeded ? 30_000 : 0);
 
   const abortRef = useRef<AbortController | null>(null);
   const watchGuardRef = useRef(createTapGuardState());
@@ -193,7 +216,11 @@ function SportsHomeInner() {
 
       const raw = Array.isArray(home.sections) ? home.sections : [];
       const merged = mergeSectionErrors(raw, home.sectionErrors);
-      setSections(omitEmptySportsSections(filterUnsupportedHomeSections(merged)));
+      setSections(
+        omitEmptySportsSections(
+          ensureLiveNowSection(filterUnsupportedHomeSections(merged))
+        )
+      );
     } catch {
       if (!controller.signal.aborted && !background) {
         setError("Sports could not be loaded. Try again.");
@@ -215,18 +242,22 @@ function SportsHomeInner() {
     };
   }, [gate.allowed, load]);
 
-  // Focused live refresh — one timer, aborted when unfocused/backgrounded.
+  // Focused live refresh — only when live scores or streams need freshness.
+  // Fixtures-only pilots rely on initial load + pull-to-refresh + resume refetch.
   useFocusEffect(
     useCallback(() => {
       if (!gate.allowed) return undefined;
       focusedRef.current = true;
+      const liveRefreshNeeded = sportsLiveScoresEnabled || sportsStreamsEnabled;
       const LIVE_REFRESH_MS = 60_000;
       const tick = () => {
         if (!focusedRef.current) return;
         if (AppState.currentState !== "active") return;
         void load({ background: true });
       };
-      const intervalId = setInterval(tick, LIVE_REFRESH_MS);
+      const intervalId = liveRefreshNeeded
+        ? setInterval(tick, LIVE_REFRESH_MS)
+        : null;
       const onAppState = (state: AppStateStatus) => {
         if (state !== "active") return;
         if (!focusedRef.current) return;
@@ -235,7 +266,7 @@ function SportsHomeInner() {
       const sub = AppState.addEventListener("change", onAppState);
       return () => {
         focusedRef.current = false;
-        clearInterval(intervalId);
+        if (intervalId) clearInterval(intervalId);
         sub.remove();
         abortRef.current?.abort();
       };
@@ -537,6 +568,18 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
       section.items as SportsMatchCardType[],
       itemLimit
     );
+    if (section.id === "live_now" && items.length === 0) {
+      return (
+        <SportsSection title={section.title || "Live now"} error={section.error}>
+          <SportsEmptyState
+            icon="radio-outline"
+            title="No confirmed live events right now"
+            message="Check today’s fixtures below."
+            compact
+          />
+        </SportsSection>
+      );
+    }
     return (
       <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
         <SportsHorizontalShelf maxItems={itemLimit}>

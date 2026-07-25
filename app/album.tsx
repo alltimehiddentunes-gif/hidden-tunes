@@ -16,7 +16,10 @@ import { safeRouterBack } from "../utils/safeNavigation";
 import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../utils/performanceMode";
 import { usePlayerActions } from "../context/PlayerContext";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
@@ -224,6 +227,11 @@ export default function AlbumScreen() {
     ];
   }, [musicUi, tracks, recoveryLabel]);
 
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(trackRows.length),
+    [trackRows.length]
+  );
+
   const totalDuration = useMemo(
     () => tracks.reduce((total, song) => total + getSongDurationSeconds(song), 0),
     [tracks]
@@ -392,6 +400,11 @@ export default function AlbumScreen() {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          initialNumToRender={listPerformance.initialNumToRender}
+          maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+          windowSize={listPerformance.windowSize}
+          updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+          removeClippedSubviews={listPerformance.removeClippedSubviews}
           ListEmptyComponent={
             <View style={styles.empty}>
               <View style={styles.emptyCard}>

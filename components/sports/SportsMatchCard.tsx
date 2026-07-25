@@ -151,6 +151,12 @@ function SportsMatchCard({
       action.kind === "subscription") &&
     !!onWatch;
   const showRemindButton = action.kind === "remind" && !!onRemind;
+  const fixtureOnlyLabel =
+    action.kind === "fixture_only"
+      ? [action.label, action.meta].filter(Boolean).join(" · ")
+      : action.kind === "none" && action.meta
+        ? action.meta
+        : null;
 
   const handlePress = useCallback(() => {
     onPress?.(card);
@@ -237,6 +243,12 @@ function SportsMatchCard({
         {reminded ? "Reminder set" : "Remind me"}
       </Text>
     </Pressable>
+  ) : fixtureOnlyLabel ? (
+    <View style={[styles.actionButton, styles.fixtureOnlyChip]}>
+      <Text style={styles.fixtureOnlyText} numberOfLines={1}>
+        {fixtureOnlyLabel}
+      </Text>
+    </View>
   ) : null;
 
   if (variant === "compact") {
@@ -564,6 +576,19 @@ const styles = StyleSheet.create({
     color: "#0A0A0A",
     fontSize: 12,
     fontWeight: "900",
+  },
+
+  fixtureOnlyChip: {
+    backgroundColor: SPORTS_COLORS.surfaceGlass,
+    borderWidth: 1,
+    borderColor: SPORTS_COLORS.border,
+    paddingHorizontal: 10,
+  },
+
+  fixtureOnlyText: {
+    color: SPORTS_COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
   },
 
   remindButton: {

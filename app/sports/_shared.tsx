@@ -12,7 +12,7 @@
  * component (following / saved lists).
  */
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View, type AppStateStatus } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -52,8 +52,38 @@ export function navigateSportsHomeBack(): void {
 export function useSportsNowClock(intervalMs: number = CLOCK_INTERVAL_MS): number {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), intervalMs);
-    return () => clearInterval(id);
+    if (intervalMs <= 0) return undefined;
+
+    let id: ReturnType<typeof setInterval> | null = null;
+
+    const stop = () => {
+      if (id) {
+        clearInterval(id);
+        id = null;
+      }
+    };
+
+    const start = () => {
+      if (id || AppState.currentState !== "active") return;
+      id = setInterval(() => setNowMs(Date.now()), intervalMs);
+    };
+
+    start();
+
+    const onAppState = (state: AppStateStatus) => {
+      if (state === "active") {
+        setNowMs(Date.now());
+        start();
+        return;
+      }
+      stop();
+    };
+
+    const sub = AppState.addEventListener("change", onAppState);
+    return () => {
+      stop();
+      sub.remove();
+    };
   }, [intervalMs]);
   return nowMs;
 }

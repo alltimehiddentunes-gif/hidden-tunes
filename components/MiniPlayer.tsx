@@ -73,7 +73,7 @@ type YouTubeMini = {
 };
 
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
-const YOUTUBE_POLL_MS = 30000;
+const YOUTUBE_MINI_UPDATED_EVENT = "hidden_tunes_youtube_mini_updated";
 
 function formatMiniTime(millis: number) {
   const totalSeconds = Math.max(0, Math.floor((millis || 0) / 1000));
@@ -507,16 +507,25 @@ function MiniPlayer() {
       }
     })();
 
-    const timer = setInterval(() => {
-      if (!mountedRef.current || !appActiveRef.current) return;
-      if (currentSong) return;
-      if (!sessionYoutubeHydratedRef.current) return;
-      void loadYouTubeMini();
-    }, YOUTUBE_POLL_MS);
+    // Audio owns MiniPlayer — skip YouTube storage work and do not poll.
+    if (currentSong) {
+      return () => {
+        mountedRef.current = false;
+      };
+    }
+
+    const sub = DeviceEventEmitter.addListener(
+      YOUTUBE_MINI_UPDATED_EVENT,
+      () => {
+        if (!mountedRef.current || !appActiveRef.current) return;
+        if (!sessionYoutubeHydratedRef.current) return;
+        void loadYouTubeMini();
+      }
+    );
 
     return () => {
       mountedRef.current = false;
-      clearInterval(timer);
+      sub.remove();
     };
   }, [currentSong, loadYouTubeMini]);
 

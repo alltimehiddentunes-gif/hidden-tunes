@@ -32,8 +32,31 @@ export function omitEmptySportsSections(
 ): SportsHomeSection[] {
   return sortSportsHomeSections(sections).filter((section) => {
     if (section.error) return true;
+    // Always keep Live now so fixture-only pilots can show the empty message.
+    if (section.id === "live_now") return true;
     return Array.isArray(section.items) && section.items.length > 0;
   });
+}
+
+/** Ensure a Live now section exists for truthful empty-state messaging. */
+export function ensureLiveNowSection(
+  sections: SportsHomeSection[]
+): SportsHomeSection[] {
+  if (sections.some((section) => section.id === "live_now")) {
+    return sortSportsHomeSections(sections);
+  }
+  return sortSportsHomeSections([
+    {
+      id: "live_now",
+      type: "live",
+      title: "Live now",
+      subtitle:
+        "No confirmed live events right now. Check today’s fixtures below.",
+      rank: 10,
+      items: [],
+    },
+    ...sections,
+  ]);
 }
 export function boundSectionItems<T>(
   items: T[] | undefined,

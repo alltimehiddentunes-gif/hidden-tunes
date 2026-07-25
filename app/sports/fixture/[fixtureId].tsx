@@ -35,7 +35,6 @@ import {
   formatStatusLabel,
   getSportsWatchAction,
   openSportsPlayer,
-  primaryActionLabel,
 } from "../../../lib/sports/ui/formatStatus";
 import type {
   SportsFixtureDetail,
@@ -113,8 +112,15 @@ export default function FixtureDetailScreen() {
   const home = fixture ? participantBySide(fixture.participants, "home") : undefined;
   const away = fixture ? participantBySide(fixture.participants, "away") : undefined;
   const score = fixture ? formatScore(fixture) : null;
-  const action = fixture ? primaryActionLabel(fixture) : null;
-  const canWatch = fixture ? action && action !== "Remind me" && canShowWatchAction(fixture) : false;
+  const watchAction = fixture ? getSportsWatchAction(fixture) : null;
+  const action = watchAction?.label ?? null;
+  const canWatch = fixture ? canShowWatchAction(fixture) : false;
+  const fixtureOnlyHint =
+    watchAction?.kind === "fixture_only"
+      ? [watchAction.label, watchAction.meta].filter(Boolean).join(" · ")
+      : watchAction?.kind === "none" && watchAction.meta
+        ? watchAction.meta
+        : null;
   const notStarted = fixture ? !fixture.status?.live && !fixture.status?.finished : false;
 
   const goWatch = useCallback(() => {
@@ -219,6 +225,10 @@ export default function FixtureDetailScreen() {
                 <Ionicons name="play" size={15} color={SPORTS_COLORS.navy} />
                 <Text style={styles.watchBtnText}>{action}</Text>
               </Pressable>
+            ) : fixtureOnlyHint ? (
+              <View style={styles.fixtureOnlyHint}>
+                <Text style={styles.fixtureOnlyHintText}>{fixtureOnlyHint}</Text>
+              </View>
             ) : null}
 
             <View style={styles.actionsRow}>
@@ -380,6 +390,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   watchBtnText: { color: SPORTS_COLORS.navy, fontSize: 14, fontWeight: "800" },
+  fixtureOnlyHint: {
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: SPORTS_COLORS.surfaceGlass,
+    borderWidth: 1,
+    borderColor: SPORTS_COLORS.border,
+  },
+  fixtureOnlyHintText: {
+    color: SPORTS_COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+  },
   actionsRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   actionChip: {
     flexDirection: "row",

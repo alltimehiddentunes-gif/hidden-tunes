@@ -19,7 +19,10 @@ import HTImage from "../components/HTImage";
 import AppShell from "../components/navigation/AppShell";
 import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
-import { getListPerformanceSettings, markFastScrolling } from "../utils/performanceMode";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../utils/performanceMode";
 import { usePlayerActions } from "../context/PlayerContext";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
@@ -195,6 +198,10 @@ export default function GenreScreen() {
   );
 
   const tracks = roomResolution.tracks;
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(tracks.length),
+    [tracks.length]
+  );
   const recoveryLabel = roomResolution.recoveryLabel;
 
   const albums = useMemo<HiddenTunesAlbumCatalogItem[]>(() => {
@@ -304,6 +311,11 @@ export default function GenreScreen() {
           keyExtractor={(item, index) => `${item.id}-${index}`}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          initialNumToRender={listPerformance.initialNumToRender}
+          maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+          windowSize={listPerformance.windowSize}
+          updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+          removeClippedSubviews={listPerformance.removeClippedSubviews}
           refreshControl={<RefreshControl tintColor={COLORS.primary} refreshing={refreshing} onRefresh={onRefresh} />}
           ListHeaderComponent={
             <>

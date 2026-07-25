@@ -23,19 +23,21 @@ import fs from "fs";
 import path from "path";
 import { buildMatchAccessibilityLabel } from "../lib/sports/ui/buildAccessibilityLabel";
 import {
+  canShowWatchAction,
+  deriveSportsAvailability,
+  formatStatusLabel,
+  getSportsWatchAction,
+  primaryActionLabel,
+} from "../lib/sports/ui/formatStatus";
+import {
   boundSectionItems,
+  ensureLiveNowSection,
   omitEmptySportsSections,
   pickSportsHero,
   sortSportsHomeSections,
   stableSportsKey,
   SPORTS_SECTION_LIMITS,
 } from "../lib/sports/ui/homeSections";
-import {
-  canShowWatchAction,
-  formatStatusLabel,
-  getSportsWatchAction,
-  primaryActionLabel,
-} from "../lib/sports/ui/formatStatus";
 import { formatMatchTitle, formatScore } from "../lib/sports/ui/formatScore";
 import type { SportsHomeSection, SportsMatchCard } from "../types/sports";
 
@@ -88,6 +90,19 @@ function main() {
   assert.equal(withError.some((s) => s.id === "trending"), true);
   assert.equal(withEmpty.length, 1);
 
+  // Empty Live now is retained for truthful empty-state messaging
+  const emptyLiveKept = omitEmptySportsSections([
+    section("live_now", "live", [], 10),
+    section("todays_schedule", "fixtures", [DEV_FOOTBALL_LIVE], 80),
+  ]);
+  assert.equal(emptyLiveKept.some((s) => s.id === "live_now"), true);
+  assert.equal(emptyLiveKept.find((s) => s.id === "live_now")?.items.length, 0);
+  const ensured = ensureLiveNowSection([
+    section("todays_schedule", "fixtures", [DEV_FOOTBALL_LIVE], 80),
+  ]);
+  assert.equal(ensured[0]?.id, "live_now");
+  assert.match(String(ensured[0]?.subtitle || ""), /No confirmed live events/i);
+
   // --- Hero ---
   const home = buildDevSportsHome("anonymous");
   assert.ok(Array.isArray(home.sections));
@@ -135,14 +150,19 @@ function main() {
   assert.equal(formatStatusLabel("starting_soon"), "STARTING SOON");
   assert.equal(formatStatusLabel("finished"), "FINAL");
   assert.equal(formatScore(DEV_FOOTBALL_LIVE), "2–1");
-  assert.ok(canShowWatchAction(DEV_FOOTBALL_LIVE));
-  assert.equal(primaryActionLabel(DEV_FOOTBALL_LIVE), "Watch Live");
+  // Streams disabled by default — never advertise Watch Live in fixtures pilot
+  assert.equal(SPORTS_CLIENT_FLAGS.sports_streams_enabled, false);
+  assert.equal(SPORTS_CLIENT_FLAGS.sports_fixtures_enabled, false);
+  assert.equal(canShowWatchAction(DEV_FOOTBALL_LIVE), false);
+  assert.equal(primaryActionLabel(DEV_FOOTBALL_LIVE), "Live score");
+  assert.equal(getSportsWatchAction(DEV_FOOTBALL_LIVE).kind, "fixture_only");
+  assert.equal(deriveSportsAvailability(DEV_FOOTBALL_LIVE), "live_in_app");
 
   // Cancelled / postponed — no Watch
   assert.equal(canShowWatchAction(DEV_POSTPONED), false);
   assert.equal(primaryActionLabel(DEV_POSTPONED), null);
   assert.equal(canShowWatchAction(DEV_UNAVAILABLE), false);
-  assert.equal(primaryActionLabel(DEV_UNAVAILABLE), null);
+  assert.equal(primaryActionLabel(DEV_UNAVAILABLE), "Live score");
 
   // Live without playable broadcast — no fake Watch Live
   const liveMetaOnly: SportsMatchCard = {
@@ -152,7 +172,7 @@ function main() {
     availabilityState: "live_unavailable",
   };
   assert.equal(canShowWatchAction(liveMetaOnly), false);
-  assert.equal(primaryActionLabel(liveMetaOnly), null);
+  assert.equal(primaryActionLabel(liveMetaOnly), "Live score");
 
   // Live + status live but playable false without availabilityState
   const liveNotPlayable: SportsMatchCard = {
@@ -161,22 +181,26 @@ function main() {
     watchability: { playable: false, state: "unavailable" },
     participants: [],
   };
-  assert.equal(primaryActionLabel(liveNotPlayable), null);
+  assert.equal(primaryActionLabel(liveNotPlayable), "Live score");
   assert.equal(canShowWatchAction(liveNotPlayable), false);
 
-  // Replay / highlights actions
+  // Replay / highlights actions — streams off → Match details, not Watch
   const finishedHighlights = ALL_DEV_FIXTURES.find(
     (f) => f.id === "dev-fixture-finished-highlights"
   )!;
-  assert.equal(primaryActionLabel(finishedHighlights), "Watch Highlights");
+  assert.equal(primaryActionLabel(finishedHighlights), "Match details");
+  assert.equal(canShowWatchAction(finishedHighlights), false);
   const replay = ALL_DEV_FIXTURES.find((f) => f.id === "dev-fixture-replay")!;
-  assert.equal(primaryActionLabel(replay), "Watch Replay");
+  assert.equal(primaryActionLabel(replay), "Match details");
+  assert.equal(canShowWatchAction(replay), false);
 
-  // External / subscription labels
+  // External / subscription labels — streams off blocks advertising
   const external = ALL_DEV_FIXTURES.find((f) => f.id === "dev-fixture-live-external")!;
-  assert.equal(primaryActionLabel(external), "Watch on Official Provider");
+  assert.equal(primaryActionLabel(external), "Live score");
+  assert.equal(canShowWatchAction(external), false);
   const scoreOnly = ALL_DEV_FIXTURES.find((f) => f.id === "dev-fixture-live-score-only")!;
-  assert.equal(primaryActionLabel(scoreOnly), null);
+  assert.equal(primaryActionLabel(scoreOnly), "Live score");
+  assert.equal(canShowWatchAction(scoreOnly), false);
 
   // Accessibility label (dev fixtures may still use classic names for unit tests)
   const a11y = buildMatchAccessibilityLabel(DEV_FOOTBALL_LIVE);

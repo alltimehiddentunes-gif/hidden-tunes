@@ -16,6 +16,10 @@ import { router, useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import {
+  getListPerformanceSettings,
+  markFastScrolling,
+} from "../utils/performanceMode";
 
 import {
   searchYouTubeBackend,
@@ -125,6 +129,11 @@ export default function ArtistScreen() {
     });
   }, [tracks, artist, artistImage]);
 
+  const listPerformance = useMemo(
+    () => getListPerformanceSettings(tracks.length),
+    [tracks.length]
+  );
+
   function openTrack(track: BackendYouTubeTrack) {
     router.push({
       pathname: "/youtube-player",
@@ -196,6 +205,14 @@ export default function ArtistScreen() {
         keyExtractor={(item, index) => `${item.id || "track"}-${index}`}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        initialNumToRender={listPerformance.initialNumToRender}
+        maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
+        windowSize={listPerformance.windowSize}
+        updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
+        removeClippedSubviews={listPerformance.removeClippedSubviews}
+        onScrollBeginDrag={() => markFastScrolling(true)}
+        onMomentumScrollBegin={() => markFastScrolling(true)}
+        onMomentumScrollEnd={() => markFastScrolling(false)}
         ListHeaderComponent={
           <>
             <View style={styles.topBar}>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  DeviceEventEmitter,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,6 +39,7 @@ type YouTubeQueueItem = {
 };
 
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
+const YOUTUBE_MINI_UPDATED_EVENT = "hidden_tunes_youtube_mini_updated";
 const PRIMARY_EMBED_ORIGIN = "https://hiddentunes.com";
 const FALLBACK_EMBED_ORIGIN = "https://lonelycpp.github.io";
 const BLOCKED_EXTERNAL_SCHEMES = [
@@ -495,6 +497,7 @@ export default function YouTubePlayerScreen() {
       youtubeMiniPayloadRef.current = payload;
 
       await AsyncStorage.setItem(YOUTUBE_MINI_KEY, payload);
+      DeviceEventEmitter.emit(YOUTUBE_MINI_UPDATED_EVENT);
     } catch {}
   }
 

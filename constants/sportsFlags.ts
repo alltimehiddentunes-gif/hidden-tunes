@@ -12,6 +12,9 @@ export const SPORTS_CLIENT_FLAGS = {
 
   sports_enabled: false,
 
+  /** Fixture browse / schedules / results — independent of streams. */
+  sports_fixtures_enabled: false,
+
   sports_home_ia_enabled: false,
 
   sports_mobile_pilot_enabled: false,
@@ -30,6 +33,9 @@ export const SPORTS_CLIENT_FLAGS = {
 
   sports_live_scores_enabled: false,
 
+  /** Verified legal streams only — must stay false for fixtures-only pilot. */
+  sports_streams_enabled: false,
+
   sports_notifications_enabled: false,
 
 } as const;
@@ -45,6 +51,8 @@ export type SportsClientFlagKey = keyof typeof SPORTS_CLIENT_FLAGS;
 const SPORTS_ENV_OVERRIDES: Record<SportsClientFlagKey, string | undefined> = {
 
   sports_enabled: process.env.EXPO_PUBLIC_SPORTS_ENABLED,
+
+  sports_fixtures_enabled: process.env.EXPO_PUBLIC_SPORTS_FIXTURES_ENABLED,
 
   sports_home_ia_enabled: process.env.EXPO_PUBLIC_SPORTS_HOME_IA_ENABLED,
 
@@ -71,6 +79,8 @@ const SPORTS_ENV_OVERRIDES: Record<SportsClientFlagKey, string | undefined> = {
     process.env.EXPO_PUBLIC_SPORTS_EXTERNAL_WATCH_ENABLED,
 
   sports_live_scores_enabled: process.env.EXPO_PUBLIC_SPORTS_LIVE_SCORES_ENABLED,
+
+  sports_streams_enabled: process.env.EXPO_PUBLIC_SPORTS_STREAMS_ENABLED,
 
   sports_notifications_enabled:
 
@@ -112,6 +122,18 @@ export function isSportsClientEnabled(
 
 export const sportsEnabled = isSportsClientEnabled("sports_enabled");
 
+export const sportsFixturesEnabled = isSportsClientEnabled(
+  "sports_fixtures_enabled"
+);
+
+export const sportsStreamsEnabled = isSportsClientEnabled(
+  "sports_streams_enabled"
+);
+
+export const sportsLiveScoresEnabled = isSportsClientEnabled(
+  "sports_live_scores_enabled"
+);
+
 export const sportsMobilePilotEnabled = isSportsClientEnabled(
 
   "sports_mobile_pilot_enabled"
@@ -126,6 +148,11 @@ export function isSportsFullUiEnabled(): boolean {
 
   return sportsEnabled && sportsMobilePilotEnabled && sportsFullUiEnabled;
 
+}
+
+/** Fixtures pilot surface — master flag plus fixtures capability. Streams stay separate. */
+export function isSportsFixturesPilotEnabled(): boolean {
+  return sportsEnabled && sportsFixturesEnabled;
 }
 
 

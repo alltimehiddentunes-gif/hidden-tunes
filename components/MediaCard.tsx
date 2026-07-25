@@ -1,5 +1,6 @@
 import React, { memo, useMemo } from "react";
 import {
+  PixelRatio,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -75,6 +76,12 @@ function MediaCard({
     [artworkRadius, artworkSize]
   );
 
+  const decodePixels = useMemo(() => {
+    if (size === "large") return undefined;
+    const px = Math.ceil(artworkSize * PixelRatio.get());
+    return { width: px, height: px };
+  }, [artworkSize, size]);
+
   const typeIcon = useMemo(() => {
     if (type === "artist") return "person";
     if (type === "album") return "albums";
@@ -100,6 +107,8 @@ function MediaCard({
             style={artworkStyle}
             contentFit="cover"
             contentPosition="center"
+            maxDecodeWidth={decodePixels?.width}
+            maxDecodeHeight={decodePixels?.height}
           />
           {resolvedArtwork === FALLBACK_ARTWORK ? (
             <View style={styles.artworkBadge}>
