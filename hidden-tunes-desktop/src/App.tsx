@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   memo,
   startTransition,
@@ -55,9 +55,6 @@ import {
   getDesktopSupabaseSessionSummary,
 } from './services/desktopSupabaseAuth'
 import {
-  buildPlayerQueueStats,
-} from './lib/playerQueueDisplay'
-import {
   buildQueueCandidatePools,
   buildQueueSeedPool,
   CATALOG_DETAIL_TRACK_PREVIEW_LIMIT,
@@ -110,7 +107,7 @@ import { AtmosphereSettingsPanel } from './components/AtmosphereSettingsPanel'
 import { PreferredPlayerStyleSelector } from './components/PreferredPlayerStyleSelector'
 import { ArtworkImage } from './components/ArtworkImage'
 import { PremiumFullscreenShell } from './components/player/PremiumFullscreenShell'
-import { PlayerQueuePanel } from './components/player/PlayerShellPanels'
+import { DesktopPersistentPlayer } from './components/player/DesktopPersistentPlayer'
 import { formatPlaybackTime } from './lib/player/formatPlaybackTime'
 import { resolvePlayerShellMetadata, resolvePlayerSubtitle } from './lib/playerDisplayMetadata'
 import { isAudiobookQueueSong } from './lib/audiobooks/audiobookPlaybackAdapter'
@@ -244,7 +241,7 @@ function formatPlaylistDurationLabel(songs: ApiSong[]) {
 function formatPlaylistMetaLine(songCount: number, songs: ApiSong[]) {
   const songLabel = `${songCount.toLocaleString()} ${songCount === 1 ? 'song' : 'songs'}`
   const duration = formatPlaylistDurationLabel(songs)
-  return duration ? `${songLabel} · ${duration}` : songLabel
+  return duration ? `${songLabel} ┬À ${duration}` : songLabel
 }
 
 function filterPlaylistTracksBySearch(tracks: ApiSong[], query: string) {
@@ -267,7 +264,7 @@ const ARTIST_POPULAR_EXPANDED = 12
 const ARTIST_ALBUM_PREVIEW = 5
 
 function formatArtistStatLine(songCount: number, albumCount: number) {
-  return `${songCount.toLocaleString()} ${songCount === 1 ? 'song' : 'songs'} · ${albumCount} ${albumCount === 1 ? 'album' : 'albums'}`
+  return `${songCount.toLocaleString()} ${songCount === 1 ? 'song' : 'songs'} ┬À ${albumCount} ${albumCount === 1 ? 'album' : 'albums'}`
 }
 
 function resolveArtistPrimaryGenre(songs: ApiSong[]) {
@@ -298,7 +295,7 @@ const PSD_ALBUMS_GRID_CARDS = [
   { key: 'alb3', title: 'Vibes from Lagos', artist: 'Wills Afrobeats', year: '2023', songs: '14 songs' },
   { key: 'alb4', title: 'Love & Rhythm', artist: 'Wills Afrobeats', year: '2022', songs: '11 songs' },
   { key: 'alb5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs' },
-  { key: 'alb6', title: 'Jazz CafÃ©', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs' },
+  { key: 'alb6', title: 'Jazz Caf├â┬®', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs' },
   { key: 'alb7', title: 'Deep Focus', artist: 'Wills Afrobeats', year: '2019', songs: '15 songs' },
   { key: 'alb8', title: 'Moments of Us', artist: 'Wills Afrobeats', year: '2018', songs: '7 songs' },
   { key: 'alb9', title: 'Rainy Day Comfort', artist: 'Wills Afrobeats', year: '2017', songs: '13 songs' },
@@ -479,21 +476,21 @@ const PSD_LIKED_DESCRIPTION = 'Songs you heart on this device. Likes stay local 
 
 const PSD_DOWNLOADS_STORAGE_PERCENT = 72
 const PSD_DOWNLOADS_PLAYLISTS = [
-  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs â€¢ 3h 12m' },
-  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs â€¢ 2h 17m' },
-  { key: 'dw-pl3', title: 'Jazz CafÃ©', meta: '40 songs â€¢ 2h 45m' },
+  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs ├óÔé¼┬ó 3h 12m' },
+  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs ├óÔé¼┬ó 2h 17m' },
+  { key: 'dw-pl3', title: 'Jazz Caf├â┬®', meta: '40 songs ├óÔé¼┬ó 2h 45m' },
 ] as const
 const PSD_DOWNLOADS_ALBUMS = [
-  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs â€¢ 45 min' },
-  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs â€¢ 38 min' },
+  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs ├óÔé¼┬ó 45 min' },
+  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs ├óÔé¼┬ó 38 min' },
 ] as const
 const PSD_DOWNLOADS_SONGS = [
-  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats â€¢ Night Drive' },
-  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats â€¢ Night Drive' },
-  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats â€¢ Night Drive' },
-  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats â€¢ Night Drive' },
-  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats â€¢ Night Drive' },
-  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats â€¢ Night Drive' },
+  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
+  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
+  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
+  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
+  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
+  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
 ] as const
 const PSD_DOWNLOADS_TABS = ['All', 'Playlists', 'Albums', 'Songs', 'Podcasts'] as const
 
@@ -523,7 +520,7 @@ const PSD_LYRICS_LINES = [
   { tier: 'distant', text: 'resides' },
 ] as const
 
-/** PSD player design reference â€” not displayed as live playback data. */
+/** PSD player design reference ├óÔé¼ÔÇØ not displayed as live playback data. */
 void [
   PSD_PLAYER_SOURCE_ALBUM,
   PSD_PLAYER_LYRICS_LINES,
@@ -739,7 +736,7 @@ function resolveInitialCatalog() {
     }
     logCatalogCacheMiss()
   } catch {
-    // Ignore corrupt cache/bootstrap data â€” app should still open.
+    // Ignore corrupt cache/bootstrap data ├óÔé¼ÔÇØ app should still open.
   }
 
   return {
@@ -1042,25 +1039,25 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
 ]
 
 const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
-  home: 'Search songs, artists, moodsâ€¦',
-  music: 'Search songs, artists, albumsâ€¦',
-  radio: 'Search stations, genres, countriesâ€¦',
-  podcasts: 'Search podcasts, episodes, categoriesâ€¦',
-  audiobooks: 'Search audiobooks, authors, narratorsâ€¦',
-  motivationals: 'Search motivationals, speakers, topicsâ€¦',
-  lectures: 'Search lectures, courses, speakers, subjectsâ€¦',
-  tv: 'Search shows, channels, live events…',
-  sports: 'Search fixtures, leagues, teams…',
-  worlds: 'Search emotional worlds…',
-  search: 'Search songs, artists, albumsâ€¦',
+  home: 'Search songs, artists, moods├óÔé¼┬ª',
+  music: 'Search songs, artists, albums├óÔé¼┬ª',
+  radio: 'Search stations, genres, countries├óÔé¼┬ª',
+  podcasts: 'Search podcasts, episodes, categories├óÔé¼┬ª',
+  audiobooks: 'Search audiobooks, authors, narrators├óÔé¼┬ª',
+  motivationals: 'Search motivationals, speakers, topics├óÔé¼┬ª',
+  lectures: 'Search lectures, courses, speakers, subjects├óÔé¼┬ª',
+  tv: 'Search shows, channels, live eventsÔÇª',
+  sports: 'Search fixtures, leagues, teamsÔÇª',
+  worlds: 'Search emotional worldsÔÇª',
+  search: 'Search songs, artists, albums├óÔé¼┬ª',
   library: 'Search songs, artists, albums, playlists...',
-  liked: 'Search liked songsâ€¦',
+  liked: 'Search liked songs├óÔé¼┬ª',
   recent: 'Search recently played...',
-  downloads: 'Search downloadsâ€¦',
-  playlists: 'Search playlistsâ€¦',
-  artists: 'Search artistsâ€¦',
-  albums: 'Search albumsâ€¦',
-  premium: 'Search premium perksâ€¦',
+  downloads: 'Search downloads├óÔé¼┬ª',
+  playlists: 'Search playlists├óÔé¼┬ª',
+  artists: 'Search artists├óÔé¼┬ª',
+  albums: 'Search albums├óÔé¼┬ª',
+  premium: 'Search premium perks├óÔé¼┬ª',
 }
 
 function isPsdDestinationNav(navKey: NavKey) {
@@ -1206,6 +1203,140 @@ const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
       </SidebarNavIcon>
     ),
   },
+]
+
+const SIDEBAR_LIBRARY_NAV: SidebarNavItem[] = [
+  {
+    key: 'library',
+    navKey: 'library',
+    page: 'library',
+    label: 'Library',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M4 19V5h4l2 14 4-14h4v14" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'liked',
+    navKey: 'liked',
+    page: 'library',
+    label: 'Favorites',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'playlists',
+    navKey: 'playlists',
+    page: 'playlists',
+    label: 'Playlists',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'downloads',
+    navKey: 'downloads',
+    page: 'library',
+    label: 'Downloads',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <path d="M12 4v10" />
+          <path d="M8.5 10.5L12 14l3.5-3.5" />
+          <path d="M5 18h14" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'recent',
+    navKey: 'recent',
+    page: 'library',
+    label: 'History',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+]
+
+const SIDEBAR_DISCOVER_NAV: SidebarNavItem[] = [
+  {
+    key: 'worlds',
+    navKey: 'worlds',
+    page: 'mood',
+    label: 'Emotional Worlds',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M8.5 12c1.2-2.2 2.4-3.3 3.5-3.3s2.3 1.1 3.5 3.3" />
+          <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'search',
+    navKey: 'search',
+    page: 'discover',
+    label: 'Search',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'artists',
+    navKey: 'artists',
+    page: 'artists',
+    label: 'Artists',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+  {
+    key: 'albums',
+    navKey: 'albums',
+    page: 'albums',
+    label: 'Albums',
+    icon: (
+      <SidebarNavIcon>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </SidebarNavIcon>
+    ),
+  },
+]
+
+const SIDEBAR_LEARN_NAV: SidebarNavItem[] = [
   {
     key: 'audiobooks',
     navKey: 'audiobooks',
@@ -1248,132 +1379,7 @@ const SIDEBAR_PRIMARY_NAV: SidebarNavItem[] = [
   },
 ]
 
-const SIDEBAR_LIBRARY_NAV: SidebarNavItem[] = [
-  {
-    key: 'worlds',
-    navKey: 'worlds',
-    page: 'mood',
-    label: 'Emotional Worlds',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M8.5 12c1.2-2.2 2.4-3.3 3.5-3.3s2.3 1.1 3.5 3.3" />
-          <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
-  {
-    key: 'search',
-    navKey: 'search',
-    page: 'discover',
-    label: 'Search',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <circle cx="11" cy="11" r="7" />
-          <path d="M20 20l-3.5-3.5" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
-  {
-    key: 'library',
-    navKey: 'library',
-    page: 'library',
-    label: 'My Library',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <path d="M4 19V5h4l2 14 4-14h4v14" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
-  {
-    key: 'playlists',
-    navKey: 'playlists',
-    page: 'playlists',
-    label: 'Playlists',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
-  {
-    key: 'artists',
-    navKey: 'artists',
-    page: 'artists',
-    label: 'Artists',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M6 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
-  {
-    key: 'albums',
-    navKey: 'albums',
-    page: 'albums',
-    label: 'Albums',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
-  {
-    key: 'liked',
-    navKey: 'liked',
-    page: 'library',
-    label: 'Liked Songs',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
-  {
-    key: 'recent',
-    navKey: 'recent',
-    page: 'library',
-    label: 'Recently Played',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <circle cx="12" cy="12" r="8.5" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
-  {
-    key: 'downloads',
-    navKey: 'downloads',
-    page: 'library',
-    label: 'Downloads',
-    icon: (
-      <SidebarNavIcon>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.85">
-          <path d="M12 4v10" />
-          <path d="M8.5 10.5L12 14l3.5-3.5" />
-          <path d="M5 18h14" />
-        </svg>
-      </SidebarNavIcon>
-    ),
-  },
+const SIDEBAR_ACCOUNT_NAV: SidebarNavItem[] = [
   {
     key: 'settings',
     navKey: 'settings',
@@ -1392,18 +1398,22 @@ const SIDEBAR_LIBRARY_NAV: SidebarNavItem[] = [
 
 const SIDEBAR_NAV_GROUPS = [
   { label: 'Primary', items: SIDEBAR_PRIMARY_NAV },
-  { label: 'Music Library', items: SIDEBAR_LIBRARY_NAV },
+  { label: 'Library', items: SIDEBAR_LIBRARY_NAV },
+  { label: 'Discover', items: SIDEBAR_DISCOVER_NAV },
+  { label: 'Listen and Learn', items: SIDEBAR_LEARN_NAV },
+  { label: 'Account', items: SIDEBAR_ACCOUNT_NAV },
 ] as const
 
 if (import.meta.env.DEV) {
   const sidebarPrimaryKeys = SIDEBAR_PRIMARY_NAV.map((item) => item.navKey).join(',')
-  const sharedPrimaryKeys = PRIMARY_SECTION_NAV.map((item) => item.navKey).join(',')
-  if (sidebarPrimaryKeys !== sharedPrimaryKeys) {
-    console.warn('[nav] Sidebar Primary order drifted from PRIMARY_SECTION_NAV.', {
+  const expectedPrimaryKeys = 'home,music,radio,podcasts,tv,sports'
+  if (sidebarPrimaryKeys !== expectedPrimaryKeys) {
+    console.warn('[nav] Sidebar Primary order drifted from Home/player layout contract.', {
       sidebarPrimaryKeys,
-      sharedPrimaryKeys,
+      expectedPrimaryKeys,
     })
   }
+  void PRIMARY_SECTION_NAV
 }
 
 type Mood = 'violet' | 'cyan' | 'rose' | 'mint'
@@ -1715,7 +1725,7 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
                 <h3>{album.title}</h3>
                 <p className="card-meta-primary">{artistName || 'Unknown artist'}</p>
                 <p className="card-meta-secondary">
-                  {album.releaseYear ? `Released ${album.releaseYear} · ${trackLabel}` : trackLabel}
+                  {album.releaseYear ? `Released ${album.releaseYear} ┬À ${trackLabel}` : trackLabel}
                 </p>
               </div>
             </button>
@@ -1803,7 +1813,7 @@ function CatalogSection({
   children: ReactNode
 }) {
   const hintText =
-    typeof count === 'number' ? `${hint} · ${count} items` : hint
+    typeof count === 'number' ? `${hint} ┬À ${count} items` : hint
 
   return (
     <section className="discovery-section catalog-section" aria-labelledby={`catalog-${title}`}>
@@ -1840,7 +1850,7 @@ function PageFrame({
 }
 
 const HomeTopBar = memo(function HomeTopBar({
-  placeholder = 'Search songs, artists, moodsâ€¦',
+  placeholder = 'Search songs, artists, moods├óÔé¼┬ª',
   onOpenDiscover,
   onSearchSubmit,
   variant = 'default',
@@ -1914,7 +1924,7 @@ const CatalogStaleBanner = memo(function CatalogStaleBanner() {
     <div className="catalog-stale-banner" role="status">
       <span className="catalog-stale-dot" aria-hidden="true" />
       <span>
-        Browsing your saved catalog â€” live refresh didn&apos;t complete. You can refresh again anytime.
+        Browsing your saved catalog ├óÔé¼ÔÇØ live refresh didn&apos;t complete. You can refresh again anytime.
       </span>
     </div>
   )
@@ -1943,7 +1953,7 @@ const CatalogStatusBar = memo(function CatalogStatusBar() {
         disabled={loading}
         aria-busy={loading}
       >
-        {loading ? 'Refreshingâ€¦' : 'Refresh catalog'}
+        {loading ? 'Refreshing├óÔé¼┬ª' : 'Refresh catalog'}
       </button>
     </div>
   )
@@ -1987,7 +1997,7 @@ function CatalogStatusSettings({
       <div className="settings-row">
         <div className="settings-label">
           <span>Refresh catalog</span>
-          <small>Fetch latest read-only data · preferences stay intact</small>
+          <small>Fetch latest read-only data ┬À preferences stay intact</small>
         </div>
         <button
           type="button"
@@ -1996,13 +2006,13 @@ function CatalogStatusSettings({
           disabled={loading}
           aria-busy={loading}
         >
-          {loading ? 'Refreshingâ€¦' : 'Refresh'}
+          {loading ? 'Refreshing├óÔé¼┬ª' : 'Refresh'}
         </button>
       </div>
       <div className="settings-row">
         <div className="settings-label">
           <span>Clear saved catalog cache</span>
-          <small>Removes local catalog only · live session data may remain until refresh</small>
+          <small>Removes local catalog only ┬À live session data may remain until refresh</small>
         </div>
         <button
           type="button"
@@ -2070,7 +2080,7 @@ function EmotionalLanesSection({
           <p className="page-eyebrow emotional-lanes-eyebrow">Emotional discovery</p>
           <h2 id="emotional-lanes-heading">Emotional lanes</h2>
           <span className="section-hint">
-            Vibe groupings from catalog metadata â€” browse lanes, play on your terms
+            Vibe groupings from catalog metadata ├óÔé¼ÔÇØ browse lanes, play on your terms
           </span>
         </div>
         {selectedLaneId ? (
@@ -2125,7 +2135,7 @@ function EmotionalLanesSection({
                   </span>
                   {lane.topSignals.length > 0 ? (
                     <span className="emotional-lane-signals">
-                      {lane.topSignals.join(' · ')}
+                      {lane.topSignals.join(' ┬À ')}
                     </span>
                   ) : null}
                 </div>
@@ -2137,7 +2147,7 @@ function EmotionalLanesSection({
       {selectedLane ? (
         <div className="emotional-lanes-for-mood" role="status">
           <h3 className="emotional-lanes-for-heading">
-            For this mood · {selectedLane.label}
+            For this mood ┬À {selectedLane.label}
           </h3>
           <p className="emotional-lanes-for-detail">{selectedLane.subtitle}</p>
         </div>
@@ -2177,7 +2187,7 @@ function SceneListeningSection({
           <p className="page-eyebrow scene-listening-eyebrow">Scene listening</p>
           <h2 id="scene-listening-heading">Scene collections</h2>
           <span className="section-hint">
-            Curated atmospheres from your catalog â€” step into a scene, play when ready
+            Curated atmospheres from your catalog ├óÔé¼ÔÇØ step into a scene, play when ready
           </span>
         </div>
         {selectedSceneId ? (
@@ -2231,7 +2241,7 @@ function SceneListeningSection({
                   </span>
                   {scene.topSignals.length > 0 ? (
                     <span className="scene-listening-signals">
-                      {scene.topSignals.join(' · ')}
+                      {scene.topSignals.join(' ┬À ')}
                     </span>
                   ) : null}
                 </div>
@@ -2243,7 +2253,7 @@ function SceneListeningSection({
       {selectedScene ? (
         <div className="scene-listening-active" role="status">
           <h3 className="scene-listening-active-heading">
-            In this scene · {selectedScene.label}
+            In this scene ┬À {selectedScene.label}
           </h3>
           <p className="scene-listening-active-detail">{selectedScene.subtitle}</p>
         </div>
@@ -2314,7 +2324,7 @@ function RadioFoundationSection({
           <p className="page-eyebrow radio-foundation-eyebrow">Radio foundation</p>
           <h2 id="radio-foundation-heading">Build a station</h2>
           <span className="section-hint">
-            Preview a scored station from your catalog â€” start radio only when you choose
+            Preview a scored station from your catalog ├óÔé¼ÔÇØ start radio only when you choose
           </span>
         </div>
         <button
@@ -2528,7 +2538,7 @@ function resolveWorldPresentation(scene: BuiltListeningScene) {
   }
 }
 
-/** Reserved listening surfaces â€” removed from Home in 44F; kept for Worlds phases. */
+/** Reserved listening surfaces ├óÔé¼ÔÇØ removed from Home in 44F; kept for Worlds phases. */
 const HOME_LEGACY_SECTIONS = {
   EmotionalLanesSection,
   SceneListeningSection,
@@ -2776,7 +2786,7 @@ const SEARCH_ALBUM_EXPANDED_LIMIT = 16
 function formatSongDurationLabel(
   song: { durationSeconds: number | null } | null | undefined,
 ) {
-  if (!song?.durationSeconds || song.durationSeconds <= 0) return 'â€”'
+  if (!song?.durationSeconds || song.durationSeconds <= 0) return '├óÔé¼ÔÇØ'
   const total = Math.floor(song.durationSeconds)
   const minutes = Math.floor(total / 60)
   const remainder = total % 60
@@ -2817,7 +2827,7 @@ function formatAlbumSearchMeta(
 ) {
   const artistName = album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist'
   const year = album.releaseYear ? String(album.releaseYear) : null
-  return year ? `${artistName} â€¢ ${year}` : artistName
+  return year ? `${artistName} ├óÔé¼┬ó ${year}` : artistName
 }
 
 function DiscoverPage({
@@ -2928,7 +2938,7 @@ function DiscoverPage({
         queueSongs,
         safeIndex,
         'discover',
-        trimmedQuery ? `Search · ${trimmedQuery}` : 'Search',
+        trimmedQuery ? `Search ┬À ${trimmedQuery}` : 'Search',
         {
           seedType: 'discover',
           seedTracks: buildQueueSeedPool('discover', queueSongs, indexes, playableSong),
@@ -3407,70 +3417,70 @@ const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = [
     cardId: 'ew-midnight-reflection',
     sceneId: 'rainy-window',
     title: 'Midnight Reflection',
-    tags: 'Deep â€¢ Calm â€¢ Soul',
+    tags: 'Deep ├óÔé¼┬ó Calm ├óÔé¼┬ó Soul',
     chips: ['calm', 'chill', 'melancholy'],
   },
   {
     cardId: 'ew-afro-sunset',
     sceneId: 'sunday-morning',
     title: 'Afro Sunset',
-    tags: 'Warm â€¢ Groove â€¢ Soul',
+    tags: 'Warm ├óÔé¼┬ó Groove ├óÔé¼┬ó Soul',
     chips: ['happy', 'romantic'],
   },
   {
     cardId: 'ew-healing-slowly',
     sceneId: 'heartbreak-recovery',
     title: 'Healing Slowly',
-    tags: 'Soft â€¢ Reflective â€¢ Calm',
+    tags: 'Soft ├óÔé¼┬ó Reflective ├óÔé¼┬ó Calm',
     chips: ['calm', 'melancholy'],
   },
   {
     cardId: 'ew-night-drive',
     sceneId: 'midnight-drive',
     title: 'Night Drive',
-    tags: 'Urban â€¢ Late Night â€¢ Electronic',
+    tags: 'Urban ├óÔé¼┬ó Late Night ├óÔé¼┬ó Electronic',
     chips: ['energetic', 'chill'],
   },
   {
     cardId: 'ew-sunset-glow',
     sceneId: 'city-lights',
     title: 'Sunset Glow',
-    tags: 'Golden â€¢ Warm â€¢ R&B',
+    tags: 'Golden ├óÔé¼┬ó Warm ├óÔé¼┬ó R&B',
     chips: ['happy', 'romantic'],
   },
   {
     cardId: 'ew-velvet-emotions',
     sceneId: 'focus-room',
     title: 'Velvet Emotions',
-    tags: 'Intimate â€¢ Warm â€¢ Soul',
+    tags: 'Intimate ├óÔé¼┬ó Warm ├óÔé¼┬ó Soul',
     chips: ['romantic', 'calm'],
   },
   {
     cardId: 'ew-ocean-dreams',
     sceneId: 'city-lights',
     title: 'Ocean Dreams',
-    tags: 'Dreamy â€¢ Deep â€¢ Calm',
+    tags: 'Dreamy ├óÔé¼┬ó Deep ├óÔé¼┬ó Calm',
     chips: ['calm', 'chill'],
   },
   {
     cardId: 'ew-city-rain',
     sceneId: 'rainy-window',
     title: 'City Rain',
-    tags: 'Melancholy â€¢ Urban â€¢ Jazz',
+    tags: 'Melancholy ├óÔé¼┬ó Urban ├óÔé¼┬ó Jazz',
     chips: ['melancholy', 'chill'],
   },
   {
     cardId: 'ew-uplift-boost',
     sceneId: 'focus-room',
     title: 'Uplift Boost',
-    tags: 'Motivational â€¢ Bright â€¢ Pop',
+    tags: 'Motivational ├óÔé¼┬ó Bright ├óÔé¼┬ó Pop',
     chips: ['motivational', 'energetic', 'happy'],
   },
   {
     cardId: 'ew-melancholy-bloom',
     sceneId: 'heartbreak-recovery',
     title: 'Melancholy Bloom',
-    tags: 'Tender â€¢ Slow â€¢ Reflective',
+    tags: 'Tender ├óÔé¼┬ó Slow ├óÔé¼┬ó Reflective',
     chips: ['melancholy', 'calm'],
   },
 ]
@@ -3967,7 +3977,7 @@ function ArtistsPage({
                           <strong>{album.title}</strong>
                           <span>{featuredArtist.name}</span>
                           <span className="psd-artist-album-meta">
-                            {album.releaseYear ? `${album.releaseYear} â€¢ ` : ''}
+                            {album.releaseYear ? `${album.releaseYear} ├óÔé¼┬ó ` : ''}
                             {albumSongCount} {albumSongCount === 1 ? 'song' : 'songs'}
                           </span>
                         </button>
@@ -4044,7 +4054,7 @@ function AlbumsPage({
   const albumsFooterCount = visibleAlbums.length === 1
     ? '1 album'
     : `${visibleAlbums.length} albums`
-  const sortLabel = sort === 'latest' ? 'Recently Added' : 'Aâ€“Z'
+  const sortLabel = sort === 'latest' ? 'Recently Added' : 'A├óÔé¼ÔÇ£Z'
 
   const albumTabs = [
     { id: 'all', label: 'All Albums' },
@@ -4117,12 +4127,12 @@ function AlbumsPage({
                     </span>
                   </div>
                   <div className="psd-albums-gallery-copy">
-                    <strong className="psd-albums-gallery-title">{album?.title ?? 'â€”'}</strong>
+                    <strong className="psd-albums-gallery-title">{album?.title ?? '├óÔé¼ÔÇØ'}</strong>
                     <span className="psd-albums-gallery-artist">
-                      {album ? (album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist') : 'â€”'}
+                      {album ? (album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist') : '├óÔé¼ÔÇØ'}
                     </span>
                     <span className="psd-albums-gallery-meta">
-                      {album?.releaseYear ?? 'â€”'} â€¢ {album ? countSongsForAlbum(album, indexes) : 0} songs
+                      {album?.releaseYear ?? '├óÔé¼ÔÇØ'} ├óÔé¼┬ó {album ? countSongsForAlbum(album, indexes) : 0} songs
                     </span>
                     <span className="psd-albums-gallery-more" aria-hidden="true"><PsdIconMore /></span>
                   </div>
@@ -4450,7 +4460,7 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const durationLabel = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-    return `${count} ${count === 1 ? 'song' : 'songs'} â€¢ ${durationLabel}`
+    return `${count} ${count === 1 ? 'song' : 'songs'} ├óÔé¼┬ó ${durationLabel}`
   }, [likedSongs])
 
   return (
@@ -4551,7 +4561,7 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                         </button>
                       </td>
                       <td className="psd-liked-col-artist">{song.artist}</td>
-                      <td className="psd-liked-col-album">{song.album ?? 'â€”'}</td>
+                      <td className="psd-liked-col-album">{song.album ?? '├óÔé¼ÔÇØ'}</td>
                       <td className="psd-liked-col-date">{formatLikedDateLabel(likedAtById[song.id])}</td>
                       <td className="psd-liked-col-duration">{formatSongDurationLabel(song)}</td>
                       <td className="psd-liked-col-menu">
@@ -4714,7 +4724,7 @@ function RecentPage({
   )
 }
 
-/* Downloads destination — typed offline files via Electron main-process manager */
+/* Downloads destination ÔÇö typed offline files via Electron main-process manager */
 function DownloadsPage({
   onOpenSong,
   query = '',
@@ -4847,7 +4857,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
               <p className="psd-page-eyebrow">Hidden Tunes Premium</p>
               <h1 id="premium-heading">Unlock Every World</h1>
               <p className="psd-page-subtitle">
-                Cinematic listening, deeper worlds, and gold-tier atmosphere â€” built for emotional immersion.
+                Cinematic listening, deeper worlds, and gold-tier atmosphere ├óÔé¼ÔÇØ built for emotional immersion.
               </p>
               <div className="psd-hero-actions psd-premium-hero-actions">
                 <button
@@ -4899,7 +4909,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
             {PREMIUM_FEATURE_SPECS.map((feature) => (
               <article key={feature.id} className="psd-premium-card" data-status={feature.status}>
                 <div className="psd-premium-card-top">
-                  <span className="psd-premium-card-icon" aria-hidden="true">âœ¦</span>
+                  <span className="psd-premium-card-icon" aria-hidden="true">├ó┼ô┬ª</span>
                   <span className={`psd-premium-status${feature.status === 'available' ? ' is-live' : ''}`}>
                     {feature.status === 'available' ? 'Available' : 'Coming soon'}
                   </span>
@@ -4927,7 +4937,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
         >
           <header className="psd-premium-section-header">
             <h2 id="premium-plans-heading">Plans</h2>
-            <p>Preview pricing only â€” checkout is not connected on desktop yet.</p>
+            <p>Preview pricing only ├óÔé¼ÔÇØ checkout is not connected on desktop yet.</p>
           </header>
           <div className="psd-premium-plan-grid">
             {PREMIUM_PLAN_SPECS.map((plan) => (
@@ -5082,12 +5092,12 @@ function SettingsPage({
           <section className="settings-panel">
             <h2>Desktop preferences</h2>
             <p className="settings-panel-desc">
-              Saved locally on this device â€” sidebar page, search terms, and sort options only.
+              Saved locally on this device ├óÔé¼ÔÇØ sidebar page, search terms, and sort options only.
             </p>
             <div className="settings-row">
               <div className="settings-label">
                 <span>Reset desktop preferences</span>
-                <small>Clears local UI state · catalog and mobile stay unchanged</small>
+                <small>Clears local UI state ┬À catalog and mobile stay unchanged</small>
               </div>
               <button
                 type="button"
@@ -5596,7 +5606,7 @@ const PlayerBar = memo(function PlayerBar({
                 />
               </div>
               <span className="progress-time">
-                {progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}
+                {progressMax > 0 ? formatPlaybackTime(progressMax) : 'ÔÇö'}
               </span>
             </>
           )}
@@ -5692,66 +5702,12 @@ const QueueUpNextPanel = memo(function QueueUpNextPanel({
   onNavigateNav?: (navKey: NavKey) => void
   activeNavKey?: NavKey
 }) {
-  const {
-    currentTrack,
-    currentQueue,
-    currentIndex,
-    clearUpcomingQueue,
-    getUpcomingTracks,
-  } = useDesktopPlayback()
-
-  const activeTrack =
-    currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
-  const hasPlayback = Boolean(activeTrack && currentQueue.length > 0 && currentIndex >= 0)
-
-  const queueStats = useMemo(
-    () => buildPlayerQueueStats(currentQueue, currentIndex),
-    [currentIndex, currentQueue],
-  )
-
-  const canClearQueue = getUpcomingTracks().length > 0
-
-  const handleClearQueue = useCallback(() => {
-    clearUpcomingQueue()
-  }, [clearUpcomingQueue])
-
-  if (!hasPlayback) return null
-
-  return (
-    <aside className="queue-rail queue-rail--workspace" aria-label="Up next queue">
-      <header className="queue-rail-header queue-rail-header--workspace">
-        <div className="queue-rail-header-copy">
-          <h2>Up Next</h2>
-          <span className="queue-rail-stats">
-            {queueStats.songCount} tracks · {queueStats.remainingCount} remaining · {queueStats.remainingDurationLabel}
-          </span>
-        </div>
-        {canClearQueue ? (
-          <button
-            type="button"
-            className="queue-rail-clear"
-            onClick={handleClearQueue}
-          >
-            Clear
-          </button>
-        ) : null}
-      </header>
-
-      <div className="queue-rail-queue-body">
-        <PlayerQueuePanel />
-      </div>
-
-      <footer className="queue-rail-footer queue-rail-footer--workspace">
-        <PlayerModeLauncher
-          hasPlayback={hasPlayback}
-          onOpenPlayerByStyle={onOpenPlayerByStyle}
-          variant="sidebar"
-        />
-      </footer>
-    </aside>
-  )
+  // Retained for reference; desktop shell now mounts DesktopPersistentPlayer.
+  void onOpenPlayerByStyle
+  return null
 })
 
+void QueueUpNextPanel
 
 type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood' | 'podcast-show' | 'audiobook-book' | 'motivational-program' | 'lecture-series' | 'lecture-item'
 
@@ -5779,7 +5735,7 @@ function DetailTopBar({
   return (
     <div className="detail-topbar">
       <button type="button" className="detail-back" onClick={onBack}>
-        <span aria-hidden="true">â†</span>
+        <span aria-hidden="true">├óÔÇá┬É</span>
         Back
       </button>
       <div className="detail-titles">
@@ -5826,7 +5782,7 @@ function PlayerWorkspace({
     >
       <header className="player-workspace-toolbar">
         <button type="button" className="player-workspace-back" onClick={onBack}>
-          <span aria-hidden="true">â†</span>
+          <span aria-hidden="true">├óÔÇá┬É</span>
           Back
         </button>
         {onOpenCinema ? (
@@ -5969,7 +5925,7 @@ function AlbumDetailView({
           </p>
           <p className="detail-stats">
             {albumSongs.length} {albumSongs.length === 1 ? 'track' : 'tracks'}
-            {created ? ` · Added ${created}` : ''}
+            {created ? ` ┬À Added ${created}` : ''}
           </p>
           <div className="detail-hero-actions">
             <button
@@ -6114,7 +6070,7 @@ function ArtistDetailView({
         if (abortController.signal.aborted) return
         setProfileShell(shell)
 
-        // Follow comes from shell + local cache â€” no duplicate GET.
+        // Follow comes from shell + local cache ├óÔé¼ÔÇØ no duplicate GET.
         const cachedFollow = getCachedArtistFollowState(shell.artist.id)
         const initialFollowing =
           cachedFollow?.is_following ?? shell.viewer.is_following === true
@@ -6190,7 +6146,7 @@ function ArtistDetailView({
               setSimilarCursor(similarPage?.pagination.nextCursor || null)
             })
             .catch(() => {
-              // Optional section â€” keep profile usable when similar fails.
+              // Optional section ├óÔé¼ÔÇØ keep profile usable when similar fails.
             })
         }, 120)
       } catch {
@@ -6392,7 +6348,7 @@ function ArtistDetailView({
     [artist, indexes.albumsByArtistId],
   )
   const artistAlbums = profileAlbums && profileAlbums.length > 0 ? profileAlbums : catalogAlbums
-  const genreLabel = profileShell?.artist.genres?.slice(0, 3).join(' · ') || null
+  const genreLabel = profileShell?.artist.genres?.slice(0, 3).join(' ┬À ') || null
   const trackLabel = showAllSongs ? 'All songs' : trackSectionLabel
 
   return (
@@ -6411,11 +6367,11 @@ function ArtistDetailView({
           </h1>
           <p className="detail-stats">
             {artist.songCount || artistSongs.length}{' '}
-            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}
+            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} ┬À {artistAlbums.length}
             {releasesHasMore ? '+' : ''}{' '}
             {artistAlbums.length === 1 ? 'release' : 'releases'}
-            {followerCount > 0 ? ` · ${followerCount} follower${followerCount === 1 ? '' : 's'}` : ''}
-            {genreLabel ? ` · ${genreLabel}` : ''}
+            {followerCount > 0 ? ` ┬À ${followerCount} follower${followerCount === 1 ? '' : 's'}` : ''}
+            {genreLabel ? ` ┬À ${genreLabel}` : ''}
           </p>
           {profileBio ? (
             <div className="detail-artist-about">
@@ -6467,7 +6423,7 @@ function ArtistDetailView({
               }}
             >
               {followBusy
-                ? 'Updatingâ€¦'
+                ? 'Updating├óÔé¼┬ª'
                 : !followAvailable
                   ? 'Unavailable'
                   : isFollowing
@@ -6553,7 +6509,7 @@ function ArtistDetailView({
                     void loadMoreReleases()
                   }}
                 >
-                  {loadingMoreReleases ? 'Loadingâ€¦' : 'See more releases'}
+                  {loadingMoreReleases ? 'Loading├óÔé¼┬ª' : 'See more releases'}
                 </button>
               </div>
             ) : null}
@@ -6566,7 +6522,7 @@ function ArtistDetailView({
                       .map((album) => artistReleaseTypeLabel(album.releaseType))
                       .filter(Boolean),
                   ),
-                ].join(' · ')}
+                ].join(' ┬À ')}
               </p>
             ) : null}
           </>
@@ -6620,7 +6576,7 @@ function ArtistDetailView({
                   void loadMoreSimilar()
                 }}
               >
-                {loadingMoreSimilar ? 'Loadingâ€¦' : 'See more artists'}
+                {loadingMoreSimilar ? 'Loading├óÔé¼┬ª' : 'See more artists'}
               </button>
             </div>
           ) : null}
@@ -7439,9 +7395,9 @@ function App() {
 
 function AppShell() {
   const { currentTrack, currentQueue, currentIndex, playQueue, isPlaying, isLoading } = useDesktopPlayback()
-  const hasQueueRail = currentIndex >= 0
-    && currentQueue.length > 0
-    && Boolean(currentTrack ?? currentQueue[currentIndex])
+  const hasQueueRail = true
+  void currentIndex
+  void currentQueue
   const { songs } = useCatalog()
   const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
   const [activePage, setActivePage] = usePersistedPreference(
@@ -7842,6 +7798,8 @@ function AppShell() {
     navigateNav(navKey as NavKey)
   }, [navigateNav])
 
+  void handleGlobalNav
+
   const navigatePage = useCallback((page: PageId, navKey?: NavKey) => {
     cancelAutoOpenPlayer()
     setActivePage(page)
@@ -7879,8 +7837,16 @@ function AppShell() {
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
                 <GlobalTopNav
                   activeNavKey={activeNavKey}
-                  onNavigateNav={handleGlobalNav}
                   onOpenProfile={() => navigateNav('settings')}
+                  pageTitle={
+                    activeNavKey === 'home'
+                      ? 'Home'
+                      : activeNavKey === 'music'
+                        ? 'Music'
+                        : activeNavKey === 'search'
+                          ? 'Search'
+                          : undefined
+                  }
                 />
               ) : null}
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
@@ -8043,10 +8009,9 @@ function AppShell() {
                 onBrowseFeatured={() => navigateNav('tv')}
               />
             ) : (
-              <QueueUpNextPanel
+              <DesktopPersistentPlayer
                 onOpenPlayerByStyle={openPlayerByStyleNow}
-                onNavigateNav={navigateNav}
-                activeNavKey={activeNavKey}
+                onNavigateHome={() => navigateNav('home')}
               />
             )}
           </div>

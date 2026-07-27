@@ -1,10 +1,10 @@
 import { memo } from 'react'
-import { PRIMARY_SECTION_NAV, type GlobalNavKey } from '../../lib/music/navTypes'
 
 type GlobalTopNavProps = {
-  activeNavKey: GlobalNavKey | string
-  onNavigateNav: (navKey: GlobalNavKey) => void
+  activeNavKey: string
+  onNavigateNav?: (navKey: string) => void
   onOpenProfile?: () => void
+  pageTitle?: string
 }
 
 function BrandWaveformMark() {
@@ -25,33 +25,27 @@ function BrandWaveformMark() {
   )
 }
 
+/**
+ * Compact page chrome for the centre column.
+ * Route navigation lives only in the left sidebar — no duplicate section strip.
+ */
 export const GlobalTopNav = memo(function GlobalTopNav({
   activeNavKey,
-  onNavigateNav,
   onOpenProfile,
+  pageTitle,
 }: GlobalTopNavProps) {
+  const title = pageTitle
+    ?? (activeNavKey === 'home' ? 'Home' : 'Hidden Tunes')
+
   return (
-    <header className="global-top-nav" aria-label="Application sections">
+    <header className="global-top-nav global-top-nav--compact" aria-label="Page header">
       <div className="global-top-nav-brand">
         <BrandWaveformMark />
-        <span className="global-top-nav-wordmark">Hidden Tunes</span>
+        <div className="global-top-nav-brand-copy">
+          <span className="global-top-nav-wordmark">Hidden Tunes</span>
+          <span className="global-top-nav-page-title">{title}</span>
+        </div>
       </div>
-      <nav className="global-top-nav-links" aria-label="Major sections">
-        {PRIMARY_SECTION_NAV.map((item) => {
-          const isActive = item.navKey === activeNavKey
-          return (
-            <button
-              key={item.navKey}
-              type="button"
-              className={`global-top-nav-link${isActive ? ' is-active' : ''}`}
-              aria-current={isActive ? 'page' : undefined}
-              onClick={() => onNavigateNav(item.navKey)}
-            >
-              {item.label}
-            </button>
-          )
-        })}
-      </nav>
       <div className="global-top-nav-actions" aria-label="Account actions">
         <button
           type="button"

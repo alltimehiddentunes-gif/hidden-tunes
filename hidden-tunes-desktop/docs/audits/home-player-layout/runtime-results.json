@@ -1,0 +1,383 @@
+{
+  "checks": [
+    {
+      "check": "loaded",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-home",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-home-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-music",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-music-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-radio",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-radio-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-podcasts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-podcasts-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-tv",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-tv-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-sports",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-sports-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-audiobooks",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-audiobooks-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-motivationals",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-motivationals-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-lectures",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-lectures-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-library",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-library-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-playlists",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-playlists-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-downloads",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-downloads-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-history",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-history-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-search",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "page-search-content",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no-duplicate-top-routes",
+      "ok": true,
+      "detail": "links=0"
+    },
+    {
+      "check": "persistent-player-visible-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "empty-player-copy",
+      "ok": true,
+      "detail": "Nothing Playing"
+    },
+    {
+      "check": "no-question-placeholder",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "sidebar-groups",
+      "ok": true,
+      "detail": "Primary|Library|Discover|Listen and Learn|Account"
+    },
+    {
+      "check": "home-hierarchy-continue-or-more",
+      "ok": true,
+      "detail": "Featured|Genre Spotlights|Emotional Worlds|More to Explore"
+    },
+    {
+      "check": "single-audio-idle",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "single-video-idle",
+      "ok": true,
+      "detail": "video=1"
+    },
+    {
+      "check": "one-persistent-player",
+      "ok": true,
+      "detail": "n=1"
+    },
+    {
+      "check": "active-player-metadata",
+      "ok": true,
+      "detail": "DEV Audio Versions: All Tiers"
+    },
+    {
+      "check": "no-audio-overlap",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "footer-bar-compact-ok",
+      "ok": true,
+      "detail": "bars=1"
+    },
+    {
+      "check": "switch-single-audio",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "switch-single-video",
+      "ok": true,
+      "detail": "video=1"
+    },
+    {
+      "check": "switch-one-right-rail",
+      "ok": true,
+      "detail": "rails=1"
+    },
+    {
+      "check": "1024-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024-player-visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1280-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1280-player-visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1440-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1440-player-visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1720-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1720-player-visible",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [],
+  "widths": {
+    "1024": {
+      "overflow": false,
+      "playerVisible": true,
+      "playerIdle": "false",
+      "emptyTitle": "",
+      "questionPlaceholder": false,
+      "topRouteLinks": 0,
+      "topRouteVisible": false,
+      "sidebarGroups": [
+        "Primary",
+        "Library",
+        "Discover",
+        "Listen and Learn",
+        "Account"
+      ],
+      "mainScrolls": true,
+      "audio": 1,
+      "video": 1,
+      "playerBars": 1,
+      "persistentPlayers": 1,
+      "homeSections": [
+        "Featured",
+        "Recently Played",
+        "Recommended for You",
+        "Genre Spotlights",
+        "Emotional Worlds",
+        "More to Explore"
+      ]
+    },
+    "1280": {
+      "overflow": false,
+      "playerVisible": true,
+      "playerIdle": "false",
+      "emptyTitle": "",
+      "questionPlaceholder": false,
+      "topRouteLinks": 0,
+      "topRouteVisible": false,
+      "sidebarGroups": [
+        "Primary",
+        "Library",
+        "Discover",
+        "Listen and Learn",
+        "Account"
+      ],
+      "mainScrolls": true,
+      "audio": 1,
+      "video": 1,
+      "playerBars": 1,
+      "persistentPlayers": 1,
+      "homeSections": [
+        "Featured",
+        "Recently Played",
+        "Recommended for You",
+        "Genre Spotlights",
+        "Emotional Worlds",
+        "More to Explore"
+      ]
+    },
+    "1440": {
+      "overflow": false,
+      "playerVisible": true,
+      "playerIdle": "false",
+      "emptyTitle": "",
+      "questionPlaceholder": false,
+      "topRouteLinks": 0,
+      "topRouteVisible": false,
+      "sidebarGroups": [
+        "Primary",
+        "Library",
+        "Discover",
+        "Listen and Learn",
+        "Account"
+      ],
+      "mainScrolls": true,
+      "audio": 1,
+      "video": 1,
+      "playerBars": 1,
+      "persistentPlayers": 1,
+      "homeSections": [
+        "Featured",
+        "Recently Played",
+        "Recommended for You",
+        "Genre Spotlights",
+        "Emotional Worlds",
+        "More to Explore"
+      ]
+    },
+    "1720": {
+      "overflow": false,
+      "playerVisible": true,
+      "playerIdle": "false",
+      "emptyTitle": "",
+      "questionPlaceholder": false,
+      "topRouteLinks": 0,
+      "topRouteVisible": false,
+      "sidebarGroups": [
+        "Primary",
+        "Library",
+        "Discover",
+        "Listen and Learn",
+        "Account"
+      ],
+      "mainScrolls": true,
+      "audio": 1,
+      "video": 1,
+      "playerBars": 1,
+      "persistentPlayers": 1,
+      "homeSections": [
+        "Featured",
+        "Recently Played",
+        "Recommended for You",
+        "Genre Spotlights",
+        "Emotional Worlds",
+        "More to Explore"
+      ]
+    }
+  }
+}

@@ -4,7 +4,10 @@ import type { CatalogIndexes } from '../../lib/catalogIndexes'
 import { buildQueueCandidatePools, buildQueueSeedPool } from '../../lib/catalogIndexes'
 import type { QueueContext, QueueSeedMetadata } from '../../lib/desktopPlayback/types'
 import {
+  buildEmotionalWorldCards,
+  buildGenreDiscoveryCards,
   buildHiddenGemSongs,
+  buildMusicHeroContent,
   buildPersonalMixes,
   resolveContinueSongs,
   resolveRecentlyPlayedSongs,
@@ -28,7 +31,10 @@ type HomeNavKey =
   | 'radio'
   | 'podcasts'
   | 'audiobooks'
+  | 'motivationals'
+  | 'lectures'
   | 'tv'
+  | 'sports'
   | 'worlds'
   | 'search'
   | 'library'
@@ -58,15 +64,15 @@ type MusicHomePageProps = {
   onBrowseSearch: (query: string) => void
 }
 
-const JUMP_IN_LINKS = [
-  { navKey: 'music', label: 'Music', subtitle: 'Browse the catalog' },
-  { navKey: 'library', label: 'Library', subtitle: 'Saved on this device' },
-  { navKey: 'search', label: 'Search', subtitle: 'Find songs and artists' },
-  { navKey: 'worlds', label: 'Worlds', subtitle: 'Emotional listening' },
-  { navKey: 'radio', label: 'Radio', subtitle: 'Live stations' },
-  { navKey: 'podcasts', label: 'Podcasts', subtitle: 'Shows and episodes' },
-  { navKey: 'tv', label: 'TV', subtitle: 'Live channels' },
-] as const
+const FAMILY_HIGHLIGHTS = [
+  { navKey: 'radio' as const, label: 'Radio', subtitle: 'Live stations' },
+  { navKey: 'podcasts' as const, label: 'Podcasts', subtitle: 'Shows and episodes' },
+  { navKey: 'audiobooks' as const, label: 'Audiobooks', subtitle: 'Books and chapters' },
+  { navKey: 'motivationals' as const, label: 'Motivationals', subtitle: 'Focus and drive' },
+  { navKey: 'lectures' as const, label: 'Lectures', subtitle: 'Learn in depth' },
+  { navKey: 'tv' as const, label: 'TV', subtitle: 'Live channels' },
+  { navKey: 'sports' as const, label: 'Sports', subtitle: 'Fixtures and matches' },
+]
 
 function progressPercent(position: number, duration: number | null) {
   if (!duration || duration <= 0) return 0
@@ -132,7 +138,7 @@ const MusicHomeSection = memo(function MusicHomeSection({
 
 export const MusicHomePage = memo(function MusicHomePage({
   songs,
-  albums: _albums,
+  albums,
   artists,
   artistNames: _artistNames,
   indexes,
@@ -141,15 +147,12 @@ export const MusicHomePage = memo(function MusicHomePage({
   error,
   retry,
   onOpenSong,
-  onOpenArtist: _onOpenArtist,
-  onOpenAlbum: _onOpenAlbum,
+  onOpenArtist,
+  onOpenAlbum,
   onNavigateNav,
   onBrowseSearch: _onBrowseSearch,
 }: MusicHomePageProps) {
-  void _albums
   void _artistNames
-  void _onOpenArtist
-  void _onOpenAlbum
   void _onBrowseSearch
 
   const { continueListening, recentlyPlayed } = useMusicLocalState()
@@ -177,6 +180,18 @@ export const MusicHomePage = memo(function MusicHomePage({
     [continueRows],
   )
 
+  const featured = useMemo(
+    () => buildMusicHeroContent(
+      songs,
+      albums,
+      artists,
+      indexes,
+      continueListening,
+      recentlyPlayed,
+    ),
+    [albums, artists, continueListening, indexes, recentlyPlayed, songs],
+  )
+
   const personalMixes = useMemo(
     () => buildPersonalMixes(songs, artists, indexes, recentlyPlayed).slice(0, 3),
     [artists, indexes, recentlyPlayed, songs],
@@ -187,6 +202,16 @@ export const MusicHomePage = memo(function MusicHomePage({
     return resolved.filter((song) => !continueSongIds.has(song.id)).slice(0, 8)
   }, [continueSongIds, indexes.songsById, recentlyPlayed])
 
+  const genreCards = useMemo(
+    () => buildGenreDiscoveryCards(indexes, recentlyPlayed, 8),
+    [indexes, recentlyPlayed],
+  )
+
+  const emotionalWorlds = useMemo(
+    () => buildEmotionalWorldCards(songs, 6),
+    [songs],
+  )
+
   const hiddenGems = useMemo(
     () => buildHiddenGemSongs(songs, recentlyPlayed, 10),
     [recentlyPlayed, songs],
@@ -195,11 +220,17 @@ export const MusicHomePage = memo(function MusicHomePage({
   const catalogError = showCatalogError ? error : null
   const showCatalogFallback = showCatalogSkeleton || Boolean(catalogError)
 
+  const featuredIsContinue = Boolean(
+    featured
+    && continueRows[0]
+    && featured.song.id === continueRows[0].song.id,
+  )
+
   return (
-    <div className="music-home" aria-label="Home">
+    <div className="music-home music-home--organised" aria-label="Home">
       <header className="music-home-page-header">
         <h1 className="music-home-page-title">Home</h1>
-        <p className="music-home-page-subtitle">Pick up where you left off</p>
+        <p className="music-home-page-subtitle">Music-first listening, organised for desktop</p>
       </header>
 
       {continueRows.length > 0 ? (
@@ -245,6 +276,55 @@ export const MusicHomePage = memo(function MusicHomePage({
         </MusicHomeSection>
       ) : null}
 
+      {featured && !featuredIsContinue ? (
+        <MusicHomeSection title="Featured" hint={featured.subtitle} prominence="primary">
+          <article className="music-home-featured-banner">
+            <button
+              type="button"
+              className="music-home-featured-hit"
+              onClick={() => playFromQueue(featured.song, featured.queue, featured.queueTitle)}
+              aria-label={`Play ${featured.title}`}
+            >
+              <ArtworkImage
+                src={featured.artworkUrl}
+                alt=""
+                seed={featured.song.id}
+                label={featured.title}
+                priority
+              />
+              <div className="music-home-featured-copy">
+                <strong>{featured.title}</strong>
+                <span>{featured.subtitle}</span>
+              </div>
+            </button>
+            {featured.secondaryType === 'album' && featured.secondaryId ? (
+              <button
+                type="button"
+                className="music-home-featured-secondary"
+                onClick={() => {
+                  const album = albums.find((entry) => entry.id === featured.secondaryId)
+                  if (album) onOpenAlbum(album)
+                }}
+              >
+                View album
+              </button>
+            ) : null}
+            {featured.secondaryType === 'artist' && featured.secondaryId ? (
+              <button
+                type="button"
+                className="music-home-featured-secondary"
+                onClick={() => {
+                  const artist = artists.find((entry) => entry.id === featured.secondaryId)
+                  if (artist) onOpenArtist(artist)
+                }}
+              >
+                View artist
+              </button>
+            ) : null}
+          </article>
+        </MusicHomeSection>
+      ) : null}
+
       {recentSongs.length > 0 ? (
         <MusicHomeSection
           title="Recently Played"
@@ -270,7 +350,7 @@ export const MusicHomePage = memo(function MusicHomePage({
       ) : null}
 
       {personalMixes.length > 0 ? (
-        <MusicHomeSection title="Made for You" hint="Mixes from your catalog and history">
+        <MusicHomeSection title="Recommended for You" hint="Mixes from your catalog and history">
           <div className="music-home-rail">
             {personalMixes.map((mix) => (
               <article key={mix.id} className="music-home-mix-card">
@@ -298,13 +378,78 @@ export const MusicHomePage = memo(function MusicHomePage({
         </MusicHomeSection>
       ) : showCatalogFallback ? (
         <MusicHomeSection
-          title="Made for You"
+          title="Recommended for You"
           hint="Mixes from your catalog and history"
           loading={showCatalogSkeleton}
           error={catalogError}
           onRetry={retry}
         >
           {null}
+        </MusicHomeSection>
+      ) : null}
+
+      {genreCards.length > 0 ? (
+        <MusicHomeSection title="Genre Spotlights" hint="Browse by sound" onViewAll={() => onNavigateNav('music')}>
+          <div className="music-home-song-rail">
+            {genreCards.map((genre) => {
+              const genreSongs = (indexes.songsByGenre.get(genre.id) ?? []).slice(0, 12)
+              return (
+                <button
+                  key={genre.id}
+                  type="button"
+                  className="music-home-song-card"
+                  onClick={() => {
+                    if (genreSongs[0]) playFromQueue(genreSongs[0], genreSongs, genre.label)
+                  }}
+                  aria-label={`Play ${genre.label}`}
+                >
+                  <ArtworkImage src={genre.artworkUrl} alt="" seed={genre.id} label={genre.label} />
+                  <strong>{genre.label}</strong>
+                  <span>{genre.count} tracks</span>
+                </button>
+              )
+            })}
+          </div>
+        </MusicHomeSection>
+      ) : null}
+
+      {emotionalWorlds.length > 0 ? (
+        <MusicHomeSection
+          title="Emotional Worlds"
+          hint="Mood-led listening"
+          onViewAll={() => onNavigateNav('worlds')}
+        >
+          <div className="music-home-rail">
+            {emotionalWorlds.map((lane) => {
+              const laneTracks = lane.songIds
+                .map((id) => indexes.songsById.get(id))
+                .filter((song): song is ApiSong => Boolean(song))
+                .slice(0, 12)
+              if (laneTracks.length === 0) return null
+              return (
+                <article key={lane.id} className="music-home-mix-card">
+                  <button
+                    type="button"
+                    className="music-home-mix-hit"
+                    onClick={() => playFromQueue(laneTracks[0], laneTracks, lane.label)}
+                    aria-label={`Play ${lane.label}`}
+                  >
+                    <ArtworkImage
+                      src={laneTracks[0]?.artwork ?? null}
+                      alt=""
+                      seed={lane.id}
+                      label={lane.label}
+                    />
+                    <div className="music-home-mix-copy">
+                      <h3>{lane.label}</h3>
+                      <p>{lane.subtitle}</p>
+                      <span>{lane.trackCount} songs</span>
+                    </div>
+                  </button>
+                </article>
+              )
+            })}
+          </div>
         </MusicHomeSection>
       ) : null}
 
@@ -334,9 +479,9 @@ export const MusicHomePage = memo(function MusicHomePage({
         </MusicHomeSection>
       ) : null}
 
-      <MusicHomeSection title="Jump In" hint="Quick destinations" prominence="compact">
+      <MusicHomeSection title="More to Explore" hint="Radio, podcasts, and learning" prominence="compact">
         <div className="music-home-jump-row">
-          {JUMP_IN_LINKS.map((link) => (
+          {FAMILY_HIGHLIGHTS.map((link) => (
             <button
               key={link.navKey}
               type="button"
