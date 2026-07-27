@@ -52,7 +52,6 @@ for (const title of expectedTitlesInOrder) {
 }
 
 const forbidden = [
-  'Continue Listening',
   'Recommended for You',
   'More to Explore',
   'Radio Picks',
@@ -74,11 +73,16 @@ assert(homePage.includes('useDesktopPlayback'), 'listening brief uses playback p
 assert(!homePage.includes('100vh'), 'Home page does not use 100vh')
 assert(!/height:\s*100%/.test(homePage), 'Home page does not use height 100% ownership')
 
-assert(css.includes('.music-home-hero-carousel'), 'hero carousel CSS')
-assert(css.includes('max-height: 320px'), 'hero max-height bounded')
-assert(css.includes('padding-bottom: calc(var(--footer-player-height'), 'clears bottom player')
-assert(css.includes('max-width: 1280px'), 'bounded content width at wide screens')
+assert(homePage.includes('music-home-art'), 'bound HomeArt shells present')
+assert(homePage.includes('data-home-layout="content-first"'), 'content-first layout marker')
+assert(css.includes('.music-home-art'), 'HomeArt shell CSS')
+assert(css.includes('max-height: 280px'), 'hero max-height bounded content-first')
 
+const appSource = fs.readFileSync(path.join(ROOT, 'src/App.tsx'), 'utf8')
+assert(
+  appSource.includes("context === 'home'") && appSource.includes('setDesktopSelectedTrack(resolved)'),
+  'Home play stays on discovery page (no PlayerWorkspace hijack)',
+)
 assert(
   fs.existsSync(path.join(ROOT, 'src/components/player/DesktopPersistentPlayer.tsx')),
   'persistent player remains',
@@ -87,11 +91,11 @@ assert(
   fs.existsSync(path.join(ROOT, 'src/context/DesktopPlaybackProvider.tsx')),
   'DesktopPlaybackProvider remains',
 )
-
-const appSource = fs.readFileSync(path.join(ROOT, 'src/App.tsx'), 'utf8')
 assert(appSource.includes('PlayerBar') || appSource.includes('player-bar'), 'compact bottom player remains')
 assert(appSource.includes('sidebar') || appSource.includes('Sidebar'), 'sidebar shell remains')
 assert(!homePage.includes('GlobalTopNav'), 'Home does not embed duplicate top route nav')
+assert(css.includes('padding-bottom: calc(var(--footer-player-height'), 'clears bottom player')
+assert(css.includes('.music-home-hero-carousel'), 'hero carousel CSS')
 
 const orderAnchors = [
   'music-home-search-launcher',
@@ -99,9 +103,9 @@ const orderAnchors = [
   'music-home-signal-row',
   'music-home-listening-brief',
   'music-home-family-grid',
+  "HOME_UI.sections.recentlyAdded",
   'music-home-emotional-worlds',
   "HOME_UI.sections.moodRooms",
-  "HOME_UI.sections.recentlyAdded",
   "HOME_UI.sections.becauseYouListened",
   "HOME_UI.sections.smartMusicQueue",
   "HOME_UI.sections.creatorsInOrbit",

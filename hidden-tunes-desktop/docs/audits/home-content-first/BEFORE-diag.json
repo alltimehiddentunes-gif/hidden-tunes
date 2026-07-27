@@ -1,0 +1,114 @@
+{
+  "sections": [
+    "Emotional Worlds",
+    "Recently Added",
+    "Because You Listened",
+    "Smart Music Queue",
+    "Made for you",
+    "All Songs"
+  ],
+  "search": true,
+  "hero": true,
+  "heroMaxH": 275,
+  "giantArtFrames": true,
+  "frames": [
+    {
+      "w": 219,
+      "h": 180,
+      "pos": "absolute",
+      "top": 268,
+      "left": 237,
+      "fillsPage": false
+    },
+    {
+      "w": 219,
+      "h": 180,
+      "pos": "absolute",
+      "top": 268,
+      "left": 471,
+      "fillsPage": false
+    },
+    {
+      "w": 219,
+      "h": 180,
+      "pos": "absolute",
+      "top": 268,
+      "left": 705,
+      "fillsPage": false
+    },
+    {
+      "w": 219,
+      "h": 180,
+      "pos": "absolute",
+      "top": 268,
+      "left": 939,
+      "fillsPage": false
+    },
+    {
+      "w": 219,
+      "h": 180,
+      "pos": "absolute",
+      "top": 268,
+      "left": 1173,
+      "fillsPage": false
+    },
+    {
+      "w": 722,
+      "h": 1649,
+      "pos": "absolute",
+      "top": 195,
+      "left": 236,
+      "fillsPage": true
+    },
+    {
+      "w": 722,
+      "h": 1649,
+      "pos": "absolute",
+      "top": 195,
+      "left": 236,
+      "fillsPage": true
+    },
+    {
+      "w": 722,
+      "h": 1649,
+      "pos": "absolute",
+      "top": 195,
+      "left": 236,
+      "fillsPage": true
+    },
+    {
+      "w": 722,
+      "h": 1649,
+      "pos": "absolute",
+      "top": 195,
+      "left": 236,
+      "fillsPage": true
+    },
+    {
+      "w": 722,
+      "h": 1649,
+      "pos": "absolute",
+      "top": 195,
+      "left": 236,
+      "fillsPage": true
+    },
+    {
+      "w": 722,
+      "h": 1649,
+      "pos": "absolute",
+      "top": 195,
+      "left": 236,
+      "fillsPage": true
+    },
+    {
+      "w": 722,
+      "h": 1649,
+      "pos": "absolute",
+      "top": 195,
+      "left": 236,
+      "fillsPage": true
+    }
+  ],
+  "player": true,
+  "sidebar": true
+}

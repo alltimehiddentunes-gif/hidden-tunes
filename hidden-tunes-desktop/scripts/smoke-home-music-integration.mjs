@@ -100,9 +100,12 @@ async function main() {
     family: document.querySelectorAll('.music-home-family-card').length,
     sections: [...document.querySelectorAll('.music-home h2')].map((h) => h.textContent.trim()),
     invented: [...document.querySelectorAll('.music-home h2')].map((h) => h.textContent.trim())
-      .filter((h) => /continue listening|recommended for you|more to explore|hidden gems/i.test(h)),
+      .filter((h) => /recommended for you|more to explore|hidden gems/i.test(h)),
     sidebar: Boolean(document.querySelector('.sidebar')),
     parity: document.querySelector('[data-home-parity="mobile"]') != null,
+    contentFirst: document.querySelector('[data-home-layout="content-first"]') != null,
+    playerWorkspace: Boolean(document.querySelector('.player-workspace-back, .main-scroll--player-workspace')),
+    giantFrames: [...document.querySelectorAll('.music-home .art-frame')].some((el) => el.getBoundingClientRect().height > 500),
   })`)
   record('home-no-giant-hero', !home.giantHero)
   record('home-hero-carousel', home.heroCarousel || home.sections.includes('Emotional Worlds'))
@@ -110,13 +113,24 @@ async function main() {
   record('home-mobile-sections', ['Emotional Worlds', 'Recently Added', 'All Songs'].every((t) => home.sections.includes(t)), home.sections.join('|'))
   record('home-no-invented-sections', home.invented.length === 0, home.invented.join('|'))
   record('home-parity-marker', home.parity)
+  record('home-content-first', home.contentFirst)
+  record('home-not-player-workspace', !home.playerWorkspace)
+  record('home-no-giant-art-frames', !home.giantFrames)
   record('home-sidebar', home.sidebar)
 
-  // Start play if possible
+  // Start play if possible — must remain on Home discovery
   await evalPage(win, `() => {
     document.querySelector('.music-home-hero-card-hit, .music-home-song-card, .music-home-room-card, .music-home-all-songs-row')?.click()
     return true
   }`)
+  await sleep(1800)
+  const afterPlay = await evalPage(win, `() => ({
+    stillHome: Boolean(document.querySelector('[data-home-layout="content-first"]')),
+    playerWorkspace: Boolean(document.querySelector('.player-workspace-back')),
+    giantFrames: [...document.querySelectorAll('.music-home .art-frame')].some((el) => el.getBoundingClientRect().height > 500),
+  })`)
+  record('home-stays-after-play', afterPlay.stillHome && !afterPlay.playerWorkspace)
+  record('home-art-still-bounded', !afterPlay.giantFrames)
   await sleep(1500)
 
   // If no home playable, go Music and play release

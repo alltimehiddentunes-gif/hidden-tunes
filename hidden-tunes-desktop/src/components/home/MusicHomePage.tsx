@@ -20,7 +20,9 @@ import {
   buildSmartMusicQueueSongs,
   songsReadyLabel,
 } from '../../lib/home/mobileHomeParity'
+import { resolveContinueSongs } from '../../lib/home/musicHomeSections'
 import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
+import { setPendingMusicResumeSeconds } from '../../lib/music/musicPlaybackSession'
 import { ArtworkImage } from '../ArtworkImage'
 
 type QueueSongHandler = (
@@ -78,6 +80,27 @@ const FAMILY_SHORTCUTS = [
   /** Desktop has no /more hub yet — Worlds is the closest non-Library discovery surface. */
   { navKey: 'worlds' as const, label: HOME_UI.shortcuts.more },
 ]
+
+/** Bound ArtworkImage — global `.art-frame` is absolute/inset and escapes without a shell. */
+function HomeArt({
+  src,
+  seed,
+  label,
+  priority = false,
+  size = 'rail',
+}: {
+  src: string | null
+  seed: string
+  label: string
+  priority?: boolean
+  size?: 'rail' | 'thumb' | 'hero'
+}) {
+  return (
+    <span className={`music-home-art music-home-art--${size}`} aria-hidden="true">
+      <ArtworkImage src={src} alt="" seed={seed} label={label} priority={priority} />
+    </span>
+  )
+}
 
 const MusicHomeSection = memo(function MusicHomeSection({
   eyebrow,
@@ -155,7 +178,7 @@ export const MusicHomePage = memo(function MusicHomePage({
   onNavigateNav,
   onBrowseSearch,
 }: MusicHomePageProps) {
-  const { recentlyPlayed } = useMusicLocalState()
+  const { continueListening, recentlyPlayed } = useMusicLocalState()
   const { currentTrack, currentQueue } = useDesktopPlayback()
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(HOME_CATALOG_PAGE_SIZE)
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
@@ -170,6 +193,11 @@ export const MusicHomePage = memo(function MusicHomePage({
       })
     },
     [indexes, onOpenSong, queuePools],
+  )
+
+  const continueRows = useMemo(
+    () => resolveContinueSongs(continueListening, indexes.songsById, 8),
+    [continueListening, indexes.songsById],
   )
 
   const recentHead = useMemo(() => {
@@ -228,7 +256,12 @@ export const MusicHomePage = memo(function MusicHomePage({
     : HOME_UI.sections.moodGenreSpotlights
 
   return (
-    <div className="music-home music-home--parity" aria-label="Home" data-home-parity="mobile">
+    <div
+      className="music-home music-home--parity music-home--content-first"
+      aria-label="Home"
+      data-home-parity="mobile"
+      data-home-layout="content-first"
+    >
       <button
         type="button"
         className="music-home-search-launcher"
@@ -260,15 +293,13 @@ export const MusicHomePage = memo(function MusicHomePage({
                   }
                   aria-label={`${HOME_UI.hero.play} ${card.title}`}
                 >
-                  <div className="music-home-hero-card-art">
-                    <ArtworkImage
-                      src={card.song.artwork}
-                      alt=""
-                      seed={card.song.id}
-                      label={card.title}
-                      priority={card.key.startsWith('featured') || Boolean(card.isCurrent)}
-                    />
-                  </div>
+                  <HomeArt
+                    src={card.song.artwork}
+                    seed={card.song.id}
+                    label={card.title}
+                    size="hero"
+                    priority={card.key.startsWith('featured') || Boolean(card.isCurrent)}
+                  />
                   <div className="music-home-hero-card-copy">
                     <span className="music-home-hero-card-pill">{card.label}</span>
                     <strong title={card.title}>{card.title}</strong>
@@ -281,6 +312,31 @@ export const MusicHomePage = memo(function MusicHomePage({
         </section>
       ) : showCatalogSkeleton ? (
         <div className="music-home-hero-carousel music-home-hero-carousel--skeleton" aria-busy="true" />
+      ) : null}
+
+      {continueRows.length > 0 ? (
+        <MusicHomeSection title="Continue Listening" eyebrow="RESUME">
+          <div className="music-home-continue-grid">
+            {continueRows.map(({ entry, song }) => (
+              <button
+                key={entry.songId}
+                type="button"
+                className="music-home-continue-hit"
+                onClick={() => {
+                  setPendingMusicResumeSeconds(entry.positionSeconds)
+                  playFromQueue(song, [song], 'Continue Listening')
+                }}
+                aria-label={`Resume ${song.title} by ${song.artist}`}
+              >
+                <HomeArt src={song.artwork} seed={song.id} label={song.title} size="thumb" />
+                <div className="music-home-continue-copy">
+                  <strong title={song.title}>{song.title}</strong>
+                  <span title={song.artist}>{song.artist}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </MusicHomeSection>
       ) : null}
 
       <div className="music-home-signal-row" aria-label="Catalog signals">
@@ -318,6 +374,36 @@ export const MusicHomePage = memo(function MusicHomePage({
         ))}
       </div>
 
+      {/* Desktop content-first: surface a music rail immediately after chrome */}
+      <MusicHomeSection
+        eyebrow={HOME_UI.sections.new}
+        title={HOME_UI.sections.recentlyAdded}
+        meta={recentlyAdded.length > 0 ? HOME_UI.sections.play : undefined}
+        loading={showCatalogSkeleton && recentlyAdded.length === 0}
+        error={catalogError && recentlyAdded.length === 0 ? catalogError : null}
+        onRetry={retry}
+      >
+        {recentlyAdded.length > 0 ? (
+          <div className="music-home-song-rail">
+            {recentlyAdded.map((song) => (
+              <button
+                key={`recently-top-${song.id}`}
+                type="button"
+                className="music-home-song-card"
+                onClick={() => playFromQueue(song, recentlyAdded, HOME_UI.sections.recentlyAdded)}
+                aria-label={`Play ${song.title} by ${song.artist}`}
+              >
+                <HomeArt src={song.artwork} seed={song.id} label={song.title} />
+                <strong title={song.title}>{song.title}</strong>
+                <span title={song.artist}>{song.artist}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="music-home-section-empty">{HOME_UI.recentlyAddedEmpty}</p>
+        )}
+      </MusicHomeSection>
+
       <section className="music-home-section music-home-section--parity" aria-labelledby="music-home-emotional-worlds">
         <header className="music-home-section-header">
           <div>
@@ -353,7 +439,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 onClick={() => playFromQueue(room.songs[0], room.songs, room.title)}
                 aria-label={`Play ${room.title}`}
               >
-                <ArtworkImage src={room.artwork} alt="" seed={room.id} label={room.title} />
+                <HomeArt src={room.artwork} seed={room.id} label={room.title} />
                 <strong>{room.title}</strong>
                 <span>{room.subtitle}</span>
               </button>
@@ -361,35 +447,6 @@ export const MusicHomePage = memo(function MusicHomePage({
           </div>
         </MusicHomeSection>
       ) : null}
-
-      <MusicHomeSection
-        eyebrow={HOME_UI.sections.new}
-        title={HOME_UI.sections.recentlyAdded}
-        meta={recentlyAdded.length > 0 ? HOME_UI.sections.play : undefined}
-        loading={showCatalogSkeleton && recentlyAdded.length === 0}
-        error={catalogError && recentlyAdded.length === 0 ? catalogError : null}
-        onRetry={retry}
-      >
-        {recentlyAdded.length > 0 ? (
-          <div className="music-home-song-rail">
-            {recentlyAdded.map((song) => (
-              <button
-                key={`recently-${song.id}`}
-                type="button"
-                className="music-home-song-card"
-                onClick={() => playFromQueue(song, recentlyAdded, HOME_UI.sections.recentlyAdded)}
-                aria-label={`Play ${song.title} by ${song.artist}`}
-              >
-                <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
-                <strong title={song.title}>{song.title}</strong>
-                <span title={song.artist}>{song.artist}</span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="music-home-section-empty">{HOME_UI.recentlyAddedEmpty}</p>
-        )}
-      </MusicHomeSection>
 
       {becauseYouListened.length > 0 ? (
         <MusicHomeSection eyebrow={HOME_UI.sections.listener} title={HOME_UI.sections.becauseYouListened}>
@@ -404,7 +461,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 }
                 aria-label={`Play ${song.title} by ${song.artist}`}
               >
-                <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
+                <HomeArt src={song.artwork} seed={song.id} label={song.title} />
                 <strong title={song.title}>{song.title}</strong>
                 <span title={song.artist}>{song.artist}</span>
               </button>
@@ -424,7 +481,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 onClick={() => playFromQueue(song, smartQueue, HOME_UI.sections.smartMusicQueue)}
                 aria-label={`Play ${song.title} by ${song.artist}`}
               >
-                <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
+                <HomeArt src={song.artwork} seed={song.id} label={song.title} />
                 <strong title={song.title}>{song.title}</strong>
                 <span title={song.artist}>{song.artist}</span>
               </button>
@@ -444,7 +501,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 onClick={() => onOpenArtist(artist)}
                 aria-label={`Open ${artist.name}`}
               >
-                <ArtworkImage src={artist.artwork} alt="" seed={artist.id} label={artist.name} />
+                <HomeArt src={artist.artwork} seed={artist.id} label={artist.name} />
                 <strong title={artist.name}>{artist.name}</strong>
                 <span>
                   {`${indexes.songsByArtistId.get(artist.id)?.length
@@ -471,7 +528,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 onClick={() => onOpenAlbum(album)}
                 aria-label={`Open ${album.title}`}
               >
-                <ArtworkImage src={album.artwork} alt="" seed={album.id} label={album.title} />
+                <HomeArt src={album.artwork} seed={album.id} label={album.title} />
                 <strong title={album.title}>{album.title}</strong>
                 <span>
                   {album.artistId
@@ -495,7 +552,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 onClick={() => playFromQueue(room.songs[0], room.songs, room.title)}
                 aria-label={`Play ${room.title}`}
               >
-                <ArtworkImage src={room.artwork} alt="" seed={room.id} label={room.title} />
+                <HomeArt src={room.artwork} seed={room.id} label={room.title} />
                 <strong>{room.title}</strong>
                 <span>{room.subtitle}</span>
               </button>
@@ -521,7 +578,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 }}
                 aria-label={`Play ${genre.label}`}
               >
-                <ArtworkImage src={genre.artworkUrl} alt="" seed={genre.id} label={genre.label} />
+                <HomeArt src={genre.artworkUrl} seed={genre.id} label={genre.label} />
                 <strong>{genre.label}</strong>
                 <span>{genre.count} songs</span>
               </button>
@@ -559,7 +616,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                   onClick={() => playFromQueue(song, songs, 'Full Catalog')}
                   aria-label={`Play ${song.title} by ${song.artist}`}
                 >
-                  <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
+                  <HomeArt src={song.artwork} seed={song.id} label={song.title} size="thumb" />
                   <div className="music-home-all-songs-copy">
                     <strong title={song.title}>{song.title}</strong>
                     <span title={song.artist}>{song.artist}</span>

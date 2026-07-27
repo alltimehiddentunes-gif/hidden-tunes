@@ -152,8 +152,11 @@ async function main() {
   const parityTitles = ['Emotional Worlds', 'Recently Added', 'All Songs']
   const hasParity = parityTitles.every((t) => at1440.homeSections.includes(t))
   record('home-mobile-parity-titles', hasParity, at1440.homeSections.join('|'))
-  record('home-no-invented-continue', !at1440.homeSections.includes('Continue Listening'))
+  record('home-no-invented-continue', !at1440.homeSections.includes('Recommended for You'))
   record('home-no-invented-more-explore', !at1440.homeSections.includes('More to Explore'))
+  record('home-not-player-workspace', await evalPage(win, `() => !document.querySelector('.player-workspace-back')`))
+  const artOk = await evalPage(win, `() => ![...document.querySelectorAll('.music-home .art-frame')].some((el) => el.getBoundingClientRect().height > 500)`)
+  record('home-art-bounded', artOk)
   record('single-audio-idle', at1440.audio <= 1, `audio=${at1440.audio}`)
   record('single-video-idle', at1440.video <= 1, `video=${at1440.video}`)
   record('one-persistent-player', at1440.persistentPlayers === 1, `n=${at1440.persistentPlayers}`)

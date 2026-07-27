@@ -7920,6 +7920,12 @@ function AppShell() {
       const safeIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, Math.min(startIndex, playableQueue.length - 1))
 
       playQueue(playableQueue, safeIndex, context, queueTitle, seedMetadata)
+      // Home plays must stay on the discovery page — persistent/compact players
+      // own the now-playing UI. Do not replace the centre column with PlayerWorkspace.
+      if (context === 'home') {
+        setDesktopSelectedTrack(resolved)
+        return
+      }
       startTransition(() => {
         openSong(resolved)
       })
