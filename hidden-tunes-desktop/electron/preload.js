@@ -1,6 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('hiddenTunesDesktop', {
+  runtime: {
+    /** Diagnostics only — never includes secrets or private tokens. */
+    getInfo: () => ipcRenderer.sendSync('ht-runtime-info'),
+  },
   catalog: {
     getJson: (path) => ipcRenderer.invoke('ht-catalog-get', path),
     requestJson: (options) => ipcRenderer.invoke('ht-catalog-request', options),

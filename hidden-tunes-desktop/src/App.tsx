@@ -14,8 +14,7 @@
   type ReactNode,
 } from 'react'
 import {
-  fetchCatalogBundle,
-  filterAlbumsByQuery,
+    filterAlbumsByQuery,
   filterArtistsByQuery,
   sortAlbumsList,
   sortArtistsList,
@@ -27,6 +26,14 @@ import {
   type CatalogBundle,
   type SongSort,
 } from './lib/api'
+import {
+  CatalogRequestError,
+  loadMusicCatalogBootstrap,
+  loadMusicCatalogPage,
+  MUSIC_CATALOG_PAGE_SIZE,
+  searchMusicSongsPage,
+} from './lib/musicCatalog'
+import { getDesktopRuntimeConfig } from './lib/config/desktopRuntimeConfig'
 import {
   buildSearchMetadataIndex,
   metadataRecordToApiSong,
@@ -777,6 +784,17 @@ type CatalogContextValue = {
   cachedAt: string | null
   showCatalogSkeleton: boolean
   showCatalogError: boolean
+  configError: string | null
+  songsHasMore: boolean
+  albumsHasMore: boolean
+  artistsHasMore: boolean
+  songsPageLoading: boolean
+  albumsPageLoading: boolean
+  artistsPageLoading: boolean
+  pageError: string | null
+  loadMoreSongs: () => void
+  loadMoreAlbums: () => void
+  loadMoreArtists: () => void
   retry: () => void
   refreshCatalog: () => void
   clearCatalogCache: () => void
@@ -793,14 +811,19 @@ function useCatalog() {
 }
 
 function CatalogProvider({ children }: { children: ReactNode }) {
+  const runtimeConfig = useMemo(() => getDesktopRuntimeConfig(), [])
+  const configError = runtimeConfig.ok
+    ? null
+    : runtimeConfig.errors[0] || 'Desktop catalog configuration is invalid.'
+
   const initial = useMemo(() => resolveInitialCatalog(), [])
   const catalogSourceRef = useRef<CatalogSource>(initial.source)
 
   const [songs, setSongs] = useState<ApiSong[]>(() => initial.bundle.songs)
   const [albums, setAlbums] = useState<ApiAlbum[]>(() => initial.bundle.albums)
   const [artists, setArtists] = useState<ApiArtist[]>(() => initial.bundle.artists)
-  const [loading, setLoading] = useState(() => !catalogSessionFetchDone)
-  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(() => !catalogSessionFetchDone && !configError)
+  const [error, setError] = useState<string | null>(() => configError)
   const [loaded, setLoaded] = useState(
     () => initial.source !== 'none' || Boolean(catalogMemoryCache),
   )
@@ -808,6 +831,21 @@ function CatalogProvider({ children }: { children: ReactNode }) {
   const [staleCatalog, setStaleCatalog] = useState(false)
   const [cachedAt, setCachedAt] = useState<string | null>(() => initial.cachedAt)
   const [reloadKey, setReloadKey] = useState(0)
+
+  const [songsPage, setSongsPage] = useState(1)
+  const [albumsPage, setAlbumsPage] = useState(1)
+  const [artistsPage, setArtistsPage] = useState(1)
+  const [songsHasMore, setSongsHasMore] = useState(true)
+  const [albumsHasMore, setAlbumsHasMore] = useState(true)
+  const [artistsHasMore, setArtistsHasMore] = useState(true)
+  const [songsPageLoading, setSongsPageLoading] = useState(false)
+  const [albumsPageLoading, setAlbumsPageLoading] = useState(false)
+  const [artistsPageLoading, setArtistsPageLoading] = useState(false)
+  const [pageError, setPageError] = useState<string | null>(null)
+
+  const songsLoadGuard = useRef(false)
+  const albumsLoadGuard = useRef(false)
+  const artistsLoadGuard = useRef(false)
 
   const displaySongs = useMemo(() => withDevAudioVersionTestSongs(songs), [songs])
   const hasCatalogData = displaySongs.length > 0 || albums.length > 0 || artists.length > 0
@@ -862,9 +900,170 @@ function CatalogProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const appendUniqueById = useCallback(<T extends { id: string }>(prev: T[], next: T[]) => {
+    if (next.length === 0) return prev
+    const seen = new Set(prev.map((item) => item.id))
+    const merged = [...prev]
+    for (const item of next) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id)
+        merged.push(item)
+      }
+    }
+    return merged
+  }, [])
+
+  const loadMoreSongs = useCallback(() => {
+    if (configError || !songsHasMore || songsPageLoading || songsLoadGuard.current) return
+    songsLoadGuard.current = true
+    setSongsPageLoading(true)
+    setPageError(null)
+    const nextPage = songsPage + 1
+    const controller = new AbortController()
+    void loadMusicCatalogPage<ApiSong>({
+      resource: 'songs',
+      page: nextPage,
+      limit: MUSIC_CATALOG_PAGE_SIZE,
+      signal: controller.signal,
+    })
+      .then((result) => {
+        setSongs((prev) => {
+          const merged = appendUniqueById(prev, result.items)
+          catalogMemoryCache = {
+            songs: merged,
+            albums: catalogMemoryCache?.albums ?? albums,
+            artists: catalogMemoryCache?.artists ?? artists,
+          }
+          writeCachedCatalog(catalogMemoryCache)
+          return merged
+        })
+        setSongsPage(result.page)
+        setSongsHasMore(result.hasMore)
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (err instanceof CatalogRequestError && err.kind === 'abort') return
+        setPageError(
+          err instanceof Error ? err.message : 'Could not load more songs.',
+        )
+      })
+      .finally(() => {
+        songsLoadGuard.current = false
+        setSongsPageLoading(false)
+      })
+  }, [
+    albums,
+    appendUniqueById,
+    artists,
+    configError,
+    songsHasMore,
+    songsPage,
+    songsPageLoading,
+  ])
+
+  const loadMoreAlbums = useCallback(() => {
+    if (configError || !albumsHasMore || albumsPageLoading || albumsLoadGuard.current) return
+    albumsLoadGuard.current = true
+    setAlbumsPageLoading(true)
+    setPageError(null)
+    const nextPage = albumsPage + 1
+    void loadMusicCatalogPage<ApiAlbum>({
+      resource: 'albums',
+      page: nextPage,
+      limit: MUSIC_CATALOG_PAGE_SIZE,
+    })
+      .then((result) => {
+        setAlbums((prev) => {
+          const merged = appendUniqueById(prev, result.items)
+          catalogMemoryCache = {
+            songs: catalogMemoryCache?.songs ?? songs,
+            albums: merged,
+            artists: catalogMemoryCache?.artists ?? artists,
+          }
+          writeCachedCatalog(catalogMemoryCache)
+          return merged
+        })
+        setAlbumsPage(result.page)
+        setAlbumsHasMore(result.hasMore)
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (err instanceof CatalogRequestError && err.kind === 'abort') return
+        setPageError(
+          err instanceof Error ? err.message : 'Could not load more albums.',
+        )
+      })
+      .finally(() => {
+        albumsLoadGuard.current = false
+        setAlbumsPageLoading(false)
+      })
+  }, [
+    albumsHasMore,
+    albumsPage,
+    albumsPageLoading,
+    appendUniqueById,
+    artists,
+    configError,
+    songs,
+  ])
+
+  const loadMoreArtists = useCallback(() => {
+    if (configError || !artistsHasMore || artistsPageLoading || artistsLoadGuard.current) return
+    artistsLoadGuard.current = true
+    setArtistsPageLoading(true)
+    setPageError(null)
+    const nextPage = artistsPage + 1
+    void loadMusicCatalogPage<ApiArtist>({
+      resource: 'artists',
+      page: nextPage,
+      limit: MUSIC_CATALOG_PAGE_SIZE,
+    })
+      .then((result) => {
+        setArtists((prev) => {
+          const merged = appendUniqueById(prev, result.items)
+          catalogMemoryCache = {
+            songs: catalogMemoryCache?.songs ?? songs,
+            albums: catalogMemoryCache?.albums ?? albums,
+            artists: merged,
+          }
+          writeCachedCatalog(catalogMemoryCache)
+          return merged
+        })
+        setArtistsPage(result.page)
+        setArtistsHasMore(result.hasMore)
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (err instanceof CatalogRequestError && err.kind === 'abort') return
+        setPageError(
+          err instanceof Error ? err.message : 'Could not load more artists.',
+        )
+      })
+      .finally(() => {
+        artistsLoadGuard.current = false
+        setArtistsPageLoading(false)
+      })
+  }, [
+    albums,
+    appendUniqueById,
+    artistsHasMore,
+    artistsPage,
+    artistsPageLoading,
+    configError,
+    songs,
+  ])
+
   useEffect(() => {
     let active = true
     const controller = new AbortController()
+
+    // configError is applied via initial useState — avoid synchronous setState in effect.
+    if (configError) {
+      return () => {
+        active = false
+        controller.abort()
+      }
+    }
 
     if (catalogSessionFetchDone && reloadKey === 0 && catalogMemoryCache) {
       applyBundle(
@@ -881,25 +1080,47 @@ function CatalogProvider({ children }: { children: ReactNode }) {
 
     setLoading(true)
     setError(null)
+    setPageError(null)
 
     const fetchStarted = performance.now()
-    fetchCatalogBundle(controller.signal)
-      .then((bundle) => {
+    loadMusicCatalogBootstrap(controller.signal)
+      .then((pages) => {
         if (!active) return
+        const bundle: CatalogBundle = {
+          songs: pages.songs.items,
+          albums: pages.albums.items,
+          artists: pages.artists.items,
+        }
         writeCachedCatalog(bundle)
         catalogSessionFetchDone = true
+        setSongsPage(1)
+        setAlbumsPage(1)
+        setArtistsPage(1)
+        setSongsHasMore(pages.songs.hasMore)
+        setAlbumsHasMore(pages.albums.hasMore)
+        setArtistsHasMore(pages.artists.hasMore)
         logCatalogFetch({
           songCount: bundle.songs.length,
           albumCount: bundle.albums.length,
           artistCount: bundle.artists.length,
           durationMs: Math.round(performance.now() - fetchStarted),
-          source: 'live',
+          source: pages.songs.fromCache || pages.albums.fromCache || pages.artists.fromCache
+            ? 'cache'
+            : 'live',
         })
-        applyBundle(bundle, 'live', new Date().toISOString())
+        applyBundle(
+          bundle,
+          pages.songs.stale || pages.albums.stale || pages.artists.stale ? 'cache' : 'live',
+          new Date().toISOString(),
+        )
+        if (pages.songs.stale || pages.albums.stale || pages.artists.stale) {
+          setStaleCatalog(true)
+        }
       })
       .catch((err) => {
         if (!active) return
         if (err instanceof DOMException && err.name === 'AbortError') return
+        if (err instanceof CatalogRequestError && err.kind === 'abort') return
         catalogSessionFetchDone = true
 
         if (catalogSourceRef.current !== 'none') {
@@ -924,7 +1145,7 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       active = false
       controller.abort()
     }
-  }, [reloadKey, applyBundle])
+  }, [reloadKey, applyBundle, configError])
 
   const enrichedCatalog = useMemo(
     () => enrichCatalogArtwork(displaySongs, albums, artists),
@@ -964,6 +1185,17 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       cachedAt,
       showCatalogSkeleton,
       showCatalogError,
+      configError,
+      songsHasMore,
+      albumsHasMore,
+      artistsHasMore,
+      songsPageLoading,
+      albumsPageLoading,
+      artistsPageLoading,
+      pageError,
+      loadMoreSongs,
+      loadMoreAlbums,
+      loadMoreArtists,
       retry,
       refreshCatalog,
       clearCatalogCache,
@@ -983,6 +1215,17 @@ function CatalogProvider({ children }: { children: ReactNode }) {
       cachedAt,
       showCatalogSkeleton,
       showCatalogError,
+      configError,
+      songsHasMore,
+      albumsHasMore,
+      artistsHasMore,
+      songsPageLoading,
+      albumsPageLoading,
+      artistsPageLoading,
+      pageError,
+      loadMoreSongs,
+      loadMoreAlbums,
+      loadMoreArtists,
       retry,
       refreshCatalog,
       clearCatalogCache,
@@ -1471,41 +1714,74 @@ function MusicNoteIcon({ className }: { className?: string }) {
     </svg>
   )
 }
-function useVisibleSlice<T>(items: T[], resetKey: string) {
+function useVisibleSlice<T>(
+  items: T[],
+  resetKey: string,
+  options?: {
+    hasServerMore?: boolean
+    serverLoading?: boolean
+    onNeedServerMore?: () => void
+  },
+) {
   const [limit, setLimit] = useState(GRID_INITIAL_LIMIT)
+  const onNeedServerMore = options?.onNeedServerMore
+  const hasServerMore = Boolean(options?.hasServerMore)
+  const serverLoading = Boolean(options?.serverLoading)
 
   useEffect(() => {
     setLimit(GRID_INITIAL_LIMIT)
   }, [resetKey])
 
   const visible = useMemo(() => items.slice(0, limit), [items, limit])
-  const hasMore = limit < items.length
+  const hasMore = limit < items.length || hasServerMore
   const showMore = useCallback(() => {
-    setLimit((current) => Math.min(current + GRID_SHOW_MORE_STEP, items.length))
-  }, [items.length])
+    setLimit((current) => {
+      const stepped = current + GRID_SHOW_MORE_STEP
+      if (stepped >= items.length && hasServerMore && !serverLoading) {
+        onNeedServerMore?.()
+      }
+      return Math.min(stepped, Math.max(items.length, current))
+    })
+  }, [hasServerMore, items.length, onNeedServerMore, serverLoading])
 
-  return { visible, hasMore, showMore, total: items.length, shown: visible.length }
+  return {
+    visible,
+    hasMore,
+    showMore,
+    total: hasServerMore ? Math.max(items.length + 1, limit) : items.length,
+    shown: visible.length,
+    serverLoading,
+  }
 }
 
 function ShowMoreRow({
   shown,
   total,
   onShowMore,
+  hasMore = shown < total,
+  loading = false,
 }: {
   shown: number
   total: number
   onShowMore: () => void
+  hasMore?: boolean
+  loading?: boolean
 }) {
-  if (total <= GRID_INITIAL_LIMIT) return null
+  if (total <= GRID_INITIAL_LIMIT && !hasMore) return null
 
   return (
     <div className="catalog-show-more">
       <span className="catalog-show-more-count">
-        Showing {shown} of {total}
+        {loading ? `Loading more… · ${shown} loaded` : `Showing ${shown}${hasMore ? '+' : ''} of catalog`}
       </span>
-      {shown < total ? (
-        <button type="button" className="btn-secondary btn-sm" onClick={onShowMore}>
-          Show more
+      {hasMore ? (
+        <button
+          type="button"
+          className="btn-secondary btn-sm"
+          onClick={onShowMore}
+          disabled={loading}
+        >
+          {loading ? 'Loading…' : 'Show more'}
         </button>
       ) : null}
     </div>
@@ -1620,16 +1896,25 @@ const ApiSongGrid = memo(function ApiSongGrid({
   listKey = 'songs',
   paginate = true,
   showEmpty = true,
+  hasServerMore = false,
+  serverLoading = false,
+  onNeedServerMore,
 }: {
   songs: ApiSong[]
   onSelect: SongSelectHandler
   listKey?: string
   paginate?: boolean
   showEmpty?: boolean
+  hasServerMore?: boolean
+  serverLoading?: boolean
+  onNeedServerMore?: () => void
 }) {
-  const { visible, showMore, total, shown } = useVisibleSlice(
+  const { visible, showMore, total, shown, hasMore } = useVisibleSlice(
     songs,
     paginate ? listKey : `${listKey}:all`,
+    paginate
+      ? { hasServerMore, serverLoading, onNeedServerMore }
+      : undefined,
   )
   const renderSongs = paginate ? visible : songs
 
@@ -1663,7 +1948,15 @@ const ApiSongGrid = memo(function ApiSongGrid({
           </button>
         ))}
       </div>
-      {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
+      {paginate ? (
+        <ShowMoreRow
+          shown={shown}
+          total={total}
+          onShowMore={showMore}
+          hasMore={hasMore}
+          loading={serverLoading}
+        />
+      ) : null}
     </>
   )
 })
@@ -1675,6 +1968,9 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
   onSelect,
   listKey = 'albums',
   paginate = true,
+  hasServerMore = false,
+  serverLoading = false,
+  onNeedServerMore,
 }: {
   albums: ApiAlbum[]
   artistNames: Map<string, string>
@@ -1682,10 +1978,16 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
   onSelect: (album: ApiAlbum) => void
   listKey?: string
   paginate?: boolean
+  hasServerMore?: boolean
+  serverLoading?: boolean
+  onNeedServerMore?: () => void
 }) {
-  const { visible, showMore, total, shown } = useVisibleSlice(
+  const { visible, showMore, total, shown, hasMore } = useVisibleSlice(
     albums,
     paginate ? listKey : `${listKey}:all`,
+    paginate
+      ? { hasServerMore, serverLoading, onNeedServerMore }
+      : undefined,
   )
   const renderAlbums = paginate ? visible : albums
 
@@ -1725,14 +2027,22 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
                 <h3>{album.title}</h3>
                 <p className="card-meta-primary">{artistName || 'Unknown artist'}</p>
                 <p className="card-meta-secondary">
-                  {album.releaseYear ? `Released ${album.releaseYear} ┬À ${trackLabel}` : trackLabel}
+                  {album.releaseYear ? `Released ${album.releaseYear} · ${trackLabel}` : trackLabel}
                 </p>
               </div>
             </button>
           )
         })}
       </div>
-      {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
+      {paginate ? (
+        <ShowMoreRow
+          shown={shown}
+          total={total}
+          onShowMore={showMore}
+          hasMore={hasMore}
+          loading={serverLoading}
+        />
+      ) : null}
     </>
   )
 })
@@ -1743,15 +2053,24 @@ const ApiArtistGrid = memo(function ApiArtistGrid({
   onSelect,
   listKey = 'artists',
   paginate = true,
+  hasServerMore = false,
+  serverLoading = false,
+  onNeedServerMore,
 }: {
   artists: ApiArtist[]
   onSelect: (artist: ApiArtist) => void
   listKey?: string
   paginate?: boolean
+  hasServerMore?: boolean
+  serverLoading?: boolean
+  onNeedServerMore?: () => void
 }) {
-  const { visible, showMore, total, shown } = useVisibleSlice(
+  const { visible, showMore, total, shown, hasMore } = useVisibleSlice(
     artists,
     paginate ? listKey : `${listKey}:all`,
+    paginate
+      ? { hasServerMore, serverLoading, onNeedServerMore }
+      : undefined,
   )
   const renderArtists = paginate ? visible : artists
 
@@ -1786,7 +2105,15 @@ const ApiArtistGrid = memo(function ApiArtistGrid({
           </button>
         ))}
       </div>
-      {paginate ? <ShowMoreRow shown={shown} total={total} onShowMore={showMore} /> : null}
+      {paginate ? (
+        <ShowMoreRow
+          shown={shown}
+          total={total}
+          onShowMore={showMore}
+          hasMore={hasMore}
+          loading={serverLoading}
+        />
+      ) : null}
     </>
   )
 })
@@ -2751,6 +3078,16 @@ function MusicPage({
     showCatalogError,
     error,
     retry,
+    songsHasMore,
+    albumsHasMore,
+    artistsHasMore,
+    songsPageLoading,
+    albumsPageLoading,
+    artistsPageLoading,
+    pageError,
+    loadMoreSongs,
+    loadMoreAlbums,
+    loadMoreArtists,
   } = useCatalog()
 
   return (
@@ -2766,6 +3103,16 @@ function MusicPage({
         showCatalogError={showCatalogError}
         error={error}
         retry={retry}
+        songsHasMore={songsHasMore}
+        albumsHasMore={albumsHasMore}
+        artistsHasMore={artistsHasMore}
+        songsPageLoading={songsPageLoading}
+        albumsPageLoading={albumsPageLoading}
+        artistsPageLoading={artistsPageLoading}
+        pageError={pageError}
+        loadMoreSongs={loadMoreSongs}
+        loadMoreAlbums={loadMoreAlbums}
+        loadMoreArtists={loadMoreArtists}
         onOpenSong={onOpenSong}
         onOpenArtist={onOpenArtist}
         onOpenAlbum={onOpenAlbum}
@@ -2894,7 +3241,54 @@ function DiscoverPage({
     parseStoredSongSort,
   )
 
-  const searchResult = useMemo(
+  const trimmedQuery = debouncedQuery.trim()
+  const [remoteSongs, setRemoteSongs] = useState<ApiSong[]>([])
+  const [remoteSearchLoading, setRemoteSearchLoading] = useState(false)
+  const [remoteSearchError, setRemoteSearchError] = useState<string | null>(null)
+  const remoteSearchGen = useRef(0)
+
+  useEffect(() => {
+    if (!trimmedQuery) {
+      setRemoteSongs([])
+      setRemoteSearchLoading(false)
+      setRemoteSearchError(null)
+      return
+    }
+
+    const controller = new AbortController()
+    const gen = ++remoteSearchGen.current
+    setRemoteSearchLoading(true)
+    setRemoteSearchError(null)
+
+    void searchMusicSongsPage({
+      query: trimmedQuery,
+      page: 1,
+      limit: MUSIC_CATALOG_PAGE_SIZE,
+      signal: controller.signal,
+    })
+      .then((result) => {
+        if (gen !== remoteSearchGen.current) return
+        setRemoteSongs(result.items)
+      })
+      .catch((err) => {
+        if (gen !== remoteSearchGen.current) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (err instanceof CatalogRequestError && err.kind === 'abort') return
+        setRemoteSearchError(
+          err instanceof Error ? err.message : 'Search failed.',
+        )
+        // Do not wipe prior successful remote results on a transient failure.
+      })
+      .finally(() => {
+        if (gen === remoteSearchGen.current) setRemoteSearchLoading(false)
+      })
+
+    return () => {
+      controller.abort()
+    }
+  }, [trimmedQuery])
+
+  const localSearchResult = useMemo(
     () =>
       searchCatalogSongs({
         index: searchMetadataIndex,
@@ -2903,17 +3297,20 @@ function DiscoverPage({
     [debouncedQuery, searchMetadataIndex],
   )
 
+  const visibleSongs = useMemo(() => {
+    if (trimmedQuery) {
+      return sortSongsList(remoteSongs, sort)
+    }
+    return metadataRecordsToApiSongs(
+      sortMetadataRecords(localSearchResult.records, sort),
+    )
+  }, [localSearchResult.records, remoteSongs, sort, trimmedQuery])
+
   const visibleRecords = useMemo(
-    () => sortMetadataRecords(searchResult.records, sort),
-    [searchResult.records, sort],
+    () => (trimmedQuery ? [] : sortMetadataRecords(localSearchResult.records, sort)),
+    [localSearchResult.records, sort, trimmedQuery],
   )
 
-  const visibleSongs = useMemo(
-    () => metadataRecordsToApiSongs(visibleRecords),
-    [visibleRecords],
-  )
-
-  const trimmedQuery = debouncedQuery.trim()
   const hasEvaluatedQuery = trimmedQuery.length > 0
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const {
@@ -2938,7 +3335,7 @@ function DiscoverPage({
         queueSongs,
         safeIndex,
         'discover',
-        trimmedQuery ? `Search ┬À ${trimmedQuery}` : 'Search',
+        trimmedQuery ? `Search · ${trimmedQuery}` : 'Search',
         {
           seedType: 'discover',
           seedTracks: buildQueueSeedPool('discover', queueSongs, indexes, playableSong),
@@ -2999,6 +3396,7 @@ function DiscoverPage({
 
   const showNoMatches =
     !isSearchPending &&
+    !remoteSearchLoading &&
     !showCatalogSkeleton &&
     !showCatalogError &&
     hasEvaluatedQuery &&
@@ -3006,6 +3404,7 @@ function DiscoverPage({
     matchedArtists.length === 0 &&
     matchedAlbums.length === 0 &&
     !hasLectureResults
+    && !remoteSearchError
 
   const isSongActive = useCallback(
     (songId: string) => currentTrack?.id === songId && isPlaying,

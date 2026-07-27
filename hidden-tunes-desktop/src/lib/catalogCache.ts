@@ -1,5 +1,6 @@
 import type { ApiAlbum, ApiArtist, ApiSong, CatalogBundle, SongAudioVersions } from './api'
 import { buildAudioVersionsFromLegacy } from './audioVersions'
+import { clearMusicCatalogPageCache } from './musicCatalog/pageCache'
 
 const STORAGE_KEY = 'ht-desktop:catalog-cache'
 
@@ -266,7 +267,13 @@ export function clearCachedCatalog(): void {
   } catch {
     // Ignore removal failures.
   }
+  try {
+    clearMusicCatalogPageCache()
+  } catch {
+    // Ignore page-cache clear failures.
+  }
 }
+
 
 export function cachedCatalogToBundle(record: CachedCatalogRecord): CatalogBundle {
   return {

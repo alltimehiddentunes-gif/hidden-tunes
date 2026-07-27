@@ -27,6 +27,16 @@ type MusicWorkspaceProps = {
   showCatalogError: boolean
   error: string | null
   retry: () => void
+  songsHasMore?: boolean
+  albumsHasMore?: boolean
+  artistsHasMore?: boolean
+  songsPageLoading?: boolean
+  albumsPageLoading?: boolean
+  artistsPageLoading?: boolean
+  pageError?: string | null
+  loadMoreSongs?: () => void
+  loadMoreAlbums?: () => void
+  loadMoreArtists?: () => void
   onOpenSong: QueueSongHandler
   onOpenArtist: (artist: ApiArtist) => void
   onOpenAlbum: (album: ApiAlbum) => void
@@ -45,6 +55,16 @@ export const MusicWorkspace = memo(function MusicWorkspace({
   showCatalogError,
   error,
   retry,
+  songsHasMore,
+  albumsHasMore,
+  artistsHasMore,
+  songsPageLoading,
+  albumsPageLoading,
+  artistsPageLoading,
+  pageError,
+  loadMoreSongs,
+  loadMoreAlbums,
+  loadMoreArtists,
   onOpenSong,
   onOpenArtist,
   onOpenAlbum,
@@ -85,6 +105,16 @@ export const MusicWorkspace = memo(function MusicWorkspace({
             albums={albums}
             artists={artists}
             indexes={indexes}
+            songsHasMore={songsHasMore}
+            albumsHasMore={albumsHasMore}
+            artistsHasMore={artistsHasMore}
+            songsPageLoading={songsPageLoading}
+            albumsPageLoading={albumsPageLoading}
+            artistsPageLoading={artistsPageLoading}
+            pageError={pageError}
+            loadMoreSongs={loadMoreSongs}
+            loadMoreAlbums={loadMoreAlbums}
+            loadMoreArtists={loadMoreArtists}
             onOpenSong={onOpenSong}
             onOpenArtist={onOpenArtist}
             onOpenAlbum={onOpenAlbum}

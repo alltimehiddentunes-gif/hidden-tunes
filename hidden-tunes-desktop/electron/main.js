@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { fetchApprovedCatalog, fetchApprovedCatalogRequest } = require('./catalogBridge');
+const { getRuntimeDiagnostics } = require('./runtimeConfig');
 const {
   DownloadManager,
   registerDownloadProtocol,
@@ -189,6 +190,10 @@ function createWindow() {
 
 app.whenReady().then(() => {
   attachDownloadProtocolHandler(() => app.getPath('userData'))
+
+  ipcMain.on('ht-runtime-info', (event) => {
+    event.returnValue = getRuntimeDiagnostics(app.isPackaged)
+  })
 
   ipcMain.handle('ht-catalog-get', async (_event, catalogPath) => {
     const cleanPath = typeof catalogPath === 'string' ? catalogPath.trim() : ''

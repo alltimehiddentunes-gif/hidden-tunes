@@ -1,0 +1,115 @@
+{
+  "checks": [
+    {
+      "check": "loaded",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-intact",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "persistent-player-intact",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no-duplicate-top-routes",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "single-audio",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "music-workspace",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-no-permanent-spinner",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "music-load-more-optional",
+      "ok": true,
+      "detail": "no show-more control visible yet"
+    },
+    {
+      "check": "search-input",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "search-churn-stable",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "playback-single-audio",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "playback-single-video",
+      "ok": true,
+      "detail": "video=1"
+    },
+    {
+      "check": "nav-radio",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-podcasts",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-tv",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-sports",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-audiobooks",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-library",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-downloads",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-history",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024-player-visible",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": []
+}

@@ -1,20 +1,43 @@
-const DEFAULT_CATALOG_BASE_URL = 'https://admin.hiddentunes.com'
-const REQUEST_TIMEOUT_MS = 20_000
+const {
+  resolveMainRuntimeConfig,
+  resolveSportsPilotToken,
+} = require('./runtimeConfig')
 
+const REQUEST_TIMEOUT_MS = 20_000
 const APPROVED_HOSTS = new Set(['admin.hiddentunes.com'])
 const SPORTS_PLAY_PATH_RE = /^\/api\/sports\/fixtures\/[^/]+\/play\/?$/
 const SPORTS_PILOT_HEADER = 'X-Hidden-Tunes-Sports-Pilot'
 
+function detectPackaged() {
+  try {
+    // Optional — node verification scripts import this without a ready Electron app.
+    const electron = require('electron')
+    return Boolean(electron.app?.isPackaged)
+  } catch {
+    return false
+  }
+}
+
 function resolveCatalogBaseUrl() {
-  const override = String(process.env.VITE_CATALOG_ADMIN_API_URL || process.env.HT_CATALOG_ADMIN_API_URL || '').trim()
-  if (!override) return DEFAULT_CATALOG_BASE_URL
-  return override.replace(/\/+$/, '')
+  const config = resolveMainRuntimeConfig({ isPackaged: detectPackaged() })
+  if (!config.adminCatalogBaseUrl) {
+    throw new Error(
+      config.errors[0] || 'Admin catalog API is not configured for this desktop build.',
+    )
+  }
+  return config.adminCatalogBaseUrl
 }
 
 function isApprovedCatalogUrl(urlString) {
   try {
+    const packaged = detectPackaged()
     const parsed = new URL(urlString)
-    return parsed.protocol === 'https:' && APPROVED_HOSTS.has(parsed.hostname)
+    if (parsed.protocol !== 'https:') return false
+    if (packaged) {
+      return APPROVED_HOSTS.has(parsed.hostname)
+    }
+    // Dev: allow configured admin host (defaults to admin.hiddentunes.com).
+    return APPROVED_HOSTS.has(parsed.hostname) || parsed.hostname === new URL(resolveCatalogBaseUrl()).hostname
   } catch {
     return false
   }
@@ -24,19 +47,6 @@ function buildCatalogUrl(path) {
   const baseUrl = resolveCatalogBaseUrl()
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
   return new URL(normalizedPath, `${baseUrl}/`).toString()
-}
-
-function resolveSportsPilotToken() {
-  // Main-process only — never accept token from renderer IPC args.
-  const candidates = [
-    process.env.HT_SPORTS_PRIVATE_PILOT_TOKEN,
-    process.env.VITE_SPORTS_PRIVATE_PILOT_TOKEN,
-  ]
-  for (const candidate of candidates) {
-    const token = String(candidate || '').trim()
-    if (token.length >= 16) return token
-  }
-  return null
 }
 
 function isAllowedCatalogMethod(path, method) {

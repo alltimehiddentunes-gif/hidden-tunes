@@ -24,6 +24,18 @@ type DesktopCatalogBridge = {
 
 export type HiddenTunesDesktopBridge = {
   catalog: DesktopCatalogBridge
+  runtime?: {
+    getInfo?: () => {
+      isPackaged: boolean
+      environment: string
+      ok?: boolean
+      errors?: string[]
+      warnings?: string[]
+      expressConfigured?: boolean
+      adminConfigured?: boolean
+      sportsPilotConfigured?: boolean
+    }
+  }
 }
 
 declare global {
@@ -42,8 +54,17 @@ function hasCatalogRequestJson() {
   return typeof window !== 'undefined' && typeof window.hiddenTunesDesktop?.catalog?.requestJson === 'function'
 }
 
+/**
+ * Browser-dev fallback only. Packaged / Electron never attaches the sports token
+ * from Vite env — main-process catalogBridge owns that secret.
+ */
 function resolveBrowserSportsPilotToken(): string | null {
   try {
+    if (typeof window !== 'undefined' && window.hiddenTunesDesktop?.runtime?.getInfo) {
+      const info = window.hiddenTunesDesktop.runtime.getInfo()
+      if (info?.isPackaged) return null
+    }
+    if (import.meta.env?.PROD) return null
     const token = String(import.meta.env?.VITE_SPORTS_PRIVATE_PILOT_TOKEN || '').trim()
     return token.length >= 16 ? token : null
   } catch {

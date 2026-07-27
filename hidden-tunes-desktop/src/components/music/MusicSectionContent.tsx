@@ -15,6 +15,7 @@ import { resolveRecentlyPlayedSongs } from '../../lib/home/musicHomeSections'
 import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
 import { useMusicLikes } from '../../lib/home/useMusicLikes'
 import { EDITORIAL_PLAYLIST_SPECS, resolveEditorialPlaylistTracks } from '../../lib/home/editorialPlaylists'
+import { useCatalogWindow } from '../../lib/musicCatalog/useCatalogWindow'
 import { ArtworkImage } from '../ArtworkImage'
 import { MusicPageSection } from './MusicPageSection'
 
@@ -33,10 +34,54 @@ type MusicSectionContentProps = {
   albums: ApiAlbum[]
   artists: ApiArtist[]
   indexes: CatalogIndexes
+  songsHasMore?: boolean
+  albumsHasMore?: boolean
+  artistsHasMore?: boolean
+  songsPageLoading?: boolean
+  albumsPageLoading?: boolean
+  artistsPageLoading?: boolean
+  pageError?: string | null
+  loadMoreSongs?: () => void
+  loadMoreAlbums?: () => void
+  loadMoreArtists?: () => void
   onOpenSong: QueueSongHandler
   onOpenArtist: (artist: ApiArtist) => void
   onOpenAlbum: (album: ApiAlbum) => void
   onBrowseSearch: (query: string) => void
+}
+
+function CatalogLoadMore({
+  shown,
+  hasMore,
+  loading,
+  onShowMore,
+  error,
+}: {
+  shown: number
+  hasMore: boolean
+  loading?: boolean
+  onShowMore: () => void
+  error?: string | null
+}) {
+  if (!hasMore && !error) return null
+  return (
+    <div className="catalog-show-more" style={{ marginTop: 16 }}>
+      <span className="catalog-show-more-count">
+        {loading ? `Loading more… · ${shown} loaded` : `${shown} loaded`}
+      </span>
+      {error ? <span className="catalog-show-more-count">{error}</span> : null}
+      {hasMore ? (
+        <button
+          type="button"
+          className="btn-secondary btn-sm"
+          onClick={onShowMore}
+          disabled={loading}
+        >
+          {loading ? 'Loading…' : 'Show more'}
+        </button>
+      ) : null}
+    </div>
+  )
 }
 
 export const MusicSectionContent = memo(function MusicSectionContent({
@@ -45,6 +90,16 @@ export const MusicSectionContent = memo(function MusicSectionContent({
   albums,
   artists,
   indexes,
+  songsHasMore = false,
+  albumsHasMore = false,
+  artistsHasMore = false,
+  songsPageLoading = false,
+  albumsPageLoading = false,
+  artistsPageLoading = false,
+  pageError = null,
+  loadMoreSongs,
+  loadMoreAlbums,
+  loadMoreArtists,
   onOpenSong,
   onOpenArtist,
   onOpenAlbum,
@@ -73,9 +128,24 @@ export const MusicSectionContent = memo(function MusicSectionContent({
   const chartCards = useMemo(() => buildPopularChartCards(songs, indexes, 12), [indexes, songs])
   const moodCards = useMemo(() => buildMoodVibeCards(songs, 12), [songs])
   const genreTiles = useMemo(() => buildGenreTiles(indexes, recentlyPlayed, 20), [indexes, recentlyPlayed])
-  const allSongs = useMemo(() => sortSongsList(songs, 'latest').slice(0, 48), [songs])
-  const allArtists = useMemo(() => sortArtistsList(artists, 'tracks').slice(0, 32), [artists])
-  const allAlbums = useMemo(() => sortAlbumsList(albums, 'latest').slice(0, 32), [albums])
+  const sortedSongs = useMemo(() => sortSongsList(songs, 'latest'), [songs])
+  const sortedArtists = useMemo(() => sortArtistsList(artists, 'tracks'), [artists])
+  const sortedAlbums = useMemo(() => sortAlbumsList(albums, 'latest'), [albums])
+  const songWindow = useCatalogWindow(sortedSongs, `songs:${sortedSongs.length}:${songsHasMore}`, {
+    hasServerMore: songsHasMore,
+    serverLoading: songsPageLoading,
+    onNeedServerMore: loadMoreSongs,
+  })
+  const artistWindow = useCatalogWindow(sortedArtists, `artists:${sortedArtists.length}:${artistsHasMore}`, {
+    hasServerMore: artistsHasMore,
+    serverLoading: artistsPageLoading,
+    onNeedServerMore: loadMoreArtists,
+  })
+  const albumWindow = useCatalogWindow(sortedAlbums, `albums:${sortedAlbums.length}:${albumsHasMore}`, {
+    hasServerMore: albumsHasMore,
+    serverLoading: albumsPageLoading,
+    onNeedServerMore: loadMoreAlbums,
+  })
   const recentSongs = useMemo(
     () => resolveRecentlyPlayedSongs(recentlyPlayed, indexes.songsById, 32),
     [indexes.songsById, recentlyPlayed],
@@ -207,12 +277,12 @@ export const MusicSectionContent = memo(function MusicSectionContent({
             <p>Your music catalog, sorted by recently added.</p>
           </header>
           <div className="music-discover-song-grid">
-            {allSongs.map((song) => (
+            {songWindow.visible.map((song) => (
               <button
                 key={song.id}
                 type="button"
                 className="music-discover-song-chip"
-                onClick={() => playFromQueue(song, allSongs, 'Songs')}
+                onClick={() => playFromQueue(song, sortedSongs, 'Songs')}
                 aria-label={`Play ${song.title} by ${song.artist}`}
               >
                 <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
@@ -221,6 +291,13 @@ export const MusicSectionContent = memo(function MusicSectionContent({
               </button>
             ))}
           </div>
+          <CatalogLoadMore
+            shown={songWindow.shown}
+            hasMore={songWindow.hasMore}
+            loading={songsPageLoading}
+            onShowMore={songWindow.showMore}
+            error={pageError}
+          />
         </div>
       )
 
@@ -232,7 +309,7 @@ export const MusicSectionContent = memo(function MusicSectionContent({
             <p>Artists in your catalog, ranked by track count.</p>
           </header>
           <div className="music-discover-artist-rail music-discover-artist-rail--wide">
-            {allArtists.map((artist) => (
+            {artistWindow.visible.map((artist) => (
               <button
                 key={artist.id}
                 type="button"
@@ -245,6 +322,13 @@ export const MusicSectionContent = memo(function MusicSectionContent({
               </button>
             ))}
           </div>
+          <CatalogLoadMore
+            shown={artistWindow.shown}
+            hasMore={artistWindow.hasMore}
+            loading={artistsPageLoading}
+            onShowMore={artistWindow.showMore}
+            error={pageError}
+          />
         </div>
       )
 
@@ -256,7 +340,7 @@ export const MusicSectionContent = memo(function MusicSectionContent({
             <p>Albums in your catalog, sorted by recently added.</p>
           </header>
           <div className="music-discover-album-grid">
-            {allAlbums.map((album) => (
+            {albumWindow.visible.map((album) => (
               <button
                 key={album.id}
                 type="button"
@@ -270,6 +354,13 @@ export const MusicSectionContent = memo(function MusicSectionContent({
               </button>
             ))}
           </div>
+          <CatalogLoadMore
+            shown={albumWindow.shown}
+            hasMore={albumWindow.hasMore}
+            loading={albumsPageLoading}
+            onShowMore={albumWindow.showMore}
+            error={pageError}
+          />
         </div>
       )
 

@@ -2,16 +2,27 @@ import {
   buildAudioVersionsFromLegacy,
   type SongAudioVersions,
 } from './audioVersions'
+import { getExpressCatalogBaseUrlOrThrow } from './config/desktopRuntimeConfig'
+import { MUSIC_CATALOG_PAGE_SIZE } from './musicCatalog/types'
 
 export type { AudioVersionSource, SongAudioVersions } from './audioVersions'
 
 /**
- * Express music catalog API (Render today → api.hiddentunes.com on VPS).
- * Override with VITE_EXPRESS_CATALOG_API_URL at build time.
+ * Express music catalog API base.
+ * Resolved via desktopRuntimeConfig — packaged builds never silently default.
  */
-export const API_BASE_URL =
-  import.meta.env.VITE_EXPRESS_CATALOG_API_URL?.trim() ||
-  'https://hidden-tunes-api.onrender.com'
+export function getApiBaseUrl(): string {
+  return getExpressCatalogBaseUrlOrThrow()
+}
+
+/** @deprecated Prefer getApiBaseUrl() — kept for diagnostics string reads in dev. */
+export const API_BASE_URL = (() => {
+  try {
+    return getExpressCatalogBaseUrlOrThrow()
+  } catch {
+    return ''
+  }
+})()
 
 const REQUEST_TIMEOUT_MS = 20_000
 
@@ -85,15 +96,26 @@ export type ApiArtist = {
 type PaginationOptions = {
   limit?: number
   page?: number
+  query?: string
+}
+
+export type CatalogPagePayload<T> = {
+  items: T[]
+  total: number | null
+  page: number
+  limit: number
 }
 
 function buildQuery(options?: PaginationOptions) {
-  const limit = Math.min(Math.max(options?.limit ?? 20, 1), 100)
+  const limit = Math.min(Math.max(options?.limit ?? MUSIC_CATALOG_PAGE_SIZE, 1), 100)
   const page = Math.max(options?.page ?? 1, 1)
-  return new URLSearchParams({
+  const params = new URLSearchParams({
     limit: String(limit),
     page: String(page),
   })
+  const q = options?.query?.trim()
+  if (q) params.set('q', q)
+  return params
 }
 
 function pickHttpUrl(row: Record<string, unknown>, keys: string[]): string | null {
@@ -369,7 +391,7 @@ async function apiRequest<T>(path: string, externalSignal?: AbortSignal): Promis
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetch(`${getApiBaseUrl()}${path}`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       signal: controller.signal,
@@ -389,10 +411,12 @@ async function apiRequest<T>(path: string, externalSignal?: AbortSignal): Promis
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       if (externalSignal?.aborted) throw error
-      throw new Error('Request timed out — the API may be waking up. Try again.')
+      throw new Error('Request timed out — the API may be waking up. Try again.', {
+        cause: error,
+      })
     }
     if (error instanceof Error) throw error
-    throw new Error('Unexpected network error')
+    throw new Error('Unexpected network error', { cause: error })
   } finally {
     window.clearTimeout(timeout)
     if (externalSignal) {
@@ -401,54 +425,95 @@ async function apiRequest<T>(path: string, externalSignal?: AbortSignal): Promis
   }
 }
 
+export async function fetchSongsPage(
+  options?: PaginationOptions,
+  signal?: AbortSignal,
+): Promise<CatalogPagePayload<ApiSong>> {
+  const limit = Math.min(Math.max(options?.limit ?? MUSIC_CATALOG_PAGE_SIZE, 1), 100)
+  const page = Math.max(options?.page ?? 1, 1)
+  const query = buildQuery({ ...options, limit, page })
+  const payload = await apiRequest<unknown>(`/api/songs?${query.toString()}`, signal)
+  const rows = Array.isArray(payload) ? payload : []
+  const items = rows.map(normalizeSong).filter((song): song is ApiSong => Boolean(song))
+  return { items, total: null, page, limit }
+}
+
+export async function fetchAlbumsPage(
+  options?: PaginationOptions,
+  signal?: AbortSignal,
+): Promise<CatalogPagePayload<ApiAlbum>> {
+  const limit = Math.min(Math.max(options?.limit ?? MUSIC_CATALOG_PAGE_SIZE, 1), 100)
+  const page = Math.max(options?.page ?? 1, 1)
+  const query = buildQuery({ ...options, limit, page })
+  const payload = await apiRequest<{ albums?: unknown[]; count?: number }>(
+    `/api/albums?${query.toString()}`,
+    signal,
+  )
+  const rows = Array.isArray(payload?.albums) ? payload.albums : []
+  const items = rows.map(normalizeAlbum).filter((album): album is ApiAlbum => Boolean(album))
+  const total =
+    typeof payload?.count === 'number' && Number.isFinite(payload.count)
+      ? payload.count
+      : null
+  return { items, total, page, limit }
+}
+
+export async function fetchArtistsPage(
+  options?: PaginationOptions,
+  signal?: AbortSignal,
+): Promise<CatalogPagePayload<ApiArtist>> {
+  const limit = Math.min(Math.max(options?.limit ?? MUSIC_CATALOG_PAGE_SIZE, 1), 100)
+  const page = Math.max(options?.page ?? 1, 1)
+  const query = buildQuery({ ...options, limit, page })
+  const payload = await apiRequest<{ artists?: unknown[]; count?: number }>(
+    `/api/artists?${query.toString()}`,
+    signal,
+  )
+  const rows = Array.isArray(payload?.artists) ? payload.artists : []
+  const items = rows
+    .map(normalizeArtist)
+    .filter((artist): artist is ApiArtist => Boolean(artist))
+  const total =
+    typeof payload?.count === 'number' && Number.isFinite(payload.count)
+      ? payload.count
+      : null
+  return { items, total, page, limit }
+}
+
 export async function fetchSongs(
   options?: PaginationOptions,
   signal?: AbortSignal,
 ): Promise<ApiSong[]> {
-  const query = buildQuery(options)
-  const payload = await apiRequest<unknown>(`/api/songs?${query.toString()}`, signal)
-  const rows = Array.isArray(payload) ? payload : []
-  return rows.map(normalizeSong).filter((song): song is ApiSong => Boolean(song))
+  const page = await fetchSongsPage(options, signal)
+  return page.items
 }
 
 export async function fetchAlbums(
   options?: PaginationOptions,
   signal?: AbortSignal,
 ): Promise<ApiAlbum[]> {
-  const query = buildQuery(options)
-  const payload = await apiRequest<{ albums?: unknown[] }>(
-    `/api/albums?${query.toString()}`,
-    signal,
-  )
-  const rows = Array.isArray(payload?.albums) ? payload.albums : []
-  return rows.map(normalizeAlbum).filter((album): album is ApiAlbum => Boolean(album))
+  const page = await fetchAlbumsPage(options, signal)
+  return page.items
 }
 
 export async function fetchArtists(
   options?: PaginationOptions,
   signal?: AbortSignal,
 ): Promise<ApiArtist[]> {
-  const query = buildQuery({ ...options, limit: options?.limit ?? 48 })
-  const payload = await apiRequest<{ artists?: unknown[] }>(
-    `/api/artists?${query.toString()}`,
-    signal,
-  )
-  const rows = Array.isArray(payload?.artists) ? payload.artists : []
-  return rows
-    .map(normalizeArtist)
-    .filter((artist): artist is ApiArtist => Boolean(artist))
+  const page = await fetchArtistsPage(options, signal)
+  return page.items
 }
 
+/**
+ * Bootstrap first pages only — never downloads the full catalogue.
+ */
 export async function fetchCatalogBundle(signal?: AbortSignal): Promise<CatalogBundle> {
-  // Partial catalog today: songs page 1 + embedded artist tracks.
-  // Search uses metadata-first cached entries; playback URLs resolve on tap.
-  // Future: `/api/catalog/metadata` for paginated 100k-song metadata.
   const [songs, albums, artists] = await Promise.all([
-    fetchSongs({ limit: 100, page: 1 }, signal),
-    fetchAlbums({ limit: 100, page: 1 }, signal),
-    fetchArtists({ limit: 48, page: 1 }, signal),
+    fetchSongsPage({ limit: MUSIC_CATALOG_PAGE_SIZE, page: 1 }, signal),
+    fetchAlbumsPage({ limit: MUSIC_CATALOG_PAGE_SIZE, page: 1 }, signal),
+    fetchArtistsPage({ limit: MUSIC_CATALOG_PAGE_SIZE, page: 1 }, signal),
   ])
-  return { songs, albums, artists }
+  return { songs: songs.items, albums: albums.items, artists: artists.items }
 }
 
 function normalizeQuery(query: string) {
