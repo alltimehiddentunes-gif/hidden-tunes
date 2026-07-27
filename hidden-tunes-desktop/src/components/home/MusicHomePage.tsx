@@ -74,11 +74,11 @@ type MusicHomePageProps = {
 }
 
 const FAMILY_SHORTCUTS = [
-  { navKey: 'radio' as const, label: HOME_UI.shortcuts.radio },
-  { navKey: 'podcasts' as const, label: HOME_UI.shortcuts.podcasts },
-  { navKey: 'audiobooks' as const, label: HOME_UI.shortcuts.audiobooks },
+  { navKey: 'radio' as const, label: HOME_UI.shortcuts.radio, hint: 'Live stations', accent: 'gold' },
+  { navKey: 'podcasts' as const, label: HOME_UI.shortcuts.podcasts, hint: 'Shows & episodes', accent: 'rose' },
+  { navKey: 'audiobooks' as const, label: HOME_UI.shortcuts.audiobooks, hint: 'Books & chapters', accent: 'amber' },
   /** Desktop has no /more hub yet — Worlds is the closest non-Library discovery surface. */
-  { navKey: 'worlds' as const, label: HOME_UI.shortcuts.more },
+  { navKey: 'worlds' as const, label: HOME_UI.shortcuts.more, hint: 'Explore rooms', accent: 'cyan' },
 ]
 
 /** Bound ArtworkImage — global `.art-frame` is absolute/inset and escapes without a shell. */
@@ -257,10 +257,11 @@ export const MusicHomePage = memo(function MusicHomePage({
 
   return (
     <div
-      className="music-home music-home--parity music-home--content-first"
+      className="music-home music-home--parity music-home--content-first music-home--premium"
       aria-label="Home"
       data-home-parity="mobile"
       data-home-layout="content-first"
+      data-home-polish="premium"
     >
       <button
         type="button"
@@ -340,13 +341,17 @@ export const MusicHomePage = memo(function MusicHomePage({
       ) : null}
 
       <div className="music-home-signal-row" aria-label="Catalog signals">
-        <span className="music-home-signal-pill">{songsReadyLabel(songs.length)}</span>
-        <span className="music-home-signal-pill">{HOME_UI.signals.curatedRooms}</span>
+        <span className="music-home-signal-pill music-home-signal-pill--ready">
+          {songsReadyLabel(songs.length)}
+        </span>
+        <span className="music-home-signal-pill music-home-signal-pill--rooms">
+          {HOME_UI.signals.curatedRooms}
+        </span>
       </div>
 
       <button
         type="button"
-        className="music-home-listening-brief"
+        className={`music-home-listening-brief${currentTrack ? ' is-active' : ' is-idle'}`}
         onClick={() => {
           if (currentTrack) return
           onBrowseSearch('')
@@ -356,8 +361,8 @@ export const MusicHomePage = memo(function MusicHomePage({
       >
         <div className="music-home-listening-brief-copy">
           <span className="music-home-section-eyebrow">{listeningBrief.label}</span>
-          <strong>{listeningBrief.title}</strong>
-          <span>{listeningBrief.subtitle}</span>
+          <strong title={listeningBrief.title}>{listeningBrief.title}</strong>
+          <span title={listeningBrief.subtitle}>{listeningBrief.subtitle}</span>
         </div>
       </button>
 
@@ -366,10 +371,14 @@ export const MusicHomePage = memo(function MusicHomePage({
           <button
             key={shortcut.navKey}
             type="button"
-            className="music-home-family-card"
+            className={`music-home-family-card music-home-family-card--${shortcut.accent}`}
             onClick={() => onNavigateNav(shortcut.navKey)}
           >
-            <strong>{shortcut.label}</strong>
+            <span className="music-home-family-mark" aria-hidden="true" />
+            <span className="music-home-family-copy">
+              <strong>{shortcut.label}</strong>
+              <span>{shortcut.hint}</span>
+            </span>
           </button>
         ))}
       </div>

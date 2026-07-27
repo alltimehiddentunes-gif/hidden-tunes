@@ -75,8 +75,10 @@ assert(!/height:\s*100%/.test(homePage), 'Home page does not use height 100% own
 
 assert(homePage.includes('music-home-art'), 'bound HomeArt shells present')
 assert(homePage.includes('data-home-layout="content-first"'), 'content-first layout marker')
+assert(homePage.includes('data-home-polish="premium"') || homePage.includes('music-home--premium'), 'premium polish marker')
 assert(css.includes('.music-home-art'), 'HomeArt shell CSS')
-assert(css.includes('max-height: 280px'), 'hero max-height bounded content-first')
+assert(css.includes('music-home--premium'), 'premium polish CSS')
+assert(css.includes('max-height: 236px') || css.includes('max-height: 240px'), 'hero max-height bounded')
 
 const appSource = fs.readFileSync(path.join(ROOT, 'src/App.tsx'), 'utf8')
 assert(

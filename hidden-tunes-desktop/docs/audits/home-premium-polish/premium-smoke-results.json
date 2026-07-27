@@ -1,0 +1,130 @@
+{
+  "checks": [
+    {
+      "check": "premium-marker",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "content-first-marker",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "hero-bounded",
+      "ok": true,
+      "detail": "h=236"
+    },
+    {
+      "check": "no-100vh-home",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no-escaped-art",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "family-four",
+      "ok": true,
+      "detail": "n=4"
+    },
+    {
+      "check": "mobile-sections",
+      "ok": true,
+      "detail": "Recently Added|Emotional Worlds|Genre Spotlights|All Songs"
+    },
+    {
+      "check": "no-invented",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "persistent-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "compact-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "bottom-clearance",
+      "ok": true,
+      "detail": "108px"
+    },
+    {
+      "check": "no-overflow-1440",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "song-card-size",
+      "ok": true,
+      "detail": "w=160"
+    },
+    {
+      "check": "home-stays-after-play",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "art-still-bounded",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024-hero-bounded",
+      "ok": true,
+      "detail": "h=210"
+    },
+    {
+      "check": "1024-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1280-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1280-hero-bounded",
+      "ok": true,
+      "detail": "h=236"
+    },
+    {
+      "check": "1280-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1720-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1720-hero-bounded",
+      "ok": true,
+      "detail": "h=236"
+    },
+    {
+      "check": "1720-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "bottom-scroll-clearance",
+      "ok": true,
+      "detail": "loadBottom=-725 footerTop=815"
+    }
+  ],
+  "failures": []
+}

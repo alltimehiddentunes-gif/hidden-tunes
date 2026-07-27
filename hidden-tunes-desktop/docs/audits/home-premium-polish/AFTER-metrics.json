@@ -1,0 +1,235 @@
+{
+  "label": "AFTER",
+  "widths": {
+    "1024": {
+      "viewport": {
+        "w": 1010,
+        "h": 705
+      },
+      "overflow": false,
+      "sections": [
+        "Recently Added",
+        "Emotional Worlds",
+        "Genre Spotlights",
+        "All Songs"
+      ],
+      "aboveFold": [
+        "music-home-search-launcher",
+        "Featured",
+        "Catalog signals",
+        "Nothing playing yet",
+        "Discovery shortcuts"
+      ],
+      "hero": {
+        "w": 550,
+        "h": 210
+      },
+      "centre": {
+        "w": 550,
+        "h": 1484
+      },
+      "player": {
+        "w": 220,
+        "h": 633,
+        "visible": true
+      },
+      "footer": {
+        "h": 72,
+        "visible": true
+      },
+      "cardSamples": {
+        "hero": {
+          "w": 175,
+          "h": 228
+        },
+        "song": {
+          "w": 132,
+          "h": 179
+        },
+        "family": {
+          "w": 270,
+          "h": 55
+        }
+      },
+      "homeGap": "12px",
+      "giantArt": false,
+      "maxArtH": 147,
+      "playerWorkspace": false,
+      "contentFirst": true,
+      "bottomPad": "108px"
+    },
+    "1280": {
+      "viewport": {
+        "w": 1266,
+        "h": 737
+      },
+      "overflow": false,
+      "sections": [
+        "Recently Added",
+        "Emotional Worlds",
+        "Genre Spotlights",
+        "All Songs"
+      ],
+      "aboveFold": [
+        "music-home-search-launcher",
+        "Featured",
+        "Catalog signals",
+        "Nothing playing yet",
+        "Discovery shortcuts"
+      ],
+      "hero": {
+        "w": 722,
+        "h": 236
+      },
+      "centre": {
+        "w": 722,
+        "h": 1494
+      },
+      "player": {
+        "w": 272,
+        "h": 665,
+        "visible": true
+      },
+      "footer": {
+        "h": 72,
+        "visible": true
+      },
+      "cardSamples": {
+        "hero": {
+          "w": 220,
+          "h": 228
+        },
+        "song": {
+          "w": 160,
+          "h": 207
+        },
+        "family": {
+          "w": 173,
+          "h": 55
+        }
+      },
+      "homeGap": "12px",
+      "giantArt": false,
+      "maxArtH": 159,
+      "playerWorkspace": false,
+      "contentFirst": true,
+      "bottomPad": "108px"
+    },
+    "1440": {
+      "viewport": {
+        "w": 1426,
+        "h": 837
+      },
+      "overflow": false,
+      "sections": [
+        "Recently Added",
+        "Emotional Worlds",
+        "Genre Spotlights",
+        "All Songs"
+      ],
+      "aboveFold": [
+        "music-home-search-launcher",
+        "Featured",
+        "Catalog signals",
+        "Nothing playing yet",
+        "Discovery shortcuts",
+        "Recently Added"
+      ],
+      "hero": {
+        "w": 852,
+        "h": 236
+      },
+      "centre": {
+        "w": 852,
+        "h": 1495
+      },
+      "player": {
+        "w": 290,
+        "h": 765,
+        "visible": true
+      },
+      "footer": {
+        "h": 72,
+        "visible": true
+      },
+      "cardSamples": {
+        "hero": {
+          "w": 220,
+          "h": 228
+        },
+        "song": {
+          "w": 160,
+          "h": 207
+        },
+        "family": {
+          "w": 206,
+          "h": 55
+        }
+      },
+      "homeGap": "12px",
+      "giantArt": false,
+      "maxArtH": 159,
+      "playerWorkspace": false,
+      "contentFirst": true,
+      "bottomPad": "108px"
+    },
+    "LARGE": {
+      "viewport": {
+        "w": 1706,
+        "h": 887
+      },
+      "overflow": false,
+      "sections": [
+        "Recently Added",
+        "Emotional Worlds",
+        "Genre Spotlights",
+        "All Songs"
+      ],
+      "aboveFold": [
+        "music-home-search-launcher",
+        "Featured",
+        "Catalog signals",
+        "Nothing playing yet",
+        "Discovery shortcuts",
+        "Recently Added"
+      ],
+      "hero": {
+        "w": 1076,
+        "h": 236
+      },
+      "centre": {
+        "w": 1076,
+        "h": 1434
+      },
+      "player": {
+        "w": 330,
+        "h": 815,
+        "visible": true
+      },
+      "footer": {
+        "h": 72,
+        "visible": true
+      },
+      "cardSamples": {
+        "hero": {
+          "w": 228,
+          "h": 228
+        },
+        "song": {
+          "w": 168,
+          "h": 215
+        },
+        "family": {
+          "w": 262,
+          "h": 55
+        }
+      },
+      "homeGap": "12px",
+      "giantArt": false,
+      "maxArtH": 167,
+      "playerWorkspace": false,
+      "contentFirst": true,
+      "bottomPad": "108px"
+    }
+  }
+}
