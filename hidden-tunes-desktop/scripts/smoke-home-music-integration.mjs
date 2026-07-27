@@ -95,21 +95,26 @@ async function main() {
   await clickNav(win, 'Home')
   const home = await evalPage(win, `() => ({
     title: document.querySelector('.music-home-page-title')?.textContent || '',
-    hero: Boolean(document.querySelector('.music-home-hero')),
-    jump: document.querySelectorAll('.music-home-jump-chip').length,
-    forbiddenRails: [...document.querySelectorAll('.music-home h2')].map((h) => h.textContent.trim()),
+    giantHero: Boolean(document.querySelector('.music-home-hero')),
+    heroCarousel: Boolean(document.querySelector('.music-home-hero-carousel')),
+    family: document.querySelectorAll('.music-home-family-card').length,
+    sections: [...document.querySelectorAll('.music-home h2')].map((h) => h.textContent.trim()),
+    invented: [...document.querySelectorAll('.music-home h2')].map((h) => h.textContent.trim())
+      .filter((h) => /continue listening|recommended for you|more to explore|hidden gems/i.test(h)),
     sidebar: Boolean(document.querySelector('.sidebar')),
+    parity: document.querySelector('[data-home-parity="mobile"]') != null,
   })`)
-  record('home-no-hero', !home.hero)
-  record('home-jump-in', home.jump >= 5, `chips=${home.jump}`)
-  record('home-no-catalog-rails', !home.forbiddenRails.some((h) => /recently added|artists on repeat|fresh releases|explore your sound|collections worth/i.test(h)), home.forbiddenRails.join('|'))
+  record('home-no-giant-hero', !home.giantHero)
+  record('home-hero-carousel', home.heroCarousel || home.sections.includes('Emotional Worlds'))
+  record('home-family-shortcuts', home.family === 4, `cards=${home.family}`)
+  record('home-mobile-sections', ['Emotional Worlds', 'Recently Added', 'All Songs'].every((t) => home.sections.includes(t)), home.sections.join('|'))
+  record('home-no-invented-sections', home.invented.length === 0, home.invented.join('|'))
+  record('home-parity-marker', home.parity)
   record('home-sidebar', home.sidebar)
 
   // Start play if possible
   await evalPage(win, `() => {
-    const btn = document.querySelector('.music-home-mix-hit, .music-home-song-card, .music-home-continue-hit, .music-home-jump-chip')
-    if (btn && btn.classList.contains('music-home-jump-chip')) return false
-    document.querySelector('.music-home-mix-hit, .music-home-song-card, .music-home-continue-hit')?.click()
+    document.querySelector('.music-home-hero-card-hit, .music-home-song-card, .music-home-room-card, .music-home-all-songs-row')?.click()
     return true
   }`)
   await sleep(1500)

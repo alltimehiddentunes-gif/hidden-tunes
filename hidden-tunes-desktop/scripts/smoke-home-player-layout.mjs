@@ -149,14 +149,18 @@ async function main() {
   record('empty-player-copy', /nothing playing/i.test(at1440.emptyTitle), at1440.emptyTitle)
   record('no-question-placeholder', !at1440.questionPlaceholder)
   record('sidebar-groups', at1440.sidebarGroups.includes('Primary') && at1440.sidebarGroups.includes('Library'), at1440.sidebarGroups.join('|'))
-  record('home-hierarchy-continue-or-more', at1440.homeSections.length >= 1, at1440.homeSections.join('|'))
+  const parityTitles = ['Emotional Worlds', 'Recently Added', 'All Songs']
+  const hasParity = parityTitles.every((t) => at1440.homeSections.includes(t))
+  record('home-mobile-parity-titles', hasParity, at1440.homeSections.join('|'))
+  record('home-no-invented-continue', !at1440.homeSections.includes('Continue Listening'))
+  record('home-no-invented-more-explore', !at1440.homeSections.includes('More to Explore'))
   record('single-audio-idle', at1440.audio <= 1, `audio=${at1440.audio}`)
   record('single-video-idle', at1440.video <= 1, `video=${at1440.video}`)
   record('one-persistent-player', at1440.persistentPlayers === 1, `n=${at1440.persistentPlayers}`)
 
-  // Attempt play from home
+  // Attempt play from home (hero / recently added / all songs)
   await evalPage(win, `() => {
-    document.querySelector('.music-home-continue-hit, .music-home-featured-hit, .music-home-mix-hit, .music-home-song-card')?.click()
+    document.querySelector('.music-home-hero-card-hit, .music-home-song-card, .music-home-room-card, .music-home-all-songs-row')?.click()
     return true
   }`)
   await sleep(2200)
