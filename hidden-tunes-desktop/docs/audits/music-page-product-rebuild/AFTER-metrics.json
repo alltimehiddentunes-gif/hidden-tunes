@@ -1,0 +1,242 @@
+{
+  "label": "AFTER",
+  "widths": {
+    "-1024": {
+      "sections": [
+        {
+          "t": "Music",
+          "top": 214,
+          "aboveFold": true
+        },
+        {
+          "t": "Songs",
+          "top": 285,
+          "aboveFold": true
+        },
+        {
+          "t": "New Releases",
+          "top": 619,
+          "aboveFold": true
+        },
+        {
+          "t": "Albums",
+          "top": 926,
+          "aboveFold": false
+        },
+        {
+          "t": "Artists",
+          "top": 1203,
+          "aboveFold": false
+        },
+        {
+          "t": "Genres",
+          "top": 1474,
+          "aboveFold": false
+        },
+        {
+          "t": "Moods",
+          "top": 1639,
+          "aboveFold": false
+        },
+        {
+          "t": "Popular on Hidden Tunes",
+          "top": 1810,
+          "aboveFold": false
+        }
+      ],
+      "aboveFoldSections": [
+        "Music",
+        "Songs",
+        "New Releases"
+      ],
+      "maxArt": 152,
+      "songRows": 4,
+      "albumCards": 5,
+      "artistCards": 1,
+      "placeholder": "Search songs, artists, albums…",
+      "playerW": 220,
+      "mainW": 550,
+      "subnavW": 550,
+      "overflow": false,
+      "header": "Music"
+    },
+    "-1280": {
+      "sections": [
+        {
+          "t": "Music",
+          "top": 215,
+          "aboveFold": true
+        },
+        {
+          "t": "Songs",
+          "top": 294,
+          "aboveFold": true
+        },
+        {
+          "t": "New Releases",
+          "top": 629,
+          "aboveFold": true
+        },
+        {
+          "t": "Albums",
+          "top": 929,
+          "aboveFold": false
+        },
+        {
+          "t": "Artists",
+          "top": 1207,
+          "aboveFold": false
+        },
+        {
+          "t": "Genres",
+          "top": 1480,
+          "aboveFold": false
+        },
+        {
+          "t": "Moods",
+          "top": 1647,
+          "aboveFold": false
+        },
+        {
+          "t": "Popular on Hidden Tunes",
+          "top": 1820,
+          "aboveFold": false
+        }
+      ],
+      "aboveFoldSections": [
+        "Music",
+        "Songs",
+        "New Releases"
+      ],
+      "maxArt": 152,
+      "songRows": 4,
+      "albumCards": 5,
+      "artistCards": 1,
+      "placeholder": "Search songs, artists, albums…",
+      "playerW": 272,
+      "mainW": 722,
+      "subnavW": 722,
+      "overflow": false,
+      "header": "Music"
+    },
+    "-1440": {
+      "sections": [
+        {
+          "t": "Music",
+          "top": 215,
+          "aboveFold": true
+        },
+        {
+          "t": "Songs",
+          "top": 294,
+          "aboveFold": true
+        },
+        {
+          "t": "New Releases",
+          "top": 499,
+          "aboveFold": true
+        },
+        {
+          "t": "Albums",
+          "top": 798,
+          "aboveFold": false
+        },
+        {
+          "t": "Artists",
+          "top": 1077,
+          "aboveFold": false
+        },
+        {
+          "t": "Genres",
+          "top": 1349,
+          "aboveFold": false
+        },
+        {
+          "t": "Moods",
+          "top": 1516,
+          "aboveFold": false
+        },
+        {
+          "t": "Popular on Hidden Tunes",
+          "top": 1689,
+          "aboveFold": false
+        }
+      ],
+      "aboveFoldSections": [
+        "Music",
+        "Songs",
+        "New Releases"
+      ],
+      "maxArt": 152,
+      "songRows": 4,
+      "albumCards": 5,
+      "artistCards": 1,
+      "placeholder": "Search songs, artists, albums…",
+      "playerW": 290,
+      "mainW": 852,
+      "subnavW": 852,
+      "overflow": false,
+      "header": "Music"
+    },
+    "-LARGE": {
+      "sections": [
+        {
+          "t": "Music",
+          "top": 215,
+          "aboveFold": true
+        },
+        {
+          "t": "Songs",
+          "top": 294,
+          "aboveFold": true
+        },
+        {
+          "t": "New Releases",
+          "top": 499,
+          "aboveFold": true
+        },
+        {
+          "t": "Albums",
+          "top": 798,
+          "aboveFold": true
+        },
+        {
+          "t": "Artists",
+          "top": 1077,
+          "aboveFold": false
+        },
+        {
+          "t": "Genres",
+          "top": 1349,
+          "aboveFold": false
+        },
+        {
+          "t": "Moods",
+          "top": 1516,
+          "aboveFold": false
+        },
+        {
+          "t": "Popular on Hidden Tunes",
+          "top": 1689,
+          "aboveFold": false
+        }
+      ],
+      "aboveFoldSections": [
+        "Music",
+        "Songs",
+        "New Releases",
+        "Albums"
+      ],
+      "maxArt": 152,
+      "songRows": 4,
+      "albumCards": 5,
+      "artistCards": 1,
+      "placeholder": "Search songs, artists, albums…",
+      "playerW": 330,
+      "mainW": 1076,
+      "subnavW": 1076,
+      "overflow": false,
+      "header": "Music"
+    }
+  }
+}

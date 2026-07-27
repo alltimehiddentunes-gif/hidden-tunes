@@ -8,18 +8,17 @@ type MusicSubNavProps = {
   showDownloads: boolean
 }
 
-const MUSIC_DISCOVERY_ITEMS: Array<{ id: MusicSectionId; label: string }> = [
+/** Primary Music destinations — keep the tab strip short and scannable. */
+const MUSIC_PRIMARY_TABS: Array<{ id: MusicSectionId; label: string }> = [
   { id: 'discover', label: 'Discover' },
-  { id: 'new-releases', label: 'New Releases' },
-  { id: 'top-charts', label: 'Top Charts' },
-  { id: 'genres-moods', label: 'Genres & Moods' },
   { id: 'songs', label: 'Songs' },
-  { id: 'artists', label: 'Artists' },
   { id: 'albums', label: 'Albums' },
+  { id: 'artists', label: 'Artists' },
+  { id: 'genres-moods', label: 'Genres' },
   { id: 'playlists', label: 'Playlists' },
-  { id: 'liked', label: 'Liked' },
-  { id: 'recent', label: 'Recent' },
 ]
+
+const PRIMARY_IDS = new Set(MUSIC_PRIMARY_TABS.map((tab) => tab.id))
 
 function MusicSubNavIcon({ children }: { children: ReactNode }) {
   return <span className="music-sub-nav-icon" aria-hidden="true">{children}</span>
@@ -30,92 +29,64 @@ function sectionIcon(id: MusicSectionId) {
     case 'discover':
       return (
         <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <circle cx="12" cy="12" r="8" />
             <path d="M12 8v8M8 12h8" />
-          </svg>
-        </MusicSubNavIcon>
-      )
-    case 'new-releases':
-      return (
-        <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 3v4M12 17v4M3 12h4M17 12h4" />
-            <circle cx="12" cy="12" r="4" />
-          </svg>
-        </MusicSubNavIcon>
-      )
-    case 'top-charts':
-      return (
-        <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M4 18V8M10 18V4M16 18v-6M22 18V10" />
-          </svg>
-        </MusicSubNavIcon>
-      )
-    case 'genres-moods':
-      return (
-        <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M4 14c2-4 4-6 8-6s6 2 8 6" />
-            <circle cx="12" cy="12" r="9" />
-          </svg>
-        </MusicSubNavIcon>
-      )
-    case 'artists':
-      return (
-        <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <circle cx="12" cy="8" r="3.5" />
-            <path d="M5 20c1.5-4 4-6 7-6s5.5 2 7 6" />
-          </svg>
-        </MusicSubNavIcon>
-      )
-    case 'albums':
-      return (
-        <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <rect x="4" y="6" width="16" height="12" rx="2" />
-            <circle cx="12" cy="12" r="2.5" />
           </svg>
         </MusicSubNavIcon>
       )
     case 'songs':
       return (
         <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z" />
           </svg>
         </MusicSubNavIcon>
       )
-    case 'liked':
+    case 'albums':
       return (
         <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M12 20.5l-1.1-1C6.5 15.4 4 13.1 4 10.2 4 7.8 5.8 6 8.2 6c1.4 0 2.7.7 3.8 1.8L12 8.8l.2-.2C13.3 6.7 14.6 6 16 6c2.4 0 4.2 1.8 4.2 4.2 0 2.9-2.5 5.2-6.9 9.3L12 20.5z" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="4" y="6" width="16" height="12" rx="2" />
+            <circle cx="12" cy="12" r="2.5" />
+          </svg>
+        </MusicSubNavIcon>
+      )
+    case 'artists':
+      return (
+        <MusicSubNavIcon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="12" cy="8" r="3.5" />
+            <path d="M5 20c1.5-4 4-6 7-6s5.5 2 7 6" />
+          </svg>
+        </MusicSubNavIcon>
+      )
+    case 'genres-moods':
+      return (
+        <MusicSubNavIcon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M4 14c2-4 4-6 8-6s6 2 8 6" />
+            <circle cx="12" cy="12" r="9" />
           </svg>
         </MusicSubNavIcon>
       )
     case 'playlists':
       return (
         <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01" />
-          </svg>
-        </MusicSubNavIcon>
-      )
-    case 'recent':
-      return (
-        <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <circle cx="12" cy="12" r="8" />
-            <path d="M12 8v5l3 2" />
           </svg>
         </MusicSubNavIcon>
       )
     default:
       return null
   }
+}
+
+/** Map drill-down sections (New Releases, Charts, Liked, Recent) onto Discover tab highlight. */
+function resolveHighlightedTab(section: MusicSectionId): MusicSectionId {
+  if (PRIMARY_IDS.has(section)) return section
+  return 'discover'
 }
 
 export const MusicSubNav = memo(function MusicSubNav({
@@ -125,35 +96,36 @@ export const MusicSubNav = memo(function MusicSubNav({
   showDownloads: _showDownloads,
 }: MusicSubNavProps) {
   void _showDownloads
+  const highlighted = resolveHighlightedTab(activeSection)
 
   return (
-    <aside className="music-sub-nav" aria-label="Music categories">
-      <nav className="music-sub-nav-groups">
-        <div className="music-sub-nav-group">
-          <span className="music-sub-nav-label">Browse</span>
-          {MUSIC_DISCOVERY_ITEMS.map((item) => (
+    <div className="music-tab-bar music-sub-nav" aria-label="Music categories">
+      <nav className="music-tab-bar-scroll music-sub-nav-groups" role="tablist">
+        {MUSIC_PRIMARY_TABS.map((item) => {
+          const selected = highlighted === item.id
+          return (
             <button
               key={item.id}
               type="button"
-              className={`music-sub-nav-item${activeSection === item.id ? ' is-active' : ''}`}
-              aria-current={activeSection === item.id ? 'page' : undefined}
+              role="tab"
+              className={`music-tab music-sub-nav-item${selected ? ' is-active' : ''}`}
+              aria-selected={selected}
               onClick={() => onSectionChange(item.id)}
             >
               {sectionIcon(item.id)}
               <span>{item.label}</span>
             </button>
-          ))}
-        </div>
+          )
+        })}
       </nav>
-      <button type="button" className="music-sub-nav-settings" onClick={onOpenSettings}>
+      <button type="button" className="music-tab-settings" onClick={onOpenSettings} aria-label="Settings">
         <MusicSubNavIcon>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <circle cx="12" cy="12" r="3" />
             <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
           </svg>
         </MusicSubNavIcon>
-        <span>Settings</span>
       </button>
-    </aside>
+    </div>
   )
 })

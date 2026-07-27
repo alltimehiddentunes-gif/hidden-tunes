@@ -1,9 +1,11 @@
 import { memo, useCallback, useMemo } from 'react'
 import type { ApiAlbum, ApiArtist, ApiSong } from '../../lib/api'
-import { sortArtistsList } from '../../lib/api'
+import { sortAlbumsList, sortArtistsList, sortSongsList } from '../../lib/api'
 import type { CatalogIndexes } from '../../lib/catalogIndexes'
 import { buildQueueCandidatePools, buildQueueSeedPool } from '../../lib/catalogIndexes'
 import type { QueueContext, QueueSeedMetadata } from '../../lib/desktopPlayback/types'
+import { resolveRecentlyPlayedSongs } from '../../lib/home/musicHomeSections'
+import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
 import {
   buildGenreTiles,
   buildMoodVibeCards,
@@ -41,12 +43,13 @@ type MusicDiscoverPageProps = {
   onNavigatePlaylists: () => void
 }
 
-const BROWSE_LINKS: Array<{ id: MusicSectionId; label: string; subtitle: string }> = [
-  { id: 'songs', label: 'Songs', subtitle: 'Full catalog tracks' },
-  { id: 'albums', label: 'Albums', subtitle: 'Browse by release' },
-  { id: 'artists', label: 'Artists', subtitle: 'Browse by performer' },
-  { id: 'playlists', label: 'Playlists', subtitle: 'Editorial collections' },
-]
+function formatDuration(seconds: number | null | undefined): string | null {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null
+  const total = Math.round(seconds)
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${String(s).padStart(2, '0')}`
+}
 
 export const MusicDiscoverPage = memo(function MusicDiscoverPage({
   songs,
@@ -59,16 +62,16 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
   retry,
   onOpenSong,
   onOpenArtist,
-  onOpenAlbum: _onOpenAlbum,
+  onOpenAlbum,
   onSectionChange,
   onBrowseSearch,
   onNavigateLiked: _onNavigateLiked,
   onNavigatePlaylists: _onNavigatePlaylists,
 }: MusicDiscoverPageProps) {
-  void _onOpenAlbum
   void _onNavigateLiked
   void _onNavigatePlaylists
 
+  const { recentlyPlayed } = useMusicLocalState()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
   const playFromQueue = useCallback(
@@ -83,12 +86,41 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
     [indexes, onOpenSong, queuePools],
   )
 
+  const recentSongs = useMemo(
+    () => resolveRecentlyPlayedSongs(recentlyPlayed, indexes.songsById, 8),
+    [indexes.songsById, recentlyPlayed],
+  )
+
+  const sortedSongs = useMemo(() => sortSongsList(songs, 'latest'), [songs])
+  const discoverSongs = useMemo(() => sortedSongs.slice(0, 8), [sortedSongs])
+
   const newReleases = useMemo(
-    () => buildNewReleaseCards(songs, albums, indexes, 12),
+    () => buildNewReleaseCards(songs, albums, indexes, 10),
     [albums, indexes, songs],
   )
 
-  const featuredRelease = newReleases[0] ?? null
+  const discoverAlbums = useMemo(() => {
+    const fromCatalog = sortAlbumsList(albums, 'latest')
+    if (fromCatalog.length > 0) return fromCatalog.slice(0, 10)
+
+    const seen = new Set<string>()
+    const derived: ApiAlbum[] = []
+    for (const song of sortedSongs) {
+      const key = (song.albumId || song.album.trim().toLowerCase() || '').trim()
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      derived.push({
+        id: song.albumId || `album-derived-${key}`,
+        title: song.album || song.title,
+        artwork: song.artwork,
+        releaseYear: null,
+        createdAt: song.createdAt,
+        artistId: song.artistId,
+      })
+      if (derived.length >= 10) break
+    }
+    return derived
+  }, [albums, sortedSongs])
 
   const chartCards = useMemo(
     () => buildPopularChartCards(songs, indexes, 6),
@@ -97,58 +129,132 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
 
   const moodCards = useMemo(() => buildMoodVibeCards(songs, 8), [songs])
   const genreTiles = useMemo(
-    () => buildGenreTiles(indexes, [], 14),
-    [indexes],
+    () => buildGenreTiles(indexes, recentlyPlayed, 12),
+    [indexes, recentlyPlayed],
   )
 
-  const featuredArtists = useMemo(() => sortArtistsList(artists, 'tracks').slice(0, 10), [artists])
+  const featuredArtists = useMemo(() => {
+    const ranked = sortArtistsList(artists, 'tracks')
+    if (ranked.length > 0) return ranked.slice(0, 10)
+
+    const seen = new Set<string>()
+    const derived: ApiArtist[] = []
+    for (const song of sortedSongs) {
+      const key = (song.artistId || song.artist.trim().toLowerCase() || '').trim()
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      derived.push({
+        id: song.artistId || `artist-derived-${key}`,
+        name: song.artist,
+        artwork: song.artwork,
+        songCount: 1,
+        tracks: [song],
+      })
+      if (derived.length >= 10) break
+    }
+    return derived
+  }, [artists, sortedSongs])
   const catalogError = showCatalogError ? error : null
 
   return (
-    <div className="music-discover" aria-label="Music discover">
-      <header className="music-discover-page-header">
+    <div className="music-discover music-discover--product" aria-label="Music discover">
+      <header className="music-discover-page-header music-discover-page-header--compact">
         <div>
-          <p className="music-discover-page-eyebrow">Music</p>
-          <h1 className="music-discover-page-title">Browse the catalog</h1>
+          <h1 className="music-discover-page-title">Music</h1>
           <p className="music-discover-page-subtitle">
-            New releases, charts, genres, moods, and deep browse — not your listening history.
+            Songs, albums, artists, and discovery from your catalog.
           </p>
         </div>
-        {featuredRelease ? (
-          <article className="music-discover-featured-release">
-            <button
-              type="button"
-              className="music-discover-featured-release-hit"
-              onClick={() => playFromQueue(featuredRelease.song, featuredRelease.queue, featuredRelease.queueTitle)}
-              aria-label={`Play ${featuredRelease.title} by ${featuredRelease.artist}`}
-            >
-              <MusicArt
-                src={featuredRelease.artworkUrl}
-                seed={featuredRelease.id}
-                label={featuredRelease.title}
-                size="featured"
-                priority
-              />
-              <div className="music-discover-featured-release-copy">
-                <span className="music-discover-featured-release-badge">Featured release</span>
-                <strong>{featuredRelease.title}</strong>
-                <span>{featuredRelease.artist}</span>
-              </div>
-            </button>
-          </article>
-        ) : null}
       </header>
+
+      {recentSongs.length > 0 ? (
+        <MusicPageSection
+          title="Continue Listening"
+          hint="From this device"
+          onViewAll={() => onSectionChange('recent')}
+        >
+          <div className="music-discover-song-list music-discover-song-list--compact" role="list">
+            {recentSongs.map((song) => {
+              const duration = formatDuration(song.durationSeconds)
+              return (
+                <button
+                  key={`recent-${song.id}`}
+                  type="button"
+                  className="music-discover-song-row"
+                  role="listitem"
+                  onClick={() => playFromQueue(song, recentSongs, 'Continue Listening')}
+                  aria-label={`Play ${song.title} by ${song.artist}`}
+                >
+                  <MusicArt src={song.artwork} seed={song.id} label={song.title} size="list" />
+                  <span className="music-discover-song-row-meta">
+                    <strong>{song.title}</strong>
+                    <span>
+                      {song.artist}
+                      {song.album ? ` · ${song.album}` : ''}
+                    </span>
+                  </span>
+                  {duration ? <time className="music-discover-song-row-duration">{duration}</time> : null}
+                </button>
+              )
+            })}
+          </div>
+        </MusicPageSection>
+      ) : null}
+
+      {discoverSongs.length > 0 ? (
+        <MusicPageSection
+          title="Songs"
+          hint="Playable tracks from your catalog"
+          loading={showCatalogSkeleton}
+          error={catalogError}
+          onRetry={retry}
+          onViewAll={() => onSectionChange('songs')}
+        >
+          <div className="music-discover-song-list" role="list">
+            {discoverSongs.map((song) => {
+              const duration = formatDuration(song.durationSeconds)
+              return (
+                <button
+                  key={song.id}
+                  type="button"
+                  className="music-discover-song-row"
+                  role="listitem"
+                  onClick={() => playFromQueue(song, sortedSongs, 'Songs')}
+                  aria-label={`Play ${song.title} by ${song.artist}`}
+                >
+                  <MusicArt src={song.artwork} seed={song.id} label={song.title} size="list" />
+                  <span className="music-discover-song-row-meta">
+                    <strong>{song.title}</strong>
+                    <span>
+                      {song.artist}
+                      {song.album ? ` · ${song.album}` : ''}
+                    </span>
+                  </span>
+                  {duration ? <time className="music-discover-song-row-duration">{duration}</time> : null}
+                </button>
+              )
+            })}
+          </div>
+        </MusicPageSection>
+      ) : showCatalogSkeleton || catalogError ? (
+        <MusicPageSection
+          title="Songs"
+          hint="Playable tracks from your catalog"
+          loading={showCatalogSkeleton}
+          error={catalogError}
+          onRetry={retry}
+        >
+          {null}
+        </MusicPageSection>
+      ) : null}
 
       {newReleases.length > 0 ? (
         <MusicPageSection
           title="New Releases"
           hint="Fresh from your catalog"
-          loading={showCatalogSkeleton}
-          error={catalogError}
-          onRetry={retry}
           onViewAll={() => onSectionChange('new-releases')}
         >
-          <div className="music-discover-release-rail">
+          <div className="music-discover-release-rail music-discover-release-rail--dense">
             {newReleases.map((release) => (
               <article key={release.id} className="music-discover-release-card">
                 <button
@@ -168,41 +274,56 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
             ))}
           </div>
         </MusicPageSection>
-      ) : showCatalogSkeleton || catalogError ? (
+      ) : null}
+
+      {discoverAlbums.length > 0 ? (
         <MusicPageSection
-          title="New Releases"
-          hint="Fresh from your catalog"
-          loading={showCatalogSkeleton}
-          error={catalogError}
-          onRetry={retry}
+          title="Albums"
+          hint="Browse by release"
+          onViewAll={() => onSectionChange('albums')}
         >
-          {null}
+          <div className="music-discover-album-rail">
+            {discoverAlbums.map((album) => {
+              const artistName = indexes.artistNames.get(album.artistId ?? '') ?? ''
+              return (
+                <button
+                  key={album.id}
+                  type="button"
+                  className="music-discover-album-chip"
+                  onClick={() => onOpenAlbum(album)}
+                  aria-label={`Open album ${album.title}`}
+                >
+                  <MusicArt src={album.artwork} seed={album.id} label={album.title} size="rail" />
+                  <strong>{album.title}</strong>
+                  <span>
+                    {artistName || 'Album'}
+                    {album.releaseYear ? ` · ${album.releaseYear}` : ''}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </MusicPageSection>
       ) : null}
 
-      {chartCards.length > 0 ? (
+      {featuredArtists.length > 0 ? (
         <MusicPageSection
-          title="Popular on Hidden Tunes"
-          hint="Ranked from your catalog — not official national charts"
-          loading={showCatalogSkeleton}
-          error={catalogError}
-          onRetry={retry}
-          onViewAll={() => onSectionChange('top-charts')}
+          title="Artists"
+          onViewAll={() => onSectionChange('artists')}
         >
-          <div className="music-discover-chart-rail">
-            {chartCards.map((chart) => (
-              <article key={chart.id} className={`music-discover-chart-card music-discover-chart-card--${chart.accent}`}>
-                <button
-                  type="button"
-                  className="music-discover-chart-hit"
-                  onClick={() => playFromQueue(chart.tracks[0], chart.tracks, chart.title)}
-                  aria-label={`Play ${chart.title}`}
-                >
-                  <h3>{chart.title}</h3>
-                  <p>{chart.subtitle}</p>
-                  <span>{chart.tracks.length} tracks</span>
-                </button>
-              </article>
+          <div className="music-discover-artist-rail">
+            {featuredArtists.map((artist) => (
+              <button
+                key={artist.id}
+                type="button"
+                className="music-discover-artist-chip"
+                onClick={() => onOpenArtist(artist)}
+                aria-label={`Open ${artist.name}`}
+              >
+                <MusicArt src={artist.artwork} seed={artist.id} label={artist.name} variant="circle" size="rail" />
+                <strong>{artist.name}</strong>
+                {artist.songCount > 0 ? <span>{artist.songCount} songs</span> : null}
+              </button>
             ))}
           </div>
         </MusicPageSection>
@@ -214,7 +335,7 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
           hint="Explore your sound"
           onViewAll={() => onSectionChange('genres-moods')}
         >
-          <div className="music-discover-genre-grid">
+          <div className="music-discover-genre-grid music-discover-genre-grid--editorial">
             {genreTiles.map((genre) => (
               <button
                 key={genre.id}
@@ -223,13 +344,9 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                 onClick={() => onBrowseSearch(genre.label)}
                 aria-label={`Browse ${genre.label}`}
               >
-                {genre.artworkUrl ? (
-                  <MusicArt src={genre.artworkUrl} seed={genre.id} label={genre.label} size="chip" />
-                ) : (
-                  <span className="music-discover-genre-fallback" aria-hidden="true">
-                    {genre.label.slice(0, 1)}
-                  </span>
-                )}
+                <span className="music-discover-genre-fallback" aria-hidden="true">
+                  {genre.label.slice(0, 1)}
+                </span>
                 <span>{genre.label}</span>
               </button>
             ))}
@@ -243,7 +360,7 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
           hint="Emotional lanes from your library"
           onViewAll={() => onSectionChange('genres-moods')}
         >
-          <div className="music-discover-mood-rail">
+          <div className="music-discover-mood-rail music-discover-mood-rail--dense">
             {moodCards.map((mood) => (
               <article key={mood.id} className={`music-discover-mood-card music-discover-mood-card--${mood.mood}`}>
                 <button
@@ -261,43 +378,30 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
         </MusicPageSection>
       ) : null}
 
-      {featuredArtists.length > 0 ? (
+      {chartCards.length > 0 ? (
         <MusicPageSection
-          title="Featured Artists"
-          onViewAll={() => onSectionChange('artists')}
+          title="Popular on Hidden Tunes"
+          hint="Ranked from your catalog"
+          onViewAll={() => onSectionChange('top-charts')}
         >
-          <div className="music-discover-artist-rail">
-            {featuredArtists.map((artist) => (
-              <button
-                key={artist.id}
-                type="button"
-                className="music-discover-artist-chip"
-                onClick={() => onOpenArtist(artist)}
-                aria-label={`Open ${artist.name}`}
-              >
-                <MusicArt src={artist.artwork} seed={artist.id} label={artist.name} variant="circle" size="rail" />
-                <strong>{artist.name}</strong>
-              </button>
+          <div className="music-discover-chart-rail music-discover-chart-rail--dense">
+            {chartCards.map((chart) => (
+              <article key={chart.id} className={`music-discover-chart-card music-discover-chart-card--${chart.accent}`}>
+                <button
+                  type="button"
+                  className="music-discover-chart-hit"
+                  onClick={() => playFromQueue(chart.tracks[0], chart.tracks, chart.title)}
+                  aria-label={`Play ${chart.title}`}
+                >
+                  <h3>{chart.title}</h3>
+                  <p>{chart.subtitle}</p>
+                  <span>{chart.tracks.length} tracks</span>
+                </button>
+              </article>
             ))}
           </div>
         </MusicPageSection>
       ) : null}
-
-      <MusicPageSection title="Deep browse" hint="Open full Songs, Albums, Artists, and Playlists">
-        <div className="music-discover-browse-links">
-          {BROWSE_LINKS.map((link) => (
-            <button
-              key={link.id}
-              type="button"
-              className="music-discover-browse-link"
-              onClick={() => onSectionChange(link.id)}
-            >
-              <strong>{link.label}</strong>
-              <span>{link.subtitle}</span>
-            </button>
-          ))}
-        </div>
-      </MusicPageSection>
     </div>
   )
 })

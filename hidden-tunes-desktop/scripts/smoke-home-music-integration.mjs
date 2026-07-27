@@ -146,12 +146,12 @@ async function main() {
     video: document.querySelectorAll('video').length,
   })`)
   record('music-sidebar-visible', music.sidebar)
-  record('music-catalog-title', /browse the catalog/i.test(music.title), music.title)
-  record('music-no-personalization', !music.personalization.some((h) => /made for|recently played|hidden gems/i.test(h)), music.personalization.join('|'))
+  record('music-catalog-title', /^(music|browse the catalog)$/i.test(music.title.trim()), music.title)
+  record('music-no-personalization', !music.personalization.some((h) => /made for|hidden gems/i.test(h)), music.personalization.join('|'))
   record('music-no-downloads-tab', !music.downloads)
 
   await evalPage(win, `() => {
-    document.querySelector('.music-discover-featured-release-hit, .music-discover-release-hit, .music-discover-chart-hit')?.click()
+    document.querySelector('.music-discover-song-row, .music-discover-featured-release-hit, .music-discover-release-hit, .music-discover-chart-hit')?.click()
     return true
   }`)
   await sleep(2000)

@@ -1,0 +1,199 @@
+{
+  "label": "BEFORE",
+  "widths": {
+    "-1024": {
+      "sections": [
+        {
+          "t": "Browse the catalog",
+          "top": 411,
+          "aboveFold": true
+        },
+        {
+          "t": "New Releases",
+          "top": 646,
+          "aboveFold": false
+        },
+        {
+          "t": "Popular on Hidden Tunes",
+          "top": 993,
+          "aboveFold": false
+        },
+        {
+          "t": "Genres",
+          "top": 1209,
+          "aboveFold": false
+        },
+        {
+          "t": "Moods",
+          "top": 1408,
+          "aboveFold": false
+        },
+        {
+          "t": "Deep browse",
+          "top": 1613,
+          "aboveFold": false
+        }
+      ],
+      "aboveFoldSections": [
+        "Browse the catalog"
+      ],
+      "maxArt": 190,
+      "songRows": 0,
+      "albumCards": 4,
+      "artistCards": 0,
+      "placeholder": "Search songs, artists, albums…",
+      "playerW": 220,
+      "mainW": 550,
+      "subnavW": 550,
+      "overflow": false,
+      "header": "Browse the catalog"
+    },
+    "-1280": {
+      "sections": [
+        {
+          "t": "Browse the catalog",
+          "top": 184,
+          "aboveFold": true
+        },
+        {
+          "t": "New Releases",
+          "top": 301,
+          "aboveFold": true
+        },
+        {
+          "t": "Popular on Hidden Tunes",
+          "top": 650,
+          "aboveFold": true
+        },
+        {
+          "t": "Genres",
+          "top": 868,
+          "aboveFold": false
+        },
+        {
+          "t": "Moods",
+          "top": 1068,
+          "aboveFold": false
+        },
+        {
+          "t": "Deep browse",
+          "top": 1275,
+          "aboveFold": false
+        }
+      ],
+      "aboveFoldSections": [
+        "Browse the catalog",
+        "New Releases",
+        "Popular on Hidden Tunes"
+      ],
+      "maxArt": 190,
+      "songRows": 0,
+      "albumCards": 4,
+      "artistCards": 0,
+      "placeholder": "Search songs, artists, albums…",
+      "playerW": 272,
+      "mainW": 512,
+      "subnavW": 188,
+      "overflow": false,
+      "header": "Browse the catalog"
+    },
+    "-1440": {
+      "sections": [
+        {
+          "t": "Browse the catalog",
+          "top": 184,
+          "aboveFold": true
+        },
+        {
+          "t": "New Releases",
+          "top": 301,
+          "aboveFold": true
+        },
+        {
+          "t": "Popular on Hidden Tunes",
+          "top": 640,
+          "aboveFold": true
+        },
+        {
+          "t": "Genres",
+          "top": 858,
+          "aboveFold": false
+        },
+        {
+          "t": "Moods",
+          "top": 1058,
+          "aboveFold": false
+        },
+        {
+          "t": "Deep browse",
+          "top": 1265,
+          "aboveFold": false
+        }
+      ],
+      "aboveFoldSections": [
+        "Browse the catalog",
+        "New Releases",
+        "Popular on Hidden Tunes"
+      ],
+      "maxArt": 190,
+      "songRows": 0,
+      "albumCards": 4,
+      "artistCards": 0,
+      "placeholder": "Search songs, artists, albums…",
+      "playerW": 290,
+      "mainW": 642,
+      "subnavW": 188,
+      "overflow": false,
+      "header": "Browse the catalog"
+    },
+    "-LARGE": {
+      "sections": [
+        {
+          "t": "Browse the catalog",
+          "top": 184,
+          "aboveFold": true
+        },
+        {
+          "t": "New Releases",
+          "top": 301,
+          "aboveFold": true
+        },
+        {
+          "t": "Popular on Hidden Tunes",
+          "top": 640,
+          "aboveFold": true
+        },
+        {
+          "t": "Genres",
+          "top": 858,
+          "aboveFold": false
+        },
+        {
+          "t": "Moods",
+          "top": 1058,
+          "aboveFold": false
+        },
+        {
+          "t": "Deep browse",
+          "top": 1265,
+          "aboveFold": false
+        }
+      ],
+      "aboveFoldSections": [
+        "Browse the catalog",
+        "New Releases",
+        "Popular on Hidden Tunes"
+      ],
+      "maxArt": 190,
+      "songRows": 0,
+      "albumCards": 4,
+      "artistCards": 0,
+      "placeholder": "Search songs, artists, albums…",
+      "playerW": 330,
+      "mainW": 866,
+      "subnavW": 188,
+      "overflow": false,
+      "header": "Browse the catalog"
+    }
+  }
+}

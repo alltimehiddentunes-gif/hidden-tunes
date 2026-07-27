@@ -1,0 +1,100 @@
+{
+  "checks": [
+    {
+      "check": "music-header",
+      "ok": true,
+      "detail": "Music"
+    },
+    {
+      "check": "search-utf8",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "tabs-present",
+      "ok": true,
+      "detail": "Discover|Songs|Albums|Artists|Genres|Playlists"
+    },
+    {
+      "check": "songs-section",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "albums-section",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "artists-section",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "songs-above-fold",
+      "ok": true,
+      "detail": "Music|Songs"
+    },
+    {
+      "check": "song-rows-visible",
+      "ok": true,
+      "detail": "n=4"
+    },
+    {
+      "check": "art-bounded",
+      "ok": true,
+      "detail": "max=152"
+    },
+    {
+      "check": "no-fullpage-art",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "persistent-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "compact-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "bottom-clearance",
+      "ok": true,
+      "detail": "108px"
+    },
+    {
+      "check": "play-stays-on-music",
+      "ok": true,
+      "detail": "{\"discover\":true,\"workspace\":false}"
+    },
+    {
+      "check": "1024-songs-above-fold",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024-no-overflow",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "1024-art-bounded",
+      "ok": true,
+      "detail": "max=152"
+    }
+  ],
+  "failures": []
+}
