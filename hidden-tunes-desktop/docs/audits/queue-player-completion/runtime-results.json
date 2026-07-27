@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-07-25T09:40:19.605Z",
+  "startedAt": "2026-07-27T16:53:48.530Z",
   "rendererUrl": "http://localhost:5175",
   "checks": [
     {
@@ -60,22 +60,22 @@
     {
       "check": "Music catalog play click",
       "ok": true,
-      "detail": "Play Singles by Its Country Time"
+      "detail": "Play DEV Audio Versions: All Tiers by Hidden Tunes QA"
     },
     {
       "check": "Music playback surfaced",
       "ok": true,
-      "detail": "{\"title\":\"\",\"audioPlaying\":true,\"hasBar\":true,\"queueRail\":true}"
+      "detail": "{\"title\":\"\",\"audioPlaying\":false,\"hasBar\":true,\"queueRail\":true}"
     },
     {
       "check": "Queue surface available or empty state",
       "ok": true,
-      "detail": "{\"queueUi\":{\"opened\":true,\"via\":\"rail\",\"panel\":true},\"queueDom\":{\"panel\":true,\"empty\":false,\"clear\":true,\"removeBtns\":2,\"moveBtns\":4,\"rows\":4,\"live\":false}}"
+      "detail": "{\"queueUi\":{\"opened\":true,\"via\":\"rail\",\"panel\":true},\"queueDom\":{\"panel\":true,\"empty\":false,\"clear\":true,\"removeBtns\":4,\"moveBtns\":8,\"rows\":8,\"live\":false}}"
     },
     {
       "check": "Queue panel has rows when playing",
       "ok": true,
-      "detail": "rows=4"
+      "detail": "rows=8"
     },
     {
       "check": "Queue clear button present",
@@ -85,17 +85,17 @@
     {
       "check": "Queue remove buttons present",
       "ok": true,
-      "detail": "remove=2"
+      "detail": "remove=4"
     },
     {
       "check": "Queue reorder buttons present",
       "ok": true,
-      "detail": "move=4"
+      "detail": "move=8"
     },
     {
       "check": "Queue remove click interacts",
       "ok": true,
-      "detail": "{\"before\":4,\"after\":2}"
+      "detail": "{\"before\":8,\"after\":6}"
     },
     {
       "check": "Radio station play click",
@@ -105,7 +105,7 @@
     {
       "check": "Radio LIVE progress when station played",
       "ok": true,
-      "detail": "{\"liveLabels\":[\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\"],\"title\":\"\",\"audioPlaying\":true}"
+      "detail": "{\"liveLabels\":[\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\"],\"title\":\"\",\"audioPlaying\":false}"
     },
     {
       "check": "ownership soft Music/Sports/Radio surfaces",
@@ -230,7 +230,7 @@
   ],
   "failures": [],
   "notes": [],
-  "finishedAt": "2026-07-25T09:41:17.424Z",
+  "finishedAt": "2026-07-27T16:54:29.781Z",
   "passed": 45,
   "failed": 0,
   "checkCount": 45
