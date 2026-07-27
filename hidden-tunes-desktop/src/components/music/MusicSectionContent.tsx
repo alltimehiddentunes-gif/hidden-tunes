@@ -16,7 +16,7 @@ import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
 import { useMusicLikes } from '../../lib/home/useMusicLikes'
 import { EDITORIAL_PLAYLIST_SPECS, resolveEditorialPlaylistTracks } from '../../lib/home/editorialPlaylists'
 import { useCatalogWindow } from '../../lib/musicCatalog/useCatalogWindow'
-import { ArtworkImage } from '../ArtworkImage'
+import { MusicArt } from './MusicArt'
 import { MusicPageSection } from './MusicPageSection'
 
 type QueueSongHandler = (
@@ -48,6 +48,14 @@ type MusicSectionContentProps = {
   onOpenArtist: (artist: ApiArtist) => void
   onOpenAlbum: (album: ApiAlbum) => void
   onBrowseSearch: (query: string) => void
+}
+
+function formatDuration(seconds: number | null | undefined): string | null {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null
+  const total = Math.round(seconds)
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 function CatalogLoadMore({
@@ -181,7 +189,7 @@ export const MusicSectionContent = memo(function MusicSectionContent({
                   onClick={() => playFromQueue(release.song, release.queue, release.queueTitle)}
                   aria-label={`Play ${release.title} by ${release.artist}`}
                 >
-                  <ArtworkImage src={release.artworkUrl} alt="" seed={release.id} label={release.title} />
+                  <MusicArt src={release.artworkUrl} seed={release.id} label={release.title} size="rail" />
                   <span className="music-discover-release-badge">New</span>
                   <div className="music-discover-release-copy">
                     <strong>{release.title}</strong>
@@ -255,7 +263,7 @@ export const MusicSectionContent = memo(function MusicSectionContent({
                   aria-label={`Browse ${genre.label}`}
                 >
                   {genre.artworkUrl ? (
-                    <ArtworkImage src={genre.artworkUrl} alt="" seed={genre.id} label={genre.label} />
+                    <MusicArt src={genre.artworkUrl} seed={genre.id} label={genre.label} size="chip" />
                   ) : (
                     <span className="music-discover-genre-fallback" aria-hidden="true">
                       {genre.label.slice(0, 1)}
@@ -276,20 +284,30 @@ export const MusicSectionContent = memo(function MusicSectionContent({
             <h1>Songs</h1>
             <p>Your music catalog, sorted by recently added.</p>
           </header>
-          <div className="music-discover-song-grid">
-            {songWindow.visible.map((song) => (
-              <button
-                key={song.id}
-                type="button"
-                className="music-discover-song-chip"
-                onClick={() => playFromQueue(song, sortedSongs, 'Songs')}
-                aria-label={`Play ${song.title} by ${song.artist}`}
-              >
-                <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
-                <strong>{song.title}</strong>
-                <span>{song.artist}</span>
-              </button>
-            ))}
+          <div className="music-discover-song-list" role="list">
+            {songWindow.visible.map((song) => {
+              const duration = formatDuration(song.durationSeconds)
+              return (
+                <button
+                  key={song.id}
+                  type="button"
+                  className="music-discover-song-row"
+                  role="listitem"
+                  onClick={() => playFromQueue(song, sortedSongs, 'Songs')}
+                  aria-label={`Play ${song.title} by ${song.artist}`}
+                >
+                  <MusicArt src={song.artwork} seed={song.id} label={song.title} size="list" />
+                  <span className="music-discover-song-row-meta">
+                    <strong>{song.title}</strong>
+                    <span>
+                      {song.artist}
+                      {song.album ? ` · ${song.album}` : ''}
+                    </span>
+                  </span>
+                  {duration ? <time className="music-discover-song-row-duration">{duration}</time> : null}
+                </button>
+              )
+            })}
           </div>
           <CatalogLoadMore
             shown={songWindow.shown}
@@ -317,7 +335,7 @@ export const MusicSectionContent = memo(function MusicSectionContent({
                 onClick={() => onOpenArtist(artist)}
                 aria-label={`Open ${artist.name}`}
               >
-                <ArtworkImage src={artist.artwork} alt="" seed={artist.id} label={artist.name} variant="circle" />
+                <MusicArt src={artist.artwork} seed={artist.id} label={artist.name} variant="circle" size="rail" />
                 <strong>{artist.name}</strong>
               </button>
             ))}
@@ -340,19 +358,25 @@ export const MusicSectionContent = memo(function MusicSectionContent({
             <p>Albums in your catalog, sorted by recently added.</p>
           </header>
           <div className="music-discover-album-grid">
-            {albumWindow.visible.map((album) => (
-              <button
-                key={album.id}
-                type="button"
-                className="music-discover-album-chip"
-                onClick={() => onOpenAlbum(album)}
-                aria-label={`Open album ${album.title}`}
-              >
-                <ArtworkImage src={album.artwork} alt="" seed={album.id} label={album.title} />
-                <strong>{album.title}</strong>
-                <span>{indexes.artistNames.get(album.artistId ?? '') ?? album.title}</span>
-              </button>
-            ))}
+            {albumWindow.visible.map((album) => {
+              const artistName = indexes.artistNames.get(album.artistId ?? '') ?? ''
+              return (
+                <button
+                  key={album.id}
+                  type="button"
+                  className="music-discover-album-chip"
+                  onClick={() => onOpenAlbum(album)}
+                  aria-label={`Open album ${album.title}`}
+                >
+                  <MusicArt src={album.artwork} seed={album.id} label={album.title} size="rail" />
+                  <strong>{album.title}</strong>
+                  <span>
+                    {artistName || 'Album'}
+                    {album.releaseYear ? ` · ${album.releaseYear}` : ''}
+                  </span>
+                </button>
+              )
+            })}
           </div>
           <CatalogLoadMore
             shown={albumWindow.shown}
@@ -372,20 +396,30 @@ export const MusicSectionContent = memo(function MusicSectionContent({
             <p>Songs you heart on this device. Cloud sync is not connected yet.</p>
           </header>
           {likedSongs.length > 0 ? (
-            <div className="music-discover-song-grid">
-              {likedSongs.map((song) => (
-                <button
-                  key={song.id}
-                  type="button"
-                  className="music-discover-song-chip"
-                  onClick={() => playFromQueue(song, likedSongs, 'Liked Songs')}
-                  aria-label={`Play ${song.title} by ${song.artist}`}
-                >
-                  <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
-                  <strong>{song.title}</strong>
-                  <span>{song.artist}</span>
-                </button>
-              ))}
+            <div className="music-discover-song-list" role="list">
+              {likedSongs.map((song) => {
+                const duration = formatDuration(song.durationSeconds)
+                return (
+                  <button
+                    key={song.id}
+                    type="button"
+                    className="music-discover-song-row"
+                    role="listitem"
+                    onClick={() => playFromQueue(song, likedSongs, 'Liked Songs')}
+                    aria-label={`Play ${song.title} by ${song.artist}`}
+                  >
+                    <MusicArt src={song.artwork} seed={song.id} label={song.title} size="list" />
+                    <span className="music-discover-song-row-meta">
+                      <strong>{song.title}</strong>
+                      <span>
+                        {song.artist}
+                        {song.album ? ` · ${song.album}` : ''}
+                      </span>
+                    </span>
+                    {duration ? <time className="music-discover-song-row-duration">{duration}</time> : null}
+                  </button>
+                )
+              })}
             </div>
           ) : (
             <p className="music-section-empty">
@@ -411,7 +445,7 @@ export const MusicSectionContent = memo(function MusicSectionContent({
                   onClick={() => playFromQueue(tracks[0], tracks, spec.title)}
                   aria-label={`Play playlist ${spec.title}`}
                 >
-                  <ArtworkImage src={tracks[0]?.artwork ?? null} alt="" seed={spec.id} label={spec.title} />
+                  <MusicArt src={tracks[0]?.artwork ?? null} seed={spec.id} label={spec.title} size="rail" />
                   <div>
                     <strong>{spec.title}</strong>
                     <span>{spec.description}</span>
@@ -432,20 +466,30 @@ export const MusicSectionContent = memo(function MusicSectionContent({
             <p>Music you have listened to on this device.</p>
           </header>
           {recentSongs.length > 0 ? (
-            <div className="music-discover-song-grid">
-              {recentSongs.map((song) => (
-                <button
-                  key={song.id}
-                  type="button"
-                  className="music-discover-song-chip"
-                  onClick={() => playFromQueue(song, recentSongs, 'Recently Played')}
-                  aria-label={`Play ${song.title} by ${song.artist}`}
-                >
-                  <ArtworkImage src={song.artwork} alt="" seed={song.id} label={song.title} />
-                  <strong>{song.title}</strong>
-                  <span>{song.artist}</span>
-                </button>
-              ))}
+            <div className="music-discover-song-list" role="list">
+              {recentSongs.map((song) => {
+                const duration = formatDuration(song.durationSeconds)
+                return (
+                  <button
+                    key={song.id}
+                    type="button"
+                    className="music-discover-song-row"
+                    role="listitem"
+                    onClick={() => playFromQueue(song, recentSongs, 'Recently Played')}
+                    aria-label={`Play ${song.title} by ${song.artist}`}
+                  >
+                    <MusicArt src={song.artwork} seed={song.id} label={song.title} size="list" />
+                    <span className="music-discover-song-row-meta">
+                      <strong>{song.title}</strong>
+                      <span>
+                        {song.artist}
+                        {song.album ? ` · ${song.album}` : ''}
+                      </span>
+                    </span>
+                    {duration ? <time className="music-discover-song-row-duration">{duration}</time> : null}
+                  </button>
+                )
+              })}
             </div>
           ) : (
             <p className="music-section-empty">Play music to build your recently played list.</p>

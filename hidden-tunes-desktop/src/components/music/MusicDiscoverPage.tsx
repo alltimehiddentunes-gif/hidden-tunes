@@ -11,7 +11,7 @@ import {
   buildPopularChartCards,
 } from '../../lib/music/musicPageSections'
 import type { MusicSectionId } from '../../lib/music/types'
-import { ArtworkImage } from '../ArtworkImage'
+import { MusicArt } from './MusicArt'
 import { MusicPageSection } from './MusicPageSection'
 
 type QueueSongHandler = (
@@ -44,6 +44,7 @@ type MusicDiscoverPageProps = {
 const BROWSE_LINKS: Array<{ id: MusicSectionId; label: string; subtitle: string }> = [
   { id: 'songs', label: 'Songs', subtitle: 'Full catalog tracks' },
   { id: 'albums', label: 'Albums', subtitle: 'Browse by release' },
+  { id: 'artists', label: 'Artists', subtitle: 'Browse by performer' },
   { id: 'playlists', label: 'Playlists', subtitle: 'Editorial collections' },
 ]
 
@@ -121,11 +122,11 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
               onClick={() => playFromQueue(featuredRelease.song, featuredRelease.queue, featuredRelease.queueTitle)}
               aria-label={`Play ${featuredRelease.title} by ${featuredRelease.artist}`}
             >
-              <ArtworkImage
+              <MusicArt
                 src={featuredRelease.artworkUrl}
-                alt=""
                 seed={featuredRelease.id}
                 label={featuredRelease.title}
+                size="featured"
                 priority
               />
               <div className="music-discover-featured-release-copy">
@@ -156,7 +157,7 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                   onClick={() => playFromQueue(release.song, release.queue, release.queueTitle)}
                   aria-label={`Play ${release.title} by ${release.artist}`}
                 >
-                  <ArtworkImage src={release.artworkUrl} alt="" seed={release.id} label={release.title} />
+                  <MusicArt src={release.artworkUrl} seed={release.id} label={release.title} size="rail" />
                   <span className="music-discover-release-badge">New</span>
                   <div className="music-discover-release-copy">
                     <strong>{release.title}</strong>
@@ -223,7 +224,7 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                 aria-label={`Browse ${genre.label}`}
               >
                 {genre.artworkUrl ? (
-                  <ArtworkImage src={genre.artworkUrl} alt="" seed={genre.id} label={genre.label} />
+                  <MusicArt src={genre.artworkUrl} seed={genre.id} label={genre.label} size="chip" />
                 ) : (
                   <span className="music-discover-genre-fallback" aria-hidden="true">
                     {genre.label.slice(0, 1)}
@@ -274,7 +275,7 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                 onClick={() => onOpenArtist(artist)}
                 aria-label={`Open ${artist.name}`}
               >
-                <ArtworkImage src={artist.artwork} alt="" seed={artist.id} label={artist.name} variant="circle" />
+                <MusicArt src={artist.artwork} seed={artist.id} label={artist.name} variant="circle" size="rail" />
                 <strong>{artist.name}</strong>
               </button>
             ))}
@@ -282,7 +283,7 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
         </MusicPageSection>
       ) : null}
 
-      <MusicPageSection title="Deep browse" hint="Open full Songs, Albums, and Playlists">
+      <MusicPageSection title="Deep browse" hint="Open full Songs, Albums, Artists, and Playlists">
         <div className="music-discover-browse-links">
           {BROWSE_LINKS.map((link) => (
             <button

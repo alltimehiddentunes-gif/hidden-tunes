@@ -1,0 +1,52 @@
+{
+  "label": "BEFORE",
+  "widths": {
+    "1440": {
+      "sections": [
+        "New Releases",
+        "Popular on Hidden Tunes",
+        "Genres",
+        "Moods",
+        "Deep browse"
+      ],
+      "placeholder": "Search songs, artists, albums├óÔé¼┬ª",
+      "giant": false,
+      "maxH": 88,
+      "frames": [
+        {
+          "w": 88,
+          "h": 88,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 150,
+          "h": 55,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 150,
+          "h": 55,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 150,
+          "h": 55,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 150,
+          "h": 55,
+          "circle": false,
+          "fills": false
+        }
+      ],
+      "workspace": false,
+      "discover": true,
+      "overflow": false
+    }
+  }
+}

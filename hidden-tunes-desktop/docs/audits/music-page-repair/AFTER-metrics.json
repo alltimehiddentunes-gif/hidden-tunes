@@ -1,0 +1,193 @@
+{
+  "label": "AFTER",
+  "widths": {
+    "-1024": {
+      "sections": [
+        "New Releases",
+        "Popular on Hidden Tunes",
+        "Genres",
+        "Moods",
+        "Deep browse"
+      ],
+      "placeholder": "Search songs, artists, albums…",
+      "giant": false,
+      "maxH": 190,
+      "frames": [
+        {
+          "w": 88,
+          "h": 88,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 167,
+          "h": 167,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        }
+      ],
+      "workspace": false,
+      "discover": true,
+      "overflow": false
+    },
+    "-1280": {
+      "sections": [
+        "New Releases",
+        "Popular on Hidden Tunes",
+        "Genres",
+        "Moods",
+        "Deep browse"
+      ],
+      "placeholder": "Search songs, artists, albums…",
+      "giant": false,
+      "maxH": 190,
+      "frames": [
+        {
+          "w": 88,
+          "h": 88,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 167,
+          "h": 167,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        }
+      ],
+      "workspace": false,
+      "discover": true,
+      "overflow": false
+    },
+    "-1440": {
+      "sections": [
+        "New Releases",
+        "Popular on Hidden Tunes",
+        "Genres",
+        "Moods",
+        "Deep browse"
+      ],
+      "placeholder": "Search songs, artists, albums…",
+      "giant": false,
+      "maxH": 190,
+      "frames": [
+        {
+          "w": 88,
+          "h": 88,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 167,
+          "h": 167,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        }
+      ],
+      "workspace": false,
+      "discover": true,
+      "overflow": false
+    },
+    "-LARGE": {
+      "sections": [
+        "New Releases",
+        "Popular on Hidden Tunes",
+        "Genres",
+        "Moods",
+        "Deep browse"
+      ],
+      "placeholder": "Search songs, artists, albums…",
+      "giant": false,
+      "maxH": 190,
+      "frames": [
+        {
+          "w": 88,
+          "h": 88,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 167,
+          "h": 167,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 190,
+          "h": 190,
+          "circle": false,
+          "fills": false
+        }
+      ],
+      "workspace": false,
+      "discover": true,
+      "overflow": false
+    }
+  }
+}

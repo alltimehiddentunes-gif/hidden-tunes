@@ -1282,25 +1282,25 @@ const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
 ]
 
 const TOP_BAR_PLACEHOLDERS: Partial<Record<NavKey, string>> = {
-  home: 'Search songs, artists, moods├óÔé¼┬ª',
-  music: 'Search songs, artists, albums├óÔé¼┬ª',
-  radio: 'Search stations, genres, countries├óÔé¼┬ª',
-  podcasts: 'Search podcasts, episodes, categories├óÔé¼┬ª',
-  audiobooks: 'Search audiobooks, authors, narrators├óÔé¼┬ª',
-  motivationals: 'Search motivationals, speakers, topics├óÔé¼┬ª',
-  lectures: 'Search lectures, courses, speakers, subjects├óÔé¼┬ª',
-  tv: 'Search shows, channels, live eventsÔÇª',
-  sports: 'Search fixtures, leagues, teamsÔÇª',
-  worlds: 'Search emotional worldsÔÇª',
-  search: 'Search songs, artists, albums├óÔé¼┬ª',
+  home: 'Search songs, artists, moods…',
+  music: 'Search songs, artists, albums…',
+  radio: 'Search stations, genres, countries…',
+  podcasts: 'Search podcasts, episodes, categories…',
+  audiobooks: 'Search audiobooks, authors, narrators…',
+  motivationals: 'Search motivationals, speakers, topics…',
+  lectures: 'Search lectures, courses, speakers, subjects…',
+  tv: 'Search shows, channels, live events…',
+  sports: 'Search fixtures, leagues, teams…',
+  worlds: 'Search emotional worlds…',
+  search: 'Search songs, artists, albums…',
   library: 'Search songs, artists, albums, playlists...',
-  liked: 'Search liked songs├óÔé¼┬ª',
+  liked: 'Search liked songs…',
   recent: 'Search recently played...',
-  downloads: 'Search downloads├óÔé¼┬ª',
-  playlists: 'Search playlists├óÔé¼┬ª',
-  artists: 'Search artists├óÔé¼┬ª',
-  albums: 'Search albums├óÔé¼┬ª',
-  premium: 'Search premium perks├óÔé¼┬ª',
+  downloads: 'Search downloads…',
+  playlists: 'Search playlists…',
+  artists: 'Search artists…',
+  albums: 'Search albums…',
+  premium: 'Search premium perks…',
 }
 
 function isPsdDestinationNav(navKey: NavKey) {
@@ -2177,7 +2177,7 @@ function PageFrame({
 }
 
 const HomeTopBar = memo(function HomeTopBar({
-  placeholder = 'Search songs, artists, moods├óÔé¼┬ª',
+  placeholder = 'Search songs, artists, moods…',
   onOpenDiscover,
   onSearchSubmit,
   variant = 'default',
@@ -7920,9 +7920,9 @@ function AppShell() {
       const safeIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, Math.min(startIndex, playableQueue.length - 1))
 
       playQueue(playableQueue, safeIndex, context, queueTitle, seedMetadata)
-      // Home plays must stay on the discovery page — persistent/compact players
-      // own the now-playing UI. Do not replace the centre column with PlayerWorkspace.
-      if (context === 'home') {
+      // Home and Music Discover plays stay on the catalogue page — persistent/compact
+      // players own the now-playing UI. Do not replace the centre with PlayerWorkspace.
+      if (context === 'home' || context === 'discover') {
         setDesktopSelectedTrack(resolved)
         return
       }
