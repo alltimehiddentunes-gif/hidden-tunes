@@ -26,7 +26,7 @@ export const AUDIOBOOK_CATEGORIES = [
 ] as const;
 
 export const AUDIOBOOK_PUBLIC_LIST_SELECT =
-  "id, slug, title, subtitle, description, cover_url, author_name, narrator_name, series_title, series_position, category_slug, categories, language, publisher, duration_seconds, chapter_count, is_featured, is_verified, published_at, created_at";
+  "id, slug, title, subtitle, description, cover_url, author_name, narrator_name, series_title, series_position, category_slug, categories, language, publisher, duration_seconds, chapter_count, is_featured, is_verified, is_mature, published_at, created_at";
 
 export const AUDIOBOOK_CHAPTER_PUBLIC_SELECT =
   "id, audiobook_id, title, description, chapter_number, duration_seconds, published_at, created_at";
@@ -68,6 +68,7 @@ export type AudiobookPublicItem = {
   chapter_count: number;
   is_featured: boolean;
   is_verified: boolean;
+  is_mature: boolean;
   published_at: string | null;
   created_at: string | null;
 };
@@ -239,6 +240,7 @@ export function toAudiobookPublicItem(
     chapter_count: Math.max(0, Number(row.chapter_count || 0)),
     is_featured: Boolean(row.is_featured),
     is_verified: Boolean(row.is_verified),
+    is_mature: row.is_mature === true,
     published_at: cleanText(row.published_at, 40),
     created_at: cleanText(row.created_at, 40),
   };
@@ -305,13 +307,23 @@ export function applyPublicAudiobookFilters(query: any, options: {
   author?: string | null;
   narrator?: string | null;
   completeOnly?: boolean;
-  mature: boolean;
+  /** Dedicated mature catalog only. */
+  mature?: boolean;
+  /** Mixed general+mature when mature mode ON + age confirmed. */
+  canAccessMature?: boolean;
 }) {
   let next = query
     .eq("status", "approved")
     .eq("is_active", true)
-    .eq("playback_status", "playable")
-    .eq("is_mature", options.mature);
+    .eq("playback_status", "playable");
+
+  if (options.mature === true) {
+    next = next.eq("is_mature", true);
+  } else if (options.canAccessMature) {
+    // general + mature
+  } else {
+    next = next.eq("is_mature", false);
+  }
 
   if (options.category) {
     const category = options.category;
@@ -365,7 +377,8 @@ export async function listAudiobooks(options: {
   narrator?: string | null;
   completeOnly?: boolean;
   includeTotal?: boolean;
-  mature: boolean;
+  mature?: boolean;
+  canAccessMature?: boolean;
 }) {
   const cursorPayload = decodeAudiobookCursor(options.cursor);
   const useCursor = Boolean(cursorPayload);

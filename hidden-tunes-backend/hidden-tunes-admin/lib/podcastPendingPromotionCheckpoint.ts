@@ -26,8 +26,17 @@ function dataDir(adminRoot = process.cwd()) {
   return path.join(adminRoot, "data", DATA_DIR);
 }
 
-export function getPodcastPendingPromotionStatePath(adminRoot = process.cwd()) {
-  return path.join(dataDir(adminRoot), STATE_FILE);
+function stateFileName(catalog?: PodcastCatalogKind) {
+  if (catalog === "mature") return "state-mature.json";
+  if (catalog === "standard") return "state-standard.json";
+  return STATE_FILE;
+}
+
+export function getPodcastPendingPromotionStatePath(
+  adminRoot = process.cwd(),
+  catalog?: PodcastCatalogKind
+) {
+  return path.join(dataDir(adminRoot), stateFileName(catalog));
 }
 
 export function getPodcastPendingPromotionBatchLogPath(adminRoot = process.cwd()) {
@@ -39,11 +48,26 @@ export function getPodcastPendingPromotionReportDir(adminRoot = process.cwd()) {
 }
 
 export function loadPodcastPendingPromotionState(
-  adminRoot = process.cwd()
+  adminRoot = process.cwd(),
+  catalog?: PodcastCatalogKind
 ): PodcastPendingPromotionState | null {
-  const filePath = getPodcastPendingPromotionStatePath(adminRoot);
+  const preferredPath = getPodcastPendingPromotionStatePath(adminRoot, catalog);
+  const legacyPath = path.join(dataDir(adminRoot), STATE_FILE);
+
+  const filePath = fs.existsSync(preferredPath)
+    ? preferredPath
+    : catalog && fs.existsSync(legacyPath)
+      ? legacyPath
+      : preferredPath;
+
   if (!fs.existsSync(filePath)) return null;
-  return JSON.parse(fs.readFileSync(filePath, "utf8")) as PodcastPendingPromotionState;
+  const parsed = JSON.parse(
+    fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "")
+  ) as PodcastPendingPromotionState;
+  if (catalog && parsed.catalog && parsed.catalog !== catalog) {
+    return null;
+  }
+  return parsed;
 }
 
 export function createPodcastPendingPromotionState(
@@ -74,7 +98,7 @@ export function writePodcastPendingPromotionStateAtomic(
   const dir = dataDir(adminRoot);
   fs.mkdirSync(dir, { recursive: true });
   state.updated_at = new Date().toISOString();
-  const finalPath = getPodcastPendingPromotionStatePath(adminRoot);
+  const finalPath = getPodcastPendingPromotionStatePath(adminRoot, state.catalog);
   const tempPath = `${finalPath}.tmp`;
   fs.writeFileSync(tempPath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
   fs.renameSync(tempPath, finalPath);

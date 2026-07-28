@@ -48,6 +48,7 @@ async function main() {
   const limit = Number(readArg("limit") || 100);
   const delayMs = Number(readArg("delay-ms") || 750);
   const maxFailures = Number(readArg("max-failures") || 25);
+  const feedTimeoutMs = Number(readArg("feed-timeout-ms") || 20_000);
   const dryRun = hasFlag("dry-run");
   const resume = hasFlag("resume") || !hasFlag("no-resume");
 
@@ -56,6 +57,7 @@ async function main() {
     limit,
     delay_ms: delayMs,
     max_failures: maxFailures,
+    feed_timeout_ms: feedTimeoutMs,
     dry_run: dryRun,
     resume,
     admin_root: adminRoot,

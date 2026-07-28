@@ -178,6 +178,44 @@ export async function discoverPodcastFeedsForSource(
   return discoverFromItunes(source, limit);
 }
 
+export function advanceItunesDiscoveryCursor(
+  source: PodcastSourceRegistryEntry,
+  queries: readonly string[],
+  mode: "query_first" | "country_first" = "query_first",
+  /** Skip multiple storefronts/queries when a window is duplicate-saturated. */
+  steps = 1,
+  /** Extra queries to skip when a full country cycle wraps (mature saturation escape). */
+  queryStepsOnWrap = 1
+): string {
+  const cursor = parseSourceCursor(source.checkpoint_cursor || "0:0:0");
+  let nextQueryIndex = cursor.queryIndex;
+  let nextLanguageIndex = cursor.languageIndex;
+  const nextOffset = 0;
+  const hop = Math.max(1, Math.min(20, Math.floor(steps)));
+  const queryHop = Math.max(1, Math.min(10, Math.floor(queryStepsOnWrap)));
+
+  if (mode === "country_first") {
+    // When a storefront only returns duplicates, jump countries first (optionally multi-hop).
+    nextLanguageIndex += hop;
+    while (nextLanguageIndex >= PODCAST_EXPANSION_ITUNES_COUNTRIES.length) {
+      nextLanguageIndex -= PODCAST_EXPANSION_ITUNES_COUNTRIES.length;
+      nextQueryIndex += queryHop;
+    }
+  } else {
+    nextQueryIndex += hop;
+    while (nextQueryIndex >= queries.length) {
+      nextQueryIndex -= queries.length;
+      nextLanguageIndex += 1;
+    }
+  }
+
+  return formatSourceCursor({
+    queryIndex: nextQueryIndex,
+    languageIndex: nextLanguageIndex,
+    offset: nextOffset,
+  });
+}
+
 export function pickCatalogForBatch(
   remaining: { standard: number; mature: number },
   batchNumber: number
@@ -188,7 +226,7 @@ export function pickCatalogForBatch(
   if (remaining.standard <= 0) return "mature";
   if (remaining.mature <= 0) return "standard";
 
-  if (remaining.standard >= remaining.mature * 2) return "standard";
-  if (remaining.mature >= remaining.standard) return "mature";
-  return batchNumber % 2 === 0 ? "standard" : "mature";
+  // Keep mature progressing even when the standard gap is much larger.
+  // Rough mix ~4 standard : 1 mature (aligned with 40k / 10k targets).
+  return batchNumber % 5 === 0 ? "mature" : "standard";
 }

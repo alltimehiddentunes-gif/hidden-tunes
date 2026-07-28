@@ -16,19 +16,24 @@ import {
 } from "@/lib/podcastMassExpansionCheckpoint";
 import { runPodcastMassExpansionBatch } from "@/lib/podcastMassExpansionBatch";
 import {
+  advanceItunesDiscoveryCursor,
   discoverPodcastFeedsForSource,
   pickCatalogForBatch,
 } from "@/lib/podcastMassExpansionDiscover";
 import {
   computeExpansionRemaining,
-  getPodcastMassExpansionCounts,
+  getPodcastMassExpansionShowCounts,
   isExpansionTargetMet,
 } from "@/lib/podcastMassExpansionStatus";
 import {
   isCatalogSourceExhausted,
   listEnabledPodcastSources,
   loadPodcastSourceRegistry,
+  parseSourceCursor,
   pickNextPodcastSource,
+  PODCAST_EXPANSION_ITUNES_COUNTRIES,
+  PODCAST_MATURE_ITUNES_QUERIES,
+  PODCAST_STANDARD_ITUNES_QUERIES,
   updatePodcastSourceRegistryEntry,
   type PodcastCatalogKind,
   type PodcastSourceRegistryEntry,
@@ -96,7 +101,7 @@ export type PodcastExpansionFinalReport = {
   failed_feeds: number;
   languages: string[];
   categories: string[];
-  final_counts: Awaited<ReturnType<typeof getPodcastMassExpansionCounts>>;
+  final_counts: Awaited<ReturnType<typeof getPodcastMassExpansionShowCounts>>;
   remaining: { standard: number; mature: number };
   target_met: boolean;
   all_sources_exhausted: boolean;
@@ -118,7 +123,39 @@ function ensureState(
 
   if (options.resume !== false) {
     const existing = loadPodcastMassExpansionState(adminRoot);
-    if (existing) return existing;
+    if (existing) {
+      const cliStandard =
+        options.target_standard !== undefined && options.target_standard !== null
+          ? Number(options.target_standard)
+          : null;
+      const cliMature =
+        options.target_mature !== undefined && options.target_mature !== null
+          ? Number(options.target_mature)
+          : null;
+
+      if (cliStandard !== null || cliMature !== null) {
+        existing.targets = {
+          standard:
+            cliStandard !== null && Number.isFinite(cliStandard)
+              ? Math.max(1, cliStandard)
+              : existing.targets.standard,
+          mature:
+            cliMature !== null && Number.isFinite(cliMature)
+              ? Math.max(1, cliMature)
+              : existing.targets.mature,
+        };
+        if (
+          existing.status === "completed" ||
+          existing.status === "paused" ||
+          existing.status === "failed"
+        ) {
+          existing.status = "running";
+        }
+        writePodcastMassExpansionState(existing, adminRoot);
+      }
+
+      return existing;
+    }
   }
 
   const state = createPodcastMassExpansionState({ targets });
@@ -154,10 +191,10 @@ export async function runPodcastExpansionBatch(
     50,
     Math.min(1000, Number(options.batch_size || PODCAST_EXPANSION_DEFAULT_BATCH_SIZE))
   );
-  const countsBefore = await getPodcastMassExpansionCounts();
+  const countsBefore = await getPodcastMassExpansionShowCounts();
   const remainingBefore = computeExpansionRemaining(countsBefore, state.targets);
 
-  if (isExpansionTargetMet(countsBefore, state.targets)) {
+  if (isExpansionTargetMet(countsBefore, state.targets, options.catalog)) {
     state.status = "completed";
     writePodcastMassExpansionState(state, adminRoot);
     return {
@@ -222,6 +259,7 @@ export async function runPodcastExpansionBatch(
   let errorMessage: string | undefined;
 
   try {
+    const attemptedCursor = source.checkpoint_cursor || "0:0:0";
     discovery = await discoverPodcastFeedsForSource(source, Math.max(batchSize * 3, 500));
     source.checkpoint_cursor = discovery.next_cursor;
 
@@ -243,6 +281,31 @@ export async function runPodcastExpansionBatch(
       state.exhausted_sources = Array.from(
         new Set([...state.exhausted_sources, source.source_key])
       );
+    } else if (
+      batchResult.feeds_imported + batchResult.feeds_updated === 0 &&
+      source.source_key.startsWith("itunes:")
+    ) {
+      const queries =
+        catalog === "mature"
+          ? PODCAST_MATURE_ITUNES_QUERIES
+          : PODCAST_STANDARD_ITUNES_QUERIES;
+      // Rewind to the attempted window, then hop (country-first for mature).
+      // Covers both duplicate-only and empty discovery results.
+      source.checkpoint_cursor = attemptedCursor;
+      source.checkpoint_cursor = advanceItunesDiscoveryCursor(
+        source,
+        queries,
+        catalog === "mature" ? "country_first" : "query_first",
+        catalog === "mature" ? 8 : 1,
+        catalog === "mature" ? 3 : 1
+      );
+      const nextCursor = parseSourceCursor(source.checkpoint_cursor);
+      if (nextCursor.queryIndex >= queries.length) {
+        source.is_exhausted = true;
+        state.exhausted_sources = Array.from(
+          new Set([...state.exhausted_sources, source.source_key])
+        );
+      }
     }
 
     source.feeds_accepted += batchResult.feeds_imported + batchResult.feeds_updated;
@@ -305,14 +368,16 @@ export async function runPodcastExpansionBatch(
   state.episodes_imported += batchResult.episodes_inserted;
   state.duplicate_feeds_skipped += batchResult.duplicate_feeds;
   state.failed_feeds += batchResult.failed_feeds;
-  state.completed_feed_urls = batchResult.checkpoint.completed_feed_urls.slice(-50_000);
+  if (options.dry_run !== true) {
+    state.completed_feed_urls = batchResult.checkpoint.completed_feed_urls.slice(-50_000);
+  }
   state.status = errorMessage ? "failed" : "running";
   writePodcastMassExpansionState(state, adminRoot);
 
-  const countsAfter = await getPodcastMassExpansionCounts();
+  const countsAfter = await getPodcastMassExpansionShowCounts();
   const remainingAfter = computeExpansionRemaining(countsAfter, state.targets);
 
-  if (isExpansionTargetMet(countsAfter, state.targets)) {
+  if (isExpansionTargetMet(countsAfter, state.targets, options.catalog)) {
     state.status = "completed";
     writePodcastMassExpansionState(state, adminRoot);
   }
@@ -370,8 +435,8 @@ export async function runPodcastExpansionLoop(
   const sourcesProcessed = new Set<string>();
 
   for (let index = 0; index < maxBatches; index += 1) {
-    const counts = await getPodcastMassExpansionCounts();
-    if (isExpansionTargetMet(counts, state.targets)) break;
+    const counts = await getPodcastMassExpansionShowCounts();
+    if (isExpansionTargetMet(counts, state.targets, options.catalog)) break;
 
     const sources = listEnabledPodcastSources(adminRoot);
     const remaining = computeExpansionRemaining(counts, state.targets);
@@ -408,8 +473,9 @@ export async function runPodcastExpansionLoop(
     }
 
     if (isExpansionTargetMet(
-      await getPodcastMassExpansionCounts(),
-      state.targets
+      await getPodcastMassExpansionShowCounts(),
+      state.targets,
+      options.catalog
     )) {
       break;
     }
@@ -417,7 +483,7 @@ export async function runPodcastExpansionLoop(
     await sleep(250);
   }
 
-  const finalCounts = await getPodcastMassExpansionCounts();
+  const finalCounts = await getPodcastMassExpansionShowCounts();
   const remaining = computeExpansionRemaining(finalCounts, state.targets);
   const registry = loadPodcastSourceRegistry(adminRoot);
   const allSourcesExhausted =
@@ -425,7 +491,7 @@ export async function runPodcastExpansionLoop(
     isCatalogSourceExhausted(registry, "mature");
 
   const finalState = loadPodcastMassExpansionState(adminRoot) || state;
-  finalState.status = isExpansionTargetMet(finalCounts, finalState.targets)
+  finalState.status = isExpansionTargetMet(finalCounts, finalState.targets, options.catalog)
     ? "completed"
     : allSourcesExhausted
       ? "completed"
@@ -449,9 +515,9 @@ export async function runPodcastExpansionLoop(
     categories: finalCounts.categories,
     final_counts: finalCounts,
     remaining,
-    target_met: isExpansionTargetMet(finalCounts, finalState.targets),
+    target_met: isExpansionTargetMet(finalCounts, finalState.targets, options.catalog),
     all_sources_exhausted: allSourcesExhausted,
-    status: isExpansionTargetMet(finalCounts, finalState.targets)
+    status: isExpansionTargetMet(finalCounts, finalState.targets, options.catalog)
       ? "completed"
       : allSourcesExhausted
         ? "partial"

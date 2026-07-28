@@ -4,8 +4,13 @@ import {
   buildWorkDedupKey,
   normalizeAudiobookTitleKey,
 } from "@/lib/audiobookDedup";
+import { classifyMatureAudiobookCandidate } from "@/lib/audiobookMature/classifier";
 import { verifyAudiobookEditionSampleChapters } from "@/lib/audiobookPlayabilityCheck";
-import type { NormalizedArchiveAudiobookCandidate } from "@/lib/audiobookSources/internetArchiveAudiobookSource";
+import {
+  pickExistingColumns,
+  tableExists,
+} from "@/lib/audiobookSources/schemaCompat";
+import type { NormalizedAudiobookCandidate } from "@/lib/audiobookSources/types";
 import { cleanText } from "@/lib/tvCatalog";
 
 function slugify(value: string, fallback = "audiobook") {
@@ -13,7 +18,9 @@ function slugify(value: string, fallback = "audiobook") {
   return cleaned.slice(0, 180) || fallback;
 }
 
-async function findOrCreateWork(candidate: NormalizedArchiveAudiobookCandidate) {
+async function findOrCreateWork(candidate: NormalizedAudiobookCandidate) {
+  if (!(await tableExists("audiobook_works"))) return null;
+
   const workKey = buildWorkDedupKey({
     title: candidate.title,
     author: candidate.authorName,
@@ -31,20 +38,23 @@ async function findOrCreateWork(candidate: NormalizedArchiveAudiobookCandidate) 
   if (existingError) throw existingError;
   if (existing?.id) return existing.id as string;
 
+  const payload = await pickExistingColumns("audiobook_works", {
+    canonical_title: candidate.title,
+    normalized_title: normalizeAudiobookTitleKey(candidate.title),
+    original_title: candidate.title,
+    primary_author_name: candidate.authorName,
+    description: candidate.description,
+    subjects: candidate.categories,
+    genres: candidate.genres || candidate.categories,
+    original_language: candidate.language,
+    publication_year: candidate.publicationYear || null,
+    public_domain_status: candidate.licenseType,
+    work_identifier: workKey,
+  });
+
   const { data: inserted, error: insertError } = await supabaseAdmin
     .from("audiobook_works")
-    .insert({
-      canonical_title: candidate.title,
-      normalized_title: normalizeAudiobookTitleKey(candidate.title),
-      original_title: candidate.title,
-      primary_author_name: candidate.authorName,
-      description: candidate.description,
-      subjects: candidate.categories,
-      genres: candidate.categories,
-      original_language: candidate.language,
-      public_domain_status: candidate.licenseType,
-      work_identifier: workKey,
-    })
+    .insert(payload)
     .select("id")
     .single();
 
@@ -60,6 +70,7 @@ async function recordRejectedCandidate(input: {
   reason: string;
   metadata?: Record<string, unknown>;
 }) {
+  if (!(await tableExists("audiobook_rejected_candidates"))) return;
   await supabaseAdmin.from("audiobook_rejected_candidates").insert({
     source_type: input.sourceType,
     source_id: input.sourceId,
@@ -70,10 +81,94 @@ async function recordRejectedCandidate(input: {
   });
 }
 
-export async function importInternetArchiveAudiobookCandidate(
-  candidate: NormalizedArchiveAudiobookCandidate,
-  options: { dryRun?: boolean; verifyPlayback?: boolean } = {}
+async function updateThenInsertByColumn(
+  table: string,
+  matchColumn: string,
+  matchValue: string,
+  payload: Record<string, unknown>
 ) {
+  const safePayload = await pickExistingColumns(table, payload);
+  const { data: existing, error: selectError } = await supabaseAdmin
+    .from(table)
+    .select("id")
+    .eq(matchColumn, matchValue)
+    .limit(1);
+
+  if (selectError) throw selectError;
+
+  if (existing && existing.length > 0) {
+    const { error: updateError } = await supabaseAdmin
+      .from(table)
+      .update(safePayload)
+      .eq(matchColumn, matchValue);
+    if (updateError) throw updateError;
+    return existing[0] as { id: string };
+  }
+
+  const { data: inserted, error: insertError } = await supabaseAdmin
+    .from(table)
+    .insert(safePayload)
+    .select("id")
+    .single();
+  if (insertError) throw insertError;
+  return inserted as { id: string };
+}
+
+export async function importNormalizedAudiobookCandidate(
+  candidate: NormalizedAudiobookCandidate,
+  options: {
+    dryRun?: boolean;
+    verifyPlayback?: boolean;
+    forceMature?: boolean;
+  } = {}
+) {
+  const isMature = options.forceMature === true || candidate.isMature === true;
+
+  if (isMature) {
+    const classification = classifyMatureAudiobookCandidate({
+      title: candidate.title,
+      description: candidate.description,
+      categories: candidate.categories,
+      subjects: candidate.genres,
+      rightsEvidence: candidate.rightsEvidence,
+      sourceIsMatureLane: true,
+    });
+    if (!classification.accept) {
+      if (!options.dryRun) {
+        await recordRejectedCandidate({
+          sourceType: candidate.sourceType,
+          sourceId: candidate.sourceId,
+          sourceKey: candidate.sourceKey,
+          title: candidate.title,
+          reason: classification.classification,
+          metadata: {
+            reason: classification.reason,
+            evidence: classification.evidence,
+          },
+        });
+      }
+      return {
+        accepted: false,
+        inserted: false,
+        updated: false,
+        skipped: false,
+        reason: classification.classification,
+        chaptersInserted: 0,
+      };
+    }
+  }
+
+  if (!candidate.chapters.length) {
+    return {
+      accepted: false,
+      inserted: false,
+      updated: false,
+      skipped: false,
+      reason: "invalid_chapter_structure",
+      chaptersInserted: 0,
+    };
+  }
+
   const editionKey = buildEditionDedupKey({
     sourceType: candidate.sourceType,
     sourceId: candidate.sourceId,
@@ -83,11 +178,23 @@ export async function importInternetArchiveAudiobookCandidate(
 
   const { data: existingEdition, error: existingEditionError } = await supabaseAdmin
     .from("audiobooks")
-    .select("id")
+    .select("id, is_mature")
     .eq("source_key", editionKey)
     .maybeSingle();
 
   if (existingEditionError) throw existingEditionError;
+
+  // Keep catalogs separated: never flip lanes on an existing edition.
+  if (existingEdition?.id && Boolean(existingEdition.is_mature) !== isMature) {
+    return {
+      accepted: false,
+      inserted: false,
+      updated: false,
+      skipped: true,
+      reason: "cross_catalog_collision",
+      chaptersInserted: 0,
+    };
+  }
 
   if (options.verifyPlayback !== false) {
     const verification = await verifyAudiobookEditionSampleChapters(
@@ -109,34 +216,47 @@ export async function importInternetArchiveAudiobookCandidate(
         updated: false,
         skipped: false,
         reason: verification.reason || "playback_verification_failed",
+        chaptersInserted: 0,
       };
     }
   }
 
   if (options.dryRun) {
-    return { accepted: true, inserted: true, updated: false, skipped: false, reason: null };
+    return {
+      accepted: true,
+      inserted: !existingEdition?.id,
+      updated: Boolean(existingEdition?.id),
+      skipped: false,
+      reason: null,
+      chaptersInserted: candidate.chapters.length,
+    };
   }
 
   const workId = await findOrCreateWork(candidate);
   const slug = `${slugify(candidate.title)}-${candidate.sourceId.slice(0, 12)}`;
   const normalizedTitleAuthor = `${normalizeAudiobookTitleKey(candidate.title)}-${normalizeAudiobookTitleKey(candidate.authorName || "unknown")}`;
 
-  const editionPayload = {
+  const editionPayload = await pickExistingColumns("audiobooks", {
     work_id: workId,
     slug,
     title: candidate.title,
+    subtitle: candidate.subtitle || null,
     description: candidate.description,
     cover_url: candidate.coverUrl,
     author_name: candidate.authorName,
     narrator_name: candidate.narratorName,
-    category_slug: candidate.categorySlug,
-    categories: candidate.categories,
+    category_slug: isMature ? "mature" : candidate.categorySlug,
+    categories: isMature
+      ? Array.from(new Set(["mature", ...candidate.categories]))
+      : candidate.categories,
     language: candidate.language,
+    country: candidate.country || null,
     publisher: candidate.publisher,
     source_type: candidate.sourceType,
     source_id: candidate.sourceId,
     source_url: candidate.sourceUrl,
     source_key: editionKey,
+    source: candidate.sourceType,
     normalized_title_author: normalizedTitleAuthor,
     rights: candidate.rightsEvidence,
     rights_evidence: candidate.rightsEvidence,
@@ -157,10 +277,10 @@ export async function importInternetArchiveAudiobookCandidate(
     playback_status: "playable",
     is_active: true,
     is_verified: false,
-    is_mature: false,
+    is_mature: isMature,
     published_at: new Date().toISOString(),
     last_checked_at: new Date().toISOString(),
-  };
+  });
 
   let editionId = existingEdition?.id as string | undefined;
   if (editionId) {
@@ -185,6 +305,7 @@ export async function importInternetArchiveAudiobookCandidate(
     const chapterPayload = {
       audiobook_id: editionId,
       title: cleanText(chapter.title, 300) || `Chapter ${chapter.chapterNumber}`,
+      description: "",
       chapter_number: chapter.chapterNumber,
       sequence_number: chapter.sequenceNumber,
       normalized_title: normalizeAudiobookTitleKey(chapter.title),
@@ -193,42 +314,26 @@ export async function importInternetArchiveAudiobookCandidate(
       source_format: chapter.format,
       mime_type: chapter.mimeType,
       canonical_media_reference: chapter.audioUrl,
+      audio_url: chapter.audioUrl,
       is_public: true,
       is_playable: true,
+      is_active: true,
       health_state: "verified_sample",
       published_at: new Date().toISOString(),
+      source_key: chapterSourceKey,
     };
 
-    const { data: existingChapter, error: existingChapterError } = await supabaseAdmin
-      .from("audiobook_chapters")
-      .select("id")
-      .eq("audiobook_id", editionId)
-      .eq("source_key", chapterSourceKey)
-      .maybeSingle();
-
-    if (existingChapterError) throw existingChapterError;
-
-    let chapterId = existingChapter?.id as string | undefined;
-    if (chapterId) {
-      const { error } = await supabaseAdmin
-        .from("audiobook_chapters")
-        .update({ ...chapterPayload, source_key: chapterSourceKey })
-        .eq("id", chapterId);
-      if (error) throw error;
-    } else {
-      const { data: insertedChapter, error } = await supabaseAdmin
-        .from("audiobook_chapters")
-        .insert({ ...chapterPayload, source_key: chapterSourceKey })
-        .select("id")
-        .single();
-      if (error) throw error;
-      chapterId = insertedChapter.id as string;
-      chaptersInserted += 1;
-    }
+    const chapterRow = await updateThenInsertByColumn(
+      "audiobook_chapters",
+      "source_key",
+      chapterSourceKey,
+      chapterPayload
+    );
+    if (!existingEdition?.id) chaptersInserted += 1;
 
     const filePayload = {
       audiobook_id: editionId,
-      chapter_id: chapterId,
+      chapter_id: chapterRow.id,
       title: chapter.title,
       audio_url: chapter.audioUrl,
       duration_seconds: chapter.durationSeconds,
@@ -240,23 +345,12 @@ export async function importInternetArchiveAudiobookCandidate(
       source_key: `${chapterSourceKey}:file`,
     };
 
-    const { data: existingFile, error: existingFileError } = await supabaseAdmin
-      .from("audiobook_files")
-      .select("id")
-      .eq("source_key", filePayload.source_key)
-      .maybeSingle();
-
-    if (existingFileError) throw existingFileError;
-    if (existingFile?.id) {
-      const { error } = await supabaseAdmin
-        .from("audiobook_files")
-        .update(filePayload)
-        .eq("id", existingFile.id);
-      if (error) throw error;
-    } else {
-      const { error } = await supabaseAdmin.from("audiobook_files").insert(filePayload);
-      if (error) throw error;
-    }
+    await updateThenInsertByColumn(
+      "audiobook_files",
+      "source_key",
+      filePayload.source_key,
+      filePayload
+    );
   }
 
   return {
@@ -268,4 +362,12 @@ export async function importInternetArchiveAudiobookCandidate(
     editionId,
     chaptersInserted,
   };
+}
+
+/** Backward-compatible alias used by existing expansion runner. */
+export async function importInternetArchiveAudiobookCandidate(
+  candidate: NormalizedAudiobookCandidate,
+  options: { dryRun?: boolean; verifyPlayback?: boolean } = {}
+) {
+  return importNormalizedAudiobookCandidate(candidate, options);
 }

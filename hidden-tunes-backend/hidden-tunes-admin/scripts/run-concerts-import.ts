@@ -11,12 +11,25 @@
  */
 
 import { getCuratedConcertSources } from "../lib/concerts/sourceRegistry";
+import { listBatch2WaveSourceSeeds } from "../lib/concerts/expansion/batch2SourceWave";
 import { runConcertsImport } from "../lib/concerts/import/runner";
+import type { ConcertSourceSeed } from "../lib/concerts/types";
 
 function readArg(name: string): string | undefined {
   const prefix = `--${name}=`;
   const hit = process.argv.find((arg) => arg.startsWith(prefix));
   return hit ? hit.slice(prefix.length) : undefined;
+}
+
+function mergedSources(): ConcertSourceSeed[] {
+  const byKey = new Map<string, ConcertSourceSeed>();
+  for (const source of [
+    ...getCuratedConcertSources(),
+    ...listBatch2WaveSourceSeeds(),
+  ]) {
+    byKey.set(source.stableKey, source);
+  }
+  return [...byKey.values()];
 }
 
 async function main() {
@@ -27,7 +40,7 @@ async function main() {
   const pageSize = Number(readArg("page-size") || "25");
 
   const report = await runConcertsImport({
-    sources: getCuratedConcertSources(),
+    sources: mergedSources(),
     sourceStableKey,
     maxPagesPerSource,
     pageSize,

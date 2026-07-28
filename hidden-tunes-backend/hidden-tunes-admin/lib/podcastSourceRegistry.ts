@@ -131,6 +131,31 @@ export const PODCAST_EXPANSION_ITUNES_COUNTRIES = [
   // Oceania
   "AU",
   "NZ",
+  // Additional storefronts (appended to preserve cursor indices)
+  "DO",
+  "LU",
+  "EE",
+  "LV",
+  "SK",
+  "MT",
+  "CY",
+  // More long-tail storefronts
+  "LT",
+  "GT",
+  "HN",
+  "SV",
+  "NI",
+  "BO",
+  "PY",
+  "QA",
+  "KW",
+  "BH",
+  "OM",
+  "LB",
+  "TN",
+  "DZ",
+  "SN",
+  "CI",
 ] as const;
 
 export type PodcastExpansionItunesCountry =
@@ -184,6 +209,68 @@ export const PODCAST_STANDARD_ITUNES_QUERIES = [
   "college podcast",
   "nonprofit podcast",
   "government podcast",
+  // Wave expansion terms (appended Ã¢â‚¬â€ preserves existing cursor indices)
+  "football podcast",
+  "basketball podcast",
+  "baseball podcast",
+  "tennis podcast",
+  "motorsports podcast",
+  "wrestling podcast",
+  "soccer podcast",
+  "cricket podcast",
+  "nature podcast",
+  "meditation podcast",
+  "self improvement podcast",
+  "careers podcast",
+  "design podcast",
+  "fashion podcast",
+  "cooking podcast",
+  "pets podcast",
+  "lgbtq podcast",
+  "pop culture podcast",
+  "entertainment podcast",
+  "tv film podcast",
+  "local podcast",
+  "community radio podcast",
+  "university podcast",
+  "museum podcast",
+  "public radio podcast",
+  "bbc podcast",
+  "npr podcast",
+  "kids podcast",
+  "family podcast",
+  "fiction podcast",
+  "audiobook podcast",
+  "live show podcast",
+  "investing podcast",
+  "entrepreneurship podcast",
+  "spirituality podcast",
+  "relationships podcast",
+  "mental health podcast",
+  "climate podcast",
+  "wildlife podcast",
+  "architecture podcast",
+  "photography podcast",
+  "podcast brasil",
+  "podcast mexico",
+  "podcast argentina",
+  "podcast espana",
+  "podcast france",
+  "podcast deutschland",
+  "podcast italia",
+  "podcast japan",
+  "podcast india",
+  "podcast nigeria",
+  "podcast kenya",
+  "podcast south africa",
+  "podcast australia",
+  "podcast korea",
+  "podcast china",
+  "podcast arabia",
+  "podcast turkey",
+  "podcast poland",
+  "podcast netherlands",
+  "podcast sweden",
 ] as const;
 
 export const PODCAST_MATURE_ITUNES_QUERIES = [
@@ -202,6 +289,80 @@ export const PODCAST_MATURE_ITUNES_QUERIES = [
   "mature storytelling podcast",
   "18+ podcast",
   "explicit humor podcast",
+  "sexual wellness podcast",
+  "intimacy podcast explicit",
+  "erotic stories podcast",
+  "adult relationships podcast",
+  "lgbtq sexuality podcast",
+  "couples intimacy podcast",
+  "swinger lifestyle podcast",
+  "kink education podcast",
+  "body positivity podcast explicit",
+  "adult entertainment podcast",
+  "explicit storytelling podcast",
+  // Multilingual / regional mature discovery terms
+  "podcast adulto",
+  "podcast explÃƒÂ­cito",
+  "podcast erotico",
+  "sexo podcast",
+  "relaciones intimas podcast",
+  "podcast adult",
+  "podcast erotique",
+  "podcast explicite",
+  "podcast intimite",
+  "podcast explizit",
+  "erotik podcast",
+  "podcast erwachsene",
+  "podcast adulto brasil",
+  "podcast sexo",
+  "intimidade podcast",
+  "podcast erotico italia",
+  "podcast esplicito",
+  "volwassen podcast",
+  "erotik podcast sverige",
+  "voksen podcast",
+  "aikuinen podcast",
+  "podcast dospÃ„â€ºlÃƒÂ½",
+  "podcast dla dorosÃ…â€šych",
+  "yetiÃ…Å¸kin podcast",
+  "Ã¦Ë†ÂÃ¤ÂºÂº podcast",
+  "Ã£â€šÂ¢Ã£Æ’â‚¬Ã£Æ’Â«Ã£Æ’Ë† Ã£Æ’ÂÃ£Æ’Æ’Ã£Æ’â€°Ã£â€šÂ­Ã£Æ’Â£Ã£â€šÂ¹Ã£Æ’Ë†",
+  "Ã¬â€žÂ±Ã¬ÂÂ¸ Ã­Å’Å¸Ã¬ÂºÂÃ¬Å Â¤Ã­Å Â¸",
+  // Additional mature term variants (appended Ã¢â‚¬â€ preserves existing cursor indices)
+  "nsfw podcast",
+  "adulting after dark podcast",
+  "sex positive podcast",
+  "bedroom talk podcast",
+  "dirty talk podcast",
+  "only fans podcast",
+  "porn addiction podcast",
+  "polyamory podcast explicit",
+  "queer sex podcast",
+  "tantra podcast explicit",
+  "affair podcast explicit",
+  "hookup culture podcast",
+  "sugar dating podcast",
+  "open relationship podcast",
+  "fetish podcast",
+  "bdsm podcast",
+  "sexting podcast",
+  "podcast para adultos",
+  "podcast erotico espanol",
+  "podcast sexo mexico",
+  "podcast erotico brasil",
+  "podcast sensuel",
+  "podcast coquin",
+  "podcast erotisch",
+  "erwachsene podcast",
+  "podcast hot talk",
+  "spicy podcast explicit",
+  "raunchy comedy podcast",
+  "dirty comedy podcast",
+  "__genre_chart:1512",
+  "__genre_chart:1303",
+  "__genre_chart:1324",
+  "__genre_chart:1483",
+  "__genre_chart:1321",
 ] as const;
 
 export const PODCAST_STANDARD_INDEX_QUERIES = [
@@ -365,7 +526,8 @@ export function loadPodcastSourceRegistry(adminRoot = process.cwd()) {
     return defaults;
   }
 
-  const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as {
+  const raw = fs.readFileSync(filePath, "utf8").replace(/^\uFEFF/, "");
+  const parsed = JSON.parse(raw) as {
     sources?: PodcastSourceRegistryEntry[];
   };
   return parsed.sources?.length ? parsed.sources : defaultRegistry();
@@ -402,7 +564,8 @@ export function pickNextPodcastSource(
     (entry) =>
       entry.is_enabled &&
       !entry.is_exhausted &&
-      entry.catalog === catalog
+      entry.catalog === catalog &&
+      !(entry.source_kind === "podcast_index" && !hasPodcastIndexCredentials())
   );
 
   if (eligible.length === 0) return null;
@@ -456,7 +619,13 @@ export function isCatalogSourceExhausted(
   sources: PodcastSourceRegistryEntry[],
   catalog: PodcastCatalogKind
 ) {
-  const catalogSources = sources.filter((entry) => entry.catalog === catalog);
+  const catalogSources = sources.filter((entry) => {
+    if (entry.catalog !== catalog) return false;
+    if (entry.source_kind === "podcast_index" && !hasPodcastIndexCredentials()) {
+      return false;
+    }
+    return true;
+  });
   if (catalogSources.length === 0) return true;
   return catalogSources.every((entry) => !entry.is_enabled || entry.is_exhausted);
 }

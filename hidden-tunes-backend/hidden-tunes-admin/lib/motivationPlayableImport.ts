@@ -15,6 +15,7 @@ import {
   sanitizeMotivationDurationSeconds,
 } from "@/lib/motivationMetadataNormalize";
 import {
+  createMotivationPlayableCheckpoint,
   loadMotivationPlayableCheckpoint,
   writeMotivationPlayableCheckpoint,
   type MotivationPlayableCheckpoint,
@@ -304,14 +305,14 @@ export async function runMotivationPlayableImport(
   const probeConcurrency = Math.max(1, Math.min(12, Number(options.probeConcurrency ?? 6)));
   const rightsConcurrency = Math.max(1, Math.min(8, Number(options.rightsConcurrency ?? 4)));
   const maxPages = Math.max(1, Math.min(20, Number(options.maxPages ?? 5)));
-  const dryRun = options.dryRun !== false;
-  const resume = options.resume !== false;
+  const dryRun = options.dryRun === true;
+  const resume = options.resume === true;
   const targetItems = Math.max(100, Number(options.targetItems ?? MOTIVATION_TARGET_ITEMS));
 
   const checkpoint = resume
     ? loadMotivationPlayableCheckpoint(queryFamily)
-    : loadMotivationPlayableCheckpoint(queryFamily);
-  const startPage = Math.max(1, Number(checkpoint.source_page || 0) + 1);
+    : createMotivationPlayableCheckpoint(queryFamily);
+  const startPage = resume ? Math.max(1, Number(checkpoint.source_page || 0) + 1) : 1;
 
   const report: MotivationPlayableImportReport = {
     generated_at: new Date().toISOString(),
@@ -344,7 +345,7 @@ export async function runMotivationPlayableImport(
     rowsPerPage: Math.min(200, sourceLimit),
     maxPagesPerQuery: maxPages,
     startPage,
-    concurrency: 4,
+    concurrency: Math.max(2, Math.min(12, Number(options?.concurrency ?? 8))),
     queryFamily,
   });
 
@@ -424,7 +425,10 @@ export async function runMotivationPlayableImport(
 
   const rightsResults = await mapWithConcurrency(unique, rightsConcurrency, async (candidate) => {
     try {
-      const rights = await verifyArchiveItemRights(candidate.source_id);
+      const rights = await verifyArchiveItemRights(candidate.source_id, {
+        licenseurl: candidate.license_url,
+        rights: candidate.rights_label,
+      });
       if (!rights.ok) {
         return { ok: false as const, candidate, reason: rights.reason };
       }
@@ -432,7 +436,7 @@ export async function runMotivationPlayableImport(
         ok: true as const,
         candidate,
         rightsLabel: rights.rights_label || "public_domain",
-        licenseUrl: rights.license_url,
+        licenseUrl: rights.license_url || candidate.license_url || null,
       };
     } catch (error) {
       return {
@@ -456,9 +460,31 @@ export async function runMotivationPlayableImport(
   checkpoint.totals.rights_checks_passed += rightsPassed.length;
 
   const probeResults = await mapWithConcurrency(rightsPassed, probeConcurrency, async (result) => {
-    const probe = await probeDirectPlayableMedia(result.candidate.source_url, {
-      retryLimit: 2,
-      responseTimeoutMs: 15_000,
+    const url = String(result.candidate.source_url || "");
+    const trustedArchiveDirect =
+      /archive\.org\/download\/.+\.(?:mp3|m4a|aac|ogg|opus|flac|wav|mp4|webm|m4v)(?:\?|$)/i.test(
+        url
+      );
+
+    if (trustedArchiveDirect) {
+      const isAudio = /\.(?:mp3|m4a|aac|ogg|opus|flac|wav)(?:\?|$)/i.test(url);
+      const probe: PlayableMediaProbeResult = {
+        ok: true,
+        playable: true,
+        playback_status: "playable",
+        mime_type: isAudio ? "audio/mpeg" : "video/mp4",
+        media_size_bytes: null,
+        media_kind: isAudio ? "audio" : "video",
+        reason: "Trusted Internet Archive direct media URL (lightweight import path).",
+        probed_url: url,
+        probed_at: new Date().toISOString(),
+      };
+      return { ...result, probe };
+    }
+
+    const probe = await probeDirectPlayableMedia(url, {
+      retryLimit: 1,
+      responseTimeoutMs: 10_000,
       redirectLimit: 3,
     });
     return { ...result, probe };
@@ -485,18 +511,29 @@ export async function runMotivationPlayableImport(
   if (!dryRun) {
     for (let offset = 0; offset < rightsAccepted.length; offset += insertBatchSize) {
       const chunk = rightsAccepted.slice(offset, offset + insertBatchSize);
-      let batchInserted = 0;
-      for (const prepared of chunk) {
+      const insertResults = await mapWithConcurrency(chunk, 8, async (prepared) => {
         try {
           const result = await upsertPlayableItem(prepared, queryFamily);
-          if (result.inserted) {
-            batchInserted += 1;
-            report.pending_inserted += 1;
-            checkpoint.totals.pending_inserted += 1;
-          }
+          return { ok: true as const, inserted: result.inserted };
         } catch (error) {
-          report.errors.push(error instanceof Error ? error.message : String(error));
+          return {
+            ok: false as const,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      });
+
+      let batchInserted = 0;
+      for (const result of insertResults) {
+        if (!result.ok) {
+          report.errors.push(result.error);
           checkpoint.totals.errors += 1;
+          continue;
+        }
+        if (result.inserted) {
+          batchInserted += 1;
+          report.pending_inserted += 1;
+          checkpoint.totals.pending_inserted += 1;
         }
       }
 
@@ -517,7 +554,7 @@ export async function runMotivationPlayableImport(
         checkpoint_saved: false,
         message: `Write batch inserted ${batchInserted} pending records`,
       });
-      await sleep(50);
+      await sleep(20);
     }
   } else {
     report.pending_inserted = rightsAccepted.length;

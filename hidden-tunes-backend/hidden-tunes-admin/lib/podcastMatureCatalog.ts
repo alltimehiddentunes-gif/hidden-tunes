@@ -6,7 +6,8 @@ import {
   parsePodcastPage,
   toPodcastPublicEpisode,
 } from "@/lib/podcastCatalog";
-import { cleanPodcastFilter, parseBooleanQuery } from "@/lib/podcastPublicApi";
+import { cleanPodcastFilter } from "@/lib/podcastPublicApi";
+import { canAccessMatureContent } from "@/lib/matureContentAccess";
 import { cleanText } from "@/lib/tvCatalog";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
@@ -94,14 +95,10 @@ export function matureGateEnabled(query: {
   matureEnabled?: string | null;
   age_confirmed?: string | null;
   ageConfirmed?: string | null;
+  includeMature?: string | null;
+  include_mature?: string | null;
 }) {
-  const matureEnabled = parseBooleanQuery(
-    query.mature_enabled || query.matureEnabled || null
-  );
-  const ageConfirmed = parseBooleanQuery(
-    query.age_confirmed || query.ageConfirmed || null
-  );
-  return matureEnabled && ageConfirmed;
+  return canAccessMatureContent(query);
 }
 
 function escapeIlikePattern(value: string) {

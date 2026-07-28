@@ -21,10 +21,11 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const page = parseRadioPage(params.get("page"));
   const limit = parseRadioLimit(params.get("limit"));
-  const includeMature = parseRadioBoolean(
-    params.get("includeMature") || params.get("include_mature")
+  const canAccessMature = parseMatureRadioAccess(request);
+  const matureOnly = Boolean(
+    parseRadioBoolean(params.get("includeMature") || params.get("include_mature"))
   );
-  if (includeMature && !parseMatureRadioAccess(request)) {
+  if (matureOnly && !canAccessMature) {
     return jsonRadioError("Mature radio requires age confirmation.", 403);
   }
 
@@ -52,7 +53,8 @@ export async function GET(request: NextRequest) {
     country: params.get("country"),
     language: params.get("language"),
     featured: parseRadioBoolean(params.get("featured")),
-    includeMature: includeMature && parseMatureRadioAccess(request),
+    includeMature: matureOnly,
+    canAccessMature: canAccessMature && !matureOnly,
     searchQuery: params.get("q"),
     httpsOnly,
   });

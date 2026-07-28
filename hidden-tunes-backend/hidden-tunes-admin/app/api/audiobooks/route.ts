@@ -8,6 +8,7 @@ import {
   parseAudiobookLimit,
   parseAudiobookPage,
 } from "@/lib/audiobookCatalog";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
   const author = cleanAudiobookFilter(params.get("author"));
   const narrator = cleanAudiobookFilter(params.get("narrator"));
   const completeOnly = params.get("complete_only") === "true";
+  const canAccessMature = canAccessMatureContentFromRequest(request);
 
   try {
     const result = await listAudiobooks({
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
       narrator,
       completeOnly,
       includeTotal: page === 1 && !cursor,
-      mature: false,
+      canAccessMature,
     });
 
     return NextResponse.json({

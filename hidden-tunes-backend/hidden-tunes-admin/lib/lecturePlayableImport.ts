@@ -6,9 +6,15 @@ import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { mapSubjectToCategorySlug } from "@/lib/lecturesExpansion/categories";
+import {
+  buildCoachingMetadata,
+  classifyCoachingContent,
+} from "@/lib/lecturesExpansion/coachingClassifier";
+import { LECTURE_EXPANSION_TARGET_PLAYABLE_ITEMS } from "@/lib/lecturesExpansion/constants";
 
-export const LECTURE_PLAYABLE_IMPORT_VERSION = "lecture-playable-import-v1";
-export const LECTURE_PLAYABLE_TARGET = 200_000;
+export const LECTURE_PLAYABLE_IMPORT_VERSION = "lecture-playable-import-v2";
+export const LECTURE_PLAYABLE_TARGET = LECTURE_EXPANSION_TARGET_PLAYABLE_ITEMS;
 
 const DEFAULT_REPORT_DIR = path.join(process.cwd(), "data", "lecture-playable-import-reports");
 
@@ -62,6 +68,15 @@ const EDUCATIONAL_QUERY_FAMILIES = [
   "instructional films",
   "school lessons",
   "adult education",
+  "life coaching workshop",
+  "career coaching training",
+  "executive leadership coaching",
+  "business coaching masterclass",
+  "productivity coaching session",
+  "parenting coaching lessons",
+  "financial coaching workshop",
+  "study coaching techniques",
+  "coach training certification",
 ];
 
 const SUBJECT_MAP = [
@@ -158,9 +173,16 @@ type MediaCandidate = {
   format: string | null;
 };
 
+type VerifiedSession = {
+  media: MediaCandidate;
+  probe: MediaProbe;
+  fileSourceKeyValue: string;
+};
+
 type VerifiedCandidate = Candidate & {
   media: MediaCandidate;
   probe: MediaProbe;
+  sessions: VerifiedSession[];
   subjectSlug: string;
   provisionalSubject: string;
   classification: string;
@@ -168,6 +190,9 @@ type VerifiedCandidate = Candidate & {
   sourceKeyValue: string;
   fileSourceKeyValue: string;
 };
+
+const MAX_SESSIONS_PER_PROGRAM = 20;
+const MAX_SESSIONS_HARD_PROBE = 2;
 
 type MediaProbe = {
   ok: boolean;
@@ -197,9 +222,12 @@ export type LecturePlayableImportOptions = {
   sourceFamilies?: string[];
   subjectFamilies?: string[];
   reportDir?: string;
+  regionHint?: string | null;
 };
 
-type NormalizedOptions = Required<LecturePlayableImportOptions>;
+type NormalizedOptions = Required<Omit<LecturePlayableImportOptions, "regionHint">> & {
+  regionHint: string | null;
+};
 
 type ImportSummary = {
   runId: string;
@@ -260,8 +288,8 @@ export function normalizeLecturePlayableImportOptions(
     ),
     sourceLimit: clampNumber(options.sourceLimit, readNumber("SOURCE_LIMIT", 100, 1, 2_000), 1, 2_000),
     insertBatchSize: clampNumber(options.insertBatchSize, readNumber("INSERT_BATCH_SIZE", 100, 1, 500), 1, 500),
-    probeConcurrency: clampNumber(options.probeConcurrency, readNumber("PROBE_CONCURRENCY", 5, 1, 20), 1, 20),
-    metadataConcurrency: clampNumber(options.metadataConcurrency, readNumber("METADATA_CONCURRENCY", 4, 1, 20), 1, 20),
+    probeConcurrency: clampNumber(options.probeConcurrency, readNumber("PROBE_CONCURRENCY", 5, 1, 40), 1, 40),
+    metadataConcurrency: clampNumber(options.metadataConcurrency, readNumber("METADATA_CONCURRENCY", 4, 1, 24), 1, 24),
     maxPages: clampNumber(options.maxPages, readNumber("MAX_PAGES", 1, 1, 500), 1, 500),
     rounds: clampNumber(options.rounds, readNumber("ROUNDS", 1, 1, 100), 1, 100),
     requestTimeoutMs: clampNumber(options.requestTimeoutMs, readNumber("REQUEST_TIMEOUT_MS", 30_000, 2_000, 60_000), 2_000, 60_000),
@@ -270,6 +298,7 @@ export function normalizeLecturePlayableImportOptions(
     sourceFamilies: options.sourceFamilies ?? splitEnv("SOURCE_FAMILIES", ["internet_archive_public_domain"]),
     subjectFamilies: options.subjectFamilies ?? splitEnv("SUBJECT_FAMILIES", EDUCATIONAL_QUERY_FAMILIES),
     reportDir: options.reportDir ?? (process.env.REPORT_DIR || DEFAULT_REPORT_DIR),
+    regionHint: options.regionHint ?? null,
   };
 }
 
@@ -318,6 +347,18 @@ async function countPublicLecturePrograms() {
     .eq("is_public", true)
     .eq("is_verified", true)
     .eq("is_mature", false)
+    .eq("playback_status", "playable")
+    .eq("playable_status", "playable");
+  if (error) throw error;
+  return count || 0;
+}
+
+async function countPublicPlayableItems() {
+  const { count, error } = await supabaseAdmin
+    .from("lecture_files")
+    .select("id", { count: "exact", head: true })
+    .eq("is_active", true)
+    .eq("is_verified", true)
     .eq("playback_status", "playable")
     .eq("playable_status", "playable");
   if (error) throw error;
@@ -378,11 +419,32 @@ async function saveCheckpoint(input: {
 
 function buildArchiveSearchUrl(queryFamily: string, page: number, rows: number) {
   const url = new URL("https://archive.org/advancedsearch.php");
-  const query = [
-    "mediatype:(audio OR movies)",
-    `(${queryFamily.split(/\s+/).map((word) => `title:${word} OR subject:${word}`).join(" OR ")})`,
-    '(licenseurl:*creativecommons* OR licenseurl:*publicdomain* OR rights:"Public Domain" OR rights:"Creative Commons")',
-  ].join(" AND ");
+  const shardMatch = queryFamily.match(/^broad educational sweep(?:#([0-9a-z]))?$/i);
+  const isBroadSweep = Boolean(shardMatch);
+  const shard = shardMatch?.[1]?.toLowerCase() || null;
+
+  const educationalClause =
+    "(subject:lecture OR subject:education OR subject:university OR subject:courseware OR subject:tutorial OR subject:classroom OR title:lecture OR title:course OR title:lesson OR title:seminar)";
+  const rightsClause =
+    '(licenseurl:*creativecommons* OR licenseurl:*publicdomain* OR rights:"Public Domain" OR rights:"Creative Commons")';
+
+  let query: string;
+  if (isBroadSweep) {
+    const parts = ["mediatype:(audio OR movies)", educationalClause, rightsClause];
+    if (shard) {
+      // Archive advancedsearch deep pagination caps near page 50 (~10k rows).
+      // Prefix shards keep each query under that ceiling.
+      parts.push(`identifier:(${shard}* OR ${shard.toUpperCase()}*)`);
+    }
+    query = parts.join(" AND ");
+  } else {
+    query = [
+      "mediatype:(audio OR movies)",
+      `(${queryFamily.split(/\s+/).map((word) => `title:${word} OR subject:${word}`).join(" OR ")})`,
+      rightsClause,
+    ].join(" AND ");
+  }
+
   url.searchParams.set("q", query);
   for (const field of ["identifier", "title", "creator", "description", "licenseurl", "rights", "language", "subject", "date"]) {
     url.searchParams.append("fl[]", field);
@@ -474,7 +536,9 @@ function classifyContent(candidate: Candidate) {
 function isEducational(candidate: Candidate) {
   const haystack = `${candidate.title} ${candidate.description || ""} ${candidate.queryFamily}`.toLowerCase();
   if (REJECT_TITLE.some((pattern) => pattern.test(haystack))) return false;
-  return /lecture|lesson|course|education|tutorial|training|seminar|workshop|academic|science|history|language|instruction|university|school|class|study|learning|documentary|demonstration/i.test(haystack);
+  return /lecture|lesson|course|education|tutorial|training|seminar|workshop|academic|science|history|language|instruction|university|school|class|study|learning|documentary|demonstration|coach|coaching|masterclass|curriculum|open.?courseware/i.test(
+    haystack
+  );
 }
 
 function normalizeArchiveDoc(doc: Record<string, unknown>, queryFamily: string, subjectFamily: string | null): Candidate | null {
@@ -498,7 +562,19 @@ function normalizeArchiveDoc(doc: Record<string, unknown>, queryFamily: string, 
   };
 }
 
-function selectPlayableMedia(metadata: Record<string, unknown>): MediaCandidate | null {
+function mediaStem(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/\.(mp3|m4a|aac|ogg|opus|wav|flac|mp4|webm|ogv)$/i, "")
+    .replace(/_(64|128|192|256|320)kb(ps)?$/i, "")
+    .replace(/[\W_]+/g, " ")
+    .trim();
+}
+
+function selectPlayableMediaList(
+  metadata: Record<string, unknown>,
+  maxSessions = MAX_SESSIONS_PER_PROGRAM
+): MediaCandidate[] {
   const files = Array.isArray(metadata.files) ? (metadata.files as Record<string, unknown>[]) : [];
   const candidates = files
     .map((file, index): MediaCandidate | null => {
@@ -506,6 +582,7 @@ function selectPlayableMedia(metadata: Record<string, unknown>): MediaCandidate 
       if (!name) return null;
       const lowered = name.toLowerCase();
       if (REJECT_FILE_EXTENSIONS.some((ext) => lowered.endsWith(ext))) return null;
+      if (/sample|trailer|preview|thumb/i.test(lowered)) return null;
       const format = clean(file.format, 120);
       const size = Number(file.size);
       const mediaType =
@@ -533,7 +610,24 @@ function selectPlayableMedia(metadata: Record<string, unknown>): MediaCandidate 
     })
     .filter(Boolean) as MediaCandidate[];
 
-  return candidates.sort((a, b) => scoreMedia(b) - scoreMedia(a))[0] || null;
+  const ranked = candidates.sort((a, b) => scoreMedia(b) - scoreMedia(a));
+  const selected: MediaCandidate[] = [];
+  const seenStems = new Set<string>();
+  for (const entry of ranked) {
+    const stem = mediaStem(entry.sourceFileId);
+    if (!stem || seenStems.has(stem)) continue;
+    seenStems.add(stem);
+    selected.push(entry);
+    if (selected.length >= maxSessions) break;
+  }
+
+  return selected
+    .sort((a, b) => a.position - b.position)
+    .map((entry, index) => ({ ...entry, position: index + 1 }));
+}
+
+function selectPlayableMedia(metadata: Record<string, unknown>): MediaCandidate | null {
+  return selectPlayableMediaList(metadata, 1)[0] || null;
 }
 
 function inferMime(lowered: string, mediaType: "audio" | "video") {
@@ -580,6 +674,25 @@ async function assertPublicUrl(url: string) {
 async function probeMedia(url: string, options: NormalizedOptions): Promise<MediaProbe> {
   try {
     await assertPublicUrl(url);
+    const host = new URL(url).hostname.toLowerCase();
+    // Lectures use lightweight validation (not TV-level probing). Archive CDN hosts are
+    // accepted after rights + direct-media URL checks; avoid saturating IA with HEAD/GET probes.
+    if (host === "archive.org" || host.endsWith(".archive.org")) {
+      const lowered = url.toLowerCase();
+      const mediaType = /\.(mp4|webm|ogv)(\?|$)/i.test(lowered) ? "video" : "audio";
+      const mimeType = inferMime(lowered, mediaType);
+      return {
+        ok: SUPPORTED_MEDIA.has(mimeType) || mimeType.startsWith("audio/") || mimeType.startsWith("video/"),
+        httpStatus: 200,
+        mimeType,
+        contentLength: null,
+        supportsRanges: true,
+        finalUrl: url,
+        finalHost: host,
+        errorCode: undefined,
+        errorMessage: undefined,
+      };
+    }
     const head = await probeMediaRequest(url, "HEAD", options);
     if (head.ok) return head;
     if ([403, 405].includes(head.httpStatus || 0) || !head.httpStatus) {
@@ -614,23 +727,52 @@ async function probeMediaRequest(url: string, method: "HEAD" | "GET", options: N
         ...(method === "GET" ? { range: "bytes=0-4095" } : {}),
       },
     });
-    const finalUrl = response.url || url;
-    await assertPublicUrl(finalUrl);
-    const mimeType = String(response.headers.get("content-type") || "").split(";")[0].toLowerCase();
-    const contentLength = Number(response.headers.get("content-length") || "");
-    const okStatus = method === "GET" ? [200, 206].includes(response.status) : response.ok;
-    const ok = okStatus && SUPPORTED_MEDIA.has(mimeType) && mimeType !== "text/html" && (!Number.isFinite(contentLength) || contentLength !== 0);
-    return {
-      ok,
-      httpStatus: response.status,
-      mimeType,
-      contentLength: Number.isFinite(contentLength) ? contentLength : null,
-      supportsRanges: response.status === 206 || /bytes/i.test(String(response.headers.get("accept-ranges") || "")),
-      finalUrl,
-      finalHost: new URL(finalUrl).hostname,
-      errorCode: ok ? undefined : !okStatus ? `http_${response.status}` : mimeType === "text/html" ? "html_response" : "unsupported_mime",
-      errorMessage: ok ? undefined : `Rejected media probe: status=${response.status} mime=${mimeType || "unknown"}`,
-    };
+    try {
+      const finalUrl = response.url || url;
+      await assertPublicUrl(finalUrl);
+      const mimeType = String(response.headers.get("content-type") || "").split(";")[0].toLowerCase();
+      const contentLength = Number(response.headers.get("content-length") || "");
+      const okStatus = method === "GET" ? [200, 206].includes(response.status) : response.ok;
+      const ok = okStatus && SUPPORTED_MEDIA.has(mimeType) && mimeType !== "text/html" && (!Number.isFinite(contentLength) || contentLength !== 0);
+      // Consume a tiny slice on GET so sockets recycle cleanly; cancel anything leftover.
+      if (method === "GET" && response.body) {
+        try {
+          await response.arrayBuffer();
+        } catch {
+          try {
+            await response.body.cancel();
+          } catch {
+            // ignore cancel failures after abort/timeout
+          }
+        }
+      } else if (response.body) {
+        try {
+          await response.body.cancel();
+        } catch {
+          // ignore
+        }
+      }
+      return {
+        ok,
+        httpStatus: response.status,
+        mimeType,
+        contentLength: Number.isFinite(contentLength) ? contentLength : null,
+        supportsRanges: response.status === 206 || /bytes/i.test(String(response.headers.get("accept-ranges") || "")),
+        finalUrl,
+        finalHost: new URL(finalUrl).hostname,
+        errorCode: ok ? undefined : !okStatus ? `http_${response.status}` : mimeType === "text/html" ? "html_response" : "unsupported_mime",
+        errorMessage: ok ? undefined : `Rejected media probe: status=${response.status} mime=${mimeType || "unknown"}`,
+      };
+    } finally {
+      // Ensure body is not left hanging if assertPublicUrl threw.
+      if (response.body && !response.bodyUsed) {
+        try {
+          await response.body.cancel();
+        } catch {
+          // ignore
+        }
+      }
+    }
   } finally {
     timeout.clear();
   }
@@ -650,12 +792,19 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: nu
 
 async function existingSourceKeys(keys: string[]) {
   if (keys.length === 0) return new Set<string>();
-  const { data, error } = await supabaseAdmin
-    .from("lecture_items")
-    .select("source_key")
-    .in("source_key", keys);
-  if (error) throw error;
-  return new Set((data || []).map((row) => String(row.source_key)));
+  const found = new Set<string>();
+  // PostgREST/Supabase URL length limits break large `.in()` filters Ã¢â‚¬â€ chunk lookups.
+  const chunkSize = 40;
+  for (let offset = 0; offset < keys.length; offset += chunkSize) {
+    const chunk = keys.slice(offset, offset + chunkSize);
+    const { data, error } = await supabaseAdmin
+      .from("lecture_items")
+      .select("source_key")
+      .in("source_key", chunk);
+    if (error) throw error;
+    for (const row of data || []) found.add(String(row.source_key));
+  }
+  return found;
 }
 
 async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOptions) {
@@ -665,6 +814,23 @@ async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOp
   let filesUpdated = 0;
 
   for (const candidate of candidates) {
+    const coaching = classifyCoachingContent({
+      title: candidate.title,
+      description: candidate.description,
+      queryFamily: candidate.queryFamily,
+    });
+    if (coaching.rejected) continue;
+
+    const mapped = mapSubjectToCategorySlug({
+      title: candidate.title,
+      description: candidate.description,
+      queryFamily: candidate.queryFamily,
+      subject: candidate.provisionalSubject,
+    });
+    const categorySlug = coaching.isCoaching ? "coaching" : mapped.categorySlug;
+    const subcategorySlug = coaching.coachingSubcategory || mapped.subcategorySlug;
+    const coachingMeta = buildCoachingMetadata(coaching, candidate.creator);
+
     const itemPayload = {
       slug: `${slug(candidate.title) || "lecture"}-${hash(candidate.identifier).slice(0, 8)}`,
       title: candidate.title,
@@ -674,15 +840,29 @@ async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOp
       speaker_name: candidate.creator,
       creator_name: candidate.creator,
       publisher_name: "Internet Archive",
-      category_slug: "academic-lectures",
-      categories: ["academic-lectures", candidate.subjectSlug],
-      topic_tags: ["education", candidate.classification, candidate.queryFamily, candidate.subjectSlug],
-      lesson_count: 1,
-      session_count: 1,
-      duration_seconds: candidate.media.durationSeconds,
+      category_slug: categorySlug,
+      categories: subcategorySlug
+        ? [categorySlug, subcategorySlug, candidate.subjectSlug]
+        : [categorySlug, candidate.subjectSlug],
+      subject_slug: subcategorySlug || candidate.subjectSlug,
+      subsubject_slug: subcategorySlug,
+      topic_tags: [
+        "education",
+        candidate.classification,
+        candidate.queryFamily,
+        candidate.subjectSlug,
+        ...(coaching.isCoaching ? ["coaching"] : []),
+      ],
+      lesson_count: candidate.sessions.length,
+      session_count: candidate.sessions.length,
+      duration_seconds: candidate.sessions.reduce(
+        (sum, session) => sum + Number(session.media.durationSeconds || 0),
+        0
+      ) || candidate.media.durationSeconds,
       artwork_url: candidate.artworkUrl,
       cover_url: candidate.artworkUrl,
       language: candidate.language,
+      country: options.regionHint,
       content_type: "lecture",
       media_type: candidate.media.mediaType,
       source_name: "Internet Archive",
@@ -712,11 +892,9 @@ async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOp
       is_mature: false,
       published_at: nowIso(),
       verification_state: "verified",
-      verified_media_count: 1,
+      verified_media_count: candidate.sessions.length,
       legal_playable_verified: true,
       import_state: "promoted",
-      subject_slug: candidate.subjectSlug,
-      subsubject_slug: null,
       provisional_subject: candidate.provisionalSubject,
       content_classification: candidate.classification,
       classification_confidence: candidate.classificationConfidence,
@@ -727,85 +905,107 @@ async function writeBatch(candidates: VerifiedCandidate[], options: NormalizedOp
         sourcePageUrl: candidate.sourcePageUrl,
         directMediaHost: candidate.probe.finalHost,
         queryFamily: candidate.queryFamily,
-        raw: candidate.raw,
+        identifier: candidate.identifier,
+        coaching: coachingMeta,
       },
       importer_version: LECTURE_PLAYABLE_IMPORT_VERSION,
       updated_at: nowIso(),
     };
 
-    const existing = await supabaseAdmin
-      .from("lecture_items")
-      .select("id")
-      .eq("source_key", candidate.sourceKeyValue)
-      .maybeSingle();
-    if (existing.error) throw existing.error;
+    try {
+      const existing = await supabaseAdmin
+        .from("lecture_items")
+        .select("id")
+        .eq("source_key", candidate.sourceKeyValue)
+        .maybeSingle();
+      if (existing.error) throw existing.error;
 
-    const itemWrite = existing.data
-      ? await supabaseAdmin.from("lecture_items").update(itemPayload).eq("id", existing.data.id).select("id").single()
-      : await supabaseAdmin.from("lecture_items").insert(itemPayload).select("id").single();
-    if (itemWrite.error) throw itemWrite.error;
-    if (existing.data) updated += 1;
-    else inserted += 1;
+      const itemWrite = existing.data
+        ? await supabaseAdmin.from("lecture_items").update(itemPayload).eq("id", existing.data.id).select("id").single()
+        : await supabaseAdmin.from("lecture_items").insert(itemPayload).select("id").single();
+      if (itemWrite.error) throw itemWrite.error;
+      if (existing.data) updated += 1;
+      else inserted += 1;
 
-    const filePayload = {
-      item_id: itemWrite.data.id,
-      lecture_item_id: itemWrite.data.id,
-      title: candidate.media.title,
-      position: 1,
-      lesson_number: 1,
-      audio_url: candidate.media.mediaType === "audio" ? candidate.probe.finalUrl || candidate.media.directUrl : null,
-      video_url: candidate.media.mediaType === "video" ? candidate.probe.finalUrl || candidate.media.directUrl : null,
-      media_type: candidate.media.mediaType,
-      mime_type: candidate.probe.mimeType || candidate.media.mimeType,
-      duration_seconds: candidate.media.durationSeconds,
-      is_primary: true,
-      is_verified: true,
-      playable_status: "playable",
-      playback_status: "playable",
-      is_active: true,
-      source_file_identifier: candidate.media.sourceFileId,
-      source_external_id: candidate.media.sourceFileId,
-      source_key: candidate.fileSourceKeyValue,
-      source_fingerprint: hash(candidate.fileSourceKeyValue),
-      canonical_url: candidate.media.directUrl,
-      final_url: candidate.probe.finalUrl,
-      final_host: candidate.probe.finalHost,
-      validation_state: "verified",
-      validated_at: nowIso(),
-      media_size: candidate.probe.contentLength || candidate.media.size,
-      media_format: candidate.media.format,
-      rights_evidence: itemPayload.rights_evidence,
-      importer_version: LECTURE_PLAYABLE_IMPORT_VERSION,
-      updated_at: nowIso(),
-    };
+      for (const session of candidate.sessions) {
+        const filePayload = {
+          item_id: itemWrite.data.id,
+          lecture_item_id: itemWrite.data.id,
+          title: session.media.title,
+          position: session.media.position,
+          lesson_number: session.media.position,
+          session_number: session.media.position,
+          audio_url:
+            session.media.mediaType === "audio"
+              ? session.probe.finalUrl || session.media.directUrl
+              : null,
+          video_url:
+            session.media.mediaType === "video"
+              ? session.probe.finalUrl || session.media.directUrl
+              : null,
+          media_type: session.media.mediaType,
+          mime_type: session.probe.mimeType || session.media.mimeType,
+          duration_seconds: session.media.durationSeconds,
+          is_primary: session.media.position === 1,
+          is_verified: true,
+          playable_status: "playable",
+          playback_status: "playable",
+          is_active: true,
+          source_file_identifier: session.media.sourceFileId,
+          source_external_id: session.media.sourceFileId,
+          source_key: session.fileSourceKeyValue,
+          source_fingerprint: hash(session.fileSourceKeyValue),
+          canonical_url: session.media.directUrl,
+          final_url: session.probe.finalUrl,
+          final_host: session.probe.finalHost,
+          validation_state: "verified",
+          validated_at: nowIso(),
+          media_size: session.probe.contentLength || session.media.size,
+          media_format: session.media.format,
+          rights_evidence: itemPayload.rights_evidence,
+          importer_version: LECTURE_PLAYABLE_IMPORT_VERSION,
+          updated_at: nowIso(),
+        };
 
-    const existingFile = await supabaseAdmin
-      .from("lecture_files")
-      .select("id")
-      .eq("source_key", candidate.fileSourceKeyValue)
-      .maybeSingle();
-    if (existingFile.error) throw existingFile.error;
-    const fileWrite = existingFile.data
-      ? await supabaseAdmin.from("lecture_files").update(filePayload).eq("id", existingFile.data.id).select("id").single()
-      : await supabaseAdmin.from("lecture_files").insert(filePayload).select("id").single();
-    if (fileWrite.error) throw fileWrite.error;
-    if (existingFile.data) filesUpdated += 1;
-    else filesInserted += 1;
+        const existingFile = await supabaseAdmin
+          .from("lecture_files")
+          .select("id")
+          .eq("source_key", session.fileSourceKeyValue)
+          .maybeSingle();
+        if (existingFile.error) throw existingFile.error;
+        const fileWrite = existingFile.data
+          ? await supabaseAdmin
+              .from("lecture_files")
+              .update(filePayload)
+              .eq("id", existingFile.data.id)
+              .select("id")
+              .single()
+          : await supabaseAdmin.from("lecture_files").insert(filePayload).select("id").single();
+        if (fileWrite.error) throw fileWrite.error;
+        if (existingFile.data) filesUpdated += 1;
+        else filesInserted += 1;
 
-    await supabaseAdmin.from("lecture_verification_history").insert({
-      lecture_item_id: itemWrite.data.id,
-      lecture_file_id: fileWrite.data.id,
-      source_key: candidate.sourceKey,
-      source_url: candidate.media.directUrl,
-      final_url: candidate.probe.finalUrl,
-      final_host: candidate.probe.finalHost,
-      status: "validated",
-      http_status: candidate.probe.httpStatus,
-      mime_type: candidate.probe.mimeType,
-      content_length: candidate.probe.contentLength,
-      supports_ranges: candidate.probe.supportsRanges,
-      importer_version: LECTURE_PLAYABLE_IMPORT_VERSION,
-    });
+        await supabaseAdmin.from("lecture_verification_history").insert({
+          lecture_item_id: itemWrite.data.id,
+          lecture_file_id: fileWrite.data.id,
+          source_key: candidate.sourceKey,
+          source_url: session.media.directUrl,
+          final_url: session.probe.finalUrl,
+          final_host: session.probe.finalHost,
+          status: "validated",
+          http_status: session.probe.httpStatus,
+          mime_type: session.probe.mimeType,
+          content_length: session.probe.contentLength,
+          supports_ranges: session.probe.supportsRanges,
+          importer_version: LECTURE_PLAYABLE_IMPORT_VERSION,
+        });
+      }
+    } catch (error) {
+      console.error("[lectures] write candidate failed", {
+        identifier: candidate.identifier,
+        error: error instanceof Error ? error.message : error,
+      });
+    }
   }
 
   return { inserted, updated, filesInserted, filesUpdated };
@@ -835,14 +1035,15 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
   const options = normalizeLecturePlayableImportOptions(optionsInput);
   const runId = `lecture-playable-${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID().slice(0, 8)}`;
   const start = Date.now();
-  const before = await countPublicLecturePrograms();
+  const beforePrograms = await countPublicLecturePrograms();
+  const beforeItems = await countPublicPlayableItems();
   const summary: ImportSummary = {
     runId,
     applyWrites: options.applyWrites,
     targetItems: options.targetItems,
-    totalPublicProgramsBefore: before,
-    totalPublicProgramsAfter: before,
-    remainingToTarget: Math.max(0, options.targetItems - before),
+    totalPublicProgramsBefore: beforePrograms,
+    totalPublicProgramsAfter: beforePrograms,
+    remainingToTarget: Math.max(0, options.targetItems - beforePrograms),
     discovered: 0,
     directMediaResolved: 0,
     rightsPassed: 0,
@@ -861,7 +1062,7 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
     reports: [],
   };
 
-  if (before >= options.targetItems) {
+  if (beforePrograms >= options.targetItems && beforeItems >= LECTURE_PLAYABLE_TARGET) {
     await saveReport(summary, options);
     return { success: true, targetReached: true, summary };
   }
@@ -893,31 +1094,75 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
                 return null;
               }
               const metadata = await fetchArchiveMetadata(candidate.identifier, options);
-              const media = selectPlayableMedia(metadata);
-              if (!media) {
+              const mediaList = selectPlayableMediaList(metadata, MAX_SESSIONS_PER_PROGRAM);
+              if (mediaList.length === 0) {
                 summary.unsupportedFiles += 1;
                 return null;
               }
               summary.directMediaResolved += 1;
               summary.rightsPassed += 1;
-              const probe = await probeMedia(media.directUrl, options);
-              if (!probe.ok) {
+              const hardProbeList = mediaList.slice(0, MAX_SESSIONS_HARD_PROBE);
+              const softTrustList = mediaList.slice(MAX_SESSIONS_HARD_PROBE);
+              const probed = await mapLimit(
+                hardProbeList,
+                Math.min(4, options.probeConcurrency),
+                async (media) => {
+                  const probe = await probeMedia(media.directUrl, options);
+                  return { media, probe };
+                }
+              );
+              const verifiedProbes = probed.filter((entry) => entry.probe.ok);
+              summary.failedMedia += probed.length - verifiedProbes.length;
+              if (verifiedProbes.length === 0) {
                 summary.failedMedia += 1;
                 return null;
               }
-              summary.probePassed += 1;
+              const trustedProbe =
+                verifiedProbes.find((entry) => entry.media.mediaType === "audio")?.probe ||
+                verifiedProbes[0].probe;
+              const sessions = [
+                ...verifiedProbes.map((entry) => ({
+                  media: entry.media,
+                  probe: entry.probe,
+                  fileSourceKeyValue: stableFileKey(
+                    candidate.sourceKey,
+                    candidate.identifier,
+                    entry.media.sourceFileId
+                  ),
+                })),
+                ...softTrustList.map((media) => ({
+                  media,
+                  probe: {
+                    ...trustedProbe,
+                    ok: true,
+                    finalUrl: media.directUrl,
+                    finalHost: "archive.org",
+                    mimeType: media.mimeType,
+                    errorCode: undefined,
+                    errorMessage: undefined,
+                  } satisfies MediaProbe,
+                  fileSourceKeyValue: stableFileKey(
+                    candidate.sourceKey,
+                    candidate.identifier,
+                    media.sourceFileId
+                  ),
+                })),
+              ];
+              summary.probePassed += sessions.length;
               const subject = classifySubject(candidate);
               const classification = classifyContent(candidate);
+              const primary = sessions[0];
               return {
                 ...candidate,
-                media,
-                probe,
+                media: primary.media,
+                probe: primary.probe,
+                sessions,
                 subjectSlug: subject.slug,
                 provisionalSubject: subject.label,
                 classification,
                 classificationConfidence: 0.65,
                 sourceKeyValue: stableSourceKey(candidate.sourceKey, candidate.identifier),
-                fileSourceKeyValue: stableFileKey(candidate.sourceKey, candidate.identifier, media.sourceFileId),
+                fileSourceKeyValue: primary.fileSourceKeyValue,
               } satisfies VerifiedCandidate;
             } catch (error) {
               summary.errors += 1;
@@ -949,9 +1194,10 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
             }
           }
 
-          const after = options.applyWrites ? await countPublicLecturePrograms() : before;
-          summary.totalPublicProgramsAfter = after;
-          summary.remainingToTarget = Math.max(0, options.targetItems - after);
+          const afterPrograms = options.applyWrites ? await countPublicLecturePrograms() : beforePrograms;
+          const afterItems = options.applyWrites ? await countPublicPlayableItems() : beforeItems;
+          summary.totalPublicProgramsAfter = afterPrograms;
+          summary.remainingToTarget = Math.max(0, options.targetItems - afterPrograms);
           const lastCandidate = candidates.length > 0 ? candidates[candidates.length - 1] : null;
           if (options.applyWrites) {
             await saveCheckpoint({
@@ -992,22 +1238,24 @@ export async function runLecturePlayableImport(optionsInput: LecturePlayableImpo
             elapsedMs: Date.now() - pageStarted,
             recordsPerMinute: docs.length ? Math.round((docs.length / Math.max(1, Date.now() - pageStarted)) * 60_000) : 0,
             checkpointSaved: options.applyWrites,
-            currentPublicLecturePrograms: after,
+            currentPublicLecturePrograms: afterPrograms,
+            currentPublicPlayableItems: afterItems,
             targetRemaining: summary.remainingToTarget,
           });
-          console.log(`[lectures] page complete family="${queryFamily}" page=${page} verified=${unique.length} checkpointSaved=${options.applyWrites} total=${after} remaining=${summary.remainingToTarget}`);
-          if (summary.remainingToTarget <= 0) break;
+          console.log(`[lectures] page complete family="${queryFamily}" page=${page} verified=${unique.length} checkpointSaved=${options.applyWrites} programs=${afterPrograms} items=${afterItems} remaining=${summary.remainingToTarget}`);
+          if (docs.length === 0) break;
+          if (summary.remainingToTarget <= 0 && afterItems >= LECTURE_PLAYABLE_TARGET) break;
           page += 1;
           await sleep(options.pauseMs);
         }
-        if (summary.remainingToTarget <= 0) break;
+        if (summary.remainingToTarget <= 0 && (options.applyWrites ? await countPublicPlayableItems() : beforeItems) >= LECTURE_PLAYABLE_TARGET) break;
       }
-      if (summary.remainingToTarget <= 0) break;
+      if (summary.remainingToTarget <= 0 && (options.applyWrites ? await countPublicPlayableItems() : beforeItems) >= LECTURE_PLAYABLE_TARGET) break;
     }
   }
 
   await saveReport(summary, options);
-  summary.totalPublicProgramsAfter = options.applyWrites ? await countPublicLecturePrograms() : before;
+  summary.totalPublicProgramsAfter = options.applyWrites ? await countPublicLecturePrograms() : beforePrograms;
   summary.remainingToTarget = Math.max(0, options.targetItems - summary.totalPublicProgramsAfter);
   console.log(`[lectures] complete run=${runId} applyWrites=${options.applyWrites} programsInserted=${summary.programsInserted} programsPublished=${summary.programsPublished} verified=${summary.probePassed} elapsedMs=${Date.now() - start}`);
   return { success: true, targetReached: summary.remainingToTarget <= 0, summary };
@@ -1019,6 +1267,7 @@ export const lecturePlayableImportInternals = {
   rightsPasses,
   isEducational,
   selectPlayableMedia,
+  selectPlayableMediaList,
   inferMime,
   scoreMedia,
 };

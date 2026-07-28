@@ -7,6 +7,7 @@ import {
   parseSportsPageLimit,
 } from "@/lib/sports/http";
 import { resolveSportsBrowseAccess } from "@/lib/sports/pilotAccess";
+import { isPublicSportsCompetitionEligible } from "@/lib/sports/publicEligibility";
 import { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
@@ -51,6 +52,13 @@ export async function GET(request: NextRequest) {
       // Keep all when sport filter cannot be applied here without extra lookup.
       filtered = items;
     }
+    filtered = filtered.filter((row: { name?: string; slug?: string; status?: string }) =>
+      isPublicSportsCompetitionEligible({
+        name: row.name,
+        slug: row.slug,
+        status: row.status,
+      })
+    );
     return jsonSportsOk({
       enabled: true,
       privatePilot: access.privatePilot || undefined,

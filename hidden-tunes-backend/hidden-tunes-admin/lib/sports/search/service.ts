@@ -3,6 +3,10 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { SPORTS_PUBLIC_CATALOG_STATUSES } from "../constants";
 import { toSportsBrowseItem } from "../catalog";
 import type { SportsBrowseItem, SportsPagination } from "../types";
+import {
+  filterPublicSportsSearchTitle,
+  isPublicSportsCompetitionEligible,
+} from "../publicEligibility";
 
 export type SportsSearchResultGroup = {
   type: string;
@@ -110,15 +114,17 @@ export async function searchSportsCatalog(input: {
 
   pushUnique(
     "fixtures",
-    (fixtures.data || []).map((row) =>
-      toSportsBrowseItem({
-        ...row,
-        // No fake Watch — fixtures without authorized source stay metadata/reminder.
-        watch_action: "none",
-        watch_label: "Match details",
-        region_message: null,
-      })
-    )
+    (fixtures.data || [])
+      .filter((row) => filterPublicSportsSearchTitle(row.title))
+      .map((row) =>
+        toSportsBrowseItem({
+          ...row,
+          // No fake Watch — fixtures without authorized source stay metadata/reminder.
+          watch_action: "none",
+          watch_label: "Match details",
+          region_message: null,
+        })
+      )
   );
   pushUnique(
     "teams",
@@ -134,15 +140,22 @@ export async function searchSportsCatalog(input: {
   );
   pushUnique(
     "competitions",
-    (competitions.data || []).map((row) =>
-      toSportsBrowseItem({
-        id: row.id,
-        name: row.name,
-        status: row.status,
-        artwork_url: row.artwork_url,
-        watch_action: "none",
-      })
-    )
+    (competitions.data || [])
+      .filter((row) =>
+        isPublicSportsCompetitionEligible({
+          name: row.name,
+          status: row.status,
+        })
+      )
+      .map((row) =>
+        toSportsBrowseItem({
+          id: row.id,
+          name: row.name,
+          status: row.status,
+          artwork_url: row.artwork_url,
+          watch_action: "none",
+        })
+      )
   );
   pushUnique(
     "channels",

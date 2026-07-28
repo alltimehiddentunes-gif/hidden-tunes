@@ -23,6 +23,8 @@ export type MatchCardParticipantInput = {
 export type MatchCardInput = {
   id: string;
   slug?: string | null;
+  /** Channel/fixture title Ã¢â‚¬â€ used only for catalog rejection heuristics. */
+  title?: string | null;
   sport: {
     id: string;
     slug: string;
@@ -57,6 +59,8 @@ export type MatchCardInput = {
   hasPlayableBroadcast?: boolean;
   hasReplay?: boolean;
   hasHighlights?: boolean;
+  /** From sports_fixtures.availability_state when set by validation/pilot seed. */
+  availabilityState?: SportsMatchCard["availabilityState"] | string | null;
   badges?: string[];
   now?: Date;
   startingSoonWindowMs?: number;
@@ -114,6 +118,46 @@ export function toSportsMatchCard(input: MatchCardInput): SportsMatchCard {
     hasHighlights: input.hasHighlights,
   });
 
+  const availabilityStateRaw = normalizeAvailabilityState(input.availabilityState);
+  let availabilityState = availabilityStateRaw;
+
+  if (availabilityState === "live_external") {
+    watchability.playable = false;
+    watchability.state = "unavailable";
+    watchability.access = "external";
+  } else if (availabilityState === "live_subscription") {
+    watchability.playable = false;
+    watchability.state = "unavailable";
+    watchability.access = "subscription";
+  } else if (availabilityState === "live_unavailable") {
+    watchability.playable = false;
+    watchability.state = "unavailable";
+  } else if (availabilityState === "upcoming") {
+    watchability.playable = false;
+    if (watchability.state === "watch") watchability.state = "starting_soon";
+  } else if (availabilityState === "finished") {
+    watchability.playable = false;
+    watchability.state = "unavailable";
+  } else if (availabilityState === "live_in_app") {
+    // Only validation may grant this; never invent from seed.
+    if (input.hasPlayableBroadcast && status.live) {
+      watchability.playable = true;
+      watchability.state = "watch";
+      watchability.access = "in_app";
+    } else {
+      // Stale DB flag on finished/non-live rows must not leak as live_in_app.
+      availabilityState = status.finished
+        ? "finished"
+        : status.live
+          ? "live_unavailable"
+          : "upcoming";
+      watchability.playable = false;
+      if (watchability.state === "watch") {
+        watchability.state = status.live ? "unavailable" : "starting_soon";
+      }
+    }
+  }
+
   // Starting Soon must never falsely claim playback.
   if (code === "starting_soon" || code === "scheduled") {
     watchability.playable = false;
@@ -126,11 +170,15 @@ export function toSportsMatchCard(input: MatchCardInput): SportsMatchCard {
   if (status.finished && !input.hasReplay && !input.hasHighlights) {
     watchability.playable = false;
     watchability.state = "unavailable";
+    if (availabilityState === "live_in_app") {
+      availabilityState = "finished";
+    }
   }
 
   const card: SportsMatchCard = {
     id: input.id,
     slug: input.slug ?? null,
+    title: input.title ?? null,
     sport: {
       id: input.sport.id,
       slug: input.sport.slug,
@@ -167,10 +215,32 @@ export function toSportsMatchCard(input: MatchCardInput): SportsMatchCard {
     venue: input.venue ?? null,
     artwork: input.artwork ?? null,
     watchability,
+    availabilityState: availabilityState || undefined,
     badges: input.badges,
   };
 
   return sanitizeSportsBrowsePayload(card);
+}
+
+function normalizeAvailabilityState(
+  raw: string | null | undefined
+): SportsMatchCard["availabilityState"] | null {
+  const v = String(raw || "")
+    .trim()
+    .toLowerCase();
+  const allowed: NonNullable<SportsMatchCard["availabilityState"]>[] = [
+    "live_in_app",
+    "live_external",
+    "live_subscription",
+    "live_unavailable",
+    "upcoming",
+    "finished",
+    "replay_available",
+    "highlights_available",
+  ];
+  return (allowed as string[]).includes(v)
+    ? (v as SportsMatchCard["availabilityState"])
+    : null;
 }
 
 function metaPeriod(metadata?: Record<string, unknown> | null): string | null {

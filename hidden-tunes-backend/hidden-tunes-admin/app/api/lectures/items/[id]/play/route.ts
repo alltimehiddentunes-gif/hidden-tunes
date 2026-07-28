@@ -38,24 +38,27 @@ export async function GET(request: Request, context: RouteContext) {
 
     return NextResponse.json(
       {
-      success: true,
-      programId: playback.lecture.id,
-      sessionId: playback.media.id,
-      title: playback.media.title || playback.lecture.title,
-      mediaType,
-      playableUrl,
-      durationSeconds: playback.media.duration_seconds ?? null,
-      mimeType: playback.media.mime_type || (mediaType === "audio" ? "audio/mpeg" : "video/mp4"),
-      media: {
-        id: playback.media.id,
-        item_id: playback.media.item_id,
-        title: playback.media.title,
-        lesson_number: playback.media.lesson_number,
+        success: true,
+        item_id: playback.media.id,
+        program_id: playback.lecture.id,
+        title: playback.media.title || playback.lecture.title,
+        speaker: playback.lecture.speaker_name || playback.lecture.instructor_name || playback.lecture.coach_name,
         media_type: mediaType,
-        mime_type: playback.media.mime_type,
-        duration_seconds: playback.media.duration_seconds,
+        playback_url: playableUrl,
+        duration_seconds: playback.media.duration_seconds ?? null,
+        mime_type: playback.media.mime_type || (mediaType === "audio" ? "audio/mpeg" : "video/mp4"),
+        artwork_url: playback.lecture.artwork_url,
+        expires_at: null,
+        media: {
+          id: playback.media.id,
+          item_id: playback.media.item_id,
+          title: playback.media.title,
+          lesson_number: playback.media.lesson_number,
+          media_type: mediaType,
+          mime_type: playback.media.mime_type,
+          duration_seconds: playback.media.duration_seconds,
+        },
       },
-    },
       {
         headers: {
           "Cache-Control": "no-store, max-age=0",

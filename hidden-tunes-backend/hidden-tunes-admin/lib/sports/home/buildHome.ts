@@ -70,6 +70,10 @@ export type BuildSportsHomeInput = {
   preferenceProfile?: SportsPreferenceProfile | null;
   /** Force personalization on/off in tests. */
   personalizationEnabled?: boolean;
+  /** Private pilot: enable browse without flipping public sports_enabled. */
+  forceFeatureEnabled?: boolean;
+  /** Private pilot: enable home IA without flipping sports_home_ia_enabled. */
+  forceHomeIaEnabled?: boolean;
 };
 
 function languageCodesFromLocale(locale?: string | null): string[] {
@@ -122,8 +126,12 @@ export async function buildSportsHomeContract(
   };
 }> {
   const started = Date.now();
-  const featureEnabled = await isSportsFeatureEnabled("sports_enabled");
-  const homeIaEnabled = await isSportsFeatureEnabled("sports_home_ia_enabled");
+  const featureEnabled =
+    input.forceFeatureEnabled === true ||
+    (await isSportsFeatureEnabled("sports_enabled"));
+  const homeIaEnabled =
+    input.forceHomeIaEnabled === true ||
+    (await isSportsFeatureEnabled("sports_home_ia_enabled"));
   const personalizationFlag =
     input.personalizationEnabled ??
     (await isSportsFeatureEnabled("sports_personalization_enabled"));

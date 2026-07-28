@@ -13,15 +13,27 @@ import {
   auditCuratedConcertSourceRegistry,
   getCuratedConcertSources,
 } from "../lib/concerts/sourceRegistry";
+import { listBatch2WaveSourceSeeds } from "../lib/concerts/expansion/batch2SourceWave";
 import { upsertConcertSource } from "../lib/concerts/sourceRepository";
+import type { ConcertSourceSeed } from "../lib/concerts/types";
 
 async function main() {
   const dryRun = process.argv.includes("--dry-run");
+  const includeWave = !process.argv.includes("--curated-only");
   const audit = auditCuratedConcertSourceRegistry();
+
+  const wave = includeWave ? listBatch2WaveSourceSeeds() : [];
+  const byKey = new Map<string, ConcertSourceSeed>();
+  for (const source of [...getCuratedConcertSources(), ...wave]) {
+    byKey.set(source.stableKey, source);
+  }
+  const sources = [...byKey.values()];
 
   const summary = {
     dry_run: dryRun,
-    total: audit.total,
+    curated_total: audit.total,
+    wave_total: wave.length,
+    merged_total: sources.length,
     ok: audit.ok,
     enabled: audit.enabledCount,
     disabled: audit.disabledCount,
@@ -43,18 +55,46 @@ async function main() {
   }
 
   if (dryRun) {
-    console.log(JSON.stringify({ success: true, dry_run: true, wrote: 0 }, null, 2));
+    console.log(
+      JSON.stringify(
+        { success: true, dry_run: true, wrote: 0, would_write: sources.length },
+        null,
+        2
+      )
+    );
     return;
   }
 
-  const sources = getCuratedConcertSources();
   let wrote = 0;
+  let skipped = 0;
+  const failures: Array<{ key: string; error: string }> = [];
   for (const source of sources) {
-    await upsertConcertSource(source);
-    wrote += 1;
+    try {
+      await upsertConcertSource(source);
+      wrote += 1;
+    } catch (error) {
+      skipped += 1;
+      failures.push({
+        key: source.stableKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
-  console.log(JSON.stringify({ success: true, dry_run: false, wrote }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        success: failures.length === 0,
+        dry_run: false,
+        wrote,
+        skipped,
+        failures: failures.slice(0, 30),
+      },
+      null,
+      2
+    )
+  );
+  if (wrote === 0 && failures.length > 0) process.exit(1);
 }
 
 main().catch((error) => {

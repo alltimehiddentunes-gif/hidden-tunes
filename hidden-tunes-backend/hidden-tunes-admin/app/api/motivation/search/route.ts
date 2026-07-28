@@ -9,6 +9,7 @@ import {
   parsePositiveInt,
   serializeMotivationError,
 } from "@/lib/motivationCatalog";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,12 +23,22 @@ export async function GET(request: NextRequest) {
     MOTIVATION_MAX_PAGE_SIZE
   );
   const q = cleanMotivationFilter(params.get("q"));
+  const mediaType = cleanMotivationFilter(params.get("mediaType") ?? params.get("media_type"));
+  const language = cleanMotivationFilter(params.get("language"));
+  const country = cleanMotivationFilter(params.get("country"));
+  const categorySlug = cleanMotivationFilter(params.get("category"));
+  const canAccessMature = canAccessMatureContentFromRequest(request);
 
   try {
     const result = await listMotivationItems({
       page,
       limit,
       searchQuery: q,
+      mediaType,
+      language,
+      country,
+      categorySlug,
+      canAccessMature,
     });
 
     return NextResponse.json({

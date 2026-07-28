@@ -98,8 +98,9 @@ async function fetchWithRedirects(
   url: string,
   options: PlayableMediaProbeOptions
 ): Promise<Response> {
-  const redirectLimit = Math.max(0, Number(options.redirectLimit ?? 3));
-  const responseTimeoutMs = Math.max(3_000, Number(options.responseTimeoutMs ?? 15_000));
+  const redirectLimit = Math.max(0, Number(options.redirectLimit ?? 5));
+  const responseTimeoutMs = Math.max(3_000, Number(options.responseTimeoutMs ?? 12_000));
+  const retryLimit = Math.max(0, Number(options.retryLimit ?? 2));
   let currentUrl = url;
 
   for (let redirect = 0; redirect <= redirectLimit; redirect += 1) {

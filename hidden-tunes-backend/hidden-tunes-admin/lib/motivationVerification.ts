@@ -57,6 +57,10 @@ export type MotivationVerificationItem = {
   description?: string | null;
   content_classification?: string | null;
   content_classification_reason?: string | null;
+  media_probe_status?: string | null;
+  playback_status?: string | null;
+  rights_status?: string | null;
+  rights?: string | null;
 };
 
 function evidence(
@@ -102,17 +106,36 @@ export async function buildMotivationVerificationEvidence(
 
   let rightsPass = false;
   if (item.source_type === "archive_video") {
-    const rights = await verifyArchiveItemRights(String(item.source_id || ""));
-    rightsPass = rights.ok;
-    checks.push(
-      evidence(
-        "rights_status",
-        rights.ok ? "pass" : "fail",
-        rights.reason,
-        "motivationItemRights",
-        checkedAt
-      )
-    );
+    const priorRightsPassed = String(item.rights_status || "").toLowerCase() === "passed";
+    if (priorRightsPassed) {
+      rightsPass = true;
+      checks.push(
+        evidence(
+          "rights_status",
+          "pass",
+          item.rights
+            ? `Trusted prior item-level rights from import (${item.rights}).`
+            : "Trusted prior item-level rights from import.",
+          "motivationPlayableImport",
+          checkedAt
+        )
+      );
+    } else {
+      const rights = await verifyArchiveItemRights(String(item.source_id || ""), {
+        licenseurl: item.rights || null,
+        rights: item.rights || null,
+      });
+      rightsPass = rights.ok;
+      checks.push(
+        evidence(
+          "rights_status",
+          rights.ok ? "pass" : "fail",
+          rights.reason,
+          "motivationItemRights",
+          checkedAt
+        )
+      );
+    }
   } else {
     checks.push(
       evidence(
@@ -272,32 +295,59 @@ export async function buildMotivationVerificationEvidence(
     );
 
     if (urlCheck.ok) {
-      const probe = await probeMotivationItem({
-        source_type: String(item.source_type || ""),
-        source_id: String(item.source_id || ""),
-        source_url: urlCheck.url,
-        embed_url: item.embed_url,
-      });
-      mediaPass = probe.playable;
-      probeReason = probe.reason;
-      checks.push(
-        evidence(
-          "media_availability",
-          probe.playable ? "pass" : "fail",
-          probe.reason,
-          "motivationHealth",
-          checkedAt
-        )
-      );
-      checks.push(
-        evidence(
-          "health_probe_status",
-          probe.playable ? "pass" : "fail",
-          probe.playable ? "Media probe passed." : probe.reason,
-          "motivationHealth",
-          checkedAt
-        )
-      );
+      const priorProbePassed =
+        String(item.media_probe_status || "").toLowerCase() === "passed" &&
+        String(item.playback_status || "").toLowerCase() === "playable";
+
+      if (priorProbePassed) {
+        mediaPass = true;
+        probeReason = "Trusted prior lightweight media probe from playable import.";
+        checks.push(
+          evidence(
+            "media_availability",
+            "pass",
+            probeReason,
+            "motivationPlayableImport",
+            checkedAt
+          )
+        );
+        checks.push(
+          evidence(
+            "health_probe_status",
+            "pass",
+            probeReason,
+            "motivationPlayableImport",
+            checkedAt
+          )
+        );
+      } else {
+        const probe = await probeMotivationItem({
+          source_type: String(item.source_type || ""),
+          source_id: String(item.source_id || ""),
+          source_url: urlCheck.url,
+          embed_url: item.embed_url,
+        });
+        mediaPass = probe.playable;
+        probeReason = probe.reason;
+        checks.push(
+          evidence(
+            "media_availability",
+            probe.playable ? "pass" : "fail",
+            probe.reason,
+            "motivationHealth",
+            checkedAt
+          )
+        );
+        checks.push(
+          evidence(
+            "health_probe_status",
+            probe.playable ? "pass" : "fail",
+            probe.playable ? "Media probe passed." : probe.reason,
+            "motivationHealth",
+            checkedAt
+          )
+        );
+      }
     } else {
       checks.push(
         evidence(

@@ -1,0 +1,79 @@
+{
+  "phase": 1,
+  "audited_at": "2026-07-21T21:08:28.422Z",
+  "backend_workspace": "C:\\Users\\Wills\\Desktop\\HiddenTunes\\hidden-tunes-backend\\hidden-tunes-admin",
+  "git_root": "C:/Users/Wills/Desktop/HiddenTunes",
+  "branch": "desktop/current-protected-baseline",
+  "head": "1afd839afb3f9f6bb58c1af2b8adc438b0082e14",
+  "production_api_base": "https://admin.hiddentunes.com",
+  "radio_tables": [
+    "radio_stations",
+    "radio_station_sources",
+    "radio_import_runs",
+    "radio_mature_review_queue",
+    "radio_mature_source_registry"
+  ],
+  "radio_import_scripts": [
+    "scripts/run-radio-general-batch1.ts",
+    "scripts/run-radio-general-batch2.ts",
+    "scripts/run-radio-general-batch3.ts",
+    "scripts/run-radio-general-batch4.ts",
+    "scripts/run-radio-general-batch5.ts",
+    "scripts/run-radio-general-batch6.ts",
+    "scripts/run-radio-general-batch7.ts",
+    "scripts/run-radio-general-batch8.ts",
+    "scripts/run-radio-expansion-25k-pipeline.ts",
+    "scripts/run-radio-mature-expansion.ts"
+  ],
+  "radio_verification_jobs": [
+    "scripts/run-radio-general-batch1-verification.ts",
+    "scripts/run-radio-general-batch2-verification.ts",
+    "scripts/run-radio-general-batch3-verification.ts",
+    "scripts/run-radio-expansion-verify-unchecked.ts",
+    "scripts/run-radio-mature-verify.ts",
+    "lib/radioStreamVerification.ts"
+  ],
+  "radio_play_resolver": "lib/radioRelay/resolvePlayUrl.ts → GET /api/radio/stations/[id]/play",
+  "radio_public_routes": [
+    "GET /api/radio/stations",
+    "GET /api/radio/search",
+    "GET /api/radio/stations/[id]/play",
+    "GET /api/radio/stations/[id]/relay",
+    "GET /api/radio/categories",
+    "GET /api/radio/countries",
+    "GET /api/radio/languages",
+    "GET /api/radio/mature/*"
+  ],
+  "counts": {
+    "1_total_rows": 30605,
+    "2_unique_normalized_approx": {
+      "by_fingerprint": 30605,
+      "by_normalized_name": 29661,
+      "by_normalized_stream_url": 30604
+    },
+    "3_verified_stations": 25165,
+    "4_public_stations": 25165,
+    "5_currently_playable": 25165,
+    "6_https_direct_rows": 18097,
+    "6b_public_https_direct": 14980,
+    "7_http_relay_candidates_public": 10185,
+    "7b_all_http_rows": 12508,
+    "8_hls_heuristic": 1851,
+    "9_recently_failed_14d": 2448,
+    "10_quarantined": 2448,
+    "11_missing_country": 420,
+    "12_missing_region_state": 15163,
+    "13_missing_city": "column_absent_pre_migration",
+    "14_missing_language": 8041,
+    "15_missing_artwork": 12272,
+    "16_duplicate_groups_note": "Fingerprints unique across full catalog (30605/30605). ~944 near-duplicate normalized names. Prior client-side fingerprint duplicate estimate was unreliable without ORDER BY.",
+    "unchecked_pending_verification": 2992,
+    "sources": { "radio_browser": 30605 },
+    "public_country_codes": 202,
+    "public_languages": 319,
+    "target_was": 25000,
+    "target_now": 40000,
+    "remaining_gap_to_40k": 14835
+  },
+  "import_performed_during_audit": false
+}

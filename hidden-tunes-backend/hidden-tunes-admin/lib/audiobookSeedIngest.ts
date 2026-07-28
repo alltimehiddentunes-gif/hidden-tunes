@@ -713,7 +713,13 @@ export async function ingestAudiobookSeedCatalog(
 ): Promise<AudiobookSeedIngestResult> {
   const dryRun = options.dry_run === true;
   const batchSize = clampBatchSize(options.batch_size || options.limit);
-  const maxBooks = options.all ? Number.POSITIVE_INFINITY : Math.max(1, Number(options.limit || batchSize));
+  // `--all` walks every category; an explicit `--limit` still caps total imports.
+  const maxBooks =
+    options.all === true
+      ? options.limit
+        ? Math.max(1, Number(options.limit))
+        : Number.POSITIVE_INFINITY
+      : Math.max(1, Number(options.limit || batchSize));
   const offset = Math.max(0, Math.floor(Number(options.offset || 0)));
   const timeoutMs = Math.max(
     5_000,
@@ -754,6 +760,15 @@ export async function ingestAudiobookSeedCatalog(
 
   try {
     for (const category of categories) {
+      console.log(
+        JSON.stringify({
+          phase: "librivox_category_start",
+          category,
+          offset,
+          books_attempted: result.books_attempted,
+          books_imported: result.books_imported,
+        })
+      );
       let nextOffset = offset;
       while (result.books_attempted < maxBooks) {
         let books: LibriVoxBook[] = [];
@@ -801,6 +816,19 @@ export async function ingestAudiobookSeedCatalog(
             result.chapters_upserted += imported.chapters_upserted;
             result.files_upserted += imported.files_upserted;
             result.links_upserted += imported.links_upserted;
+
+            if (result.books_imported % 25 === 0) {
+              console.log(
+                JSON.stringify({
+                  phase: "librivox_progress",
+                  category,
+                  books_attempted: result.books_attempted,
+                  books_imported: result.books_imported,
+                  books_skipped: result.books_skipped,
+                  books_failed: result.books_failed,
+                })
+              );
+            }
           } catch (error) {
             result.books_failed += 1;
             result.errors.push(

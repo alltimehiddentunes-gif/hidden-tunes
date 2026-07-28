@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { getPodcastPendingPromotionStatus } from "@/lib/podcastPendingPromotion";
-import { getPodcastMassExpansionCounts } from "@/lib/podcastMassExpansionStatus";
+import { getPodcastMassExpansionShowCounts } from "@/lib/podcastMassExpansionStatus";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const adminRoot = path.resolve(scriptDir, "..");
@@ -32,7 +32,7 @@ loadEnvFile(path.join(adminRoot, ".env"));
 
 async function main() {
   const status = getPodcastPendingPromotionStatus(adminRoot);
-  const counts = await getPodcastMassExpansionCounts();
+  const counts = await getPodcastMassExpansionShowCounts();
   console.log(JSON.stringify({ status, counts }, null, 2));
 }
 

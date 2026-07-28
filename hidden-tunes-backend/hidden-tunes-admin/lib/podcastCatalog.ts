@@ -42,7 +42,7 @@ export type PodcastEpisodePlaybackStatus =
 
 /** Public list/detail — no feed_url or internal ingest fields. */
 export const PODCAST_PUBLIC_SHOW_SELECT =
-  "id, slug, title, description, artwork_url, host_name, primary_category, categories, language, publisher, episode_count, is_featured, is_exclusive, is_verified, last_checked_at, created_at";
+  "id, slug, title, description, artwork_url, host_name, primary_category, categories, language, publisher, episode_count, is_featured, is_exclusive, is_verified, is_mature, last_checked_at, created_at";
 
 /** Public episode list — metadata only; audio_url excluded. */
 export const PODCAST_PUBLIC_EPISODE_LIST_SELECT =
@@ -67,6 +67,7 @@ export type PodcastPublicShow = {
   is_featured: boolean;
   is_exclusive: boolean;
   is_verified: boolean;
+  is_mature: boolean;
   last_checked_at: string | null;
 };
 
@@ -150,6 +151,7 @@ export function toPodcastPublicShow(row: Record<string, unknown>): PodcastPublic
     is_featured: Boolean(row.is_featured),
     is_exclusive: Boolean(row.is_exclusive),
     is_verified: Boolean(row.is_verified),
+    is_mature: row.is_mature === true,
     last_checked_at: cleanText(row.last_checked_at, 40),
   };
 }
@@ -228,6 +230,7 @@ export function applyPublicShowFilters(query: any, options: {
     .eq("is_active", true)
     .eq("feed_status", "active");
 
+  // includeMature here means "allow mature in mixed general search", not mature-only.
   if (!options.includeMature) {
     next = next.eq("is_mature", false);
   }

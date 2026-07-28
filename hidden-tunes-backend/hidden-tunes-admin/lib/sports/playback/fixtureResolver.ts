@@ -17,6 +17,11 @@ import { recordResolverLatency, recordSportsMetric } from "./metrics";
 import { createSportsPlaybackSession } from "./sessions";
 import { validateSportsBroadcast } from "./validateBroadcast";
 import { syncFixturePlayability } from "./playabilitySync";
+import { classifySportsBroadcast } from "../broadcasts/classification";
+import {
+  isProviderConfirmedLiveStatus,
+  resolveSportsStatusAuthority,
+} from "../status/statusAuthority";
 
 export type FixturePlayRequest = {
   platform: "ios" | "android" | "web" | "desktop" | "smart_tv";
@@ -24,6 +29,8 @@ export type FixturePlayRequest = {
   appVersion?: string;
   preferredLanguage?: string;
   userId?: string | null;
+  /** When true, private pilot may resolve without public sports_enabled. */
+  privatePilot?: boolean;
 };
 
 export type FixturePlaySession =
@@ -58,7 +65,10 @@ export type FixturePlaySession =
         | "not_started"
         | "finished"
         | "validation_failed"
-        | "no_broadcast";
+        | "no_broadcast"
+        | "no_verified_legal_stream"
+        | "generic_channel_rejected"
+        | "stale_live";
       message?: string;
     };
 
@@ -95,6 +105,7 @@ type CandidateBroadcast = {
   published_at: string | null;
   unpublished_at: string | null;
   quarantined_at: string | null;
+  verification_status?: string | null;
 };
 
 const CONTROLLED_MESSAGES = {
@@ -107,6 +118,10 @@ const CONTROLLED_MESSAGES = {
   validation_failed: "Live playback could not be validated.",
   no_broadcast: "This match is currently unavailable.",
   provider_disabled: "This broadcast is no longer available.",
+  no_verified_legal_stream: "No verified legal stream is available for this event.",
+  generic_channel_rejected:
+    "Generic sports channels cannot be used as event streams.",
+  stale_live: "This event is no longer live.",
 } as const;
 
 function unavailable(
@@ -320,7 +335,9 @@ export async function resolveFixturePlayback(
   await recordSportsMetric("resolver_requests");
 
   try {
-    const sportsEnabled = await isSportsFeatureEnabled("sports_enabled");
+    const sportsEnabled =
+      request.privatePilot === true ||
+      (await isSportsFeatureEnabled("sports_enabled"));
     if (!sportsEnabled) {
       const session = unavailable(
         fixtureId,
@@ -334,7 +351,7 @@ export async function resolveFixturePlayback(
     const { data: fixture, error } = await supabaseAdmin
       .from("sports_fixtures")
       .select(
-        "id, title, status, starts_at, ends_at, visible, availability_state, playable"
+        "id, title, status, starts_at, ends_at, visible, availability_state, playable, metadata"
       )
       .eq("id", fixtureId)
       .maybeSingle();
@@ -348,24 +365,102 @@ export async function resolveFixturePlayback(
 
     const now = new Date();
     const fixtureStatus = String(fixture.status || "").toLowerCase();
+    const fixtureMeta =
+      ((fixture as { metadata?: Record<string, unknown> }).metadata ||
+        {}) as Record<string, unknown>;
+    const authority = resolveSportsStatusAuthority({
+      fixtureStatus,
+      metadata: fixtureMeta,
+      startsAt: fixture.starts_at,
+      endsAt: fixture.ends_at,
+      now,
+    });
+    const availabilityState = String(
+      (fixture as { availability_state?: string }).availability_state || ""
+    ).toLowerCase();
+
+    if (authority.staleLiveCandidate) {
+      const session = unavailable(
+        fixtureId,
+        "stale_live",
+        CONTROLLED_MESSAGES.stale_live
+      );
+      await recordSportsMetric("unavailable_responses");
+      return session;
+    }
+
+    // Prefer explicit validated/pilot availability when no broadcast candidates exist.
+    if (availabilityState === "live_external") {
+      const meta = fixtureMeta as { officialUrl?: string; watchUrl?: string };
+      const officialUrl = String(
+        meta.officialUrl || meta.watchUrl || ""
+      ).trim();
+      if (officialUrl) {
+        await recordSportsMetric("external_responses");
+        return {
+          status: "external",
+          fixtureId,
+          providerLabel: "Official provider",
+          officialUrl,
+        };
+      }
+    }
+    if (availabilityState === "live_subscription") {
+      const meta = ((fixture as { metadata?: Record<string, unknown> }).metadata ||
+        {}) as { officialUrl?: string };
+      await recordSportsMetric("subscription_responses");
+      return {
+        status: "subscription_required",
+        fixtureId,
+        providerLabel: "Official provider",
+        officialUrl: meta.officialUrl,
+      };
+    }
+    if (availabilityState === "live_unavailable") {
+      const session = unavailable(fixtureId, "no_broadcast");
+      await recordSportsMetric("unavailable_responses");
+      return session;
+    }
+    if (availabilityState === "upcoming") {
+      const session = unavailable(
+        fixtureId,
+        "not_started",
+        CONTROLLED_MESSAGES.not_started
+      );
+      await recordSportsMetric("unavailable_responses");
+      return session;
+    }
+    if (availabilityState === "finished") {
+      const session = unavailable(
+        fixtureId,
+        "finished",
+        CONTROLLED_MESSAGES.finished
+      );
+      await recordSportsMetric("unavailable_responses");
+      return session;
+    }
+
     if (fixtureStatus === "cancelled" || fixtureStatus === "postponed") {
       const session = unavailable(fixtureId, "no_broadcast");
       await recordSportsMetric("unavailable_responses");
       return session;
     }
 
-    const starts = new Date(fixture.starts_at);
-    const ends = fixture.ends_at ? new Date(fixture.ends_at) : null;
+    // Finished only from provider/authority Ã¢â‚¬â€ never invent from clock alone.
     const isFinished =
       fixtureStatus === "completed" ||
       fixtureStatus === "expired" ||
-      (ends !== null && ends <= now);
+      authority.canonical === "completed" ||
+      authority.canonical === "ended_stream_unavailable";
     const isUpcoming =
       !isFinished &&
-      starts > now &&
+      !authority.providerConfirmedLive &&
+      !isProviderConfirmedLiveStatus(fixtureStatus) &&
       (fixtureStatus === "scheduled" ||
         fixtureStatus === "verified" ||
-        fixtureStatus === "discovered");
+        fixtureStatus === "discovered" ||
+        authority.canonical === "scheduled" ||
+        authority.canonical === "pre_live");
 
     const { data: rows } = await supabaseAdmin
       .from("sports_broadcasts")
@@ -378,13 +473,37 @@ export async function resolveFixturePlayback(
 
     let candidates = (rows || []) as CandidateBroadcast[];
 
-    // Remove disabled / expired / unsupported
+    // Remove disabled / expired / unsupported / unsafe classifications
     const filtered: CandidateBroadcast[] = [];
     const subscriptionCandidates: CandidateBroadcast[] = [];
     const externalCandidates: CandidateBroadcast[] = [];
+    let rejectedGeneric = 0;
 
     for (const b of candidates) {
       if (b.validation_status === "disabled") continue;
+
+      const classification = classifySportsBroadcast({
+        publisherName: b.publisher_name,
+        publisherDomain: b.publisher_domain,
+        broadcastType: b.broadcast_type,
+        playbackKind: b.playback_kind,
+        isOfficial: b.is_official,
+        verificationStatus: b.verification_status,
+        validationStatus: b.validation_status,
+        validationExpiresAt: b.validation_expires_at,
+        metadata: b.metadata,
+        quarantinedAt: b.quarantined_at,
+        now,
+      });
+
+      if (
+        classification.classification === "rejected" ||
+        classification.classification === "generic_sports_channel" ||
+        classification.classification === "unverified_channel_mapping"
+      ) {
+        rejectedGeneric += 1;
+        continue;
+      }
 
       const provider = await loadProvider(b.provider_id);
       if (
@@ -418,12 +537,20 @@ export async function resolveFixturePlayback(
         continue; // reject from live_in_app / ready path
       }
 
-      if (kind === "external" || b.access_type === "external") {
+      if (
+        kind === "external" ||
+        b.access_type === "external" ||
+        classification.classification === "official_external_watch_link"
+      ) {
         externalCandidates.push(b);
         continue;
       }
 
-      // Supported in-app kinds only
+      // Supported in-app kinds only Ã¢â‚¬â€ and only event-specific classes
+      if (!classification.eventSpecific) {
+        rejectedGeneric += 1;
+        continue;
+      }
       if (!["iframe", "webview", "hls", "dash"].includes(kind)) continue;
 
       filtered.push(b);
@@ -595,9 +722,26 @@ export async function resolveFixturePlayback(
       return session;
     }
 
-    const session = unavailable(fixtureId, "no_broadcast");
+    if (rejectedGeneric > 0 && filtered.length === 0) {
+      const session = unavailable(
+        fixtureId,
+        "generic_channel_rejected",
+        CONTROLLED_MESSAGES.generic_channel_rejected
+      );
+      await recordSportsMetric("unavailable_responses");
+      return session;
+    }
+
+    const session = unavailable(
+      fixtureId,
+      "no_verified_legal_stream",
+      CONTROLLED_MESSAGES.no_verified_legal_stream
+    );
     await recordSportsMetric("unavailable_responses");
     return session;
+  } catch (err) {
+    await recordSportsMetric("unavailable_responses");
+    throw err;
   } finally {
     await recordResolverLatency(Date.now() - started);
   }

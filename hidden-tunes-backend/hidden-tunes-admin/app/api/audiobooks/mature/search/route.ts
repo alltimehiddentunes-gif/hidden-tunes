@@ -8,6 +8,7 @@ import {
   parseAudiobookLimit,
   parseAudiobookPage,
 } from "@/lib/audiobookCatalog";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,6 +18,10 @@ export async function GET(request: NextRequest) {
   const q = cleanAudiobookFilter(params.get("q"));
   const page = parseAudiobookPage(params.get("page"));
   const limit = parseAudiobookLimit(params.get("limit"));
+
+  if (!canAccessMatureContentFromRequest(request)) {
+    return jsonAudiobookError("Mature audiobooks require age confirmation.", 403);
+  }
 
   try {
     const result = q

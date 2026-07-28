@@ -16,7 +16,7 @@ import {
   writePodcastPendingPromotionStateAtomic,
   type PodcastPendingPromotionState,
 } from "@/lib/podcastPendingPromotionCheckpoint";
-import { getPodcastMassExpansionCounts } from "@/lib/podcastMassExpansionStatus";
+import { getPodcastMassExpansionShowCounts } from "@/lib/podcastMassExpansionStatus";
 import type { PodcastCatalogKind } from "@/lib/podcastSourceRegistry";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { cleanText } from "@/lib/tvCatalog";
@@ -66,8 +66,8 @@ export type PodcastPendingPromotionBatchReport = {
     outcome: "would_promote" | "promoted" | "skipped" | "failed";
     reason?: string;
   }>;
-  public_counts_before: Awaited<ReturnType<typeof getPodcastMassExpansionCounts>>;
-  public_counts_after: Awaited<ReturnType<typeof getPodcastMassExpansionCounts>>;
+  public_counts_before: Awaited<ReturnType<typeof getPodcastMassExpansionShowCounts>>;
+  public_counts_after: Awaited<ReturnType<typeof getPodcastMassExpansionShowCounts>>;
   checkpoint: {
     last_processed_id: string | null;
     last_processed_created_at: string | null;
@@ -132,6 +132,24 @@ async function validatePendingFeed(feedUrl: string, feedTimeoutMs: number) {
   };
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 export async function runPodcastPendingPromotionBatch(
   options: PodcastPendingPromotionOptions = {}
 ): Promise<PodcastPendingPromotionBatchReport> {
@@ -145,18 +163,15 @@ export async function runPodcastPendingPromotionBatch(
   const startedAt = Date.now();
 
   let state: PodcastPendingPromotionState =
-    (options.resume !== false ? loadPodcastPendingPromotionState(adminRoot) : null) ||
-    createPodcastPendingPromotionState(catalog);
-
-  if (state.catalog !== catalog) {
-    state = createPodcastPendingPromotionState(catalog);
-  }
+    (options.resume !== false
+      ? loadPodcastPendingPromotionState(adminRoot, catalog)
+      : null) || createPodcastPendingPromotionState(catalog);
 
   state.batch_number += 1;
   state.status = "running";
   if (!dryRun) writePodcastPendingPromotionStateAtomic(state, adminRoot);
 
-  const publicBefore = await getPodcastMassExpansionCounts();
+  const publicBefore = await getPodcastMassExpansionShowCounts();
   const candidates = await selectPendingShows({
     catalog,
     limit,
@@ -287,13 +302,17 @@ export async function runPodcastPendingPromotionBatch(
             outcome: "would_promote",
           });
         } else {
-          const ingest = await ingestPodcastFeed(feedUrl, {
-            auto_approve: true,
-            is_mature: isMature,
-            mature_category: isMature ? cleanText(show.mature_category, 120) || "adult-lifestyle" : null,
-            max_episodes: 200,
-            feed_timeout_ms: feedTimeoutMs,
-          });
+          const ingest = await withTimeout(
+            ingestPodcastFeed(feedUrl, {
+              auto_approve: true,
+              is_mature: isMature,
+              mature_category: isMature ? cleanText(show.mature_category, 120) || "adult-lifestyle" : null,
+              max_episodes: 200,
+              feed_timeout_ms: feedTimeoutMs,
+            }),
+            Math.max(60_000, feedTimeoutMs * 6),
+            `ingest:${showId}`
+          );
 
           report.episodes_inserted += ingest.episodes_inserted;
           report.episodes_updated += ingest.episodes_updated;
@@ -330,12 +349,17 @@ export async function runPodcastPendingPromotionBatch(
     report.checkpoint.last_processed_id = state.last_processed_id;
     report.checkpoint.last_processed_created_at = state.last_processed_created_at;
 
+    // Persist resume cursor periodically so long batches survive crashes.
+    if (!dryRun && report.rows_examined % 10 === 0) {
+      writePodcastPendingPromotionStateAtomic(state, adminRoot);
+    }
+
     if (delayMs > 0) await sleep(delayMs);
   }
 
   report.finished_at = new Date().toISOString();
   report.duration_ms = Date.now() - startedAt;
-  report.public_counts_after = await getPodcastMassExpansionCounts();
+  report.public_counts_after = await getPodcastMassExpansionShowCounts();
 
   if (!dryRun) {
     state.status = consecutiveFailures >= maxFailures ? "paused" : "running";

@@ -82,11 +82,16 @@ export function writePodcastMassExpansionState(
   const dir = expansionDir(adminRoot);
   fs.mkdirSync(dir, { recursive: true });
   state.updated_at = new Date().toISOString();
-  fs.writeFileSync(
-    getPodcastMassExpansionStatePath(adminRoot),
-    `${JSON.stringify(state, null, 2)}\n`,
-    "utf8"
-  );
+  const filePath = getPodcastMassExpansionStatePath(adminRoot);
+  const payload = `${JSON.stringify(state, null, 2)}\n`;
+  const tempPath = `${filePath}.tmp`;
+  fs.writeFileSync(tempPath, payload, "utf8");
+  try {
+    fs.renameSync(tempPath, filePath);
+  } catch {
+    fs.copyFileSync(tempPath, filePath);
+    fs.unlinkSync(tempPath);
+  }
 }
 
 export function appendPodcastMassExpansionBatchLog(

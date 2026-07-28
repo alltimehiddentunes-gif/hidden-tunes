@@ -189,9 +189,15 @@ export function watchabilityFromPublicStatus(
   state: import("./types").SportsWatchabilityState;
   playable: boolean;
   playbackModeHint?: "embed" | "native" | "webview" | null;
+  access?: "in_app" | "external" | "subscription" | null;
 } {
   if (opts.hasPlayableBroadcast && (code === "live" || LIVE_CODES.has(code))) {
-    return { state: "watch", playable: true, playbackModeHint: null };
+    return {
+      state: "watch",
+      playable: true,
+      playbackModeHint: null,
+      access: "in_app",
+    };
   }
   if (code === "starting_soon" || code === "scheduled" || code === "delayed") {
     return {

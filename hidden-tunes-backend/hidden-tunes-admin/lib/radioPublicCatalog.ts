@@ -5,7 +5,7 @@ export const RADIO_PUBLIC_STATION_SELECT_WITH_STREAM =
   "id, name, favicon_url, country, country_code, state, language, tags, bitrate, codec, votes, click_count, category_slug, categories, quality_score, reliability_score, is_featured, is_mature, content_rating, stream_url";
 
 export const RADIO_PLAY_STATION_SELECT =
-  "id, name, stream_url, source_type, source_station_uuid, status, playback_status, is_active, is_verified, is_mature, quality_score, reliability_score, quarantined_at, disabled_at";
+  "id, name, stream_url, source_type, source_station_uuid, status, playback_status, is_active, is_verified, is_mature, quality_score, reliability_score, quarantined_at, disabled_at, mature_source_approved, mature_review_status, rights_status, is_free, requires_payment, requires_drm";
 
 export const RADIO_DEFAULT_PAGE_SIZE = 40;
 export const RADIO_MAX_PAGE_SIZE = 40;
@@ -131,30 +131,61 @@ export function isPublicRadioRow(row: Record<string, unknown>) {
   );
 }
 
+/**
+ * Soften light English plurals so "Sex Sounds" matches "Sex Sound Radio".
+ * Keeps short tokens and -ss/-us endings unchanged.
+ */
+export function softenRadioSearchQuery(searchQuery: string) {
+  return searchQuery
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((token) => {
+      if (token.length <= 3) return token;
+      if (/ss$/i.test(token) || /us$/i.test(token) || /is$/i.test(token)) return token;
+      if (/ies$/i.test(token) && token.length > 4) return `${token.slice(0, -3)}y`;
+      if (/s$/i.test(token)) return token.slice(0, -1);
+      return token;
+    })
+    .join(" ");
+}
+
+function buildRadioIlikePattern(value: string) {
+  const escaped = value.replace(/[%_]/g, "\\$&");
+  // PostgREST `or=` treats whitespace as a separator unless the value is quoted.
+  return /[\s(),]/.test(escaped) ? `"%${escaped}%"` : `%${escaped}%`;
+}
+
 export function buildRadioTextSearchOrFilter(searchQuery: string | null | undefined) {
   const cleaned = cleanRadioFilterToken(searchQuery, 120);
   if (!cleaned) return null;
 
-  const escaped = cleaned.replace(/[%_]/g, "\\$&");
-  const tagToken = cleaned
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+  const softened = cleanRadioFilterToken(softenRadioSearchQuery(cleaned), 120) || cleaned;
+  const patterns = Array.from(new Set([cleaned, softened].filter(Boolean)));
 
-  const parts = [
-    `name.ilike.%${escaped}%`,
-    `normalized_name.ilike.%${escaped}%`,
-    `country.ilike.%${escaped}%`,
-    `country_code.ilike.%${escaped}%`,
-    `state.ilike.%${escaped}%`,
-    `language.ilike.%${escaped}%`,
-    `category_slug.ilike.%${escaped}%`,
-  ];
+  const parts: string[] = [];
+  for (const value of patterns) {
+    const pattern = buildRadioIlikePattern(value);
+    parts.push(
+      `name.ilike.${pattern}`,
+      `normalized_name.ilike.${pattern}`,
+      `country.ilike.${pattern}`,
+      `country_code.ilike.${pattern}`,
+      `state.ilike.${pattern}`,
+      `language.ilike.${pattern}`,
+      `category_slug.ilike.${pattern}`
+    );
+  }
 
-  if (tagToken) {
-    parts.push(`tags.cs.{${tagToken}}`);
-    parts.push(`categories.cs.{${tagToken}}`);
+  for (const value of patterns) {
+    const tagToken = value
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+    if (tagToken) {
+      parts.push(`tags.cs.{${tagToken}}`);
+      parts.push(`categories.cs.{${tagToken}}`);
+    }
   }
 
   return parts.join(",");
@@ -212,7 +243,13 @@ export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
     country?: string | null;
     language?: string | null;
     featured?: boolean | null;
+    /** Dedicated mature-only catalog (e.g. /api/radio/mature or includeMature=true). */
     includeMature?: boolean | null;
+    /**
+     * When true on normal/general catalog routes, eligible mature rows are mixed
+     * into results alongside general. Requires mature_enabled + age_confirmed.
+     */
+    canAccessMature?: boolean | null;
     searchQuery?: string | null;
     httpsOnly?: boolean | null;
   }
@@ -233,7 +270,24 @@ export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
       .eq("mature_review_status", "confirmed")
       .eq("rights_status", "approved")
       .eq("is_free", true);
+  } else if (filters.canAccessMature) {
+    // Normal search with mature mode ON + age confirmed: general + eligible mature.
+    next = next.or(
+      [
+        "is_mature.eq.false",
+        [
+          "and(",
+          "is_mature.eq.true,",
+          "mature_source_approved.eq.true,",
+          "mature_review_status.eq.confirmed,",
+          "rights_status.eq.approved,",
+          "is_free.eq.true",
+          ")",
+        ].join(""),
+      ].join(",")
+    );
   } else {
+    // Mature OFF or age not confirmed: general content only.
     next = next.eq("is_mature", false);
   }
 
@@ -253,7 +307,15 @@ export function applyPublicRadioFilters<T extends RadioFilterBuilder<T>>(
 
   const country = cleanRadioFilterToken(filters.country, 80);
   if (country) {
-    next = next.or(`country.ilike.%${country}%,country_code.ilike.${country}`);
+    // ISO alpha-2 must match country_code exactly. Substring ilike on country
+    // (e.g. %GH%) falsely includes Afghanistan, Bangladesh, etc.
+    if (/^[A-Za-z]{2}$/.test(country)) {
+      next = next.eq("country_code", country.toUpperCase());
+    } else {
+      next = next.or(
+        `country.ilike.%${country}%,country_code.ilike.${country}`
+      );
+    }
   }
 
   const language = cleanRadioFilterToken(filters.language, 80);

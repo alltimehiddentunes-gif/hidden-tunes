@@ -12,9 +12,10 @@ const {
   isEducational,
   rightsPasses,
   selectPlayableMedia,
+  selectPlayableMediaList,
 } = lecturePlayableImportInternals;
 
-assert.equal(LECTURE_PLAYABLE_TARGET, 200_000);
+assert.equal(LECTURE_PLAYABLE_TARGET, 50_000);
 
 const normalized = normalizeLecturePlayableImportOptions({
   applyWrites: undefined,
@@ -31,7 +32,7 @@ const normalized = normalizeLecturePlayableImportOptions({
 });
 
 assert.equal(normalized.applyWrites, false);
-assert.equal(normalized.targetItems, 200_000);
+assert.equal(normalized.targetItems, 50_000);
 assert.equal(normalized.sourceLimit, 2_000);
 assert.equal(normalized.insertBatchSize, 500);
 assert.equal(normalized.probeConcurrency, 20);
@@ -121,6 +122,19 @@ assert.ok(media);
 assert.equal(media?.sourceFileId, "lecture.mp3");
 assert.equal(media?.mediaType, "audio");
 assert.equal(media?.directUrl, "https://archive.org/download/history-101/lecture.mp3");
+
+const sessions = selectPlayableMediaList({
+  metadata: { identifier: "course-101" },
+  files: [
+    { name: "01-intro.mp3", format: "128Kbps MP3", size: "1000", length: "60" },
+    { name: "01-intro_64kb.mp3", format: "64Kbps MP3", size: "500", length: "60" },
+    { name: "02-lesson.mp4", format: "MPEG4", size: "2000", length: "120" },
+    { name: "notes.pdf", format: "Text PDF" },
+  ],
+});
+assert.equal(sessions.length, 2);
+assert.equal(sessions[0].sourceFileId, "01-intro.mp3");
+assert.equal(sessions[1].sourceFileId, "02-lesson.mp4");
 
 const searchUrl = new URL(buildArchiveSearchUrl("science lectures", 3, 40));
 assert.equal(searchUrl.origin, "https://archive.org");

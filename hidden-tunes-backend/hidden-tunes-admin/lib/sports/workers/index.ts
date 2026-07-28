@@ -1,4 +1,8 @@
 import { SPORTS_WORKER_KEYS, type SportsWorkerKey } from "../constants";
+import {
+  runSportsExpiryCleanupWorker,
+  runSportsUnsafeBroadcastQuarantineWorker,
+} from "./expiryAndQuarantine";
 
 export type SportsWorkerReport = {
   workerKey: SportsWorkerKey;
@@ -39,7 +43,14 @@ export async function runSportsWorker(
     };
   }
 
-  // Provider imports remain disabled unless explicitly invoked via CLI workers.
+  if (workerKey === "sports-expiry-cleanup") {
+    return runSportsExpiryCleanupWorker(ctx);
+  }
+
+  if (workerKey === "sports-quarantine-recovery") {
+    return runSportsUnsafeBroadcastQuarantineWorker(ctx);
+  }
+
   if (
     workerKey === "sports-video-import" ||
     workerKey === "sports-broadcast-discovery" ||

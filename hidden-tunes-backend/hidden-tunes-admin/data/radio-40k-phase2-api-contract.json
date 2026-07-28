@@ -1,0 +1,88 @@
+{
+  "phase": 2,
+  "documented_at": "2026-07-21T21:15:00.000Z",
+  "production_api_base": "https://admin.hiddentunes.com",
+  "compatibility_rule": "Mobile must keep receiving the same compatible format. New backend fields must be additive and optional. No mobile rebuild.",
+  "public_list_search": {
+    "routes": ["GET /api/radio/stations", "GET /api/radio/search"],
+    "envelope": {
+      "success": true,
+      "stations": ["RadioPublicStation[]"],
+      "pagination": {
+        "page": "number",
+        "limit": "number (default 40, max 40)",
+        "total": "number",
+        "totalPages": "number",
+        "hasMore": "boolean"
+      }
+    },
+    "RadioPublicStation": {
+      "id": "string (uuid)",
+      "name": "string (title)",
+      "artwork_url": "string|null (from favicon_url)",
+      "country": "string|null",
+      "country_code": "string|null (ISO)",
+      "state": "string|null (region/province)",
+      "language": "string|null",
+      "tags": "string[]",
+      "categories": "string[] (genres/tags taxonomy)",
+      "bitrate": "number|null",
+      "codec": "string|null",
+      "popularity": { "votes": "number", "click_count": "number" },
+      "quality_score": "number 0-100",
+      "reliability_score": "number 0-100 (public threshold >= 60)",
+      "is_featured": "boolean",
+      "is_mature": "boolean",
+      "content_rating": "string|null (mature/explicit classification)",
+      "stream_url": "string|null OPTIONAL only when include_stream=1; HTTPS only in list payloads"
+    },
+    "public_eligibility_filters": {
+      "status": "approved",
+      "is_active": true,
+      "is_verified": true,
+      "playback_status": "playable",
+      "is_mature": false,
+      "quarantined_at": null,
+      "disabled_at": null,
+      "reliability_score": ">= 60"
+    },
+    "note_city": "city is NOT currently in the public response. Additive migration adds DB city; public exposure will be optional/additive only if needed."
+  },
+  "play_endpoint": {
+    "route": "GET /api/radio/stations/[id]/play",
+    "resolver": "lib/radioRelay/resolvePlayUrl.ts",
+    "response_shape": {
+      "success": true,
+      "id": "string",
+      "source_type": "string|null",
+      "source_station_uuid": "string|null",
+      "stream_url": "HTTPS direct stream OR HTTPS relay URL",
+      "delivery": "direct | relay"
+    },
+    "delivery_priority": [
+      "1. direct_https when stream_url is https",
+      "2. backend_relay when stream_url is eligible http",
+      "3. unavailable"
+    ],
+    "example_relay_observed": {
+      "delivery": "relay",
+      "stream_url_prefix": "https://admin.hiddentunes.com/api/radio/stations/{id}/relay?token=..."
+    }
+  },
+  "fields_not_exposed_in_public_list_but_stored": [
+    "stream_url (except optional include_stream HTTPS)",
+    "verification state internals (health_status, consecutive_failures, last_health_*)",
+    "availability internals (quarantined_at, disabled_at, playback_status)",
+    "delivery_mode (planned additive)",
+    "source attribution (source_name, source_uuid, homepage_url)",
+    "timestamps (created_at, updated_at, imported_at, last_verified_at)"
+  ],
+  "hls_flag": "Inferred from codec/stream_url (.m3u8); no dedicated public HLS boolean today. Planned additive is_hls column.",
+  "verification_availability_delivery_source_timestamps": {
+    "verification_state": "is_verified + playback_status + reliability_score + health_status",
+    "availability_state": "is_active + status + quarantined_at + disabled_at",
+    "delivery_type": "computed at /play as delivery=direct|relay",
+    "source_attribution": "source_type + source_station_uuid on /play; source_name/uuid in DB",
+    "timestamps": "created_at, updated_at, imported_at, last_checked_at, last_health_checked_at"
+  }
+}

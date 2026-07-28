@@ -13,6 +13,7 @@ import {
   jsonPodcastError,
   parseBooleanQuery,
 } from "@/lib/podcastPublicApi";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
   const limit = parsePodcastLimit(params.get("limit"));
   const from = (page - 1) * limit;
   const to = from + limit - 1;
+  const canAccessMature = canAccessMatureContentFromRequest(request);
 
   let query = supabaseAdmin
     .from("podcast_shows")
@@ -36,9 +38,7 @@ export async function GET(request: NextRequest) {
     isFeatured: parseBooleanQuery(params.get("is_featured")),
     isExclusive: parseBooleanQuery(params.get("is_exclusive")),
     searchQuery: cleanPodcastFilter(params.get("q")),
-    includeMature: parseBooleanQuery(
-      params.get("include_mature") || params.get("includeMature")
-    ),
+    includeMature: canAccessMature,
   });
 
   const { data, error, count } = await query.range(from, to);

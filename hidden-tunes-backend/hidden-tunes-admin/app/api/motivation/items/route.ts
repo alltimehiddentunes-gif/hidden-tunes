@@ -5,6 +5,7 @@ import {
   MOTIVATION_DEFAULT_PAGE_SIZE,
   MOTIVATION_MAX_PAGE_SIZE,
   MOTIVATION_PUBLIC_SELECT,
+  applyPublicMotivationFilters,
   buildMotivationCategoryOrFilter,
   decodeMotivationCursor,
   encodeMotivationCursor,
@@ -12,10 +13,8 @@ import {
   parsePositiveInt,
   serializeMotivationError,
 } from "@/lib/motivationCatalog";
-import {
-  MOTIVATION_RELIABILITY_THRESHOLD,
-  toMotivationPublicMetadata,
-} from "@/lib/motivationHealth";
+import { toMotivationPublicMetadata } from "@/lib/motivationHealth";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,19 +35,26 @@ export async function GET(request: NextRequest) {
   const category = cleanFilter(params.get("category"));
   const subcategory = cleanFilter(params.get("subcategory"));
   const searchQuery = cleanFilter(params.get("q"));
+  const mediaType = cleanFilter(params.get("mediaType") ?? params.get("media_type"));
+  const language = cleanFilter(params.get("language"));
+  const country = cleanFilter(params.get("country"));
   const featuredOnly = params.get("featured") === "true";
+  const programOnly = params.get("program") === "true";
+  const standaloneOnly = params.get("standalone") === "true";
+  const canAccessMature = canAccessMatureContentFromRequest(request);
 
   try {
-    let query = supabaseAdmin
-      .from("motivation_items")
-      .select(MOTIVATION_PUBLIC_SELECT)
-      .eq("status", "approved")
-      .eq("is_active", true)
-      .eq("is_verified", true)
-      .eq("playback_status", "playable")
-      .eq("is_mature", false)
-      .eq("content_classification", "accept")
-      .gte("reliability_score", MOTIVATION_RELIABILITY_THRESHOLD)
+    let query = applyPublicMotivationFilters(
+      supabaseAdmin.from("motivation_items").select(MOTIVATION_PUBLIC_SELECT),
+      {
+        mediaType,
+        language,
+        country,
+        programOnly,
+        standaloneOnly,
+        canAccessMature,
+      }
+    )
       .order("sort_order", { ascending: false })
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })

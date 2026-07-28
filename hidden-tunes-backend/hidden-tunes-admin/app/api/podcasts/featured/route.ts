@@ -9,6 +9,7 @@ import {
   toPodcastPublicShow,
 } from "@/lib/podcastCatalog";
 import { jsonPodcastError } from "@/lib/podcastPublicApi";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -20,13 +21,17 @@ export async function GET(request: NextRequest) {
   const limit = parsePodcastLimit(params.get("limit"));
   const from = (page - 1) * limit;
   const to = from + limit - 1;
+  const canAccessMature = canAccessMatureContentFromRequest(request);
 
   let query = supabaseAdmin
     .from("podcast_shows")
     .select(PODCAST_PUBLIC_SHOW_SELECT, { count: "exact" })
     .order("created_at", { ascending: false });
 
-  query = applyPublicShowFilters(query, { isFeatured: true });
+  query = applyPublicShowFilters(query, {
+    isFeatured: true,
+    includeMature: canAccessMature,
+  });
 
   const { data, error, count } = await query.range(from, to);
 

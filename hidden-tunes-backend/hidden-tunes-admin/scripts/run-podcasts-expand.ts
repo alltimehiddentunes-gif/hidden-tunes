@@ -7,7 +7,7 @@ import {
   PODCAST_EXPANSION_TARGET_MATURE,
   PODCAST_EXPANSION_TARGET_STANDARD,
 } from "@/lib/podcastExpansionConstants";
-import { getPodcastMassExpansionCounts } from "@/lib/podcastMassExpansionStatus";
+import { getPodcastMassExpansionShowCounts } from "@/lib/podcastMassExpansionStatus";
 import type { PodcastCatalogKind } from "@/lib/podcastSourceRegistry";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -46,8 +46,16 @@ function hasFlag(name: string) {
 }
 
 async function main() {
-  const targetStandard = Number(readArg("target-standard") || PODCAST_EXPANSION_TARGET_STANDARD);
-  const targetMature = Number(readArg("target-mature") || PODCAST_EXPANSION_TARGET_MATURE);
+  const targetStandardArg = readArg("target-standard");
+  const targetMatureArg = readArg("target-mature");
+  const targetStandard =
+    targetStandardArg != null
+      ? Number(targetStandardArg)
+      : PODCAST_EXPANSION_TARGET_STANDARD;
+  const targetMature =
+    targetMatureArg != null
+      ? Number(targetMatureArg)
+      : PODCAST_EXPANSION_TARGET_MATURE;
   const batchSize = Number(readArg("batch-size") || 750);
   const maxBatches = Number(readArg("max-batches") || 10_000);
   const source = readArg("source");
@@ -60,7 +68,7 @@ async function main() {
   const resume = hasFlag("resume") || !hasFlag("no-resume");
   const loop = hasFlag("loop") || maxBatches > 1;
 
-  const countsBefore = await getPodcastMassExpansionCounts();
+  const countsBefore = await getPodcastMassExpansionShowCounts();
   console.log(
     JSON.stringify(
       {
@@ -85,8 +93,8 @@ async function main() {
 
   const result = loop
     ? await runPodcastExpansionLoop({
-        target_standard: targetStandard,
-        target_mature: targetMature,
+        target_standard: targetStandardArg != null ? targetStandard : undefined,
+        target_mature: targetMatureArg != null ? targetMature : undefined,
         batch_size: batchSize,
         max_batches: maxBatches,
         source: source || undefined,
@@ -98,8 +106,8 @@ async function main() {
     : {
         reports: [
           await runPodcastExpansionBatch({
-            target_standard: targetStandard,
-            target_mature: targetMature,
+            target_standard: targetStandardArg != null ? targetStandard : undefined,
+            target_mature: targetMatureArg != null ? targetMature : undefined,
             batch_size: batchSize,
             source: source || undefined,
             catalog,
@@ -111,7 +119,7 @@ async function main() {
         final_report: null,
       };
 
-  const countsAfter = await getPodcastMassExpansionCounts();
+  const countsAfter = await getPodcastMassExpansionShowCounts();
   console.log(
     JSON.stringify(
       {
@@ -128,11 +136,16 @@ async function main() {
 }
 
 main().catch((error) => {
+  const message =
+    error instanceof Error
+      ? error.message || error.name || "unknown_error"
+      : String(error || "unknown_error");
   console.error(
     JSON.stringify(
       {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: message,
+        stack: error instanceof Error ? error.stack?.split("\n").slice(0, 8) : undefined,
       },
       null,
       2

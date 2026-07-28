@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   MOTIVATION_TARGET_ITEMS,
+  MOTIVATION_EXPANSION_TARGET,
   buildMotivationItemSlug,
   resolveMotivationCategorySlug,
   toMotivationPublicItem,
@@ -44,6 +45,8 @@ export type MotivationGrowthCandidate = {
   collection?: string | null;
   provider?: string | null;
   file_names?: string[];
+  license_url?: string | null;
+  rights_label?: string | null;
   content_classification?: string | null;
   content_classification_reason?: string | null;
   content_classification_confidence?: number | null;
@@ -168,7 +171,7 @@ async function probeHttpMedia(url: string, sourceType: string): Promise<Motivati
         Accept:
           sourceType === "hls_stream"
             ? "application/vnd.apple.mpegurl,application/x-mpegURL,*/*"
-            : "video/*,application/octet-stream,*/*",
+            : "audio/*,video/*,application/octet-stream,*/*",
         Range: "bytes=0-8191",
       },
       cache: "no-store",
@@ -186,16 +189,20 @@ async function probeHttpMedia(url: string, sourceType: string): Promise<Motivati
     const contentType = response.headers.get("content-type");
     const bodySample = await response.text();
     const details = detectTvStreamPayload(contentType, bodySample);
+    const normalizedType = String(contentType || "").toLowerCase();
     const urlLooksLikeMedia =
       /\.m3u8(?:\?|$)/i.test(urlCheck.url) ||
-      /\.(mp4|webm|m4v|mov)(?:\?|$)/i.test(urlCheck.url);
+      /\.(mp4|webm|m4v|mov|mp3|m4a|aac|ogg|opus|flac|wav)(?:\?|$)/i.test(urlCheck.url);
 
+    const isAudioLike =
+      normalizedType.startsWith("audio/") ||
+      /\.(mp3|m4a|aac|ogg|opus|flac|wav)(?:\?|$)/i.test(urlCheck.url);
     const isVideoLike =
       details.isVideoLike ||
       urlLooksLikeMedia ||
-      String(contentType || "").toLowerCase().includes("video/");
+      normalizedType.includes("video/");
 
-    if (!isVideoLike) {
+    if (!isVideoLike && !isAudioLike) {
       return {
         playable: false,
         playback_status: "failed",
@@ -206,7 +213,11 @@ async function probeHttpMedia(url: string, sourceType: string): Promise<Motivati
     return {
       playable: true,
       playback_status: "playable",
-      reason: details.isHlsManifest ? "HLS manifest detected." : "Media probe passed.",
+      reason: details.isHlsManifest
+        ? "HLS manifest detected."
+        : isAudioLike
+          ? "Audio media probe passed."
+          : "Media probe passed.",
     };
   } catch (error) {
     return {
@@ -454,14 +465,21 @@ export async function runMotivationVerification(limit = MOTIVATION_VERIFY_BATCH_
 }
 
 export async function getMotivationStatusSummary() {
-  const { data, error } = await supabaseAdmin
-    .from("motivation_items")
-    .select(
-      "status, playback_status, is_active, is_verified, reliability_score, quarantined_at, category"
-    );
-  if (error) throw new Error(error.message);
-
-  const rows = (data || []) as Array<Record<string, unknown>>;
+  const pageSize = 1000;
+  const rows: Array<Record<string, unknown>> = [];
+  for (let from = 0; ; from += pageSize) {
+    const to = from + pageSize - 1;
+    const { data, error } = await supabaseAdmin
+      .from("motivation_items")
+      .select(
+        "status, playback_status, is_active, is_verified, reliability_score, quarantined_at, category, media_type, program_id"
+      )
+      .range(from, to);
+    if (error) throw new Error(error.message);
+    const chunk = (data || []) as Array<Record<string, unknown>>;
+    rows.push(...chunk);
+    if (chunk.length < pageSize) break;
+  }
   const publicVerified = rows.filter((row) =>
     isPublicMotivationRow({
       status: String(row.status || ""),
@@ -481,6 +499,11 @@ export async function getMotivationStatusSummary() {
   ).length;
 
   const categoryCounts = new Map<string, number>();
+  let audioPublic = 0;
+  let videoPublic = 0;
+  let programPublic = 0;
+  let standalonePublic = 0;
+
   for (const row of rows) {
     if (
       !isPublicMotivationRow({
@@ -495,6 +518,13 @@ export async function getMotivationStatusSummary() {
     }
     const category = String(row.category || "Motivation").trim();
     categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
+
+    const mediaType = String(row.media_type || "audio").toLowerCase();
+    if (mediaType === "video" || mediaType === "stream") videoPublic += 1;
+    else audioPublic += 1;
+
+    if (row.program_id) programPublic += 1;
+    else standalonePublic += 1;
   }
 
   return {
@@ -506,6 +536,12 @@ export async function getMotivationStatusSummary() {
     failed,
     targetItems: MOTIVATION_TARGET_ITEMS,
     gapToTarget: Math.max(0, MOTIVATION_TARGET_ITEMS - publicVerified),
+    expansionTarget: MOTIVATION_EXPANSION_TARGET,
+    gapToExpansionTarget: Math.max(0, MOTIVATION_EXPANSION_TARGET - publicVerified),
+    audioPublic,
+    videoPublic,
+    programPublic,
+    standalonePublic,
     populatedCategories: Object.fromEntries(
       [...categoryCounts.entries()].sort((a, b) => a[0].localeCompare(b[0]))
     ),

@@ -5,10 +5,7 @@ import {
   isPublicRadioRow,
   jsonRadioError,
 } from "@/lib/radioPublicCatalog";
-import {
-  isPublicMatureRadioRow,
-  parseMatureRadioAccess,
-} from "@/lib/radioMature/platformPolicy";
+import { isPublicMatureRadioRow } from "@/lib/radioMature/platformPolicy";
 import {
   RADIO_RELAY_MAX_CONCURRENT_PER_CLIENT,
   RADIO_RELAY_MAX_CONCURRENT_PER_STATION,
@@ -73,8 +70,8 @@ export async function GET(
   }
 
   if (data.is_mature === true) {
-    if (!parseMatureRadioAccess(request) || !isPublicMatureRadioRow(data as Record<string, unknown>)) {
-      return jsonRadioError("Mature radio playback requires age confirmation.", 403);
+    if (!isPublicMatureRadioRow(data as Record<string, unknown>)) {
+      return jsonRadioError("Radio station not found or not currently playable.", 404);
     }
   } else if (!isPublicRadioRow(data as Record<string, unknown>)) {
     return jsonRadioError("Radio station not found or not currently playable.", 404);

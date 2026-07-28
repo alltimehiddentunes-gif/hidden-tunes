@@ -7,6 +7,11 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 import { toSportsMatchCard } from "./matchCard";
 import type { SportsMatchCard } from "./types";
+import {
+  filterPublicSportsFixtures,
+  isCatalogOnlyCompetitionName,
+  parseVersusTitle,
+} from "../publicEligibility";
 
 export type FixtureRow = {
   id: string;
@@ -19,6 +24,8 @@ export type FixtureRow = {
   venue_id: string | null;
   country_code: string | null;
   metadata: Record<string, unknown> | null;
+  availability_state?: string | null;
+  playable?: boolean | null;
 };
 
 type SportRow = { id: string; slug: string; name: string; artwork_url?: string | null };
@@ -275,7 +282,8 @@ export async function batchLoadMatchCards(
     participantsByFixture.set(p.fixture_id, list);
   }
 
-  return fixtures.map((fixture) => {
+  return filterPublicSportsFixtures(
+    fixtures.map((fixture) => {
     const sport = sports.get(fixture.sport_id);
     const competition = fixture.competition_id
       ? competitions.get(fixture.competition_id)
@@ -320,7 +328,8 @@ export async function batchLoadMatchCards(
         return {
           id: p.id,
           type: "other" as const,
-          name: fixture.title,
+          // Do not promote channel/fixture titles into fake team names.
+          name: "",
           shortName: null,
           logoUrl: null,
           side: p.side === "home" || p.side === "away" ? p.side : null,
@@ -336,9 +345,46 @@ export async function batchLoadMatchCards(
       badges.push("featured");
     }
 
+    // Promote legitimate "Home vs Away" titles into participants when DB rows are missing.
+    let resolvedParticipants = cardParticipants.filter((p) =>
+      String(p.name || "").trim()
+    );
+    if (resolvedParticipants.length < 2) {
+      const catalogComp = isCatalogOnlyCompetitionName(
+        competition?.name,
+        competition?.slug
+      );
+      const parsed = !catalogComp ? parseVersusTitle(fixture.title) : null;
+      if (parsed) {
+        resolvedParticipants = [
+          {
+            id: `${fixture.id}:home`,
+            type: "other" as const,
+            name: parsed.home,
+            shortName: null,
+            logoUrl: null,
+            side: "home" as const,
+            score: score?.home_score ?? null,
+            winner: null,
+          },
+          {
+            id: `${fixture.id}:away`,
+            type: "other" as const,
+            name: parsed.away,
+            shortName: null,
+            logoUrl: null,
+            side: "away" as const,
+            score: score?.away_score ?? null,
+            winner: null,
+          },
+        ];
+      }
+    }
+
     return toSportsMatchCard({
       id: fixture.id,
       slug: typeof meta.slug === "string" ? meta.slug : null,
+      title: fixture.title,
       sport: {
         id: sport?.id || fixture.sport_id,
         slug: sport?.slug || "unknown",
@@ -355,7 +401,7 @@ export async function batchLoadMatchCards(
             countryCode: competition.country_code,
           }
         : null,
-      participants: cardParticipants,
+      participants: resolvedParticipants,
       fixtureStatus: fixture.status,
       broadcastStatus: hint?.availability_status,
       startsAt: fixture.starts_at,
@@ -374,14 +420,16 @@ export async function batchLoadMatchCards(
         thumbnailUrl: competition?.artwork_url ?? sport?.artwork_url ?? null,
         posterUrl: competition?.artwork_url ?? null,
       },
-      hasPlayableBroadcast: Boolean(hint?.playable),
+      hasPlayableBroadcast: Boolean(hint?.playable) && fixture.playable === true,
       hasReplay: Boolean(flags?.hasReplay),
       hasHighlights: Boolean(flags?.hasHighlights),
+      availabilityState: fixture.availability_state || null,
       badges: badges.length ? badges : undefined,
       now: opts.now,
       startingSoonWindowMs: opts.startingSoonWindowMs,
     });
-  });
+  })
+  );
 }
 
 export function isFeaturedFixture(fixture: FixtureRow): boolean {

@@ -12,7 +12,8 @@ import {
   toPodcastPublicEpisode,
   toPodcastPublicShow,
 } from "@/lib/podcastCatalog";
-import { cleanPodcastFilter, jsonPodcastError, parseBooleanQuery } from "@/lib/podcastPublicApi";
+import { cleanPodcastFilter, jsonPodcastError } from "@/lib/podcastPublicApi";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -101,9 +102,7 @@ export async function GET(request: NextRequest) {
     cleanPodcastFilter(params.get("showId"));
   const category = cleanPodcastFilter(params.get("category"));
   const searchQuery = cleanPodcastFilter(params.get("q"));
-  const includeMature = parseBooleanQuery(
-    params.get("include_mature") || params.get("includeMature")
-  );
+  const includeMature = canAccessMatureContentFromRequest(request);
 
   try {
     let categoryShowIds: string[] | null = null;

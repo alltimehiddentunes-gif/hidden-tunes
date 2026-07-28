@@ -5,7 +5,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-export const LECTURE_EXPANSION_TARGET = 200_000;
+export const LECTURE_EXPANSION_TARGET = 25_000;
 export const LECTURE_EXPANSION_MAX_PAGE_SIZE = 40;
 export const LECTURE_EXPANSION_IMPORTER_VERSION = "lecture-expansion-v1";
 

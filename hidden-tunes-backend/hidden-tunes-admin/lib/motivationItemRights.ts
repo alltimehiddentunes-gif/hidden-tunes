@@ -9,6 +9,7 @@ const ALLOWED_LICENSE_PATTERNS = [
   /publicdomain\/mark/i,
   /public domain/i,
   /creativecommons\.org\/publicdomain/i,
+  /creativecommons\.org\/licenses\/publicdomain/i,
   /creativecommons\.org\/licenses\/by/i,
   /creativecommons\.org\/licenses\/zero/i,
 ];
@@ -24,12 +25,64 @@ function normalizeRightsText(value: unknown) {
   return String(value || "").trim();
 }
 
+export function evaluateArchiveRightsMetadata(metadata: {
+  licenseurl?: string | null;
+  rights?: string | null;
+  "possible-copyright-status"?: string | null;
+}): ItemRightsResult {
+  const licenseUrl = normalizeRightsText(metadata.licenseurl);
+  const rights = normalizeRightsText(metadata.rights);
+  const copyrightStatus = normalizeRightsText(metadata["possible-copyright-status"]);
+  const haystack = `${licenseUrl} ${rights} ${copyrightStatus}`.toLowerCase();
+
+  if (!haystack.trim()) {
+    return {
+      ok: false,
+      reason: "Item-level rights metadata missing.",
+      rights_label: null,
+      license_url: licenseUrl || null,
+    };
+  }
+
+  const allowed = ALLOWED_LICENSE_PATTERNS.some((pattern) => pattern.test(haystack));
+  if (!allowed) {
+    return {
+      ok: false,
+      reason: `Item-level rights not clearly public domain or compatible CC: ${haystack.slice(0, 180)}`,
+      rights_label: rights || copyrightStatus || null,
+      license_url: licenseUrl || null,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: "Item-level public domain or compatible license confirmed.",
+    rights_label: rights || copyrightStatus || "public_domain",
+    license_url: licenseUrl || null,
+  };
+}
+
 export async function verifyArchiveItemRights(
-  archiveId: string
+  archiveId: string,
+  preloaded?: {
+    licenseurl?: string | null;
+    rights?: string | null;
+    "possible-copyright-status"?: string | null;
+  }
 ): Promise<ItemRightsResult> {
+  const hasPreloaded =
+    Boolean(normalizeRightsText(preloaded?.licenseurl)) ||
+    Boolean(normalizeRightsText(preloaded?.rights)) ||
+    Boolean(normalizeRightsText(preloaded?.["possible-copyright-status"]));
+  if (hasPreloaded && preloaded) {
+    return evaluateArchiveRightsMetadata(preloaded);
+  }
+
+  const parentId = String(archiveId || "").split("::")[0];
+
   try {
     const response = await fetch(
-      `https://archive.org/metadata/${encodeURIComponent(archiveId)}`,
+      `https://archive.org/metadata/${encodeURIComponent(parentId)}`,
       {
         headers: { Accept: "application/json" },
         cache: "no-store",
@@ -46,37 +99,7 @@ export async function verifyArchiveItemRights(
     }
 
     const payload = (await response.json()) as { metadata?: ArchiveRightsMetadata };
-    const metadata = payload.metadata || {};
-    const licenseUrl = normalizeRightsText(metadata.licenseurl);
-    const rights = normalizeRightsText(metadata.rights);
-    const copyrightStatus = normalizeRightsText(metadata["possible-copyright-status"]);
-    const haystack = `${licenseUrl} ${rights} ${copyrightStatus}`.toLowerCase();
-
-    if (!haystack.trim()) {
-      return {
-        ok: false,
-        reason: "Item-level rights metadata missing.",
-        rights_label: null,
-        license_url: licenseUrl || null,
-      };
-    }
-
-    const allowed = ALLOWED_LICENSE_PATTERNS.some((pattern) => pattern.test(haystack));
-    if (!allowed) {
-      return {
-        ok: false,
-        reason: `Item-level rights not clearly public domain or compatible CC: ${haystack.slice(0, 180)}`,
-        rights_label: rights || copyrightStatus || null,
-        license_url: licenseUrl || null,
-      };
-    }
-
-    return {
-      ok: true,
-      reason: "Item-level public domain or compatible license confirmed.",
-      rights_label: rights || copyrightStatus || "public_domain",
-      license_url: licenseUrl || null,
-    };
+    return evaluateArchiveRightsMetadata(payload.metadata || {});
   } catch (error) {
     return {
       ok: false,

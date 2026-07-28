@@ -5,10 +5,7 @@ import {
   isPublicRadioRow,
   jsonRadioError,
 } from "@/lib/radioPublicCatalog";
-import {
-  isPublicMatureRadioRow,
-  parseMatureRadioAccess,
-} from "@/lib/radioMature/platformPolicy";
+import { isPublicMatureRadioRow } from "@/lib/radioMature/platformPolicy";
 import { recordRadioBrowserStationClick } from "@/lib/radioMature/radioBrowserClick";
 import { resolveRadioPlayStreamUrl } from "@/lib/radioRelay/resolvePlayUrl";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
@@ -42,8 +39,11 @@ export async function GET(
   }
 
   if (data.is_mature === true) {
-    if (!parseMatureRadioAccess(request) || !isPublicMatureRadioRow(data as Record<string, unknown>)) {
-      return jsonRadioError("Mature radio playback requires age confirmation.", 403);
+    // Public-eligible mature stations are playable without query-param age gates.
+    // Frozen mobile /play does not send mature_enabled/age_confirmed; consent is
+    // enforced client-side before mature rows are shown in search.
+    if (!isPublicMatureRadioRow(data as Record<string, unknown>)) {
+      return jsonRadioError("Radio station not found or not currently playable.", 404);
     }
   } else if (!isPublicRadioRow(data as Record<string, unknown>)) {
     return jsonRadioError("Radio station not found or not currently playable.", 404);

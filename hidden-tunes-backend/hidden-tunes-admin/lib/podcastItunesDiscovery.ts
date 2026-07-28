@@ -11,7 +11,136 @@ type ItunesPodcastResult = {
   primaryGenreName?: string;
   trackExplicitness?: string;
   contentAdvisoryRating?: string;
+  collectionId?: number;
 };
+
+type ItunesChartEntry = {
+  id?: { attributes?: { "im:id"?: string }; label?: string };
+  "im:name"?: { label?: string };
+  "im:artist"?: { label?: string };
+};
+
+function isExplicitItunesResult(item: ItunesPodcastResult) {
+  return (
+    item.trackExplicitness === "explicit" || item.contentAdvisoryRating === "Explicit"
+  );
+}
+
+function mapExplicitItunesResult(
+  item: ItunesPodcastResult,
+  options?: { language?: string; category?: PodcastSeedCategorySlug; require_mature_subject?: boolean }
+): PodcastExpansionFeed | null {
+  const feedUrl = cleanText(item.feedUrl, 2000);
+  const title = cleanText(item.collectionName, 200) || "Podcast";
+  if (!feedUrl) return null;
+  if (!isExplicitItunesResult(item)) return null;
+
+  if (options?.require_mature_subject) {
+    const genre = cleanText(item.primaryGenreName, 120) || "";
+    const haystack = `${title} ${genre}`.toLowerCase();
+    const falsePositive =
+      /\b(adhd|maintenance phase|mind pump|fitness|yoga|nutrition|biohack|mindset mentor|joint dynamics|sober|wellbeing|wellness coach)\b/i.test(
+        haystack
+      );
+    const matureSubject =
+      /\b(sex|sexual|erotic|intimacy|intimate|kink|fetish|nsfw|18\+|after dark|adult(?:s)?(?:\s|$)|swingers?|pornog?r?a?p?h?|orgasm|bdsm|hookup|polyamor|tantra|sexting|bedroom talk|dirty talk|raunchy|spicy stories?|onlyfans|sugar dat|open relationship|queer sex|affairs?)\b/i.test(
+        haystack
+      ) || /sexuality/i.test(genre);
+    if (falsePositive || !matureSubject) return null;
+  }
+
+  return {
+    title,
+    feedUrl,
+    category: options?.category || "comedy",
+    publisher: cleanText(item.artistName, 120) || undefined,
+    is_mature: true,
+    mature_category: "adult-lifestyle",
+    language: options?.language,
+  };
+}
+
+async function lookupItunesPodcastsByIds(options: {
+  ids: string[];
+  country?: string;
+}) {
+  const ids = options.ids.filter(Boolean);
+  if (ids.length === 0) return [] as ItunesPodcastResult[];
+
+  const results: ItunesPodcastResult[] = [];
+  for (let index = 0; index < ids.length; index += 40) {
+    const chunk = ids.slice(index, index + 40);
+    const url = new URL("https://itunes.apple.com/lookup");
+    url.searchParams.set("id", chunk.join(","));
+    url.searchParams.set("entity", "podcast");
+    if (options.country) url.searchParams.set("country", options.country.toUpperCase());
+
+    const response = await fetch(url.toString(), {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) continue;
+    const payload = (await response.json()) as { results?: ItunesPodcastResult[] };
+    results.push(...(payload.results || []));
+  }
+  return results;
+}
+
+/** Apple Podcasts chart discovery for mature genre storefronts (public RSS JSON). */
+export async function discoverMaturePodcastFeedsFromItunesGenreChart(options: {
+  country: string;
+  genre_id: string;
+  limit?: number;
+}) {
+  const target = Math.max(1, Number(options.limit || 100));
+  const country = options.country.toLowerCase();
+  const genreId = cleanText(options.genre_id, 20) || "1512";
+  const chartUrl = `https://itunes.apple.com/${country}/rss/toppodcasts/limit=100/genre=${genreId}/json`;
+
+  const response = await fetch(chartUrl, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) return [] as PodcastExpansionFeed[];
+
+  let payload: {
+    feed?: { entry?: ItunesChartEntry | ItunesChartEntry[] };
+  };
+  try {
+    payload = (await response.json()) as {
+      feed?: { entry?: ItunesChartEntry | ItunesChartEntry[] };
+    };
+  } catch {
+    return [] as PodcastExpansionFeed[];
+  }
+  const entries = Array.isArray(payload.feed?.entry)
+    ? payload.feed.entry
+    : payload.feed?.entry
+      ? [payload.feed.entry]
+      : [];
+
+  const ids = entries
+    .map((entry) => cleanText(entry.id?.attributes?.["im:id"], 40) || "")
+    .filter(Boolean);
+
+  const lookup = await lookupItunesPodcastsByIds({
+    ids,
+    country: options.country,
+  });
+
+  const discovered: PodcastExpansionFeed[] = [];
+  const seen = new Set<string>();
+  for (const item of lookup) {
+    const mapped = mapExplicitItunesResult(item, { require_mature_subject: true });
+    if (!mapped) continue;
+    const key = mapped.feedUrl.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    discovered.push(mapped);
+    if (discovered.length >= target) break;
+  }
+  return discovered;
+}
 
 const CATEGORY_QUERIES: Array<{ category: PodcastSeedCategorySlug; query: string }> = [
   { category: "music", query: "music podcast" },
@@ -189,6 +318,17 @@ export async function discoverMaturePodcastFeedsFromItunes(options?: {
   const target = Math.max(1, Number(options?.limit || 120));
   const perQuery = Math.min(200, Math.max(5, Number(options?.per_query || 100)));
   const offsets = options?.offsets?.length ? options.offsets : [0, 100];
+  const queryText = cleanText(options?.query, 200) || "";
+
+  if (queryText.startsWith("__genre_chart:")) {
+    const genreId = queryText.slice("__genre_chart:".length).trim() || "1512";
+    return discoverMaturePodcastFeedsFromItunesGenreChart({
+      country: options?.country || "US",
+      genre_id: genreId,
+      limit: target,
+    });
+  }
+
   const queries = options?.query
     ? [{ category: "comedy" as PodcastSeedCategorySlug, query: options.query }]
     : PODCAST_MATURE_ITUNES_QUERIES.map((query) => ({
@@ -223,29 +363,33 @@ export async function discoverMaturePodcastFeedsFromItunes(options?: {
 
       const payload = (await response.json()) as { results?: ItunesPodcastResult[] };
       for (const item of payload.results || []) {
-        const feedUrl = cleanText(item.feedUrl, 2000);
-        const title = cleanText(item.collectionName, 200) || "Podcast";
-        if (!feedUrl) continue;
-        const explicit =
-          item.trackExplicitness === "explicit" ||
-          item.contentAdvisoryRating === "Explicit";
-        if (!explicit) continue;
-        const key = feedUrl.toLowerCase();
+        const mapped = mapExplicitItunesResult(item, {
+          language: options?.language,
+          category: entry.category,
+        });
+        if (!mapped) continue;
+        const key = mapped.feedUrl.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-
-        discovered.push({
-          title,
-          feedUrl,
-          category: entry.category,
-          publisher: cleanText(item.artistName, 120) || undefined,
-          is_mature: true,
-          mature_category: "adult-lifestyle",
-          language: options?.language,
-        });
-
+        discovered.push(mapped);
         if (discovered.length >= target) break;
       }
+    }
+  }
+
+  // Supplement term search with Apple Sexuality chart only (extra chart hops were too slow).
+  if (discovered.length < target && options?.country) {
+    const chartFeeds = await discoverMaturePodcastFeedsFromItunesGenreChart({
+      country: options.country,
+      genre_id: "1512",
+      limit: target,
+    });
+    for (const feed of chartFeeds) {
+      const key = feed.feedUrl.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      discovered.push(feed);
+      if (discovered.length >= target) break;
     }
   }
 

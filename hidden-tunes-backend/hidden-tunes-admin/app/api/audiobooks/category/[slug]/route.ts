@@ -8,6 +8,7 @@ import {
   parseAudiobookLimit,
   parseAudiobookPage,
 } from "@/lib/audiobookCatalog";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,13 +25,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const params = request.nextUrl.searchParams;
   const page = parseAudiobookPage(params.get("page"));
   const limit = parseAudiobookLimit(params.get("limit"));
+  const canAccessMature = canAccessMatureContentFromRequest(request);
 
   try {
     const result = await listAudiobooks({
       page,
       limit,
       category,
-      mature: false,
+      canAccessMature,
     });
 
     return NextResponse.json({

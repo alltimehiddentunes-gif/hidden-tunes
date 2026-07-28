@@ -1,58 +1,62 @@
 import { NextRequest } from "next/server";
 
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { toSportsBrowseItem } from "@/lib/sports/catalog";
+import { listSportsFixturesFiltered } from "@/lib/sports/fixtures/listFixtures";
 import { isSportsFeatureEnabled } from "@/lib/sports/featureFlags";
 import {
   jsonSportsError,
   jsonSportsOk,
   parseSportsPageLimit,
 } from "@/lib/sports/http";
+import { resolveSportsBrowseAccess } from "@/lib/sports/pilotAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Live Sports list Ã¢â‚¬â€ fixture-centric for private pilot (score/live cards).
+ * Does not resolve playback. Metadata only.
+ */
 export async function GET(request: NextRequest) {
   try {
-    const enabled = await isSportsFeatureEnabled("sports_enabled");
-    if (!enabled) {
+    const access = await resolveSportsBrowseAccess(request, () =>
+      isSportsFeatureEnabled("sports_enabled")
+    );
+    if (!access.enabled) {
       return jsonSportsOk({
         enabled: false,
         items: [],
         pagination: { page: 1, limit: 20, hasMore: false },
       });
     }
-    const { page, limit, from, to } = parseSportsPageLimit(request);
-    const { data, error } = await supabaseAdmin
-      .from("sports_broadcasts")
-      .select(
-        "id, title, starts_at, ends_at, availability_status, access_type, broadcast_type"
-      )
-      .eq("availability_status", "live")
-      .not("published_at", "is", null)
-      .is("unpublished_at", null)
-      .is("quarantined_at", null)
-      .order("starts_at", { ascending: true })
-      .range(from, to);
-    if (error) throw new Error(error.message);
-    const rows = data || [];
-    const pageLimit = to - from;
-    const hasMore = rows.length > pageLimit;
-    const items = (hasMore ? rows.slice(0, pageLimit) : rows).map((row) =>
-      toSportsBrowseItem({
-        ...row,
-        watch_action: "none",
-        watch_label: "Resolve on tap",
-      })
-    );
+
+    const { page, limit } = parseSportsPageLimit(request);
+    const cursor =
+      page > 1
+        ? Buffer.from(JSON.stringify({ o: (page - 1) * limit }), "utf8").toString(
+            "base64url"
+          )
+        : null;
+
+    const { items, nextCursor } = await listSportsFixturesFiltered({
+      live: true,
+      cursor,
+      limit,
+    });
+
     return jsonSportsOk({
       enabled: true,
+      privatePilot: access.privatePilot || undefined,
       items,
-      pagination: { page, limit, hasMore },
+      nextCursor,
+      pagination: {
+        page,
+        limit,
+        hasMore: Boolean(nextCursor),
+      },
     });
   } catch (err) {
     return jsonSportsError(
-      "Failed to list live Sports broadcasts.",
+      "Failed to list live Sports fixtures.",
       500,
       err instanceof Error ? err.message : String(err)
     );

@@ -84,6 +84,33 @@ function testHoldMixedUniversitySpeech() {
   assert.ok(["accept", "hold"].includes(result.decision));
 }
 
+function testAcceptCommencementSpeechTitle() {
+  const result = classifyMotivationContent({
+    title: "Ron Williams Undergraduate Commencement Speech",
+    description: null,
+    speaker: "Ron Williams",
+  });
+  assert.equal(result.decision, "accept");
+}
+
+function testAcceptPoliticalKeynoteTitle() {
+  const result = classifyMotivationContent({
+    title: "Barack Obama Speech At 2004 DNC Convention",
+    description: "ARC Identifier 6014716",
+    channel: "White House Television Office",
+  });
+  assert.equal(result.decision, "accept");
+}
+
+function testRejectMotivationalCompilationTitle() {
+  const result = classifyMotivationContent({
+    title: "Motivational Speeches, Motivational Videos",
+    description: "Collection of clips.",
+    channel: "Mindwarz",
+  });
+  assert.equal(result.decision, "reject");
+}
+
 function main() {
   testAcceptMotivationalSpeech();
   testAcceptLeadershipKeynote();
@@ -95,7 +122,10 @@ function main() {
   testRejectTrailer();
   testRejectMachineTitle();
   testHoldMixedUniversitySpeech();
-  console.log(JSON.stringify({ ok: true, tests: 10 }, null, 2));
+  testAcceptCommencementSpeechTitle();
+  testAcceptPoliticalKeynoteTitle();
+  testRejectMotivationalCompilationTitle();
+  console.log(JSON.stringify({ ok: true, tests: 13 }, null, 2));
 }
 
 main();

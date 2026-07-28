@@ -170,20 +170,28 @@ export async function runMotivationPromotionReview(options?: {
   apply?: boolean;
   status?: "pending" | "approved";
   limit?: number;
+  preferAccepted?: boolean;
 }): Promise<MotivationPromotionReviewResult> {
   const apply = options?.apply === true;
   const status = options?.status ?? "pending";
-  const limit = Math.max(1, Math.min(100, Number(options?.limit ?? 100)));
+  const limit = Math.max(1, Math.min(500, Number(options?.limit ?? 100)));
+  const preferAccepted = options?.preferAccepted === true;
 
   const registrySources = await loadEnabledMotivationRegistrySources();
-  const { data: items, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("motivation_items")
     .select(
-      "id, title, description, source_type, source_id, source_url, embed_url, source_key, category, subcategory, category_slug, status, speaker_name, channel_name, duration_seconds, is_mature, reliability_score"
+      "id, title, description, source_type, source_id, source_url, embed_url, source_key, category, subcategory, category_slug, status, speaker_name, channel_name, creator_name, duration_seconds, is_mature, reliability_score, content_classification, content_classification_reason, rights_status, media_probe_status, playback_status, rights"
     )
     .eq("status", status)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(limit);
+
+  if (preferAccepted) {
+    query = query.eq("content_classification", "accept");
+  }
+
+  const { data: items, error } = await query;
 
   if (error) throw new Error(error.message);
 

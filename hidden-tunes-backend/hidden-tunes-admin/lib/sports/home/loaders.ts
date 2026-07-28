@@ -23,6 +23,7 @@ import type {
   SportsVideoCard,
   SportsWorldCard,
 } from "./types";
+import { filterPublicSportsCompetitions } from "../publicEligibility";
 
 export type HomeLoaderContext = {
   country: string;
@@ -65,7 +66,7 @@ async function loadFixtures(query: {
   let q = supabaseAdmin
     .from("sports_fixtures")
     .select(
-      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata"
+      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata, availability_state, playable"
     )
     .limit(query.featuredOnly ? Math.min(100, query.limit * 5) : query.limit);
 
@@ -405,18 +406,20 @@ export async function loadPopularCompetitions(
       return card;
     });
     ranked.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
-    const items: SportsCompetitionCard[] = ranked
-      .slice(0, ctx.limits.popularCompetitions)
-      .map((card) => ({
-        id: card.id,
-        slug: card.slug,
-        name: card.name,
-        shortName: card.shortName,
-        sportSlug: card.sportSlug,
-        countryCode: card.countryCode,
-        logoUrl: card.logoUrl,
-        competitionType: card.competitionType,
-      }));
+    const items: SportsCompetitionCard[] = filterPublicSportsCompetitions(
+      ranked
+        .slice(0, ctx.limits.popularCompetitions * 3)
+        .map((card) => ({
+          id: card.id,
+          slug: card.slug,
+          name: card.name,
+          shortName: card.shortName,
+          sportSlug: card.sportSlug,
+          countryCode: card.countryCode,
+          logoUrl: card.logoUrl,
+          competitionType: card.competitionType,
+        }))
+    ).slice(0, ctx.limits.popularCompetitions);
 
     return {
       id: "popular_competitions",

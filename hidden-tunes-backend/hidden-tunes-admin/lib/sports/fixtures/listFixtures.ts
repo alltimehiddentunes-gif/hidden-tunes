@@ -11,6 +11,7 @@ import {
   type FixtureRow,
 } from "../home/fixtureCards";
 import type { SportsMatchCard } from "../home/types";
+import { filterPublicSportsFixtures } from "../publicEligibility";
 
 export type ListSportsFixturesInput = {
   sportId?: string | null;
@@ -103,7 +104,9 @@ export async function listSportsFixturesFiltered(
   const rows = (data || []) as FixtureRow[];
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
-  const items = await batchLoadMatchCards(page, { now });
+  const items = filterPublicSportsFixtures(
+    await batchLoadMatchCards(page, { now })
+  );
 
   return {
     items,

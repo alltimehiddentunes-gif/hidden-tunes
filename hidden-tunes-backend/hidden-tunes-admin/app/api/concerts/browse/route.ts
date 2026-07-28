@@ -28,10 +28,12 @@ export async function GET(request: NextRequest) {
     let query = supabaseAdmin
       .from("concert_items")
       .select(
-        "id, title, primary_artist_name, artwork_url, concert_type, country_code, language_code, visibility_status, is_live, is_upcoming, is_replay, start_at, duration_seconds, region_availability, published_at, updated_at"
+        `id, title, primary_artist_name, artwork_url, concert_type, country_code, language_code, visibility_status, is_live, is_upcoming, is_replay, start_at, duration_seconds, region_availability, published_at, updated_at,
+        concert_streams!inner(provider, provider_content_id, is_canonical_stream, playback_status)`
       )
       .eq("is_public", true)
       .eq("playback_status", "playable")
+      .eq("concert_streams.playback_status", "playable")
       .in("visibility_status", ["verified_upcoming", "live", "replay_available"])
       .order("published_at", { ascending: false, nullsFirst: false })
       .order("id", { ascending: false })
@@ -54,17 +56,52 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let rows = data || [];
-    // Optional provider filter via stream join would be heavier; skip until indexed view.
+    type StreamRow = {
+      provider?: string | null;
+      provider_content_id?: string | null;
+      is_canonical_stream?: boolean | null;
+      playback_status?: string | null;
+    };
+    type ItemRow = Record<string, unknown> & {
+      concert_streams: StreamRow[];
+      published_at?: string | null;
+      id?: string;
+    };
+
+    let rows: ItemRow[] = ((data || []) as unknown as Array<Record<string, unknown>>).map(
+      (row) => {
+        const rawStreams = row.concert_streams;
+        const streams: StreamRow[] = Array.isArray(rawStreams)
+          ? (rawStreams as StreamRow[])
+          : rawStreams
+            ? [rawStreams as StreamRow]
+            : [];
+        streams.sort(
+          (a, b) =>
+            Number(Boolean(b.is_canonical_stream)) -
+            Number(Boolean(a.is_canonical_stream))
+        );
+        return {
+          ...row,
+          concert_streams: streams.slice(0, 1),
+        } as ItemRow;
+      }
+    );
+
     if (provider) {
-      rows = rows; // placeholder — provider filter via concert_streams in later index
+      const wanted = provider.toLowerCase();
+      rows = rows.filter((row) =>
+        row.concert_streams.some(
+          (s) => String(s.provider || "").toLowerCase() === wanted
+        )
+      );
     }
 
     const pageRows = rows.slice(0, pageSize);
-    const items = pageRows.map((row) => mapConcertRowToBrowseItem(row as Record<string, unknown>));
-    const last = pageRows[pageRows.length - 1] as
-      | { published_at?: string; id?: string }
-      | undefined;
+    const items = pageRows.map((row) =>
+      mapConcertRowToBrowseItem(row as Record<string, unknown>)
+    );
+    const last = pageRows[pageRows.length - 1];
     const nextCursor =
       rows.length > pageSize && last?.published_at && last?.id
         ? encodeConcertBrowseCursor({

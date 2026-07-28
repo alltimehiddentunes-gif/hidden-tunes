@@ -33,6 +33,8 @@ export type SportsWatchabilityState =
 export type SportsMatchCard = {
   id: string;
   slug?: string | null;
+  /** Optional display title when participants are missing (not for catalog channels). */
+  title?: string | null;
   sport: {
     id: string;
     slug: string;
@@ -82,7 +84,18 @@ export type SportsMatchCard = {
     state: SportsWatchabilityState;
     playable: boolean;
     playbackModeHint?: "embed" | "native" | "webview" | null;
+    access?: "in_app" | "external" | "subscription" | null;
   };
+  /** Explicit availability from validation layer — preferred by mobile clients. */
+  availabilityState?:
+    | "live_in_app"
+    | "live_external"
+    | "live_subscription"
+    | "live_unavailable"
+    | "upcoming"
+    | "finished"
+    | "replay_available"
+    | "highlights_available";
   badges?: string[];
   /** Safe, non-private reason — only when personalization is enabled. */
   recommendationReason?: {

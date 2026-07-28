@@ -102,12 +102,16 @@ export async function verifyAudiobookEditionSampleChapters(
   if (chapterUrls.length > 2) indices.add(Math.floor(chapterUrls.length / 2));
   if (chapterUrls.length > 1) indices.add(chapterUrls.length - 1);
 
+  const ordered = [...indices].sort((a, b) => a - b);
+  const results = await Promise.all(
+    ordered.map((index) => probeAudiobookChapterUrl(chapterUrls[index], signal))
+  );
+
   let verified = 0;
   let failed = 0;
   const reasons: string[] = [];
 
-  for (const index of [...indices].sort((a, b) => a - b)) {
-    const result = await probeAudiobookChapterUrl(chapterUrls[index], signal);
+  for (const result of results) {
     if (result.ok) verified += 1;
     else {
       failed += 1;

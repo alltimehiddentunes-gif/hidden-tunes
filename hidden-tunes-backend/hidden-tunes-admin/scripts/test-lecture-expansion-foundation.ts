@@ -7,7 +7,7 @@ import {
 } from "@/lib/lectureExpansion";
 import { LECTURE_MAX_PAGE_SIZE } from "@/lib/lectureCatalog";
 
-assert.equal(LECTURE_EXPANSION_TARGET, 200_000);
+assert.equal(LECTURE_EXPANSION_TARGET, 25_000);
 assert.equal(LECTURE_EXPANSION_MAX_PAGE_SIZE, 40);
 assert.equal(LECTURE_MAX_PAGE_SIZE, 40);
 

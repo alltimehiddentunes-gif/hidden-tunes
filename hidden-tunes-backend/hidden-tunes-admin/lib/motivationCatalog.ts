@@ -29,7 +29,7 @@ export const MOTIVATION_PLAYBACK_STATUSES = [
 ] as const;
 
 export const MOTIVATION_PUBLIC_SELECT =
-  "id, slug, title, description, thumbnail_url, channel_name, speaker_name, category, subcategory, category_slug, categories, tags, language, region, duration_seconds, reliability_score, is_featured, sort_order, published_at, created_at";
+  "id, slug, title, description, thumbnail_url, channel_name, speaker_name, category, subcategory, category_slug, categories, tags, language, region, duration_seconds, reliability_score, is_featured, is_mature, sort_order, published_at, created_at, media_type";
 
 export const MOTIVATION_PLAY_SELECT =
   "id, source_type, source_id, source_url, embed_url, status, is_active, playback_status, reliability_score";
@@ -54,6 +54,8 @@ export const MOTIVATION_CATEGORIES = [
 ] as const;
 
 export const MOTIVATION_TARGET_ITEMS = 200_000;
+/** User-facing expansion milestone for the 50K Motivationals initiative. */
+export const MOTIVATION_EXPANSION_TARGET = 50_000;
 export const MOTIVATION_RELIABILITY_THRESHOLD = 60;
 
 export type MotivationPagination = {
@@ -122,6 +124,8 @@ export type MotivationPublicItem = {
   duration_seconds: number | null;
   reliability_score: number;
   is_featured: boolean;
+  is_mature: boolean;
+  media_type: "audio" | "video" | "stream" | "embed" | string;
 };
 
 export type MotivationListCursor = {
@@ -206,8 +210,18 @@ export function toMotivationPublicItem(row: Record<string, unknown>): Motivation
       Math.min(100, Math.round(Number(row.reliability_score ?? 0)))
     ),
     is_featured: row.is_featured === true,
+    is_mature: row.is_mature === true,
     published_at: cleanText(row.published_at, 40),
+    media_type: normalizeMotivationMediaType(row.media_type),
   };
+}
+
+export function normalizeMotivationMediaType(value: unknown) {
+  const cleaned = String(value || "").trim().toLowerCase();
+  if (cleaned === "audio" || cleaned === "video" || cleaned === "stream" || cleaned === "embed") {
+    return cleaned;
+  }
+  return "audio";
 }
 
 export function buildYouTubeWatchUrl(videoId: string) {
@@ -299,15 +313,24 @@ export function applyPublicMotivationFilters(query: any, options: {
   categorySlug?: string | null;
   searchQuery?: string | null;
   featuredOnly?: boolean;
+  mediaType?: string | null;
+  language?: string | null;
+  country?: string | null;
+  programOnly?: boolean;
+  standaloneOnly?: boolean;
+  canAccessMature?: boolean;
 }) {
   let next = query
     .eq("status", "approved")
     .eq("is_active", true)
     .eq("is_verified", true)
     .eq("playback_status", "playable")
-    .eq("is_mature", false)
     .eq("content_classification", "accept")
     .gte("reliability_score", MOTIVATION_RELIABILITY_THRESHOLD);
+
+  if (!options.canAccessMature) {
+    next = next.eq("is_mature", false);
+  }
 
   if (options.featuredOnly) next = next.eq("is_featured", true);
 
@@ -322,6 +345,22 @@ export function applyPublicMotivationFilters(query: any, options: {
     );
   }
 
+  const mediaType = cleanMotivationFilter(options.mediaType ?? null);
+  if (mediaType === "audio") {
+    next = next.in("media_type", ["audio"]);
+  } else if (mediaType === "video") {
+    next = next.in("media_type", ["video", "stream"]);
+  }
+
+  const language = cleanMotivationFilter(options.language ?? null);
+  if (language) next = next.ilike("language", language);
+
+  const country = cleanMotivationFilter(options.country ?? null);
+  if (country) next = next.ilike("region", country);
+
+  if (options.programOnly) next = next.not("program_id", "is", null);
+  if (options.standaloneOnly) next = next.is("program_id", null);
+
   return next;
 }
 
@@ -331,6 +370,12 @@ export async function listMotivationItems(options: {
   categorySlug?: string | null;
   searchQuery?: string | null;
   featuredOnly?: boolean;
+  mediaType?: string | null;
+  language?: string | null;
+  country?: string | null;
+  programOnly?: boolean;
+  standaloneOnly?: boolean;
+  canAccessMature?: boolean;
 }) {
   const from = (options.page - 1) * options.limit;
   const to = from + options.limit - 1;
@@ -384,6 +429,8 @@ export type MotivationPlayResolution =
         quality: string;
         expires_at: string | null;
         embed_url: string | null;
+        width: number | null;
+        height: number | null;
       };
     }
   | {
@@ -453,7 +500,7 @@ export async function resolveMotivationPlayback(itemId: string): Promise<Motivat
   const { data: file, error: fileError } = await supabaseAdmin
     .from("motivation_files")
     .select(
-      "id, audio_url, video_url, media_type, mime_type, playback_status, is_active, is_primary, delivery_type, quality_label"
+      "id, audio_url, video_url, media_type, mime_type, playback_status, is_active, is_primary, delivery_type, quality_label, width, height"
     )
     .eq("item_id", cleaned)
     .eq("is_active", true)
@@ -522,6 +569,14 @@ export async function resolveMotivationPlayback(itemId: string): Promise<Motivat
       quality: cleanText((file as { quality_label?: string }).quality_label, 40) || "standard",
       expires_at: null,
       embed_url: cleanText((item as { embed_url?: string | null }).embed_url, 2000) || null,
+      width:
+        Number.isFinite(Number((file as { width?: number }).width))
+          ? Math.max(0, Number((file as { width?: number }).width))
+          : null,
+      height:
+        Number.isFinite(Number((file as { height?: number }).height))
+          ? Math.max(0, Number((file as { height?: number }).height))
+          : null,
     },
   };
 }

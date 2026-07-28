@@ -1,18 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { applyPublicRadioFilters, cleanRadioText, jsonRadioError } from "@/lib/radioPublicCatalog";
+import { parseMatureRadioAccess } from "@/lib/radioMature/platformPolicy";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const canAccessMature = parseMatureRadioAccess(request);
   const query = applyPublicRadioFilters(
     supabaseAdmin
       .from("radio_stations")
       .select("language")
       .range(0, 4999),
-    {}
+    { canAccessMature }
   );
   const { data, error } = await query;
 

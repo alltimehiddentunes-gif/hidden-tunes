@@ -51,6 +51,21 @@ const ACCEPT_SIGNALS: SignalRule[] = [
   { id: "inspirational_speech", pattern: /\binspirational?\s+speech\b/i, weight: 4 },
   { id: "personal_growth", pattern: /\bpersonal\s+growth\b/i, weight: 3 },
   { id: "self_improvement", pattern: /\bself[- ]?improv(?:ement)?\b/i, weight: 3 },
+  { id: "self_help", pattern: /\bself[- ]?help\b/i, weight: 3 },
+  { id: "conduct_of_life", pattern: /\bconduct of life\b/i, weight: 2 },
+  { id: "philosophy", pattern: /\bphilosophy\b/i, weight: 2 },
+  { id: "psychology", pattern: /\bpsychology\b/i, weight: 2 },
+  { id: "ethics", pattern: /\bethics\b/i, weight: 2 },
+  { id: "biography", pattern: /\bbiograph(?:y|ies)\b/i, weight: 1 },
+  { id: "education", pattern: /\beducation\b/i, weight: 1 },
+  { id: "librivox_spoken", pattern: /\blibrivox\b/i, weight: 1 },
+  { id: "essays", pattern: /\bessays?\b/i, weight: 1 },
+  { id: "history", pattern: /\bhistory\b/i, weight: 1 },
+  { id: "mythology", pattern: /\bmythology\b/i, weight: 1 },
+  { id: "sociology", pattern: /\bsociology\b/i, weight: 1 },
+  { id: "economics", pattern: /\beconomics?\b/i, weight: 1 },
+  { id: "political_science", pattern: /\bpolitical\s+science\b/i, weight: 1 },
+  { id: "science_nature", pattern: /\b(?:science|nature|astronomy|medicine|evolution)\b/i, weight: 1 },
   { id: "mindset", pattern: /\bmindset\b/i, weight: 2 },
   { id: "discipline", pattern: /\bdiscipline\b/i, weight: 2 },
   { id: "confidence", pattern: /\bconfidence\b/i, weight: 2 },
@@ -76,7 +91,7 @@ const ACCEPT_SIGNALS: SignalRule[] = [
   { id: "commencement", pattern: /\bcommencement\s+(?:speech|address)\b/i, weight: 4 },
   { id: "keynote", pattern: /\bkeynote\s+(?:speech|address|talk)\b/i, weight: 4 },
   { id: "transformational", pattern: /\btransformational?\s+talk\b/i, weight: 3 },
-  { id: "motivation_general", pattern: /\b(?:motivational?|inspirational?)\b/i, weight: 2 },
+  { id: "motivation_general", pattern: /\b(?:motivation(?:al)?|inspiration(?:al)?)\b/i, weight: 2 },
   { id: "speech_general", pattern: /\b(?:speech|address|talk)\b/i, weight: 1 },
 ];
 
@@ -128,8 +143,10 @@ const TV_SIGNALS: SignalRule[] = [
 ];
 
 const REJECT_SIGNALS: SignalRule[] = [
+  { id: "compilation_title", pattern: /\bmotivational\s+speeches?\s*,\s*motivational\s+videos?\b/i, weight: 6 },
   { id: "playlist", pattern: /\bplaylist\b/i, weight: 5 },
-  { id: "collection", pattern: /\b(?:video\s+)?collection\b/i, weight: 4 },
+  { id: "video_collection", pattern: /\b(?:video|audio|media)\s+collection\b/i, weight: 4 },
+  { id: "dual_topic_compilation", pattern: /\bmotivational speeches,\s*motivational videos\b/i, weight: 6 },
   { id: "video_archive", pattern: /\bvideo\s+archive\b/i, weight: 4 },
   { id: "generic_videos", pattern: /^(?:videos?|my\s+videos?)$/i, weight: 6 },
   { id: "trailer", pattern: /\b(?:trailer|teaser)\b/i, weight: 5 },
@@ -148,9 +165,10 @@ function buildHaystack(input: MotivationClassifierInput, normalized?: Motivation
     normalized?.channel || input.channel,
     input.collection,
     input.provider,
-    input.category,
+    // Intentionally omit generic catalog category labels like "Motivation"
+    // so they cannot alone force an accept decision.
     ...(input.subjects || []),
-    ...(input.tags || []),
+    ...(input.tags || []).filter((tag) => !/^motivation$/i.test(String(tag || "").trim())),
     ...(input.fileNames || []),
   ];
   return parts.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
@@ -217,6 +235,29 @@ export function classifyMotivationContent(
     };
   }
 
+  const hasNamedSpeaker =
+    Boolean(normalized.speaker?.trim()) ||
+    Boolean(normalized.creator?.trim()) ||
+    Boolean(normalized.channel?.trim());
+  const titleSpeechPattern = /\b(?:speech|address|keynote|commencement)\b/i;
+  if (
+    titleSpeechPattern.test(title) &&
+    hasNamedSpeaker &&
+    negative.score === 0 &&
+    lectures.score < 4 &&
+    podcasts.score < 4
+  ) {
+    return {
+      decision: "accept",
+      confidence: 0.82,
+      reason:
+        "Clear spoken-word speech title with named speaker or creator; short descriptions are acceptable for archive speeches.",
+      positiveSignals: [...positive.matched, "title_speech_pattern"],
+      negativeSignals: negative.matched,
+      routingSignals: [],
+    };
+  }
+
   const lectureScore = lectures.score - lectureOverrides.score;
   const routingCandidates: Array<{ decision: MotivationContentDecision; score: number; signals: string[] }> = [
     { decision: "route_lectures", score: lectureScore, signals: lectures.matched },
@@ -273,6 +314,27 @@ export function classifyMotivationContent(
   }
 
   if (positive.score > 0 && (lectures.score > 0 || podcasts.score > 0 || films.score > 0)) {
+    if (
+      positive.score >= 2 &&
+      lectureScore <= 2 &&
+      podcasts.score < 5 &&
+      films.score < 4 &&
+      negative.score <= 1
+    ) {
+      return {
+        decision: "accept",
+        confidence: Math.min(0.8, 0.4 + positive.score * 0.05),
+        reason: "Motivational signals outweigh weak section-routing noise.",
+        positiveSignals: positive.matched,
+        negativeSignals: negative.matched,
+        routingSignals: [
+          ...lectures.matched,
+          ...podcasts.matched,
+          ...films.matched,
+          ...tv.matched,
+        ],
+      };
+    }
     return {
       decision: "hold",
       confidence: 0.55,

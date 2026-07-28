@@ -504,9 +504,14 @@ export async function importVerifiedTvGrowthCandidates(
       stream_protocol: probe.stream_protocol || null,
       validated_stream_url: probe.validated_stream_url || urlCheck.url,
       last_validation_result: probe.last_validation_result || null,
-      is_mature: isMature || candidate.is_mature === true,
-      mature_rating: options.matureRating || candidate.mature_rating || null,
-      mature_source_approved: matureSourceApproved || candidate.mature_source_approved === true,
+      ...(isTvMatureColumnEnabled()
+        ? {
+            is_mature: isMature || candidate.is_mature === true,
+            mature_rating: options.matureRating || candidate.mature_rating || null,
+            mature_source_approved:
+              matureSourceApproved || candidate.mature_source_approved === true,
+          }
+        : {}),
     });
 
     if (error) rejected += 1;

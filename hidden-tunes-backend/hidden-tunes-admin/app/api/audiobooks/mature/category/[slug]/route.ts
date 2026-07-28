@@ -8,6 +8,7 @@ import {
   parseAudiobookLimit,
   parseAudiobookPage,
 } from "@/lib/audiobookCatalog";
+import { canAccessMatureContentFromRequest } from "@/lib/matureContentAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const { slug } = await context.params;
   const category = cleanAudiobookFilter(slug);
   if (!category) return jsonAudiobookError("Invalid mature audiobook category.", 400);
+
+  if (!canAccessMatureContentFromRequest(request)) {
+    return jsonAudiobookError("Mature audiobooks require age confirmation.", 403);
+  }
 
   const params = request.nextUrl.searchParams;
   const page = parseAudiobookPage(params.get("page"));

@@ -158,8 +158,23 @@ function isLikelyAudio(contentType: string | null, sample: Uint8Array, url: stri
   const type = String(contentType || "").toLowerCase();
   if (AUDIO_CONTENT_TYPES.some((knownType) => type.includes(knownType))) return true;
   if (/\.(mp3|aac|m4a|ogg|opus|flac)(?:\?|$)/i.test(url)) return true;
+  // HLS audio often delivers MPEG-TS / CMAF segments rather than naked MP3/AAC.
+  if (isHlsMediaSegmentUrl(url)) {
+    if (type.includes("mp2t") || type.includes("mp4") || type.includes("octet-stream") || type.includes("aac")) {
+      return true;
+    }
+    if (sample.length > 0 && sample[0] === 0x47) return true; // MPEG-TS sync
+    if (sample.length > 4) {
+      const header = new TextDecoder("latin1").decode(sample.slice(0, 12));
+      if (header.includes("ftyp") || header.startsWith("ID3")) return true;
+    }
+  }
   const header = new TextDecoder("latin1").decode(sample.slice(0, 16));
   return header.startsWith("ID3") || header.startsWith("OggS") || header.includes("ftyp");
+}
+
+function isHlsMediaSegmentUrl(url: string) {
+  return /\.(ts|m4s|m4a|aac)(?:\?|$)/i.test(url);
 }
 
 function parsePlaylistEntries(text: string, baseUrl: string, maxEntries: number) {
@@ -171,7 +186,8 @@ function parsePlaylistEntries(text: string, baseUrl: string, maxEntries: number)
     if (line.startsWith("#") || /^\[playlist\]$/i.test(line)) continue;
     const plsMatch = line.match(/^File\d+=(.+)$/i);
     const raw = plsMatch ? plsMatch[1].trim() : line;
-    if (!/^https?:\/\//i.test(raw) && !raw.startsWith("/")) continue;
+    // Accept absolute, root-relative, and relative playlist entries (HLS masters often use relative chunklists).
+    if (/^[a-z][a-z0-9+.-]*:/i.test(raw) && !/^https?:\/\//i.test(raw)) continue;
     try {
       entries.push(new URL(raw, baseUrl).toString());
     } catch {

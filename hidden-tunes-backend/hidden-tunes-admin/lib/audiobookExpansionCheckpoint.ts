@@ -86,9 +86,45 @@ export function writeAudiobookExpansionCheckpoint(
 ) {
   fs.mkdirSync(CHECKPOINT_DIR, { recursive: true });
   const paths = checkpointPaths(checkpoint.batch_number, checkpoint.source_key);
+  const payload = JSON.stringify(checkpoint, null, 2);
+
   if (fs.existsSync(paths.active)) {
-    fs.copyFileSync(paths.active, paths.backup);
+    try {
+      fs.copyFileSync(paths.active, paths.backup);
+    } catch {
+      // Backup is best-effort on Windows file locks.
+    }
   }
-  fs.writeFileSync(paths.temp, JSON.stringify(checkpoint, null, 2));
-  fs.renameSync(paths.temp, paths.active);
+
+  try {
+    fs.writeFileSync(paths.temp, payload);
+  } catch {
+    // Fall through to direct write.
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      if (fs.existsSync(paths.temp)) {
+        fs.renameSync(paths.temp, paths.active);
+      } else {
+        fs.writeFileSync(paths.active, payload);
+      }
+      return;
+    } catch {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 75 * (attempt + 1));
+    }
+  }
+
+  try {
+    fs.writeFileSync(paths.active, payload);
+    if (fs.existsSync(paths.temp)) {
+      try {
+        fs.unlinkSync(paths.temp);
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // Checkpoint persistence must not abort a successful import batch on Windows locks.
+  }
 }

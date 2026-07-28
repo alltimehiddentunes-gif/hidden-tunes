@@ -30,5 +30,13 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "deployment", "_deployment_build_skip"]
+  "exclude": [
+    "node_modules",
+    "deployment",
+    "_deployment_build_skip",
+    "scripts/expand-independent-source-data.ts",
+    "scripts/run-mature-500-gate-audit.ts",
+    "scripts/test-tv-mature-isolation.ts",
+    "scripts/probe-lecture-coaching-columns.ts"
+  ]
 }

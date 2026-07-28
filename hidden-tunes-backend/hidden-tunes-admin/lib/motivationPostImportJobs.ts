@@ -12,6 +12,11 @@ export type PostImportJobResult = {
   examined: number;
   updated: number;
   skipped: number;
+  accepted: number;
+  rejected: number;
+  held: number;
+  unchanged: number;
+  errored: number;
   errors: string[];
 };
 
@@ -21,6 +26,11 @@ export async function runMotivationPostImportClassification(limit = 200): Promis
     examined: 0,
     updated: 0,
     skipped: 0,
+    accepted: 0,
+    rejected: 0,
+    held: 0,
+    unchanged: 0,
+    errored: 0,
     errors: [],
   };
 
@@ -28,7 +38,7 @@ export async function runMotivationPostImportClassification(limit = 200): Promis
     .from("motivation_items")
     .select("id, title, description, tags, speaker_name, creator_name, channel_name, language, category, source_type, content_classification")
     .eq("status", "pending")
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) {
@@ -50,6 +60,7 @@ export async function runMotivationPostImportClassification(limit = 200): Promis
           : null,
       language: row.language ? String(row.language) : null,
     });
+    const previousDecision = String(row.content_classification || "hold");
     const classification = classifyMotivationContent({
       title: normalized.title,
       description: normalized.description,
@@ -60,6 +71,12 @@ export async function runMotivationPostImportClassification(limit = 200): Promis
       category: String(row.category || ""),
       sourceType: String(row.source_type || ""),
     });
+
+    if (classification.decision === "accept") result.accepted += 1;
+    else if (classification.decision === "reject") result.rejected += 1;
+    else result.held += 1;
+
+    if (classification.decision === previousDecision) result.unchanged += 1;
 
     const { error: updateError } = await supabaseAdmin
       .from("motivation_items")
@@ -73,6 +90,7 @@ export async function runMotivationPostImportClassification(limit = 200): Promis
       .eq("id", row.id);
 
     if (updateError) {
+      result.errored += 1;
       result.errors.push(updateError.message);
       continue;
     }
@@ -88,6 +106,11 @@ export async function runMotivationPostImportRightsRecheck(limit = 200): Promise
     examined: 0,
     updated: 0,
     skipped: 0,
+    accepted: 0,
+    rejected: 0,
+    held: 0,
+    unchanged: 0,
+    errored: 0,
     errors: [],
   };
 
@@ -135,6 +158,11 @@ export async function runMotivationPostImportMediaHealthRecheck(limit = 200): Pr
     examined: 0,
     updated: 0,
     skipped: 0,
+    accepted: 0,
+    rejected: 0,
+    held: 0,
+    unchanged: 0,
+    errored: 0,
     errors: [],
   };
 
