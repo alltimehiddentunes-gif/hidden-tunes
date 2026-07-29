@@ -1,0 +1,14 @@
+{
+  "after": {
+    "present": false,
+    "cards": [],
+    "clip": null
+  },
+  "detail": null,
+  "zeroSongsVisible": false,
+  "checks": {
+    "everyCreatorHasCount": true,
+    "noZeroSongsLabel": true,
+    "sectionHiddenOrPopulated": true
+  }
+}

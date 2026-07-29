@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-07-22T16:51:03.628Z",
+  "startedAt": "2026-07-29T13:45:12.593Z",
   "checks": [
     {
       "check": "shell-ready",
@@ -129,7 +129,7 @@
     "/api/podcasts/featured?page=1&limit=12",
     "/api/podcasts/shows?page=1&limit=12"
   ],
-  "endedAt": "2026-07-22T16:51:42.967Z",
+  "endedAt": "2026-07-29T13:46:06.213Z",
   "uniqueCatalogPaths": [
     "/api/podcasts/categories",
     "/api/podcasts/featured?page=1&limit=12",

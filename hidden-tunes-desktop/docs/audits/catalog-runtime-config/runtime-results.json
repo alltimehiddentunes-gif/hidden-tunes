@@ -6,19 +6,29 @@
       "detail": ""
     },
     {
+      "check": "catalog-bridge-ready",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "idle-shell-does-not-require-player",
+      "ok": true,
+      "detail": "player=false media=2"
+    },
+    {
       "check": "home-intact",
       "ok": true,
       "detail": ""
     },
     {
-      "check": "persistent-player-intact",
+      "check": "idle-player-hidden",
       "ok": true,
       "detail": ""
     },
     {
-      "check": "no-duplicate-top-routes",
+      "check": "single-primary-top-nav",
       "ok": true,
-      "detail": ""
+      "detail": "routes=8"
     },
     {
       "check": "single-audio",
@@ -51,14 +61,14 @@
       "detail": "audio=1"
     },
     {
-      "check": "playback-single-audio",
+      "check": "nav-home",
       "ok": true,
-      "detail": "audio=1"
+      "detail": ""
     },
     {
-      "check": "playback-single-video",
+      "check": "nav-music",
       "ok": true,
-      "detail": "video=1"
+      "detail": ""
     },
     {
       "check": "nav-radio",
@@ -86,7 +96,27 @@
       "detail": ""
     },
     {
+      "check": "nav-motivationals",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-lectures",
+      "ok": true,
+      "detail": ""
+    },
+    {
       "check": "nav-library",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-favorites",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "nav-playlists",
       "ok": true,
       "detail": ""
     },
@@ -101,15 +131,1241 @@
       "detail": ""
     },
     {
+      "check": "nav-search",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "active-player-visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "playback-single-audio",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "playback-single-video",
+      "ok": true,
+      "detail": "video=1"
+    },
+    {
       "check": "1024-no-overflow",
       "ok": true,
       "detail": ""
     },
     {
-      "check": "1024-player-visible",
+      "check": "1024-active-player-visible",
       "ok": true,
       "detail": ""
     }
   ],
-  "failures": []
+  "failures": [],
+  "requests": [
+    {
+      "path": "/api/radio/stations?page=1&limit=12&featured=true",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/radio/countries",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/radio/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 200
+    },
+    {
+      "path": "/api/radio/stations?page=1&limit=32",
+      "method": "GET",
+      "status": 200,
+      "count": 32
+    },
+    {
+      "path": "/api/podcasts/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 10
+    },
+    {
+      "path": "/api/podcasts/featured?page=1&limit=12",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/podcasts/shows?page=1&limit=12",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/tv/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 45
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=12&featured=true",
+      "method": "GET",
+      "status": 200,
+      "count": 5
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Trending",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Entertainment",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Kids",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Movies",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=News",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Sports",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Documentary",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Music+TV",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Hip+Hop",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Pop",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=R%26B",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Jazz",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Latin",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Afrobeats",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Reggae",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Rock",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Live+Sessions",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Worship+Music",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=EDM",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Classical",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Festival+Streams",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Country",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Artist+TV",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Amapiano",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&country=DE",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&country=AT",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&country=FR",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 40
+    },
+    {
+      "path": "/api/sports/fixtures?page=1&limit=24&live=1",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/audiobooks/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 16
+    },
+    {
+      "path": "/api/audiobooks/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 16
+    },
+    {
+      "path": "/api/audiobooks?page=1&limit=12",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/audiobooks?page=1&limit=12",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/audiobooks?page=1&limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 40
+    },
+    {
+      "path": "/api/audiobooks?page=1&limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 40
+    },
+    {
+      "path": "/api/motivation/programs?page=1&limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/motivation/programs?page=1&limit=12&featured=true",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/motivation/items?limit=12&mediaType=audio",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/motivation/items?limit=12&mediaType=video",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/motivation/programs?page=1&limit=12&featured=true",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/motivation/items?limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 40
+    },
+    {
+      "path": "/api/motivation/items?limit=12&mediaType=audio",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/motivation/items?limit=12&mediaType=video",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/motivation/programs?page=1&limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/motivation/items?limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 40
+    },
+    {
+      "path": "/api/motivation/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 44
+    },
+    {
+      "path": "/api/motivation/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 44
+    },
+    {
+      "path": "/api/lectures/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 14
+    },
+    {
+      "path": "/api/lectures/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 14
+    },
+    {
+      "path": "/api/lectures/category/programming?page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/lectures/category/music-production?page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/lectures/category/business?page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/lectures/category/design?page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/lectures/category/language-learning?page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/audiobooks/search?q=Pop&page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 8
+    },
+    {
+      "path": "/api/sports/search?q=Pop&page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/podcasts/shows?page=1&limit=8&q=Pop",
+      "method": "GET",
+      "status": 200,
+      "count": 8
+    },
+    {
+      "path": "/api/tv/search?q=Pop&page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 8
+    },
+    {
+      "path": "/api/lectures/search?q=Pop&page=1&limit=6",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/radio/stations?page=1&limit=8&q=Pop",
+      "method": "GET",
+      "status": 200,
+      "count": 8
+    },
+    {
+      "path": "/api/motivation/search?q=Pop&page=1&limit=8",
+      "method": "GET",
+      "status": 200,
+      "count": 8
+    },
+    {
+      "path": "/api/radio/countries",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/radio/stations?page=1&limit=12&featured=true",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/radio/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 200
+    },
+    {
+      "path": "/api/radio/stations?page=1&limit=32",
+      "method": "GET",
+      "status": 200,
+      "count": 32
+    },
+    {
+      "path": "/api/tv/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 45
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=12&featured=true",
+      "method": "GET",
+      "status": 200,
+      "count": 5
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Sports",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=News",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Trending",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Kids",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Entertainment",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Movies",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Pop",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=EDM",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Amapiano",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Artist+TV",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Afrobeats",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Classical",
+      "method": "GET",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Documentary",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Reggae",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Country",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Music+TV",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Hip+Hop",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Rock",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Live+Sessions",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Jazz",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=R%26B",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Worship+Music",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Festival+Streams",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&category=Latin",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&country=DE",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&country=FR",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=1&country=AT",
+      "method": "GET",
+      "status": 200,
+      "count": 1
+    },
+    {
+      "path": "/api/tv/channels?page=1&limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 40
+    },
+    {
+      "path": "/api/audiobooks/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 16
+    },
+    {
+      "path": "/api/audiobooks/categories",
+      "method": "GET",
+      "status": 200,
+      "count": 16
+    },
+    {
+      "path": "/api/audiobooks?page=1&limit=12",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/audiobooks?page=1&limit=12",
+      "method": "GET",
+      "status": 200,
+      "count": 12
+    },
+    {
+      "path": "/api/audiobooks?page=1&limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 40
+    },
+    {
+      "path": "/api/audiobooks?page=1&limit=40",
+      "method": "GET",
+      "status": 200,
+      "count": 40
+    }
+  ],
+  "routes": [
+    {
+      "route": "Home",
+      "opens": true,
+      "requests": [],
+      "rendered": 17,
+      "finalState": "working",
+      "detail": "",
+      "nav": "home"
+    },
+    {
+      "route": "Music",
+      "opens": true,
+      "requests": [],
+      "rendered": 11,
+      "finalState": "working",
+      "detail": "",
+      "nav": "music"
+    },
+    {
+      "route": "Radio",
+      "opens": true,
+      "requests": [
+        {
+          "path": "/api/radio/stations?page=1&limit=12&featured=true",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/radio/countries",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/radio/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 200
+        },
+        {
+          "path": "/api/radio/stations?page=1&limit=32",
+          "method": "GET",
+          "status": 200,
+          "count": 32
+        }
+      ],
+      "rendered": 32,
+      "finalState": "working",
+      "detail": "",
+      "nav": "radio"
+    },
+    {
+      "route": "Podcasts",
+      "opens": true,
+      "requests": [
+        {
+          "path": "/api/podcasts/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 10
+        },
+        {
+          "path": "/api/podcasts/featured?page=1&limit=12",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/podcasts/shows?page=1&limit=12",
+          "method": "GET",
+          "status": 200,
+          "count": 12
+        }
+      ],
+      "rendered": 12,
+      "finalState": "working",
+      "detail": "No episodes are available in this view right now.",
+      "nav": "podcasts"
+    },
+    {
+      "route": "TV",
+      "opens": true,
+      "requests": [
+        {
+          "path": "/api/tv/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 45
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=12&featured=true",
+          "method": "GET",
+          "status": 200,
+          "count": 5
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Trending",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Entertainment",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Kids",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Movies",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=News",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Sports",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Documentary",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Music+TV",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Hip+Hop",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Pop",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=R%26B",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Jazz",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Latin",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Afrobeats",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Reggae",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Rock",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Live+Sessions",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Worship+Music",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=EDM",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Classical",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Festival+Streams",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Country",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Artist+TV",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&category=Amapiano",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&country=DE",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&country=AT",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=1&country=FR",
+          "method": "GET",
+          "status": 200,
+          "count": 1
+        },
+        {
+          "path": "/api/tv/channels?page=1&limit=40",
+          "method": "GET",
+          "status": 200,
+          "count": 40
+        }
+      ],
+      "rendered": 45,
+      "finalState": "working",
+      "detail": "",
+      "nav": "tv"
+    },
+    {
+      "route": "Sports",
+      "opens": true,
+      "requests": [
+        {
+          "path": "/api/sports/fixtures?page=1&limit=24&live=1",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        }
+      ],
+      "rendered": 0,
+      "finalState": "shell-only",
+      "detail": "",
+      "nav": "sports"
+    },
+    {
+      "route": "Audiobooks",
+      "opens": true,
+      "requests": [
+        {
+          "path": "/api/audiobooks/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 16
+        },
+        {
+          "path": "/api/audiobooks/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 16
+        },
+        {
+          "path": "/api/audiobooks?page=1&limit=12",
+          "method": "GET",
+          "status": 200,
+          "count": 12
+        },
+        {
+          "path": "/api/audiobooks?page=1&limit=12",
+          "method": "GET",
+          "status": 200,
+          "count": 12
+        },
+        {
+          "path": "/api/audiobooks?page=1&limit=40",
+          "method": "GET",
+          "status": 200,
+          "count": 40
+        },
+        {
+          "path": "/api/audiobooks?page=1&limit=40",
+          "method": "GET",
+          "status": 200,
+          "count": 40
+        }
+      ],
+      "rendered": 64,
+      "finalState": "working",
+      "detail": "",
+      "nav": "audiobooks"
+    },
+    {
+      "route": "Motivationals",
+      "opens": true,
+      "requests": [
+        {
+          "path": "/api/motivation/programs?page=1&limit=40",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/motivation/programs?page=1&limit=12&featured=true",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/motivation/items?limit=12&mediaType=audio",
+          "method": "GET",
+          "status": 200,
+          "count": 12
+        },
+        {
+          "path": "/api/motivation/items?limit=12&mediaType=video",
+          "method": "GET",
+          "status": 200,
+          "count": 12
+        },
+        {
+          "path": "/api/motivation/programs?page=1&limit=12&featured=true",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/motivation/items?limit=40",
+          "method": "GET",
+          "status": 200,
+          "count": 40
+        },
+        {
+          "path": "/api/motivation/items?limit=12&mediaType=audio",
+          "method": "GET",
+          "status": 200,
+          "count": 12
+        },
+        {
+          "path": "/api/motivation/items?limit=12&mediaType=video",
+          "method": "GET",
+          "status": 200,
+          "count": 12
+        },
+        {
+          "path": "/api/motivation/programs?page=1&limit=40",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/motivation/items?limit=40",
+          "method": "GET",
+          "status": 200,
+          "count": 40
+        },
+        {
+          "path": "/api/motivation/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 44
+        },
+        {
+          "path": "/api/motivation/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 44
+        }
+      ],
+      "rendered": 76,
+      "finalState": "working",
+      "detail": "",
+      "nav": "motivationals"
+    },
+    {
+      "route": "Lectures",
+      "opens": true,
+      "requests": [
+        {
+          "path": "/api/lectures/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 14
+        },
+        {
+          "path": "/api/lectures/categories",
+          "method": "GET",
+          "status": 200,
+          "count": 14
+        },
+        {
+          "path": "/api/lectures/category/programming?page=1&limit=8",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/lectures/category/music-production?page=1&limit=8",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/lectures/category/business?page=1&limit=8",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/lectures/category/design?page=1&limit=8",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        },
+        {
+          "path": "/api/lectures/category/language-learning?page=1&limit=8",
+          "method": "GET",
+          "status": 200,
+          "count": 0
+        }
+      ],
+      "rendered": 75,
+      "finalState": "working",
+      "detail": "",
+      "nav": "lectures"
+    },
+    {
+      "route": "Library",
+      "opens": true,
+      "requests": [],
+      "rendered": 0,
+      "finalState": "shell-only",
+      "detail": "",
+      "nav": "library"
+    },
+    {
+      "route": "Favorites",
+      "opens": true,
+      "requests": [],
+      "rendered": 0,
+      "finalState": "empty-or-disabled",
+      "detail": "No liked songs yet",
+      "nav": "liked"
+    },
+    {
+      "route": "Playlists",
+      "opens": true,
+      "requests": [],
+      "rendered": 0,
+      "finalState": "shell-only",
+      "detail": "",
+      "nav": "playlists"
+    },
+    {
+      "route": "Downloads",
+      "opens": true,
+      "requests": [],
+      "rendered": 0,
+      "finalState": "shell-only",
+      "detail": "",
+      "nav": "downloads"
+    },
+    {
+      "route": "History",
+      "opens": true,
+      "requests": [],
+      "rendered": 0,
+      "finalState": "shell-only",
+      "detail": "",
+      "nav": "recent"
+    },
+    {
+      "route": "Search",
+      "opens": true,
+      "requests": [],
+      "rendered": 13,
+      "finalState": "working",
+      "detail": "",
+      "nav": "search"
+    }
+  ],
+  "screenshots": [
+    "route-home-1440x900.png",
+    "route-music-1440x900.png",
+    "route-radio-1440x900.png",
+    "route-podcasts-1440x900.png",
+    "route-tv-1440x900.png",
+    "route-sports-1440x900.png",
+    "route-audiobooks-1440x900.png",
+    "route-motivationals-1440x900.png",
+    "route-lectures-1440x900.png",
+    "route-library-1440x900.png",
+    "route-favorites-1440x900.png",
+    "route-playlists-1440x900.png",
+    "route-downloads-1440x900.png",
+    "route-history-1440x900.png",
+    "route-search-1440x900.png",
+    "route-home-1024x768.png",
+    "route-music-1024x768.png",
+    "route-radio-1024x768.png",
+    "route-tv-1024x768.png",
+    "route-audiobooks-1024x768.png"
+  ]
 }

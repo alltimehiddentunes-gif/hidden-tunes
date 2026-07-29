@@ -1,0 +1,31 @@
+{
+  "homeProbe": {
+    "hasDevAudioText": false,
+    "hasDiagnosticsLabel": false,
+    "hasFeatured": false,
+    "hasPick": false,
+    "heroCards": [],
+    "titles": [],
+    "songCountHint": "0+ songs ready"
+  },
+  "searchProbe": {
+    "queryEcho": true,
+    "resultHasDevAudio": false,
+    "resultSample": "",
+    "resultCount": 0
+  },
+  "apiSample": {
+    "count": 0,
+    "titles": [],
+    "hasDevIds": false,
+    "hasDevTitle": false
+  },
+  "catalogState": null,
+  "diagnosticGetterAvailable": true,
+  "expectations": {
+    "homeMustNotShowDevAudio": true,
+    "searchResultsMustNotShowDevAudio": true,
+    "apiMustNotContainHarness": true,
+    "diagnosticFixtureStillAvailable": true
+  }
+}

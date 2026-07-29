@@ -1,0 +1,185 @@
+{
+  "steps": [
+    {
+      "step": "A1-tv-start",
+      "tvStarted": {
+        "navOk": true,
+        "hit": true,
+        "page": "tv"
+      },
+      "snap": {
+        "nav": "tv",
+        "page": "tv",
+        "tvRail": true,
+        "tvTitle": "NHK World Japan",
+        "audioRail": false,
+        "audioIdle": null,
+        "audioTitle": null,
+        "footerTitle": null,
+        "footerLive": true,
+        "videoCount": 1,
+        "audioCount": 1,
+        "videoPaused": false
+      }
+    },
+    {
+      "step": "A-nav-Music",
+      "snap": {
+        "nav": "music",
+        "page": "music",
+        "tvRail": true,
+        "tvTitle": "NHK World Japan",
+        "audioRail": false,
+        "audioIdle": null,
+        "audioTitle": null,
+        "footerTitle": null,
+        "footerLive": true,
+        "videoCount": 1,
+        "audioCount": 1,
+        "videoPaused": false
+      }
+    },
+    {
+      "step": "A-nav-Podcasts",
+      "snap": {
+        "nav": "podcasts",
+        "page": "podcasts",
+        "tvRail": true,
+        "tvTitle": "NHK World Japan",
+        "audioRail": false,
+        "audioIdle": null,
+        "audioTitle": null,
+        "footerTitle": null,
+        "footerLive": true,
+        "videoCount": 1,
+        "audioCount": 1,
+        "videoPaused": false
+      }
+    },
+    {
+      "step": "A-nav-Home",
+      "snap": {
+        "nav": "home",
+        "page": "home",
+        "tvRail": true,
+        "tvTitle": "NHK World Japan",
+        "audioRail": false,
+        "audioIdle": null,
+        "audioTitle": null,
+        "footerTitle": null,
+        "footerLive": true,
+        "videoCount": 1,
+        "audioCount": 1,
+        "videoPaused": false
+      }
+    },
+    {
+      "step": "A-next",
+      "nextOk": {
+        "clicked": true,
+        "before": "NHK World Japan"
+      },
+      "snap": {
+        "nav": "home",
+        "page": "home",
+        "tvRail": true,
+        "tvTitle": "NHK World Japan",
+        "audioRail": false,
+        "audioIdle": null,
+        "audioTitle": null,
+        "footerTitle": null,
+        "footerLive": true,
+        "videoCount": 1,
+        "audioCount": 1,
+        "videoPaused": false
+      }
+    },
+    {
+      "step": "B-music-switch",
+      "songStarted": {
+        "navOk": true,
+        "clicked": true,
+        "label": "181.FM - 80's CountryThe United States Of America · MP3 · 128kbps",
+        "via": "radio"
+      },
+      "snap": {
+        "nav": "radio",
+        "page": "radio",
+        "tvRail": false,
+        "tvTitle": null,
+        "audioRail": true,
+        "audioIdle": "false",
+        "audioTitle": "181.FM - 80's Country",
+        "footerTitle": null,
+        "footerLive": true,
+        "videoCount": 1,
+        "audioCount": 1,
+        "videoPaused": true
+      }
+    },
+    {
+      "step": "B-browse-tv-no-play",
+      "snap": {
+        "nav": "tv",
+        "page": "tv",
+        "tvRail": false,
+        "tvTitle": null,
+        "audioRail": true,
+        "audioIdle": "false",
+        "audioTitle": "181.FM - 80's Country",
+        "footerTitle": null,
+        "footerLive": true,
+        "videoCount": 1,
+        "audioCount": 1,
+        "videoPaused": true
+      }
+    }
+  ],
+  "checks": [
+    {
+      "id": "A1",
+      "ok": true,
+      "detail": "TV rail after start ({\"navOk\":true,\"hit\":true,\"page\":\"tv\"}) title=NHK World Japan nav=tv"
+    },
+    {
+      "id": "A-Music",
+      "ok": true,
+      "detail": "nav=music tvRail=true title=NHK World Japan"
+    },
+    {
+      "id": "A-Podcasts",
+      "ok": true,
+      "detail": "nav=podcasts tvRail=true title=NHK World Japan"
+    },
+    {
+      "id": "A-Home",
+      "ok": true,
+      "detail": "nav=home tvRail=true title=NHK World Japan"
+    },
+    {
+      "id": "A-next",
+      "ok": true,
+      "detail": "TV still active on Home after Next; before=NHK World Japan after=NHK World Japan err=undefined"
+    },
+    {
+      "id": "B-switch-music",
+      "ok": true,
+      "detail": "After explicit audio play ({\"navOk\":true,\"clicked\":true,\"label\":\"181.FM - 80's CountryThe United States Of America · MP3 · 128kbps\",\"via\":\"radio\"}): audioRail=true tvRail=false title=181.FM - 80's Country"
+    },
+    {
+      "id": "B-browse-tv",
+      "ok": true,
+      "detail": "Browsing TV without play keeps music: audioRail=true tvRail=false"
+    },
+    {
+      "id": "one-video",
+      "ok": true,
+      "detail": "videoCount=1"
+    },
+    {
+      "id": "one-audio-el",
+      "ok": true,
+      "detail": "audioCount=1 (allow idle+active)"
+    }
+  ]
+}

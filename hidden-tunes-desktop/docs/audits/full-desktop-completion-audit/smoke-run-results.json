@@ -1,0 +1,37 @@
+﻿[
+    {
+        "script":  "scripts/smoke-catalog-runtime.mjs",
+        "exit":  1,
+        "status":  "FAIL",
+        "ms":  5214,
+        "tail":  "    at async ModuleJob.run (node:internal/modules/esm/module_job:429:5)\r |     at async node:internal/modules/esm/loader:639:26\r |     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\r | \r | Node.js v24.15.0\r | "
+    },
+    {
+        "script":  "scripts/smoke-music-page-layout.mjs",
+        "exit":  1,
+        "status":  "FAIL",
+        "ms":  589,
+        "tail":  "    at async ModuleJob.run (node:internal/modules/esm/module_job:429:5)\r |     at async node:internal/modules/esm/loader:639:26\r |     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\r | \r | Node.js v24.15.0\r | "
+    },
+    {
+        "script":  "scripts/smoke-music-product-layout.mjs",
+        "exit":  1,
+        "status":  "FAIL",
+        "ms":  738,
+        "tail":  "    at async ModuleJob.run (node:internal/modules/esm/module_job:429:5)\r |     at async node:internal/modules/esm/loader:639:26\r |     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\r | \r | Node.js v24.15.0\r | "
+    },
+    {
+        "script":  "scripts/smoke-home-organisation.mjs",
+        "exit":  -1,
+        "status":  "FAIL",
+        "ms":  869346,
+        "tail":  " \r | (Use `node --trace-deprecation ...` to show where the warning was created)\r | \r | [5292:0728/232920.868:ERROR:content\\browser\\gpu\\gpu_process_host.cc:999] GPU process exited unexpectedly: exit_code=2\r | WebContents #1 called ipcRenderer.sendSync() with \u0027ht-runtime-info\u0027 chan"
+    },
+    {
+        "script":  "scripts/smoke-home-premium-polish.mjs",
+        "exit":  1,
+        "status":  "FAIL",
+        "ms":  795,
+        "tail":  "    at async ModuleJob.run (node:internal/modules/esm/module_job:429:5)\r |     at async node:internal/modules/esm/loader:639:26\r |     at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\r | \r | Node.js v24.15.0\r | "
+    }
+]

@@ -1,0 +1,18 @@
+{
+  "diagnosticAccess": {
+    "module": "src/lib/devAudioVersionTestHarness.ts",
+    "getter": "getDevAudioVersionTestSongs()",
+    "markers": {
+      "idPrefix": "dev-audio-version-",
+      "tag": "desktop-dev"
+    },
+    "publicPath": "excludeInternalDevCatalogSongs(songs) in App.tsx displaySongs",
+    "note": "Fixtures remain importable for audio-version diagnostic tools; they are never merged into the public catalog provider."
+  },
+  "fixtureIds": [
+    "dev-audio-version-full",
+    "dev-audio-version-lean",
+    "dev-audio-version-high-only",
+    "dev-audio-version-legacy-only"
+  ]
+}

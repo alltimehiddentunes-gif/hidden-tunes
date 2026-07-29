@@ -3,44 +3,76 @@
   "widths": {
     "-1024": {
       "sections": [
+        "Songs",
         "New Releases",
-        "Popular on Hidden Tunes",
+        "Albums",
+        "Artists",
         "Genres",
         "Moods",
-        "Deep browse"
+        "Popular on Hidden Tunes"
       ],
       "placeholder": "Search songs, artists, albums…",
       "giant": false,
-      "maxH": 190,
+      "maxH": 152,
       "frames": [
         {
-          "w": 88,
-          "h": 88,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 167,
-          "h": 167,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 152,
+          "h": 152,
           "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 132,
+          "h": 132,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 148,
+          "h": 148,
+          "circle": true,
           "fills": false
         }
       ],
@@ -50,44 +82,76 @@
     },
     "-1280": {
       "sections": [
+        "Songs",
         "New Releases",
-        "Popular on Hidden Tunes",
+        "Albums",
+        "Artists",
         "Genres",
         "Moods",
-        "Deep browse"
+        "Popular on Hidden Tunes"
       ],
       "placeholder": "Search songs, artists, albums…",
       "giant": false,
-      "maxH": 190,
+      "maxH": 152,
       "frames": [
         {
-          "w": 88,
-          "h": 88,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 167,
-          "h": 167,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 152,
+          "h": 152,
           "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 132,
+          "h": 132,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 148,
+          "h": 148,
+          "circle": true,
           "fills": false
         }
       ],
@@ -97,44 +161,76 @@
     },
     "-1440": {
       "sections": [
+        "Songs",
         "New Releases",
-        "Popular on Hidden Tunes",
+        "Albums",
+        "Artists",
         "Genres",
         "Moods",
-        "Deep browse"
+        "Popular on Hidden Tunes"
       ],
       "placeholder": "Search songs, artists, albums…",
       "giant": false,
-      "maxH": 190,
+      "maxH": 152,
       "frames": [
         {
-          "w": 88,
-          "h": 88,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 167,
-          "h": 167,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 152,
+          "h": 152,
           "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 132,
+          "h": 132,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 148,
+          "h": 148,
+          "circle": true,
           "fills": false
         }
       ],
@@ -144,44 +240,76 @@
     },
     "-LARGE": {
       "sections": [
+        "Songs",
         "New Releases",
-        "Popular on Hidden Tunes",
+        "Albums",
+        "Artists",
         "Genres",
         "Moods",
-        "Deep browse"
+        "Popular on Hidden Tunes"
       ],
       "placeholder": "Search songs, artists, albums…",
       "giant": false,
-      "maxH": 190,
+      "maxH": 152,
       "frames": [
         {
-          "w": 88,
-          "h": 88,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 167,
-          "h": 167,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 48,
+          "h": 48,
           "circle": false,
           "fills": false
         },
         {
-          "w": 190,
-          "h": 190,
+          "w": 152,
+          "h": 152,
           "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 152,
+          "h": 152,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 132,
+          "h": 132,
+          "circle": false,
+          "fills": false
+        },
+        {
+          "w": 148,
+          "h": 148,
+          "circle": true,
           "fills": false
         }
       ],

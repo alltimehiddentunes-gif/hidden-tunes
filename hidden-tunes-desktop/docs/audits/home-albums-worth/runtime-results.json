@@ -1,0 +1,94 @@
+{
+  "checks": [
+    {
+      "check": "home-visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "album-cards-present",
+      "ok": false,
+      "detail": "n=0"
+    },
+    {
+      "check": "details-secondary-present",
+      "ok": true,
+      "detail": "details=0"
+    },
+    {
+      "check": "not-all-titles-singles",
+      "ok": true,
+      "detail": "singlesTitles=0/0 sample="
+    },
+    {
+      "check": "single-audio-baseline",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "card-clicked",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "check": "route-stays-home",
+      "ok": true,
+      "detail": "view=page nav=home"
+    },
+    {
+      "check": "no-playerworkspace",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "sidebar-populated",
+      "ok": false,
+      "detail": "Now PlayingHidden TunesNothing PlayingReady when you are — choose something from Home to start listening. Your Hidden Tunes player lives here.Browse HomeVolumePlayers"
+    },
+    {
+      "check": "footer-sync",
+      "ok": false,
+      "detail": "NPNothing playingSelect a song to begin0:00ÔÇöAutoData SaverStandardHigh Quality"
+    },
+    {
+      "check": "single-audio-after",
+      "ok": true,
+      "detail": "audio=1"
+    },
+    {
+      "check": "next-control-invoked",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "error-node-contract",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "failures": [
+    {
+      "check": "album-cards-present",
+      "detail": "n=0"
+    },
+    {
+      "check": "card-clicked",
+      "detail": ""
+    },
+    {
+      "check": "sidebar-populated",
+      "detail": "Now PlayingHidden TunesNothing PlayingReady when you are — choose something from Home to start listening. Your Hidden Tunes player lives here.Browse HomeVolumePlayers"
+    },
+    {
+      "check": "footer-sync",
+      "detail": "NPNothing playingSelect a song to begin0:00ÔÇöAutoData SaverStandardHigh Quality"
+    }
+  ],
+  "shots": [
+    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\01-section-before-click.png",
+    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\02-click-loading-feedback.png",
+    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\03-home-while-playing.png",
+    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\04-sidebar-populated.png",
+    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\05-after-next.png"
+  ]
+}

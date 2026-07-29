@@ -1,0 +1,36 @@
+{
+  "probe": {
+    "sections": [
+      "Recently Added",
+      "Emotional Worlds",
+      "All Songs"
+    ],
+    "albumHeading": false,
+    "albumHtml": null,
+    "cards": 0,
+    "wraps": 0,
+    "details": 0,
+    "songMeta": "",
+    "creators": 0,
+    "reactError": false
+  },
+  "logs": [
+    {
+      "level": 3,
+      "message": "Uncaught (in promise) Error: Error invoking remote method 'ht-downloads-reconcile': Error: No handler registered for 'ht-downloads-reconcile'"
+    },
+    {
+      "level": 3,
+      "message": "Uncaught (in promise) Error: Error invoking remote method 'ht-downloads-reconcile': Error: No handler registered for 'ht-downloads-reconcile'"
+    },
+    {
+      "level": 3,
+      "message": "Uncaught (in promise) Error: Error invoking remote method 'ht-downloads-reconcile': Error: No handler registered for 'ht-downloads-reconcile'"
+    },
+    {
+      "level": 3,
+      "message": "Uncaught (in promise) Error: Error invoking remote method 'ht-downloads-reconcile': Error: No handler registered for 'ht-downloads-reconcile'"
+    }
+  ],
+  "logCount": 13
+}

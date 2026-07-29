@@ -1,0 +1,93 @@
+{
+  "dump": {
+    "sections": [
+      "Recently Added",
+      "Emotional Worlds",
+      "All Songs"
+    ],
+    "artistCards": 0,
+    "songCards": 0,
+    "err": [
+      "Nothing here yetYour listening room is getting ready. Pull down to refresh when you're online.Refresh catalog"
+    ],
+    "hasCreators": false,
+    "homeClass": "music-home music-home--parity music-home--content-first music-home--premium",
+    "expressProbe": {
+      "status": 200,
+      "len": 3307,
+      "head": "[{\"id\":\"a772ae46-da35-41aa-82d2-0c058675cdf9\",\"title\":\"Runda Good Girl\",\"slug\":\"hidden-tunes-runda-good-girl-a772ae46\",\""
+    },
+    "runtime": null,
+    "text": "HIDDEN TUNES\nFeel Every Sound\nPRIMARY\nHome\nMusic\nRadio\nPodcasts\nTV\nSports\nLIBRARY\nLibrary\nFavorites\nPlaylists\nDownloads\nHistory\nDISCOVER\nEmotional Worlds\nSearch\nArtists\nAlbums\nLISTEN AND LEARN\nAudiobooks\nMotivationals\nLectures\nACCOUNT\nSettings\nGo Premium\nUnlock every world\nH\nHidden Listener\nLOCAL PROFILE\nHidden Tunes\nHOME\nH\nSearch Hidden Tunes...\n0+ songs ready\nCurated rooms\nNow Playing\nNothing playing yet\nTap a song to start listening\nRadio\nLive stations\nPodcasts\nShows & episodes\nAudiobooks\nBooks & chapters\nMore\nExplore rooms\n\nNEW\n\nRecently Added\n\nYour newest picks will appear here after the catalog loads.\n\nEmotional Worlds\n\nHidden Tunes rooms shaped by mood and feeling\n\nHeartbreak\nHealing\nLate Night\nFocus\nParty Energy\nRomantic\nNostalgic\nCalm\nDeep Feelings\nHidden Gems\n\nFULL CATALOG\n\nAll Songs\n\nNothing here yet\n\nYour listening room is getting ready. Pull down to refresh when you're online.\n\nRefresh catalog\n\nNOW PLAYING\n\nHidden Tunes\n\nNothing Playing\n\nReady when you are — choose something from Home to start listening. Your Hidden Tunes player lives here.\n\nBrowse Home\n\nVOLUME\n\nPLAYERS\nNP\nNothing playing\n\nSelect a song to begin\n\n0:00\nÔÇö\nAuto\nData Saver\nStandard\nHigh Quality"
+  },
+  "afterRefresh": {
+    "sections": [],
+    "artistCards": 0,
+    "songCards": 0,
+    "hasCreators": false,
+    "creatorCards": [],
+    "songsReady": null,
+    "overlay": null,
+    "bootstrapProbe": {
+      "songs": 40,
+      "albums": 40,
+      "artists": 40,
+      "artistsWithTracks": 23,
+      "sampleArtist": {
+        "id": "2da7464d-7fa6-4962-ba1c-a0e57d817619",
+        "name": "Acoustic Time",
+        "tracks": 89,
+        "songCount": 89
+      }
+    },
+    "localStorageKeys": [
+      "ht-desktop:music-catalog-page:v2:v2:hidden-tunes-api.onrender.com:albums:p1:l40:q=",
+      "ht-desktop:music-catalog-page:v2:v2:hidden-tunes-api.onrender.com:artists:p1:l40:q=",
+      "ht-desktop:music-catalog-pages:v2:index",
+      "ht-desktop:catalog-cache",
+      "ht-desktop:music-catalog-page:v2:v2:hidden-tunes-api.onrender.com:songs:p1:l40:q="
+    ]
+  },
+  "consoleErrors": [
+    "[ht-catalog] cache miss",
+    "[ht-catalog] cache miss",
+    "[ht-catalog] index build [object Object]",
+    "[ht-catalog] index build [object Object]",
+    "[ht-catalog] fetch [object Object]",
+    "[ht-catalog] index build [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]",
+    "[ht-catalog] album resolve [object Object]"
+  ]
+}

@@ -13,7 +13,7 @@
     {
       "check": "no-giant-artwork",
       "ok": true,
-      "detail": "maxH=190 maxW=190"
+      "detail": "maxH=0 maxW=0"
     },
     {
       "check": "artist-art-bounded",
@@ -23,12 +23,12 @@
     {
       "check": "square-art-bounded",
       "ok": true,
-      "detail": "squareMax=190"
+      "detail": "squareMax=0"
     },
     {
       "check": "artwork-in-music-art-shell",
       "ok": true,
-      "detail": "frames=5"
+      "detail": "frames=0"
     },
     {
       "check": "utf8-search-placeholder",
@@ -37,8 +37,8 @@
     },
     {
       "check": "catalogue-sections",
-      "ok": true,
-      "detail": "sections=New Releases|Popular on Hidden Tunes|Genres|Moods|Deep browse"
+      "ok": false,
+      "detail": "sections="
     },
     {
       "check": "no-playback-fullpage-art",
@@ -67,23 +67,23 @@
     },
     {
       "check": "play-clicked",
-      "ok": true,
+      "ok": false,
       "detail": ""
     },
     {
       "check": "play-stays-on-music",
       "ok": true,
-      "detail": "{\"discover\":true,\"workspaceBack\":false,\"musicWorkspace\":true,\"idle\":\"false\"}"
+      "detail": "{\"discover\":true,\"workspaceBack\":false,\"musicWorkspace\":true,\"idle\":\"true\"}"
     },
     {
       "check": "play-does-not-open-player-workspace",
       "ok": true,
-      "detail": "{\"discover\":true,\"workspaceBack\":false,\"musicWorkspace\":true,\"idle\":\"false\"}"
+      "detail": "{\"discover\":true,\"workspaceBack\":false,\"musicWorkspace\":true,\"idle\":\"true\"}"
     },
     {
       "check": "1024-no-giant",
       "ok": true,
-      "detail": "maxH=190"
+      "detail": "maxH=0"
     },
     {
       "check": "1024-player-visible",
@@ -101,5 +101,14 @@
       "detail": ""
     }
   ],
-  "failures": []
+  "failures": [
+    {
+      "check": "catalogue-sections",
+      "detail": "sections="
+    },
+    {
+      "check": "play-clicked",
+      "detail": ""
+    }
+  ]
 }

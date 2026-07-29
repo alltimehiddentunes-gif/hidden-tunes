@@ -1,0 +1,22 @@
+{
+  "titleBefore": "NHK World Japan",
+  "state": {
+    "railTitle": "NHK World Japan",
+    "footerTitle": null,
+    "titlesMatch": false,
+    "hasRailPrevNext": true,
+    "hasFooterPrevNext": true,
+    "railPrevDisabled": true,
+    "railNextDisabled": false,
+    "footerPrevDisabled": true,
+    "footerNextDisabled": false,
+    "videoCount": 1,
+    "railPlayLabel": "Pause",
+    "footerPlayLabel": "Pause",
+    "upcoming": [
+      "DW English",
+      "France 24 English",
+      "Fashion TV Paris"
+    ]
+  }
+}

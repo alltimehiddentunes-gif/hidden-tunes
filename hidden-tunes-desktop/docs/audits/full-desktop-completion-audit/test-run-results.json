@@ -1,0 +1,86 @@
+﻿[
+    {
+        "script":  "scripts/verify-playback-mutex.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: Lecture video uses video path\r | PASS: Lecture audio stays on audio path\r | PASS: Motivational video uses video path\r | PASS: Motivational audio stays on audio path\r | PASS: Music stays on audio path\r | PASS: Radio stays on audio path"
+    },
+    {
+        "script":  "scripts/verify-queue-contract.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: family label in panel\r | PASS: actions typed in DesktopPlaybackActions\r | PASS: mature fields on queue item type\r | PASS: storage key versioned\r | PASS: duplicate policy comment\r | \r | Queue contract: 85 passed, 0 failed\r | "
+    },
+    {
+        "script":  "scripts/verify-production-config.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "  Ô£ô preload exposes only allowlisted runtime.getInfo\r |   Ô£ô preload does not expose raw ipcRenderer\r |   Ô£ô main registers ht-runtime-info diagnostics only\r |   Ô£ô allowlists are non-empty\r |   Ô£ô diagnostics payload omits secrets\r |"
+    },
+    {
+        "script":  "scripts/verify-catalog-pagination.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "  Ô£ô next-page error preserves existing items\r |   Ô£ô load-more concurrency guard present\r |   Ô£ô query/search reset uses searchMusicSongsPage\r |   Ô£ô single playback owner retained\r |   Ô£ô persistent player layout retained\r | \r | cata"
+    },
+    {
+        "script":  "scripts/verify-home-mobile-parity.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: section order preserved around HOME_UI.sections.creatorsInOrbit\r | PASS: section order preserved around HOME_UI.sections.albumsWorthStaying\r | PASS: section order preserved around HOME_UI.sections.openRooms\r | PASS: section order pres"
+    },
+    {
+        "script":  "scripts/test-route-independent-media.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: Video unmount does not pause playback\r | PASS: Video unmount does not stop playback\r | PASS: Video unmount parks the same element (no new video owner)\r | PASS: TV page starts media only via explicit onPlayTvChannel\r | PASS: TV page do"
+    },
+    {
+        "script":  "scripts/verify-sports-contract.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: sportsCatalogApi treats abort as AbortError\r | PASS: policy.ts sports stream_only\r | PASS: dispatchSportsPlayback exists\r | PASS: sportsPlaybackAdapter isSportsQueueSong\r | PASS: App wires DesktopSportsPage\r | \r | Sports contract: 51 "
+    },
+    {
+        "script":  "scripts/verify-global-search-contract.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: UI has Sports section\r | PASS: UI has Library section\r | PASS: UI has Playlists section\r | PASS: UI has Downloads section\r | PASS: partial failure isolation (per-family catch)\r | \r | Global search contract: 24 passed, 0 failed\r | "
+    },
+    {
+        "script":  "scripts/verify-typed-library-contract.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: source exists removeMirrored.ts\r | PASS: source exists index.ts\r | PASS: DesktopLibraryPage exists\r | PASS: storage key ht-desktop:library:v2 declared\r | PASS: migration flag key declared\r | \r | Typed Library contract: 62 passed, 0 fa"
+    },
+    {
+        "script":  "scripts/verify-playlists-contract.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: service has reorderPlaylistItems\r | PASS: service has deletePlaylist\r | PASS: dispatch uses podcastEpisodeSongId\r | PASS: dispatch uses audiobookChapterSongId\r | PASS: dispatch does not route all as music\r | \r | Playlists contract: 36"
+    },
+    {
+        "script":  "scripts/verify-downloads-contract.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: restart recovery marks interrupted download failed\r | PASS: disk usage reports downloads bytes\r | PASS: disk usage exposes concurrency\r | PASS: renderer list has no absolute paths\r | PASS: downloads root is under userData/downloads\r |"
+    },
+    {
+        "script":  "scripts/verify-history-contract.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: source exists src/lib/history/useDesktopHistory.ts\r | PASS: source exists src/components/history/DesktopHistoryPage.tsx\r | PASS: max entries bounded\r | PASS: migration from legacy sources\r | PASS: continue listening excludes radio/tv\r"
+    },
+    {
+        "script":  "scripts/verify-tv-transport-sync.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "PASS: TV rail mounts from active TV session (not a second owner)\r | PASS: PlayerBar always mounted with shared session\r | PASS: playback mutex script present\r | PASS: playback mutex nested run\r | \r | TV transport sync checks: 35 passed, 0 f"
+    },
+    {
+        "script":  "scripts/verify-dev-audio-harness-exclusion.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "tail":  "    \"dev-audio-version-lean\"\r |   ],\r |   \"publicIds\": [\r |     \"real-1\",\r |     \"real-2\"\r |   ]\r | }\r | "
+    }
+]

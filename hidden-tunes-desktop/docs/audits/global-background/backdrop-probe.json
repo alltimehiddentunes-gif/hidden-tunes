@@ -1,0 +1,6 @@
+{
+  "present": true,
+  "count": 1,
+  "baseBackground": "linear-gradient(rgb(3, 0, 8) 0%, rgb(9, 2, 20) 50%, rgb(0, 0, 0) 100%)",
+  "mainAreaBackground": "none|rgba(0, 0, 0, 0)"
+}

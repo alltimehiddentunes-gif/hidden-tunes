@@ -1,0 +1,1322 @@
+﻿[
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-audiobooks-1024x768.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-audiobooks-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-downloads-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-favorites-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-history-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-home-1024x768.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-home-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-lectures-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-library-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-motivationals-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-music-1024x768.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-music-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-playlists-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-podcasts-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-radio-1024x768.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-radio-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-search-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-sports-1440x900.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-tv-1024x768.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/route-tv-1440x900.png"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/catalog-runtime-config/runtime-results.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/01-before-reconstructed.html"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/03-after-reconstructed.html"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/05-empty-section.html"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/REPORT.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/_parity-bundle.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/builder-unit.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/capture-after.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/capture-report.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/diag-home.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/eligibility-unit.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/creators-orbit/raw-creators-audit.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/dev-audio-leak/02-raw-record-proof.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/dev-audio-leak/06-diagnostic-access-proof.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/dev-audio-leak/after-proof.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/ACCESSIBILITY.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/ARCHITECTURE.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/AUDIOBOOKS.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/CATALOG.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/COMPLETION-SCORE.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/ELECTRON.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/FINAL-REPORT.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/GIT-STATE.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/HOME.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/LECTURES.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/LIBRARY.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/MOTIVATIONALS.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/MUSIC.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/PERFORMANCE.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/PLAYBACK.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/PODCASTS.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/QUEUE.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/RADIO.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/RELEASE-READINESS.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/ROADMAP.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/ROUTES.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/SEARCH.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/SETTINGS.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/SPORTS.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/SSD.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/TEST-INVENTORY.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/TV.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/VIDEO.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/VISUAL-CONSISTENCY.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/WORKSPACE.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/smoke-run-results.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/full-desktop-completion-audit/test-run-results.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/01-home.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/02-player-sidebar.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/03-library.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/04-radio.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/05-podcasts.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/06-audiobooks.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/07-tv.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/08-sports.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/09-motivationals.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/09b-lectures.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/10-search.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/11-queue-history.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/12-music-category.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/12b-emotional-worlds.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/13-reduced-width.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/global-background/backdrop-probe.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/home-albums-worth/01-section-before-click.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/home-albums-worth/CONTENT-TYPE-AUDIT.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/home-albums-worth/PROOF.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/home-albums-worth/TEST-RESULTS.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/home-albums-worth/probe.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/home-albums-worth/runtime-results.json"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/home-player-layout/runtime-results.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/home-player-layout/smoke-console.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/mobile-auto-next-smart-queue/AUDIT.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-encoding-metadata/AFTER-1440.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-encoding-metadata/BEFORE-1440.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-encoding-metadata/PROOF.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-encoding-metadata/PROOF.md"
+    },
+    {
+        "status":  "D ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-page-repair/AFTER-1024.png"
+    },
+    {
+        "status":  "D ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-page-repair/AFTER-1280.png"
+    },
+    {
+        "status":  "D ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-page-repair/AFTER-1440.png"
+    },
+    {
+        "status":  "D ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-page-repair/AFTER-LARGE.png"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-page-repair/AFTER-metrics.json"
+    },
+    {
+        "status":  "D ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-page-repair/BEFORE.png"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/music-page-repair/smoke-music-page-layout.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/07-desktop-1920.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/_bak/DesktopPersistentPlayer.tsx"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/_bak/playerDisplayMetadata.ts"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/_bak_after/DesktopPersistentPlayer.tsx"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/_bak_after/playerDisplayMetadata.ts"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/after-capture-log.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/after-capture-log2.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/before-capture-log.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1024-idle.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1024-playing.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1280-idle.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1280-playing.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1366-idle.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1366-playing.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1440-idle.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1440-paused.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1440-playing.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/home-mix-1440-stopped.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/layout-diag.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/layout-diag2.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/layout-diag3.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/ownership-proof-console.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/ownership-proof-console2.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/ownership-proof-run.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/ownership-proof.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/screenshot-proof.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/tsc-full.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/vis-diag.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/vis-diag2.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/player-sidebar/visual-audit-results.json"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/podcast-radio-contract-hardening/runtime-results.json"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/podcast-radio-contract-hardening/screenshots/podcast-show-detail.png"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/podcast-radio-contract-hardening/screenshots/podcasts-home.png"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/podcast-radio-contract-hardening/screenshots/radio-home.png"
+    },
+    {
+        "status":  "M ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/podcast-radio-contract-hardening/screenshots/radio-playing.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/01-tv-playing-on-tv-route.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/02-tv-persists-on-music.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/03-tv-persists-on-podcasts.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/04-tv-persists-on-home.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/05-tv-next-while-on-home.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/06-music-after-explicit-play.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/07-music-persists-browsing-tv.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/ROUTE-INDEPENDENT-MEDIA.md"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/capture-log.txt"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/route-independent-media/runtime-proof.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/01-tv-page-before-play.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/03-footer-before.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/04-both-surfaces-first-channel.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/05-sidebar-with-transport.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/06-footer-with-transport.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/07-both-after-sidebar-next.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/08-both-after-footer-next.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/09-both-after-footer-previous.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/10-narrow-desktop.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/state-after-previous.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/state-after-sidebar-next.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/state-first.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "documentation",
+        "path":  "hidden-tunes-desktop/docs/audits/tv-transport-sync/summary.json"
+    },
+    {
+        "status":  "M ",
+        "class":  "Electron",
+        "path":  "hidden-tunes-desktop/electron/runtimeConfig.js"
+    },
+    {
+        "status":  "M ",
+        "class":  "runtime/configuration",
+        "path":  "hidden-tunes-desktop/package.json"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/chart-afrobeats.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/chart-global.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/chart-hip-hop.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/chart-pop.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/chart-uk.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/chart-usa.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/explore-audiobooks.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/explore-lectures.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/explore-motivationals.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/explore-podcasts.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/explore-radio.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/explore-sports-future.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/explore-tv.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/home-hero-headphones.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/home-hero-headphones.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/mood-chill.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/mood-focus.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/mood-party.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/mood-road-trip.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/mood-romance.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/mood-sleep.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/mood-workout.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/public/home-reference/mood-worship.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/public/home-reference/my-music-mix-vinyl.png"
+    },
+    {
+        "status":  "A ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/public/home-reference/my-music-mix-vinyl.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "generated assets",
+        "path":  "hidden-tunes-desktop/public/home-reference/release-better-days.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "generated assets",
+        "path":  "hidden-tunes-desktop/public/home-reference/release-echoes.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "generated assets",
+        "path":  "hidden-tunes-desktop/public/home-reference/release-electric-hearts.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "generated assets",
+        "path":  "hidden-tunes-desktop/public/home-reference/release-golden-hour.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "generated assets",
+        "path":  "hidden-tunes-desktop/public/home-reference/release-lost-in-tokyo.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "generated assets",
+        "path":  "hidden-tunes-desktop/public/home-reference/release-sunset-dreams.webp"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_diag-home-albums.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_isolate-app-catalog.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_isolate-app-home-player.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_patch-albums-fillers.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_patch-albums-fillers2.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_patch-app-display-meta.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_patch-full-catalog-bounded.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_patch-home-albums-worth.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_patch-music-section-display.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_peek-app-anchors.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_peek-head-mojibake.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_peek-player-fallback.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_probe-home-albums.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_probe-music-encoding.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_repair-app-mojibake.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_verify-encoding-fix.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "temporary helper",
+        "path":  "hidden-tunes-desktop/scripts/_verify-player-dash.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/audit-creators-orbit.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/capture-creators-orbit.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/capture-dev-audio-leak-proof.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/capture-global-background-shots.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/capture-player-sidebar-shots.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/capture-route-independent-media.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/capture-tv-transport-sync.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "unknown/suspicious",
+        "path":  "hidden-tunes-desktop/scripts/diag-creators-home.mjs"
+    },
+    {
+        "status":  "M ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/smoke-catalog-runtime.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/smoke-home-albums-worth-play.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/test-auto-next-smart-queue.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/test-catalog-display-text.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/test-creators-orbit-builder.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/test-creators-orbit-eligibility.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/test-home-albums-worth-play.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/test-route-independent-media.mjs"
+    },
+    {
+        "status":  "M ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/validate-podcast-radio-runtime.mjs"
+    },
+    {
+        "status":  "M ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/verify-catalog-pagination.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/verify-conditional-player-shell.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/verify-dev-audio-harness-exclusion.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/verify-home-genres.mjs"
+    },
+    {
+        "status":  "M ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/verify-home-mobile-parity.mjs"
+    },
+    {
+        "status":  "M ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/verify-production-config.mjs"
+    },
+    {
+        "status":  "A ",
+        "class":  "tests/verification",
+        "path":  "hidden-tunes-desktop/scripts/verify-tv-transport-sync.mjs"
+    },
+    {
+        "status":  "M ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/App.css"
+    },
+    {
+        "status":  "M ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/App.tsx"
+    },
+    {
+        "status":  "A ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/components/HiddenTunesGlobalBackground.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "Home UI",
+        "path":  "hidden-tunes-desktop/src/components/home/MusicHomePage.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/src/components/music/GlobalTopNav.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/src/components/music/MusicDiscoverPage.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/src/components/music/MusicSectionContent.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "playback",
+        "path":  "hidden-tunes-desktop/src/components/player/DesktopPersistentPlayer.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/components/tv/TvNowPlayingPanel.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/components/tv/TvVideoSurface.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "playback",
+        "path":  "hidden-tunes-desktop/src/context/DesktopPlaybackProvider.tsx"
+    },
+    {
+        "status":  "M ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/index.css"
+    },
+    {
+        "status":  "M ",
+        "class":  "catalogue/data",
+        "path":  "hidden-tunes-desktop/src/lib/api.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "catalogue/data",
+        "path":  "hidden-tunes-desktop/src/lib/catalogDiagnostics.ts"
+    },
+    {
+        "status":  "A ",
+        "class":  "catalogue/data",
+        "path":  "hidden-tunes-desktop/src/lib/catalogDisplayText.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/lib/config/desktopRuntimeConfig.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "playback",
+        "path":  "hidden-tunes-desktop/src/lib/desktopPlayback/queueIntelligence.ts"
+    },
+    {
+        "status":  "A ",
+        "class":  "playback",
+        "path":  "hidden-tunes-desktop/src/lib/desktopPlayback/smartContinuation.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "playback",
+        "path":  "hidden-tunes-desktop/src/lib/desktopPlayback/types.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/lib/devAudioVersionTestHarness.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "Home UI",
+        "path":  "hidden-tunes-desktop/src/lib/home/mobileHomeParity.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/src/lib/musicCatalog/catalogService.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/src/lib/musicCatalog/dedupe.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/src/lib/musicCatalog/index.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "Music UI",
+        "path":  "hidden-tunes-desktop/src/lib/musicCatalog/types.ts"
+    },
+    {
+        "status":  "A ",
+        "class":  "Home UI",
+        "path":  "hidden-tunes-desktop/src/lib/musicGenres.ts"
+    },
+    {
+        "status":  "A ",
+        "class":  "playback",
+        "path":  "hidden-tunes-desktop/src/lib/player/resolveActivePlayerSurface.ts"
+    },
+    {
+        "status":  "M ",
+        "class":  "playback",
+        "path":  "hidden-tunes-desktop/src/lib/playerDisplayMetadata.ts"
+    },
+    {
+        "status":  "A ",
+        "class":  "production source",
+        "path":  "hidden-tunes-desktop/src/lib/tv/tvChannelTransport.ts"
+    }
+]

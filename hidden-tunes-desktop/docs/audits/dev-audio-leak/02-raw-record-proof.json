@@ -1,0 +1,60 @@
+﻿{
+  "source": "src/lib/devAudioVersionTestHarness.ts",
+  "injectionPoint": "App.tsx displaySongs = withDevAudioVersionTestSongs(songs) [REMOVED]",
+  "records": [
+    {
+      "id": "dev-audio-version-full",
+      "title": "DEV Audio Versions: All Tiers",
+      "artist": "Hidden Tunes QA",
+      "album": "Desktop Audio Version Harness",
+      "genre": "Diagnostics",
+      "tags": ["desktop-dev", "audio-versions"],
+      "artwork": null,
+      "environment": "Vite import.meta.env.DEV local harness only",
+      "remoteCatalog": false,
+      "visibility": "internal-diagnostic"
+    },
+    {
+      "id": "dev-audio-version-lean",
+      "title": "DEV Audio Versions: Ultra + Standard",
+      "artist": "Hidden Tunes QA",
+      "album": "Desktop Audio Version Harness",
+      "genre": "Diagnostics",
+      "tags": ["desktop-dev", "audio-versions"],
+      "artwork": null,
+      "environment": "Vite import.meta.env.DEV local harness only",
+      "remoteCatalog": false,
+      "visibility": "internal-diagnostic"
+    },
+    {
+      "id": "dev-audio-version-high-only",
+      "title": "DEV Audio Versions: High Quality Only",
+      "artist": "Hidden Tunes QA",
+      "album": "Desktop Audio Version Harness",
+      "genre": "Diagnostics",
+      "tags": ["desktop-dev", "audio-versions"],
+      "artwork": null,
+      "environment": "Vite import.meta.env.DEV local harness only",
+      "remoteCatalog": false,
+      "visibility": "internal-diagnostic"
+    },
+    {
+      "id": "dev-audio-version-legacy-only",
+      "title": "DEV Audio Versions: Legacy Only",
+      "artist": "Hidden Tunes QA",
+      "album": "Desktop Audio Version Harness",
+      "genre": "Diagnostics",
+      "tags": ["desktop-dev", "audio-versions"],
+      "artwork": null,
+      "environment": "Vite import.meta.env.DEV local harness only",
+      "remoteCatalog": false,
+      "visibility": "internal-diagnostic"
+    }
+  ],
+  "duplication": {
+    "FEATURED": "songs[0] => dev-audio-version-full",
+    "PICK": "songs[1] => dev-audio-version-lean",
+    "DIAGNOSTICS": "first song with genre => genre.toUpperCase() on dev-audio-version-full (same id as FEATURED)"
+  },
+  "daArtwork": "artwork null => ArtworkImage initials from title DEV+Audio => DA"
+}

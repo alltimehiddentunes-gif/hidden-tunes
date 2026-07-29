@@ -1,0 +1,139 @@
+{
+  "eligibleTotal": 23,
+  "excludedSample": [
+    {
+      "id": "aa37b42a-04b6-458f-bde0-6198e77f8adc",
+      "name": "Aether Stream",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "17ab3236-f48d-4827-bdb8-89d530622821",
+      "name": "Authentic Portuguese Fado",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "9aed264e-e1ca-4b02-8aef-d17ce3bef8ce",
+      "name": "Bazmhent",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "df9d9e29-3c81-44e1-879b-6227f9e00ac5",
+      "name": "Best Love country music",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "42b7f694-6adf-4b2b-81b7-900957891978",
+      "name": "Brille",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "5ac46dbc-deac-4e4f-9147-5ba13effde2e",
+      "name": "Caasi Wills",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "e56ea142-072b-4a9c-842a-1a93e179282c",
+      "name": "Chicago Blues",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "42966015-0743-4e5b-9f24-437d8635c28b",
+      "name": "Country Back Roads",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "60a869f7-24b2-41ac-ab0f-1dd41ad9330d",
+      "name": "DRAEVON",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "fbb6602f-ce2d-44b4-bc14-374ed1635808",
+      "name": "Elara Rivers",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "3f6ff75b-cf40-4329-9057-4d93fb2cdd4f",
+      "name": "Elias River",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    },
+    {
+      "id": "29337c3a-aa23-42c9-969e-bf5facf2a514",
+      "name": "Greatest Lord",
+      "songCount": 0,
+      "tracks": 0,
+      "playable": 0
+    }
+  ],
+  "orbit": [
+    {
+      "id": "2da7464d-7fa6-4962-ba1c-a0e57d817619",
+      "name": "Acoustic Time",
+      "playableSongCount": 89,
+      "personalisationScore": 40
+    },
+    {
+      "id": "7333d076-a773-4647-859a-5373627f1c89",
+      "name": "Euphoria",
+      "playableSongCount": 40,
+      "personalisationScore": 40
+    },
+    {
+      "id": "79115a15-bc3d-48a9-b37a-e706eeaa32e6",
+      "name": "Hidden Tunes",
+      "playableSongCount": 488,
+      "personalisationScore": 40
+    },
+    {
+      "id": "5989197f-5b64-4801-bd7a-4eca32316632",
+      "name": "Levis Brown",
+      "playableSongCount": 59,
+      "personalisationScore": 40
+    },
+    {
+      "id": "3b3a2f22-1480-43aa-ab25-aa8efc9981b4",
+      "name": "Lofi Girl",
+      "playableSongCount": 43,
+      "personalisationScore": 40
+    },
+    {
+      "id": "d7728626-0ef2-4988-82f8-d1bfed7cd99d",
+      "name": "Luke Monday",
+      "playableSongCount": 47,
+      "personalisationScore": 40
+    },
+    {
+      "id": "081618c5-eb8d-4f99-b0fd-d90bc33e2744",
+      "name": "Jake Blues",
+      "playableSongCount": 32,
+      "personalisationScore": 32
+    },
+    {
+      "id": "720852ab-7efc-4d26-92c2-30628998282d",
+      "name": "Mira Solace",
+      "playableSongCount": 28,
+      "personalisationScore": 28
+    }
+  ]
+}

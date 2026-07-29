@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Creators In Your Orbit — BEFORE (reconstructed from live API + old UI count)</title>
+  <style>
+    body { margin: 0; font-family: Segoe UI, sans-serif; background: #0a0a10; color: #f5f3fa; padding: 32px; }
+    h1 { font-size: 1.1rem; margin: 0 0 4px; }
+    .eyebrow { letter-spacing: 0.12em; font-size: 0.7rem; color: rgba(245,243,250,0.45); margin: 0 0 18px; }
+    .note { font-size: 0.75rem; color: #fbbf24; margin-bottom: 18px; max-width: 720px; }
+    .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 14px; }
+    .card { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+    .art { width: 88px; height: 88px; border-radius: 999px; object-fit: cover; background: #222; }
+    strong { font-size: 0.84rem; }
+    span { font-size: 0.74rem; color: rgba(245,243,250,0.52); }
+  </style>
+</head>
+<body>
+  <p class="eyebrow">CREATORS</p>
+  <h1>Creators In Your Orbit</h1>
+  <p class="note">BEFORE reconstruction: first 8 /api/artists A–Z rows with the old Home count
+    (indexes.songsByArtistId|Name only → always 0 when songs-page has no overlap). Raw IDs in raw-creators-audit.json.</p>
+  <div class="grid" id="grid"></div>
+  <script>
+    const entries = [
+      { name: 'Acoustic Time', art: 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1779475919950-Midnight-Window-Glow.jpg' },
+      { name: 'Aether Stream', art: 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1779058991519-Slow-Flow-Sanctuary.jpg' },
+      { name: 'Amara Skies', art: 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1779630441134-Amara-Skies.png' },
+      { name: 'Ann Lyen', art: 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1779446978568-Falling-For-You.jpg' },
+      { name: 'Authentic Portuguese Fado', art: 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/authentic-portuguese-fado/0fa356a6-bdc6-462f-9ec6-8e7ea91c8677-onde-a-saudade-decide-morar.jpg' },
+      { name: 'Bazmhent', art: 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1778784460111-Bazmhent-1-.png' },
+      { name: 'Best Love country music', art: 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/best-love-country-music/d81d4141-89d3-4b38-bc22-cdc5b3b42ba0-built-on-these-roads.jpg' },
+      { name: 'Bhoho X', art: 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1779440769133-Soft-Hurricane.jpg' },
+    ]
+    const grid = document.getElementById('grid')
+    for (const e of entries) {
+      const card = document.createElement('div')
+      card.className = 'card'
+      card.innerHTML = `<img class="art" src="${e.art}" alt="" /><strong>${e.name}</strong><span>0 songs</span>`
+      grid.appendChild(card)
+    }
+  </script>
+</body>
+</html>

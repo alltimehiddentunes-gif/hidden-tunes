@@ -1,0 +1,95 @@
+{
+  "checks": [
+    {
+      "name": "1-stay-on-home-context",
+      "ok": true,
+      "detail": "primary play uses QueueContext home"
+    },
+    {
+      "name": "2-playback-once-lock",
+      "ok": true,
+      "detail": "double-click lock present"
+    },
+    {
+      "name": "3-sidebar-footer-same-session",
+      "ok": true,
+      "detail": "home/discover context returns before openSong (no PlayerWorkspace)"
+    },
+    {
+      "name": "7-no-playerworkspace-nav",
+      "ok": true,
+      "detail": "card primary action is play, not openAlbum"
+    },
+    {
+      "name": "8-no-second-audio-owner",
+      "ok": true,
+      "detail": "Home does not create Audio elements"
+    },
+    {
+      "name": "9-double-click-guard",
+      "ok": true,
+      "detail": "cards lock while a play is in flight"
+    },
+    {
+      "name": "10-invalid-album-error",
+      "ok": true,
+      "detail": "empty collection shows error without clearing session"
+    },
+    {
+      "name": "14-route-remains-home",
+      "ok": true,
+      "detail": "album seed under home context"
+    },
+    {
+      "name": "11-content-type-resolver",
+      "ok": true,
+      "detail": "typed content resolver exists"
+    },
+    {
+      "name": "12-no-wall-of-singles-titles",
+      "ok": true,
+      "detail": "generic Singles/Album titles lead with artist"
+    },
+    {
+      "name": "13-dev-tracks-excluded",
+      "ok": true,
+      "detail": "DEV + unplayable tracks filtered before queue seed"
+    },
+    {
+      "name": "5-queue-album-seed",
+      "ok": true,
+      "detail": "queue seeded with album tracks + seedId"
+    },
+    {
+      "name": "6-auto-next-bounded",
+      "ok": true,
+      "detail": "album plays are bounded (auto-next within album)"
+    },
+    {
+      "name": "details-secondary-only",
+      "ok": true,
+      "detail": "Details button is the only navigation path"
+    },
+    {
+      "name": "responsiveness-pointer-events",
+      "ok": true,
+      "detail": "artwork does not intercept clicks"
+    },
+    {
+      "name": "loading-feedback",
+      "ok": true,
+      "detail": "pressed/loading visual feedback"
+    },
+    {
+      "name": "display-text-helpers-kept",
+      "ok": true,
+      "detail": "generic title helpers remain (no blind hardcode Album)"
+    },
+    {
+      "name": "3-content-type-audit-written",
+      "ok": true,
+      "detail": "12 cards audited"
+    }
+  ],
+  "failures": []
+}

@@ -1,0 +1,118 @@
+{
+  "idle": "false",
+  "titleText": "DEV Audio Versions: All Tiers",
+  "artistText": "Hidden Tunes QA",
+  "status": "PAUSED",
+  "boxes": {
+    "rail": {
+      "t": "ASIDE",
+      "c": "queue-rail queue-rail--workspace now-playing-rail now-playing-rail--psd ht-persi",
+      "x": 980,
+      "y": 6,
+      "w": 286,
+      "h": 537,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgb(245, 243, 250)"
+    },
+    "chrome": {
+      "t": "SECTION",
+      "c": "ht-player-chrome",
+      "x": 995,
+      "y": 71,
+      "w": 249,
+      "h": 424,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgb(245, 243, 250)"
+    },
+    "art": {
+      "t": "DIV",
+      "c": "ht-player-art-stage",
+      "x": 995,
+      "y": 71,
+      "w": 249,
+      "h": 132,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgb(245, 243, 250)"
+    },
+    "meta": {
+      "t": "DIV",
+      "c": "ht-player-meta",
+      "x": 995,
+      "y": 211,
+      "w": 249,
+      "h": 122,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgb(245, 243, 250)"
+    },
+    "progress": {
+      "t": "DIV",
+      "c": "ht-player-progress",
+      "x": 995,
+      "y": 371,
+      "w": 249,
+      "h": 44,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgb(245, 243, 250)"
+    },
+    "transport": {
+      "t": "DIV",
+      "c": "ht-player-transport-dock",
+      "x": 995,
+      "y": 423,
+      "w": 249,
+      "h": 71,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgb(245, 243, 250)"
+    },
+    "volume": {
+      "t": "DIV",
+      "c": "ht-player-volume-card",
+      "x": 995,
+      "y": 618,
+      "w": 249,
+      "h": 74,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgb(245, 243, 250)"
+    },
+    "queue": {
+      "t": "SECTION",
+      "c": "ht-player-queue-section ht-persistent-player-queue",
+      "x": 995,
+      "y": 506,
+      "w": 249,
+      "h": 96,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgb(245, 243, 250)"
+    },
+    "fav": {
+      "t": "BUTTON",
+      "c": "ht-player-favorite",
+      "x": 1033,
+      "y": 303,
+      "w": 89,
+      "h": 30,
+      "display": "flex",
+      "vis": "visible",
+      "op": "1",
+      "color": "rgba(255, 255, 255, 0.88)"
+    }
+  },
+  "transportChildren": 1778,
+  "cssLoaded": true
+}

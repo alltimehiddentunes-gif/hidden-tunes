@@ -1,0 +1,21 @@
+{
+  "rawCorruptedValueInSource": "Jazz Caf├â┬® / 50 songs ├óÔé¼┬ó 3h / ├óÔé¼ÔÇØ / ┬À",
+  "repairedTo": "Jazz Café / 50 songs • 3h / — / ·",
+  "firstCorruptionPoint": "App.tsx source literals (multi-layer UTF-8 mojibake baked into file). Catalog bridge/API path does not re-encode text.",
+  "albumUnknownArtistRootCause": "normalizeAlbum only read artist_id; Express API returns artistId (camelCase) so artistId was always null.",
+  "rawApiAlbumSample": {
+    "title": "Singles",
+    "artistId": "cd9091ad-4671-4eb0-8066-d9ab8bdd96dd",
+    "note": "Repeated Singles is genuine backend/import metadata, not client invention."
+  },
+  "mappedAfterFix": {
+    "artistId": "cd9091ad-4671-4eb0-8066-d9ab8bdd96dd",
+    "displayArtist": "Its Country Time"
+  },
+  "catalogBridge": "response.text() + JSON.parse — UTF-8 preserved; no latin1/Buffer decode step",
+  "screenshots": {
+    "before": "docs/audits/music-encoding-metadata/BEFORE-1440.png",
+    "after": "docs/audits/music-encoding-metadata/AFTER-1440.png"
+  },
+  "tests": "node --experimental-strip-types scripts/test-catalog-display-text.mjs → passed"
+}

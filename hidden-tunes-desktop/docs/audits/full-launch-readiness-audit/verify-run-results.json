@@ -1,0 +1,51 @@
+﻿[
+    {
+        "script":  "scripts/verify-playback-mutex.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "ms":  1904,
+        "tail":  "PASS: Motivational audio stays on audio path\r | PASS: Music stays on audio path\r | PASS: Radio stays on audio path\r | Playback mutex routing checks passed.\r | "
+    },
+    {
+        "script":  "scripts/verify-production-config.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "ms":  517,
+        "tail":  "  Ô£ô allowlists are non-empty\r |   Ô£ô diagnostics payload omits secrets\r | \r | production-config: 18 checks passed\r | "
+    },
+    {
+        "script":  "scripts/verify-queue-contract.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "ms":  504,
+        "tail":  "PASS: storage key versioned\r | PASS: duplicate policy comment\r | \r | Queue contract: 85 passed, 0 failed\r | "
+    },
+    {
+        "script":  "scripts/verify-home-genres.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "ms":  24752,
+        "tail":  "Ôöé 10      Ôöé \u0027Latin\u0027     Ôöé \u0027latin\u0027     Ôöé \u0027latin\u0027      Ôöé 1     Ôöé 0             Ôöé 0          Ôöé 395        Ôöé 0             Ôöé\r | Ôöé 11      Ôöé \u0027Reggae\u0027    Ôöé \u0027reggae\u0027    Ôöé \u0027reggae\u0027     Ôöé 1     Ôöé 0"
+    },
+    {
+        "script":  "scripts/verify-catalog-pagination.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "ms":  414,
+        "tail":  "  Ô£ô aborted waiter releases its dedupe reference exactly once\r |   Ô£ô conditional persistent player layout retained\r | \r | catalogue-pagination-cache: 30 checks passed\r | "
+    },
+    {
+        "script":  "scripts/test-route-independent-media.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "ms":  301,
+        "tail":  "PASS: TV page starts media only via explicit onPlayTvChannel\r | PASS: TV page does not autoplay from a mount effect\r | \r | All route-independent media persistence checks passed.\r | "
+    },
+    {
+        "script":  "scripts/verify-conditional-player-shell.mjs",
+        "exit":  0,
+        "status":  "PASS",
+        "ms":  388,
+        "tail":  "PASS: active Home removes editorial column width\r | PASS: Home session transition is restrained\r | PASS: Home exit disables interactions\r | Conditional player shell checks passed.\r | "
+    }
+]

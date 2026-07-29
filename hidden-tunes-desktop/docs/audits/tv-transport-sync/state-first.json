@@ -1,0 +1,34 @@
+{
+  "play": {
+    "clicked": true,
+    "cards": 47,
+    "kids": true,
+    "label": "Watch NHK World Japan"
+  },
+  "first": {
+    "railTitle": "NHK World Japan",
+    "footerTitle": "NHK World JapanEurope · Japan · English · Verified",
+    "nowPlaying": true,
+    "hasRailTransport": true,
+    "videoCount": 1
+  },
+  "state": {
+    "railTitle": "NHK World Japan",
+    "footerTitle": null,
+    "titlesMatch": false,
+    "hasRailPrevNext": true,
+    "hasFooterPrevNext": true,
+    "railPrevDisabled": true,
+    "railNextDisabled": false,
+    "footerPrevDisabled": true,
+    "footerNextDisabled": false,
+    "videoCount": 1,
+    "railPlayLabel": "Pause",
+    "footerPlayLabel": "Pause",
+    "upcoming": [
+      "DW English",
+      "France 24 English",
+      "Fashion TV Paris"
+    ]
+  }
+}

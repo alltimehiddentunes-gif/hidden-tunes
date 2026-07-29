@@ -171,9 +171,29 @@
       "detail": "Primary|Library|Discover|Listen and Learn|Account"
     },
     {
-      "check": "home-hierarchy-continue-or-more",
+      "check": "home-mobile-parity-titles",
       "ok": true,
-      "detail": "Featured|Genre Spotlights|Emotional Worlds|More to Explore"
+      "detail": "Recently Added|Emotional Worlds|Genre Spotlights|All Songs"
+    },
+    {
+      "check": "home-no-invented-continue",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-no-invented-more-explore",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-not-player-workspace",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "home-art-bounded",
+      "ok": true,
+      "detail": ""
     },
     {
       "check": "single-audio-idle",
@@ -284,12 +304,12 @@
       "playerBars": 1,
       "persistentPlayers": 1,
       "homeSections": [
-        "Featured",
-        "Recently Played",
-        "Recommended for You",
-        "Genre Spotlights",
+        "Recently Added",
         "Emotional Worlds",
-        "More to Explore"
+        "Because You Listened",
+        "Smart Music Queue",
+        "Made for you",
+        "All Songs"
       ]
     },
     "1280": {
@@ -313,12 +333,12 @@
       "playerBars": 1,
       "persistentPlayers": 1,
       "homeSections": [
-        "Featured",
-        "Recently Played",
-        "Recommended for You",
-        "Genre Spotlights",
+        "Recently Added",
         "Emotional Worlds",
-        "More to Explore"
+        "Because You Listened",
+        "Smart Music Queue",
+        "Made for you",
+        "All Songs"
       ]
     },
     "1440": {
@@ -342,12 +362,12 @@
       "playerBars": 1,
       "persistentPlayers": 1,
       "homeSections": [
-        "Featured",
-        "Recently Played",
-        "Recommended for You",
-        "Genre Spotlights",
+        "Recently Added",
         "Emotional Worlds",
-        "More to Explore"
+        "Because You Listened",
+        "Smart Music Queue",
+        "Made for you",
+        "All Songs"
       ]
     },
     "1720": {
@@ -371,12 +391,12 @@
       "playerBars": 1,
       "persistentPlayers": 1,
       "homeSections": [
-        "Featured",
-        "Recently Played",
-        "Recommended for You",
-        "Genre Spotlights",
+        "Recently Added",
         "Emotional Worlds",
-        "More to Explore"
+        "Because You Listened",
+        "Smart Music Queue",
+        "Made for you",
+        "All Songs"
       ]
     }
   }
