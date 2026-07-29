@@ -159,17 +159,17 @@ export function resolveDesktopRuntimeConfig(
   let adminCatalogBaseUrl: string | null = null
 
   if (isPackaged) {
-    const expressParsed = parseHttpsUrl(expressRaw, { allowLocalhost: false })
+    const expressCandidate = expressRaw || DEV_EXPRESS_DEFAULT
+    const expressParsed = parseHttpsUrl(expressCandidate, { allowLocalhost: false })
     if (!expressParsed.ok) {
-      errors.push(
-        expressParsed.reason === 'missing'
-          ? 'Packaged build requires VITE_EXPRESS_CATALOG_API_URL.'
-          : `Express catalog URL invalid (${expressParsed.reason}).`,
-      )
+      errors.push(`Express catalog URL invalid (${expressParsed.reason}).`)
     } else if (!PRODUCTION_EXPRESS_ALLOWLIST.has(expressParsed.hostname)) {
       errors.push(`Express catalog host is not allowlisted: ${expressParsed.hostname}`)
     } else {
       expressCatalogBaseUrl = expressParsed.url
+      if (!expressRaw) {
+        warnings.push('Express catalog URL used the allowlisted production default.')
+      }
     }
 
     const adminCandidate = adminRaw || DEV_ADMIN_DEFAULT

@@ -1,6 +1,9 @@
 import { memo, useCallback, useMemo } from 'react'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import { isTvQueueSong } from '../../lib/tv/tvPlaybackAdapter'
+import {
+  resolveTvChannelTransportAvailability,
+} from '../../lib/tv/tvChannelTransport'
 import { isTvFavorite, toggleTvFavorite } from '../../lib/tv/tvLocalState'
 import { acquireTvVideoPlaybackService } from '../../lib/tv/tvVideoPlayback'
 import { TvVideoSurface } from './TvVideoSurface'
@@ -22,18 +25,32 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
     isLoading,
     error,
     volume,
+    repeatMode,
     setVolume,
     pause,
     resume,
+    next,
+    previous,
     stopPlayback,
   } = useDesktopPlayback()
 
   const activeTrack =
-    currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
+    currentIndex >= 0 ? (currentQueue[currentIndex] ?? currentTrack ?? null) : null
   const isTvActive = Boolean(activeTrack && isTvQueueSong(activeTrack))
 
   const channelId = activeTrack?.id.replace(/^tv-/, '') ?? ''
   const pipSupported = useMemo(() => acquireTvVideoPlaybackService().supportsPictureInPicture(), [])
+
+  const transport = useMemo(
+    () => resolveTvChannelTransportAvailability({
+      isActive: isTvActive,
+      currentIndex,
+      queueLength: currentQueue.length,
+      isLoading,
+      repeatMode,
+    }),
+    [currentIndex, currentQueue.length, isLoading, isTvActive, repeatMode],
+  )
 
   const isFavorite = useMemo(() => {
     if (!channelId) return false
@@ -58,6 +75,16 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
     }
     void resume()
   }, [isLoading, isPlaying, pause, resume])
+
+  const handlePrevious = useCallback(() => {
+    if (!transport.hasPrevious || !transport.canChangeChannel) return
+    previous()
+  }, [previous, transport.canChangeChannel, transport.hasPrevious])
+
+  const handleNext = useCallback(() => {
+    if (!transport.hasNext || !transport.canChangeChannel) return
+    next()
+  }, [next, transport.canChangeChannel, transport.hasNext])
 
   const handleStop = useCallback(() => {
     void stopPlayback()
@@ -121,6 +148,10 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
     )
   }
 
+  const upcoming = currentIndex >= 0
+    ? currentQueue.slice(currentIndex + 1, currentIndex + 4).filter(isTvQueueSong)
+    : []
+
   return (
     <aside className="tv-rail tv-rail--now-playing" aria-label="Now playing on TV">
       <header className="tv-rail-header">
@@ -136,7 +167,12 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
         isPlaying={isPlaying}
         error={error}
         volume={volume}
+        hasPrevious={transport.hasPrevious}
+        hasNext={transport.hasNext}
+        channelSwitchLocked={!transport.canChangeChannel}
+        onPrevious={handlePrevious}
         onPlayPause={handlePlayPause}
+        onNext={handleNext}
         onMuteToggle={handleMuteToggle}
         onVolumeChange={setVolume}
         onStop={handleStop}
@@ -165,7 +201,15 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
 
       <section className="tv-rail-section" aria-labelledby="tv-upnext-heading">
         <h3 id="tv-upnext-heading">Coming Up Next</h3>
-        <p className="tv-rail-note">Schedule unavailable.</p>
+        {upcoming.length > 0 ? (
+          <ul className="tv-upnext-list">
+            {upcoming.map((track) => (
+              <li key={track.id}>{track.title}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="tv-rail-note">End of this channel list.</p>
+        )}
       </section>
 
       <section className="tv-rail-section" aria-labelledby="tv-discover-heading">

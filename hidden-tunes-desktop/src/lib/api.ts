@@ -2,6 +2,11 @@ import {
   buildAudioVersionsFromLegacy,
   type SongAudioVersions,
 } from './audioVersions'
+import {
+  normalizeCatalogDisplayText,
+  pickAlbumTitleFromRecord,
+  pickArtistNameFromRecord,
+} from './catalogDisplayText'
 import { getExpressCatalogBaseUrlOrThrow } from './config/desktopRuntimeConfig'
 import { MUSIC_CATALOG_PAGE_SIZE } from './musicCatalog/types'
 
@@ -97,6 +102,7 @@ type PaginationOptions = {
   limit?: number
   page?: number
   query?: string
+  genre?: string
 }
 
 export type CatalogPagePayload<T> = {
@@ -115,6 +121,8 @@ function buildQuery(options?: PaginationOptions) {
   })
   const q = options?.query?.trim()
   if (q) params.set('q', q)
+  const genre = options?.genre?.trim()
+  if (genre) params.set('genre', genre)
   return params
 }
 
@@ -279,6 +287,17 @@ function pickStringList(value: unknown): string[] {
   return items
 }
 
+function pickOptionalId(
+  record: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = record[key]
+    if (value != null && String(value).trim()) return String(value).trim()
+  }
+  return null
+}
+
 function normalizeSong(row: unknown): ApiSong | null {
   const record = asRecord(row)
   if (!record || record.id == null) return null
@@ -286,34 +305,25 @@ function normalizeSong(row: unknown): ApiSong | null {
   const createdAt =
     typeof record.created_at === 'string' ? record.created_at : null
   const playback = pickPlaybackUrls(record)
-  const nestedArtist = asRecord(record.artists)
   const nestedAlbum = asRecord(record.album) ?? asRecord(record.albums)
   const directArtwork = pickSongArtwork(record)
   const albumArtwork = nestedAlbum ? pickAlbumArtwork(nestedAlbum) : null
   const lyricsFields = pickLyricsFields(record)
+  const title =
+    normalizeCatalogDisplayText(
+      typeof record.title === 'string' ? record.title : null,
+    ) || 'Untitled'
+  // Preserve genuine catalog strings (including "Singles"); never String(object).
+  const artist = pickArtistNameFromRecord(record) || ''
+  const album = pickAlbumTitleFromRecord(record) || ''
 
   return {
     id: String(record.id),
-    title: String(record.title || 'Untitled'),
-    artist: String(
-      record.artist ||
-        record.artist_name ||
-        nestedArtist?.name ||
-        'Unknown Artist',
-    ).trim(),
-    artistId:
-      record.artistId != null
-        ? String(record.artistId)
-        : record.artist_id != null
-          ? String(record.artist_id)
-          : null,
-    album: String(record.album || record.album_title || 'Singles'),
-    albumId:
-      record.albumId != null
-        ? String(record.albumId)
-        : record.album_id != null
-          ? String(record.album_id)
-          : null,
+    title,
+    artist,
+    artistId: pickOptionalId(record, ['artistId', 'artist_id']),
+    album,
+    albumId: pickOptionalId(record, ['albumId', 'album_id']),
     genre:
       record.genre != null
         ? String(record.genre)
@@ -343,14 +353,19 @@ function normalizeAlbum(row: unknown): ApiAlbum | null {
     typeof record.release_year === 'number' ? record.release_year : null
   const createdAt =
     typeof record.created_at === 'string' ? record.created_at : null
+  const title =
+    normalizeCatalogDisplayText(
+      typeof record.title === 'string' ? record.title : null,
+    ) || 'Untitled Album'
 
   return {
     id: String(record.id),
-    title: String(record.title || 'Untitled Album'),
+    title,
     artwork: pickAlbumArtwork(record),
     releaseYear,
     createdAt,
-    artistId: record.artist_id != null ? String(record.artist_id) : null,
+    // Express catalog returns camelCase artistId; snake_case is legacy-only.
+    artistId: pickOptionalId(record, ['artistId', 'artist_id']),
   }
 }
 
@@ -366,11 +381,18 @@ function normalizeArtist(row: unknown): ApiArtist | null {
   const songCount =
     typeof record.songCount === 'number'
       ? record.songCount
-      : tracks.length
+      : typeof record.song_count === 'number'
+        ? record.song_count
+        : tracks.length
+
+  const name =
+    normalizeCatalogDisplayText(
+      typeof record.name === 'string' ? record.name : null,
+    ) || ''
 
   return {
     id: String(record.id),
-    name: String(record.name || 'Unknown Artist').trim(),
+    name,
     artwork: pickArtistPortrait(record),
     songCount,
     tracks,

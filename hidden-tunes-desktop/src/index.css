@@ -5,12 +5,21 @@
 }
 
 :root {
-  --bg-deep: #050508;
-  --bg-base: #0a0a10;
+  /* Hidden Tunes Home atmosphere (mobile GRADIENTS.main / COLORS.background) */
+  --ht-bg-base: #030008;
+  --ht-bg-mid: #090214;
+  --ht-bg-deep: #000000;
+  --ht-glow-purple: rgba(168, 85, 247, 0.2);
+  --ht-glow-cyan: rgba(34, 211, 238, 0.14);
+  --ht-glow-center: rgba(168, 85, 247, 0.12);
+  --ht-glow-opacity: 0.12; /* LUXURY_GLOW.opacityMin — motion paused on Home */
+
+  --bg-deep: var(--ht-bg-deep);
+  --bg-base: var(--ht-bg-base);
   --bg-elevated: #13131d;
   --bg-surface: #181822;
-  --bg-glass: rgba(20, 20, 30, 0.88);
-  --bg-glass-hover: rgba(32, 32, 46, 0.92);
+  --bg-glass: rgba(20, 20, 30, 0.72);
+  --bg-glass-hover: rgba(32, 32, 46, 0.82);
 
   --border-subtle: rgba(255, 255, 255, 0.07);
   --border-glow: rgba(168, 85, 247, 0.28);
@@ -54,19 +63,23 @@
 
   /* Shell proportions */
   --sidebar-width: 236px;
-  --queue-rail-width: 310px;
-  --right-rail-width: 310px;
+  --queue-rail-width: 328px;
+  --right-rail-width: 328px;
   --footer-player-height: 72px;
   --player-height: var(--footer-player-height);
   --content-max: min(100%, 1480px);
   --content-max-home: 100%;
   --hero-min-height: clamp(188px, 22vh, 248px);
-  --now-playing-art-size: 148px;
+  --now-playing-art-size: 168px;
 
-  /* Premium PSD tokens */
-  --psd-bg-base: #0a0a10;
-  --psd-bg-deep: #050508;
-  --sidebar-surface: linear-gradient(180deg, #16141f 0%, #0c0c12 100%);
+  /* Premium PSD tokens — aligned to Home atmosphere */
+  --psd-bg-base: var(--ht-bg-base);
+  --psd-bg-deep: var(--ht-bg-deep);
+  --sidebar-surface: linear-gradient(
+    180deg,
+    rgba(16, 8, 28, 0.58) 0%,
+    rgba(3, 0, 8, 0.72) 100%
+  );
   --sidebar-border-gold: rgba(255, 186, 61, 0.12);
   --accent-gold: #f5c542;
   --accent-gold-bright: #ffba3d;
@@ -107,7 +120,7 @@ body,
 }
 
 body {
-  background: var(--bg-deep);
+  background: linear-gradient(180deg, var(--ht-bg-base) 0%, var(--ht-bg-mid) 50%, var(--ht-bg-deep) 100%);
 }
 
 #root {
@@ -153,8 +166,8 @@ h3 {
 @media (max-width: 1600px) {
   :root {
     --sidebar-width: 228px;
-    --queue-rail-width: 300px;
-    --right-rail-width: 300px;
+    --queue-rail-width: 316px;
+    --right-rail-width: 316px;
     --now-playing-art-size: 142px;
   }
 }
@@ -162,8 +175,8 @@ h3 {
 @media (max-width: 1440px) {
   :root {
     --sidebar-width: 220px;
-    --queue-rail-width: 290px;
-    --right-rail-width: 290px;
+    --queue-rail-width: 304px;
+    --right-rail-width: 304px;
     --now-playing-art-size: 136px;
   }
 }
@@ -171,8 +184,8 @@ h3 {
 @media (max-width: 1280px) {
   :root {
     --sidebar-width: 208px;
-    --queue-rail-width: 272px;
-    --right-rail-width: 272px;
+    --queue-rail-width: 286px;
+    --right-rail-width: 286px;
     --now-playing-art-size: 128px;
   }
 }

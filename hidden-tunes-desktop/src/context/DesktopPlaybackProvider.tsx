@@ -31,6 +31,11 @@ import {
 import { isPlayableMediaUrl } from '../lib/desktopPlayback/isPlayableMediaUrl'
 import { HtmlAudioPlaybackService } from '../lib/desktopPlayback/HtmlAudioPlaybackService'
 import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
+import {
+  AUTO_NEXT_INVALID_SKIP_LIMIT,
+  ENDED_ADVANCE_DEBOUNCE_MS,
+  isMusicItemMissingPlayableUrl,
+} from '../lib/desktopPlayback/smartContinuation'
 import { resolveRadioPlayUrl } from '../lib/radio/radioCatalogApi'
 import {
   extractRadioStationId,
@@ -85,6 +90,7 @@ import {
 import { resolveTvPlayUrl } from '../lib/tv/tvCatalogApi'
 import { acquireTvVideoPlaybackService } from '../lib/tv/tvVideoPlayback'
 import type { HtmlVideoPlaybackService } from '../lib/tv/HtmlVideoPlaybackService'
+import { TV_CHANNEL_FAIL_SKIP_LIMIT } from '../lib/tv/tvChannelTransport'
 import {
   extractTvChannelId,
   isTvQueueSong,
@@ -269,6 +275,29 @@ function findNextUnblockedQueueIndex(queue: ApiSong[], fromIndex: number): numbe
   return -1
 }
 
+/**
+ * Auto-next walker: skip mature + music items missing a playable URL, bounded.
+ * Does not invent infinite skip loops. Non-music families keep URL resolution async.
+ */
+function findNextAutoAdvanceIndex(queue: ApiSong[], fromIndex: number): number {
+  if (fromIndex < 0 || fromIndex >= queue.length) return -1
+  let skipped = 0
+  for (let i = fromIndex; i < queue.length; i++) {
+    if (skipped > AUTO_NEXT_INVALID_SKIP_LIMIT) return -1
+    const song = queue[i]
+    if (!song || isQueueSongBlockedByMature(song)) {
+      skipped += 1
+      continue
+    }
+    if (isMusicCatalogSong(song) && isMusicItemMissingPlayableUrl(song)) {
+      skipped += 1
+      continue
+    }
+    return i
+  }
+  return -1
+}
+
 /** TV, Sports, lecture video, and motivational video share the single video element path. */
 function usesDesktopVideoPath(song: ApiSong | null | undefined) {
   return isTvQueueSong(song) || isSportsQueueSong(song) || isLectureVideoSong(song) || isMotivationalVideoSong(song)
@@ -303,7 +332,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const queueSeedIdRef = useRef<string | undefined>(undefined)
   const queueSeedTracksRef = useRef<ApiSong[]>([])
   const queueCandidatePoolsRef = useRef<QueueCandidatePools | undefined>(undefined)
+  /** Mobile parity: bounded contexts stop at end; only unbounded may smart-append. */
+  const queueSeedBoundedRef = useRef(true)
+  /**
+   * Index where smart-continuation items begin in the live queue, or -1.
+   * Manual enqueue must insert before this region so user choices outrank smart tracks.
+   */
+  const smartContinuationStartRef = useRef(-1)
   const queueContextRef = useRef<QueueContext>(DEFAULT_QUEUE_CONTEXT)
+  const autoAdvanceInFlightRef = useRef(false)
+  const lastEndedAdvanceRef = useRef<{ songId: string; at: number }>({ songId: '', at: 0 })
   const playSongRef = useRef<(song: ApiSong) => void>(() => undefined)
   const flushPodcastProgressRef = useRef<(force?: boolean) => void>(() => undefined)
   const flushAudiobookProgressRef = useRef<(force?: boolean) => void>(() => undefined)
@@ -318,6 +356,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const shuffleEnabledRef = useRef(false)
   const repeatModeRef = useRef<'off' | 'all' | 'one'>('off')
   const mediaResolveGenerationRef = useRef(0)
+  const tvChannelSwitchInFlightRef = useRef(false)
+  const tvFailSkipCountRef = useRef(0)
+  const tvAutoAdvanceOnFailRef = useRef<'forward' | 'backward' | null>(null)
   const podcastProgressTrackIdRef = useRef<string | null>(null)
   const podcastProgressLastWriteRef = useRef(0)
   const podcastProgressLastPositionRef = useRef(0)
@@ -776,6 +817,62 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const clearTvChannelSwitchState = useCallback(() => {
+    tvChannelSwitchInFlightRef.current = false
+    tvFailSkipCountRef.current = 0
+    tvAutoAdvanceOnFailRef.current = null
+  }, [])
+
+  /** Atomically publish queue index + active metadata so sidebar/footer never drift. */
+  const commitActiveQueueTrack = useCallback((queue: ApiSong[], index: number) => {
+    applyQueueState(queue, index)
+    const track = queue[index] ?? null
+    currentTrackRef.current = track
+    setCurrentTrack(track)
+    setError(null)
+  }, [applyQueueState])
+
+  const trySkipFailedTvChannel = useCallback((failedSong: ApiSong): boolean => {
+    if (!isTvQueueSong(failedSong)) return false
+    const direction = tvAutoAdvanceOnFailRef.current
+    if (!direction) {
+      tvChannelSwitchInFlightRef.current = false
+      return false
+    }
+    if (tvFailSkipCountRef.current >= TV_CHANNEL_FAIL_SKIP_LIMIT) {
+      clearTvChannelSwitchState()
+      return false
+    }
+
+    const queue = queueRef.current
+    const index = queueIndexRef.current
+
+    if (direction === 'forward') {
+      const playableIndex = findNextUnblockedQueueIndex(queue, index + 1)
+      if (playableIndex < 0) {
+        clearTvChannelSwitchState()
+        return false
+      }
+      tvFailSkipCountRef.current += 1
+      commitActiveQueueTrack(queue, playableIndex)
+      playSongRef.current(queue[playableIndex])
+      return true
+    }
+
+    let candidate = index - 1
+    while (candidate >= 0 && isQueueSongBlockedByMature(queue[candidate])) {
+      candidate -= 1
+    }
+    if (candidate < 0) {
+      clearTvChannelSwitchState()
+      return false
+    }
+    tvFailSkipCountRef.current += 1
+    commitActiveQueueTrack(queue, candidate)
+    playSongRef.current(queue[candidate])
+    return true
+  }, [clearTvChannelSwitchState, commitActiveQueueTrack])
+
   useEffect(() => {
     isPlayingRef.current = isPlaying
   }, [isPlaying])
@@ -848,22 +945,38 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [applyQueueState, setQueueContextState])
 
-  const extendQueueIfNeeded = useCallback((queue: ApiSong[], index: number) => {
+  const extendQueueIfNeeded = useCallback((
+    queue: ApiSong[],
+    index: number,
+    options?: { reason?: 'exhaustion' | 'prefetch' },
+  ) => {
+    // Mobile parity: smart continuation only at true queue exhaustion.
+    // Never pre-append on play start or when merely landing on the last item —
+    // that would let smart tracks sit ahead of later manual enqueue() calls.
+    if (options?.reason !== 'exhaustion') {
+      return queue
+    }
+
     if (
-      queue.length === 0 ||
-      index !== queue.length - 1 ||
-      queueSeedTypeRef.current === 'manual'
+      queue.length === 0
+      || index !== queue.length - 1
+      || queueSeedTypeRef.current === 'manual'
     ) {
       return queue
     }
 
     const started = performance.now()
-    const { relatedTracks, inspectedCount } = buildRelatedQueue(
+    const { relatedTracks, inspectedCount, reason } = buildRelatedQueue(
       queue,
       queueSeedTypeRef.current,
       queueSeedIdRef.current,
       queueSeedTracksRef.current,
       queueCandidatePoolsRef.current,
+      {
+        context: queueContextRef.current,
+        currentTrack: currentTrackRef.current,
+        bounded: queueSeedBoundedRef.current,
+      },
     )
     if (relatedTracks.length === 0) return queue
 
@@ -872,6 +985,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       addedCount: relatedTracks.length,
       durationMs: Math.round(performance.now() - started),
       inspectedCount,
+      reason,
     })
 
     const extendedQueue = [...queue, ...relatedTracks]
@@ -901,6 +1015,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           videoService.releaseSource()
           setIsPlaying(false)
           setIsLoading(false)
+          if (isTvQueueSong(song) && trySkipFailedTvChannel(song)) {
+            return
+          }
           setError(playbackErrorMessage(song))
           return
         }
@@ -918,6 +1035,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           .then(() => {
             if (currentTrackRef.current?.id !== song.id) return
             if (isTvQueueSong(song)) {
+              clearTvChannelSwitchState()
               recordTvHistory({
                 channelId: extractTvChannelId(song.id) ?? song.id,
                 title: song.title,
@@ -965,6 +1083,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             }
             setIsPlaying(false)
             setIsLoading(false)
+            if (isTvQueueSong(song) && trySkipFailedTvChannel(song)) {
+              return
+            }
             setError(message || playbackErrorMessage(song))
           })
         return
@@ -1235,7 +1356,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           setError(unavailable ? 'This item is currently unavailable.' : message || playbackErrorMessage(song))
         })
     },
-    [audioQualityMode, cancelUpgradeSession, emitPositionSeconds, getService, getVideoService, stopInactiveMedia, volume],
+    [audioQualityMode, cancelUpgradeSession, clearTvChannelSwitchState, emitPositionSeconds, getService, getVideoService, stopInactiveMedia, trySkipFailedTvChannel, volume],
   )
 
   const playSong = useCallback(
@@ -1426,8 +1547,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         if (needsTvResolve) {
           const channelId = extractTvChannelId(song.id)
           if (!channelId) {
-            setError('Unable to play this TV channel.')
             setIsLoading(false)
+            if (trySkipFailedTvChannel(song)) return
+            setError('Unable to play this TV channel.')
             return
           }
 
@@ -1437,6 +1559,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             if (currentTrackRef.current?.id !== song.id) return
             if (!play?.streamUrl?.startsWith('http')) {
               setIsLoading(false)
+              if (trySkipFailedTvChannel(song)) return
               setError('This TV channel is not currently playable.')
               return
             }
@@ -1459,6 +1582,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             if (generation !== mediaResolveGenerationRef.current) return
             if (currentTrackRef.current?.id !== song.id) return
             setIsLoading(false)
+            if (trySkipFailedTvChannel(song)) return
             setError(
               error instanceof Error
                 ? error.message
@@ -1660,7 +1784,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         startPlayback(resolvedSong)
       })()
     },
-    [startPlayback],
+    [startPlayback, trySkipFailedTvChannel],
   )
 
   useEffect(() => {
@@ -1893,123 +2017,147 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       }
 
       cancelUpgradeSession('upgrade-cancelled-track-changed', 'track-ended')
-      const queue = queueRef.current
-      const currentIndexValue = queueIndexRef.current
 
-      if (repeatModeRef.current === 'one' && currentIndexValue >= 0 && queue[currentIndexValue]) {
-        playSongRef.current(queue[currentIndexValue])
+      // Mobile FINISH_DEBOUNCE / autoAdvanceRef: one ended → one advance.
+      if (autoAdvanceInFlightRef.current) {
         return
       }
-
-      const nextIndex = currentIndexValue + 1
-
-      if (nextIndex < queue.length) {
-        const playableIndex = findNextUnblockedQueueIndex(queue, nextIndex)
-        if (playableIndex < 0) {
-          setIsPlaying(false)
-          emitPositionSeconds(0, true)
-          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
-          return
-        }
-        queueIndexRef.current = playableIndex
-        setCurrentIndex(playableIndex)
-        const extendedQueue = extendQueueIfNeeded(queue, playableIndex)
-        playSongRef.current(extendedQueue[playableIndex])
-        return
-      }
-
-      const extendedQueue = extendQueueIfNeeded(queue, queueIndexRef.current)
-      if (nextIndex < extendedQueue.length) {
-        const playableIndex = findNextUnblockedQueueIndex(extendedQueue, nextIndex)
-        if (playableIndex < 0) {
-          setIsPlaying(false)
-          emitPositionSeconds(0, true)
-          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
-          return
-        }
-        queueIndexRef.current = playableIndex
-        setCurrentIndex(playableIndex)
-        playSongRef.current(extendedQueue[playableIndex])
-        return
-      }
-
-      if (repeatModeRef.current === 'all' && queue.length > 0) {
-        const playableIndex = findNextUnblockedQueueIndex(queue, 0)
-        if (playableIndex < 0) {
-          setIsPlaying(false)
-          emitPositionSeconds(0, true)
-          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
-          return
-        }
-        queueIndexRef.current = playableIndex
-        setCurrentIndex(playableIndex)
-        playSongRef.current(queue[playableIndex])
-        return
-      }
-
+      const endedSongId = endedTrack?.id ?? ''
+      const endedAt = Date.now()
       if (
-        endedTrack
-        && isLectureQueueSong(endedTrack)
-        && queueContextRef.current === 'lecture'
+        endedSongId
+        && lastEndedAdvanceRef.current.songId === endedSongId
+        && endedAt - lastEndedAdvanceRef.current.at < ENDED_ADVANCE_DEBOUNCE_MS
       ) {
-        const playedSeriesIds = new Set(
-          queue
-            .filter((entry) => isLectureQueueSong(entry) && entry.albumId)
-            .map((entry) => entry.albumId as string),
-        )
-        const currentSeriesId = endedTrack.albumId ?? parseLectureSongId(endedTrack.id)?.seriesId
-        if (currentSeriesId) playedSeriesIds.add(currentSeriesId)
-
-        void (async () => {
-          try {
-            const continuationSeries = await searchLectureContinuation(
-              {
-                id: currentSeriesId ?? '',
-                slug: currentSeriesId ?? '',
-                title: endedTrack.album ?? 'Lecture course',
-                subtitle: null,
-                description: null,
-                artworkUrl: endedTrack.artwork,
-                speaker: endedTrack.artist ? { name: endedTrack.artist } : null,
-                institution: null,
-                category: endedTrack.genre
-                  ? { id: endedTrack.genre, slug: endedTrack.genre, name: endedTrack.genre }
-                  : null,
-                subject: endedTrack.mood,
-                language: null,
-                country: null,
-                sessionCount: 0,
-                totalDurationSeconds: null,
-                isFeatured: false,
-                isVerified: true,
-                publishedAt: null,
-                difficulty: null,
-                topicTags: [],
-                mediaType: null,
-              },
-              playedSeriesIds,
-            )
-            if (!continuationSeries) return
-
-            const sessions = await fetchAllLectureSeriesSessions(continuationSeries.id)
-            if (sessions.length === 0) return
-
-            const appended = buildLectureQueueSongs(continuationSeries, sessions)
-            const merged = [...queue, ...appended]
-            queueRef.current = merged
-            setCurrentQueue(merged)
-            queueIndexRef.current = queue.length
-            setCurrentIndex(queue.length)
-            playSongRef.current(appended[0])
-          } catch {
-            // Continue learning fallback is best-effort only.
-          }
-        })()
         return
       }
+      lastEndedAdvanceRef.current = { songId: endedSongId, at: endedAt }
+      autoAdvanceInFlightRef.current = true
 
-      setIsPlaying(false)
-      emitPositionSeconds(0, true)
+      try {
+        const queue = queueRef.current
+        const currentIndexValue = queueIndexRef.current
+
+        if (repeatModeRef.current === 'one' && currentIndexValue >= 0 && queue[currentIndexValue]) {
+          playSongRef.current(queue[currentIndexValue])
+          return
+        }
+
+        const nextIndex = currentIndexValue + 1
+
+        if (nextIndex < queue.length) {
+          const playableIndex = findNextAutoAdvanceIndex(queue, nextIndex)
+          if (playableIndex < 0) {
+            setIsPlaying(false)
+            emitPositionSeconds(0, true)
+            setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+            return
+          }
+          queueIndexRef.current = playableIndex
+          setCurrentIndex(playableIndex)
+          // Do not smart-extend when merely advancing onto a later source item.
+          playSongRef.current(queue[playableIndex])
+          return
+        }
+
+        // Queue exhausted — mobile smart continuation (unbounded contexts only).
+        const extendedQueue = extendQueueIfNeeded(queue, queueIndexRef.current, {
+          reason: 'exhaustion',
+        })
+        if (nextIndex < extendedQueue.length) {
+          const playableIndex = findNextAutoAdvanceIndex(extendedQueue, nextIndex)
+          if (playableIndex < 0) {
+            setIsPlaying(false)
+            emitPositionSeconds(0, true)
+            setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+            return
+          }
+          queueIndexRef.current = playableIndex
+          setCurrentIndex(playableIndex)
+          playSongRef.current(extendedQueue[playableIndex])
+          return
+        }
+
+        if (repeatModeRef.current === 'all' && queue.length > 0) {
+          const playableIndex = findNextAutoAdvanceIndex(queue, 0)
+          if (playableIndex < 0) {
+            setIsPlaying(false)
+            emitPositionSeconds(0, true)
+            setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+            return
+          }
+          queueIndexRef.current = playableIndex
+          setCurrentIndex(playableIndex)
+          playSongRef.current(queue[playableIndex])
+          return
+        }
+
+        if (
+          endedTrack
+          && isLectureQueueSong(endedTrack)
+          && queueContextRef.current === 'lecture'
+        ) {
+          const playedSeriesIds = new Set(
+            queue
+              .filter((entry) => isLectureQueueSong(entry) && entry.albumId)
+              .map((entry) => entry.albumId as string),
+          )
+          const currentSeriesId = endedTrack.albumId ?? parseLectureSongId(endedTrack.id)?.seriesId
+          if (currentSeriesId) playedSeriesIds.add(currentSeriesId)
+
+          void (async () => {
+            try {
+              const continuationSeries = await searchLectureContinuation(
+                {
+                  id: currentSeriesId ?? '',
+                  slug: currentSeriesId ?? '',
+                  title: endedTrack.album ?? 'Lecture course',
+                  subtitle: null,
+                  description: null,
+                  artworkUrl: endedTrack.artwork,
+                  speaker: endedTrack.artist ? { name: endedTrack.artist } : null,
+                  institution: null,
+                  category: endedTrack.genre
+                    ? { id: endedTrack.genre, slug: endedTrack.genre, name: endedTrack.genre }
+                    : null,
+                  subject: endedTrack.mood,
+                  language: null,
+                  country: null,
+                  sessionCount: 0,
+                  totalDurationSeconds: null,
+                  isFeatured: false,
+                  isVerified: true,
+                  publishedAt: null,
+                  difficulty: null,
+                  topicTags: [],
+                  mediaType: null,
+                },
+                playedSeriesIds,
+              )
+              if (!continuationSeries) return
+
+              const sessions = await fetchAllLectureSeriesSessions(continuationSeries.id)
+              if (sessions.length === 0) return
+
+              const appended = buildLectureQueueSongs(continuationSeries, sessions)
+              const merged = [...queue, ...appended]
+              queueRef.current = merged
+              setCurrentQueue(merged)
+              queueIndexRef.current = queue.length
+              setCurrentIndex(queue.length)
+              playSongRef.current(appended[0])
+            } catch {
+              // Continue learning fallback is best-effort only.
+            }
+          })()
+          return
+        }
+
+        setIsPlaying(false)
+        emitPositionSeconds(0, true)
+      } finally {
+        autoAdvanceInFlightRef.current = false
+      }
     }
     const onError = () => {
       cancelUpgradeSession('upgrade-cancelled-track-changed', 'media-error')
@@ -2212,6 +2360,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           message: video.error.message,
         })
       }
+      if (track && trySkipFailedTvChannel(track)) return
       setError(playbackErrorMessage(track))
     }
 
@@ -2236,7 +2385,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       videoService.releaseSource()
       videoService.unmount()
     }
-  }, [emitPositionSeconds, getVideoService, persistLectureProgress, persistMotivationalProgress])
+  }, [emitPositionSeconds, getVideoService, persistLectureProgress, persistMotivationalProgress, trySkipFailedTvChannel])
 
   const playQueue = useCallback(
     (
@@ -2253,6 +2402,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         playableQueue.length - 1,
         Math.max(0, Number.isFinite(startIndex) ? startIndex : 0),
       )
+
+      // Fresh queue ownership: clear any in-flight TV channel switch bookkeeping.
+      clearTvChannelSwitchState()
 
       unshuffledQueueRef.current = playableQueue
       let resolvedQueue = playableQueue
@@ -2284,6 +2436,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       queueSeedIdRef.current = seedMetadata?.seedId
       queueSeedTracksRef.current = seedMetadata?.seedTracks ?? resolvedQueue
       queueCandidatePoolsRef.current = seedMetadata?.candidatePools
+      // Default bounded (mobile): only explicit unbounded full-catalog-style plays continue.
+      queueSeedBoundedRef.current = seedMetadata?.bounded ?? true
+      smartContinuationStartRef.current = -1
 
       applyQueueState(resolvedQueue, resolvedIndex)
       setQueueContextState(context)
@@ -2292,12 +2447,9 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       setQueueTitle(nextQueueTitle)
 
       playSong(targetTrack)
-
-      queueMicrotask(() => {
-        extendQueueIfNeeded(resolvedQueue, resolvedIndex)
-      })
+      // Do not pre-extend here — smart continuation runs only at exhaustion on ended/next.
     },
-    [applyQueueState, extendQueueIfNeeded, flushAudiobookProgress, flushPodcastProgress, playSong, setQueueContextState],
+    [applyQueueState, clearTvChannelSwitchState, flushAudiobookProgress, flushPodcastProgress, playSong, setQueueContextState],
   )
 
   const playTrack = useCallback(
@@ -2324,7 +2476,26 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const enqueue = useCallback(
     (song: ApiSong, opts?: { allowDuplicate?: boolean }) => {
-      const result = enqueueSong(queueRef.current, song, opts)
+      const queue = queueRef.current
+      const smartStart = smartContinuationStartRef.current
+
+      // Manual add-to-queue must stay ahead of smart continuation items.
+      if (smartStart >= 0 && smartStart <= queue.length) {
+        if (!opts?.allowDuplicate) {
+          const existing = findSongIndexById(queue, song.id)
+          if (existing >= 0) {
+            return { added: false, index: existing }
+          }
+        }
+        const insertAt = smartStart
+        const nextQueue = [...queue.slice(0, insertAt), song, ...queue.slice(insertAt)]
+        smartContinuationStartRef.current = insertAt + 1
+        applyQueueState(nextQueue, queueIndexRef.current < 0 ? 0 : queueIndexRef.current)
+        emitQueueDiagnostic('queue_item_added', { id: song.id, index: insertAt, beforeSmart: true })
+        return { added: true, index: insertAt }
+      }
+
+      const result = enqueueSong(queue, song, opts)
       if (result.added) {
         applyQueueState(result.queue, queueIndexRef.current < 0 ? 0 : queueIndexRef.current)
         emitQueueDiagnostic('queue_item_added', { id: song.id, index: result.index })
@@ -2338,6 +2509,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     (song: ApiSong, opts?: { allowDuplicate?: boolean }) => {
       const result = insertPlayNext(queueRef.current, queueIndexRef.current, song, opts)
       if (result.added) {
+        if (
+          smartContinuationStartRef.current >= 0
+          && result.index <= smartContinuationStartRef.current
+        ) {
+          smartContinuationStartRef.current += 1
+        }
         applyQueueState(result.queue, queueIndexRef.current)
         emitQueueDiagnostic('queue_item_added', { id: song.id, mode: 'playNext', index: result.index })
       }
@@ -2410,36 +2587,67 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   )
 
   const next = useCallback(() => {
+    const active = currentTrackRef.current
+    if (isTvQueueSong(active) && tvChannelSwitchInFlightRef.current) return
+
     const queue = queueRef.current
     const startIndex = queueIndexRef.current + 1
     if (startIndex >= queue.length) {
-      if (repeatModeRef.current === 'all' && queue.length > 0) {
-        const playableIndex = findNextUnblockedQueueIndex(queue, 0)
+      // Mobile nextSong at end: try smart continuation for unbounded contexts.
+      const extendedQueue = extendQueueIfNeeded(queue, queueIndexRef.current, {
+        reason: 'exhaustion',
+      })
+      if (startIndex < extendedQueue.length) {
+        const playableIndex = findNextAutoAdvanceIndex(extendedQueue, startIndex)
         if (playableIndex < 0) {
           setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
           return
         }
-        applyQueueState(queue, playableIndex)
+        if (isTvQueueSong(extendedQueue[playableIndex]) || isTvQueueSong(active)) {
+          tvChannelSwitchInFlightRef.current = true
+          tvFailSkipCountRef.current = 0
+          tvAutoAdvanceOnFailRef.current = 'forward'
+        }
+        commitActiveQueueTrack(extendedQueue, playableIndex)
+        playSong(extendedQueue[playableIndex])
+        return
+      }
+
+      if (repeatModeRef.current === 'all' && queue.length > 0) {
+        const playableIndex = findNextAutoAdvanceIndex(queue, 0)
+        if (playableIndex < 0) {
+          setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
+          return
+        }
+        if (isTvQueueSong(queue[playableIndex]) || isTvQueueSong(active)) {
+          tvChannelSwitchInFlightRef.current = true
+          tvFailSkipCountRef.current = 0
+          tvAutoAdvanceOnFailRef.current = 'forward'
+        }
+        commitActiveQueueTrack(queue, playableIndex)
         playSong(queue[playableIndex])
       }
       return
     }
 
-    const playableIndex = findNextUnblockedQueueIndex(queue, startIndex)
+    const playableIndex = findNextAutoAdvanceIndex(queue, startIndex)
     if (playableIndex < 0) {
       setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
       return
     }
 
-    applyQueueState(queue, playableIndex)
+    if (isTvQueueSong(queue[playableIndex]) || isTvQueueSong(active)) {
+      tvChannelSwitchInFlightRef.current = true
+      tvFailSkipCountRef.current = 0
+      tvAutoAdvanceOnFailRef.current = 'forward'
+    }
+    commitActiveQueueTrack(queue, playableIndex)
     playSong(queue[playableIndex])
-    queueMicrotask(() => {
-      extendQueueIfNeeded(queue, playableIndex)
-    })
-  }, [applyQueueState, extendQueueIfNeeded, playSong])
+  }, [commitActiveQueueTrack, extendQueueIfNeeded, playSong])
 
   const previous = useCallback(() => {
     const track = currentTrackRef.current
+    if (isTvQueueSong(track) && tvChannelSwitchInFlightRef.current) return
     const caps = resolvePlaybackCapabilities(track)
 
     // Live / non-seekable: never fake-restart; walk previous queue item only.
@@ -2449,13 +2657,23 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       if (previousIndex < 0) {
         if (repeatModeRef.current === 'all' && queue.length > 1 && caps.previous) {
           const lastIndex = queue.length - 1
-          applyQueueState(queue, lastIndex)
+          if (isTvQueueSong(queue[lastIndex]) || isTvQueueSong(track)) {
+            tvChannelSwitchInFlightRef.current = true
+            tvFailSkipCountRef.current = 0
+            tvAutoAdvanceOnFailRef.current = 'backward'
+          }
+          commitActiveQueueTrack(queue, lastIndex)
           playSong(queue[lastIndex])
         }
         return
       }
       if (!caps.previous) return
-      applyQueueState(queue, previousIndex)
+      if (isTvQueueSong(queue[previousIndex]) || isTvQueueSong(track)) {
+        tvChannelSwitchInFlightRef.current = true
+        tvFailSkipCountRef.current = 0
+        tvAutoAdvanceOnFailRef.current = 'backward'
+      }
+      commitActiveQueueTrack(queue, previousIndex)
       playSong(queue[previousIndex])
       return
     }
@@ -2488,22 +2706,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     if (previousIndex < 0) {
       if (repeatModeRef.current === 'all' && queue.length > 1) {
         const lastIndex = queue.length - 1
-        applyQueueState(queue, lastIndex)
+        commitActiveQueueTrack(queue, lastIndex)
         playSong(queue[lastIndex])
-        queueMicrotask(() => {
-          extendQueueIfNeeded(queue, lastIndex)
-        })
       }
       return
     }
     if (previousIndex >= queue.length) return
 
-    applyQueueState(queue, previousIndex)
+    commitActiveQueueTrack(queue, previousIndex)
     playSong(queue[previousIndex])
-    queueMicrotask(() => {
-      extendQueueIfNeeded(queue, previousIndex)
-    })
-  }, [applyQueueState, emitPositionSeconds, extendQueueIfNeeded, getService, getVideoService, playSong])
+  }, [commitActiveQueueTrack, emitPositionSeconds, getService, getVideoService, playSong])
 
   const getUpcomingTracks = useCallback(() => {
     const nextIndex = queueIndexRef.current + 1
@@ -2515,13 +2727,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     (index: number) => {
       const queue = queueRef.current
       if (index < 0 || index >= queue.length) return
-      applyQueueState(queue, index)
+      commitActiveQueueTrack(queue, index)
       playSong(queue[index])
-      queueMicrotask(() => {
-        extendQueueIfNeeded(queue, index)
-      })
     },
-    [applyQueueState, extendQueueIfNeeded, playSong],
+    [commitActiveQueueTrack, playSong],
   )
 
   const clearUpcomingQueue = useCallback(() => {
@@ -2533,6 +2742,8 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     queueRef.current = trimmed
     queueSeedTracksRef.current = trimmed
     queueSeedTypeRef.current = 'manual'
+    queueSeedBoundedRef.current = true
+    smartContinuationStartRef.current = -1
     setCurrentQueue(trimmed)
     setQueueContextState('manual')
     setQueueSeedType('manual')
@@ -2731,6 +2942,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
   const stopPlayback = useCallback(() => {
     cancelUpgradeSession()
+    clearTvChannelSwitchState()
     if (document.pictureInPictureElement) {
       void document.exitPictureInPicture().catch(() => undefined)
     }
@@ -2752,7 +2964,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     setDurationSeconds(0)
     currentTrackRef.current = null
     setCurrentTrack(null)
-  }, [cancelUpgradeSession, emitPositionSeconds, getService, getVideoService])
+  }, [cancelUpgradeSession, clearTvChannelSwitchState, emitPositionSeconds, getService, getVideoService])
 
   const clearQueue = useCallback(() => {
     emitQueueDiagnostic('queue_cleared', { previousLength: queueRef.current.length })
@@ -2764,6 +2976,19 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     stopPlayback()
     clearPersistedQueue()
   }, [applyQueueState, setQueueContextState, stopPlayback])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    if (new URLSearchParams(window.location.search).get('visualAudit') !== 'home') return
+
+    const auditWindow = window as typeof window & {
+      __HT_HOME_VISUAL_AUDIT__?: { stop: () => void }
+    }
+    auditWindow.__HT_HOME_VISUAL_AUDIT__ = { stop: stopPlayback }
+    return () => {
+      delete auditWindow.__HT_HOME_VISUAL_AUDIT__
+    }
+  }, [stopPlayback])
 
   const mountTvVideo = useCallback((container: HTMLElement | null) => {
     getVideoService().mount(container)

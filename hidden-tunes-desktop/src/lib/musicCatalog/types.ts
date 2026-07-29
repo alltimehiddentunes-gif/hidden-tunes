@@ -6,7 +6,7 @@ export const MUSIC_CATALOG_CACHE_MAX_ENTRIES = 48
 /** Soft byte budget for serialized page cache (~1.5 MB). */
 export const MUSIC_CATALOG_CACHE_MAX_BYTES = 1_500_000
 
-export type MusicCatalogResource = 'songs' | 'albums' | 'artists' | 'song-search'
+export type MusicCatalogResource = 'songs' | 'albums' | 'artists' | 'song-search' | 'genre-songs'
 
 export type MusicCatalogPageRequest = {
   resource: MusicCatalogResource

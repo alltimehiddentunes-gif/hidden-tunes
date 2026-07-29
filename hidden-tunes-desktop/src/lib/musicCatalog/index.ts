@@ -14,6 +14,7 @@ export {
 } from './types'
 export {
   loadMusicCatalogBootstrap,
+  loadMusicGenreSongsPage,
   loadMusicCatalogPage,
   searchMusicSongsPage,
 } from './catalogService'

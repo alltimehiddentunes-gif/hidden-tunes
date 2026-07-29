@@ -27,12 +27,21 @@ import {
   type SongSort,
 } from './lib/api'
 import {
+  formatAlbumCardSecondary,
+  formatCatalogMetaParts,
+  formatSongCountLabel,
+  normalizeCatalogArtistLabel,
+  normalizeCatalogDisplayText,
+} from './lib/catalogDisplayText'
+import {
   CatalogRequestError,
   loadMusicCatalogBootstrap,
+  loadMusicGenreSongsPage,
   loadMusicCatalogPage,
   MUSIC_CATALOG_PAGE_SIZE,
   searchMusicSongsPage,
 } from './lib/musicCatalog'
+import { parseMusicGenreIntent, type MusicGenreDefinition } from './lib/musicGenres'
 import { getDesktopRuntimeConfig } from './lib/config/desktopRuntimeConfig'
 import {
   buildSearchMetadataIndex,
@@ -42,7 +51,7 @@ import {
   sortMetadataRecords,
   type CatalogMetadataIndex,
 } from './lib/songMetadata'
-import { withDevAudioVersionTestSongs } from './lib/devAudioVersionTestHarness'
+import { excludeInternalDevCatalogSongs } from './lib/devAudioVersionTestHarness'
 import {
   artistReleaseTypeLabel,
   fetchArtistAbout,
@@ -172,6 +181,7 @@ import { ensureLibraryMigrated } from './lib/library'
 import { AudiobooksPage } from './components/audiobooks/AudiobooksPage'
 import { AudiobookBookPage } from './components/audiobooks/AudiobookBookPage'
 import { MusicHomePage } from './components/home/MusicHomePage'
+import { HiddenTunesGlobalBackground } from './components/HiddenTunesGlobalBackground'
 import { LaunchGate } from './components/LaunchGate'
 import { GlobalTopNav } from './components/music/GlobalTopNav'
 import { MusicWorkspace } from './components/music/MusicWorkspace'
@@ -207,6 +217,11 @@ import { GlobalSearchSections } from './components/search/GlobalSearchSections'
 import { formatLectureSeriesSubtitle } from './lib/lectures/lectureFormatters'
 import { buildRadioQueueSongs, isRadioQueueSong } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
+import { resolveActivePlayerSurface } from './lib/player/resolveActivePlayerSurface'
+import {
+  resolveTvChannelTransportAvailability,
+  resolveTvTransportLabels,
+} from './lib/tv/tvChannelTransport'
 import { isSportsQueueSong } from './lib/sports/sportsPlaybackAdapter'
 import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
 import { buildAudiobookQueueSongs } from './lib/audiobooks/audiobookPlaybackAdapter'
@@ -248,7 +263,7 @@ function formatPlaylistDurationLabel(songs: ApiSong[]) {
 function formatPlaylistMetaLine(songCount: number, songs: ApiSong[]) {
   const songLabel = `${songCount.toLocaleString()} ${songCount === 1 ? 'song' : 'songs'}`
   const duration = formatPlaylistDurationLabel(songs)
-  return duration ? `${songLabel} ┬À ${duration}` : songLabel
+  return duration ? `${songLabel} · ${duration}` : songLabel
 }
 
 function filterPlaylistTracksBySearch(tracks: ApiSong[], query: string) {
@@ -271,7 +286,7 @@ const ARTIST_POPULAR_EXPANDED = 12
 const ARTIST_ALBUM_PREVIEW = 5
 
 function formatArtistStatLine(songCount: number, albumCount: number) {
-  return `${songCount.toLocaleString()} ${songCount === 1 ? 'song' : 'songs'} ┬À ${albumCount} ${albumCount === 1 ? 'album' : 'albums'}`
+  return `${songCount.toLocaleString()} ${songCount === 1 ? 'song' : 'songs'} · ${albumCount} ${albumCount === 1 ? 'album' : 'albums'}`
 }
 
 function resolveArtistPrimaryGenre(songs: ApiSong[]) {
@@ -302,7 +317,7 @@ const PSD_ALBUMS_GRID_CARDS = [
   { key: 'alb3', title: 'Vibes from Lagos', artist: 'Wills Afrobeats', year: '2023', songs: '14 songs' },
   { key: 'alb4', title: 'Love & Rhythm', artist: 'Wills Afrobeats', year: '2022', songs: '11 songs' },
   { key: 'alb5', title: 'The Beginning', artist: 'Wills Afrobeats', year: '2021', songs: '9 songs' },
-  { key: 'alb6', title: 'Jazz Caf├â┬®', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs' },
+  { key: 'alb6', title: 'Jazz Café', artist: 'Wills Afrobeats', year: '2020', songs: '8 songs' },
   { key: 'alb7', title: 'Deep Focus', artist: 'Wills Afrobeats', year: '2019', songs: '15 songs' },
   { key: 'alb8', title: 'Moments of Us', artist: 'Wills Afrobeats', year: '2018', songs: '7 songs' },
   { key: 'alb9', title: 'Rainy Day Comfort', artist: 'Wills Afrobeats', year: '2017', songs: '13 songs' },
@@ -483,21 +498,21 @@ const PSD_LIKED_DESCRIPTION = 'Songs you heart on this device. Likes stay local 
 
 const PSD_DOWNLOADS_STORAGE_PERCENT = 72
 const PSD_DOWNLOADS_PLAYLISTS = [
-  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs ├óÔé¼┬ó 3h 12m' },
-  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs ├óÔé¼┬ó 2h 17m' },
-  { key: 'dw-pl3', title: 'Jazz Caf├â┬®', meta: '40 songs ├óÔé¼┬ó 2h 45m' },
+  { key: 'dw-pl1', title: 'Night Drive', meta: '50 songs • 3h 12m' },
+  { key: 'dw-pl2', title: 'Chill Vibes', meta: '35 songs • 2h 17m' },
+  { key: 'dw-pl3', title: 'Jazz Café', meta: '40 songs • 2h 45m' },
 ] as const
 const PSD_DOWNLOADS_ALBUMS = [
-  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs ├óÔé¼┬ó 45 min' },
-  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs ├óÔé¼┬ó 38 min' },
+  { key: 'dw-al1', title: 'Midnight Memories', artist: 'Wills Afrobeats', meta: '12 songs • 45 min' },
+  { key: 'dw-al2', title: 'After Hours', artist: 'Wills Afrobeats', meta: '10 songs • 38 min' },
 ] as const
 const PSD_DOWNLOADS_SONGS = [
-  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
-  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
-  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
-  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
-  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
-  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats ├óÔé¼┬ó Night Drive' },
+  { key: 'dw-s1', title: 'Midnight Reflection', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s2', title: 'Afro Sunset', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s3', title: 'Love Vibes', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s4', title: 'Healing Slowly', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s5', title: 'Night Drive', meta: 'Wills Afrobeats • Night Drive' },
+  { key: 'dw-s6', title: 'Rainy Day Comfort', meta: 'Wills Afrobeats • Night Drive' },
 ] as const
 const PSD_DOWNLOADS_TABS = ['All', 'Playlists', 'Albums', 'Songs', 'Podcasts'] as const
 
@@ -527,7 +542,7 @@ const PSD_LYRICS_LINES = [
   { tier: 'distant', text: 'resides' },
 ] as const
 
-/** PSD player design reference ├óÔé¼ÔÇØ not displayed as live playback data. */
+/** PSD player design reference — not displayed as live playback data. */
 void [
   PSD_PLAYER_SOURCE_ALBUM,
   PSD_PLAYER_LYRICS_LINES,
@@ -743,7 +758,7 @@ function resolveInitialCatalog() {
     }
     logCatalogCacheMiss()
   } catch {
-    // Ignore corrupt cache/bootstrap data ├óÔé¼ÔÇØ app should still open.
+    // Ignore corrupt cache/bootstrap data — app should still open.
   }
 
   return {
@@ -847,7 +862,8 @@ function CatalogProvider({ children }: { children: ReactNode }) {
   const albumsLoadGuard = useRef(false)
   const artistsLoadGuard = useRef(false)
 
-  const displaySongs = useMemo(() => withDevAudioVersionTestSongs(songs), [songs])
+  // Public catalog never includes desktop audio-version harness fixtures.
+  const displaySongs = useMemo(() => excludeInternalDevCatalogSongs(songs), [songs])
   const hasCatalogData = displaySongs.length > 0 || albums.length > 0 || artists.length > 0
   const showCatalogSkeleton = loading && !hasCatalogData
   const showCatalogError = Boolean(error) && !hasCatalogData
@@ -1647,6 +1663,43 @@ const SIDEBAR_NAV_GROUPS = [
   { label: 'Account', items: SIDEBAR_ACCOUNT_NAV },
 ] as const
 
+function referenceSidebarItem(
+  source: SidebarNavItem,
+  key: string,
+  label: string,
+  navKey: NavKey,
+): SidebarNavItem {
+  return { ...source, key, label, navKey }
+}
+
+const HOME_REFERENCE_SIDEBAR_GROUPS = [
+  {
+    label: 'Music',
+    items: [
+      referenceSidebarItem(SIDEBAR_DISCOVER_NAV[1]!, 'discover', 'Discover', 'search'),
+      referenceSidebarItem(SIDEBAR_PRIMARY_NAV[1]!, 'new-releases', 'New Releases', 'music'),
+      referenceSidebarItem(SIDEBAR_DISCOVER_NAV[1]!, 'top-charts', 'Top Charts', 'search'),
+      referenceSidebarItem(SIDEBAR_DISCOVER_NAV[0]!, 'genres-moods', 'Genres & Moods', 'worlds'),
+      SIDEBAR_DISCOVER_NAV[2]!,
+      SIDEBAR_DISCOVER_NAV[3]!,
+      referenceSidebarItem(SIDEBAR_PRIMARY_NAV[1]!, 'songs', 'Songs', 'music'),
+      referenceSidebarItem(SIDEBAR_PRIMARY_NAV[4]!, 'music-videos', 'Music Videos', 'tv'),
+      referenceSidebarItem(SIDEBAR_PRIMARY_NAV[2]!, 'live-performances', 'Live Performances', 'radio'),
+      referenceSidebarItem(SIDEBAR_LIBRARY_NAV[1]!, 'liked-songs', 'Liked Songs', 'liked'),
+    ],
+  },
+  {
+    label: 'Your Library',
+    items: [
+      SIDEBAR_LIBRARY_NAV[2]!,
+      referenceSidebarItem(SIDEBAR_LIBRARY_NAV[4]!, 'recently-played', 'Recently Played', 'recent'),
+      SIDEBAR_LIBRARY_NAV[1]!,
+      SIDEBAR_LIBRARY_NAV[3]!,
+    ],
+  },
+  { label: '', items: SIDEBAR_ACCOUNT_NAV },
+] as const
+
 if (import.meta.env.DEV) {
   const sidebarPrimaryKeys = SIDEBAR_PRIMARY_NAV.map((item) => item.navKey).join(',')
   const expectedPrimaryKeys = 'home,music,radio,podcasts,tv,sports'
@@ -2010,9 +2063,16 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
             indexes.songsByAlbumName,
             indexes.artistNames,
           )
-          const artistName = resolveAlbumDisplayArtist(album, albumSongs, artistNames)
+          const artistName =
+            normalizeCatalogArtistLabel(
+              resolveAlbumDisplayArtist(album, albumSongs, artistNames),
+            ) ?? 'Unknown artist'
           const artwork = album.artwork
-          const trackLabel = `${albumSongs.length} ${albumSongs.length === 1 ? 'track' : 'tracks'}`
+          const secondary = formatAlbumCardSecondary({
+            title: album.title,
+            releaseYear: album.releaseYear,
+            trackCount: albumSongs.length,
+          })
           return (
             <button
               key={album.id}
@@ -2024,11 +2084,11 @@ const ApiAlbumGrid = memo(function ApiAlbumGrid({
                 <ArtworkImage src={artwork} alt="" seed={album.id} variant="wide" />
               </div>
               <div className="card-info">
-                <h3>{album.title}</h3>
-                <p className="card-meta-primary">{artistName || 'Unknown artist'}</p>
-                <p className="card-meta-secondary">
-                  {album.releaseYear ? `Released ${album.releaseYear} · ${trackLabel}` : trackLabel}
-                </p>
+                <h3>{normalizeCatalogDisplayText(album.title) ?? album.title}</h3>
+                <p className="card-meta-primary">{artistName}</p>
+                {secondary ? (
+                  <p className="card-meta-secondary">{secondary}</p>
+                ) : null}
               </div>
             </button>
           )
@@ -2097,10 +2157,22 @@ const ApiArtistGrid = memo(function ApiArtistGrid({
               <ArtistAvatar artist={artist} />
             </div>
             <div className="card-info">
-              <h3>{artist.name}</h3>
-              <p className="card-meta-primary">
-                {artist.songCount} {artist.songCount === 1 ? 'song' : 'songs'}
-              </p>
+              <h3>
+                {normalizeCatalogArtistLabel(artist.name, {
+                  allowUnknownFallback: true,
+                })}
+              </h3>
+              {formatSongCountLabel(artist.songCount, {
+                noun: 'song',
+                omitZero: true,
+              }) ? (
+                <p className="card-meta-primary">
+                  {formatSongCountLabel(artist.songCount, {
+                    noun: 'song',
+                    omitZero: true,
+                  })}
+                </p>
+              ) : null}
             </div>
           </button>
         ))}
@@ -2140,7 +2212,7 @@ function CatalogSection({
   children: ReactNode
 }) {
   const hintText =
-    typeof count === 'number' ? `${hint} ┬À ${count} items` : hint
+    typeof count === 'number' ? `${hint} · ${count} items` : hint
 
   return (
     <section className="discovery-section catalog-section" aria-labelledby={`catalog-${title}`}>
@@ -2176,6 +2248,8 @@ function PageFrame({
   )
 }
 
+const SEARCH_INPUT_COMMIT_MS = 200
+
 const HomeTopBar = memo(function HomeTopBar({
   placeholder = 'Search songs, artists, moods…',
   onOpenDiscover,
@@ -2183,6 +2257,7 @@ const HomeTopBar = memo(function HomeTopBar({
   variant = 'default',
   searchValue,
   onSearchChange,
+  showClear = false,
 }: {
   placeholder?: string
   onOpenDiscover?: () => void
@@ -2190,22 +2265,72 @@ const HomeTopBar = memo(function HomeTopBar({
   variant?: 'default' | 'search'
   searchValue?: string
   onSearchChange?: (value: string) => void
+  /** Keep clear visible when parent owns a hidden intent (e.g. genre:hip-hop). */
+  showClear?: boolean
 }) {
   const [localQuery, setLocalQuery] = useState('')
   const isSearchShell = variant === 'search' && onSearchChange != null
-  const query = isSearchShell ? (searchValue ?? '') : localQuery
-  const setQuery = isSearchShell ? onSearchChange! : setLocalQuery
+  const [draftQuery, setDraftQuery] = useState(searchValue ?? '')
+  const commitTimerRef = useRef<number | null>(null)
+  const query = isSearchShell ? draftQuery : localQuery
+
+  useEffect(() => {
+    if (!isSearchShell) return
+    setDraftQuery(searchValue ?? '')
+  }, [isSearchShell, searchValue])
+
+  useEffect(() => {
+    return () => {
+      if (commitTimerRef.current != null) {
+        window.clearTimeout(commitTimerRef.current)
+      }
+    }
+  }, [])
+
+  const commitSearchChange = useCallback(
+    (next: string, immediate = false) => {
+      if (!onSearchChange) return
+      if (commitTimerRef.current != null) {
+        window.clearTimeout(commitTimerRef.current)
+        commitTimerRef.current = null
+      }
+      if (immediate) {
+        onSearchChange(next)
+        return
+      }
+      commitTimerRef.current = window.setTimeout(() => {
+        commitTimerRef.current = null
+        onSearchChange(next)
+      }, SEARCH_INPUT_COMMIT_MS)
+    },
+    [onSearchChange],
+  )
+
+  const setQuery = useCallback(
+    (next: string, immediate = false) => {
+      if (isSearchShell) {
+        setDraftQuery(next)
+        commitSearchChange(next, immediate)
+        return
+      }
+      setLocalQuery(next)
+    },
+    [commitSearchChange, isSearchShell],
+  )
 
   const handleSubmit = useCallback(
     (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault()
       const trimmed = query.trim()
+      if (isSearchShell) {
+        commitSearchChange(query, true)
+      }
       if (trimmed) {
         onSearchSubmit?.(trimmed)
       }
       onOpenDiscover?.()
     },
-    [onOpenDiscover, onSearchSubmit, query],
+    [commitSearchChange, isSearchShell, onOpenDiscover, onSearchSubmit, query],
   )
 
   return (
@@ -2223,13 +2348,15 @@ const HomeTopBar = memo(function HomeTopBar({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={placeholder}
           aria-label={placeholder}
+          autoComplete="off"
+          spellCheck={false}
         />
-        {isSearchShell && query ? (
+        {isSearchShell && (query || showClear) ? (
           <button
             type="button"
             className="home-top-search-clear"
             aria-label="Clear search"
-            onClick={() => setQuery('')}
+            onClick={() => setQuery('', true)}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -2251,7 +2378,7 @@ const CatalogStaleBanner = memo(function CatalogStaleBanner() {
     <div className="catalog-stale-banner" role="status">
       <span className="catalog-stale-dot" aria-hidden="true" />
       <span>
-        Browsing your saved catalog ├óÔé¼ÔÇØ live refresh didn&apos;t complete. You can refresh again anytime.
+        Browsing your saved catalog — live refresh didn&apos;t complete. You can refresh again anytime.
       </span>
     </div>
   )
@@ -2280,7 +2407,7 @@ const CatalogStatusBar = memo(function CatalogStatusBar() {
         disabled={loading}
         aria-busy={loading}
       >
-        {loading ? 'Refreshing├óÔé¼┬ª' : 'Refresh catalog'}
+        {loading ? 'Refreshing…' : 'Refresh catalog'}
       </button>
     </div>
   )
@@ -2324,7 +2451,7 @@ function CatalogStatusSettings({
       <div className="settings-row">
         <div className="settings-label">
           <span>Refresh catalog</span>
-          <small>Fetch latest read-only data ┬À preferences stay intact</small>
+          <small>Fetch latest read-only data · preferences stay intact</small>
         </div>
         <button
           type="button"
@@ -2333,13 +2460,13 @@ function CatalogStatusSettings({
           disabled={loading}
           aria-busy={loading}
         >
-          {loading ? 'Refreshing├óÔé¼┬ª' : 'Refresh'}
+          {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
       <div className="settings-row">
         <div className="settings-label">
           <span>Clear saved catalog cache</span>
-          <small>Removes local catalog only ┬À live session data may remain until refresh</small>
+          <small>Removes local catalog only · live session data may remain until refresh</small>
         </div>
         <button
           type="button"
@@ -2407,7 +2534,7 @@ function EmotionalLanesSection({
           <p className="page-eyebrow emotional-lanes-eyebrow">Emotional discovery</p>
           <h2 id="emotional-lanes-heading">Emotional lanes</h2>
           <span className="section-hint">
-            Vibe groupings from catalog metadata ├óÔé¼ÔÇØ browse lanes, play on your terms
+            Vibe groupings from catalog metadata — browse lanes, play on your terms
           </span>
         </div>
         {selectedLaneId ? (
@@ -2462,7 +2589,7 @@ function EmotionalLanesSection({
                   </span>
                   {lane.topSignals.length > 0 ? (
                     <span className="emotional-lane-signals">
-                      {lane.topSignals.join(' ┬À ')}
+                      {lane.topSignals.join(' · ')}
                     </span>
                   ) : null}
                 </div>
@@ -2474,7 +2601,7 @@ function EmotionalLanesSection({
       {selectedLane ? (
         <div className="emotional-lanes-for-mood" role="status">
           <h3 className="emotional-lanes-for-heading">
-            For this mood ┬À {selectedLane.label}
+            For this mood · {selectedLane.label}
           </h3>
           <p className="emotional-lanes-for-detail">{selectedLane.subtitle}</p>
         </div>
@@ -2514,7 +2641,7 @@ function SceneListeningSection({
           <p className="page-eyebrow scene-listening-eyebrow">Scene listening</p>
           <h2 id="scene-listening-heading">Scene collections</h2>
           <span className="section-hint">
-            Curated atmospheres from your catalog ├óÔé¼ÔÇØ step into a scene, play when ready
+            Curated atmospheres from your catalog — step into a scene, play when ready
           </span>
         </div>
         {selectedSceneId ? (
@@ -2568,7 +2695,7 @@ function SceneListeningSection({
                   </span>
                   {scene.topSignals.length > 0 ? (
                     <span className="scene-listening-signals">
-                      {scene.topSignals.join(' ┬À ')}
+                      {scene.topSignals.join(' · ')}
                     </span>
                   ) : null}
                 </div>
@@ -2580,7 +2707,7 @@ function SceneListeningSection({
       {selectedScene ? (
         <div className="scene-listening-active" role="status">
           <h3 className="scene-listening-active-heading">
-            In this scene ┬À {selectedScene.label}
+            In this scene · {selectedScene.label}
           </h3>
           <p className="scene-listening-active-detail">{selectedScene.subtitle}</p>
         </div>
@@ -2651,7 +2778,7 @@ function RadioFoundationSection({
           <p className="page-eyebrow radio-foundation-eyebrow">Radio foundation</p>
           <h2 id="radio-foundation-heading">Build a station</h2>
           <span className="section-hint">
-            Preview a scored station from your catalog ├óÔé¼ÔÇØ start radio only when you choose
+            Preview a scored station from your catalog — start radio only when you choose
           </span>
         </div>
         <button
@@ -2718,6 +2845,10 @@ const Sidebar = memo(function Sidebar({
   activeNavKey: NavKey
   onNavigateNav: (navKey: NavKey) => void
 }) {
+  const groups = activeNavKey === 'home'
+    ? HOME_REFERENCE_SIDEBAR_GROUPS
+    : SIDEBAR_NAV_GROUPS
+
   return (
     <aside className="sidebar sidebar--psd">
       <div className="sidebar-brand">
@@ -2729,9 +2860,9 @@ const Sidebar = memo(function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="Main navigation">
-        {SIDEBAR_NAV_GROUPS.map((group) => (
+        {groups.map((group) => (
           <div className="sidebar-nav-group" key={group.label}>
-            <span className="sidebar-nav-group-label">{group.label}</span>
+            {group.label ? <span className="sidebar-nav-group-label">{group.label}</span> : null}
             {group.items.map((item) => {
               const isActive = isSidebarNavActive(item, activeNavKey)
               return (
@@ -2865,7 +2996,7 @@ function resolveWorldPresentation(scene: BuiltListeningScene) {
   }
 }
 
-/** Reserved listening surfaces ├óÔé¼ÔÇØ removed from Home in 44F; kept for Worlds phases. */
+/** Reserved listening surfaces — removed from Home in 44F; kept for Worlds phases. */
 const HOME_LEGACY_SECTIONS = {
   EmotionalLanesSection,
   SceneListeningSection,
@@ -3133,7 +3264,7 @@ const SEARCH_ALBUM_EXPANDED_LIMIT = 16
 function formatSongDurationLabel(
   song: { durationSeconds: number | null } | null | undefined,
 ) {
-  if (!song?.durationSeconds || song.durationSeconds <= 0) return '├óÔé¼ÔÇØ'
+  if (!song?.durationSeconds || song.durationSeconds <= 0) return '—'
   const total = Math.floor(song.durationSeconds)
   const minutes = Math.floor(total / 60)
   const remainder = total % 60
@@ -3172,9 +3303,50 @@ function formatAlbumSearchMeta(
   album: ApiAlbum,
   artistNames: Map<string, string>,
 ) {
-  const artistName = album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist'
+  const linked = normalizeCatalogArtistLabel(
+    album.artistId ? artistNames.get(album.artistId) ?? null : null,
+  )
   const year = album.releaseYear ? String(album.releaseYear) : null
-  return year ? `${artistName} ├óÔé¼┬ó ${year}` : artistName
+  return (
+    formatCatalogMetaParts([linked ?? 'Unknown artist', year], ' • ') ??
+    'Unknown artist'
+  )
+}
+
+const GENRE_PAGE_SCAN_LIMIT = 25
+
+async function loadFilteredGenrePage(
+  genreDefinition: MusicGenreDefinition,
+  startPage: number,
+  signal: AbortSignal,
+) {
+  let page = startPage
+  let scanned = 0
+
+  while (scanned < GENRE_PAGE_SCAN_LIMIT) {
+    if (signal.aborted) {
+      throw new DOMException('Aborted', 'AbortError')
+    }
+
+    const result = await loadMusicGenreSongsPage({
+      genre: genreDefinition.requestValue,
+      page,
+      limit: MUSIC_CATALOG_PAGE_SIZE,
+      signal,
+    })
+    const items = result.items.filter(
+      (song) => song.genre && genreDefinition.backendValues.includes(song.genre),
+    )
+
+    if (items.length > 0 || !result.hasMore) {
+      return { items, page, hasMore: result.hasMore }
+    }
+
+    scanned += 1
+    page += 1
+  }
+
+  return { items: [] as ApiSong[], page, hasMore: false }
 }
 
 function DiscoverPage({
@@ -3233,8 +3405,11 @@ function DiscoverPage({
   )
   const query = externalQuery ?? internalQuery
   const setQuery = externalSetQuery ?? setInternalQuery
-  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
-  const isSearchPending = query !== debouncedQuery
+  const genreDefinition = useMemo(() => parseMusicGenreIntent(query), [query])
+  const genreId = genreDefinition?.id ?? null
+  const textQuery = genreDefinition ? '' : query
+  const debouncedQuery = useDebouncedValue(textQuery, SEARCH_DEBOUNCE_MS)
+  const isSearchPending = textQuery !== debouncedQuery
   const [sort] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSort,
     'latest' as SongSort,
@@ -3245,10 +3420,13 @@ function DiscoverPage({
   const [remoteSongs, setRemoteSongs] = useState<ApiSong[]>([])
   const [remoteSearchLoading, setRemoteSearchLoading] = useState(false)
   const [remoteSearchError, setRemoteSearchError] = useState<string | null>(null)
+  const [remotePage, setRemotePage] = useState(1)
+  const [remoteHasMore, setRemoteHasMore] = useState(false)
+  const [remoteLoadingMore, setRemoteLoadingMore] = useState(false)
   const remoteSearchGen = useRef(0)
 
   useEffect(() => {
-    if (!trimmedQuery) {
+    if (!trimmedQuery && !genreDefinition) {
       setRemoteSongs([])
       setRemoteSearchLoading(false)
       setRemoteSearchError(null)
@@ -3260,15 +3438,22 @@ function DiscoverPage({
     setRemoteSearchLoading(true)
     setRemoteSearchError(null)
 
-    void searchMusicSongsPage({
-      query: trimmedQuery,
-      page: 1,
-      limit: MUSIC_CATALOG_PAGE_SIZE,
-      signal: controller.signal,
-    })
+    const request = genreDefinition
+      ? loadFilteredGenrePage(genreDefinition, 1, controller.signal)
+      : searchMusicSongsPage({
+          query: trimmedQuery,
+          page: 1,
+          limit: MUSIC_CATALOG_PAGE_SIZE,
+          signal: controller.signal,
+        })
+    void request
       .then((result) => {
         if (gen !== remoteSearchGen.current) return
-        setRemoteSongs(result.items)
+        startTransition(() => {
+          setRemoteSongs(result.items)
+          setRemotePage('page' in result ? result.page : 1)
+          setRemoteHasMore(result.hasMore)
+        })
       })
       .catch((err) => {
         if (gen !== remoteSearchGen.current) return
@@ -3286,7 +3471,25 @@ function DiscoverPage({
     return () => {
       controller.abort()
     }
-  }, [trimmedQuery])
+  }, [genreDefinition, genreId, trimmedQuery])
+
+  const loadMoreRemoteSongs = useCallback(() => {
+    if (!genreDefinition || remoteLoadingMore || !remoteHasMore) return
+    const controller = new AbortController()
+    const nextPage = remotePage + 1
+    setRemoteLoadingMore(true)
+    void loadFilteredGenrePage(genreDefinition, nextPage, controller.signal).then((result) => {
+      setRemoteSongs((previous) => {
+        const seen = new Set(previous.map((song) => song.id))
+        return [...previous, ...result.items.filter((song) => !seen.has(song.id))]
+      })
+      setRemotePage(result.page)
+      setRemoteHasMore(result.hasMore)
+    }).catch((error) => {
+      if (error instanceof CatalogRequestError && error.kind === 'abort') return
+      setRemoteSearchError(error instanceof Error ? error.message : 'Could not load more songs.')
+    }).finally(() => setRemoteLoadingMore(false))
+  }, [genreDefinition, remoteHasMore, remoteLoadingMore, remotePage])
 
   const localSearchResult = useMemo(
     () =>
@@ -3298,27 +3501,27 @@ function DiscoverPage({
   )
 
   const visibleSongs = useMemo(() => {
-    if (trimmedQuery) {
+    if (trimmedQuery || genreDefinition) {
       return sortSongsList(remoteSongs, sort)
     }
     return metadataRecordsToApiSongs(
       sortMetadataRecords(localSearchResult.records, sort),
     )
-  }, [localSearchResult.records, remoteSongs, sort, trimmedQuery])
+  }, [genreDefinition, localSearchResult.records, remoteSongs, sort, trimmedQuery])
 
   const visibleRecords = useMemo(
-    () => (trimmedQuery ? [] : sortMetadataRecords(localSearchResult.records, sort)),
-    [localSearchResult.records, sort, trimmedQuery],
+    () => (trimmedQuery || genreDefinition ? [] : sortMetadataRecords(localSearchResult.records, sort)),
+    [genreDefinition, localSearchResult.records, sort, trimmedQuery],
   )
 
-  const hasEvaluatedQuery = trimmedQuery.length > 0
+  const hasEvaluatedQuery = trimmedQuery.length > 0 || Boolean(genreDefinition)
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
   const {
     courses: lectureCourses,
     speakers: lectureSpeakers,
     hasResults: hasLectureResults,
-  } = useDiscoverLectureSearch(debouncedQuery)
-  const globalSearch = useGlobalDesktopSearch(debouncedQuery)
+  } = useDiscoverLectureSearch(genreDefinition ? '' : debouncedQuery)
+  const globalSearch = useGlobalDesktopSearch(genreDefinition ? '' : debouncedQuery)
 
   const playDiscoverSong = useCallback(
     (song: ApiSong, index: number) => {
@@ -3335,7 +3538,7 @@ function DiscoverPage({
         queueSongs,
         safeIndex,
         'discover',
-        trimmedQuery ? `Search · ${trimmedQuery}` : 'Search',
+        genreDefinition ? `${genreDefinition.label} catalogue` : trimmedQuery ? `Search · ${trimmedQuery}` : 'Search',
         {
           seedType: 'discover',
           seedTracks: buildQueueSeedPool('discover', queueSongs, indexes, playableSong),
@@ -3343,18 +3546,18 @@ function DiscoverPage({
         },
       )
     },
-    [indexes, onOpenSong, queuePools, trimmedQuery, visibleRecords, visibleSongs],
+    [genreDefinition, indexes, onOpenSong, queuePools, trimmedQuery, visibleRecords, visibleSongs],
   )
 
   const [searchTab, setSearchTab] = useState<'all' | 'songs' | 'artists' | 'albums'>('all')
 
   const matchedArtists = useMemo(
-    () => sortArtistsList(filterArtistsByQuery(artists, debouncedQuery), 'az'),
-    [artists, debouncedQuery],
+    () => genreDefinition ? [] : sortArtistsList(filterArtistsByQuery(artists, debouncedQuery), 'az'),
+    [artists, debouncedQuery, genreDefinition],
   )
   const matchedAlbums = useMemo(
-    () => sortAlbumsList(filterAlbumsByQuery(albums, debouncedQuery, artistNames), 'latest'),
-    [albums, artistNames, debouncedQuery],
+    () => genreDefinition ? [] : sortAlbumsList(filterAlbumsByQuery(albums, debouncedQuery, artistNames), 'latest'),
+    [albums, artistNames, debouncedQuery, genreDefinition],
   )
 
   const topResult = visibleSongs[0] ?? null
@@ -3429,10 +3632,12 @@ function DiscoverPage({
       <PageFrame cinematic>
         <header className="psd-search-page-header" aria-labelledby="search-results-heading">
           <h1 id="search-results-heading" className="psd-search-page-title">
-            Search Results
+            {genreDefinition ? genreDefinition.label : 'Search Results'}
           </h1>
           <p className="psd-search-page-subtitle">
-            {trimmedQuery ? (
+            {genreDefinition ? (
+              <>Explore the full {genreDefinition.label} catalogue</>
+            ) : trimmedQuery ? (
               <>
                 Showing results for <strong>&ldquo;{trimmedQuery}&rdquo;</strong>
               </>
@@ -3463,8 +3668,8 @@ function DiscoverPage({
           <CatalogError message={error || ''} onRetry={retry} />
         ) : showNoMatches ? (
           <CatalogEmpty
-            title="No matches found"
-            detail={`Nothing in your catalog matched "${trimmedQuery}". Try another search term.`}
+            title={genreDefinition ? `No ${genreDefinition.label} content is currently available.` : 'No matches found'}
+            detail={genreDefinition ? 'Back to Genres or explore Music for more.' : `Nothing in your catalog matched "${trimmedQuery}". Try another search term.`}
           />
         ) : (
           <>
@@ -3564,6 +3769,16 @@ function DiscoverPage({
                     )
                   })}
                 </div>
+                {genreDefinition && remoteHasMore ? (
+                  <button
+                    type="button"
+                    className="catalog-show-more"
+                    disabled={remoteLoadingMore}
+                    onClick={loadMoreRemoteSongs}
+                  >
+                    {remoteLoadingMore ? 'Loading more…' : `Load more ${genreDefinition.label} songs`}
+                  </button>
+                ) : null}
               </section>
             ) : null}
 
@@ -3816,70 +4031,70 @@ const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = [
     cardId: 'ew-midnight-reflection',
     sceneId: 'rainy-window',
     title: 'Midnight Reflection',
-    tags: 'Deep ├óÔé¼┬ó Calm ├óÔé¼┬ó Soul',
+    tags: 'Deep • Calm • Soul',
     chips: ['calm', 'chill', 'melancholy'],
   },
   {
     cardId: 'ew-afro-sunset',
     sceneId: 'sunday-morning',
     title: 'Afro Sunset',
-    tags: 'Warm ├óÔé¼┬ó Groove ├óÔé¼┬ó Soul',
+    tags: 'Warm • Groove • Soul',
     chips: ['happy', 'romantic'],
   },
   {
     cardId: 'ew-healing-slowly',
     sceneId: 'heartbreak-recovery',
     title: 'Healing Slowly',
-    tags: 'Soft ├óÔé¼┬ó Reflective ├óÔé¼┬ó Calm',
+    tags: 'Soft • Reflective • Calm',
     chips: ['calm', 'melancholy'],
   },
   {
     cardId: 'ew-night-drive',
     sceneId: 'midnight-drive',
     title: 'Night Drive',
-    tags: 'Urban ├óÔé¼┬ó Late Night ├óÔé¼┬ó Electronic',
+    tags: 'Urban • Late Night • Electronic',
     chips: ['energetic', 'chill'],
   },
   {
     cardId: 'ew-sunset-glow',
     sceneId: 'city-lights',
     title: 'Sunset Glow',
-    tags: 'Golden ├óÔé¼┬ó Warm ├óÔé¼┬ó R&B',
+    tags: 'Golden • Warm • R&B',
     chips: ['happy', 'romantic'],
   },
   {
     cardId: 'ew-velvet-emotions',
     sceneId: 'focus-room',
     title: 'Velvet Emotions',
-    tags: 'Intimate ├óÔé¼┬ó Warm ├óÔé¼┬ó Soul',
+    tags: 'Intimate • Warm • Soul',
     chips: ['romantic', 'calm'],
   },
   {
     cardId: 'ew-ocean-dreams',
     sceneId: 'city-lights',
     title: 'Ocean Dreams',
-    tags: 'Dreamy ├óÔé¼┬ó Deep ├óÔé¼┬ó Calm',
+    tags: 'Dreamy • Deep • Calm',
     chips: ['calm', 'chill'],
   },
   {
     cardId: 'ew-city-rain',
     sceneId: 'rainy-window',
     title: 'City Rain',
-    tags: 'Melancholy ├óÔé¼┬ó Urban ├óÔé¼┬ó Jazz',
+    tags: 'Melancholy • Urban • Jazz',
     chips: ['melancholy', 'chill'],
   },
   {
     cardId: 'ew-uplift-boost',
     sceneId: 'focus-room',
     title: 'Uplift Boost',
-    tags: 'Motivational ├óÔé¼┬ó Bright ├óÔé¼┬ó Pop',
+    tags: 'Motivational • Bright • Pop',
     chips: ['motivational', 'energetic', 'happy'],
   },
   {
     cardId: 'ew-melancholy-bloom',
     sceneId: 'heartbreak-recovery',
     title: 'Melancholy Bloom',
-    tags: 'Tender ├óÔé¼┬ó Slow ├óÔé¼┬ó Reflective',
+    tags: 'Tender • Slow • Reflective',
     chips: ['melancholy', 'calm'],
   },
 ]
@@ -4376,7 +4591,7 @@ function ArtistsPage({
                           <strong>{album.title}</strong>
                           <span>{featuredArtist.name}</span>
                           <span className="psd-artist-album-meta">
-                            {album.releaseYear ? `${album.releaseYear} ├óÔé¼┬ó ` : ''}
+                            {album.releaseYear ? `${album.releaseYear} • ` : ''}
                             {albumSongCount} {albumSongCount === 1 ? 'song' : 'songs'}
                           </span>
                         </button>
@@ -4453,7 +4668,7 @@ function AlbumsPage({
   const albumsFooterCount = visibleAlbums.length === 1
     ? '1 album'
     : `${visibleAlbums.length} albums`
-  const sortLabel = sort === 'latest' ? 'Recently Added' : 'A├óÔé¼ÔÇ£Z'
+  const sortLabel = sort === 'latest' ? 'Recently Added' : 'A–Z'
 
   const albumTabs = [
     { id: 'all', label: 'All Albums' },
@@ -4526,12 +4741,42 @@ function AlbumsPage({
                     </span>
                   </div>
                   <div className="psd-albums-gallery-copy">
-                    <strong className="psd-albums-gallery-title">{album?.title ?? '├óÔé¼ÔÇØ'}</strong>
+                    <strong className="psd-albums-gallery-title">
+                      {normalizeCatalogDisplayText(album?.title) ?? '—'}
+                    </strong>
                     <span className="psd-albums-gallery-artist">
-                      {album ? (album.artistId ? artistNames.get(album.artistId) ?? 'Unknown artist' : 'Unknown artist') : '├óÔé¼ÔÇØ'}
+                      {album
+                        ? (normalizeCatalogArtistLabel(
+                            album.artistId
+                              ? artistNames.get(album.artistId) ?? null
+                              : null,
+                          ) ??
+                            normalizeCatalogArtistLabel(
+                              resolveAlbumDisplayArtist(
+                                album,
+                                resolveSongsForAlbum(
+                                  album,
+                                  indexes.songsByAlbumId,
+                                  indexes.songsByAlbumName,
+                                  indexes.artistNames,
+                                ),
+                                artistNames,
+                              ),
+                            ) ??
+                            'Unknown artist')
+                        : '—'}
                     </span>
                     <span className="psd-albums-gallery-meta">
-                      {album?.releaseYear ?? '├óÔé¼ÔÇØ'} ├óÔé¼┬ó {album ? countSongsForAlbum(album, indexes) : 0} songs
+                      {formatCatalogMetaParts(
+                        [
+                          album?.releaseYear ? String(album.releaseYear) : null,
+                          formatSongCountLabel(
+                            album ? countSongsForAlbum(album, indexes) : null,
+                            { noun: 'song', omitZero: true },
+                          ),
+                        ],
+                        ' • ',
+                      ) ?? '—'}
                     </span>
                     <span className="psd-albums-gallery-more" aria-hidden="true"><PsdIconMore /></span>
                   </div>
@@ -4854,12 +5099,13 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
 
   const likedMeta = useMemo(() => {
     const count = likedSongs.length
-    if (count === 0) return '0 songs'
+    const countLabel = formatSongCountLabel(count, { noun: 'song', omitZero: false })
+    if (!countLabel || count === 0) return countLabel ?? '0 songs'
     const totalSeconds = likedSongs.reduce((sum, song) => sum + (song.durationSeconds ?? 0), 0)
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const durationLabel = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-    return `${count} ${count === 1 ? 'song' : 'songs'} ├óÔé¼┬ó ${durationLabel}`
+    return formatCatalogMetaParts([countLabel, durationLabel], ' • ') ?? countLabel
   }, [likedSongs])
 
   return (
@@ -4960,7 +5206,7 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                         </button>
                       </td>
                       <td className="psd-liked-col-artist">{song.artist}</td>
-                      <td className="psd-liked-col-album">{song.album ?? '├óÔé¼ÔÇØ'}</td>
+                      <td className="psd-liked-col-album">{song.album ?? '—'}</td>
                       <td className="psd-liked-col-date">{formatLikedDateLabel(likedAtById[song.id])}</td>
                       <td className="psd-liked-col-duration">{formatSongDurationLabel(song)}</td>
                       <td className="psd-liked-col-menu">
@@ -5256,7 +5502,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
               <p className="psd-page-eyebrow">Hidden Tunes Premium</p>
               <h1 id="premium-heading">Unlock Every World</h1>
               <p className="psd-page-subtitle">
-                Cinematic listening, deeper worlds, and gold-tier atmosphere ├óÔé¼ÔÇØ built for emotional immersion.
+                Cinematic listening, deeper worlds, and gold-tier atmosphere — built for emotional immersion.
               </p>
               <div className="psd-hero-actions psd-premium-hero-actions">
                 <button
@@ -5308,7 +5554,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
             {PREMIUM_FEATURE_SPECS.map((feature) => (
               <article key={feature.id} className="psd-premium-card" data-status={feature.status}>
                 <div className="psd-premium-card-top">
-                  <span className="psd-premium-card-icon" aria-hidden="true">├ó┼ô┬ª</span>
+                  <span className="psd-premium-card-icon" aria-hidden="true">✦</span>
                   <span className={`psd-premium-status${feature.status === 'available' ? ' is-live' : ''}`}>
                     {feature.status === 'available' ? 'Available' : 'Coming soon'}
                   </span>
@@ -5336,7 +5582,7 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
         >
           <header className="psd-premium-section-header">
             <h2 id="premium-plans-heading">Plans</h2>
-            <p>Preview pricing only ├óÔé¼ÔÇØ checkout is not connected on desktop yet.</p>
+            <p>Preview pricing only — checkout is not connected on desktop yet.</p>
           </header>
           <div className="psd-premium-plan-grid">
             {PREMIUM_PLAN_SPECS.map((plan) => (
@@ -5491,12 +5737,12 @@ function SettingsPage({
           <section className="settings-panel">
             <h2>Desktop preferences</h2>
             <p className="settings-panel-desc">
-              Saved locally on this device ├óÔé¼ÔÇØ sidebar page, search terms, and sort options only.
+              Saved locally on this device — sidebar page, search terms, and sort options only.
             </p>
             <div className="settings-row">
               <div className="settings-label">
                 <span>Reset desktop preferences</span>
-                <small>Clears local UI state ┬À catalog and mobile stay unchanged</small>
+                <small>Clears local UI state · catalog and mobile stay unchanged</small>
               </div>
               <button
                 type="button"
@@ -5589,14 +5835,28 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
   } = useDesktopPlayback()
 
   const isActive = Boolean(activeTrackId && currentTrack?.id === activeTrackId)
-  const hasPrevious = isActive && (
-    currentIndex > 0 || (repeatMode === 'all' && currentQueue.length > 1)
-  )
-  const hasNext = isActive && (
-    (currentIndex >= 0 && currentIndex < currentQueue.length - 1) || repeatMode !== 'off'
-  )
+  const isTvActive = Boolean(isActive && isTvQueueSong(currentTrack))
+  const tvTransport = resolveTvChannelTransportAvailability({
+    isActive: isTvActive,
+    currentIndex,
+    queueLength: currentQueue.length,
+    isLoading,
+    repeatMode,
+  })
+  const hasPrevious = isTvActive
+    ? tvTransport.hasPrevious
+    : isActive && (
+      currentIndex > 0 || (repeatMode === 'all' && currentQueue.length > 1)
+    )
+  const hasNext = isTvActive
+    ? tvTransport.hasNext
+    : isActive && (
+      (currentIndex >= 0 && currentIndex < currentQueue.length - 1) || repeatMode !== 'off'
+    )
+  const channelSwitchLocked = isTvActive && !tvTransport.canChangeChannel
   const showPlaying = isActive && isPlaying
   const showLoading = isActive && isLoading
+  const labels = resolveTvTransportLabels(isTvActive ? currentTrack : null)
 
   const handlePlayPause = () => {
     if (!isActive || isLoading) return
@@ -5607,13 +5867,26 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
     resume()
   }
 
+  const handlePrevious = () => {
+    if (!hasPrevious || channelSwitchLocked) return
+    previous()
+  }
+
+  const handleNext = () => {
+    if (!hasNext || channelSwitchLocked) return
+    next()
+  }
+
   const playLabel = showLoading
-    ? 'Loading track'
+    ? labels.loading
     : showPlaying
-      ? 'Pause'
+      ? labels.pause
       : isActive
-        ? 'Play'
+        ? labels.play
         : 'Play (select a track)'
+
+  const previousLabel = hasPrevious ? labels.previous : labels.previousUnavailable
+  const nextLabel = hasNext ? labels.next : labels.nextUnavailable
 
   const repeatLabel = repeatMode === 'one'
     ? 'Repeat one'
@@ -5641,10 +5914,10 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
       <button
         type="button"
         className="control-btn control-btn--skip"
-        onClick={previous}
-        disabled={!hasPrevious}
-        aria-label={hasPrevious ? 'Previous track' : 'Previous track unavailable'}
-        title={hasPrevious ? 'Previous track' : 'Previous track unavailable'}
+        onClick={handlePrevious}
+        disabled={!hasPrevious || channelSwitchLocked}
+        aria-label={previousLabel}
+        title={previousLabel}
       >
         <span className="control-btn-icon control-btn-icon--skip" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -5683,10 +5956,10 @@ const PlaybackTransportControls = memo(function PlaybackTransportControls({
       <button
         type="button"
         className="control-btn control-btn--skip"
-        onClick={next}
-        disabled={!hasNext}
-        aria-label={hasNext ? 'Next track' : 'Next track unavailable'}
-        title={hasNext ? 'Next track' : 'Next track unavailable'}
+        onClick={handleNext}
+        disabled={!hasNext || channelSwitchLocked}
+        aria-label={nextLabel}
+        title={nextLabel}
       >
         <span className="control-btn-icon control-btn-icon--skip" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -6134,7 +6407,7 @@ function DetailTopBar({
   return (
     <div className="detail-topbar">
       <button type="button" className="detail-back" onClick={onBack}>
-        <span aria-hidden="true">├óÔÇá┬É</span>
+        <span aria-hidden="true">←</span>
         Back
       </button>
       <div className="detail-titles">
@@ -6181,7 +6454,7 @@ function PlayerWorkspace({
     >
       <header className="player-workspace-toolbar">
         <button type="button" className="player-workspace-back" onClick={onBack}>
-          <span aria-hidden="true">├óÔÇá┬É</span>
+          <span aria-hidden="true">←</span>
           Back
         </button>
         {onOpenCinema ? (
@@ -6324,7 +6597,7 @@ function AlbumDetailView({
           </p>
           <p className="detail-stats">
             {albumSongs.length} {albumSongs.length === 1 ? 'track' : 'tracks'}
-            {created ? ` ┬À Added ${created}` : ''}
+            {created ? ` · Added ${created}` : ''}
           </p>
           <div className="detail-hero-actions">
             <button
@@ -6469,7 +6742,7 @@ function ArtistDetailView({
         if (abortController.signal.aborted) return
         setProfileShell(shell)
 
-        // Follow comes from shell + local cache ├óÔé¼ÔÇØ no duplicate GET.
+        // Follow comes from shell + local cache — no duplicate GET.
         const cachedFollow = getCachedArtistFollowState(shell.artist.id)
         const initialFollowing =
           cachedFollow?.is_following ?? shell.viewer.is_following === true
@@ -6545,7 +6818,7 @@ function ArtistDetailView({
               setSimilarCursor(similarPage?.pagination.nextCursor || null)
             })
             .catch(() => {
-              // Optional section ├óÔé¼ÔÇØ keep profile usable when similar fails.
+              // Optional section — keep profile usable when similar fails.
             })
         }, 120)
       } catch {
@@ -6747,7 +7020,7 @@ function ArtistDetailView({
     [artist, indexes.albumsByArtistId],
   )
   const artistAlbums = profileAlbums && profileAlbums.length > 0 ? profileAlbums : catalogAlbums
-  const genreLabel = profileShell?.artist.genres?.slice(0, 3).join(' ┬À ') || null
+  const genreLabel = profileShell?.artist.genres?.slice(0, 3).join(' · ') || null
   const trackLabel = showAllSongs ? 'All songs' : trackSectionLabel
 
   return (
@@ -6766,11 +7039,11 @@ function ArtistDetailView({
           </h1>
           <p className="detail-stats">
             {artist.songCount || artistSongs.length}{' '}
-            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} ┬À {artistAlbums.length}
+            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}
             {releasesHasMore ? '+' : ''}{' '}
             {artistAlbums.length === 1 ? 'release' : 'releases'}
-            {followerCount > 0 ? ` ┬À ${followerCount} follower${followerCount === 1 ? '' : 's'}` : ''}
-            {genreLabel ? ` ┬À ${genreLabel}` : ''}
+            {followerCount > 0 ? ` · ${followerCount} follower${followerCount === 1 ? '' : 's'}` : ''}
+            {genreLabel ? ` · ${genreLabel}` : ''}
           </p>
           {profileBio ? (
             <div className="detail-artist-about">
@@ -6822,7 +7095,7 @@ function ArtistDetailView({
               }}
             >
               {followBusy
-                ? 'Updating├óÔé¼┬ª'
+                ? 'Updating…'
                 : !followAvailable
                   ? 'Unavailable'
                   : isFollowing
@@ -6908,7 +7181,7 @@ function ArtistDetailView({
                     void loadMoreReleases()
                   }}
                 >
-                  {loadingMoreReleases ? 'Loading├óÔé¼┬ª' : 'See more releases'}
+                  {loadingMoreReleases ? 'Loading…' : 'See more releases'}
                 </button>
               </div>
             ) : null}
@@ -6921,7 +7194,7 @@ function ArtistDetailView({
                       .map((album) => artistReleaseTypeLabel(album.releaseType))
                       .filter(Boolean),
                   ),
-                ].join(' ┬À ')}
+                ].join(' · ')}
               </p>
             ) : null}
           </>
@@ -6975,7 +7248,7 @@ function ArtistDetailView({
                   void loadMoreSimilar()
                 }}
               >
-                {loadingMoreSimilar ? 'Loading├óÔé¼┬ª' : 'See more artists'}
+                {loadingMoreSimilar ? 'Loading…' : 'See more artists'}
               </button>
             </div>
           ) : null}
@@ -7794,9 +8067,10 @@ function App() {
 
 function AppShell() {
   const { currentTrack, currentQueue, currentIndex, playQueue, isPlaying, isLoading } = useDesktopPlayback()
-  const hasQueueRail = true
-  void currentIndex
-  void currentQueue
+  // currentTrack is the authoritative session sentinel. Pause keeps it populated;
+  // stop/clear explicitly null it in DesktopPlaybackProvider.
+  const hasActiveMediaSession = Boolean(currentTrack?.id)
+  const hasQueueRail = hasActiveMediaSession
   const { songs } = useCatalog()
   const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
   const [activePage, setActivePage] = usePersistedPreference(
@@ -7839,6 +8113,18 @@ function AppShell() {
     '',
     parseStoredSearchTerm,
   )
+  const discoverGenreIntent = useMemo(
+    () => parseMusicGenreIntent(discoverQuery),
+    [discoverQuery],
+  )
+  const setDiscoverQueryFromSearch = useCallback(
+    (value: string) => {
+      startTransition(() => {
+        setDiscoverQuery(value)
+      })
+    },
+    [setDiscoverQuery],
+  )
   const [albumsQuery, setAlbumsQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSearch,
     '',
@@ -7856,6 +8142,13 @@ function AppShell() {
   }, [setOpenPlayerStyle])
 
   const playerPreferredTrack = currentTrack ?? desktopSelectedTrack
+
+  // Right rail + footer must follow the active media session, never the route.
+  const activeSessionTrack =
+    currentIndex >= 0
+      ? (currentTrack ?? currentQueue[currentIndex] ?? null)
+      : null
+  const activePlayerSurface = resolveActivePlayerSurface(activeSessionTrack)
 
   const {
     cancelAutoOpenPlayer,
@@ -8219,7 +8512,11 @@ function AppShell() {
 
   return (
     <>
-      <div className={`app-shell${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}>
+      <div
+        className={`app-shell${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}
+        data-has-active-media={hasActiveMediaSession ? 'true' : 'false'}
+      >
+        <HiddenTunesGlobalBackground />
         <Sidebar activeNavKey={activeNavKey} onNavigateNav={navigateNav} />
         <div className="main-area">
           <div
@@ -8242,6 +8539,7 @@ function AppShell() {
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
                 <GlobalTopNav
                   activeNavKey={activeNavKey}
+                  onNavigateNav={navigateNav}
                   onOpenProfile={() => navigateNav('settings')}
                   pageTitle={
                     activeNavKey === 'home'
@@ -8256,7 +8554,11 @@ function AppShell() {
               ) : null}
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
                 <HomeTopBar
-                  placeholder={TOP_BAR_PLACEHOLDERS[activeNavKey]}
+                  placeholder={
+                    activeNavKey === 'search' && discoverGenreIntent
+                      ? `Search music or replace ${discoverGenreIntent.label}…`
+                      : TOP_BAR_PLACEHOLDERS[activeNavKey]
+                  }
                   onOpenDiscover={() => navigatePage('discover', 'search')}
                   onSearchSubmit={(query) => {
                     if ((activeNavKey === 'home' || activeNavKey === 'music') && query) {
@@ -8287,9 +8589,9 @@ function AppShell() {
                   }
                   searchValue={
                     activeNavKey === 'search'
-                      ? discoverQuery
+                      ? (discoverGenreIntent ? '' : discoverQuery)
                       : activeNavKey === 'music'
-                        ? discoverQuery
+                        ? (parseMusicGenreIntent(discoverQuery) ? '' : discoverQuery)
                         : activeNavKey === 'albums'
                         ? albumsQuery
                         : activeNavKey === 'liked'
@@ -8318,11 +8620,15 @@ function AppShell() {
                                               ? ''
                                   : undefined
                   }
+                  showClear={
+                    (activeNavKey === 'search' || activeNavKey === 'music')
+                    && Boolean(discoverQuery)
+                  }
                   onSearchChange={
                     activeNavKey === 'search'
-                      ? setDiscoverQuery
+                      ? setDiscoverQueryFromSearch
                       : activeNavKey === 'music'
-                        ? setDiscoverQuery
+                        ? setDiscoverQueryFromSearch
                         : activeNavKey === 'albums'
                         ? setAlbumsQuery
                         : activeNavKey === 'liked'
@@ -8408,21 +8714,25 @@ function AppShell() {
                 />
               </div>
             </main>
-            {activeNavKey === 'tv' ? (
-              <TvNowPlayingPanel
-                onBrowseAll={() => navigateNav('tv')}
-                onBrowseFeatured={() => navigateNav('tv')}
-              />
-            ) : (
-              <DesktopPersistentPlayer
-                onOpenPlayerByStyle={openPlayerByStyleNow}
-                onNavigateHome={() => navigateNav('home')}
-              />
-            )}
+            {hasActiveMediaSession ? (
+              <div className="conditional-player-rail" data-player-surface={activePlayerSurface}>
+                {activePlayerSurface === 'tv' ? (
+                  <TvNowPlayingPanel
+                    onBrowseAll={() => navigateNav('tv')}
+                    onBrowseFeatured={() => navigateNav('tv')}
+                  />
+                ) : (
+                  <DesktopPersistentPlayer
+                    onOpenPlayerByStyle={openPlayerByStyleNow}
+                    onNavigateHome={() => navigateNav('home')}
+                  />
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
-      {!lyricsOpen && !anyPlayerShellVisible && activeNavKey !== 'recent' ? (
+      {hasActiveMediaSession && !lyricsOpen && !anyPlayerShellVisible && activeNavKey !== 'recent' ? (
         <PlayerBar
           track={playerPreferredTrack}
           onOpenPlayerByStyle={openPlayerByStyleNow}

@@ -20,6 +20,13 @@ export async function dedupeAsync<T>(
   }
 
   let entry = inFlight.get(key) as InFlightEntry<T> | undefined
+  // A Strict Mode remount can arrive after the previous effect released the
+  // final waiter but before the aborted promise's finally handler removes it.
+  // Never attach a fresh caller to work that is already known to be cancelled.
+  if (entry?.controller.signal.aborted) {
+    if (inFlight.get(key)?.promise === entry.promise) inFlight.delete(key)
+    entry = undefined
+  }
   if (!entry) {
     const controller = new AbortController()
     const promise = factory(controller.signal)
@@ -35,8 +42,11 @@ export async function dedupeAsync<T>(
   }
 
   entry.refs += 1
+  let released = false
 
   const onAbort = () => {
+    if (released) return
+    released = true
     entry!.refs -= 1
     if (entry!.refs <= 0) {
       entry!.controller.abort()
@@ -57,8 +67,12 @@ export async function dedupeAsync<T>(
     if (externalSignal) {
       externalSignal.removeEventListener('abort', onAbort)
     }
-    // Successful waiters release their ref without aborting others.
-    entry.refs = Math.max(0, entry.refs - 1)
+    // Successful waiters release their ref without aborting other callers.
+    // An aborted waiter was already released by onAbort.
+    if (!released) {
+      released = true
+      entry.refs = Math.max(0, entry.refs - 1)
+    }
   }
 }
 

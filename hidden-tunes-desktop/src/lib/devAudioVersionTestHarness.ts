@@ -2,6 +2,10 @@ import type { ApiSong } from './api'
 
 const DEV_TEST_AUDIO_URL_BASE = 'https://example.com/hidden-tunes-dev-audio'
 
+/** Structured markers for desktop-only audio-version harness fixtures. */
+export const DEV_AUDIO_VERSION_ID_PREFIX = 'dev-audio-version-'
+export const DEV_AUDIO_VERSION_TAG = 'desktop-dev'
+
 function devSong(overrides: Partial<ApiSong> & Pick<ApiSong, 'id' | 'title'>): ApiSong {
   return {
     ...overrides,
@@ -13,7 +17,7 @@ function devSong(overrides: Partial<ApiSong> & Pick<ApiSong, 'id' | 'title'>): A
     albumId: null,
     genre: 'Diagnostics',
     mood: 'Focus',
-    tags: ['desktop-dev', 'audio-versions'],
+    tags: [DEV_AUDIO_VERSION_TAG, 'audio-versions'],
     description: 'Developer-only desktop test object for audio version UI.',
     artwork: null,
     previewUrl: null,
@@ -21,7 +25,7 @@ function devSong(overrides: Partial<ApiSong> & Pick<ApiSong, 'id' | 'title'>): A
     highQualityUrl: null,
     audioVersions: undefined,
     durationSeconds: 42,
-    createdAt: '2026-06-13T00:00:00.000Z'
+    createdAt: '2026-06-13T00:00:00.000Z',
   }
 }
 
@@ -65,13 +69,35 @@ const DEV_AUDIO_VERSION_TEST_SONGS: ApiSong[] = [
   }),
 ]
 
+/**
+ * Explicit diagnostic access only — never merge into the public catalog provider.
+ * Fixtures remain available to harness/scripts that call this directly.
+ */
+export function getDevAudioVersionTestSongs(): readonly ApiSong[] {
+  return DEV_AUDIO_VERSION_TEST_SONGS
+}
+
+/** True for structured desktop harness fixtures (id prefix and/or desktop-dev tag). */
+export function isInternalDevCatalogSong(
+  song: Pick<ApiSong, 'id'> & { tags?: string[] | null },
+): boolean {
+  const id = String(song.id || '')
+  if (id.startsWith(DEV_AUDIO_VERSION_ID_PREFIX)) return true
+  const tags = song.tags
+  return Array.isArray(tags) && tags.includes(DEV_AUDIO_VERSION_TAG)
+}
+
+/** Fail-safe: strip harness / desktop-dev songs from any public-facing song list. */
+export function excludeInternalDevCatalogSongs(songs: ApiSong[]): ApiSong[] {
+  return songs.filter((song) => !isInternalDevCatalogSong(song))
+}
+
+/**
+ * Public catalog path: never inject harness songs.
+ * Always excludes structured internal fixtures if present in the source list.
+ *
+ * @deprecated Name retained for call-site compatibility; does not prepend test songs.
+ */
 export function withDevAudioVersionTestSongs(songs: ApiSong[]): ApiSong[] {
-  if (!import.meta.env.DEV) return songs
-
-  const existingIds = new Set(songs.map((song) => song.id))
-  const missingDevSongs = DEV_AUDIO_VERSION_TEST_SONGS.filter(
-    (song) => !existingIds.has(song.id),
-  )
-
-  return missingDevSongs.length > 0 ? [...missingDevSongs, ...songs] : songs
+  return excludeInternalDevCatalogSongs(songs)
 }

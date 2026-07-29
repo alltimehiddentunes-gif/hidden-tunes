@@ -16,6 +16,7 @@
     "verify:tv-hls": "electron scripts/verify-tv-hls-playback.mjs",
     "verify:lecture-play": "node scripts/verify-lecture-playback.mjs",
     "verify:playback-mutex": "node scripts/verify-playback-mutex.mjs",
+    "verify:route-media": "node scripts/test-route-independent-media.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

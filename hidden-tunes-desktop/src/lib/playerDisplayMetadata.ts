@@ -1,4 +1,4 @@
-import { resolveArtistPortrait, resolveSongArtwork } from '../data/artworkRegistry'
+import { resolveSongArtwork } from '../data/artworkRegistry'
 import type { ApiSong } from './api'
 import {
   selectPlayableUrlForQualityMode,
@@ -78,18 +78,14 @@ export function resolvePlayerAlbum(
   return null
 }
 
+/**
+ * Player surfaces must use catalog item artwork only.
+ * Do not fall through to artist registry portraits (e.g. Wills Afrobeats SVG)
+ * or the generic artist placeholder — missing art is handled by ArtworkImage.
+ * Song.artwork is already normalized as direct cover ?? album cover at ingest.
+ */
 export function resolvePlayerTrackArtwork(track: ApiSong | null | undefined): string | null {
-  const direct = resolveSongArtwork(track)
-  if (direct) return direct
-  if (!track) return null
-
-  return resolveArtistPortrait({
-    id: track.artistId ?? track.id,
-    name: track.artist,
-    artwork: null,
-    songCount: 0,
-    tracks: [],
-  })
+  return resolveSongArtwork(track)
 }
 
 export function resolvePlayerQualityLabel(

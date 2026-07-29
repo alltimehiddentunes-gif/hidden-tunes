@@ -39,6 +39,13 @@ export type QueueSeedMetadata = {
   seedId?: string
   seedTracks?: ApiSong[]
   candidatePools?: QueueCandidatePools
+  /**
+   * Mobile parity (`isBoundedPlaybackContext`).
+   * When true (default for section/album/artist/search), stop at queue end.
+   * When false (full-catalog / hero-style plays), allow smart continuation append
+   * into the same Queue at exhaustion.
+   */
+  bounded?: boolean
 }
 
 export type DesktopPlaybackProgressState = {

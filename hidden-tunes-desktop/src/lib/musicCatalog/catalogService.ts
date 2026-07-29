@@ -58,9 +58,14 @@ async function fetchLivePage(
 ): Promise<PagePayload<ApiSong | ApiAlbum | ApiArtist>> {
   ensureConfig()
   try {
-    if (resource === 'songs' || resource === 'song-search') {
+    if (resource === 'songs' || resource === 'song-search' || resource === 'genre-songs') {
       const result = await fetchSongsPage(
-        { page, limit, query: resource === 'song-search' ? query : undefined },
+        {
+          page,
+          limit,
+          query: resource === 'song-search' ? query : undefined,
+          genre: resource === 'genre-songs' ? query : undefined,
+        },
         signal,
       )
       return result
@@ -222,6 +227,23 @@ export async function searchMusicSongsPage(input: {
     page: input.page ?? 1,
     limit: input.limit ?? MUSIC_CATALOG_PAGE_SIZE,
     query,
+    signal: input.signal,
+  })
+}
+
+export async function loadMusicGenreSongsPage(input: {
+  genre: string
+  page?: number
+  limit?: number
+  signal?: AbortSignal
+}) {
+  const genre = input.genre.trim()
+  if (!genre) throw new CatalogRequestError('config', 'Genre is required.')
+  return loadMusicCatalogPage<ApiSong>({
+    resource: 'genre-songs',
+    page: input.page ?? 1,
+    limit: input.limit ?? MUSIC_CATALOG_PAGE_SIZE,
+    query: genre,
     signal: input.signal,
   })
 }

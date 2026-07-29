@@ -75,6 +75,7 @@ export function logQueueExtension(stats: {
   addedCount: number
   durationMs: number
   inspectedCount: number
+  reason?: string
 }) {
   if (!shouldLog()) return
   console.info(`${PREFIX} queue extension`, stats)

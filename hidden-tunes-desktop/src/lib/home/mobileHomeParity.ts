@@ -4,7 +4,21 @@
  */
 import type { ApiAlbum, ApiArtist, ApiSong } from '../api'
 import { sortSongsList } from '../api'
-import type { CatalogIndexes } from '../catalogIndexes'
+import { selectInstantPlayableUrl } from '../audioVersions'
+import {
+  normalizeArtistKey,
+  resolveAlbumDisplayArtist,
+  resolveAlbumArtwork,
+  resolveSongsForAlbum,
+  resolveSongsForArtist,
+  type CatalogIndexes,
+} from '../catalogIndexes'
+import {
+  formatSongCountLabel,
+  isGenericAlbumTitle,
+  normalizeCatalogDisplayText,
+} from '../catalogDisplayText'
+import { excludeInternalDevCatalogSongs } from '../devAudioVersionTestHarness'
 import { formatGenreLabel } from './musicHomeSections'
 import type { MusicHistoryEntry } from './musicProgressStorage'
 
@@ -206,18 +220,244 @@ export function buildSmartMusicQueueSongs(
   )
 }
 
-export function buildCreatorsInOrbit(
-  artists: ApiArtist[],
-  limit = HOME_SECTION_PREVIEW_LIMIT,
-) {
-  return artists.slice(0, limit)
+export type HomeCreatorOrbitCard = {
+  artist: ApiArtist
+  /** Public playable songs associated via id, name index, or artist.tracks. */
+  playableSongCount: number
+  personalisationScore: number
 }
 
+function resolvePlayableSongsForCreator(
+  artist: ApiArtist,
+  indexes: Pick<CatalogIndexes, 'songsByArtistId' | 'songsByArtistName'>,
+): ApiSong[] {
+  const associated = excludeInternalDevCatalogSongs(
+    resolveSongsForArtist(artist, indexes.songsByArtistId, indexes.songsByArtistName),
+  )
+  return associated.filter((song) => Boolean(selectInstantPlayableUrl(song)))
+}
+
+/**
+ * Creators In Your Orbit — eligibility first, then light personalisation.
+ * Never promotes empty / unplayable creators.
+ */
+export function buildCreatorsInOrbit(
+  artists: ApiArtist[],
+  indexes: Pick<CatalogIndexes, 'songsByArtistId' | 'songsByArtistName' | 'songsById'>,
+  history: MusicHistoryEntry[] = [],
+  limit = HOME_SECTION_PREVIEW_LIMIT,
+): HomeCreatorOrbitCard[] {
+  const affinity = new Map<string, number>()
+  for (const entry of history) {
+    const song = indexes.songsById.get(entry.songId)
+    if (!song) continue
+    if (song.artistId) {
+      const idKey = `id:${song.artistId}`
+      affinity.set(idKey, (affinity.get(idKey) ?? 0) + 2)
+    }
+    const nameKey = normalizeArtistKey(song.artist)
+    if (nameKey) {
+      const key = `name:${nameKey}`
+      affinity.set(key, (affinity.get(key) ?? 0) + 1)
+    }
+  }
+
+  const eligible: HomeCreatorOrbitCard[] = []
+  for (const artist of artists) {
+    const name = artist.name?.trim()
+    if (!artist.id || !name) continue
+
+    const playable = resolvePlayableSongsForCreator(artist, indexes)
+    if (playable.length === 0) continue
+
+    const nameKey = normalizeArtistKey(name)
+    const personalisationScore =
+      (affinity.get(`id:${artist.id}`) ?? 0) +
+      (affinity.get(`name:${nameKey}`) ?? 0) +
+      Math.min(playable.length, 40)
+
+    eligible.push({
+      artist,
+      playableSongCount: playable.length,
+      personalisationScore,
+    })
+  }
+
+  // Consolidate normalised spelling variants; keep strongest eligible card.
+  const byName = new Map<string, HomeCreatorOrbitCard>()
+  for (const card of eligible) {
+    const key = normalizeArtistKey(card.artist.name)
+    const existing = byName.get(key)
+    if (
+      !existing ||
+      card.personalisationScore > existing.personalisationScore ||
+      (card.personalisationScore === existing.personalisationScore &&
+        card.playableSongCount > existing.playableSongCount)
+    ) {
+      byName.set(key, card)
+    }
+  }
+
+  return [...byName.values()]
+    .sort(
+      (a, b) =>
+        b.personalisationScore - a.personalisationScore ||
+        a.artist.name.localeCompare(b.artist.name),
+    )
+    .slice(0, limit)
+}
+
+export type HomeAlbumContentType =
+  | 'album'
+  | 'single'
+  | 'singles'
+  | 'playlist'
+  | 'collection'
+  | 'podcast'
+  | 'unknown'
+
+export type HomeAlbumWorthCard = {
+  album: ApiAlbum
+  /** Editorial/catalog order — playable, public, de-duped. */
+  playableTracks: ApiSong[]
+  trackCount: number
+  playableTrackCount: number
+  artistName: string | null
+  contentType: HomeAlbumContentType
+  /** Omit when the type label adds no value on the card. */
+  contentTypeLabel: string | null
+  displayTitle: string
+  displaySubtitle: string | null
+  artwork: string | null
+  rawTitle: string
+  sourceType: 'album'
+}
+
+const NON_MUSIC_ALBUM_TITLES = new Set(['podcast', 'podcasts', 'episode', 'episodes'])
+
+export function resolveHomeAlbumContentType(
+  album: ApiAlbum,
+  playableTrackCount: number,
+): { type: HomeAlbumContentType; label: string | null } {
+  const title = normalizeCatalogDisplayText(album.title) ?? ''
+  const lower = title.toLowerCase()
+  const release = normalizeCatalogDisplayText(album.releaseType)?.toLowerCase() ?? ''
+
+  if (release.includes('playlist') || /\bplaylist\b/i.test(title)) {
+    return { type: 'playlist', label: 'Playlist' }
+  }
+  if (release.includes('podcast') || NON_MUSIC_ALBUM_TITLES.has(lower)) {
+    return { type: 'podcast', label: 'Podcast' }
+  }
+  if (release.includes('collection') || /\b(collection|mix|mixtape)\b/i.test(title)) {
+    return { type: 'collection', label: 'Collection' }
+  }
+  if (release === 'single' || lower === 'single') {
+    return { type: 'single', label: 'Single' }
+  }
+  if (lower === 'singles' || release === 'singles') {
+    return {
+      type: playableTrackCount <= 1 ? 'single' : 'singles',
+      label: playableTrackCount <= 1 ? 'Single' : 'Singles',
+    }
+  }
+  if (isGenericAlbumTitle(title)) {
+    // Placeholder catalog title "Album" — infer from track depth, omit redundant label.
+    if (playableTrackCount <= 1) return { type: 'single', label: 'Single' }
+    return { type: 'album', label: null }
+  }
+  if (playableTrackCount <= 1) return { type: 'single', label: null }
+  return { type: 'album', label: null }
+}
+
+function resolvePlayableSongsForAlbum(
+  album: ApiAlbum,
+  indexes: Pick<CatalogIndexes, 'songsByAlbumId' | 'songsByAlbumName' | 'artistNames'>,
+): ApiSong[] {
+  const associated = excludeInternalDevCatalogSongs(
+    resolveSongsForAlbum(
+      album,
+      indexes.songsByAlbumId,
+      indexes.songsByAlbumName,
+      indexes.artistNames,
+    ),
+  )
+  return associated.filter((song) => Boolean(selectInstantPlayableUrl(song)))
+}
+
+function scoreAlbumWorthCard(card: HomeAlbumWorthCard): number {
+  const namedBonus = isGenericAlbumTitle(card.rawTitle) ? 0 : 120
+  const multiTrackBonus = card.playableTrackCount >= 2 ? 40 : 0
+  const singlesPenalty = card.contentType === 'singles' || card.contentType === 'single' ? 8 : 0
+  return namedBonus + multiTrackBonus + card.playableTrackCount * 3 - singlesPenalty
+}
+
+/**
+ * Albums Worth Staying With — playable collections only.
+ * Prefers named albums over placeholder "Singles"/"Album" rows when both exist.
+ */
 export function buildAlbumsWorthStayingWith(
   albums: ApiAlbum[],
+  indexes: Pick<CatalogIndexes, 'songsByAlbumId' | 'songsByAlbumName' | 'artistNames'>,
+  artistNames?: Map<string, string> | null,
   limit = HOME_SECTION_PREVIEW_LIMIT,
-) {
-  return albums.slice(0, limit)
+): HomeAlbumWorthCard[] {
+  if (!indexes?.songsByAlbumId || !indexes?.songsByAlbumName) return []
+  const resolvedArtistNames = artistNames ?? indexes.artistNames ?? new Map<string, string>()
+  const cards: HomeAlbumWorthCard[] = []
+
+  for (const album of albums) {
+    if (!album?.id) continue
+    const rawTitle = normalizeCatalogDisplayText(album.title) ?? album.title ?? ''
+    if (NON_MUSIC_ALBUM_TITLES.has(rawTitle.toLowerCase())) continue
+
+    const playableTracks = resolvePlayableSongsForAlbum(album, {
+      songsByAlbumId: indexes.songsByAlbumId,
+      songsByAlbumName: indexes.songsByAlbumName,
+      artistNames: resolvedArtistNames,
+    })
+    const artistName =
+      normalizeCatalogDisplayText(
+        resolveAlbumDisplayArtist(album, playableTracks, resolvedArtistNames),
+      ) ?? null
+    const { type, label } = resolveHomeAlbumContentType(album, playableTracks.length)
+    const genericTitle = isGenericAlbumTitle(rawTitle)
+    const trackLabel = formatSongCountLabel(playableTracks.length, {
+      noun: 'track',
+      omitZero: true,
+    })
+
+    // When catalog title is a placeholder ("Singles"/"Album"), lead with artist
+    // so the rail is not a wall of identical "Singles" titles.
+    const displayTitle = genericTitle
+      ? artistName || rawTitle || 'Untitled'
+      : rawTitle
+    const displaySubtitle = genericTitle
+      ? [label, trackLabel].filter(Boolean).join(' · ') || null
+      : artistName
+
+    cards.push({
+      album,
+      playableTracks,
+      trackCount: playableTracks.length,
+      playableTrackCount: playableTracks.length,
+      artistName,
+      contentType: type,
+      contentTypeLabel: genericTitle ? null : label,
+      displayTitle,
+      displaySubtitle: displaySubtitle || null,
+      artwork: resolveAlbumArtwork(album, playableTracks),
+      rawTitle,
+      sourceType: 'album',
+    })
+  }
+
+  const ranked = cards.sort((a, b) => scoreAlbumWorthCard(b) - scoreAlbumWorthCard(a))
+  const playable = ranked.filter((card) => card.playableTrackCount > 0)
+  if (playable.length >= limit) return playable.slice(0, limit)
+  const seen = new Set(playable.map((card) => card.album.id))
+  const fillers = ranked.filter((card) => !seen.has(card.album.id))
+  return [...playable, ...fillers].slice(0, limit)
 }
 
 export function songsReadyLabel(count: number) {
@@ -293,10 +533,14 @@ export function buildHomeHeroCards(
   }
 
   const seen = new Set<string>()
+  const seenSongIds = new Set<string>()
   return cards
     .filter((card) => {
       if (seen.has(card.key)) return false
+      const songId = String(card.song.id || '')
+      if (songId && seenSongIds.has(songId)) return false
       seen.add(card.key)
+      if (songId) seenSongIds.add(songId)
       return true
     })
     .slice(0, 6)

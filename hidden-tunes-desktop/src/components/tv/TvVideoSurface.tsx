@@ -17,7 +17,12 @@ type TvVideoSurfaceProps = {
   isPlaying: boolean
   error: string | null
   volume: number
+  hasPrevious: boolean
+  hasNext: boolean
+  channelSwitchLocked: boolean
+  onPrevious: () => void
   onPlayPause: () => void
+  onNext: () => void
   onMuteToggle: () => void
   onVolumeChange: (volume: number) => void
   onStop: () => void
@@ -35,7 +40,12 @@ export const TvVideoSurface = memo(function TvVideoSurface({
   isPlaying,
   error,
   volume,
+  hasPrevious,
+  hasNext,
+  channelSwitchLocked,
+  onPrevious,
   onPlayPause,
+  onNext,
   onMuteToggle,
   onVolumeChange,
   onStop,
@@ -89,6 +99,16 @@ export const TvVideoSurface = memo(function TvVideoSurface({
         onPlayPause()
         return
       }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        if (hasPrevious && !channelSwitchLocked) onPrevious()
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        if (hasNext && !channelSwitchLocked) onNext()
+        return
+      }
       if (event.key.toLowerCase() === 'm') {
         event.preventDefault()
         onMuteToggle()
@@ -99,10 +119,13 @@ export const TvVideoSurface = memo(function TvVideoSurface({
         onFullscreen()
       }
     },
-    [onFullscreen, onMuteToggle, onPlayPause],
+    [channelSwitchLocked, hasNext, hasPrevious, onFullscreen, onMuteToggle, onNext, onPlayPause, onPrevious],
   )
 
   const showArtwork = isLoading || !hasVideoFrames
+  const previousDisabled = !hasPrevious || channelSwitchLocked
+  const nextDisabled = !hasNext || channelSwitchLocked
+  const playDisabled = isLoading
 
   return (
     <div
@@ -138,10 +161,39 @@ export const TvVideoSurface = memo(function TvVideoSurface({
         </span>
       </div>
       <div className="tv-video-surface-toolbar" role="toolbar" aria-label="TV video controls">
-        <button type="button" className="tv-rail-btn tv-rail-btn--gold" onClick={onPlayPause} aria-label={isPlaying ? 'Pause' : 'Play'}>
-          {isPlaying ? '❚❚' : '▶'}
-        </button>
-        <button type="button" className="tv-rail-btn" onClick={onMuteToggle} aria-label={volumeMuted ? 'Unmute' : 'Mute'}>
+        <div className="tv-video-surface-transport" role="group" aria-label="Channel transport">
+          <button
+            type="button"
+            className="tv-rail-btn tv-rail-btn--skip"
+            onClick={onPrevious}
+            disabled={previousDisabled}
+            aria-label={hasPrevious ? 'Previous channel' : 'Previous channel unavailable'}
+            title={hasPrevious ? 'Previous channel' : 'Previous channel unavailable'}
+          >
+            ⏮
+          </button>
+          <button
+            type="button"
+            className="tv-rail-btn tv-rail-btn--gold"
+            onClick={onPlayPause}
+            disabled={playDisabled}
+            aria-label={isLoading ? 'Connecting channel' : isPlaying ? 'Pause' : 'Play'}
+            aria-busy={isLoading}
+          >
+            {isLoading ? '…' : isPlaying ? '❚❚' : '▶'}
+          </button>
+          <button
+            type="button"
+            className="tv-rail-btn tv-rail-btn--skip"
+            onClick={onNext}
+            disabled={nextDisabled}
+            aria-label={hasNext ? 'Next channel' : 'Next channel unavailable'}
+            title={hasNext ? 'Next channel' : 'Next channel unavailable'}
+          >
+            ⏭
+          </button>
+        </div>
+        <button type="button" className="tv-rail-btn tv-rail-btn--secondary" onClick={onMuteToggle} aria-label={volumeMuted ? 'Unmute' : 'Mute'}>
           {volumeMuted ? '🔇' : '🔊'}
         </button>
         <input
@@ -154,15 +206,15 @@ export const TvVideoSurface = memo(function TvVideoSurface({
           onChange={(event) => onVolumeChange(Number(event.target.value))}
           aria-label="TV volume"
         />
-        <button type="button" className="tv-rail-btn" onClick={onStop} aria-label="Stop">
+        <button type="button" className="tv-rail-btn tv-rail-btn--secondary" onClick={onStop} aria-label="Stop">
           ■
         </button>
         {pipSupported ? (
-          <button type="button" className="tv-rail-btn" onClick={onPictureInPicture} aria-label="Picture in picture">
+          <button type="button" className="tv-rail-btn tv-rail-btn--secondary" onClick={onPictureInPicture} aria-label="Picture in picture">
             ⧉
           </button>
         ) : null}
-        <button type="button" className="tv-rail-btn" onClick={onFullscreen} aria-label="Fullscreen">
+        <button type="button" className="tv-rail-btn tv-rail-btn--secondary" onClick={onFullscreen} aria-label="Fullscreen">
           ⛶
         </button>
       </div>

@@ -1,8 +1,18 @@
 import { memo } from 'react'
 
+type GlobalTopNavKey =
+  | 'home'
+  | 'music'
+  | 'radio'
+  | 'podcasts'
+  | 'audiobooks'
+  | 'tv'
+  | 'motivationals'
+  | 'lectures'
+
 type GlobalTopNavProps = {
   activeNavKey: string
-  onNavigateNav?: (navKey: string) => void
+  onNavigateNav?: (navKey: GlobalTopNavKey) => void
   onOpenProfile?: () => void
   pageTitle?: string
 }
@@ -31,21 +41,38 @@ function BrandWaveformMark() {
  */
 export const GlobalTopNav = memo(function GlobalTopNav({
   activeNavKey,
+  onNavigateNav,
   onOpenProfile,
-  pageTitle,
 }: GlobalTopNavProps) {
-  const title = pageTitle
-    ?? (activeNavKey === 'home' ? 'Home' : 'Hidden Tunes')
+  const links = [
+    ['home', 'Home'],
+    ['music', 'Music'],
+    ['radio', 'Radio'],
+    ['podcasts', 'Podcasts'],
+    ['audiobooks', 'Audiobooks'],
+    ['tv', 'TV'],
+    ['motivationals', 'Motivationals'],
+    ['lectures', 'Lectures'],
+  ] as const
 
   return (
-    <header className="global-top-nav global-top-nav--compact" aria-label="Page header">
+    <header className="global-top-nav global-top-nav--reference" aria-label="Page header">
       <div className="global-top-nav-brand">
         <BrandWaveformMark />
-        <div className="global-top-nav-brand-copy">
-          <span className="global-top-nav-wordmark">Hidden Tunes</span>
-          <span className="global-top-nav-page-title">{title}</span>
-        </div>
+        <span className="global-top-nav-wordmark">Hidden<span>Tunes</span></span>
       </div>
+      <nav className="global-top-nav-links" aria-label="Primary sections">
+        {links.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={`global-top-nav-link${activeNavKey === key ? ' is-active' : ''}`}
+            onClick={() => onNavigateNav?.(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
       <div className="global-top-nav-actions" aria-label="Account actions">
         <button
           type="button"

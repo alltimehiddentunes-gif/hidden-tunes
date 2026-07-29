@@ -43,16 +43,34 @@ function BrandWaveformMark() {
       <rect x="27" y="10" width="3" height="18" rx="1.5" fill="url(#htPersistWaveGold)" />
       <defs>
         <linearGradient id="htPersistWaveGold" x1="18" y1="4" x2="18" y2="34" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FFBA3D" />
-          <stop offset="1" stopColor="#E8B923" />
+          <stop stopColor="#C084FC" />
+          <stop offset="0.55" stopColor="#EC4899" />
+          <stop offset="1" stopColor="#22D3EE" />
         </linearGradient>
       </defs>
     </svg>
   )
 }
 
+function NeonEqBadge({ isPlaying }: { isPlaying: boolean }) {
+  return (
+    <span
+      className={`ht-player-eq${isPlaying ? ' is-playing' : ''}`}
+      aria-hidden="true"
+    >
+      <i /><i /><i />
+    </span>
+  )
+}
+
+function trackLooksExplicit(track: { tags?: string[]; genre?: string | null } | null): boolean {
+  if (!track) return false
+  if (track.tags?.some((t) => /mature|adult|explicit/i.test(t))) return true
+  return /adult|mature|explicit/i.test(track.genre || '')
+}
+
 /**
- * Persistent desktop Now Playing rail.
+ * Persistent desktop Now Playing rail — Hidden Tunes Player page adapted for sidebar.
  * View over DesktopPlaybackProvider only — does not own audio/video/queue.
  */
 export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
@@ -114,6 +132,8 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
   const displayTitle = hasPlayback ? shellMetadata.displayTitle : PLAYER_IDLE_TITLE
   const displayArtist = hasPlayback ? shellMetadata.displayArtist : PLAYER_IDLE_ARTIST
   const displayAlbum = hasPlayback ? shellMetadata.displayAlbum : null
+  const displayArtwork = hasPlayback ? shellMetadata.displayArtwork : null
+  const isExplicit = trackLooksExplicit(activeTrack)
 
   const showShuffleRepeat = Boolean(activeTrack)
     && caps.family === 'song'
@@ -127,8 +147,23 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
   const progressValue = scrubSeconds ?? (progressMax > 0 ? Math.min(positionSeconds, progressMax) : 0)
   const progressPercent =
     progressMax > 0 ? Math.min(100, (progressValue / progressMax) * 100) : 0
+  const remainingSeconds = progressMax > 0 ? Math.max(0, progressMax - progressValue) : 0
   const volumePercent = Math.min(100, Math.max(0, volume * 100))
   const canClearQueue = getUpcomingTracks().length > 0
+
+  const sessionContext = useMemo(() => {
+    if (!hasPlayback) return 'Hidden Tunes'
+    if (caps.isLive) return familyLabel ?? 'Live'
+    return displayAlbum || queueTitle || familyLabel || 'Hidden Tunes'
+  }, [caps.isLive, displayAlbum, familyLabel, hasPlayback, queueTitle])
+
+  const statusLabel = !hasPlayback
+    ? null
+    : isLoading
+      ? 'LOADING'
+      : isPlaying
+        ? (caps.isLive ? 'LIVE' : 'PLAYING')
+        : 'PAUSED'
 
   const resolveSeekSeconds = useCallback(
     (clientX: number) => {
@@ -217,41 +252,52 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
 
   return (
     <aside
-      className="queue-rail queue-rail--workspace now-playing-rail now-playing-rail--psd ht-persistent-player"
+      className="queue-rail queue-rail--workspace now-playing-rail now-playing-rail--psd ht-persistent-player ht-player-page"
       aria-label="Now playing"
       data-playing={isPlaying ? 'true' : 'false'}
       data-loading={isLoading ? 'true' : 'false'}
       data-idle={hasPlayback ? 'false' : 'true'}
       data-family={caps.family}
+      data-live={caps.isLive ? 'true' : 'false'}
       data-ht-persistent-player="true"
     >
-      <div className="now-playing-rail-inner ht-persistent-player-inner">
-        <header className="rail-psd-header ht-persistent-player-header">
-          <h2 className="rail-psd-title">Now Playing</h2>
-          {hasPlayback && familyLabel ? (
-            <span className="ht-persistent-player-family">{familyLabel}</span>
-          ) : null}
-          {hasPlayback && caps.isLive ? (
-            <span className="ht-persistent-player-live" aria-label="Live">LIVE</span>
-          ) : null}
-          {hasPlayback && caps.isLocalDownload ? (
-            <span className="ht-persistent-player-local">Downloaded</span>
-          ) : null}
+      <div className="ht-player-ambient" aria-hidden="true">
+        <span className="ht-player-orb ht-player-orb--purple" />
+        <span className="ht-player-orb ht-player-orb--cyan" />
+      </div>
+
+      <div className="now-playing-rail-inner ht-persistent-player-inner ht-player-page-inner">
+        <header className="ht-player-header">
+          <div className="ht-player-header-copy">
+            <p className="ht-player-session-label">Now Playing</p>
+            <p className="ht-player-session-context">{sessionContext}</p>
+          </div>
+          <div className="ht-player-header-chips">
+            {hasPlayback && familyLabel ? (
+              <span className="ht-persistent-player-family">{familyLabel}</span>
+            ) : null}
+            {hasPlayback && caps.isLive ? (
+              <span className="ht-persistent-player-live" aria-label="Live">LIVE</span>
+            ) : null}
+            {hasPlayback && caps.isLocalDownload ? (
+              <span className="ht-persistent-player-local">Downloaded</span>
+            ) : null}
+          </div>
         </header>
 
         {!hasPlayback ? (
-          <section className="ht-persistent-player-empty" aria-label="Nothing playing">
+          <section className="ht-persistent-player-empty ht-player-empty" aria-label="Nothing playing">
             <div className="ht-persistent-player-empty-art" aria-hidden="true">
               <BrandWaveformMark />
             </div>
             <h3 className="ht-persistent-player-empty-title">Nothing Playing</h3>
             <p className="ht-persistent-player-empty-copy">
-              Choose music, radio, podcasts, audiobooks, TV or another playable item
+              Ready when you are — choose something from Home to start listening. Your Hidden Tunes player lives here.
             </p>
             <div className="ht-persistent-player-empty-actions">
               {onNavigateHome ? (
                 <button type="button" className="ht-persistent-player-empty-btn" onClick={onNavigateHome}>
-                  Continue Listening
+                  Browse Home
                 </button>
               ) : null}
               {onOpenQueuePage ? (
@@ -264,52 +310,84 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
                 </button>
               ) : null}
             </div>
+            <div className="ht-player-empty-transport" aria-hidden="true">
+              <FullPlayerTransportControls activeTrackId={null} showShuffleRepeat />
+            </div>
           </section>
         ) : (
           <>
-            <section className="rail-psd-stage" aria-label="Current media">
-              <div className="rail-psd-art-shell">
-                <span className="rail-psd-art-glow" aria-hidden="true" />
-                <div className="rail-psd-art-frame">
-                  <ArtworkImage
-                    src={activeTrack?.artwork ?? null}
-                    alt=""
-                    seed={activeTrack?.id ?? 'persistent-player'}
-                    label={displayTitle}
-                    priority
-                  />
-                  {isLoading ? (
-                    <span className="rail-psd-art-spinner player-spinner" aria-hidden="true" />
-                  ) : null}
+            <section className="ht-player-chrome" aria-label="Current media">
+              <div className="ht-player-art-stage">
+                <span className="ht-player-art-halo" aria-hidden="true" />
+                <div className={`ht-player-art-ring${isPlaying ? ' is-playing' : ''}`}>
+                  <div className="ht-player-art-frame">
+                    <ArtworkImage
+                      src={displayArtwork}
+                      alt=""
+                      seed={activeTrack?.id ?? 'persistent-player'}
+                      label={displayTitle}
+                      variant="circle"
+                      priority
+                    />
+                    {isLoading ? (
+                      <span className="rail-psd-art-spinner player-spinner" aria-hidden="true" />
+                    ) : null}
+                  </div>
                 </div>
-                {canLikeTrack && activeTrack ? (
-                  <button
-                    type="button"
-                    className={`ht-persistent-player-like${trackLiked ? ' is-liked' : ''}`}
-                    aria-label={trackLiked ? `Unlike ${displayTitle}` : `Like ${displayTitle}`}
-                    aria-pressed={trackLiked}
-                    onClick={() => toggleLiked(activeTrack.id, activeTrack)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill={trackLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                      <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-                    </svg>
-                  </button>
-                ) : null}
+                <NeonEqBadge isPlaying={isPlaying && !isLoading} />
               </div>
 
-              <div className="rail-psd-track-head">
-                <div className="rail-psd-title-row">
-                  <h3 className="rail-psd-track-title">{displayTitle}</h3>
+              <div className="ht-player-meta">
+                {statusLabel ? (
+                  <span className={`ht-player-status-pill${caps.isLive ? ' is-live' : ''}`}>
+                    {statusLabel}
+                  </span>
+                ) : null}
+                <div className="ht-player-title-row">
+                  <h3 className="ht-player-track-title rail-psd-track-title" title={displayTitle}>
+                    {displayTitle}
+                  </h3>
+                  {isExplicit ? (
+                    <span className="ht-player-explicit" title="Explicit">E</span>
+                  ) : null}
                 </div>
-                <p className="rail-psd-track-artist">
-                  <span>{displayArtist}</span>
+                <p className="ht-player-track-artist rail-psd-track-artist" title={displayArtist}>
+                  {displayArtist}
                 </p>
                 {displayAlbum ? (
-                  <p className="rail-psd-track-album">{displayAlbum}</p>
+                  <p className="ht-player-track-album rail-psd-track-album" title={displayAlbum}>{displayAlbum}</p>
                 ) : null}
                 {subtitle ? (
                   <p className="ht-persistent-player-subtitle">{subtitle}</p>
                 ) : null}
+
+                <div className="ht-player-meta-actions">
+                  {canLikeTrack && activeTrack ? (
+                    <button
+                      type="button"
+                      className={`ht-player-favorite${trackLiked ? ' is-liked' : ''}`}
+                      aria-label={trackLiked ? `Unlike ${displayTitle}` : `Favorite ${displayTitle}`}
+                      aria-pressed={trackLiked}
+                      onClick={() => toggleLiked(activeTrack.id, activeTrack)}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill={trackLiked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                        <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+                      </svg>
+                      <span>Favorite</span>
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={`ht-player-queue-toggle${queueOpen ? ' is-active' : ''}`}
+                    onClick={() => setQueueOpen((open) => !open)}
+                    aria-pressed={queueOpen}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
+                    </svg>
+                    <span>Queue</span>
+                  </button>
+                </div>
               </div>
 
               {error ? (
@@ -318,15 +396,15 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
 
               {caps.showFiniteProgress && caps.seek ? (
                 <div
-                  className="rail-psd-progress-wrap"
-                  style={{ ['--rail-psd-progress' as string]: `${progressPercent}%` }}
+                  className="ht-player-progress"
+                  style={{ ['--ht-player-progress' as string]: `${progressPercent}%` }}
                   role="group"
                   aria-label="Playback progress"
                 >
                   <div
                     ref={progressTrackRef}
                     className={
-                      'rail-psd-progress-track'
+                      'ht-player-progress-track'
                       + (progressMax > 0 ? ' is-interactive' : '')
                     }
                     role="slider"
@@ -341,16 +419,20 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
                     onPointerUp={handleSeekPointerUp}
                     onPointerCancel={handleSeekPointerUp}
                   >
-                    <div className="rail-psd-progress-fill" style={{ width: `${progressPercent}%` }} />
+                    <div className="ht-player-progress-fill" style={{ width: `${progressPercent}%` }} />
                   </div>
-                  <div className="rail-psd-progress-times" aria-hidden="true">
+                  <div className="ht-player-progress-times" aria-hidden="true">
                     <span>{formatPlaybackTime(progressValue)}</span>
-                    <span>{progressMax > 0 ? formatPlaybackTime(progressMax) : '—'}</span>
+                    <span>
+                      {progressMax > 0
+                        ? `-${formatPlaybackTime(remainingSeconds)}`
+                        : '—'}
+                    </span>
                   </div>
                 </div>
               ) : (
                 <div
-                  className="ht-persistent-player-live-progress"
+                  className="ht-persistent-player-live-progress ht-player-live-status"
                   role="status"
                   aria-label={caps.isLive ? 'Live status' : 'Playback status'}
                 >
@@ -359,13 +441,13 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
                     {isLoading
                       ? 'Connecting'
                       : caps.isLive
-                        ? (isPlaying ? 'On air' : 'Paused')
+                        ? (isPlaying ? 'On air · Live stream' : 'Paused')
                         : (isPlaying ? 'Playing' : 'Paused')}
                   </span>
                 </div>
               )}
 
-              <div className="rail-psd-transport-wrap">
+              <div className="ht-player-transport-dock">
                 <FullPlayerTransportControls
                   activeTrackId={activeTrack?.id ?? null}
                   showShuffleRepeat={showShuffleRepeat}
@@ -373,70 +455,65 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
               </div>
             </section>
 
-            <div className="rail-psd-actions ht-persistent-player-actions">
-              <button
-                type="button"
-                className={`rail-psd-action${queueOpen ? ' is-active' : ''}`}
-                onClick={() => setQueueOpen((open) => !open)}
-                aria-pressed={queueOpen}
-              >
-                Queue
-              </button>
-              {canClearQueue ? (
-                <button
-                  type="button"
-                  className="rail-psd-action"
-                  onClick={() => clearUpcomingQueue()}
-                >
-                  Clear upcoming
-                </button>
-              ) : null}
-            </div>
-
             {queueOpen ? (
-              <section className="rail-psd-queue-section ht-persistent-player-queue" aria-label="Queue">
-                <PlayerQueuePanel showHeader />
+              <section className="ht-player-queue-section ht-persistent-player-queue" aria-label="Queue">
+                <div className="ht-player-queue-toolbar">
+                  <p className="ht-player-card-eyebrow">Up Next</p>
+                  {canClearQueue ? (
+                    <button
+                      type="button"
+                      className="ht-player-clear-upcoming"
+                      onClick={() => clearUpcomingQueue()}
+                    >
+                      Clear upcoming
+                    </button>
+                  ) : null}
+                </div>
+                <PlayerQueuePanel showHeader={false} />
               </section>
             ) : null}
           </>
         )}
 
-        <footer className="rail-psd-footer ht-persistent-player-footer">
-          <div className="rail-psd-volume" role="group" aria-label="Volume">
-            <button
-              type="button"
-              className="control-btn ht-persistent-player-mute"
-              aria-label={volume <= 0 ? 'Unmute' : 'Mute'}
-              onClick={handleMuteToggle}
-            >
-              {volume <= 0 ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M11 5L6 9H3v6h3l5 4V5z" />
-                  <path d="M23 9l-6 6M17 9l6 6" />
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M11 5L6 9H3v6h3l5 4V5z" />
-                  <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
-                </svg>
-              )}
-            </button>
-            <div
-              ref={volumeTrackRef}
-              className="rail-psd-volume-track"
-              style={{ ['--rail-psd-volume' as string]: `${volumePercent}%` }}
-              role="slider"
-              aria-label="Volume"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(volumePercent)}
-              onClick={handleVolumeClick}
-              onPointerDown={handleVolumePointerDown}
-              onPointerMove={handleVolumePointerMove}
-              onPointerUp={handleVolumePointerUp}
-              onPointerCancel={handleVolumePointerUp}
-            >
-              <div className="rail-psd-volume-fill" style={{ width: `${volumePercent}%` }} />
+        <footer className="ht-player-footer ht-persistent-player-footer">
+          <div className="ht-player-volume-card" role="group" aria-label="Volume">
+            <p className="ht-player-card-eyebrow">Volume</p>
+            <div className="ht-player-volume-row">
+              <button
+                type="button"
+                className="control-btn ht-persistent-player-mute"
+                aria-label={volume <= 0 ? 'Unmute' : 'Mute'}
+                onClick={handleMuteToggle}
+              >
+                {volume <= 0 ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M11 5L6 9H3v6h3l5 4V5z" />
+                    <path d="M23 9l-6 6M17 9l6 6" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M11 5L6 9H3v6h3l5 4V5z" />
+                    <path d="M15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14" />
+                  </svg>
+                )}
+              </button>
+              <div
+                ref={volumeTrackRef}
+                className="ht-player-volume-track"
+                style={{ ['--ht-player-volume' as string]: `${volumePercent}%` }}
+                role="slider"
+                aria-label="Volume"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(volumePercent)}
+                onClick={handleVolumeClick}
+                onPointerDown={handleVolumePointerDown}
+                onPointerMove={handleVolumePointerMove}
+                onPointerUp={handleVolumePointerUp}
+                onPointerCancel={handleVolumePointerUp}
+              >
+                <div className="ht-player-volume-fill" style={{ width: `${volumePercent}%` }} />
+              </div>
             </div>
           </div>
           <PlayerModeLauncher

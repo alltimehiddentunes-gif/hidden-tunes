@@ -2,7 +2,13 @@ import { memo, useCallback, useMemo } from 'react'
 import type { ApiAlbum, ApiArtist, ApiSong } from '../../lib/api'
 import { sortAlbumsList, sortArtistsList, sortSongsList } from '../../lib/api'
 import type { CatalogIndexes } from '../../lib/catalogIndexes'
-import { buildQueueCandidatePools, buildQueueSeedPool } from '../../lib/catalogIndexes'
+import { buildQueueCandidatePools, buildQueueSeedPool, resolveAlbumDisplayArtist, resolveSongsForAlbum } from '../../lib/catalogIndexes'
+import {
+  formatSongCardSecondary,
+  normalizeCatalogArtistLabel,
+  normalizeCatalogDisplayText,
+  formatSongCountLabel,
+} from '../../lib/catalogDisplayText'
 import type { QueueContext, QueueSeedMetadata } from '../../lib/desktopPlayback/types'
 import { resolveRecentlyPlayedSongs } from '../../lib/home/musicHomeSections'
 import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
@@ -13,6 +19,7 @@ import {
   buildPopularChartCards,
 } from '../../lib/music/musicPageSections'
 import type { MusicSectionId } from '../../lib/music/types'
+import { createMusicGenreIntent, getMusicGenreByLabelOrAlias } from '../../lib/musicGenres'
 import { MusicArt } from './MusicArt'
 import { MusicPageSection } from './MusicPageSection'
 
@@ -187,10 +194,15 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                 >
                   <MusicArt src={song.artwork} seed={song.id} label={song.title} size="list" />
                   <span className="music-discover-song-row-meta">
-                    <strong>{song.title}</strong>
+                    <strong>{normalizeCatalogDisplayText(song.title) ?? song.title}</strong>
                     <span>
-                      {song.artist}
-                      {song.album ? ` · ${song.album}` : ''}
+                      {formatSongCardSecondary({
+                        artist: song.artist,
+                        album: song.album,
+                      }) ??
+                        normalizeCatalogArtistLabel(song.artist, {
+                          allowUnknownFallback: true,
+                        })}
                     </span>
                   </span>
                   {duration ? <time className="music-discover-song-row-duration">{duration}</time> : null}
@@ -224,10 +236,15 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                 >
                   <MusicArt src={song.artwork} seed={song.id} label={song.title} size="list" />
                   <span className="music-discover-song-row-meta">
-                    <strong>{song.title}</strong>
+                    <strong>{normalizeCatalogDisplayText(song.title) ?? song.title}</strong>
                     <span>
-                      {song.artist}
-                      {song.album ? ` · ${song.album}` : ''}
+                      {formatSongCardSecondary({
+                        artist: song.artist,
+                        album: song.album,
+                      }) ??
+                        normalizeCatalogArtistLabel(song.artist, {
+                          allowUnknownFallback: true,
+                        })}
                     </span>
                   </span>
                   {duration ? <time className="music-discover-song-row-duration">{duration}</time> : null}
@@ -284,7 +301,19 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
         >
           <div className="music-discover-album-rail">
             {discoverAlbums.map((album) => {
-              const artistName = indexes.artistNames.get(album.artistId ?? '') ?? ''
+              const albumSongs = resolveSongsForAlbum(
+                album,
+                indexes.songsByAlbumId,
+                indexes.songsByAlbumName,
+                indexes.artistNames,
+              )
+              const artistName =
+                normalizeCatalogArtistLabel(
+                  resolveAlbumDisplayArtist(album, albumSongs, indexes.artistNames),
+                ) ??
+                normalizeCatalogArtistLabel(
+                  indexes.artistNames.get(album.artistId ?? '') ?? null,
+                )
               return (
                 <button
                   key={album.id}
@@ -294,9 +323,9 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                   aria-label={`Open album ${album.title}`}
                 >
                   <MusicArt src={album.artwork} seed={album.id} label={album.title} size="rail" />
-                  <strong>{album.title}</strong>
+                  <strong>{normalizeCatalogDisplayText(album.title) ?? album.title}</strong>
                   <span>
-                    {artistName || 'Album'}
+                    {artistName ?? 'Unknown artist'}
                     {album.releaseYear ? ` · ${album.releaseYear}` : ''}
                   </span>
                 </button>
@@ -321,8 +350,19 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                 aria-label={`Open ${artist.name}`}
               >
                 <MusicArt src={artist.artwork} seed={artist.id} label={artist.name} variant="circle" size="rail" />
-                <strong>{artist.name}</strong>
-                {artist.songCount > 0 ? <span>{artist.songCount} songs</span> : null}
+                <strong>
+                  {normalizeCatalogArtistLabel(artist.name, {
+                    allowUnknownFallback: true,
+                  })}
+                </strong>
+                {formatSongCountLabel(artist.songCount, { noun: 'song', omitZero: true }) ? (
+                  <span>
+                    {formatSongCountLabel(artist.songCount, {
+                      noun: 'song',
+                      omitZero: true,
+                    })}
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -341,7 +381,10 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                 key={genre.id}
                 type="button"
                 className="music-discover-genre-tile"
-                onClick={() => onBrowseSearch(genre.label)}
+                onClick={() => {
+                  const definition = getMusicGenreByLabelOrAlias(genre.label)
+                  onBrowseSearch(definition ? createMusicGenreIntent(definition.slug) : genre.label)
+                }}
                 aria-label={`Browse ${genre.label}`}
               >
                 <span className="music-discover-genre-fallback" aria-hidden="true">
