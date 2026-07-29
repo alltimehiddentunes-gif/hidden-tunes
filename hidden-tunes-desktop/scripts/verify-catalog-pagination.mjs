@@ -273,8 +273,22 @@ ok(
 )
 
 ok(
-  'persistent player layout retained',
-  appSrc.includes('DesktopPersistentPlayer') && appSrc.includes('hasQueueRail = true'),
+  'Strict Mode remount never reuses aborted dedupe work',
+  dedupeSrc.includes('entry?.controller.signal.aborted')
+    && dedupeSrc.includes('inFlight.delete(key)'),
+)
+
+ok(
+  'aborted waiter releases its dedupe reference exactly once',
+  dedupeSrc.includes('let released = false')
+    && dedupeSrc.includes('if (!released)'),
+)
+
+ok(
+  'conditional persistent player layout retained',
+  appSrc.includes('DesktopPersistentPlayer')
+    && appSrc.includes('const hasQueueRail = hasActiveMediaSession')
+    && appSrc.includes('conditional-player-rail'),
 )
 
 console.log(`\ncatalogue-pagination-cache: ${passed} checks passed`)

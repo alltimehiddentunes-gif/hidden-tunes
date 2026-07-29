@@ -32,8 +32,10 @@ console.log('Phase 7A — production config')
 {
   const missing = resolveMainRuntimeConfig({ isPackaged: true, env: {} })
   ok(
-    'packaged rejects missing Express URL',
-    !missing.ok && missing.errors.some((e) => /VITE_EXPRESS_CATALOG_API_URL/.test(e)),
+    'packaged uses allowlisted Express production default',
+    missing.ok
+      && missing.expressCatalogBaseUrl === 'https://hidden-tunes-api.onrender.com'
+      && missing.warnings.some((warning) => /allowlisted production default/i.test(warning)),
   )
 }
 

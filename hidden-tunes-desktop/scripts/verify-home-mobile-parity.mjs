@@ -99,6 +99,23 @@ assert(!homePage.includes('GlobalTopNav'), 'Home does not embed duplicate top ro
 assert(css.includes('padding-bottom: calc(var(--footer-player-height'), 'clears bottom player')
 assert(css.includes('.music-home-hero-carousel'), 'hero carousel CSS')
 
+assert(homePage.includes('playAlbumCollection'), 'album cards play in place via playAlbumCollection')
+assert(
+  homePage.includes("seedType: 'album'") && homePage.includes("onOpenSong(start, tracks, 0, 'home'"),
+  'album play uses home context + album seed (no PlayerWorkspace hijack)',
+)
+assert(
+  !/music-home-album-card[\s\S]{0,220}onClick=\{\(\) => onOpenAlbum\(/.test(homePage),
+  'primary album card click is not onOpenAlbum navigation',
+)
+assert(homePage.includes('music-home-album-details'), 'secondary Details action remains for album browse')
+assert(homePage.includes('music-home-album-rail-error'), 'empty/invalid album shows restrained error')
+assert(parityLib.includes('buildAlbumsWorthStayingWith'), 'albums worth builder present')
+assert(parityLib.includes('resolveHomeAlbumContentType'), 'content-type resolver present')
+assert(parityLib.includes('HomeAlbumWorthCard'), 'enriched album card type present')
+assert(css.includes('music-home-album-card-wrap'), 'album card wrap CSS')
+assert(css.includes('pointer-events: none'), 'pointer-events rules present for overlays/art')
+
 const orderAnchors = [
   'music-home-search-launcher',
   'music-home-hero-carousel',

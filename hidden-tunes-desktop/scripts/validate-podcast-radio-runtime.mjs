@@ -3,7 +3,7 @@
  * Electron runtime smoke for Podcast + Radio contract hardening.
  * Requires Vite on http://localhost:5173 (or HT_VALIDATE_START_VITE=1).
  *
- *   node scripts/validate-podcast-radio-runtime.mjs
+ *   npx electron scripts/validate-podcast-radio-runtime.mjs
  */
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
@@ -13,7 +13,11 @@ import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, ipcMain } from 'electron'
 
 const require = createRequire(import.meta.url)
-const { fetchApprovedCatalog } = require('../electron/catalogBridge.js')
+const {
+  fetchApprovedCatalog,
+  fetchApprovedCatalogRequest,
+} = require('../electron/catalogBridge.js')
+const { getRuntimeDiagnostics } = require('../electron/runtimeConfig.js')
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -84,7 +88,9 @@ async function clickNav(win, label) {
   const result = await evalPage(
     win,
     `() => {
-      const items = [...document.querySelectorAll('.sidebar .nav-item')]
+      const items = [...document.querySelectorAll(
+        '.sidebar .nav-item, .global-top-nav button, [aria-label="Primary sections"] button'
+      )]
       const target = items.find((el) => {
         const span = el.querySelector('span')
         const text = (span?.textContent || el.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase()
@@ -146,6 +152,18 @@ async function main() {
     out.catalogPaths.push(p)
     return fetchApprovedCatalog(p)
   })
+  ipcMain.handle('ht-catalog-request', async (_e, options) => {
+    const cleanPath = typeof options?.path === 'string' ? options.path.trim() : ''
+    if (!cleanPath.startsWith('/api/')) throw new Error('bad path')
+    out.catalogPaths.push(cleanPath)
+    return fetchApprovedCatalogRequest(options)
+  })
+  ipcMain.on('ht-runtime-info', (event) => {
+    event.returnValue = getRuntimeDiagnostics(app.isPackaged)
+  })
+  ipcMain.handle('ht-downloads-list', async () => [])
+  ipcMain.handle('ht-downloads-disk-usage', async () => ({ usedBytes: 0, itemCount: 0 }))
+  ipcMain.handle('ht-downloads-reconcile', async () => ({ ok: true, removed: 0 }))
 
   await app.whenReady()
   const win = new BrowserWindow({
