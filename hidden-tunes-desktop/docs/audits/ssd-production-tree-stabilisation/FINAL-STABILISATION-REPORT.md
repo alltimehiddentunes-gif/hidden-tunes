@@ -13,7 +13,7 @@
 | Disk | SanDisk Extreme Pro 55AF |
 | Branch | `desktop/integrate-home-music-split` |
 | Starting HEAD | `1114cf2d79f51f6fc6f8f527db8adc35a54da18f` |
-| Ending HEAD | `20a3d89b2f1511b1f8e9a4a387e0eda2ce03d82d` (plus follow-up report commit if any) |
+| Ending HEAD | `7832d635f815dc248928d852fcb1f866e936eb91` |
 
 ## 2. Starting Git state
 
