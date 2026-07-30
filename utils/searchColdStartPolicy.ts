@@ -34,10 +34,12 @@ export function shouldShowGenuineZeroMatches(options: {
   resultCount: number;
   radioLoading: boolean;
   podcastsLoading: boolean;
+  radioError?: string | null | undefined;
 }): boolean {
   return (
     !options.backendPending &&
     !options.backendError &&
+    !options.radioError &&
     options.resultCount === 0 &&
     !options.radioLoading &&
     !options.podcastsLoading

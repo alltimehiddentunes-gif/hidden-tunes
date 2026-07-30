@@ -962,19 +962,16 @@ export function buildTrustedBackendSongHits(
     if (!songId || seenSongs.has(songId)) continue;
     seenSongs.add(songId);
 
+    // Backend already matched these rows for `q=` — never drop them because the
+    // local scorer is stricter than the API (false "0 matches" with raw hits).
     const metadata = scoreCatalogSongMatch(song, cleanQuery);
-    if (!metadata) continue;
-    const score = metadata.score;
+    const score = metadata?.score ?? BACKEND_TRUSTED_SCORE;
+    const matchReason: CatalogSongMatchReason = metadata?.matchReason ?? "title_contains";
+    const reason = metadata
+      ? catalogReasonToUniversal(metadata.matchReason)
+      : ("Matched title" as UniversalMatchReason);
 
-    songHits.push(
-      mapSongHit(
-        song,
-        score,
-        catalogReasonToUniversal(metadata.matchReason),
-        metadata.matchReason,
-        "song"
-      )
-    );
+    songHits.push(mapSongHit(song, score, reason, matchReason, "song"));
 
     const artistName = String(song.artist || "").trim();
     const artistKey = normalizeSearchText(artistName);

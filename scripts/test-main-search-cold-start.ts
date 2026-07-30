@@ -81,6 +81,19 @@ function main() {
     "hits are not zero"
   );
 
+  assertEqual(
+    shouldShowGenuineZeroMatches({
+      backendPending: false,
+      backendError: null,
+      radioError: "radio_failed",
+      resultCount: 0,
+      radioLoading: false,
+      podcastsLoading: false,
+    }),
+    false,
+    "radio error is not zero"
+  );
+
   console.log("test-main-search-cold-start: ok");
 }
 

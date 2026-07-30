@@ -110,6 +110,7 @@ import {
   shouldCacheBackendSearchResult,
   shouldShowGenuineZeroMatches,
 } from "../utils/searchPerformance";
+import { resolveGlobalSearchBackendQuery } from "../utils/globalSearchQuery";
 import {
   albumSearchCanonicalId,
   artistSearchCanonicalId,
@@ -345,8 +346,9 @@ export default function SearchScreen() {
       seeMoreRadioStations: t("search.seeMoreRadioStations"),
       noMatchesTitle: t("search.noMatchesTitle"),
       noMatchesDescription: t("search.noMatchesDescription"),
-      temporaryErrorTitle: t("errors.somethingWentWrong"),
-      temporaryErrorDescription: t("errors.tryAgainLater"),
+        temporaryErrorTitle: t("errors.somethingWentWrong"),
+        temporaryErrorDescription: t("errors.tryAgainLater"),
+        retryLabel: t("common.retry"),
       trending: t("search.trending"),
       tryThese: t("search.tryThese"),
       forYou: t("search.forYou"),
@@ -492,7 +494,8 @@ export default function SearchScreen() {
   }, [catalogSignature, artists]);
 
   const cleanSubmittedSearchQuery = submittedSearchQuery.trim();
-  const normalizedSearchQuery = cleanSubmittedSearchQuery.toLowerCase().replace(/\s+/g, " ");
+  const backendSearchRequestQuery = resolveGlobalSearchBackendQuery(cleanSubmittedSearchQuery);
+  const normalizedSearchQuery = backendSearchRequestQuery.toLowerCase().replace(/\s+/g, " ");
   const deferredMedia = useDeferredSearchMediaSections(cleanSubmittedSearchQuery);
   const deferredPodcasts = useDeferredSearchPodcastSections(cleanSubmittedSearchQuery);
   const backendSearchCacheKey = normalizedSearchQuery;
@@ -556,6 +559,7 @@ export default function SearchScreen() {
 
   useEffect(() => {
     const query = cleanSubmittedSearchQuery;
+    const requestQuery = backendSearchRequestQuery || query;
     const cacheKey = backendSearchCacheKey;
 
     if (!query) {
@@ -579,11 +583,11 @@ export default function SearchScreen() {
       const requestId = backendSearchRequestIdRef.current + 1;
       backendSearchRequestIdRef.current = requestId;
       logSearchDiagnostic("search_backend_immediate_cache_hit", {
-        query,
+        query: requestQuery,
         count: cached.length,
       });
       logSearchDiagnostic("search_backend_cache_hit", {
-        query,
+        query: requestQuery,
         count: cached.length,
       });
       setBackendSearchSongs(cached);
@@ -601,7 +605,7 @@ export default function SearchScreen() {
     setBackendSearchSongs([]);
     if (__DEV__) {
       logSearchTiming("search_set_state", Date.now(), {
-        query,
+        query: requestQuery,
         phase: "backend_pending_clear",
         requestId,
       });
@@ -611,21 +615,21 @@ export default function SearchScreen() {
     const timer = setTimeout(() => {
       const backendStartedAt = Date.now();
       logSearchDiagnostic("search_backend_immediate_start", {
-        query,
+        query: requestQuery,
         limit: SEARCH_BACKEND_RESULT_LIMIT,
       });
       logSearchDiagnostic("search_backend_query_start", {
-        query,
+        query: requestQuery,
         limit: SEARCH_BACKEND_RESULT_LIMIT,
       });
       if (__DEV__) {
         logSearchTiming("search_backend_query_start", backendStartedAt, {
-          query,
+          query: requestQuery,
           requestId,
         });
       }
 
-      void searchHiddenTunesSongs(query, {
+      void searchHiddenTunesSongs(requestQuery, {
         signal: controller.signal,
         limit: SEARCH_BACKEND_RESULT_LIMIT,
         softEmptyOnError: false,
@@ -637,7 +641,7 @@ export default function SearchScreen() {
             if (__DEV__) {
               logSearchDiagnostic("search_stale_response_ignored", {
                 source: "backend",
-                query,
+                query: requestQuery,
                 requestId,
               });
             }
@@ -645,7 +649,7 @@ export default function SearchScreen() {
           }
           if (__DEV__) {
             logSearchTiming("search_backend_query_success", backendStartedAt, {
-              query,
+              query: requestQuery,
               requestId,
               count: results.length,
             });
@@ -661,47 +665,48 @@ export default function SearchScreen() {
           await runSearchWorkAfterPlaybackYield(() => {
             setBackendSearchSongs(results);
             setBackendSearchError(null);
+            setBackendSearchCompletedQuery(query);
           });
           logSearchDiagnostic("search_backend_immediate_success", {
-            query,
+            query: requestQuery,
             count: results.length,
             limit: SEARCH_BACKEND_RESULT_LIMIT,
           });
           logSearchDiagnostic("search_backend_query_success", {
-            query,
+            query: requestQuery,
             count: results.length,
           });
           if (results.length >= SEARCH_BACKEND_RESULT_LIMIT) {
             logSearchDiagnostic("search_backend_q_may_not_be_full_catalog", {
-              query,
+              query: requestQuery,
               count: results.length,
               limit: SEARCH_BACKEND_RESULT_LIMIT,
             });
           }
         })
-        .catch((error) => {
+        .catch(async (error) => {
           if (controller.signal.aborted) return;
           if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
           const message = error instanceof Error ? error.message : String(error);
+          const isAbort =
+            (error instanceof Error && error.name === "AbortError") ||
+            message.toLowerCase().includes("aborted") ||
+            message.toLowerCase().includes("canceled");
+          if (isAbort) return;
           console.log("Search backend query error:", error);
           // Preserve any prior successful songs for this screen; never cache failures as [].
-          void runSearchWorkAfterPlaybackYield(() => {
+          // Set error + completed together so pending never clears into a false "0 matches".
+          await runSearchWorkAfterPlaybackYield(() => {
             setBackendSearchError(message || "search_backend_failed");
+            setBackendSearchCompletedQuery(query);
           });
           logSearchDiagnostic("search_backend_immediate_failed", {
-            query,
+            query: requestQuery,
             error: message,
           });
           logSearchDiagnostic("search_backend_query_failed", {
-            query,
+            query: requestQuery,
             error: message,
-          });
-        })
-        .finally(() => {
-          if (controller.signal.aborted) return;
-          if (backendSearchRequestIdRef.current !== requestId || !mountedRef.current) return;
-          void runSearchWorkAfterPlaybackYield(() => {
-            setBackendSearchCompletedQuery(query);
           });
         });
     }, SEARCH_BACKEND_DEBOUNCE_MS);
@@ -711,7 +716,7 @@ export default function SearchScreen() {
       controller.abort();
       backendSearchRequestIdRef.current += 1;
     };
-  }, [backendSearchCacheKey, cleanSubmittedSearchQuery]);
+  }, [backendSearchCacheKey, backendSearchRequestQuery, cleanSubmittedSearchQuery]);
 
   const backendSearchResults = useMemo(() => {
     if (!cleanSubmittedSearchQuery) return EMPTY_SEARCH_RESULTS;
@@ -1200,14 +1205,18 @@ export default function SearchScreen() {
   }, [cleanSubmittedSearchQuery, searchResults.tv]);
 
   const apkResultCount =
-    apkSongResults.length
-    apkAlbumResults.length
-    apkArtistResults.length
-    apkRoomResults.length
-    apkPlaylistResults.length
-    apkStationResults.length
-    apkExternalAudioResults.length
-    apkTvResults.length;
+    apkSongResults.length +
+    apkAlbumResults.length +
+    apkArtistResults.length +
+    apkRoomResults.length +
+    apkPlaylistResults.length +
+    apkStationResults.length +
+    apkExternalAudioResults.length +
+    apkTvResults.length +
+    deferredMedia.radioStations.length +
+    deferredPodcasts.results.length;
+
+  const visibleMatchCount = apkResultCount;
 
   const hasSearchText = searchQuery.trim().length > 0;
   const cleanSearchQuery = searchQuery.trim();
@@ -1963,6 +1972,22 @@ export default function SearchScreen() {
     setSubmittedSearchQuery("");
   }, []);
 
+  const retrySearch = useCallback(() => {
+    const query = submittedSearchQuery.trim() || searchQuery.trim();
+    if (!query) return;
+    const cacheKey = resolveGlobalSearchBackendQuery(query).toLowerCase().replace(/\s+/g, " ");
+    if (cacheKey) backendSearchCacheRef.current.delete(cacheKey);
+    setBackendSearchError(null);
+    setBackendSearchCompletedQuery("");
+    setBackendSearchSongs([]);
+    // Re-submit the same query so the effect re-runs without redesigning the UI.
+    setSubmittedSearchQuery("");
+    requestAnimationFrame(() => {
+      setSearchQuery(query);
+      setSubmittedSearchQuery(query);
+    });
+  }, [searchQuery, submittedSearchQuery]);
+
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.screen}>
@@ -2029,7 +2054,7 @@ export default function SearchScreen() {
                   <View>
                     <Text style={styles.sectionEyebrow}>{searchUi.results}</Text>
                     <Text style={styles.sectionTitle}>
-                      {searchUi.formatMatchCount(apkResultCount)}
+                      {searchUi.formatMatchCount(visibleMatchCount)}
                     </Text>
                   </View>
                   {apkExternalAudioResults.length > 0 ? (
@@ -2383,24 +2408,27 @@ export default function SearchScreen() {
                   </View>
                 ) : null}
 
-                {backendSearchError &&
+                {(backendSearchError || deferredMedia.radioError) &&
                 apkResultCount === 0 &&
-                deferredMedia.radioStations.length === 0 &&
-                deferredPodcasts.results.length === 0 &&
                 !deferredMedia.radioLoading &&
                 !deferredPodcasts.loading ? (
                   <View style={styles.emptyPanel}>
                     <Ionicons name="cloud-offline-outline" size={34} color={COLORS.primaryGlow} />
                     <Text style={styles.emptyTitle}>{searchUi.temporaryErrorTitle}</Text>
                     <Text style={styles.emptyText}>{searchUi.temporaryErrorDescription}</Text>
+                    <TouchableOpacity
+                      activeOpacity={0.86}
+                      style={[styles.chip, { alignSelf: "center", marginTop: 16 }]}
+                      onPress={retrySearch}
+                    >
+                      <Text style={styles.chipText}>{searchUi.retryLabel}</Text>
+                    </TouchableOpacity>
                   </View>
                 ) : shouldShowGenuineZeroMatches({
                     backendPending: backendSearchPendingForQuery,
                     backendError: backendSearchError,
-                    resultCount:
-                      apkResultCount +
-                      deferredMedia.radioStations.length +
-                      deferredPodcasts.results.length,
+                    radioError: deferredMedia.radioError,
+                    resultCount: apkResultCount,
                     radioLoading: deferredMedia.radioLoading,
                     podcastsLoading: deferredPodcasts.loading,
                   }) ? (
