@@ -76,7 +76,16 @@ Phase A: documentation review only. No payment unit/integration/sandbox runs.
 
 ## Commits and pushes
 
-Recorded after Phase A docs commit on backend branch (see git log). Desktop/mobile not modified for payments in Phase A.
+| Field | Value |
+| --- | --- |
+| Repo | Backend (`C:\Users\Wills\Desktop\HiddenTunes`) |
+| Branch | `feature/radio-worldwide-40k` |
+| Commit | `d96a4a07a727a4a11ad407ebfc9be37cfd73144e` |
+| Message | `docs(payments): audit Hidden Tunes payment architecture` |
+| Remote | `origin` → `https://github.com/alltimehiddentunes-gif/hidden-tunes.git` |
+| Push | Success (`588b25a..d96a4a0`) |
+| Remote HEAD | `d96a4a07a727a4a11ad407ebfc9be37cfd73144e` |
+| Desktop/mobile payment commits | None in Phase A |
 
 ---
 
