@@ -9,6 +9,7 @@ import {
 } from "@/lib/tvCatalog";
 import {
   applyTvPublicCatalogFilters,
+  applyTvPublicSearchCatalogFilters,
   parseTvClientPlatform,
   type SupabaseFilterQuery,
 } from "@/lib/tvPlatformPolicy";
@@ -61,13 +62,6 @@ export async function GET(request: NextRequest) {
     const to = from + limit - 1;
     const platform = parseTvClientPlatform(request);
 
-    let query = supabaseAdmin
-      .from("tv_videos")
-      .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
-
-    // 1) Canonical public eligibility first
-    applyTvPublicCatalogFilters(query, platform);
-
     const category = cleanFilter(params.get("category"));
     const genre = cleanFilter(params.get("genre"));
     const mood = cleanFilter(params.get("mood"));
@@ -76,6 +70,18 @@ export async function GET(request: NextRequest) {
     const language = cleanFilter(params.get("language"));
     const searchQuery = normalizeTvSearchQuery(params.get("q") || "");
     const featuredOnly = params.get("featured") === "true";
+    const isTextSearch = searchQuery.length >= 2;
+
+    let query = supabaseAdmin
+      .from("tv_videos")
+      .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
+
+    // 1) Eligibility first — text search may include playable search_only discovery rows.
+    if (isTextSearch) {
+      applyTvPublicSearchCatalogFilters(query, platform);
+    } else {
+      applyTvPublicCatalogFilters(query, platform);
+    }
 
     // 2) Canonical category / facet filters BEFORE pagination
     if (featuredOnly) query = query.eq("is_featured", true);
@@ -94,7 +100,7 @@ export async function GET(request: NextRequest) {
     }
     if (language) query = query.ilike("language", language);
 
-    if (searchQuery.length >= 2) {
+    if (isTextSearch) {
       const orFilter = buildTvTextSearchOrFilter(searchQuery);
       if (orFilter) {
         query = query.or(orFilter);

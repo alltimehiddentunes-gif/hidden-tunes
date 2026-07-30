@@ -16,7 +16,7 @@ import {
 } from "@/lib/tvCatalog";
 import { TV_RELIABILITY_THRESHOLD } from "@/lib/tvStationHealth";
 import {
-  applyTvPublicCatalogFilters,
+  applyTvPublicSearchCatalogFilters,
   type SupabaseFilterQuery,
   type TvClientPlatform,
 } from "@/lib/tvPlatformPolicy";
@@ -126,7 +126,7 @@ export async function searchTvCatalogPlayable(
     .from("tv_videos")
     .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
 
-  applyTvPublicCatalogFilters(dbQuery, platform);
+  applyTvPublicSearchCatalogFilters(dbQuery, platform);
   dbQuery.or(orFilter);
 
   const { data, error, count } = await dbQuery

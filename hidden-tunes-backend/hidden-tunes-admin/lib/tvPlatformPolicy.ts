@@ -173,6 +173,24 @@ export function applyTvPublicCatalogFilters(
   query.eq("catalog_eligibility_tier", TV_CATALOG_ELIGIBILITY_VERIFIED);
 }
 
+/**
+ * Explicit text/country search: verified browse rows + playable search_only discovery.
+ * Still requires evidence playability (not quarantined/disabled/hard-failed).
+ * Does not widen browse category rails.
+ */
+export function applyTvPublicSearchCatalogFilters(
+  query: SupabaseFilterQuery,
+  platform: TvClientPlatform,
+  now = new Date(),
+  options: TvPublicCatalogFilterOptions = {}
+): void {
+  applyTvPlayablePlatformFilters(query, platform, now, options);
+  query.in("catalog_eligibility_tier", [
+    TV_CATALOG_ELIGIBILITY_VERIFIED,
+    TV_CATALOG_ELIGIBILITY_SEARCH_ONLY,
+  ]);
+}
+
 /** Search-only discovery tier — same technical playability gates, excluded from browse. */
 export function applyTvSearchDiscoveryCatalogFilters(
   query: SupabaseFilterQuery,

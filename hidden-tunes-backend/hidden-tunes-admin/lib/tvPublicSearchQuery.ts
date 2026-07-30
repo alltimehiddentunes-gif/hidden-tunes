@@ -125,10 +125,61 @@ export function resolveTvCountryFilter(raw: string): string {
 /** Known search aliases → additional title phrases (no DB mutation). */
 const TV_SEARCH_TITLE_SYNONYMS: Record<string, string[]> = {
   alone: ["Alone By History"],
+  "alone tv": ["Alone By History"],
+  "alone television": ["Alone By History"],
+  "alone channel": ["Alone By History"],
+  "storage wars": ["Storage Wars", "Pluto TV Storage Wars"],
+  "storage wars tv": ["Storage Wars", "Pluto TV Storage Wars"],
+  "storage wars television": ["Storage Wars", "Pluto TV Storage Wars"],
+  "storage wars channel": ["Storage Wars", "Pluto TV Storage Wars"],
+  "deadliest catch": ["Deadliest Catch", "Warner Bros TV Deadliest Catch"],
+  "ice road": ["Ice Road Truckers"],
+  "ice road truckers": ["Ice Road Truckers"],
+  "live pd": ["Live PD", "Live PD Presents", "A&E Live PD"],
+  "pawn stars": ["Pickers & Pawn", "Hardcore Pawn"],
+  "history channel": ["True History Channel", "Alone By History"],
 };
+
+/** Drop common channel suffixes so "Storage Wars TV" still matches catalogue titles. */
+const TV_SEARCH_FILLER_WORDS = new Set([
+  "tv",
+  "television",
+  "channel",
+  "network",
+  "live",
+  "plus",
+  "official",
+]);
 
 function quoteSearchFilterValue(value: string) {
   return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * Expand a user query into phrases that should all be OR-matched.
+ * Keeps the original phrase, drops filler suffixes, and applies brand synonyms.
+ */
+export function expandTvSearchPhrases(rawQuery: string): string[] {
+  const normalized = normalizeTvSearchQuery(rawQuery);
+  if (normalized.length < 2) return [];
+
+  const phrases = new Set<string>();
+  phrases.add(normalized);
+
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const withoutFiller = tokens
+    .filter((t) => !TV_SEARCH_FILLER_WORDS.has(t.toLowerCase()))
+    .join(" ")
+    .trim();
+  if (withoutFiller.length >= 2) phrases.add(withoutFiller);
+
+  for (const phrase of [...phrases]) {
+    for (const synonym of TV_SEARCH_TITLE_SYNONYMS[phrase.toLowerCase()] || []) {
+      phrases.add(synonym);
+    }
+  }
+
+  return [...phrases];
 }
 
 /**
@@ -152,14 +203,8 @@ function buildTvFieldMatchClauses(field: string, term: string): string[] {
 
 /** Build PostgREST `or=(...)` filter covering approved public search fields. */
 export function buildTvTextSearchOrFilter(rawQuery: string): string | null {
-  const normalized = normalizeTvSearchQuery(rawQuery);
-  if (normalized.length < 2) return null;
-
-  const tagToken = normalized
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
+  const phrases = expandTvSearchPhrases(rawQuery);
+  if (!phrases.length) return null;
 
   const fields = [
     "title",
@@ -173,23 +218,24 @@ export function buildTvTextSearchOrFilter(rawQuery: string): string | null {
   ] as const;
 
   const parts: string[] = [];
-  for (const field of fields) {
-    parts.push(...buildTvFieldMatchClauses(field, normalized));
-  }
+  for (const phrase of phrases) {
+    for (const field of fields) {
+      parts.push(...buildTvFieldMatchClauses(field, phrase));
+    }
 
-  if (tagToken) {
-    parts.push(`tags.cs.{${quoteSearchFilterValue(tagToken)}}`);
-  }
+    const tagToken = phrase
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+    if (tagToken) {
+      parts.push(`tags.cs.{${quoteSearchFilterValue(tagToken)}}`);
+    }
 
-  const countryCode = resolveTvCountryCode(normalized);
-  if (countryCode) {
-    parts.push(`region.ilike.${quoteSearchFilterValue(`%${countryCode}%`)}`);
-  }
-
-  const synonyms = TV_SEARCH_TITLE_SYNONYMS[normalized.toLowerCase()] || [];
-  for (const synonym of synonyms) {
-    parts.push(`title.ilike.${quoteSearchFilterValue(`%${synonym}%`)}`);
-    parts.push(`channel_name.ilike.${quoteSearchFilterValue(`%${synonym}%`)}`);
+    const countryCode = resolveTvCountryCode(phrase);
+    if (countryCode) {
+      parts.push(`region.ilike.${quoteSearchFilterValue(`%${countryCode}%`)}`);
+    }
   }
 
   return [...new Set(parts)].join(",");

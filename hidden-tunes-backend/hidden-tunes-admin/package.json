@@ -43,6 +43,7 @@
     "verify:tv-alone-trace": "tsx scripts/verify-tv-alone-trace.ts",
     "verify:tv-category-authority": "tsx scripts/verify-tv-category-authority.ts",
     "verify:tv-performance-budget": "tsx scripts/verify-tv-performance-budget.ts",
+    "verify:tv-watched-brand-search": "tsx scripts/verify-tv-watched-brand-search.ts",
     "tv:health:canary": "tsx scripts/run-tv-health-canary.ts",
     "test:tv-catalog": "tsx scripts/test-tv-catalog-worker.ts",
     "test:tv-public": "tsx scripts/test-tv-public-metadata.ts",
