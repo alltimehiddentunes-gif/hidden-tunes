@@ -122,37 +122,75 @@ export function resolveTvCountryFilter(raw: string): string {
   return resolveTvCountryCode(cleaned) || cleaned;
 }
 
+/** Known search aliases → additional title phrases (no DB mutation). */
+const TV_SEARCH_TITLE_SYNONYMS: Record<string, string[]> = {
+  alone: ["Alone By History"],
+};
+
+function quoteSearchFilterValue(value: string) {
+  return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * Field match clauses. Short single-token queries use boundary-ish patterns so
+ * `Alone` does not match substring hits inside words like `pantalones`.
+ */
+function buildTvFieldMatchClauses(field: string, term: string): string[] {
+  const escaped = term.replace(/[%_]/g, "\\$&");
+  const isShortToken = !/\s/.test(escaped) && escaped.length <= 6;
+  if (isShortToken) {
+    return [
+      `${field}.ilike.${quoteSearchFilterValue(`${escaped}%`)}`,
+      `${field}.ilike.${quoteSearchFilterValue(`% ${escaped}%`)}`,
+      `${field}.ilike.${quoteSearchFilterValue(`%-${escaped}%`)}`,
+      `${field}.ilike.${quoteSearchFilterValue(`%(${escaped}%`)}`,
+      `${field}.ilike.${quoteSearchFilterValue(`[${escaped}%`)}`,
+    ];
+  }
+  return [`${field}.ilike.${quoteSearchFilterValue(`%${escaped}%`)}`];
+}
+
 /** Build PostgREST `or=(...)` filter covering approved public search fields. */
 export function buildTvTextSearchOrFilter(rawQuery: string): string | null {
   const normalized = normalizeTvSearchQuery(rawQuery);
   if (normalized.length < 2) return null;
 
-  const escaped = normalized.replace(/[%_]/g, "\\$&");
   const tagToken = normalized
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 
-  const parts = [
-    `title.ilike.%${escaped}%`,
-    `channel_name.ilike.%${escaped}%`,
-    `category.ilike.%${escaped}%`,
-    `genre.ilike.%${escaped}%`,
-    `mood.ilike.%${escaped}%`,
-    `format.ilike.%${escaped}%`,
-    `language.ilike.%${escaped}%`,
-    `region.ilike.%${escaped}%`,
-  ];
+  const fields = [
+    "title",
+    "channel_name",
+    "category",
+    "genre",
+    "mood",
+    "format",
+    "language",
+    "region",
+  ] as const;
+
+  const parts: string[] = [];
+  for (const field of fields) {
+    parts.push(...buildTvFieldMatchClauses(field, normalized));
+  }
 
   if (tagToken) {
-    parts.push(`tags.cs.{${tagToken}}`);
+    parts.push(`tags.cs.{${quoteSearchFilterValue(tagToken)}}`);
   }
 
   const countryCode = resolveTvCountryCode(normalized);
   if (countryCode) {
-    parts.push(`region.ilike.%${countryCode}%`);
+    parts.push(`region.ilike.${quoteSearchFilterValue(`%${countryCode}%`)}`);
   }
 
-  return parts.join(",");
+  const synonyms = TV_SEARCH_TITLE_SYNONYMS[normalized.toLowerCase()] || [];
+  for (const synonym of synonyms) {
+    parts.push(`title.ilike.${quoteSearchFilterValue(`%${synonym}%`)}`);
+    parts.push(`channel_name.ilike.${quoteSearchFilterValue(`%${synonym}%`)}`);
+  }
+
+  return [...new Set(parts)].join(",");
 }

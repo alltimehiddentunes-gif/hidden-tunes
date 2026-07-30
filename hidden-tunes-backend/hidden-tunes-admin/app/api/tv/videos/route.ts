@@ -13,6 +13,10 @@ import {
   type SupabaseFilterQuery,
 } from "@/lib/tvPlatformPolicy";
 import {
+  buildTvCategoryMembershipOrFilter,
+  resolveTvCanonicalCategory,
+} from "@/lib/tvCanonicalCategory";
+import {
   buildTvTextSearchOrFilter,
   normalizeTvSearchQuery,
   resolveTvCountryFilter,
@@ -48,11 +52,6 @@ function cleanFilter(value: string | null) {
   return cleaned || null;
 }
 
-/** Quote PostgREST filter values safely for `.or(...)`. */
-function quoteFilterValue(value: string) {
-  return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-}
-
 export async function GET(request: NextRequest) {
   try {
     const params = request.nextUrl.searchParams;
@@ -78,12 +77,13 @@ export async function GET(request: NextRequest) {
     const searchQuery = normalizeTvSearchQuery(params.get("q") || "");
     const featuredOnly = params.get("featured") === "true";
 
-    // 2) Category / facet filters before pagination
+    // 2) Canonical category / facet filters BEFORE pagination
     if (featuredOnly) query = query.eq("is_featured", true);
     if (category) {
-      const quoted = quoteFilterValue(category);
-      const quotedContains = quoteFilterValue(`%${category}%`);
-      query = query.or(`category.ilike.${quotedContains},tags.cs.{${quoted}}`);
+      const membership = buildTvCategoryMembershipOrFilter(category);
+      if (membership) {
+        query = query.or(membership);
+      }
     }
     if (genre) query = query.ilike("genre", genre);
     if (mood) query = query.ilike("mood", mood);
@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
     const total = typeof count === "number" ? count : videos.length;
     const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
     const hasMore = page * limit < total;
+    const nextPage = hasMore ? page + 1 : null;
 
     return NextResponse.json({
       success: true,
@@ -127,7 +128,16 @@ export async function GET(request: NextRequest) {
         total,
         totalPages,
         hasMore,
+        nextPage,
       },
+      ...(category
+        ? {
+            category: {
+              requested: category,
+              canonical: resolveTvCanonicalCategory(category),
+            },
+          }
+        : {}),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown database error.";

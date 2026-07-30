@@ -90,6 +90,24 @@ async function main() {
   assert.equal(newsExhaust.hasMoreAtEnd, false);
   assert.equal(newsExhaust.unique, newsExhaust.total);
 
+  // Sports: production may still be on legacy filter until deploy.
+  // Floor: never artificially capped at 164. After canonical deploy, total jumps.
+  const sportsP1 = await pageCategory("Sports", 1, 50);
+  assert.ok(
+    sportsP1.pagination.total > 164,
+    `Sports must not be capped at 164; got ${sportsP1.pagination.total}`
+  );
+  const sportsCanonical = (sportsP1 as { category?: { canonical?: string } }).category?.canonical;
+  if (sportsCanonical === "Sports") {
+    assert.ok(
+      sportsP1.pagination.total >= 500,
+      `canonical Sports total expected >= 500, got ${sportsP1.pagination.total}`
+    );
+  }
+
+  const sportAlias = await pageCategory("Sport", 1, 20);
+  assert.ok(sportAlias.pagination.total > 0, "Sport alias must return rows");
+
   const alHyphen = await pageSearch("Al-Jazeera", 1, 20);
   const alSpace = await pageSearch("Al Jazeera", 1, 20);
   assert.ok(alHyphen.pagination.total > 0, "Al-Jazeera should match");
@@ -111,6 +129,9 @@ async function main() {
         ok: true,
         baseUrl,
         news: newsExhaust,
+        sportsTotal: sportsP1.pagination.total,
+        sportsCanonical: sportsCanonical || null,
+        sportAliasTotal: sportAlias.pagination.total,
         alJazeeraTotal: alHyphen.pagination.total,
         zaTotal: za.pagination.total,
         southAfricaCountryTotal: country.body.pagination.total,
@@ -123,6 +144,7 @@ async function main() {
           "unique_equals_total",
           "hyphen_normalization",
           "country_name_filter",
+          "sports_not_capped_164",
         ],
       },
       null,
