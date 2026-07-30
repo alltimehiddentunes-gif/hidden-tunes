@@ -75,5 +75,5 @@ Phone tap-to-play / heat / data-usage: requires device session after Metro reloa
 
 ## Commits (staged exact files only)
 
-1. **Backend** — `infra(api): route owned API domain through Cloudflare VPS`
-2. **Mobile** — `fix(search): migrate songs API to owned domain`
+1. **Backend** `eddf3cc` on `feature/radio-worldwide-40k` — `infra(api): route owned API domain through Cloudflare VPS` (pushed)
+2. **Mobile** `5a41227` on `fix/library-content-type-safe` — `fix(search): migrate songs API to owned domain` (pushed)
