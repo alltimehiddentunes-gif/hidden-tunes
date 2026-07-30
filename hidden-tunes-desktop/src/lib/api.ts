@@ -5,7 +5,7 @@ import {
 
 export type { AudioVersionSource, SongAudioVersions } from './audioVersions'
 
-export const API_BASE_URL = 'https://hidden-tunes-api.onrender.com'
+export const API_BASE_URL = 'https://api.hiddentunes.com'
 
 const REQUEST_TIMEOUT_MS = 20_000
 
