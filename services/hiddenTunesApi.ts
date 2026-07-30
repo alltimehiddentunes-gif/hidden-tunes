@@ -25,9 +25,9 @@ import {
   searchAttemptTimeoutMs,
 } from "../utils/searchColdStartPolicy";
 
-const HIDDEN_TUNES_API_BASE_URL = "https://hidden-tunes-api.onrender.com";
+const HIDDEN_TUNES_API_BASE_URL = "https://api.hiddentunes.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
-  "https://hidden-tunes-api.onrender.com";
+  "https://api.hiddentunes.com";
 
 const CACHE_KEY_V4 = "hidden_tunes_cloud_songs_cache_v4";
 const CACHE_TIME_KEY_V4 = "hidden_tunes_cloud_songs_cache_time_v4";
