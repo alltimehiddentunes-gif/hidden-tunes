@@ -34,6 +34,10 @@ import {
   publishTvPresentedNowPlaying,
   updateTvPresentedPlaybackState,
 } from "../services/tv/tvPresentedNowPlaying";
+import {
+  isIosAudioInterruptionActive,
+  subscribeIosAudioInterruption,
+} from "../services/playback/iosAudioInterruptionGate";
 import { syncRemoteMediaSessionOrdered } from "../utils/remoteMediaSessionLayer";
 
 
@@ -406,14 +410,25 @@ function RemoteMediaControlsBridge() {
   // Keep HiddenAudio presented playback rate in sync while TV owns (iOS/CarPlay).
   useEffect(() => {
     if (!isTvRemoteOwner()) return;
+    if (isIosAudioInterruptionActive()) return;
     void syncTvPresentedNative(false);
   }, [isTvPlaying, currentTvChannel?.id, tvQueue.length]);
 
   // Re-assert TV Now Playing when locking / backgrounding so Lock Screen and
   // vehicle controls keep the presented session (no second owner).
+  // Suppressed during phone-call interruption — never fight the call session.
   useEffect(() => {
     const onChange = (next: AppStateStatus) => {
       if (!isTvRemoteOwner()) return;
+      if (isIosAudioInterruptionActive()) {
+        logTvMediaSessionDiag("app_entered_background", {
+          isTvPlaying: isTvPlayingRef.current,
+          channelId: currentTvChannelRef.current?.id,
+          skipped: true,
+          reason: "call_interruption_active",
+        });
+        return;
+      }
       if (next === "background" || next === "inactive") {
         logTvMediaSessionDiag("app_entered_background", {
           isTvPlaying: isTvPlayingRef.current,
@@ -432,6 +447,21 @@ function RemoteMediaControlsBridge() {
     };
     const sub = AppState.addEventListener("change", onChange);
     return () => sub.remove();
+  }, []);
+
+  // After call interruption clears, republish TV metadata once if TV still owns.
+  useEffect(() => {
+    let lastActive = isIosAudioInterruptionActive();
+    return subscribeIosAudioInterruption((active) => {
+      if (lastActive && !active && isTvRemoteOwner()) {
+        logTvMediaSessionDiag("app_returned_foreground", {
+          reason: "call_interruption_cleared",
+          channelId: currentTvChannelRef.current?.id,
+        });
+        void syncTvPresentedNative(true);
+      }
+      lastActive = active;
+    });
   }, []);
 
   return (

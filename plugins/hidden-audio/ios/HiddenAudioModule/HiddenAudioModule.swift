@@ -35,6 +35,10 @@ class HiddenAudioModule: RCTEventEmitter {
   private var lifecycleObserversRegistered = false
   private var currentItemEndedHandled = false
   private var wasPlayingBeforeInterruption = false
+  private var audioInterruptionActive = false
+  private var audioInterruptionSequenceId: Int64 = 0
+  private var interruptionResumeEligible = false
+  private var interruptionEndedHandledSequenceId: Int64 = 0
   private var backgroundEnteredAt: TimeInterval = 0
   private var isAppInBackground = false
   private var jsQueueLength = 0
@@ -55,6 +59,7 @@ class HiddenAudioModule: RCTEventEmitter {
   deinit {
     emitDiagnostic("hidden_audio_module_deinit")
     cleanupPlayerObservers()
+    unregisterRemoteCommands()
     NotificationCenter.default.removeObserver(self)
   }
 
@@ -510,6 +515,15 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func activateAudioSession() throws {
+    // Phone call / system interruption owns the session — never fight it.
+    if audioInterruptionActive {
+      emitDiagnostic("ios_call_interruption_session_activate_blocked", [
+        "sequenceId": audioInterruptionSequenceId,
+        "phase": "activateAudioSession"
+      ])
+      return
+    }
+
     let session = AVAudioSession.sharedInstance()
     let needsCategory =
       session.category != .playback || session.mode != .default
@@ -978,6 +992,19 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     emitDiagnostic("hidden_audio_remote_commands_registered")
+  }
+
+  private func unregisterRemoteCommands() {
+    guard remoteCommandsRegistered else { return }
+    let commandCenter = MPRemoteCommandCenter.shared()
+    commandCenter.playCommand.removeTarget(nil)
+    commandCenter.pauseCommand.removeTarget(nil)
+    commandCenter.togglePlayPauseCommand.removeTarget(nil)
+    commandCenter.nextTrackCommand.removeTarget(nil)
+    commandCenter.previousTrackCommand.removeTarget(nil)
+    commandCenter.changePlaybackPositionCommand.removeTarget(nil)
+    remoteCommandsRegistered = false
+    emitDiagnostic("hidden_audio_remote_commands_unregistered")
   }
 
   private func updateRemoteCommandAvailability() {
@@ -1533,6 +1560,13 @@ class HiddenAudioModule: RCTEventEmitter {
 
 
   private func reassertBackgroundPlaybackIfNeeded(reason: String) {
+    if audioInterruptionActive {
+      emitDiagnostic("ios_call_interruption_reassert_blocked", [
+        "sequenceId": audioInterruptionSequenceId,
+        "reason": reason
+      ])
+      return
+    }
     guard let currentPlayer = player else { return }
     if hasRecentIntentionalPause() {
       emitDiagnostic("background_recovery_skipped_intentional_pause", [
@@ -1667,7 +1701,9 @@ class HiddenAudioModule: RCTEventEmitter {
     backgroundEnteredAt = Date().timeIntervalSince1970
     emitDiagnostic("hidden_audio_app_entered_background", [
       "status": playerStatus,
-      "activeIndex": activeIndex
+      "activeIndex": activeIndex,
+      "interruptionActive": audioInterruptionActive,
+      "interruptionSequenceId": audioInterruptionSequenceId
     ])
     emitDiagnostic("ios_app_inactive_native_status", [
       "status": playerStatus,
@@ -1684,6 +1720,18 @@ class HiddenAudioModule: RCTEventEmitter {
       "rate": player?.rate ?? 0,
       "timeControlStatus": player?.timeControlStatus.rawValue ?? -1
     ])
+
+    // Phone call / system interruption owns AVAudioSession — do not fight it.
+    if audioInterruptionActive {
+      emitDiagnostic("ios_call_interruption_background_reassert_skipped", [
+        "sequenceId": audioInterruptionSequenceId
+      ])
+      emitDiagnostic("hidden_audio_remote_commands_background_confirmed", [
+        "registered": remoteCommandsRegistered,
+        "interruptionActive": true
+      ])
+      return
+    }
 
     do {
       try activateAudioSession()
@@ -1712,46 +1760,76 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     if type == .began {
+      if audioInterruptionActive {
+        emitDiagnostic("ios_call_interruption_began_duplicate_ignored", [
+          "sequenceId": audioInterruptionSequenceId
+        ])
+        return
+      }
+
+      audioInterruptionSequenceId += 1
+      audioInterruptionActive = true
+      interruptionResumeEligible = false
       wasPlayingBeforeInterruption =
         playerStatus == "playing" ||
         playerStatus == "buffering" ||
         (player?.rate ?? 0) > 0
-      emitDiagnostic("hidden_audio_audio_interruption_began", [
+
+      // Pause once only — do not mark intentional pause (would block legitimate resume).
+      if wasPlayingBeforeInterruption {
+        player?.pause()
+        if playerStatus == "playing" || playerStatus == "buffering" {
+          playerStatus = "paused"
+        }
+        stopProgressObserver()
+        updateNowPlayingInfo()
+        emitState()
+      }
+
+      // Single canonical event — JS owns resume policy after ended.
+      emitDiagnostic("ios_call_interruption_began", [
+        "sequenceId": audioInterruptionSequenceId,
+        "wasPlaying": wasPlayingBeforeInterruption,
         "rate": player?.rate ?? 0,
-        "wasPlaying": wasPlayingBeforeInterruption
+        "status": playerStatus
       ])
-      emitDiagnostic("ios_audio_session_interruption_began", [
-        "rate": player?.rate ?? 0,
-        "wasPlaying": wasPlayingBeforeInterruption
+      return
+    }
+
+    // .ended
+    if !audioInterruptionActive {
+      emitDiagnostic("ios_call_interruption_ended_ignored", [
+        "reason": "no_active_interruption",
+        "sequenceId": audioInterruptionSequenceId
+      ])
+      return
+    }
+
+    if interruptionEndedHandledSequenceId == audioInterruptionSequenceId {
+      emitDiagnostic("ios_call_interruption_ended_duplicate_ignored", [
+        "sequenceId": audioInterruptionSequenceId
       ])
       return
     }
 
     let optionsValue = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
     let shouldResumeOption = AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume)
-    emitDiagnostic("hidden_audio_audio_interruption_ended", [
-      "shouldResumeOption": shouldResumeOption,
-      "wasPlaying": wasPlayingBeforeInterruption
-    ])
-    emitDiagnostic("ios_audio_session_interruption_ended", [
-      "shouldResumeOption": shouldResumeOption,
-      "wasPlaying": wasPlayingBeforeInterruption
-    ])
-    emitDiagnostic("ios_audio_session_should_resume", [
-      "shouldResumeOption": shouldResumeOption
-    ])
+    interruptionResumeEligible =
+      shouldResumeOption && wasPlayingBeforeInterruption && !hasRecentIntentionalPause()
+    interruptionEndedHandledSequenceId = audioInterruptionSequenceId
+    let endedSequenceId = audioInterruptionSequenceId
+    let wasPlaying = wasPlayingBeforeInterruption
 
-    do {
-      try activateAudioSession()
-      if shouldResumeOption && wasPlayingBeforeInterruption && !hasRecentIntentionalPause() {
-        player?.play()
-        shouldResumeAfterItemLoad = true
-        startProgressObserver()
-        confirmPlayingIfNeeded()
-      }
-    } catch {
-      emitNativeError(error.localizedDescription)
-    }
+    // Clear native gate so authorized JS resume can activate the session.
+    // Do NOT play() here — PlayerContext applies latest-tap / owner policy.
+    audioInterruptionActive = false
+
+    emitDiagnostic("ios_call_interruption_ended", [
+      "sequenceId": endedSequenceId,
+      "shouldResume": shouldResumeOption,
+      "wasPlayingBeforeInterruption": wasPlaying,
+      "resumeEligibleHint": interruptionResumeEligible
+    ])
   }
 
   @objc private func audioRouteChanged(_ notification: Notification) {

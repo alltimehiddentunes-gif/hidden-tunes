@@ -623,10 +623,6 @@ export default function ArtistScreen() {
         .catch((error) => {
           if (__DEV__) console.log("Artist play error:", error);
         });
-
-      requestAnimationFrame(() => {
-        router.push("/player" as any);
-      });
     },
     [playSong, tracks]
   );
@@ -643,10 +639,6 @@ export default function ArtistScreen() {
       .catch((error) => {
         if (__DEV__) console.log("Artist play-all error:", error);
       });
-
-    requestAnimationFrame(() => {
-      router.push("/player" as any);
-    });
   }
 
   function playShuffle() {
@@ -662,10 +654,6 @@ export default function ArtistScreen() {
       .catch((error) => {
         if (__DEV__) console.log("Artist shuffle error:", error);
       });
-
-    requestAnimationFrame(() => {
-      router.push("/player" as any);
-    });
   }
 
   function openAlbum(album: HiddenTunesAlbum) {

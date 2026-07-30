@@ -10,7 +10,7 @@ import {
 
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
 
 import HTImage from "../components/HTImage";
@@ -305,7 +305,6 @@ export default function AlbumScreen() {
       genre: song.genre,
       mood: song.mood,
     });
-    router.push("/player" as any);
   }
 
   return (

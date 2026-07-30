@@ -61,6 +61,15 @@ import {
   releasePlaybackOwner,
 } from "../services/playback/PlaybackHandoffCoordinator";
 import { inferSharedAudioContentKind } from "../services/playback/inferSharedAudioContentKind";
+import {
+  beginIosAudioInterruption,
+  clearIosAudioInterruption,
+  endIosAudioInterruption,
+  isIosAudioInterruptionActive,
+  markIosInterruptionMediaReplaced,
+  markIosInterruptionUserPaused,
+  noteIosInterruptionAppState,
+} from "../services/playback/iosAudioInterruptionGate";
 import { clearRemoteMediaPresentedState } from "../services/remoteMediaControls";
 import { dispatchTvRemoteTransportCommand } from "../services/tv/tvRemoteTransport";
 import { loadRadioCategoryPage, loadRadioSearchPage } from "../services/radio/radioBrowserApi";
@@ -1158,6 +1167,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const markIntentionalPause = useCallback((reason: string) => {
     intentionalPauseRef.current = { at: Date.now(), reason };
     playbackInterruptionActiveRef.current = true;
+    if (isIosAudioInterruptionActive()) {
+      markIosInterruptionUserPaused();
+    }
     logLockscreenPlaybackDiagnostic("intentional_pause_marked", {
       reason,
       cooldownMs: 8000,
@@ -1170,7 +1182,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const previous = intentionalPauseRef.current;
     if (!previous.at) return;
     intentionalPauseRef.current = { at: 0, reason: "" };
-    playbackInterruptionActiveRef.current = false;
+    // Do not clear system call-interruption gate when user clears intentional pause.
+    if (!isIosAudioInterruptionActive()) {
+      playbackInterruptionActiveRef.current = false;
+    }
     logLockscreenPlaybackDiagnostic(
       reason === "new_track"
         ? "intentional_pause_cleared_by_new_track"
@@ -6869,6 +6884,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const tapRequestId = latestPlaySongTapIdRef.current + 1;
       latestPlaySongTapIdRef.current = tapRequestId;
       loadRequestIdRef.current += 1;
+      if (isIosAudioInterruptionActive()) {
+        markIosInterruptionMediaReplaced();
+      }
 
       const normalizedSong = normalizeSong(song);
       const requestedQueueIndex =
@@ -8778,6 +8796,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             return "ios_audio_session_interruption_began";
           case "hidden_audio_audio_interruption_ended":
             return "ios_audio_session_interruption_ended";
+          case "ios_call_interruption_began":
+            return "ios_call_interruption_began";
+          case "ios_call_interruption_ended":
+            return "ios_call_interruption_ended";
           case "hidden_audio_route_changed":
             return "ios_audio_session_route_changed";
           case "hidden_audio_silence_secondary_audio_hint":
@@ -8811,6 +8833,87 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         markIntentionalPause("remote_pause");
       } else if (eventName === "remote_play_received") {
         clearIntentionalPause("play");
+      } else if (nativeEventName === "ios_call_interruption_began") {
+        const sequenceId = Number((data as Record<string, unknown>).sequenceId || 0);
+        const wasPlaying = Boolean((data as Record<string, unknown>).wasPlaying);
+        const began = beginIosAudioInterruption({
+          sequenceId,
+          wasPlaying,
+          owner: getActivePlaybackOwner(),
+          loadRequestId: loadRequestIdRef.current,
+          tapId: latestPlaySongTapIdRef.current,
+        });
+        playbackInterruptionActiveRef.current = true;
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[HTIosCallInterruption]", "began", {
+            ...began,
+            wasPlaying,
+            owner: getActivePlaybackOwner(),
+            loadRequestId: loadRequestIdRef.current,
+            tapId: latestPlaySongTapIdRef.current,
+            ts: Date.now(),
+          });
+        }
+        logAndRememberLockscreenDiagnostic("ios_call_interruption_began", {
+          sequenceId,
+          wasPlaying,
+          accepted: began.accepted,
+          reason: began.reason,
+          owner: getActivePlaybackOwner(),
+        }, { lastAudioFocusOrInterruption: "ios_call_interruption_began" });
+        return;
+      } else if (nativeEventName === "ios_call_interruption_ended") {
+        const sequenceId = Number((data as Record<string, unknown>).sequenceId || 0);
+        const shouldResume = Boolean((data as Record<string, unknown>).shouldResume);
+        const decision = endIosAudioInterruption({
+          sequenceId,
+          shouldResume,
+          wasPlaying: Boolean((data as Record<string, unknown>).wasPlayingBeforeInterruption),
+          currentOwner: getActivePlaybackOwner(),
+          currentLoadRequestId: loadRequestIdRef.current,
+          currentTapId: latestPlaySongTapIdRef.current,
+        });
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[HTIosCallInterruption]", "ended", {
+            sequenceId,
+            shouldResume,
+            decision,
+            ts: Date.now(),
+          });
+        }
+        logAndRememberLockscreenDiagnostic("ios_call_interruption_ended", {
+          sequenceId,
+          shouldResume,
+          resumeDecision: decision.reason,
+          willResume: decision.shouldResume,
+        }, { lastAudioFocusOrInterruption: "ios_call_interruption_ended" });
+
+        if (decision.shouldResume) {
+          void (async () => {
+            try {
+              if (!isPlaybackOwnerActive("shared-audio")) {
+                clearIosAudioInterruption("owner_not_shared_audio_at_resume");
+                playbackInterruptionActiveRef.current = false;
+                return;
+              }
+              await bridgeHiddenAudioPlay();
+              playbackInterruptionActiveRef.current = false;
+              logAndRememberLockscreenDiagnostic("ios_call_interruption_resume_completed", {
+                sequenceId: decision.sequenceId,
+              });
+            } catch (error) {
+              playbackInterruptionActiveRef.current = false;
+              clearIosAudioInterruption("resume_failed");
+              logAndRememberLockscreenDiagnostic("ios_call_interruption_resume_failed", {
+                sequenceId: decision.sequenceId,
+                message: String((error as Error)?.message || error),
+              });
+            }
+          })();
+        } else {
+          playbackInterruptionActiveRef.current = false;
+        }
+        return;
       } else if (
         nativeEventName === "android_audio_focus_pause_for_interruption" ||
         nativeEventName === "intentional_app_close_detected" ||
@@ -9096,6 +9199,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       appStateRef.current = nextState;
 
       recordAppStateTransition(previousState, nextState);
+      noteIosInterruptionAppState(nextState);
 
       logAndRememberLockscreenDiagnostic(
         "app_state_changed",
@@ -9103,11 +9207,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         { lastBridgeEvent: `app_state_changed:${nextState}` }
       );
 
+      const interruptionActive =
+        playbackInterruptionActiveRef.current || isIosAudioInterruptionActive();
+
       if (nextState === "background" && previousState !== "background") {
         logLockscreenPlaybackDiagnostic("app_background_entered", {
           previousState,
           songId: currentSongRef.current?.id || null,
           isPlaying: isPlayingRef.current,
+          interruptionActive,
         });
         if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
           void notifyHiddenAudioAppBackgrounded();
@@ -9119,6 +9227,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           previousState,
           songId: currentSongRef.current?.id || null,
           isPlaying: isPlayingRef.current,
+          interruptionActive,
         });
       }
 
@@ -9126,6 +9235,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         songId: currentSongRef.current?.id,
         isPlaying: isPlayingRef.current,
       });
+
+      // Phone call: active -> inactive (+ sometimes background). Do not treat as
+      // lock-screen recovery — fighting the call's AVAudioSession freezes the UI.
+      if (interruptionActive) {
+        if (
+          (nextState === "inactive" && previousState === "active") ||
+          (nextState === "background" && previousState !== "background")
+        ) {
+          void savePlaybackPosition(positionMillisRef.current);
+          logLockscreenPlaybackDiagnostic("app_state_recovery_skipped_call_interruption", {
+            previousState,
+            nextState,
+            songId: currentSongRef.current?.id || null,
+          });
+        }
+        // Never resume solely because AppState became active during/after a call;
+        // resume is owned by ios_call_interruption_ended policy.
+        return;
+      }
 
       // iOS lock often goes active -> inactive -> background. Re-applying audio mode on
       // inactive disrupts the shared AVAudioSession and can stop native playback mid-song.

@@ -1292,7 +1292,7 @@ export default function SearchScreen() {
         query: cleanSubmittedSearchQuery,
       });
 
-      router.push("/player" as any);
+      // playSong → primePlaybackTapUi owns the single /player open (avoid double navigation).
       logPlaybackCritical("tap_to_player_opened", {
         songId: queueSong.id,
         source: "search_result",
@@ -1342,7 +1342,6 @@ export default function SearchScreen() {
         genre: song.genre,
         mood: song.mood,
       });
-      router.push("/player" as any);
     },
     [discoverySongs, playSong]
   );
@@ -1385,7 +1384,6 @@ export default function SearchScreen() {
           genre: tracks[0].genre || station.title,
           mood: tracks[0].mood,
         });
-        router.push("/player" as any);
         return;
       }
 
@@ -1554,7 +1552,6 @@ export default function SearchScreen() {
         albumTitle: album.title,
         artistName: album.artist,
       });
-      router.push("/player" as any);
     },
     [
       albums,
@@ -1612,7 +1609,6 @@ export default function SearchScreen() {
         artistId: String(artist.id || catalogArtist?.id || ""),
         artistName: artist.name,
       });
-      router.push("/player" as any);
     },
     [
       artists,
@@ -1675,7 +1671,6 @@ export default function SearchScreen() {
         genre: isMoodRoom ? queue[0]?.genre : genre.title,
         mood: isMoodRoom ? genre.title : queue[0]?.mood,
       });
-      router.push("/player" as any);
     },
     [
       cleanSubmittedSearchQuery,
@@ -1710,7 +1705,6 @@ export default function SearchScreen() {
         label: playlist.title,
         railId: String(playlist.id || catalogPlaylist.id || ""),
       });
-      router.push("/player" as any);
     },
     [
       cleanSubmittedSearchQuery,

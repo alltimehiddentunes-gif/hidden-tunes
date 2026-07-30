@@ -373,7 +373,6 @@ export default function QueueScreen() {
         if (__DEV__) console.log("Queue play error:", error);
       }
     );
-    router.push("/player" as any);
   }
 
   function renderQueueRow(row: QueueRow, displayIndex: number) {

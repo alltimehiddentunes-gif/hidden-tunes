@@ -248,7 +248,6 @@ export default function GenreScreen() {
       genre: String(params.type || "genre") === "mood" ? song.genre : title,
       mood: String(params.type || "genre") === "mood" ? title : song.mood,
     });
-    router.push("/player" as any);
   }
 
   function startRadioSession() {
@@ -260,7 +259,6 @@ export default function GenreScreen() {
       genre: String(params.type || "genre") === "mood" ? first.genre : title,
       mood: String(params.type || "genre") === "mood" ? title : first.mood,
     });
-    router.push("/player" as any);
   }
 
   function openArtist(name: string) {
