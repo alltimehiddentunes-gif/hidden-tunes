@@ -74,9 +74,14 @@ async function main() {
   const playRoute = read("app/api/tv/videos/[id]/play/route.ts");
   const policy = read("lib/tvPlatformPolicy.ts");
 
-  assert.ok(videosRoute.includes("applyTvPublicCatalogFilters"));
+  assert.ok(
+    videosRoute.includes("applyTvPublicCatalogFilters") ||
+      videosRoute.includes("applyTvPublicSearchCatalogFilters")
+  );
+  assert.ok(videosRoute.includes("applyTvPublicSearchCatalogFilters"));
   assert.ok(searchRoute.includes("applyTvPublicCatalogFilters") || searchRoute.includes("tvSearch"));
   assert.ok(playRoute.includes("isTvStationEligibleForPlatform"));
+  assert.ok(policy.includes("applyTvPublicSearchCatalogFilters"));
   assert.ok(policy.includes("tvPublicEligibilityPolicy") || policy.includes("last_health_checked_at"));
   assert.ok(!policy.includes('.gte("last_health_checked_at", cutoff)'));
   assert.ok(!policy.includes(".gte(\"last_health_checked_at\", cutoff)"));
@@ -93,6 +98,7 @@ async function main() {
           "hyphen_normalization",
           "country_alias_ZA",
           "shared_catalog_filter",
+          "search_includes_search_only_tier",
           "play_uses_platform_eligibility",
           "no_seven_day_gte_in_public_filter",
         ],
