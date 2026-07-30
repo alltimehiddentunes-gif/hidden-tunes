@@ -20,10 +20,14 @@ import {
   type SupabaseFilterQuery,
   type TvClientPlatform,
 } from "@/lib/tvPlatformPolicy";
+import {
+  buildTvTextSearchOrFilter,
+  normalizeTvSearchQuery,
+} from "@/lib/tvPublicSearchQuery";
 
 const YOUTUBE_SEARCH_API = "https://www.googleapis.com/youtube/v3/search";
-const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 50;
+const DEFAULT_LIMIT = 40;
+const MAX_LIMIT = 100;
 
 export type TvSearchResult = {
   videos: TvPublicVideo[];
@@ -109,19 +113,25 @@ export async function searchTvCatalogPlayable(
   limit: number,
   platform: import("@/lib/tvPlatformPolicy").TvClientPlatform = "cross"
 ) {
-  const escaped = query.replace(/[%_]/g, "\\$&");
+  const normalized = normalizeTvSearchQuery(query);
+  const orFilter = buildTvTextSearchOrFilter(normalized);
   const from = (page - 1) * limit;
   const to = from + limit - 1;
+
+  if (!orFilter) {
+    return { videos: [] as ReturnType<typeof toTvPublicStation>[], total: 0 };
+  }
 
   let dbQuery = supabaseAdmin
     .from("tv_videos")
     .select(TV_PUBLIC_VIDEO_SELECT, { count: "exact" }) as unknown as SupabaseFilterQuery;
 
   applyTvPublicCatalogFilters(dbQuery, platform);
-  dbQuery.or(`title.ilike.%${escaped}%,channel_name.ilike.%${escaped}%`);
+  dbQuery.or(orFilter);
 
   const { data, error, count } = await dbQuery
-    .order("created_at", { ascending: false })
+    .order("title", { ascending: true, nullsFirst: false })
+    .order("id", { ascending: true })
     .range(from, to);
 
   if (error) {
@@ -134,7 +144,7 @@ export async function searchTvCatalogPlayable(
 
   return {
     videos,
-    total: count || videos.length,
+    total: typeof count === "number" ? count : videos.length,
   };
 }
 
@@ -252,7 +262,6 @@ export async function runTvLiveSearch(options: {
   const catalog = await searchTvCatalogPlayable(query, page, limit, platform);
   const videos = dedupeBySourceId(catalog.videos);
   const catalogTotal = catalog.total;
-  const hasMore = page * limit < catalogTotal;
 
   return {
     videos,
@@ -260,7 +269,7 @@ export async function runTvLiveSearch(options: {
     liveCount: 0,
     liveSearchEnabled: false,
     nextPageToken: null,
-    total: hasMore ? videos.length + 1 : videos.length,
+    total: catalogTotal,
     error: null,
   };
 }

@@ -1,0 +1,843 @@
+{
+  "mode": "execute",
+  "selected": 36,
+  "successful": 33,
+  "softFailed": 3,
+  "hardFailed": 0,
+  "remainedVisible": 36,
+  "becameDegraded": 3,
+  "becameTemporarilyUnavailable": 0,
+  "quarantined": 0,
+  "restored": 0,
+  "unexpectedMutations": 0,
+  "rows": [
+    {
+      "id": "e77e6551-e638-40c6-90d0-923e5fb873d9",
+      "title": "Canal 13",
+      "region": "CL",
+      "host": "pantera1-100gb-cl-movistar.dps.live",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "4f8f04e4-818e-4b32-a720-be594b330753",
+      "title": "Canal 70",
+      "region": "DO",
+      "host": "183.bozztv.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "1fa45284-9358-410a-967c-a743c7960061",
+      "title": "like Gecko) Chrome/124.0.0.0 Safari/537.36\" group-title=\"Entertainment\",Gametoon",
+      "region": null,
+      "host": "webtvstream.bhtelecom.ba",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "64cd9db2-2a15-429b-a232-37a1262c4f91",
+      "title": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Sports\",FightBox",
+      "region": null,
+      "host": "webtvstream.bhtelecom.ba",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "8cfd5102-5dd7-4221-b17e-4e70d477c0c6",
+      "title": "like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Relax\",FunBox UHD",
+      "region": null,
+      "host": "webtvstream.bhtelecom.ba",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "c1a2023f-06e9-45a8-8476-3ab3f1657aaf",
+      "title": "Canal Mas TV",
+      "region": "PE",
+      "host": "live-evg11.tv360.bitel.com.pe",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "b60f2cc4-a186-4cda-926c-af9e2c533f5e",
+      "title": "Canal Rural",
+      "region": "BR",
+      "host": "cdn2.easy.tv.br",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "f2a891f9-e9b5-443d-80c2-a2430548210d",
+      "title": "Canal Saude",
+      "region": "BR",
+      "host": "eitv7.cdn.broadpeak.io",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "e277e731-aca0-47e1-a4f3-549499b24ec3",
+      "title": "Canal TV Radio Maya TGBA",
+      "region": "GT",
+      "host": "s.emisoras.tv",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "c7f8289b-19d8-41bc-bfe1-ac9121ff7c54",
+      "title": "Canela TV",
+      "region": "US",
+      "host": "d3cx6yargdnl7q.cloudfront.net",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "3c81ec8d-e133-4b10-9a91-a376a3149f05",
+      "title": "Caribbean Hot 7 TV",
+      "region": "LC",
+      "host": "vids1.intacs.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "94867fc1-7123-4ff3-96b6-babd91d34217",
+      "title": "CBC News Network",
+      "region": "CA",
+      "host": "d2ny9lo79ujali.cloudfront.net",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "8ff6387a-0ab5-4a47-83cc-702d6d5c1933",
+      "title": "CBS Sports HQ",
+      "region": "US",
+      "host": "jmp2.uk",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "488183da-b263-494a-b5ef-cbaaced6199b",
+      "title": "CEACOM TV",
+      "region": "BO",
+      "host": "eu1.servers10.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "137ef726-3235-481f-b3ed-3178f55f5064",
+      "title": "Central TV",
+      "region": "MN",
+      "host": "cdn1.skygo.mn",
+      "source_type": "hls_stream",
+      "probePlayable": false,
+      "kind": "soft",
+      "reason": "fetch failed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 1,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "fetch failed"
+      }
+    },
+    {
+      "id": "1eaf3ef3-b445-4fa9-b6fd-31bce1a638ee",
+      "title": "CGTN Spanish",
+      "region": "CN",
+      "host": "espanol-livews.cgtn.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "dfd6cfe0-ede9-43f4-bfbe-034a2e8bba87",
+      "title": "Channel 7",
+      "region": "TH",
+      "host": "live-us1.thaimomo.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "eb416aed-0953-40d0-af17-a4f714b87b73",
+      "title": "Channel 11",
+      "region": "MN",
+      "host": "cdn4.skygo.mn",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "c76c01a1-d147-446a-bff4-80bce733bb8e",
+      "title": "Channel WIN",
+      "region": "IN",
+      "host": "cdn-4.pishow.tv",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "b6c725ee-01e6-4173-b53c-d760973eaeb6",
+      "title": "Cinema",
+      "region": "MN",
+      "host": "cdn1.skygo.mn",
+      "source_type": "hls_stream",
+      "probePlayable": false,
+      "kind": "soft",
+      "reason": "fetch failed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 1,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "fetch failed"
+      }
+    },
+    {
+      "id": "cdbbb77e-a2a8-47cb-8d07-d52081eeeede",
+      "title": "La 2",
+      "region": null,
+      "host": "rtvelivestream.rtve.es",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "6e5382d8-3d0c-42f3-91ec-93f8b42fa470",
+      "title": "Cinema",
+      "region": "RU",
+      "host": "stream8.cinerama.uz",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "65108e15-a538-4955-8dae-6061ebe2787d",
+      "title": "Cine Romantico",
+      "region": "US",
+      "host": "d1si3n1st4nkgb.cloudfront.net",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "c99b3b46-eb67-453e-924d-d2955aa7f7d1",
+      "title": "Clubbing TV",
+      "region": "US",
+      "host": "a-cdn.klowdtv.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "b2454c75-f1ab-44ce-9624-ff44d9950b6f",
+      "title": "Colome TV",
+      "region": "DO",
+      "host": "ss2.tvrdomi.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "5fc3b43c-a20f-46a7-a30e-eb9e1bc9ff41",
+      "title": "Comedy Dynamics",
+      "region": "US",
+      "host": "d3a5mry3t5fzw9.cloudfront.net",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "58ec9220-3338-4c95-9f68-ce7f4d72f831",
+      "title": "Comercio TV",
+      "region": "US",
+      "host": "stream-us-east-1.getpublica.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "a74636e2-599c-4472-aa3e-8cf82ece6736",
+      "title": "Conecta Mais TV",
+      "region": "BR",
+      "host": "adylnet.streampool.net",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "830f2eef-6a0e-4755-8273-a1abb39857e3",
+      "title": "Crimea 24",
+      "region": "RU",
+      "host": "streaming.televizor-24-tochka.ru",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "d7861419-12c4-4bf8-9da1-07cd817d5330",
+      "title": "Dangal 2",
+      "region": "IN",
+      "host": "live-dangal2.akamaized.net",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "65e8fb9c-7e39-477d-b3cc-41db8116f593",
+      "title": "Canal 17 RTVD",
+      "region": "DO",
+      "host": "protvradiostream.com",
+      "source_type": "hls_stream",
+      "probePlayable": false,
+      "kind": "soft",
+      "reason": "fetch failed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 1,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "fetch failed"
+      }
+    },
+    {
+      "id": "5a614285-e985-44ef-a1c0-bf1f4b0b8cc9",
+      "title": "上虞1新闻综合 (720p) [Not 24/7]",
+      "region": null,
+      "host": "l.cztvcloud.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "f5f2be4d-9293-4a23-af4c-98a9017bc320",
+      "title": "Deadly Women",
+      "region": null,
+      "host": "i.mjh.nz",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "8fc2b0a9-a57d-4212-8984-7d745f96801e",
+      "title": "AMGA TV",
+      "region": "US",
+      "host": "streamer1.connectto.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "6bf712c3-2ffa-4c2b-84f8-940b4d2bbb2c",
+      "title": "Balabol",
+      "region": "RU",
+      "host": "cdn-dvr.ntv.ru",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    },
+    {
+      "id": "e910e149-6730-44c1-9d11-89f6e04450e7",
+      "title": "Shabab FM",
+      "region": "PS",
+      "host": "streaming.zaytonatube.com",
+      "source_type": "hls_stream",
+      "probePlayable": true,
+      "kind": "success",
+      "reason": "probe_passed",
+      "before": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true
+      },
+      "after": {
+        "playback_status": "playable",
+        "consecutive_failures": 0,
+        "quarantined_at": null,
+        "is_active": true,
+        "last_validation_result": "platform_playable"
+      }
+    }
+  ]
+}

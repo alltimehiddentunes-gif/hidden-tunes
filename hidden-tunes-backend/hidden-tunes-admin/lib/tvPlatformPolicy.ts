@@ -1,28 +1,33 @@
 import type { NextRequest } from "next/server";
 
 import { TV_RELIABILITY_THRESHOLD } from "@/lib/tvStationHealth";
+import {
+  hasSuccessfulVerification,
+  isTvPubliclyEligibleByEvidence,
+  needsTvRevalidation,
+  TV_REVALIDATION_INTERVAL_MS,
+  type TvEvidenceEligibilityRow,
+} from "@/lib/tvPublicEligibilityPolicy";
 
-/** Single validation freshness window — 7 days. */
+/**
+ * Revalidation interval only — never a public visibility cutoff.
+ * Name retained for mobile/desktop parity.
+ */
 export const TV_VALIDATION_FRESHNESS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export type TvClientPlatform = "ios" | "android" | "cross";
 
-export type TvPlatformEligibilityRow = {
-  status?: string | null;
-  is_active?: boolean | null;
-  playback_status?: string | null;
-  reliability_score?: number | null;
-  consecutive_failures?: number | null;
-  disabled_at?: string | null;
-  quarantined_at?: string | null;
-  ios_playable?: boolean | null;
-  android_playable?: boolean | null;
-  stream_is_https?: boolean | null;
-  last_health_checked_at?: string | null;
-  last_validation_result?: string | null;
-  is_mature?: boolean | null;
-  mature_source_approved?: boolean | null;
-};
+/** Main browse/catalog tier — public eligibility for videos/channels/stations. */
+export const TV_CATALOG_ELIGIBILITY_VERIFIED = "verified" as const;
+
+/** Search-only discovery tier — excluded from browse; may appear in explicit TV search. */
+export const TV_CATALOG_ELIGIBILITY_SEARCH_ONLY = "search_only" as const;
+
+export type TvCatalogEligibilityTier =
+  | typeof TV_CATALOG_ELIGIBILITY_VERIFIED
+  | typeof TV_CATALOG_ELIGIBILITY_SEARCH_ONLY;
+
+export type TvPlatformEligibilityRow = TvEvidenceEligibilityRow;
 
 export type TvPublicCatalogFilterOptions = {
   includeMature?: boolean;
@@ -44,18 +49,20 @@ export function parseTvClientPlatform(
   return "cross";
 }
 
+/** Revalidation queue cutoff only — do not use as a public visibility filter. */
 export function getValidationFreshnessCutoff(now = new Date()) {
-  return new Date(now.getTime() - TV_VALIDATION_FRESHNESS_MS).toISOString();
+  return new Date(now.getTime() - TV_REVALIDATION_INTERVAL_MS).toISOString();
 }
 
+/**
+ * True when the last health check is within the revalidation interval.
+ * Does **not** mean the channel is publicly ineligible when false.
+ */
 export function isValidationFresh(
   lastHealthCheckedAt: string | null | undefined,
   now = new Date()
 ) {
-  if (!lastHealthCheckedAt) return false;
-  const checkedAt = new Date(lastHealthCheckedAt).getTime();
-  if (!Number.isFinite(checkedAt)) return false;
-  return now.getTime() - checkedAt <= TV_VALIDATION_FRESHNESS_MS;
+  return !needsTvRevalidation(lastHealthCheckedAt, now, TV_REVALIDATION_INTERVAL_MS);
 }
 
 export function isTvStationPublic(row: TvPlatformEligibilityRow) {
@@ -73,14 +80,18 @@ export function isTvStationVerified(row: TvPlatformEligibilityRow) {
   return row.status === "approved";
 }
 
+/**
+ * Evidence-based platform eligibility for play/browse.
+ * Requires prior successful verification; does **not** require a fresh timestamp.
+ */
 export function isTvStationEligibleForPlatform(
   row: TvPlatformEligibilityRow,
   platform: TvClientPlatform,
-  now = new Date()
+  _now = new Date()
 ) {
-  if (!isTvStationPublic(row)) return false;
+  if (!isTvPubliclyEligibleByEvidence(row)) return false;
   if (!isTvStationVerified(row)) return false;
-  if (!isValidationFresh(row.last_health_checked_at, now)) return false;
+  if (!hasSuccessfulVerification(row)) return false;
 
   if (platform === "ios") {
     return row.ios_playable === true && row.stream_is_https === true;
@@ -96,9 +107,11 @@ export function isTvStationEligibleForPlatform(
 export type SupabaseFilterQuery = {
   eq: (column: string, value: unknown) => SupabaseFilterQuery;
   gte: (column: string, value: unknown) => SupabaseFilterQuery;
+  not: (column: string, operator: string, value: unknown) => SupabaseFilterQuery;
   is: (column: string, value: null) => SupabaseFilterQuery;
   ilike: (column: string, value: string) => SupabaseFilterQuery;
   or: (filters: string) => SupabaseFilterQuery;
+  in: (column: string, values: unknown[]) => SupabaseFilterQuery;
   order: (
     column: string,
     options?: { ascending?: boolean; nullsFirst?: boolean }
@@ -113,14 +126,15 @@ export function isTvMatureColumnEnabled() {
   return process.env.TV_MATURE_ISOLATION_ENABLED === "true";
 }
 
-export function applyTvPublicCatalogFilters(
+/**
+ * Shared technical playability gates (evidence-based — no max-age timestamp gate).
+ */
+function applyTvPlayablePlatformFilters(
   query: SupabaseFilterQuery,
   platform: TvClientPlatform,
-  now = new Date(),
-  options: TvPublicCatalogFilterOptions = {}
-): void {
-  const cutoff = getValidationFreshnessCutoff(now);
-
+  _now: Date,
+  options: TvPublicCatalogFilterOptions
+) {
   query
     .eq("status", "approved")
     .eq("is_active", true)
@@ -128,7 +142,8 @@ export function applyTvPublicCatalogFilters(
     .gte("reliability_score", TV_RELIABILITY_THRESHOLD)
     .is("disabled_at", null)
     .is("quarantined_at", null)
-    .gte("last_health_checked_at", cutoff);
+    // Prior successful verification required; age alone must not hide.
+    .not("last_health_checked_at", "is", null);
 
   if (isTvMatureColumnEnabled()) {
     if (options.includeMature) {
@@ -145,6 +160,28 @@ export function applyTvPublicCatalogFilters(
   } else {
     query.eq("ios_playable", true).eq("android_playable", true).eq("stream_is_https", true);
   }
+}
+
+/** Verified main-catalog filters (browse, country rails, featured, platform counts). */
+export function applyTvPublicCatalogFilters(
+  query: SupabaseFilterQuery,
+  platform: TvClientPlatform,
+  now = new Date(),
+  options: TvPublicCatalogFilterOptions = {}
+): void {
+  applyTvPlayablePlatformFilters(query, platform, now, options);
+  query.eq("catalog_eligibility_tier", TV_CATALOG_ELIGIBILITY_VERIFIED);
+}
+
+/** Search-only discovery tier — same technical playability gates, excluded from browse. */
+export function applyTvSearchDiscoveryCatalogFilters(
+  query: SupabaseFilterQuery,
+  platform: TvClientPlatform,
+  now = new Date(),
+  options: TvPublicCatalogFilterOptions = {}
+): void {
+  applyTvPlayablePlatformFilters(query, platform, now, options);
+  query.eq("catalog_eligibility_tier", TV_CATALOG_ELIGIBILITY_SEARCH_ONLY);
 }
 
 export function parseIncludeMatureParam(

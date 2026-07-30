@@ -16,6 +16,10 @@ function createMockQuery(filters: Array<{ op: string; column: string; value: unk
       filters.push({ op: "gte", column, value });
       return query;
     },
+    not(column: string, operator: string, value: unknown) {
+      filters.push({ op: "not", column, value: { operator, value } });
+      return query;
+    },
     is(column: string, value: null) {
       filters.push({ op: "is", column, value });
       return query;
@@ -26,13 +30,16 @@ function createMockQuery(filters: Array<{ op: string; column: string; value: unk
     or() {
       return query;
     },
+    in() {
+      return query;
+    },
     order() {
       return query;
     },
     range: async () => ({ data: null, error: null, count: 0 }),
   };
 
-  return query as SupabaseFilterQuery;
+  return query as unknown as SupabaseFilterQuery;
 }
 
 function testNormalCatalogExcludesMature() {

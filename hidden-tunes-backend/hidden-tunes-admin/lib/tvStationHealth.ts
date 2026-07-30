@@ -20,6 +20,13 @@ export const TV_AUTO_DISABLE_THRESHOLD = 30;
 export const TV_HEALTH_BATCH_SIZE = 75;
 export const TV_GROWTH_TARGET_STATIONS = 40_000;
 
+/** Independent soft failures before a previously verified channel becomes temporarily unavailable. */
+export const TV_SOFT_FAILURE_HIDE_THRESHOLD = 4;
+/** Independent technical hard failures (e.g. 404/410) before hide for previously verified. */
+export const TV_HARD_TECHNICAL_HIDE_THRESHOLD = 2;
+
+export type TvHealthFailureKind = "soft" | "hard_immediate" | "hard_technical";
+
 export type TvHealthProbeResult = {
   playable: boolean;
   playback_status: string;
@@ -30,6 +37,15 @@ export type TvHealthProbeResult = {
   stream_is_https?: boolean;
   validated_stream_url?: string | null;
   last_validation_result?: string | null;
+};
+
+export type ApplyTvHealthProbeOptions = {
+  /**
+   * How much to add to consecutive_failures for this probe.
+   * Use 1 for an independent health-run failure.
+   * Use 0 for rapid retries inside the same worker execution (must not escalate).
+   */
+  independentFailureIncrement?: number;
 };
 
 export type TvHealthRow = Pick<
@@ -46,6 +62,12 @@ export type TvHealthRow = Pick<
 > & {
   reliability_score?: number | null;
   consecutive_failures?: number | null;
+  disabled_at?: string | null;
+  quarantined_at?: string | null;
+  ios_playable?: boolean | null;
+  android_playable?: boolean | null;
+  stream_is_https?: boolean | null;
+  stream_protocol?: string | null;
 };
 
 export type TvHealthUpdate = {
@@ -94,6 +116,8 @@ export type TvGrowthImportOptions = {
   isMature?: boolean;
   matureSourceApproved?: boolean;
   matureRating?: string | null;
+  /** Production catalog tier — browse uses verified; search_only is discovery-only. */
+  catalogEligibilityTier?: "verified" | "search_only";
 };
 
 export type TvStreamProbeDetails = {
@@ -183,13 +207,64 @@ export function isPublicTvRow(row: {
   );
 }
 
+/**
+ * Classify probe failure evidence.
+ * overdue != failed; soft != confirmed dead; one soft probe != quarantine.
+ */
+export function classifyTvHealthFailureKind(
+  probe: Pick<TvHealthProbeResult, "reason" | "playback_status">
+): TvHealthFailureKind {
+  const reason = String(probe.reason || "").toLowerCase();
+  const status = String(probe.playback_status || "").toLowerCase();
+
+  if (
+    /drm|widevine|fairplay|playready|encrypted/.test(reason) ||
+    /login|sign[\s-]?in|subscription|paywall|requires[_ ]auth|unauthorized|\b401\b/.test(
+      reason
+    ) ||
+    /legal|copyright|dmca|rights.?block|manually.?blocked|admin.?block/.test(reason) ||
+    /webpage[_ ]only|unsupported[_ ]webpage|html[_ ]landing/.test(reason) ||
+    /expired[_ ]token|non[_ ]renewable/.test(reason)
+  ) {
+    return "hard_immediate";
+  }
+
+  if (status === "blocked") {
+    return "hard_immediate";
+  }
+
+  if (
+    /http_404|\b404\b|http_410|\b410\b|gone|not[_ ]found|removed[_ ]manifest|manifest[_ ]invalid/.test(
+      reason
+    )
+  ) {
+    return "hard_technical";
+  }
+
+  // Default: soft / transient (timeout, DNS, 5xx, CDN, soft_skip, abort, etc.)
+  return "soft";
+}
+
+function isPreviouslyVerifiedPlayable(row: TvHealthRow): boolean {
+  return String(row.playback_status || "").toLowerCase() === "playable";
+}
+
 export function applyTvHealthProbe(
   row: TvHealthRow,
   probe: TvHealthProbeResult,
-  nowIso = new Date().toISOString()
+  nowIso = new Date().toISOString(),
+  options: ApplyTvHealthProbeOptions = {}
 ): TvHealthUpdate {
   const currentScore = clampScore(Number(row.reliability_score ?? 100));
   const currentFailures = Math.max(0, Number(row.consecutive_failures ?? 0));
+  const independentIncrement = Math.max(
+    0,
+    Number(
+      options.independentFailureIncrement === undefined
+        ? 1
+        : options.independentFailureIncrement
+    )
+  );
 
   if (probe.playable) {
     return {
@@ -210,26 +285,167 @@ export function applyTvHealthProbe(
     };
   }
 
-  const failures = currentFailures + 1;
-  const nextScore = clampScore(currentScore - (failures >= 3 ? 20 : 12));
-  const autoDisabled = nextScore < TV_AUTO_DISABLE_THRESHOLD;
+  const kind = classifyTvHealthFailureKind(probe);
+  const failures = currentFailures + independentIncrement;
+  const previouslyVerified = isPreviouslyVerifiedPlayable(row);
 
-  return {
-    playback_status: autoDisabled ? "blocked" : probe.playback_status || "failed",
-    reliability_score: nextScore,
-    consecutive_failures: failures,
-    is_active: false,
-    quarantined_at: nowIso,
-    disabled_at: autoDisabled ? nowIso : null,
-    last_health_checked_at: nowIso,
-    last_health_error: probe.reason,
-    last_validation_result: probe.last_validation_result || probe.reason,
-    ios_playable: false,
-    android_playable: false,
-    stream_protocol: probe.stream_protocol || null,
-    stream_is_https: probe.stream_is_https === true,
-    validated_stream_url: null,
-  };
+  // Same-run retry: record check time/error but do not escalate counters or hide.
+  if (independentIncrement === 0 && previouslyVerified) {
+    return {
+      playback_status: "playable",
+      reliability_score: currentScore,
+      consecutive_failures: currentFailures,
+      is_active: row.status === "approved" ? true : Boolean(row.is_active),
+      quarantined_at: null,
+      disabled_at: null,
+      last_health_checked_at: nowIso,
+      last_health_error: probe.reason,
+      last_validation_result:
+        probe.last_validation_result || `soft_retry:${probe.reason}`,
+      ios_playable: row.ios_playable !== false,
+      android_playable: row.android_playable !== false,
+      stream_protocol: row.stream_protocol || probe.stream_protocol || null,
+      stream_is_https: row.stream_is_https !== false,
+      validated_stream_url: null,
+    };
+  }
+
+  // Immediate hard: DRM / login / legal / blocked classification.
+  if (kind === "hard_immediate") {
+    const nextScore = clampScore(currentScore - 25);
+    const autoDisabled = nextScore < TV_AUTO_DISABLE_THRESHOLD;
+    return {
+      playback_status: autoDisabled ? "blocked" : probe.playback_status || "blocked",
+      reliability_score: nextScore,
+      consecutive_failures: Math.max(failures, 1),
+      is_active: false,
+      quarantined_at: nowIso,
+      disabled_at: autoDisabled ? nowIso : null,
+      last_health_checked_at: nowIso,
+      last_health_error: probe.reason,
+      last_validation_result: probe.last_validation_result || probe.reason,
+      ios_playable: false,
+      android_playable: false,
+      stream_protocol: probe.stream_protocol || null,
+      stream_is_https: probe.stream_is_https === true,
+      validated_stream_url: null,
+    };
+  }
+
+  // Never-verified rows: keep them out of public; quarantine on failed probe.
+  if (!previouslyVerified) {
+    const nextScore = clampScore(currentScore - (failures >= 3 ? 20 : 12));
+    const autoDisabled = nextScore < TV_AUTO_DISABLE_THRESHOLD;
+    return {
+      playback_status: autoDisabled ? "blocked" : probe.playback_status || "failed",
+      reliability_score: nextScore,
+      consecutive_failures: Math.max(failures, 1),
+      is_active: false,
+      quarantined_at: nowIso,
+      disabled_at: autoDisabled ? nowIso : null,
+      last_health_checked_at: nowIso,
+      last_health_error: probe.reason,
+      last_validation_result: probe.last_validation_result || probe.reason,
+      ios_playable: false,
+      android_playable: false,
+      stream_protocol: probe.stream_protocol || null,
+      stream_is_https: probe.stream_is_https === true,
+      validated_stream_url: null,
+    };
+  }
+
+  // Previously verified + soft failure: remain visible until escalation threshold.
+  if (kind === "soft") {
+    const hide = failures >= TV_SOFT_FAILURE_HIDE_THRESHOLD;
+    const nextScore = clampScore(
+      currentScore - (hide ? 18 : failures >= 2 ? 8 : 4)
+    );
+
+    if (!hide) {
+      return {
+        playback_status: "playable",
+        reliability_score: Math.max(nextScore, TV_RELIABILITY_THRESHOLD),
+        consecutive_failures: failures,
+        is_active: true,
+        quarantined_at: null,
+        disabled_at: null,
+        last_health_checked_at: nowIso,
+        last_health_error: probe.reason,
+        last_validation_result:
+          probe.last_validation_result || `soft_failure_${failures}`,
+        // Preserve last-known platform eligibility while remaining public.
+        ios_playable: row.ios_playable !== false,
+        android_playable: row.android_playable !== false,
+        stream_protocol: row.stream_protocol || probe.stream_protocol || null,
+        stream_is_https: row.stream_is_https !== false,
+        validated_stream_url: null,
+      };
+    }
+
+    // Temporarily unavailable — hide without permanent legal quarantine stamp when possible.
+    const autoDisabled = nextScore < TV_AUTO_DISABLE_THRESHOLD;
+    return {
+      playback_status: "failed",
+      reliability_score: nextScore,
+      consecutive_failures: failures,
+      is_active: false,
+      quarantined_at: nowIso,
+      disabled_at: autoDisabled ? nowIso : null,
+      last_health_checked_at: nowIso,
+      last_health_error: probe.reason,
+      last_validation_result:
+        probe.last_validation_result || `temporarily_unavailable_${failures}`,
+      ios_playable: false,
+      android_playable: false,
+      stream_protocol: probe.stream_protocol || null,
+      stream_is_https: probe.stream_is_https === true,
+      validated_stream_url: null,
+    };
+  }
+
+  // hard_technical (404/410 etc.): faster hide, still require confirmation for previously verified.
+  {
+    const hide = failures >= TV_HARD_TECHNICAL_HIDE_THRESHOLD;
+    const nextScore = clampScore(currentScore - (hide ? 20 : 10));
+
+    if (!hide) {
+      return {
+        playback_status: "playable",
+        reliability_score: Math.max(nextScore, TV_RELIABILITY_THRESHOLD),
+        consecutive_failures: failures,
+        is_active: true,
+        quarantined_at: null,
+        disabled_at: null,
+        last_health_checked_at: nowIso,
+        last_health_error: probe.reason,
+        last_validation_result:
+          probe.last_validation_result || `hard_technical_${failures}`,
+        ios_playable: row.ios_playable !== false,
+        android_playable: row.android_playable !== false,
+        stream_protocol: row.stream_protocol || probe.stream_protocol || null,
+        stream_is_https: row.stream_is_https !== false,
+        validated_stream_url: null,
+      };
+    }
+
+    const autoDisabled = nextScore < TV_AUTO_DISABLE_THRESHOLD;
+    return {
+      playback_status: autoDisabled ? "blocked" : "failed",
+      reliability_score: nextScore,
+      consecutive_failures: failures,
+      is_active: false,
+      quarantined_at: nowIso,
+      disabled_at: autoDisabled ? nowIso : null,
+      last_health_checked_at: nowIso,
+      last_health_error: probe.reason,
+      last_validation_result: probe.last_validation_result || probe.reason,
+      ios_playable: false,
+      android_playable: false,
+      stream_protocol: probe.stream_protocol || null,
+      stream_is_https: probe.stream_is_https === true,
+      validated_stream_url: null,
+    };
+  }
 }
 
 export function detectTvStreamPayload(
@@ -327,7 +543,7 @@ export async function runTvStationHealthChecks(limit = TV_HEALTH_BATCH_SIZE) {
   const { data, error } = await supabaseAdmin
     .from("tv_videos")
     .select(
-      "id, source_type, source_id, source_url, embed_url, title, playback_status, status, is_active, reliability_score, consecutive_failures"
+      "id, source_type, source_id, source_url, embed_url, title, playback_status, status, is_active, reliability_score, consecutive_failures, disabled_at, quarantined_at, ios_playable, android_playable, stream_is_https, stream_protocol"
     )
     .in("status", ["approved", "pending"])
     .order("last_health_checked_at", { ascending: true, nullsFirst: true })
@@ -504,9 +720,14 @@ export async function importVerifiedTvGrowthCandidates(
       stream_protocol: probe.stream_protocol || null,
       validated_stream_url: probe.validated_stream_url || urlCheck.url,
       last_validation_result: probe.last_validation_result || null,
-      is_mature: isMature || candidate.is_mature === true,
-      mature_rating: options.matureRating || candidate.mature_rating || null,
-      mature_source_approved: matureSourceApproved || candidate.mature_source_approved === true,
+      ...(isTvMatureColumnEnabled()
+        ? {
+            is_mature: isMature || candidate.is_mature === true,
+            mature_rating: options.matureRating || candidate.mature_rating || null,
+            mature_source_approved:
+              matureSourceApproved || candidate.mature_source_approved === true,
+          }
+        : {}),
     });
 
     if (error) rejected += 1;
