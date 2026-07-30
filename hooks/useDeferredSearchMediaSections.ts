@@ -19,6 +19,7 @@ type DeferredSearchMediaState = {
   radioLoading: boolean;
   radioQuery: string;
   radioHasMore: boolean;
+  radioError: string | null;
 };
 
 const EMPTY_STATE: DeferredSearchMediaState = {
@@ -26,6 +27,7 @@ const EMPTY_STATE: DeferredSearchMediaState = {
   radioLoading: false,
   radioQuery: "",
   radioHasMore: false,
+  radioError: null,
 };
 
 export function useDeferredSearchMediaSections(submittedQuery: string) {
@@ -83,47 +85,65 @@ export function useDeferredSearchMediaSections(submittedQuery: string) {
             generation,
           });
         }
-        const radioResult =
-          (await discoveryControllerRef.current.run(`search:radio:${query}`, () =>
-            loadRadioSearchPage(query, {
-              offset: 0,
-              limit: MEDIA_DISCOVERY_PAGE_SIZE,
-              forceRefresh: false,
-              requestKey: `search:${query}`,
-            }).catch(() => ({ stations: [], hasMore: false, fromCache: false }))
-          )) || { stations: [], hasMore: false, fromCache: false };
+        try {
+          const radioResult =
+            (await discoveryControllerRef.current.run(`search:radio:${query}`, () =>
+              loadRadioSearchPage(query, {
+                offset: 0,
+                limit: MEDIA_DISCOVERY_PAGE_SIZE,
+                forceRefresh: false,
+                requestKey: `search:${query}`,
+              })
+            )) || { stations: [], hasMore: false, fromCache: false };
 
-        if (requestGenerationRef.current !== generation || !mountedRef.current) {
-          logHeatStaleResult("search:radio", { query, generation });
-          return;
-        }
+          if (requestGenerationRef.current !== generation || !mountedRef.current) {
+            logHeatStaleResult("search:radio", { query, generation });
+            return;
+          }
 
-        stationStoreRef.current.clear();
-        radioResult.stations.slice(0, MEDIA_DISCOVERY_PAGE_SIZE).forEach((station) => {
-          stationStoreRef.current.set(station.id, station);
-        });
+          stationStoreRef.current.clear();
+          radioResult.stations.slice(0, MEDIA_DISCOVERY_PAGE_SIZE).forEach((station) => {
+            stationStoreRef.current.set(station.id, station);
+          });
 
-        logHeatRequestComplete("search:radio", radioStartedAt, {
-          query,
-          count: radioResult.stations.length,
-        });
-        if (typeof __DEV__ !== "undefined" && __DEV__) {
-          console.log("[HTSearchTiming]", "search_radio_request_end", {
-            elapsedMs: Math.max(0, Date.now() - radioStartedAt),
-            at: Date.now(),
+          logHeatRequestComplete("search:radio", radioStartedAt, {
             query,
             count: radioResult.stations.length,
           });
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.log("[HTSearchTiming]", "search_radio_request_end", {
+              elapsedMs: Math.max(0, Date.now() - radioStartedAt),
+              at: Date.now(),
+              query,
+              count: radioResult.stations.length,
+            });
+          }
+          safeSetState((current) => ({
+            ...current,
+            radioStations: radioResult.stations
+              .slice(0, MEDIA_DISCOVERY_PAGE_SIZE)
+              .map(toRadioStationListItem),
+            radioLoading: false,
+            radioQuery: query,
+            radioHasMore: radioResult.hasMore,
+            radioError: null,
+          }));
+        } catch (error) {
+          if (requestGenerationRef.current !== generation || !mountedRef.current) {
+            logHeatStaleResult("search:radio", { query, generation });
+            return;
+          }
+          const message = error instanceof Error ? error.message : String(error);
+          // Transport failures must not become a successful empty radio list.
+          safeSetState((current) => ({
+            ...current,
+            radioStations: [],
+            radioLoading: false,
+            radioQuery: query,
+            radioHasMore: false,
+            radioError: message || "search_radio_failed",
+          }));
         }
-        safeSetState((current) => ({
-          ...current,
-          radioStations: radioResult.stations
-            .slice(0, MEDIA_DISCOVERY_PAGE_SIZE)
-            .map(toRadioStationListItem),
-          radioLoading: false,
-          radioQuery: query,
-          radioHasMore: radioResult.hasMore,
-        }));
       })();
     }, SEARCH_MEDIA_DEFER_MS);
 
