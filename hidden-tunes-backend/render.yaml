@@ -1,10 +1,16 @@
 # Hidden Tunes Render deployment blueprint (Phase 35E-5C)
 #
+# RETIRED (2026-07-30): public songs/catalog API moved to VPS + Cloudflare.
+# Production host: https://api.hiddentunes.com
+# Do not redeploy service `hidden-tunes-api` on Render.
+# Keep this file for rollback history only.
+#
 # Recommended: two services from the same repo root (hidden-tunes-backend).
 # Apply manually in Render dashboard or adapt this file when ready.
 
 services:
-  # Existing public catalog API — keep native Node if already stable.
+  # RETIRED — songs/catalog API. Production is api.hiddentunes.com on the owned VPS.
+  # Suspend/delete this Render service in the dashboard; do not recreate.
   - name: hidden-tunes-api
     type: web
     runtime: node
@@ -30,6 +36,7 @@ services:
         sync: false
 
   # New ffmpeg-capable worker for manual tier generation only.
+  # Not part of the songs Search migration; leave alone unless separately retiring.
   - name: hidden-tunes-audio-worker
     type: web
     runtime: docker
