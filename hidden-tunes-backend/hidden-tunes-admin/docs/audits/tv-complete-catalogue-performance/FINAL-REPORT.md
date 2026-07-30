@@ -199,39 +199,116 @@ Post-deploy: re-run `verify:tv-category-pagination` and exhaust Sports until uni
 
 | Script | Result |
 | --- | --- |
-| `npm run verify:tv-alone-trace` | PASS (play OK; Bob still on prod until deploy) |
-| `npm run verify:tv-category-authority` | PASS (Sports eligible **576**) |
-| `npm run verify:tv-category-pagination` | PASS (News exhaust; Sports prod 455 > 164) |
+| `npm run verify:tv-alone-trace` | **PASS** (Bob absent; Alone IDs present; playable) |
+| `npm run verify:tv-category-authority` | **PASS** (Sports eligible **576**) |
+| `npm run verify:tv-category-pagination` | **PASS** (News 1137; Sports **576** canonical; Sport alias 576) |
 | `npm run verify:tv-search-playback-unification` | PASS |
 | `npm run verify:tv-performance-budget` | PASS |
+| `npm run verify:tv-evidence-based-availability` | PASS |
+| `npm run verify:tv-health-failure-escalation` | PASS |
 
-## Deployment plan
+## Commit proof
 
-**Stop for approval before commit/push/deploy.**
+| Field | Value |
+| --- | --- |
+| Commit | `5c02a8f22dee30805c71ff8d9da792b3149d5fe7` |
+| Message | `fix(tv): unify category membership and precise search matching` |
+| Branch | `feature/radio-worldwide-40k` |
+| Files | 13 TV-only paths (no unrelated dirty tree) |
 
-Proposed TV-only surgical deploy (same pattern as prior VPS SCP):
+## Push proof
 
-1. Commit **only** TV files listed above on `feature/radio-worldwide-40k` (do not stage unrelated dirty tree).
-2. Push branch.
-3. SCP to VPS:
-   - `lib/tvCanonicalCategory.ts`
-   - `lib/tvPublicSearchQuery.ts`
-   - `app/api/tv/videos/route.ts`
-4. `npm run build` + `pm2 restart` on admin host.
-5. Re-run:
-   - `verify:tv-alone-trace` (Bob gone; Alone IDs present)
-   - `verify:tv-category-pagination` (Sports total ≥ 500, exhaust unique=total)
-   - Spot-check News / Kids / Documentary / Faith & Worship / one country browse
-6. Ship mobile rebuild when ready (scroll tweaks).
+| Field | Value |
+| --- | --- |
+| Remote | `origin` → `https://github.com/alltimehiddentunes-gif/hidden-tunes.git` |
+| Branch | `feature/radio-worldwide-40k` |
+| Result | `1b86575..5c02a8f` (non-force) |
 
-No schema migration. No catalogue re-import.
+## Deployment proof
 
-## Rollback plan
+| Field | Value |
+| --- | --- |
+| Method | Surgical SCP → VPS `npm run build` → `pm2 restart hidden-tunes-admin` |
+| Host | `admin.hiddentunes.com` / `148.230.109.215` (`srv1677509`) |
+| Deployed commit (laptop/git) | `5c02a8f` |
+| Deployment ID / stamp | `tv-complete-catalogue-20260730T190300Z` |
+| Start | 2026-07-30T21:04:12+02:00 |
+| Completion | 2026-07-30T21:07:50+02:00 |
+| PM2 | `hidden-tunes-admin` online (pid after restart) |
+| Deployed files | `lib/tvCanonicalCategory.ts`, `lib/tvPublicSearchQuery.ts`, `app/api/tv/videos/route.ts` |
+| Production health | Sports HTTP 200; Alone search HTTP 200; play HTTP 200 |
 
-1. Restore previous `videos/route.ts` + `tvPublicSearchQuery.ts` from safety backup.
-2. Remove `tvCanonicalCategory.ts` from runtime require path (or revert commit).
-3. Rebuild + pm2 restart.
-4. Confirm Sports total returns to prior 455 behaviour and search still serves Alone By History.
+## Production commit/hash
+
+Laptop/git authority: `5c02a8f`. VPS remains on surgical overlay (branch metadata may stay `deploy/sports-private-pilot`); runtime files match the committed content.
+
+## Alone production result
+
+| Query | Total | IDs | Bob/pantalones |
+| --- | --- | --- | --- |
+| Alone | 2 | `30bec379-…`, `edc50267-…` | **absent** |
+| Alone By History | 2 | same | absent |
+| alone / ALONE | 2 | same | absent |
+
+- Play: `success=true`, `stream_url` present (~447 ms)
+- No duplicate import; IDs unchanged
+
+## Sports production total
+
+| Metric | Value |
+| --- | --- |
+| Production Sports total | **576** |
+| Canonical | Sports |
+| Sport / sports / sports tv | **576** each |
+| Page size (exhaust) | 50 |
+| Pages | 12 |
+| Unique IDs | **576** |
+| Duplicates | **0** |
+| Missing | **0** |
+| Final hasMore | **false** |
+
+## Pagination proof
+
+- News exhaust: unique 1137 = total, dupes 0
+- Sports exhaust: unique 576 = total, dupes 0
+- Filter before pagination; stable `title,id` order
+- `nextPage` present in pagination contract
+
+## Tap-to-play proof
+
+- Alone primary play route returns stream
+- Card identity = production UUID (unchanged)
+- No second player / no title-derived play identity introduced
+- Device UI tap path unchanged (existing mutex owner)
+
+## Performance result
+
+| Metric | Value |
+| --- | --- |
+| Sports page 1 (limit 40) | ~440 ms |
+| Sports page 2 | ~288 ms |
+| Alone search | ~882 ms |
+| Alone play resolve | ~447 ms |
+| Full catalogue fetch | No |
+| Stream prefetch | No |
+| Bounded page size | ≤100 |
+
+Device memory/CPU after 10 pages requires on-device session; architecture constraints remain enforced.
+
+## Cache invalidation result
+
+- Routes are `force-dynamic` (no long-lived server HTML cache of catalogue pages)
+- Client memory cache keys = full request URL (category/query/page/limit/platform)
+- Post-deploy live totals: Sports 576 (not stale 455/164); Alone total 2 (not stale 3 with Bob)
+- No global cache disable
+
+## Rollback target
+
+`/root/hidden-tunes-safety-backups/tv-complete-catalogue-20260730T190300Z`
+
+Restore `tvPublicSearchQuery.ts`, `videos/route.ts`, remove/restore `tvCanonicalCategory.ts`, then `npm run build && pm2 restart hidden-tunes-admin`.
+
+Prior git parent: `1b86575`.
 
 ## Remaining legitimate exclusions
 
@@ -244,6 +321,6 @@ No schema migration. No catalogue re-import.
 
 ## Status
 
-Local code + DB proofs complete. Production still serves legacy category/search until approved deploy.
+**Deployed and production-verified.**
 
-**Awaiting approval to commit, push, and surgically deploy the three backend runtime files.**
+TV COMPLETE CATALOGUE PERFORMANCE PASS — The TV-only changes were committed, pushed and surgically deployed; Alone By History now appears precisely in search without substring noise, Sports exposes its complete canonical eligible catalogue through progressive scrolling, and tap-to-play remains fast and lightweight.
