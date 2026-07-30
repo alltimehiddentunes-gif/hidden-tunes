@@ -13,6 +13,10 @@ import {
   type TvStationMetadataMode,
 } from "../utils/tvPlayabilityGate";
 import { resolveTvArtworkUrl } from "../utils/tvArtwork";
+import {
+  normalizeTvSearchQuery,
+  resolveTvSearchCountryCode,
+} from "../utils/tvSearchQuery";
 import { getVideoDisplayCreator, normalizeVideoItem } from "./videos/videoNormalizer";
 import { fetchArchiveConcertVideos } from "./videos/archiveVideoDiscovery";
 import {
@@ -161,6 +165,7 @@ type TvSearchPageCacheValue = {
   videos: HiddenTunesTvVideo[];
   page: number;
   hasMore: boolean;
+  error?: string;
 };
 const tvSearchMemoryCache = new Map<
   string,
@@ -763,6 +768,7 @@ export async function fetchTvCategoryLane(
     transportError?: string;
     page: number;
     hasMore: boolean;
+    total: number;
   }
 > {
   const page = Math.max(1, Number(options?.page || 1));
@@ -786,6 +792,7 @@ export async function fetchTvCategoryLane(
     metadataMode: response.metadataMode,
     page: response.pagination.page,
     hasMore: Boolean(response.success && response.pagination.hasMore),
+    total: Number(response.pagination.total || 0),
     transportError:
       !response.success && response.error && response.error !== "aborted"
         ? response.error
@@ -813,13 +820,32 @@ export type TvSearchPageResult = {
   videos: HiddenTunesTvVideo[];
   page: number;
   hasMore: boolean;
+  /** Present when the backend request failed — never treat as a genuine empty hit list. */
+  error?: string;
 };
+
+function mergeTvSearchPages(
+  primary: HiddenTunesTvVideo[],
+  secondary: HiddenTunesTvVideo[],
+  limit: number
+) {
+  const seen = new Set<string>();
+  const merged: HiddenTunesTvVideo[] = [];
+  for (const video of [...primary, ...secondary]) {
+    const id = String(video.id || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    merged.push(video);
+    if (merged.length >= limit) break;
+  }
+  return merged;
+}
 
 export async function fetchTvSearchPage(
   query: string,
   options?: { signal?: AbortSignal; limit?: number; page?: number }
 ): Promise<TvSearchPageResult> {
-  const cleanQuery = String(query || "").trim();
+  const cleanQuery = normalizeTvSearchQuery(query);
   if (cleanQuery.length < 2) {
     return { videos: [], page: 1, hasMore: false };
   }
@@ -829,7 +855,8 @@ export async function fetchTvSearchPage(
     40,
     Math.max(1, Number(options?.limit || TV_SEARCH_PAGE_LIMIT))
   );
-  const cacheKey = `${cleanQuery.toLowerCase()}|${page}|${limit}|${resolveTvClientPlatform()}`;
+  const countryCode = resolveTvSearchCountryCode(cleanQuery);
+  const cacheKey = `${cleanQuery.toLowerCase()}|${countryCode || ""}|${page}|${limit}|${resolveTvClientPlatform()}`;
   pruneTimedCache(tvSearchMemoryCache, TV_SEARCH_MEMORY_TTL_MS, TV_SEARCH_MEMORY_CACHE_LIMIT);
 
   const cached = tvSearchMemoryCache.get(cacheKey);
@@ -837,18 +864,63 @@ export async function fetchTvSearchPage(
     return cached.value;
   }
 
-  const backendResponse = await fetchTvCatalog(
+  if (options?.signal?.aborted) {
+    return { videos: [], page, hasMore: false, error: "aborted" };
+  }
+
+  const textPromise = fetchTvCatalog(
     { q: cleanQuery, page, limit },
     { signal: options?.signal }
   );
+  const countryPromise = countryCode
+    ? fetchTvCatalog(
+        { country: countryCode, page, limit },
+        { signal: options?.signal }
+      )
+    : Promise.resolve(null);
 
-  const videos = backendResponse.success
-    ? backendResponse.videos.slice(0, limit)
-    : [];
+  const [textResponse, countryResponse] = await Promise.all([
+    textPromise,
+    countryPromise,
+  ]);
+
+  if (options?.signal?.aborted) {
+    return { videos: [], page, hasMore: false, error: "aborted" };
+  }
+
+  const textOk = textResponse.success;
+  const countryOk = !countryResponse || countryResponse.success;
+  if (!textOk && !countryOk) {
+    const error =
+      (textResponse.error && textResponse.error !== "aborted"
+        ? textResponse.error
+        : null) ||
+      (countryResponse?.error && countryResponse.error !== "aborted"
+        ? countryResponse.error
+        : null) ||
+      "Failed to search TV channels.";
+    if (error === "aborted" || textResponse.error === "aborted") {
+      return { videos: [], page, hasMore: false, error: "aborted" };
+    }
+    return { videos: [], page, hasMore: false, error };
+  }
+
+  const textVideos = textOk ? textResponse.videos : [];
+  const countryVideos =
+    countryResponse && countryResponse.success ? countryResponse.videos : [];
+  const videos = mergeTvSearchPages(textVideos, countryVideos, limit);
+  const hasMore = Boolean(
+    (textOk && textResponse.pagination.hasMore) ||
+      (countryResponse?.success && countryResponse.pagination.hasMore)
+  );
+
   const result: TvSearchPageResult = {
     videos,
-    page: backendResponse.pagination.page || page,
-    hasMore: Boolean(backendResponse.success && backendResponse.pagination.hasMore),
+    page:
+      (textOk ? textResponse.pagination.page : null) ||
+      (countryResponse?.success ? countryResponse.pagination.page : null) ||
+      page,
+    hasMore,
   };
 
   if (videos.length > 0) {

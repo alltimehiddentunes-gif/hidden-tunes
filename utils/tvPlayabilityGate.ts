@@ -8,7 +8,8 @@ import {
 } from "@/utils/tvPlaybackFailureStore";
 import { TV_VALIDATION_FRESHNESS_MS } from "@/utils/tvValidationFreshness";
 
-/** Internal navigation codes - never shown to users. */
+/** Re-export for callers that signal overdue revalidation without hiding. */
+export { TV_VALIDATION_FRESHNESS_MS };
 export const TV_NAV_STALE = "STALE_RESOLUTION";
 export const TV_NAV_EXHAUSTED = "EXHAUSTED";
 export const TV_NAV_NO_SESSION = "NO_SESSION";
@@ -78,13 +79,6 @@ export function detectTvCatalogMetadataMode(
   return firstStation ? getTvStationMetadataMode(firstStation) : "quality_metadata";
 }
 
-function isValidationFresh(lastValidatedAt: string | null | undefined, now = Date.now()) {
-  if (!lastValidatedAt) return false;
-  const checkedAt = new Date(lastValidatedAt).getTime();
-  if (!Number.isFinite(checkedAt)) return false;
-  return now - checkedAt <= TV_VALIDATION_FRESHNESS_MS;
-}
-
 function browsePlatformStreamHintBlocks(
   video: HiddenTunesTvVideo,
   platform: "ios" | "android"
@@ -151,9 +145,8 @@ function isQualityStationEligible(
   if (station.is_active === false) return false;
   if (cleanText(station.playback_status).toLowerCase() !== "playable") return false;
   if (cleanText(station.quarantined_at)) return false;
-  if (!isValidationFresh(station.last_validated_at || station.last_health_checked_at)) {
-    return false;
-  }
+  // Evidence-based: require a prior verification timestamp; overdue age does not hide.
+  if (!cleanText(station.last_validated_at || station.last_health_checked_at)) return false;
 
   const score = Number(station.reliability_score ?? 100);
   if (Number.isFinite(score) && score < TV_PUBLIC_RELIABILITY_THRESHOLD) {
