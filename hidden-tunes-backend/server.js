@@ -10,6 +10,7 @@ import lyricsRouter from "./routes/lyrics.js";
 import podcastsRouter from "./routes/podcasts.js";
 import audioVersionHealthRouter from "./routes/audioVersionHealth.js";
 import audioVersionWorkerRouter from "./routes/audioVersionWorker.js";
+import { supabase } from "./services/supabase.js";
 
 dotenv.config();
 
@@ -28,11 +29,45 @@ app.get("/", (req, res) => {
   });
 });
 
+/** Process-alive probe — must stay free of catalogue/Supabase work for Render health checks. */
 app.get("/health", (req, res) => {
   res.json({
     success: true,
     status: "ok",
   });
+});
+
+/** Dependency readiness — lightweight Supabase probe, not a full catalogue load. */
+app.get("/ready", async (req, res) => {
+  const startedAt = Date.now();
+  try {
+    const { error } = await supabase.from("songs").select("id").limit(1);
+    if (error) {
+      return res.status(503).json({
+        error: "service_unavailable",
+        message: "Music search is temporarily unavailable",
+        retryable: true,
+        dependency: "supabase",
+        details: error.message,
+        durationMs: Date.now() - startedAt,
+      });
+    }
+
+    return res.json({
+      success: true,
+      status: "ready",
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (error) {
+    return res.status(503).json({
+      error: "service_unavailable",
+      message: "Music search is temporarily unavailable",
+      retryable: true,
+      dependency: "supabase",
+      details: error?.message || "unknown_error",
+      durationMs: Date.now() - startedAt,
+    });
+  }
 });
 
 app.use("/health", audioVersionHealthRouter);
@@ -52,6 +87,6 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Hidden Tunes backend running on port ${PORT}`);
 });

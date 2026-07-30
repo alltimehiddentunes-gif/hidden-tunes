@@ -603,8 +603,18 @@ router.get("/", async (req, res) => {
         selectMode: fetchResult.selectMode,
       });
 
-      return res.status(500).json({
-        error: "Failed to fetch songs",
+      const message = String(fetchResult.error.message || "");
+      const retryable =
+        /timeout|temporar|unavailable|fetch failed|network|ECONN|ETIMEDOUT|503|502|504/i.test(
+          message
+        );
+
+      return res.status(retryable ? 503 : 500).json({
+        error: retryable ? "service_unavailable" : "Failed to fetch songs",
+        message: retryable
+          ? "Music search is temporarily unavailable"
+          : "Failed to fetch songs",
+        retryable,
         details: fetchResult.error.message,
       });
     }
