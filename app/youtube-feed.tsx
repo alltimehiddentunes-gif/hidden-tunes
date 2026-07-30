@@ -71,6 +71,7 @@ type FeedRow =
       kind: "lane-header";
       title: string;
       count: number;
+      countLabel?: string;
     }
   | {
       key: string;
@@ -85,13 +86,19 @@ type FeedRow =
 function appendVirtualizedLaneRows(
   rows: FeedRow[],
   lane: TvLane,
-  categoryMeta?: { slug: string; title: string; query?: string }
+  categoryMeta?: { slug: string; title: string; query?: string },
+  totalEligible?: number
 ) {
+  const loaded = lane.videos.length;
+  const total = Math.max(0, Number(totalEligible || 0));
+  const countLabel =
+    total > 0 && total !== loaded ? `${loaded} of ${total}` : String(loaded);
   rows.push({
     key: `lane-header-${lane.id}`,
     kind: "lane-header",
     title: displayLaneTitle(lane.title),
-    count: lane.videos.length,
+    count: loaded,
+    countLabel,
   });
   chunkTvVideosForVirtualizedRows(lane.videos, TV_GRID_COLUMNS).forEach((videos, index) => {
     rows.push({
@@ -135,6 +142,7 @@ export default function YouTubeFeedScreen() {
   const [categoryLaneError, setCategoryLaneError] = useState<string | null>(null);
   const [categoryPage, setCategoryPage] = useState(1);
   const [categoryHasMore, setCategoryHasMore] = useState(false);
+  const [categoryTotal, setCategoryTotal] = useState(0);
   const [categoryLoadingMore, setCategoryLoadingMore] = useState(false);
   const [archiveLane, setArchiveLane] = useState<TvLane | null>(null);
   const [shellReady, setShellReady] = useState(false);
@@ -144,6 +152,8 @@ export default function YouTubeFeedScreen() {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<HiddenTunesTvVideo[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchRetryKey, setSearchRetryKey] = useState(0);
   const [searchPage, setSearchPage] = useState(1);
   const [searchHasMore, setSearchHasMore] = useState(false);
   const [searchLoadingMore, setSearchLoadingMore] = useState(false);
@@ -391,11 +401,13 @@ export default function YouTubeFeedScreen() {
       setCategoryLaneError(null);
       setCategoryPage(1);
       setCategoryHasMore(false);
+      setCategoryTotal(0);
       setCategoryLoadingMore(false);
 
       void fetchTvCategoryLane(category, { signal: controller.signal, page: 1 })
         .then((lane) => {
           if (requestId !== categoryRequestRef.current || controller.signal.aborted) return;
+          setCategoryTotal(Number(lane.total || 0));
           if (lane.videos.length > 0) {
             setCategoryLane(lane);
             setCategoryPage(lane.page);
@@ -437,23 +449,45 @@ export default function YouTubeFeedScreen() {
     setCategoryLoadingMore(true);
 
     void fetchTvCategoryLane(category, { signal: controller.signal, page: nextPage })
-      .then((lane) => {
+      .then(async (lane) => {
         if (requestId !== categoryRequestRef.current || controller.signal.aborted) return;
-        if (!lane.videos.length) {
-          setCategoryHasMore(false);
-          return;
+        if (lane.total > 0) setCategoryTotal(lane.total);
+        setCategoryPage(lane.page);
+        setCategoryHasMore(lane.hasMore);
+
+        // Skip empty client-filtered holes without stopping the catalogue.
+        // Bound retries so we never storm the API, but allow enough skips
+        // that a thin quality-gate page cannot permanently hide later pages.
+        let cursor = lane;
+        let guard = 0;
+        while (
+          !cursor.videos.length &&
+          cursor.hasMore &&
+          guard < 12 &&
+          requestId === categoryRequestRef.current &&
+          !controller.signal.aborted
+        ) {
+          guard += 1;
+          cursor = await fetchTvCategoryLane(category, {
+            signal: controller.signal,
+            page: cursor.page + 1,
+          });
+          if (cursor.total > 0) setCategoryTotal(cursor.total);
+          setCategoryPage(cursor.page);
+          setCategoryHasMore(cursor.hasMore);
         }
+
+        if (!cursor.videos.length) return;
+
         setCategoryLane((current) => {
-          if (!current) return lane;
+          if (!current) return cursor;
           const seen = new Set(current.videos.map((video) => video.id));
           const merged = [
             ...current.videos,
-            ...lane.videos.filter((video) => !seen.has(video.id)),
+            ...cursor.videos.filter((video) => !seen.has(video.id)),
           ];
           return { ...current, videos: merged };
         });
-        setCategoryPage(lane.page);
-        setCategoryHasMore(lane.hasMore);
       })
       .finally(() => {
         if (requestId === categoryRequestRef.current) {
@@ -476,6 +510,7 @@ export default function YouTubeFeedScreen() {
       tvSearchRequestIdRef.current += 1;
       setSearchResults([]);
       setSearching(false);
+      setSearchError(null);
       setSearchPage(1);
       setSearchHasMore(false);
       setSearchLoadingMore(false);
@@ -488,6 +523,7 @@ export default function YouTubeFeedScreen() {
     setSearchPage(1);
     setSearchHasMore(false);
     setSearchLoadingMore(false);
+    setSearchError(null);
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
@@ -497,13 +533,24 @@ export default function YouTubeFeedScreen() {
           page: 1,
         });
         if (cancelled || requestId !== tvSearchRequestIdRef.current) return;
+        if (result.error && result.error !== "aborted") {
+          setSearchResults([]);
+          setSearchHasMore(false);
+          setSearchError(result.error);
+          return;
+        }
+        if (result.error === "aborted") return;
         setSearchResults(result.videos);
         setSearchPage(result.page);
         setSearchHasMore(result.hasMore);
-      } catch {
+        setSearchError(null);
+      } catch (err) {
         if (!cancelled && requestId === tvSearchRequestIdRef.current) {
           setSearchResults([]);
           setSearchHasMore(false);
+          setSearchError(
+            err instanceof Error ? err.message : "Failed to search TV channels."
+          );
         }
       } finally {
         if (!cancelled && requestId === tvSearchRequestIdRef.current) {
@@ -517,7 +564,7 @@ export default function YouTubeFeedScreen() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, searchRetryKey]);
 
   const loadMoreSearch = useCallback(() => {
     const clean = query.trim();
@@ -737,13 +784,24 @@ export default function YouTubeFeedScreen() {
       if (searching) {
         return [{ key: "search-loading", kind: "loading", label: "Searching" }];
       }
+      if (searchError) {
+        return [
+          {
+            key: "search-error",
+            kind: "status",
+            title: "TV search unavailable",
+            subtitle: searchError,
+            retry: true,
+          },
+        ];
+      }
       if (query.trim().length >= 2) {
         return [
           {
             key: "search-empty",
             kind: "status",
-            title: "No TV matches",
-            subtitle: "Try another channel, genre, or show title.",
+            title: `No TV channels match “${query.trim()}”.`,
+            subtitle: "Try another channel, country, genre, or show title.",
           },
         ];
       }
@@ -764,7 +822,8 @@ export default function YouTubeFeedScreen() {
         categoryLane,
         activeCategory
           ? { slug: activeCategory.slug, title: activeCategory.name }
-          : undefined
+          : undefined,
+        categoryTotal
       );
       if (categoryHasMore) {
         rows.push({ key: "category-load-more", kind: "load-more" });
@@ -836,6 +895,7 @@ export default function YouTubeFeedScreen() {
     categoryLane,
     categoryLaneError,
     categoryLaneLoading,
+    categoryTotal,
     channelLanes,
     featuredLane,
     featuredVideo,
@@ -848,6 +908,7 @@ export default function YouTubeFeedScreen() {
     searchHasMore,
     searchLane,
     searchLoadingMore,
+    searchError,
     searchResults.length,
     searching,
     shellReady,
@@ -914,7 +975,13 @@ export default function YouTubeFeedScreen() {
                 <TouchableOpacity
                   activeOpacity={0.88}
                   style={styles.retryButton}
-                  onPress={() => void loadTv({ refresh: true })}
+                  onPress={() => {
+                    if (item.key === "search-error") {
+                      setSearchRetryKey((current) => current + 1);
+                      return;
+                    }
+                    void loadTv({ refresh: true });
+                  }}
                 >
                   <Text style={styles.retryText}>Retry</Text>
                 </TouchableOpacity>
@@ -939,7 +1006,9 @@ export default function YouTubeFeedScreen() {
           return (
             <View style={styles.laneSectionHeader}>
               <Text style={styles.sectionTitle}>{item.title}</Text>
-              <Text style={styles.sectionMeta}>{item.count} ready</Text>
+              <Text style={styles.sectionMeta}>
+                {item.countLabel || String(item.count)} ready
+              </Text>
             </View>
           );
         case "grid-row":
@@ -1098,11 +1167,11 @@ export default function YouTubeFeedScreen() {
           contentContainerStyle={{ paddingBottom: scrollTailPadding }}
           onScroll={onScroll}
           scrollEventThrottle={32}
-          onEndReachedThreshold={0.4}
+          onEndReachedThreshold={0.55}
           onEndReached={() => {
             if (hasSearchText) {
               loadMoreSearch();
-            } else if (activeCategorySlug && categoryHasMore) {
+            } else if (activeCategorySlug && categoryHasMore && !categoryLoadingMore) {
               loadMoreCategory();
             } else if (!activeCategorySlug) {
               setVisibleLaneBudget((current) =>
