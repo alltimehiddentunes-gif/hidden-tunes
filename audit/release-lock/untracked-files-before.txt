@@ -1,0 +1,4 @@
+﻿audit/build-mature-podcast/BUILD-MATURE-PODCAST-AUDIT.md
+audit/release-lock/tracked-diff-before.patch
+audit/release-lock/untracked-files-before.txt
+audit/release-lock/working-tree-status-before.txt
