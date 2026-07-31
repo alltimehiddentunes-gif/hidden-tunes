@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator,
   Alert,
   FlatList,
@@ -48,6 +48,7 @@ import {
   shouldIncludeMaturePodcasts,
   subscribeMaturePodcastSettings,
 } from "../../../utils/maturePodcastSettings";
+import { getListPerformanceSettings } from "../../../utils/performanceMode";
 import { safeRouterPush } from "../../../utils/safeNavigation";
 import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../../utils/tapPressGuard";
 
@@ -175,7 +176,13 @@ const MetadataEpisodeRow = memo(function MetadataEpisodeRow({
       accessibilityLabel={`Play episode ${index + 1}, ${episode.title}`}
     >
       {episode.artworkUrl ? (
-        <HTImage uri={episode.artworkUrl} style={styles.episodeArt} contentFit="cover" />
+        <HTImage
+          uri={episode.artworkUrl}
+          style={styles.episodeArt}
+          contentFit="cover"
+          maxDecodeWidth={112}
+          maxDecodeHeight={112}
+        />
       ) : (
         <View style={styles.episodeArtFallback}>
           <Ionicons name="play-outline" size={20} color={COLORS.textMuted} />
@@ -248,6 +255,8 @@ export default function PodcastCategoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [playingEpisodeId, setPlayingEpisodeId] = useState<string | null>(null);
+  const episodeRequestRef = useRef<AbortController | null>(null);
+  const inflightEpisodePageRef = useRef<number | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeMaturePodcastSettings(() => {
@@ -255,6 +264,7 @@ export default function PodcastCategoryScreen() {
     });
     return () => {
       unsubscribe();
+      episodeRequestRef.current?.abort();
     };
   }, []);
 
@@ -273,57 +283,93 @@ export default function PodcastCategoryScreen() {
     return getPodcastShowsByCategory(categoryId, matureEnabled);
   }, [categoryId, matureEnabled, nonEmptyChildren, parentSection, usesBackendEpisodes]);
 
+  const listPerf = useMemo(
+    () => getListPerformanceSettings(Math.max(episodes.length, shows.length, 24)),
+    [episodes.length, shows.length]
+  );
+
   const loadEpisodes = useCallback(
     async (nextPage = 1, mode: "replace" | "append" = "replace") => {
       if (!backendSlug) return;
+      if (inflightEpisodePageRef.current === nextPage) return;
+
+      episodeRequestRef.current?.abort();
+      const controller = new AbortController();
+      episodeRequestRef.current = controller;
+      inflightEpisodePageRef.current = nextPage;
 
       try {
         setLoadError(null);
+        if (mode === "replace") {
+          setLoading(true);
+        }
         const response = await fetchPodcastEpisodesByCategory(
           backendSlug,
           nextPage,
-          PODCAST_CATALOG_PAGE_LIMIT
+          PODCAST_CATALOG_PAGE_LIMIT,
+          {
+            signal: controller.signal,
+            includeMature: matureEnabled,
+          }
         );
 
+        if (controller.signal.aborted) return;
+
         if (!response.success) {
+          if (response.error === "Aborted") return;
           setLoadError(response.error || "Podcasts could not be loaded right now.");
           if (mode === "replace") setEpisodes([]);
           setHasMore(false);
           return;
         }
 
-        setEpisodes((current) =>
-          mode === "append" ? [...current, ...response.episodes] : response.episodes
-        );
+        setEpisodes((current) => {
+          if (mode !== "append") return response.episodes;
+          const seen = new Set(current.map((entry) => entry.id));
+          const merged = [...current];
+          for (const episode of response.episodes) {
+            if (seen.has(episode.id)) continue;
+            seen.add(episode.id);
+            merged.push(episode);
+          }
+          return merged;
+        });
         setPage(response.pagination.page);
         setHasMore(response.pagination.hasMore);
       } catch {
+        if (controller.signal.aborted) return;
         setLoadError("Podcasts could not be loaded right now.");
         if (mode === "replace") setEpisodes([]);
         setHasMore(false);
       } finally {
+        if (inflightEpisodePageRef.current === nextPage) {
+          inflightEpisodePageRef.current = null;
+        }
         setLoading(false);
         setLoadingMore(false);
         setRefreshing(false);
       }
     },
-    [backendSlug]
+    [backendSlug, matureEnabled]
   );
 
   useEffect(() => {
     if (!backendSlug) return;
-    setLoading(true);
-    setEpisodes([]);
-    setPage(1);
-    setHasMore(false);
-    void loadEpisodes(1, "replace");
+    const timer = setTimeout(() => {
+      void loadEpisodes(1, "replace");
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      episodeRequestRef.current?.abort();
+      inflightEpisodePageRef.current = null;
+    };
   }, [backendSlug, loadEpisodes]);
 
   useEffect(() => {
     if (category?.matureOnly && !shouldIncludeMaturePodcasts()) {
       router.replace("/podcasts/mature" as any);
     }
-  }, [category]);
+  }, [category, router]);
 
   const openShow = useCallback((showId: string) => {
     safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: showId } });
@@ -334,7 +380,9 @@ export default function PodcastCategoryScreen() {
       if (shouldIgnoreDuplicateTap(playEpisodeTapGuard, `podcast-play:${metadata.id}`)) return;
       setPlayingEpisodeId(metadata.id);
       try {
-        const resolved = await fetchPodcastEpisodePlay(metadata.id);
+        const resolved = await fetchPodcastEpisodePlay(metadata.id, {
+          includeMature: shouldIncludeMaturePodcasts(),
+        });
         if (!resolved.success || !resolved.play?.audioUrl) {
           Alert.alert("Unavailable", resolved.error || "This episode is unavailable.");
           return;
@@ -401,106 +449,28 @@ export default function PodcastCategoryScreen() {
     void loadEpisodes(page + 1, "append");
   }, [backendSlug, hasMore, loadEpisodes, loadingMore, page]);
 
-  if (!category && !parentSection && !backendSlug) {
-    return (
-      <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
-        <CategoryPodcastHeader title="Podcasts" subtitle="Category not found" kicker="PODCASTS" />
-        <View style={styles.fallback}>
-          <Text style={styles.fallbackText}>Category not found</Text>
-        </View>
-      </LinearGradient>
-    );
-  }
+  const renderEpisodeRow = useCallback(
+    ({ item, index }: { item: PodcastCatalogEpisodeMetadata; index: number }) => (
+      <MetadataEpisodeRow
+        episode={item}
+        index={index}
+        playing={playingEpisodeId === item.id}
+        onPress={() => {
+          void playEpisode(item);
+        }}
+      />
+    ),
+    [playEpisode, playingEpisodeId]
+  );
 
-  const title = backendSlug
-    ? getBackendPodcastCategoryLabel(backendSlug)
-    : parentSection?.title || category?.title || "Podcasts";
-  const description = parentSection?.description || category?.description || "";
-  const isEmpty = usesBackendEpisodes ? !loading && episodes.length === 0 : shows.length === 0;
-
-  if (usesBackendEpisodes) {
-    return (
-      <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
-        <CategoryPodcastHeader
-          title={title}
-          subtitle={description || "Playable Hidden Tunes podcast episodes"}
-          kicker="PODCASTS"
-        />
-
-        {loading && episodes.length === 0 ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator color={COLORS.primary} size="large" />
-            <Text style={styles.stateText}>Loading episodes...</Text>
-          </View>
-        ) : loadError && episodes.length === 0 ? (
-          <View style={styles.centerState}>
-            <Text style={styles.stateTitle}>{loadError}</Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={() => {
-                setLoading(true);
-                void loadEpisodes(1, "replace");
-              }}
-            >
-              <Text style={styles.retryText}>Try again</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <FlatList
-            data={episodes}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            ListHeaderComponent={
-              episodes.length > 0 ? (
-                <Text style={styles.sectionTitle}>
-                  {episodes.length} episode{episodes.length === 1 ? "" : "s"} loaded
-                </Text>
-              ) : null
-            }
-            renderItem={({ item, index }) => (
-              <MetadataEpisodeRow
-                episode={item}
-                index={index}
-                playing={playingEpisodeId === item.id}
-                onPress={() => {
-                  void playEpisode(item);
-                }}
-              />
-            )}
-            ListEmptyComponent={
-              isEmpty ? (
-                <PodcastEmptyCategoryState onBrowseAll={() => router.replace("/podcasts" as any)} />
-              ) : null
-            }
-            ListFooterComponent={
-              hasMore ? (
-                <TouchableOpacity
-                  style={styles.loadMoreButton}
-                  onPress={loadMore}
-                  disabled={loadingMore}
-                >
-                  {loadingMore ? (
-                    <ActivityIndicator color={COLORS.primary} size="small" />
-                  ) : (
-                    <Text style={styles.loadMoreText}>Load more</Text>
-                  )}
-                </TouchableOpacity>
-              ) : null
-            }
-            removeClippedSubviews={Platform.OS === "android"}
-            initialNumToRender={12}
-            maxToRenderPerBatch={8}
-            windowSize={7}
-          />
-        )}
-      </LinearGradient>
-    );
-  }
+  const episodeKeyExtractor = useCallback(
+    (item: PodcastCatalogEpisodeMetadata) => item.id,
+    []
+  );
 
   const listData = hasQuery ? [] : shows;
+  const isEmpty = usesBackendEpisodes ? !loading && episodes.length === 0 : shows.length === 0;
+
   const renderShow = useCallback(
     ({ item }: { item: (typeof shows)[number] }) => (
       <PodcastShowCard show={item} onPress={() => openShow(item.id)} />
@@ -546,8 +516,98 @@ export default function PodcastCategoryScreen() {
       !hasQuery && isEmpty ? (
         <PodcastEmptyCategoryState onBrowseAll={() => router.replace("/podcasts" as any)} />
       ) : null,
-    [hasQuery, isEmpty]
+    [hasQuery, isEmpty, router]
   );
+
+  if (!category && !parentSection && !backendSlug) {
+    return (
+      <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
+        <CategoryPodcastHeader title="Podcasts" subtitle="Category not found" kicker="PODCASTS" />
+        <View style={styles.fallback}>
+          <Text style={styles.fallbackText}>Category not found</Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  const title = backendSlug
+    ? getBackendPodcastCategoryLabel(backendSlug)
+    : parentSection?.title || category?.title || "Podcasts";
+  const description = parentSection?.description || category?.description || "";
+
+  if (usesBackendEpisodes) {
+    return (
+      <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
+        <CategoryPodcastHeader
+          title={title}
+          subtitle={description || "Playable Hidden Tunes podcast episodes"}
+          kicker="PODCASTS"
+        />
+
+        {loading && episodes.length === 0 ? (
+          <View style={styles.centerState}>
+            <ActivityIndicator color={COLORS.primary} size="large" />
+            <Text style={styles.stateText}>Loading episodes...</Text>
+          </View>
+        ) : loadError && episodes.length === 0 ? (
+          <View style={styles.centerState}>
+            <Text style={styles.stateTitle}>{loadError}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => {
+                setLoading(true);
+                void loadEpisodes(1, "replace");
+              }}
+            >
+              <Text style={styles.retryText}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={episodes}
+            keyExtractor={episodeKeyExtractor}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListHeaderComponent={
+              episodes.length > 0 ? (
+                <Text style={styles.sectionTitle}>
+                  {episodes.length} episode{episodes.length === 1 ? "" : "s"} loaded
+                </Text>
+              ) : null
+            }
+            renderItem={renderEpisodeRow}
+            ListEmptyComponent={
+              isEmpty ? (
+                <PodcastEmptyCategoryState onBrowseAll={() => router.replace("/podcasts" as any)} />
+              ) : null
+            }
+            ListFooterComponent={
+              hasMore ? (
+                <TouchableOpacity
+                  style={styles.loadMoreButton}
+                  onPress={loadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? (
+                    <ActivityIndicator color={COLORS.primary} size="small" />
+                  ) : (
+                    <Text style={styles.loadMoreText}>Load more</Text>
+                  )}
+                </TouchableOpacity>
+              ) : null
+            }
+            removeClippedSubviews={Platform.OS === "android"}
+            initialNumToRender={listPerf.initialNumToRender}
+            maxToRenderPerBatch={listPerf.maxToRenderPerBatch}
+            windowSize={listPerf.windowSize}
+            updateCellsBatchingPeriod={listPerf.updateCellsBatchingPeriod}
+          />
+        )}
+      </LinearGradient>
+    );
+  }
 
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
@@ -564,9 +624,10 @@ export default function PodcastCategoryScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         removeClippedSubviews={Platform.OS === "android"}
-        initialNumToRender={12}
-        maxToRenderPerBatch={8}
-        windowSize={7}
+        initialNumToRender={listPerf.initialNumToRender}
+        maxToRenderPerBatch={listPerf.maxToRenderPerBatch}
+        windowSize={listPerf.windowSize}
+        updateCellsBatchingPeriod={listPerf.updateCellsBatchingPeriod}
       />
     </LinearGradient>
   );

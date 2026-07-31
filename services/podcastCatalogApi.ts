@@ -3,14 +3,22 @@ import {
   catalogJsonFetch,
   isCatalogTimeoutError,
 } from "./catalogJsonFetch";
+import {
+  getCachedMetadata,
+  runSingleFlight,
+  setCachedMetadata,
+} from "./podcast/podcastCache";
 
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const PODCAST_HOME_API_PATH = "/api/podcasts/shows";
 export const PODCAST_SHOWS_API_PATH = "/api/podcasts/shows";
 export const PODCAST_EPISODES_API_PATH = "/api/podcasts/episodes";
+export const PODCAST_MATURE_EPISODES_API_PATH = "/api/podcasts/mature/episodes";
 export const PODCAST_CATEGORIES_API_PATH = "/api/podcasts/categories";
 export const PODCAST_HOME_PAGE_LIMIT = 24;
 export const PODCAST_CATALOG_PAGE_LIMIT = 40;
+/** Backend mature-tagged show category. Requires includeMature=true + client age gate. */
+export const PODCAST_MATURE_CATEGORY_SLUG = "adult-lifestyle";
 
 export const BACKEND_PODCAST_CATEGORY_SLUGS = [
   "sports",
@@ -451,7 +459,8 @@ export async function fetchPodcastCategories(): Promise<PodcastCatalogCategories
 export async function fetchPodcastEpisodesByCategory(
   categorySlug: string,
   page = 1,
-  limit = PODCAST_CATALOG_PAGE_LIMIT
+  limit = PODCAST_CATALOG_PAGE_LIMIT,
+  options?: { signal?: AbortSignal; includeMature?: boolean }
 ): Promise<PodcastCatalogEpisodesResponse> {
   const safePage = Math.max(1, Number(page || 1));
   const safeLimit = Math.min(50, Math.max(1, Number(limit || PODCAST_CATALOG_PAGE_LIMIT)));
@@ -472,7 +481,9 @@ export async function fetchPodcastEpisodesByCategory(
         category: slug,
         page: safePage,
         limit: safeLimit,
-      })
+        includeMature: options?.includeMature ? "true" : "false",
+      }),
+      options?.signal
     );
 
     if (!response.ok || payload.success === false) {
@@ -494,6 +505,18 @@ export async function fetchPodcastEpisodesByCategory(
       pagination: parsePagination(payload, safePage, safeLimit, episodes.length),
     };
   } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === "AbortError" || error.message === "Aborted")
+    ) {
+      return {
+        success: false,
+        episodes: [],
+        pagination: emptyPagination(safePage, safeLimit),
+        error: "Aborted",
+      };
+    }
+
     return {
       success: false,
       episodes: [],
@@ -503,52 +526,117 @@ export async function fetchPodcastEpisodesByCategory(
   }
 }
 
-export async function fetchPodcastShowsByCategory(
-  categorySlug: string,
-  page = 1,
-  limit = PODCAST_CATALOG_PAGE_LIMIT
-): Promise<PodcastCatalogShowsResponse> {
-  const safePage = Math.max(1, Number(page || 1));
-  const safeLimit = Math.min(50, Math.max(1, Number(limit || PODCAST_CATALOG_PAGE_LIMIT)));
-  const slug = String(categorySlug || "").trim();
+export type FetchPodcastShowsOptions = {
+  category?: string;
+  page?: number;
+  limit?: number;
+  includeMature?: boolean;
+  q?: string;
+  signal?: AbortSignal;
+};
 
-  if (!slug) {
-    return {
-      success: false,
-      shows: [],
-      pagination: emptyPagination(safePage, safeLimit),
-      error: "Category is required.",
-    };
+function podcastShowsCacheKey(options: FetchPodcastShowsOptions) {
+  const page = Math.max(1, Number(options.page || 1));
+  const limit = Math.min(50, Math.max(1, Number(options.limit || PODCAST_CATALOG_PAGE_LIMIT)));
+  const category = String(options.category || "").trim().toLowerCase();
+  const q = String(options.q || "").trim().toLowerCase();
+  const mature = options.includeMature ? "mature" : "safe";
+  return `podcast-shows:${mature}:${category || "all"}:p${page}:l${limit}:q:${q}`;
+}
+
+export function catalogShowToPodcastShow(
+  show: PodcastCatalogShowMetadata,
+  matureLevel: PodcastMatureLevel = "safe"
+): PodcastShow {
+  return {
+    id: show.id,
+    title: show.title,
+    publisher: show.publisher || show.hostName || show.title,
+    description: show.description || "",
+    artworkUrl: show.artworkUrl || "",
+    feedUrl: "",
+    language: "unknown",
+    categories: show.categories,
+    isExplicit: matureLevel !== "safe",
+    matureLevel,
+    source: "rss",
+  };
+}
+
+export async function fetchPodcastShows(
+  options: FetchPodcastShowsOptions = {}
+): Promise<PodcastCatalogShowsResponse> {
+  const safePage = Math.max(1, Number(options.page || 1));
+  const safeLimit = Math.min(50, Math.max(1, Number(options.limit || PODCAST_CATALOG_PAGE_LIMIT)));
+  const category = String(options.category || "").trim();
+  const q = String(options.q || "").trim();
+  const includeMature = Boolean(options.includeMature);
+
+  const cacheKey = podcastShowsCacheKey({
+    category,
+    page: safePage,
+    limit: safeLimit,
+    includeMature,
+    q,
+  });
+
+  const cached = getCachedMetadata<PodcastCatalogShowsResponse>(cacheKey);
+  if (cached?.success && cached.shows.length > 0) {
+    return cached;
   }
 
   try {
-    const { response, payload } = await fetchPodcastCatalogPayload(
-      buildCatalogUrl(PODCAST_SHOWS_API_PATH, {
-        category: slug,
-        page: safePage,
-        limit: safeLimit,
-      })
-    );
+    return await runSingleFlight(cacheKey, async () => {
+      const { response, payload } = await fetchPodcastCatalogPayload(
+        buildCatalogUrl(PODCAST_SHOWS_API_PATH, {
+          category: category || undefined,
+          page: safePage,
+          limit: safeLimit,
+          includeMature: includeMature ? "true" : "false",
+          q: q || undefined,
+        }),
+        options.signal
+      );
 
-    if (!response.ok || payload.success === false) {
+      if (!response.ok || payload.success === false) {
+        return {
+          success: false,
+          shows: [],
+          pagination: emptyPagination(safePage, safeLimit),
+          error: cleanString(payload.error, "Failed to load podcast shows."),
+        };
+      }
+
+      const shows = ((payload.shows || []) as Record<string, unknown>[])
+        .map(normalizeCatalogShow)
+        .filter((show): show is PodcastCatalogShowMetadata => show !== null);
+
+      const result: PodcastCatalogShowsResponse = {
+        success: true,
+        shows,
+        pagination: parsePagination(payload, safePage, safeLimit, shows.length),
+      };
+
+      // Never permanently cache empty successes — avoid empty-result poisoning.
+      if (shows.length > 0) {
+        setCachedMetadata(cacheKey, result);
+      }
+
+      return result;
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === "AbortError" || error.message === "Aborted")
+    ) {
       return {
         success: false,
         shows: [],
         pagination: emptyPagination(safePage, safeLimit),
-        error: cleanString(payload.error, "Failed to load podcast shows."),
+        error: "Aborted",
       };
     }
 
-    const shows = ((payload.shows || []) as Record<string, unknown>[])
-      .map(normalizeCatalogShow)
-      .filter((show): show is PodcastCatalogShowMetadata => show !== null);
-
-    return {
-      success: true,
-      shows,
-      pagination: parsePagination(payload, safePage, safeLimit, shows.length),
-    };
-  } catch (error) {
     return {
       success: false,
       shows: [],
@@ -558,10 +646,43 @@ export async function fetchPodcastShowsByCategory(
   }
 }
 
+export async function fetchPodcastShowsByCategory(
+  categorySlug: string,
+  page = 1,
+  limit = PODCAST_CATALOG_PAGE_LIMIT,
+  options?: Omit<FetchPodcastShowsOptions, "category" | "page" | "limit">
+): Promise<PodcastCatalogShowsResponse> {
+  return fetchPodcastShows({
+    category: categorySlug,
+    page,
+    limit,
+    includeMature: options?.includeMature,
+    q: options?.q,
+    signal: options?.signal,
+  });
+}
+
+export async function fetchMaturePodcastShows(options?: {
+  page?: number;
+  limit?: number;
+  q?: string;
+  signal?: AbortSignal;
+}): Promise<PodcastCatalogShowsResponse> {
+  return fetchPodcastShows({
+    category: PODCAST_MATURE_CATEGORY_SLUG,
+    page: options?.page,
+    limit: options?.limit,
+    includeMature: true,
+    q: options?.q,
+    signal: options?.signal,
+  });
+}
+
 export async function fetchPodcastEpisodesByShow(
   showId: string,
   page = 1,
-  limit = PODCAST_CATALOG_PAGE_LIMIT
+  limit = PODCAST_CATALOG_PAGE_LIMIT,
+  options?: { signal?: AbortSignal; includeMature?: boolean }
 ): Promise<PodcastCatalogEpisodesResponse> {
   const safePage = Math.max(1, Number(page || 1));
   const safeLimit = Math.min(50, Math.max(1, Number(limit || PODCAST_CATALOG_PAGE_LIMIT)));
@@ -582,7 +703,9 @@ export async function fetchPodcastEpisodesByShow(
         show_id: id,
         page: safePage,
         limit: safeLimit,
-      })
+        includeMature: options?.includeMature ? "true" : "false",
+      }),
+      options?.signal
     );
 
     if (!response.ok || payload.success === false) {
@@ -604,6 +727,18 @@ export async function fetchPodcastEpisodesByShow(
       pagination: parsePagination(payload, safePage, safeLimit, episodes.length),
     };
   } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === "AbortError" || error.message === "Aborted")
+    ) {
+      return {
+        success: false,
+        episodes: [],
+        pagination: emptyPagination(safePage, safeLimit),
+        error: "Aborted",
+      };
+    }
+
     return {
       success: false,
       episodes: [],
@@ -649,7 +784,10 @@ export async function fetchPodcastShowById(
   }
 }
 
-export async function fetchPodcastEpisodePlay(episodeId: string): Promise<{
+export async function fetchPodcastEpisodePlay(
+  episodeId: string,
+  options?: { includeMature?: boolean; signal?: AbortSignal }
+): Promise<{
   success: boolean;
   play: PodcastEpisodePlay | null;
   error?: string;
@@ -659,23 +797,12 @@ export async function fetchPodcastEpisodePlay(episodeId: string): Promise<{
     return { success: false, play: null, error: "Episode id is required." };
   }
 
-  try {
-    const { response, payload } = await fetchPodcastCatalogPayload(
-      buildCatalogUrl(`${PODCAST_EPISODES_API_PATH}/${encodeURIComponent(id)}/play`)
-    );
-
-    if (!response.ok || payload.success === false) {
-      return {
-        success: false,
-        play: null,
-        error: cleanString(payload.error, "Failed to resolve podcast playback."),
-      };
-    }
-
+  const includeMature = Boolean(options?.includeMature);
+  const parsePlayPayload = (payload: Record<string, unknown>) => {
     const audioUrl = cleanString(payload.audio_url ?? payload.audioUrl);
     if (!audioUrl) {
       return {
-        success: false,
+        success: false as const,
         play: null,
         error: "Episode audio is unavailable.",
       };
@@ -684,7 +811,7 @@ export async function fetchPodcastEpisodePlay(episodeId: string): Promise<{
     const durationRaw = Number(payload.duration_seconds ?? payload.durationSeconds);
 
     return {
-      success: true,
+      success: true as const,
       play: {
         id: cleanString(payload.episode_id ?? payload.id, id),
         showId: cleanString(payload.show_id ?? payload.showId),
@@ -694,6 +821,62 @@ export async function fetchPodcastEpisodePlay(episodeId: string): Promise<{
           Number.isFinite(durationRaw) && durationRaw > 0 ? Math.round(durationRaw) : undefined,
         publishedAt: cleanOptionalString(payload.published_at ?? payload.publishedAt),
       },
+    };
+  };
+
+  const requestPlay = async (url: string) => {
+    const { response, payload } = await fetchPodcastCatalogPayload(url, options?.signal);
+    if (!response.ok || payload.success === false) {
+      return {
+        success: false as const,
+        play: null,
+        status: response.status,
+        error: cleanString(payload.error, "Failed to resolve podcast playback."),
+      };
+    }
+    return { ...parsePlayPayload(payload), status: response.status };
+  };
+
+  try {
+    // Mature shows are rejected by the general /play route even when includeMature is set.
+    // Consented clients must use the dedicated mature play endpoint + age gate query.
+    if (includeMature) {
+      const matureResult = await requestPlay(
+        buildCatalogUrl(`${PODCAST_MATURE_EPISODES_API_PATH}/${encodeURIComponent(id)}/play`, {
+          mature_enabled: "true",
+          age_confirmed: "true",
+        })
+      );
+      if (matureResult.success) {
+        return { success: true, play: matureResult.play };
+      }
+
+      // Fall back to general play for non-mature episodes while mature browsing is enabled.
+      const generalResult = await requestPlay(
+        buildCatalogUrl(`${PODCAST_EPISODES_API_PATH}/${encodeURIComponent(id)}/play`)
+      );
+      if (generalResult.success) {
+        return { success: true, play: generalResult.play };
+      }
+
+      return {
+        success: false,
+        play: null,
+        error: matureResult.error || generalResult.error || "Failed to resolve podcast playback.",
+      };
+    }
+
+    const generalResult = await requestPlay(
+      buildCatalogUrl(`${PODCAST_EPISODES_API_PATH}/${encodeURIComponent(id)}/play`)
+    );
+    if (generalResult.success) {
+      return { success: true, play: generalResult.play };
+    }
+
+    return {
+      success: false,
+      play: null,
+      error: generalResult.error || "Failed to resolve podcast playback.",
     };
   } catch (error) {
     return {

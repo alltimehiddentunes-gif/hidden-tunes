@@ -62,3 +62,15 @@ export function clearPodcastCaches() {
   metadataCache.clear();
   episodeCache.clear();
 }
+
+export function clearPodcastCachesByPrefix(prefix: string) {
+  const normalized = String(prefix || "");
+  if (!normalized) return;
+
+  for (const key of Array.from(metadataCache.keys())) {
+    if (key.startsWith(normalized)) metadataCache.delete(key);
+  }
+  for (const key of Array.from(episodeCache.keys())) {
+    if (key.startsWith(normalized)) episodeCache.delete(key);
+  }
+}

@@ -90,11 +90,15 @@ export function podcastEpisodeToAppSong(episode: PodcastEpisode): AppSong {
   };
 }
 
+export type PodcastContinuationScope = "mature_only" | "general_only";
+
 export type PodcastQueueContext = PlaybackQueueContext & {
   queueType?: typeof PODCAST_QUEUE_TYPE;
   contextType?: string;
   contextId?: string;
   contextTitle?: string;
+  /** Isolates Mature/+18 auto-next from the general Podcast catalog. */
+  continuationScope?: PodcastContinuationScope;
 };
 
 export function buildPodcastQueueContext(input: {
@@ -104,12 +108,17 @@ export function buildPodcastQueueContext(input: {
   creatorId?: string | null;
   categoryId?: string | null;
   label?: string | null;
+  continuationScope?: PodcastContinuationScope | null;
 }): PodcastQueueContext {
   const showId = String(input.showId || "").trim();
   const showTitle = String(input.showTitle || "").trim();
   const feedId = String(input.feedId || "").trim();
   const creatorId = String(input.creatorId || "").trim();
   const categoryId = String(input.categoryId || "").trim();
+  const continuationScope =
+    input.continuationScope === "mature_only" || input.continuationScope === "general_only"
+      ? input.continuationScope
+      : undefined;
 
   return {
     // Keep source bounded; PlayerContext historically maps source "podcast" → "unknown".
@@ -126,6 +135,7 @@ export function buildPodcastQueueContext(input: {
     contextType: PODCAST_SHOW_CONTEXT_TYPE,
     contextId: showId || undefined,
     contextTitle: showTitle || undefined,
+    continuationScope,
   };
 }
 

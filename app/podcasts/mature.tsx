@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, StyleSheet, Switch, Text, View,
+import {
+  ActivityIndicator,
+  FlatList,
   Platform,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -10,8 +16,8 @@ import { PodcastCategoryCard, PodcastShowCard } from "../../components/podcast/P
 import MaturePodcastConsentModal from "../../components/podcast/MaturePodcastConsentModal";
 import PodcastScreenHeader from "../../components/podcast/PodcastScreenHeader";
 import PodcastSearchBar from "../../components/podcast/PodcastSearchBar";
-import PodcastSearchResults from "../../components/podcast/PodcastSearchResults";
 import { COLORS } from "../../constants/theme";
+import { useMaturePodcastCatalog } from "../../hooks/useMaturePodcastCatalog";
 import { getMaturePodcastPageSections } from "../../services/podcastService";
 import {
   disableMaturePodcasts,
@@ -19,26 +25,22 @@ import {
   shouldIncludeMaturePodcasts,
   subscribeMaturePodcastSettings,
 } from "../../utils/maturePodcastSettings";
+import { getListPerformanceSettings } from "../../utils/performanceMode";
 import { safeRouterPush } from "../../utils/safeNavigation";
-import { usePodcastLocalSearch } from "../../hooks/usePodcastLocalSearch";
 import type { PodcastShow } from "../../types/podcast";
-
-type MaturePodcastRow =
-  | { type: "section"; id: string; title: string }
-  | { type: "show"; id: string; sectionId: string; show: PodcastShow };
 
 export default function MaturePodcastsScreen() {
   const [enabled, setEnabled] = useState(shouldIncludeMaturePodcasts());
   const [consentVisible, setConsentVisible] = useState(false);
-  const { query, setQuery, results, hasQuery } = usePodcastLocalSearch({ matureOnly: true });
-
-  const pageData = useMemo(
-    () => getMaturePodcastPageSections(shouldIncludeMaturePodcasts()),
-    [enabled]
-  );
+  const [query, setQuery] = useState("");
+  const [deferredQuery, setDeferredQuery] = useState("");
 
   useEffect(() => {
-    setEnabled(shouldIncludeMaturePodcasts());
+    const timer = setTimeout(() => setDeferredQuery(query), 220);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
     const unsubscribe = subscribeMaturePodcastSettings(() => {
       setEnabled(shouldIncludeMaturePodcasts());
     });
@@ -46,6 +48,21 @@ export default function MaturePodcastsScreen() {
       unsubscribe();
     };
   }, []);
+
+  const catalog = useMaturePodcastCatalog({
+    enabled,
+    query: deferredQuery,
+  });
+
+  const pageData = useMemo(
+    () => getMaturePodcastPageSections(enabled),
+    [enabled]
+  );
+
+  const listPerf = useMemo(
+    () => getListPerformanceSettings(Math.max(catalog.shows.length, 24)),
+    [catalog.shows.length]
+  );
 
   const handleToggle = (value: boolean) => {
     if (value) {
@@ -65,33 +82,23 @@ export default function MaturePodcastsScreen() {
   const openShow = useCallback((showId: string) => {
     safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: showId } });
   }, []);
-  const rows = useMemo<MaturePodcastRow[]>(() => {
-    if (!enabled || hasQuery) return [];
 
-    return pageData.sections.flatMap((section) => [
-      { type: "section" as const, id: `section-${section.id}`, title: section.title },
-      ...section.shows.map((show) => ({
-        type: "show" as const,
-        id: `${section.id}-${show.id}`,
-        sectionId: section.id,
-        show,
-      })),
-    ]);
-  }, [enabled, hasQuery, pageData.sections]);
-  const renderRow = useCallback(
-    ({ item }: { item: MaturePodcastRow }) => {
-      if (item.type === "section") {
-        return (
-          <View style={styles.sectionTitleWrap}>
-            <Text style={styles.sectionTitle}>{item.title}</Text>
-          </View>
-        );
-      }
+  const hasQuery = query.trim().length >= 2;
 
-      return <PodcastShowCard show={item.show} onPress={() => openShow(item.show.id)} />;
-    },
+  const renderShow = useCallback(
+    ({ item }: { item: PodcastShow }) => (
+      <PodcastShowCard show={item} onPress={() => openShow(item.id)} />
+    ),
     [openShow]
   );
+
+  const keyExtractor = useCallback((item: PodcastShow) => item.id, []);
+
+  const loadMore = catalog.loadMore;
+  const onEndReached = useCallback(() => {
+    loadMore();
+  }, [loadMore]);
+
   const renderHeader = useCallback(
     () => (
       <>
@@ -122,8 +129,6 @@ export default function MaturePodcastsScreen() {
 
         {enabled ? (
           <>
-            <PodcastSearchResults results={results} hasQuery={hasQuery} onOpenShow={openShow} />
-
             {!hasQuery && pageData.categories.length > 0 ? (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Mature Categories</Text>
@@ -143,12 +148,69 @@ export default function MaturePodcastsScreen() {
                 </View>
               </View>
             ) : null}
+
+            <View style={styles.sectionTitleWrap}>
+              <Text style={styles.sectionTitle}>
+                {hasQuery ? "Search Results" : "Mature Catalog"}
+              </Text>
+              {catalog.total > 0 ? (
+                <Text style={styles.countText}>
+                  {catalog.shows.length}
+                  {catalog.hasMore ? "+" : ""} of {catalog.total}
+                </Text>
+              ) : null}
+            </View>
+
+            {catalog.loading && catalog.shows.length === 0 ? (
+              <View style={styles.centerState}>
+                <ActivityIndicator color={COLORS.primary} size="large" />
+                <Text style={styles.stateText}>Loading mature podcasts...</Text>
+              </View>
+            ) : null}
+
+            {catalog.error && catalog.shows.length === 0 ? (
+              <View style={styles.centerState}>
+                <Text style={styles.stateTitle}>{catalog.error}</Text>
+                <Text style={styles.retryHint} onPress={catalog.refresh}>
+                  Tap to retry
+                </Text>
+              </View>
+            ) : null}
+
+            {!catalog.loading && !catalog.error && catalog.shows.length === 0 ? (
+              <View style={styles.centerState}>
+                <Text style={styles.stateText}>
+                  {hasQuery
+                    ? "No mature podcasts matched that search."
+                    : "No mature podcasts available right now."}
+                </Text>
+              </View>
+            ) : null}
           </>
         ) : null}
       </>
     ),
-    [enabled, hasQuery, openShow, pageData.categories, results]
+    [
+      catalog.error,
+      catalog.hasMore,
+      catalog.loading,
+      catalog.refresh,
+      catalog.shows.length,
+      catalog.total,
+      enabled,
+      hasQuery,
+      pageData.categories,
+    ]
   );
+
+  const renderFooter = useCallback(() => {
+    if (!enabled || !catalog.loadingMore) return null;
+    return (
+      <View style={styles.footer}>
+        <ActivityIndicator color={COLORS.primary} size="small" />
+      </View>
+    );
+  }, [catalog.loadingMore, enabled]);
 
   return (
     <LinearGradient colors={["#030008", "#090214", "#000000"]} style={styles.screen}>
@@ -161,16 +223,20 @@ export default function MaturePodcastsScreen() {
       </PodcastScreenHeader>
 
       <FlatList
-        data={rows}
-        renderItem={renderRow}
-        keyExtractor={(item) => item.id}
+        data={enabled ? catalog.shows : []}
+        renderItem={renderShow}
+        keyExtractor={keyExtractor}
         ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        onEndReached={enabled ? onEndReached : undefined}
+        onEndReachedThreshold={0.4}
+        initialNumToRender={listPerf.initialNumToRender}
+        maxToRenderPerBatch={listPerf.maxToRenderPerBatch}
+        windowSize={listPerf.windowSize}
+        updateCellsBatchingPeriod={listPerf.updateCellsBatchingPeriod}
         removeClippedSubviews={Platform.OS === "android"}
-        initialNumToRender={12}
-        maxToRenderPerBatch={8}
-        windowSize={7}
       />
 
       <MaturePodcastConsentModal
@@ -184,7 +250,7 @@ export default function MaturePodcastsScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { paddingHorizontal: 18, paddingBottom: 120, gap: 20 },
+  content: { paddingHorizontal: 18, paddingBottom: 120, gap: 12 },
   settingRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -194,27 +260,43 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+    marginBottom: 8,
   },
   settingCopy: { flex: 1 },
   settingTitle: { color: COLORS.text, fontWeight: "800", fontSize: 15 },
   settingSubtitle: { color: COLORS.textMuted, fontSize: 12, marginTop: 4, lineHeight: 17 },
   lockedPanel: {
     alignItems: "center",
-    padding: 24,
-    borderRadius: 18,
-    backgroundColor: "rgba(239,68,68,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.18)",
-    gap: 8,
+    gap: 10,
+    paddingVertical: 36,
+    paddingHorizontal: 18,
   },
   lockedTitle: { color: COLORS.text, fontWeight: "800", fontSize: 16 },
-  lockedText: { color: COLORS.textMuted, textAlign: "center", lineHeight: 18 },
-  section: { gap: 10 },
-  chipWrap: {
+  lockedText: {
+    color: COLORS.textMuted,
+    textAlign: "center",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  section: { marginBottom: 8 },
+  sectionTitleWrap: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  sectionTitle: { color: COLORS.text, fontWeight: "800", fontSize: 16 },
+  countText: { color: COLORS.textMuted, fontSize: 12 },
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 8 },
+  centerState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 28,
     gap: 10,
   },
-  sectionTitleWrap: { marginTop: 4 },
-  sectionTitle: { color: COLORS.text, fontSize: 16, fontWeight: "800" },
+  stateText: { color: COLORS.textMuted, fontSize: 13 },
+  stateTitle: { color: COLORS.text, fontWeight: "700", textAlign: "center" },
+  retryHint: { color: COLORS.primary, fontWeight: "700", fontSize: 13 },
+  footer: { paddingVertical: 16, alignItems: "center" },
 });

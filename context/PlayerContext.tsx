@@ -343,6 +343,8 @@ export type PlaybackQueueContext = {
   contextType?: string;
   contextId?: string;
   contextTitle?: string;
+  /** Podcast mature/general auto-next isolation. */
+  continuationScope?: "mature_only" | "general_only" | string;
 };
 
 type LegacyPlaybackStatus = {
@@ -1033,6 +1035,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const activeQueueIndexRef = useRef(0);
   const activeQueueModeRef = useRef<ActiveQueueMode>("standard");
   const activeQueueContextRef = useRef<PlaybackQueueContext>(DEFAULT_QUEUE_CONTEXT);
+  const playSongContinuationRef = useRef<
+    | ((
+        song: AppSong,
+        queue?: AppSong[],
+        index?: number,
+        queueContext?: PlaybackQueueContext,
+        queueMode?: ActiveQueueMode
+      ) => Promise<void>)
+    | null
+  >(null);
 
   const youtubeQueueRef = useRef<BackendYouTubeTrack[]>([]);
   const youtubeQueueIndexRef = useRef(0);
@@ -4783,7 +4795,52 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Audiobooks / Motivationals / Podcasts: same-parent queues are already
+      // Podcasts: advance inside the active same-show queue when possible.
+      // When the queue is exhausted, resolve same-show page / same-category
+      // continuation without Music smart-extend or cross-scope bleed.
+      const podcastDomain =
+        activeQueueContextRef.current?.queueType === "podcast" ||
+        activeQueueContextRef.current?.contextType === "podcast-show" ||
+        String(currentSongRef.current?.id || "").startsWith("podcast-") ||
+        String(currentSongRef.current?.sourceName || "").toLowerCase() === "podcast" ||
+        String(currentSongRef.current?.sourceName || "").toLowerCase() === "podcasts";
+      if (podcastDomain) {
+        const { queue, safeIndex } = getActiveQueuePlaybackState();
+        const nextIndex = getNextQueueIndex(safeIndex, queue.length);
+        if (nextIndex >= 0) {
+          await nextSong({ source: "auto" });
+          return;
+        }
+
+        const { handlePodcastSessionFinished } = await import(
+          "../utils/PodcastPlaybackController"
+        );
+        const playSongFn = playSongContinuationRef.current;
+        if (!playSongFn) {
+          logAutoNextSkipped("podcast_continuation_no_play_binding", {
+            songId: currentSongRef.current?.id,
+          });
+          setIsPlaying(false);
+          return;
+        }
+        const advanced = await handlePodcastSessionFinished({
+          playSong: playSongFn,
+          getCurrentSong: () => currentSongRef.current,
+          getQueue: () => activeQueueRef.current || [],
+          getQueueContext: () => activeQueueContextRef.current,
+        });
+        if (advanced) {
+          logAutoNextSuccess({ reason: "podcast_session_finished" });
+        } else {
+          logAutoNextSkipped("podcast_continuation_ended", {
+            songId: currentSongRef.current?.id,
+          });
+          setIsPlaying(false);
+        }
+        return;
+      }
+
+      // Audiobooks / Motivationals: same-parent queues are already
       // bounded; generic nextSong advances within the active queue only.
       await nextSong({ source: "auto" });
     } finally {
@@ -4818,9 +4875,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       nextIndex === -1 &&
       repeatModeRef.current === "off";
 
+    const podcastDomainForAdvance =
+      activeQueueContextRef.current?.queueType === "podcast" ||
+      activeQueueContextRef.current?.contextType === "podcast-show" ||
+      String(currentSongRef.current?.id || "").startsWith("podcast-") ||
+      String(currentSongRef.current?.sourceName || "").toLowerCase() === "podcast" ||
+      String(currentSongRef.current?.sourceName || "").toLowerCase() === "podcasts";
+
     const hasQueuedNextTrack = nextIndex !== -1;
     const allowBackgroundAdvance =
-      backgroundAdvanceFromNativeEndRef.current || hasQueuedNextTrack;
+      backgroundAdvanceFromNativeEndRef.current ||
+      hasQueuedNextTrack ||
+      // Podcast same-show / category continuation resolves lazily after queue end.
+      (podcastDomainForAdvance && nextIndex === -1);
 
     if (
       naturalBackgroundQueueEnd &&
@@ -4847,7 +4914,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         appState: appStateRef.current,
       });
 
-      if (!smartAutoplayEnabledRef.current) {
+      if (!smartAutoplayEnabledRef.current && !podcastDomainForAdvance) {
         return;
       }
     }
@@ -7234,6 +7301,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       resolveQueueModeForSong,
     ]
   );
+  playSongContinuationRef.current = playSong;
 
   const playAudiusTrack = useCallback(
     async (song: AppSong) => {

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator,
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
   Alert,
   FlatList,
   StyleSheet,
@@ -32,6 +33,7 @@ import {
   fetchPodcastShowById,
   isBackendPodcastShowId,
   PODCAST_CATALOG_PAGE_LIMIT,
+  PODCAST_MATURE_CATEGORY_SLUG,
   type PodcastCatalogEpisodeMetadata,
 } from "../../../services/podcastCatalogApi";
 import {
@@ -60,11 +62,45 @@ function isEpisodePlayable(episode: PodcastEpisode) {
   return Boolean(episode.audioUrl?.trim() && isPlayablePodcastAudioUrl(episode.audioUrl));
 }
 
+function isMatureShowCategories(categories: string[] | undefined) {
+  return (categories || []).some((entry) => {
+    const value = String(entry || "").trim().toLowerCase();
+    return value === PODCAST_MATURE_CATEGORY_SLUG || value.includes("adult") || value.includes("mature");
+  });
+}
+
+function describeEpisodeLoadError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  const lower = message.toLowerCase();
+  if (!message || message === "Aborted" || lower.includes("abort")) return null;
+  if (lower.includes("timeout") || lower.includes("timed out")) return "Request timed out";
+  if (lower.includes("network") || lower.includes("connection") || lower.includes("offline")) {
+    return "Connection unavailable";
+  }
+  if (lower.includes("unsupported")) return "Episode source unsupported";
+  return message || fallback;
+}
+
+function dedupeCatalogEpisodes(
+  existing: PodcastCatalogEpisodeMetadata[],
+  incoming: PodcastCatalogEpisodeMetadata[]
+) {
+  const seen = new Set(existing.map((entry) => entry.id));
+  const next = [...existing];
+  for (const entry of incoming) {
+    if (!entry.id || seen.has(entry.id)) continue;
+    seen.add(entry.id);
+    next.push(entry);
+  }
+  return next;
+}
+
 const playEpisodeTapGuard = createTapGuardState();
 
 function catalogEpisodeToDisplayEpisode(
   metadata: PodcastCatalogEpisodeMetadata,
-  showTitle: string
+  showTitle: string,
+  mature: boolean
 ): PodcastEpisode {
   return {
     id: metadata.id,
@@ -77,9 +113,9 @@ function catalogEpisodeToDisplayEpisode(
     durationSeconds: metadata.durationSeconds,
     publishedAt: metadata.publishedAt,
     language: "unknown",
-    categories: [],
-    isExplicit: false,
-    matureLevel: "safe",
+    categories: mature ? [PODCAST_MATURE_CATEGORY_SLUG] : [],
+    isExplicit: mature,
+    matureLevel: mature ? "adult" : "safe",
     source: "podcast_rss",
   };
 }
@@ -87,7 +123,8 @@ function catalogEpisodeToDisplayEpisode(
 function catalogEpisodeToPlayableEpisode(
   metadata: PodcastCatalogEpisodeMetadata,
   play: NonNullable<Awaited<ReturnType<typeof fetchPodcastEpisodePlay>>["play"]>,
-  showTitle: string
+  showTitle: string,
+  mature: boolean
 ): PodcastEpisode {
   return {
     id: play.id,
@@ -100,9 +137,9 @@ function catalogEpisodeToPlayableEpisode(
     durationSeconds: play.durationSeconds ?? metadata.durationSeconds,
     publishedAt: play.publishedAt ?? metadata.publishedAt,
     language: "unknown",
-    categories: [],
-    isExplicit: false,
-    matureLevel: "safe",
+    categories: mature ? [PODCAST_MATURE_CATEGORY_SLUG] : [],
+    isExplicit: mature,
+    matureLevel: mature ? "adult" : "safe",
     source: "podcast_rss",
   };
 }
@@ -124,9 +161,30 @@ export default function PodcastShowScreen() {
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
   const [catalogEpisodes, setCatalogEpisodes] = useState<PodcastCatalogEpisodeMetadata[]>([]);
   const [episodesLoading, setEpisodesLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [page, setPage] = useState(1);
   const [episodesError, setEpisodesError] = useState<string | null>(null);
   const [following, setFollowing] = useState(false);
   const [resolvingEpisodeId, setResolvingEpisodeId] = useState<string | null>(null);
+
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+  const inflightPageRef = useRef<number | null>(null);
+  const catalogCountRef = useRef(0);
+  const showRef = useRef<PodcastShow | null>(staticShow);
+  const rssEpisodeCountRef = useRef(0);
+
+  useEffect(() => {
+    catalogCountRef.current = catalogEpisodes.length;
+    showRef.current = show;
+    rssEpisodeCountRef.current = episodes.length;
+  }, [catalogEpisodes.length, episodes.length, show]);
+
+  const showIsMature = useMemo(
+    () => Boolean(show && (show.matureLevel !== "safe" || isMatureShowCategories(show.categories))),
+    [show]
+  );
 
   const cleanedDescription = useMemo(
     () => cleanPodcastDescription(show?.description),
@@ -141,71 +199,130 @@ export default function PodcastShowScreen() {
   const latestEpisode = useMemo(() => {
     if (isBackendShow) {
       return catalogEpisodes[0]
-        ? catalogEpisodeToDisplayEpisode(catalogEpisodes[0], show?.title || "Podcast")
+        ? catalogEpisodeToDisplayEpisode(catalogEpisodes[0], show?.title || "Podcast", showIsMature)
         : null;
     }
     return playableEpisodes.length > 0 ? playableEpisodes[0] : null;
-  }, [catalogEpisodes, isBackendShow, playableEpisodes, show?.title]);
+  }, [catalogEpisodes, isBackendShow, playableEpisodes, show?.title, showIsMature]);
 
   const relatedShows = useMemo(
     () => (show && !isBackendShow ? getRelatedPodcastShows(show, 5) : []),
     [isBackendShow, show]
   );
 
-  const loadBackendShow = useCallback(async () => {
-    if (!showId) return;
+  const loadBackendShow = useCallback(
+    async (nextPage = 1, mode: "replace" | "append" = "replace") => {
+      if (!showId) return;
+      if (inflightPageRef.current === nextPage) return;
 
-    setEpisodesLoading(true);
-    setEpisodesError(null);
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      inflightPageRef.current = nextPage;
 
-    try {
-      const [showResult, episodeResult] = await Promise.all([
-        fetchPodcastShowById(showId),
-        fetchPodcastEpisodesByShow(showId, 1, PODCAST_CATALOG_PAGE_LIMIT),
-      ]);
-
-      if (!showResult.success || !showResult.show) {
-        setShow(null);
-        setCatalogEpisodes([]);
-        setEpisodesError("This feed could not be loaded");
-        return;
+      const hasExisting = catalogCountRef.current > 0 || Boolean(showRef.current);
+      if (mode === "replace") {
+        // Keep cached rows visible — full-screen loader only when nothing usable exists.
+        if (!hasExisting) setEpisodesLoading(true);
+        setEpisodesError(null);
+      } else {
+        setLoadingMore(true);
       }
 
-      const catalogShow = showResult.show;
-      setShow({
-        id: catalogShow.id,
-        title: catalogShow.title,
-        publisher: catalogShow.publisher || catalogShow.hostName || catalogShow.title,
-        description: catalogShow.description || "",
-        artworkUrl: catalogShow.artworkUrl || "",
-        feedUrl: "",
-        language: "unknown",
-        categories: catalogShow.categories,
-        isExplicit: false,
-        matureLevel: "safe",
-        source: "rss",
-      });
+      try {
+        const includeMature = shouldIncludeMaturePodcasts();
+        const showPromise =
+          mode === "replace"
+            ? fetchPodcastShowById(showId)
+            : Promise.resolve({ success: true as const, show: null });
+        const [showResult, episodeResult] = await Promise.all([
+          showPromise,
+          fetchPodcastEpisodesByShow(showId, nextPage, PODCAST_CATALOG_PAGE_LIMIT, {
+            includeMature,
+            signal: controller.signal,
+          }),
+        ]);
 
-      if (!episodeResult.success) {
-        setCatalogEpisodes([]);
-        setEpisodesError(episodeResult.error || "Episodes unavailable right now");
-        return;
-      }
+        if (!mountedRef.current || controller.signal.aborted) return;
 
-      setCatalogEpisodes(episodeResult.episodes);
-      if (!episodeResult.episodes.length) {
-        setEpisodesError("Episodes unavailable right now");
+        if (mode === "replace") {
+          if (!showResult.success || !showResult.show) {
+            if (!hasExisting) setShow(null);
+            if (!hasExisting) setCatalogEpisodes([]);
+            setEpisodesError("This feed could not be loaded");
+            setHasMore(false);
+            return;
+          }
+
+          const catalogShow = showResult.show;
+          const mature = isMatureShowCategories(catalogShow.categories);
+          setShow({
+            id: catalogShow.id,
+            title: catalogShow.title,
+            publisher: catalogShow.publisher || catalogShow.hostName || catalogShow.title,
+            description: catalogShow.description || "",
+            artworkUrl: catalogShow.artworkUrl || "",
+            feedUrl: "",
+            language: "unknown",
+            categories: catalogShow.categories,
+            isExplicit: mature,
+            matureLevel: mature ? "adult" : "safe",
+            source: "rss",
+          });
+        }
+
+        if (!episodeResult.success) {
+          if (episodeResult.error === "Aborted") return;
+          const mapped =
+            describeEpisodeLoadError(episodeResult.error, "Episodes failed to load") ||
+            "Episodes failed to load";
+          setEpisodesError(mapped);
+          if (mode === "replace" && !hasExisting) {
+            setCatalogEpisodes([]);
+            setHasMore(false);
+          }
+          return;
+        }
+
+        setCatalogEpisodes((current) =>
+          mode === "append"
+            ? dedupeCatalogEpisodes(current, episodeResult.episodes)
+            : dedupeCatalogEpisodes([], episodeResult.episodes)
+        );
+        setPage(episodeResult.pagination.page);
+        setHasMore(Boolean(episodeResult.pagination.hasMore));
+
+        if (!episodeResult.episodes.length && mode === "replace") {
+          setEpisodesError("No episodes published");
+        } else {
+          setEpisodesError(null);
+        }
+      } catch (error) {
+        if (!mountedRef.current) return;
+        if (error instanceof Error && error.name === "AbortError") return;
+        const mapped =
+          describeEpisodeLoadError(error, "Episodes failed to load") || "Episodes failed to load";
+        setEpisodesError(mapped);
+        if (mode === "replace" && !hasExisting) {
+          setShow(null);
+          setCatalogEpisodes([]);
+        }
+      } finally {
+        if (inflightPageRef.current === nextPage) inflightPageRef.current = null;
+        if (mountedRef.current) {
+          setEpisodesLoading(false);
+          setLoadingMore(false);
+        }
+        if (mode === "replace" && mountedRef.current) {
+          const followed = await getFollowedPodcastShows();
+          if (mountedRef.current) {
+            setFollowing(followed.some((item) => item.id === showId));
+          }
+        }
       }
-    } catch {
-      setShow(null);
-      setCatalogEpisodes([]);
-      setEpisodesError("Episodes unavailable right now");
-    } finally {
-      setEpisodesLoading(false);
-      const followed = await getFollowedPodcastShows();
-      setFollowing(followed.some((item) => item.id === showId));
-    }
-  }, [showId]);
+    },
+    [showId]
+  );
 
   const loadRssShow = useCallback(async () => {
     if (!showId) return;
@@ -223,8 +340,9 @@ export default function PodcastShowScreen() {
       return;
     }
 
+    const hadEpisodes = rssEpisodeCountRef.current > 0;
     setShow(resolved);
-    setEpisodesLoading(true);
+    if (!hadEpisodes) setEpisodesLoading(true);
     setEpisodesError(null);
 
     try {
@@ -233,6 +351,8 @@ export default function PodcastShowScreen() {
         limit: PODCAST_SHOW_EPISODE_LIMIT,
         includeMature: shouldIncludeMaturePodcasts(),
       });
+
+      if (!mountedRef.current) return;
 
       if (result.show) {
         setShow(result.show);
@@ -245,31 +365,56 @@ export default function PodcastShowScreen() {
 
       setEpisodes(result.episodes);
       if (!result.episodes.length) {
-        setEpisodesError("Episodes unavailable right now");
+        setEpisodesError("No episodes published");
       }
-    } catch {
-      setEpisodes([]);
-      setEpisodesError("Episodes unavailable right now");
+    } catch (error) {
+      if (!mountedRef.current) return;
+      setEpisodesError(
+        describeEpisodeLoadError(error, "Episodes failed to load") || "Episodes failed to load"
+      );
     } finally {
-      setEpisodesLoading(false);
-      const followed = await getFollowedPodcastShows();
-      if (resolved) {
-        setFollowing(followed.some((item) => item.id === resolved.id));
+      if (mountedRef.current) {
+        setEpisodesLoading(false);
+        const followed = await getFollowedPodcastShows();
+        if (resolved && mountedRef.current) {
+          setFollowing(followed.some((item) => item.id === resolved.id));
+        }
       }
     }
   }, [showId]);
 
   const loadEpisodes = useCallback(async () => {
     if (isBackendShow) {
-      await loadBackendShow();
+      await loadBackendShow(1, "replace");
       return;
     }
     await loadRssShow();
   }, [isBackendShow, loadBackendShow, loadRssShow]);
 
   useEffect(() => {
-    void loadEpisodes();
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+      inflightPageRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void loadEpisodes();
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      abortRef.current?.abort();
+      inflightPageRef.current = null;
+    };
   }, [loadEpisodes]);
+
+  const loadMoreEpisodes = useCallback(() => {
+    if (!isBackendShow || loadingMore || episodesLoading || !hasMore) return;
+    void loadBackendShow(page + 1, "append");
+  }, [episodesLoading, hasMore, isBackendShow, loadBackendShow, loadingMore, page]);
 
   const playResolvedEpisode = useCallback(
     async (metadata: PodcastCatalogEpisodeMetadata) => {
@@ -278,18 +423,25 @@ export default function PodcastShowScreen() {
 
       setResolvingEpisodeId(metadata.id);
       try {
-        const resolved = await fetchPodcastEpisodePlay(metadata.id);
+        const resolved = await fetchPodcastEpisodePlay(metadata.id, {
+          includeMature: shouldIncludeMaturePodcasts(),
+        });
         if (!resolved.success || !resolved.play?.audioUrl) {
           Alert.alert("Unavailable", resolved.error || "This episode is unavailable.");
           return;
         }
 
-        const playable = catalogEpisodeToPlayableEpisode(metadata, resolved.play, show.title);
+        const playable = catalogEpisodeToPlayableEpisode(
+          metadata,
+          resolved.play,
+          show.title,
+          showIsMature
+        );
         // Same-show queue: preserve catalog API order; only the selected row has audio yet.
         const showQueue = catalogEpisodes.map((entry) =>
           entry.id === metadata.id
             ? playable
-            : catalogEpisodeToDisplayEpisode(entry, show.title)
+            : catalogEpisodeToDisplayEpisode(entry, show.title, showIsMature)
         );
         await runWithMaturePodcastConsent(playable, () =>
           playPodcastEpisodeFromShow(playable, showQueue.length ? showQueue : [playable], undefined, {
@@ -304,7 +456,13 @@ export default function PodcastShowScreen() {
         setResolvingEpisodeId(null);
       }
     },
-    [catalogEpisodes, playPodcastEpisodeFromShow, runWithMaturePodcastConsent, show]
+    [
+      catalogEpisodes,
+      playPodcastEpisodeFromShow,
+      runWithMaturePodcastConsent,
+      show,
+      showIsMature,
+    ]
   );
 
   const playEpisode = useCallback(
@@ -375,10 +533,14 @@ export default function PodcastShowScreen() {
   const displayEpisodes = useMemo(() => {
     if (!show) return [] as PodcastEpisode[];
     return isBackendShow
-      ? catalogEpisodes.map((item) => catalogEpisodeToDisplayEpisode(item, show.title))
+      ? catalogEpisodes.map((item) =>
+          catalogEpisodeToDisplayEpisode(item, show.title, showIsMature)
+        )
       : episodes;
-  }, [catalogEpisodes, episodes, isBackendShow, show]);
+  }, [catalogEpisodes, episodes, isBackendShow, show, showIsMature]);
   const hasEpisodes = displayEpisodes.length > 0;
+  // Avoid blanking the list while a background refresh runs.
+  const listData = hasEpisodes ? displayEpisodes : [];
 
   const listHeader = useMemo(() => {
     if (!show) return null;
@@ -447,7 +609,7 @@ export default function PodcastShowScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Latest Episodes</Text>
-          {episodesLoading ? (
+          {episodesLoading && !hasEpisodes ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color={COLORS.primary} size="small" />
               <Text style={styles.loadingText}>Loading episodes...</Text>
@@ -456,6 +618,15 @@ export default function PodcastShowScreen() {
           {!episodesLoading && episodesError ? (
             <View style={styles.errorPanel}>
               <Text style={styles.emptyText}>{episodesError}</Text>
+              <ScalePressable
+                onPress={() => {
+                  void loadEpisodes();
+                }}
+                accessibilityLabel="Retry loading episodes"
+                style={styles.retryButton}
+              >
+                <Text style={styles.retryText}>Retry</Text>
+              </ScalePressable>
             </View>
           ) : null}
         </View>
@@ -469,6 +640,7 @@ export default function PodcastShowScreen() {
     hasEpisodes,
     latestEpisode,
     latestUnavailable,
+    loadEpisodes,
     playLatest,
     show,
     shuffleEpisodesPlay,
@@ -476,20 +648,46 @@ export default function PodcastShowScreen() {
   ]);
 
   const listFooter = useMemo(() => {
-    if (!relatedShows.length) return null;
     return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Related Podcasts</Text>
-        {relatedShows.map((related) => (
-          <PodcastShowCard
-            key={`related-${related.id}`}
-            show={related}
-            onPress={() => openRelatedShow(related.id)}
-          />
-        ))}
+      <View>
+        {isBackendShow && loadingMore ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={COLORS.primary} size="small" />
+            <Text style={styles.loadingText}>Loading more episodes...</Text>
+          </View>
+        ) : null}
+        {isBackendShow && hasMore && !loadingMore && hasEpisodes ? (
+          <ScalePressable
+            onPress={loadMoreEpisodes}
+            accessibilityLabel="Load more episodes"
+            style={styles.retryButton}
+          >
+            <Text style={styles.retryText}>Load more</Text>
+          </ScalePressable>
+        ) : null}
+        {relatedShows.length ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Related Podcasts</Text>
+            {relatedShows.map((related) => (
+              <PodcastShowCard
+                key={`related-${related.id}`}
+                show={related}
+                onPress={() => openRelatedShow(related.id)}
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
     );
-  }, [openRelatedShow, relatedShows]);
+  }, [
+    hasEpisodes,
+    hasMore,
+    isBackendShow,
+    loadMoreEpisodes,
+    loadingMore,
+    openRelatedShow,
+    relatedShows,
+  ]);
 
   const renderEpisode = useCallback(
     ({ item, index }: { item: PodcastEpisode; index: number }) => (
@@ -524,7 +722,20 @@ export default function PodcastShowScreen() {
           {episodesLoading ? (
             <ActivityIndicator color={COLORS.primary} size="large" />
           ) : (
-            <Text style={styles.emptyText}>This feed could not be loaded</Text>
+            <View style={styles.errorPanel}>
+              <Text style={styles.emptyText}>
+                {episodesError || "This feed could not be loaded"}
+              </Text>
+              <ScalePressable
+                onPress={() => {
+                  void loadEpisodes();
+                }}
+                accessibilityLabel="Retry loading podcast show"
+                style={styles.retryButton}
+              >
+                <Text style={styles.retryText}>Retry</Text>
+              </ScalePressable>
+            </View>
           )}
         </View>
       </LinearGradient>
@@ -536,18 +747,20 @@ export default function PodcastShowScreen() {
       <PodcastShowBackBar />
 
       <FlatList
-        data={!episodesLoading && hasEpisodes ? displayEpisodes : []}
+        data={listData}
         keyExtractor={(item) => item.id}
         renderItem={renderEpisode}
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        initialNumToRender={10}
-        maxToRenderPerBatch={8}
-        updateCellsBatchingPeriod={60}
-        windowSize={7}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        updateCellsBatchingPeriod={50}
+        windowSize={5}
         removeClippedSubviews={Platform.OS === "android"}
+        onEndReached={loadMoreEpisodes}
+        onEndReachedThreshold={0.4}
       />
 
       <MaturePodcastConsentModal
@@ -663,6 +876,17 @@ const styles = StyleSheet.create({
   sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: "800", marginBottom: 4 },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 16 },
   loadingText: { color: COLORS.textMuted, fontSize: 13 },
-  errorPanel: { alignItems: "center", paddingVertical: 16 },
+  errorPanel: { alignItems: "center", paddingVertical: 16, gap: 10 },
   emptyText: { color: COLORS.textMuted, textAlign: "center" },
+  retryButton: {
+    marginTop: 4,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(168,85,247,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(168,85,247,0.35)",
+    alignSelf: "center",
+  },
+  retryText: { color: COLORS.text, fontWeight: "700", fontSize: 13 },
 });

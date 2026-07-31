@@ -21,6 +21,7 @@ import {
   podcastTrace,
   buildPodcastQueueContext,
 } from "@/utils/podcastPlaybackAdapter";
+import { shouldIncludeMaturePodcasts } from "@/utils/maturePodcastSettings";
 import type { PodcastEpisode } from "@/types/podcast";
 
 /**
@@ -38,10 +39,12 @@ export function usePodcastPlaybackBinding() {
   const activeQueueIndexRef = useRef(activeQueueIndex);
   const activeQueueContextRef = useRef(activeQueueContext);
 
-  currentSongRef.current = currentSong;
-  activeQueueRef.current = activeQueue;
-  activeQueueIndexRef.current = activeQueueIndex;
-  activeQueueContextRef.current = activeQueueContext;
+  useEffect(() => {
+    currentSongRef.current = currentSong;
+    activeQueueRef.current = activeQueue;
+    activeQueueIndexRef.current = activeQueueIndex;
+    activeQueueContextRef.current = activeQueueContext;
+  }, [currentSong, activeQueue, activeQueueIndex, activeQueueContext]);
 
   useEffect(() => {
     if (!isPodcastAppSong(currentSong)) return;
@@ -63,7 +66,9 @@ export function usePodcastPlaybackBinding() {
 
     void (async () => {
       try {
-        const resolved = await fetchPodcastEpisodePlay(episodeId);
+        const resolved = await fetchPodcastEpisodePlay(episodeId, {
+          includeMature: shouldIncludeMaturePodcasts(),
+        });
         if (!resolved.success || !resolved.play?.audioUrl) {
           if (!canPodcastSkipInvalidNext()) {
             podcastTrace("NEXT_RESOLVE", {

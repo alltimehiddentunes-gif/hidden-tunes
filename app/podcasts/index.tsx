@@ -75,7 +75,9 @@ export default function PodcastHomeScreen() {
     (episode: PodcastEpisode) => {
       runWithMaturePodcastConsent(episode, () => {
         void (async () => {
-          const resolved = await fetchPodcastEpisodePlay(episode.id);
+          const resolved = await fetchPodcastEpisodePlay(episode.id, {
+            includeMature: shouldIncludeMaturePodcasts(),
+          });
           if (!resolved.success || !resolved.play?.audioUrl) {
             Alert.alert("Unavailable", resolved.error || "This episode is unavailable.");
             return;

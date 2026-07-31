@@ -9,6 +9,7 @@ import {
   type PodcastCatalogEpisodeMetadata,
 } from "@/services/podcastCatalogApi";
 import type { PodcastEpisode } from "@/types/podcast";
+import { shouldIncludeMaturePodcasts } from "@/utils/maturePodcastSettings";
 
 /** Initial same-show window fetched after playback starts (one API page). */
 export const PODCAST_SHOW_QUEUE_INITIAL_LIMIT = 16;
@@ -93,9 +94,13 @@ export function getPodcastShowEpisodeCacheStats() {
 export function getCachedPodcastShowEpisodes(showId: string) {
   const id = clean(showId);
   if (!id) return null;
-  const cached = showEpisodeCache.get(id);
+  const includeMature = shouldIncludeMaturePodcasts();
+  const keyed = showEpisodeCache.get(`${id}:${includeMature ? "mature" : "safe"}`);
+  const cached = keyed || showEpisodeCache.get(id);
   if (!cached) return null;
   if (Date.now() - cached.fetchedAt > CACHE_TTL_MS) return null;
+  // Never reuse a poisoned empty entry.
+  if (!cached.episodes.length) return null;
   return cached;
 }
 
@@ -157,11 +162,14 @@ export async function loadPodcastShowEpisodeQueue(
     return cached;
   }
 
-  const inflight = showEpisodeInflight.get(id);
+  const includeMature = shouldIncludeMaturePodcasts();
+  const cacheKey = `${id}:${includeMature ? "mature" : "safe"}`;
+  const inflight = showEpisodeInflight.get(cacheKey);
   if (inflight) {
     podcastPerfLog("[PODCAST_QUEUE_BUILD]", {
       source: "inflight_join",
       showId: id,
+      includeMature,
     });
     return inflight;
   }
@@ -202,8 +210,12 @@ export async function loadPodcastShowEpisodeQueue(
       showId: id,
       page: 1,
       limit: pageLimit,
+      includeMature,
     });
-    const response = await fetchPodcastEpisodesByShow(id, 1, pageLimit);
+    const response = await fetchPodcastEpisodesByShow(id, 1, pageLimit, {
+      includeMature,
+      signal: options?.signal,
+    });
 
     const collected: PodcastEpisode[] = [];
     if (response.success) {
@@ -222,8 +234,13 @@ export async function loadPodcastShowEpisodeQueue(
       fetchedAt: Date.now(),
       pagesFetched: 1,
     };
-    showEpisodeCache.set(id, entry);
-    evictCacheIfNeeded();
+    // Do not permanently cache empty/failed episode lists — avoids poisoning show pages.
+    if (collected.length > 0) {
+      showEpisodeCache.set(cacheKey, entry);
+      // Keep legacy id key in sync for older readers.
+      showEpisodeCache.set(id, entry);
+      evictCacheIfNeeded();
+    }
 
     podcastPerfLog("[PODCAST_QUEUE_BUILD]", {
       source: "network",
@@ -236,10 +253,10 @@ export async function loadPodcastShowEpisodeQueue(
 
     return entry;
   })().finally(() => {
-    showEpisodeInflight.delete(id);
+    showEpisodeInflight.delete(cacheKey);
   });
 
-  showEpisodeInflight.set(id, promise);
+  showEpisodeInflight.set(cacheKey, promise);
   return promise;
 }
 

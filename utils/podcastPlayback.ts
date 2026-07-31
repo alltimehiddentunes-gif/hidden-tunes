@@ -128,6 +128,16 @@ export function canPodcastSkipInvalidNext() {
   return podcastSkipFailures < PODCAST_MAX_AUTO_NEXT_FAILURES;
 }
 
+function resolvePodcastContinuationScope(episode: PodcastEpisode): "mature_only" | "general_only" {
+  if (episode.matureLevel && episode.matureLevel !== "safe") return "mature_only";
+  if (episode.isExplicit) return "mature_only";
+  const categories = Array.isArray(episode.categories) ? episode.categories : [];
+  if (categories.some((entry) => /adult|mature|\+?18/i.test(String(entry || "")))) {
+    return "mature_only";
+  }
+  return "general_only";
+}
+
 async function startPlaybackWithEpisodes(args: {
   activeEpisode: PodcastEpisode;
   showEpisodes: PodcastEpisode[];
@@ -168,6 +178,7 @@ async function startPlaybackWithEpisodes(args: {
     return { built: builtQueue, songs: mapped, safeIndex: index };
   })();
 
+  const continuationScope = resolvePodcastContinuationScope(activeEpisode);
   const queueContext = buildPodcastQueueContext({
     showId: activeEpisode.showId,
     showTitle: activeEpisode.showTitle,
@@ -175,6 +186,7 @@ async function startPlaybackWithEpisodes(args: {
     creatorId: creatorId || activeEpisode.publisher,
     categoryId: categoryId || activeEpisode.categories?.[0],
     label: activeEpisode.showTitle || "Podcasts",
+    continuationScope,
   });
 
   const selectedSongId = podcastEpisodeToAppSong(activeEpisode).id;
@@ -359,6 +371,7 @@ function hydrateSameShowQueueInBackground(args: {
         creatorId: creatorId || activeEpisode.publisher,
         categoryId: categoryId || activeEpisode.categories?.[0],
         label: loaded.showTitle || activeEpisode.showTitle || "Podcasts",
+        continuationScope: resolvePodcastContinuationScope(activeEpisode),
       });
 
       const domainSongs = assertPodcastQueueIntegrity(songs, queueContext);

@@ -1,5 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { clearPodcastCachesByPrefix } from "../services/podcast/podcastCache";
+
 export const MATURE_PODCASTS_ENABLED_KEY = "@hidden_tunes_mature_podcasts_enabled_v1";
 export const MATURE_PODCASTS_CONSENT_KEY = "@hidden_tunes_mature_podcasts_consent_v1";
 
@@ -77,6 +79,7 @@ export async function disableMaturePodcasts() {
     AsyncStorage.removeItem(MATURE_PODCASTS_ENABLED_KEY),
     AsyncStorage.removeItem(MATURE_PODCASTS_CONSENT_KEY),
   ]);
+  clearPodcastCachesByPrefix("podcast-shows:mature:");
   apply({ ...DEFAULT });
 }
 
