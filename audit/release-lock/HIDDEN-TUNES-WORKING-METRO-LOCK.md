@@ -6,7 +6,8 @@
 | Authoritative path | `D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142` |
 | Git root | `D:/HiddenTunes/Active/HiddenTunes-CLEAN-1.0.142` |
 | Branch | `fix/library-content-type-safe` |
-| Locked / authoritative SHA | `a2253fcaf7079c4092e1262df69070e1300ebd18` |
+| Locked app-source SHA | `3fe6c9f3102acbc9bac3f7fc7c77e8b1b8ee235a` (podcast + sports + production EAS flags) |
+| Lock documentation tip | `4839304324e63a0f6269c184b72d13555f617b7d` |
 | Remote | `https://github.com/alltimehiddentunes-gif/hidden-tunes.git` |
 | Metro port | `8081` |
 | Metro root | `D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142` |

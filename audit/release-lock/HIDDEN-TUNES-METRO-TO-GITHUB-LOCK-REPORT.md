@@ -86,24 +86,28 @@ See `audit/release-lock/METRO-PARITY-VERIFICATION.md`.
 | SHA | Message |
 | --- | --- |
 | `a2253fc` | chore: lock working Metro state to GitHub checkpoint |
+| `4839304` | docs: finalize Metro lock SHA checkpoint |
 
 Prior Metro-source commits already on GitHub: `f6176ce`, `c37ade9`, `3fe6c9f`, `8e9ad68`.
 
 ## 10. Final local SHA
 
-Updated in the SHA-finalize commit after this text is committed and pushed.
+`4839304324e63a0f6269c184b72d13555f617b7d` (tip before this SHA-sync commit)
+
+Authoritative app-source SHA for Metro reproduction: `3fe6c9f3102acbc9bac3f7fc7c77e8b1b8ee235a`
 
 ## 11. GitHub remote SHA
 
-Must match final local SHA after push.
+Matches local after each push; tip after `4839304` push was identical locally and remotely.
 
 ## 12. Push result
 
-Lock docs push: `8e9ad68..a2253fc` succeeded. SHA-finalize push follows.
+- `8e9ad68..a2253fc` lock docs — succeeded
+- `a2253fc..4839304` SHA finalize — succeeded
 
 ## 13. Final working-tree status
 
-Clean vs origin after finalize (ignored locals only: `.env`, `.env.local`, `.expo`).
+Clean vs origin (ignored locals only: `.env`, `.env.local`, `.expo`).
 
 ## 14. Required environment variables
 
