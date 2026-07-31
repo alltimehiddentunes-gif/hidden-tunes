@@ -7,7 +7,7 @@
 | Git root | `D:/HiddenTunes/Active/HiddenTunes-CLEAN-1.0.142` |
 | Branch | `fix/library-content-type-safe` |
 | Locked app-source SHA | `3fe6c9f3102acbc9bac3f7fc7c77e8b1b8ee235a` (podcast + sports + production EAS flags) |
-| Lock tip after mature-retry + lint cleanup | updated after commit (see GitHub tip) |
+| Lock tip after mature-retry + lint cleanup | `e3b37e21c4cfc37cf2489bf5b43adfc569f3f020` |
 | Remote | `https://github.com/alltimehiddentunes-gif/hidden-tunes.git` |
 | Metro port | `8081` |
 | Metro root | `D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142` |
