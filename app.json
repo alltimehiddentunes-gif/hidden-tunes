@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hiddentunes.app",
-      "buildNumber": "1.0.195",
+      "buildNumber": "1.0.196",
       "icon": "./assets/images/icon.png",
       "entitlements": {
         "com.apple.developer.carplay-audio": true,
