@@ -174,6 +174,10 @@ const PREMIUM_MOOD_ROOMS: MoodRoomDefinition[] = [
       "underrated",
       "rare finds",
       "deep cuts",
+      // Live production moods use free-text tokens like "indie" (not Layer-3 tags).
+      "indie",
+      "indie ballad",
+      "underground",
     ],
     gradient: ["#142028", "#080E14"],
   },
@@ -291,6 +295,11 @@ function collectSongMoodTokens(song: MoodFieldSong): string[] {
   });
 
   return tokens;
+}
+
+/** Dev/audit helper — token collection used by mood room matching. */
+export function getSongMoodTokensForAudit<T extends MoodFieldSong>(song: T): string[] {
+  return collectSongMoodTokens(song);
 }
 
 export function moodValueMatchesDefinition(

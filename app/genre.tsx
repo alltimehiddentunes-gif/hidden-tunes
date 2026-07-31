@@ -166,12 +166,38 @@ export default function GenreScreen() {
   async function loadGenreCatalog() {
     try {
       setLoading(true);
+      const moodRoom = String(params.type || "genre") === "mood";
+      // Mood rooms need a deep catalog. A trusted discovery/first-page slice
+      // (~100 songs) is enough for Home but yields 0 Heartbreak/Healing matches.
+      const MOOD_ROOM_MIN_SONGS = 1500;
       const cached = getCachedHiddenTunesCatalog();
-      setCatalog(
-        cached && isDerivedCatalogTrusted(cached)
-          ? cached
-          : await fetchHiddenTunesCatalog()
-      );
+      const cachedCount = cached?.songs?.length || 0;
+      const canUseCached =
+        cached &&
+        isDerivedCatalogTrusted(cached) &&
+        (!moodRoom || cachedCount >= MOOD_ROOM_MIN_SONGS);
+
+      const nextCatalog = canUseCached
+        ? cached
+        : await fetchHiddenTunesCatalog({
+            forceRefresh: moodRoom && cachedCount > 0 && cachedCount < MOOD_ROOM_MIN_SONGS,
+          });
+
+      if (
+        typeof __DEV__ !== "undefined" &&
+        __DEV__ &&
+        moodRoom
+      ) {
+        console.log("[EWCatalogLoad]", {
+          roomTitle: title,
+          roomType: String(params.type || "genre"),
+          usedCached: Boolean(canUseCached),
+          cachedCount,
+          loadedCount: nextCatalog?.songs?.length || 0,
+        });
+      }
+
+      setCatalog(nextCatalog);
     } catch (error) {
       console.log("Genre catalog load error:", error);
       setCatalog(null);

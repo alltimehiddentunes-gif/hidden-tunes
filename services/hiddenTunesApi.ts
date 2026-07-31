@@ -811,8 +811,12 @@ export async function hydrateHiddenTunesCatalogCache(): Promise<
 
 const FULL_CATALOG_PAGE_LIMIT = 100;
 const FULL_CATALOG_MAX_PAGES = 60;
-/** Below this count, AsyncStorage may only hold a home-screen slice — refetch all pages. */
-const FULL_CATALOG_TRUSTED_CACHE_MIN = 50;
+/**
+ * Below this count, AsyncStorage / memory likely holds only a home or first-page
+ * slice (≈20–100 songs). Mood rooms must not treat that slice as the full catalog —
+ * page 1 is dominated by party/rap moods and yields 0 Heartbreak matches.
+ */
+const FULL_CATALOG_TRUSTED_CACHE_MIN = 1500;
 
 /**
  * Loads the full public catalog from hidden-tunes-api (paginated /api/songs).
@@ -846,7 +850,10 @@ export async function fetchAllHiddenTunesCatalogSongs(options?: {
         const result = await getHiddenTunesSongsPage({
           page,
           limit: FULL_CATALOG_PAGE_LIMIT,
+          // Always allow real network pagination for full-catalog walks.
+          // Page>1 first-interaction cache slices must not fake an empty end.
           forceRefresh: forceRefresh && page === 1,
+          allowCatalogPagination: true,
         });
 
         if (!result.songs.length) {
@@ -1228,6 +1235,8 @@ export async function getHiddenTunesSongsPage(options?: {
   albumId?: string;
   genre?: string;
   forceRefresh?: boolean;
+  /** When true, page>1 always hits the network if cache does not cover that page. */
+  allowCatalogPagination?: boolean;
 }): Promise<HiddenTunesSongPage> {
   const page = Math.max(Number(options?.page) || 1, 1);
   const limit = Math.min(
@@ -1240,21 +1249,33 @@ export async function getHiddenTunesSongsPage(options?: {
   const genre = String(options?.genre || "").trim();
   const isGlobalCatalog = !query && !artistId && !albumId && !genre;
   const forceRefresh = Boolean(options?.forceRefresh);
+  const allowCatalogPagination = Boolean(options?.allowCatalogPagination);
 
-  if (isGlobalCatalog && page > 1 && !forceRefresh && isWithinFirstInteractionWindow()) {
+  if (
+    isGlobalCatalog &&
+    page > 1 &&
+    !forceRefresh &&
+    !allowCatalogPagination &&
+    isWithinFirstInteractionWindow()
+  ) {
     const cached = songsMemoryCache?.length
       ? songsMemoryCache
       : await readCachedSongs();
     const start = (page - 1) * limit;
     const songs = cached.slice(start, start + limit);
 
-    return {
-      songs,
-      page,
-      limit,
-      hasMore: start + limit < cached.length,
-      nextPage: page + 1,
-    };
+    // Only short-circuit when the in-memory slice actually covers this page.
+    // Otherwise fall through to network — returning [] here previously made
+    // fetchAllHiddenTunesCatalogSongs stop after the first page (~100 songs).
+    if (songs.length > 0 || start < cached.length) {
+      return {
+        songs,
+        page,
+        limit,
+        hasMore: start + limit < cached.length,
+        nextPage: page + 1,
+      };
+    }
   }
 
   const url = buildSongsUrl({ page, limit, query, artistId, albumId, genre });
