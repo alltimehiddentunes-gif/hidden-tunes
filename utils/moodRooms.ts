@@ -1,5 +1,5 @@
 import { getArtworkUri } from "./artwork";
-import { normalizeGenreKey } from "./genreAliases";
+import { getMoodTags, normalizeGenreKey } from "./genreAliases";
 import { getSongDedupeKey } from "./catalogDedupe";
 
 export type MoodRoomGradient = readonly [string, string, ...string[]];
@@ -28,8 +28,11 @@ type MoodFieldSong = {
   id?: unknown;
   title?: unknown;
   artist?: unknown;
+  genre?: unknown;
   mood?: unknown;
   moodGenre?: unknown;
+  tags?: unknown;
+  emotion?: unknown;
 };
 
 const DEFAULT_GRADIENT: MoodRoomGradient = ["#1A0830", "#0A0612"];
@@ -116,7 +119,6 @@ const PREMIUM_MOOD_ROOMS: MoodRoomDefinition[] = [
       "breakup",
       "sad",
       "lonely roads",
-      "deep reflection",
     ],
     gradient: ["#1E1428", "#0C0810"],
   },
@@ -148,7 +150,41 @@ const PREMIUM_MOOD_ROOMS: MoodRoomDefinition[] = [
     ],
     gradient: ["#241C14", "#100C08"],
   },
+  {
+    id: "deep-feelings",
+    title: "Deep Feelings",
+    subtitle: "Heavy emotion and inner weight",
+    aliases: [
+      "deep feelings",
+      "deep reflection",
+      "deep emotional",
+      "emotional",
+      "cinematic darkness",
+      "dark atmosphere",
+    ],
+    gradient: ["#181028", "#0A0814"],
+  },
+  {
+    id: "hidden-gems",
+    title: "Hidden Gems",
+    subtitle: "Underrated songs worth finding",
+    aliases: [
+      "hidden gems",
+      "hidden gem",
+      "underrated",
+      "rare finds",
+      "deep cuts",
+    ],
+    gradient: ["#142028", "#080E14"],
+  },
 ];
+
+export function getPremiumMoodRooms(): MoodRoomDefinition[] {
+  return PREMIUM_MOOD_ROOMS.map((room) => ({
+    ...room,
+    aliases: [...room.aliases],
+  }));
+}
 
 const HIDDEN_MOOD_KEYS = new Set([
   "",
@@ -188,23 +224,73 @@ export function normalizeMoodName(value: unknown): string {
   return titleCaseMood(cleaned);
 }
 
+const LAYER3_MOOD_TAG_KEYS = new Set(
+  getMoodTags().map((tag) => normalizeMoodKey(tag)).filter(Boolean)
+);
+
+function splitMoodFieldValue(value: unknown): string[] {
+  const raw = collapseSpaces(String(value || ""));
+  if (!raw) return [];
+
+  if (raw.includes(",")) {
+    return raw.split(",").map((part) => collapseSpaces(part)).filter(Boolean);
+  }
+
+  if (raw.includes("|")) {
+    return raw.split("|").map((part) => collapseSpaces(part)).filter(Boolean);
+  }
+
+  return [raw];
+}
+
+function exactMoodAliasKeys(definition: MoodRoomDefinition): string[] {
+  return [definition.title, ...definition.aliases]
+    .map((alias) => normalizeMoodKey(alias))
+    .filter(Boolean);
+}
+
+/**
+ * Layer-3 emotional tags are often stored on `genre` (see genreAliases MOOD_TAGS).
+ * Only promote genre/tag values that are known mood tags or exact room aliases —
+ * never loose substring matches against core genres like "Soul".
+ */
+function isCatalogMoodAssignmentToken(value: string): boolean {
+  const key = normalizeMoodKey(value);
+  if (!key || HIDDEN_MOOD_KEYS.has(key)) return false;
+  if (LAYER3_MOOD_TAG_KEYS.has(key)) return true;
+  return PREMIUM_MOOD_ROOMS.some((room) => exactMoodAliasKeys(room).includes(key));
+}
+
 function collectSongMoodTokens(song: MoodFieldSong): string[] {
-  const values = [song.mood, song.moodGenre];
+  const primaryValues = [song.mood, song.moodGenre, song.emotion];
+  const assignmentValues = [song.genre, song.tags];
   const tokens: string[] = [];
+  const seen = new Set<string>();
 
-  values.forEach((value) => {
-    const raw = collapseSpaces(String(value || ""));
-    if (!raw) return;
+  const pushToken = (value: string, requireMoodAssignment: boolean) => {
+    if (!value) return;
+    if (requireMoodAssignment && !isCatalogMoodAssignmentToken(value)) return;
+    const key = normalizeMoodKey(value);
+    if (!key || seen.has(key) || HIDDEN_MOOD_KEYS.has(key)) return;
+    seen.add(key);
+    tokens.push(value);
+  };
 
-    if (raw.includes(",")) {
-      raw.split(",").forEach((part) => tokens.push(collapseSpaces(part)));
-      return;
-    }
-
-    tokens.push(raw);
+  primaryValues.forEach((value) => {
+    splitMoodFieldValue(value).forEach((part) => pushToken(part, false));
   });
 
-  return tokens.filter(Boolean);
+  assignmentValues.forEach((value) => {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => {
+        splitMoodFieldValue(entry).forEach((part) => pushToken(part, true));
+      });
+      return;
+    }
+    splitMoodFieldValue(value).forEach((part) => pushToken(part, true));
+  });
+
+  return tokens;
 }
 
 export function moodValueMatchesDefinition(

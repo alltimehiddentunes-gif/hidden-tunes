@@ -297,15 +297,20 @@ export function buildCatalogTarget(input: {
   const title = canonical?.title || rawTitle || "Catalog";
   const query = String(input.query || canonical?.query || title).trim();
   const id = String(input.id || canonical?.id || normalizeCatalogKey(title)).trim();
+  // Mood rooms must match on the room title/id — not free-text search queries
+  // like "heartbreak emotional music", which are discovery hints only.
   const labels = Array.from(
     new Set(
-      [
-        title,
-        query,
-        id,
-        rawTitle,
-        ...(type === "genre" ? getGenreAliases(title) : canonical?.aliases || []),
-      ]
+      (type === "mood"
+        ? [title, rawTitle, id]
+        : [
+            title,
+            query,
+            id,
+            rawTitle,
+            ...(type === "genre" ? getGenreAliases(title) : canonical?.aliases || []),
+          ]
+      )
         .map((value) => String(value || "").trim())
         .filter(Boolean)
     )
@@ -338,6 +343,21 @@ export function matchSongsForCatalogTarget<T extends CatalogSongLike>(
 
       if (!genreListMatches(genreValues, target.title)) return;
 
+      const key = String((song as { id?: unknown }).id || "")
+        .toLowerCase()
+        .trim();
+
+      if (!key || seen.has(key)) return;
+
+      seen.add(key);
+      matches.push(song);
+    });
+
+    return matches;
+  }
+
+  if (target.type === "mood") {
+    filterSongsByCatalogLabel(songs, target.title, "mood").forEach((song) => {
       const key = String((song as { id?: unknown }).id || "")
         .toLowerCase()
         .trim();
