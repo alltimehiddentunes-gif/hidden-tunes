@@ -10,7 +10,7 @@ Do not start EAS until this file says PASS and Git is clean on the release SHA.
 | --- | --- |
 | Git root | `D:/HiddenTunes/Active/HiddenTunes-CLEAN-1.0.142` |
 | Branch | `fix/library-content-type-safe` |
-| Commit | (see Git tip after this doc is committed) |
+| Commit | `76eb3be71c327a3f19db7a9e60c7e957ae342ffe` |
 | Marketing version | `1.0.2` |
 | iOS build number | `1.0.196` |
 | Profile | `production` · `developmentClient: false` · `distribution: store` |
