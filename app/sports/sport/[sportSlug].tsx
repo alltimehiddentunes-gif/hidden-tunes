@@ -1,7 +1,7 @@
 /**
  * Sport hub — live / later today / upcoming / finished / competitions for one sport.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList, Platform, RefreshControl, StyleSheet, View } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -39,7 +39,6 @@ export default function SportHubScreen() {
   const gate = useSportsFullUiGate();
   const params = useLocalSearchParams<{ sportSlug?: string }>();
   const sportSlug = normalizeSportsSlug(String(params.sportSlug || ""));
-  const nowMs = useSportsNowClock();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,12 +49,24 @@ export default function SportHubScreen() {
   const abortRef = useRef<AbortController | null>(null);
   const navGuardRef = useRef(createTapGuardState());
 
-  const load = useCallback(async () => {
+  const countdownNeeded = useMemo(() => {
+    for (const section of sections) {
+      if (section.type !== "fixtures" && section.type !== "live") continue;
+      for (const item of section.items || []) {
+        if (needsSportsCountdownClock(item as SportsMatchCardType)) return true;
+      }
+    }
+    return false;
+  }, [sections]);
+  const nowMs = useSportsNowClock(countdownNeeded ? 30_000 : 0);
+
+  const load = useCallback(async (opts?: { background?: boolean }) => {
     if (!sportSlug) return;
+    const background = opts?.background === true;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setError(null);
+    if (!background) setError(null);
 
     try {
       const res = await fetchSportsSportHub(sportSlug, {
@@ -66,14 +77,16 @@ export default function SportHubScreen() {
       if (controller.signal.aborted) return;
 
       if (!res.enabled) {
-        setSections([]);
-        setError("Sports preview is unavailable.");
+        if (!background) {
+          setSections([]);
+          setError("Sports preview is unavailable.");
+        }
         return;
       }
       setSport(res.sport || null);
       setSections((res.sections || []).filter((s) => (s.items?.length || 0) > 0));
     } catch {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && !background) {
         setError("Sports could not be loaded. Try again.");
       }
     } finally {
@@ -92,7 +105,7 @@ export default function SportHubScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    void load();
+    void load({ background: true });
   }, [load]);
 
   const onPressMatch = useCallback((card: SportsMatchCardType) => {
@@ -123,6 +136,8 @@ export default function SportHubScreen() {
     );
   }
 
+  const showFullSkeleton = loading && !sections.length;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -137,7 +152,7 @@ export default function SportHubScreen() {
         }
       />
 
-      {loading ? (
+      {showFullSkeleton ? (
         <View style={{ paddingTop: 8, paddingBottom: 40 }}>
           <View style={{ marginBottom: 20 }}>
             <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
@@ -153,7 +168,7 @@ export default function SportHubScreen() {
           }
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={error ? <SportsErrorState message={error} onRetry={load} /> : null}
+          ListHeaderComponent={error ? <SportsErrorState message={error} onRetry={() => { void load(); }} /> : null}
           ListEmptyComponent={
             !error ? (
               <SportsEmptyState
@@ -165,9 +180,9 @@ export default function SportHubScreen() {
           renderItem={({ item: section }) =>
             renderSportHubSection(section, { nowMs, onPressMatch, onWatchMatch, onPressCompetition })
           }
-          initialNumToRender={4}
-          maxToRenderPerBatch={3}
-          windowSize={7}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
           updateCellsBatchingPeriod={50}
           removeClippedSubviews={Platform.OS === "android"}
         />
@@ -207,7 +222,7 @@ function renderSportHubSection(
   const items = boundSectionItems(section.items as SportsMatchCardType[], limit);
   return (
     <SportsSection title={section.title} subtitle={section.subtitle}>
-      <SportsHorizontalShelf columns={1} maxItems={limit}>
+      <SportsHorizontalShelf columns="auto" maxItems={limit}>
         {items.map((card) => (
           <SportsMatchCard
             key={card.id}

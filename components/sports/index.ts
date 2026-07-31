@@ -24,6 +24,9 @@ export { default as SportsCountryGrid } from "./SportsCountryGrid";
 
 export { default as SportsVideoCard } from "./SportsVideoCard";
 
+export { default as SportsTvChannelCard } from "./SportsTvChannelCard";
+export { default as SportsTvShelf } from "./SportsTvShelf";
+
 export { default as SportsFollowButton } from "./SportsFollowButton";
 export { default as SportsReminderButton } from "./SportsReminderButton";
 

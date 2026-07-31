@@ -34,7 +34,23 @@ import {
   unavailableSession,
 } from "../lib/sports/ui/playbackSession";
 import { formatMatchTitle } from "../lib/sports/ui/formatScore";
+import {
+  normalizeFixtureDetail,
+  normalizeMatchCards,
+  sortFinishedNewestFirst,
+} from "../lib/sports/ui/normalizeMatchCard";
 import { isSportsResolveAbortError } from "./sports/sportsPlaybackResolver";
+import {
+  getSportsBrowseCache,
+  setSportsBrowseCache,
+  sportsCountryHubCacheKey,
+  sportsHomeCacheKey,
+  sportsSearchCacheKey,
+  sportsSportHubCacheKey,
+  SPORTS_HOME_CACHE_TTL_MS,
+  SPORTS_HUB_CACHE_TTL_MS,
+  SPORTS_SEARCH_CACHE_TTL_MS,
+} from "./sports/sportsBrowseCache";
 export const SPORTS_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const SPORTS_DEFAULT_PAGE_LIMIT = 20;
 
@@ -128,7 +144,7 @@ async function sportsFetch<T>(
   return (await response.json()) as T;
 }
 export async function fetchSportsHome(
-  options: FetchOptions = {}
+  options: FetchOptions & { forceNetwork?: boolean } = {}
 ): Promise<SportsHomeResponse> {
   if (isSportsDevFixturesEnabled()) {
     return buildDevSportsHome(options.userId ? "personalized" : "anonymous");
@@ -137,11 +153,25 @@ export async function fetchSportsHome(
   const platform = options.platform || "ios";
   const tz = options.timeZone || undefined;
   const locale = options.locale || undefined;
+  const cacheKey = sportsHomeCacheKey(
+    country,
+    platform,
+    sportsAccessMode(),
+    options.userId
+  );
+
+  if (!options.forceNetwork && !options.signal?.aborted) {
+    const cached = getSportsBrowseCache<SportsHomeResponse>(cacheKey);
+    if (cached && cached.enabled !== false) {
+      return cached;
+    }
+  }
+
   const qs = new URLSearchParams();
   if (tz) qs.set("tz", tz);
   if (locale) qs.set("locale", locale);
   const path = `/api/sports/home${qs.toString() ? `?${qs}` : ""}`;
-  return dedupe(
+  const home = await dedupe(
     `home:${sportsAccessMode()}:${country}:${platform}:${options.userId || "anon"}:${tz || ""}`,
     () =>
       sportsFetch<SportsHomeResponse>(path, {
@@ -151,6 +181,121 @@ export async function fetchSportsHome(
         userId: options.userId,
       })
   );
+
+  if (options.signal?.aborted) {
+    return home;
+  }
+
+  // When Sports is enabled but the home payload has no fixture/live shelves
+  // (home IA off, or private-pilot browse-only sections), compose Live /
+  // Upcoming / Results from the fixtures endpoints and keep any browse rails.
+  const sections = Array.isArray(home.sections) ? home.sections : [];
+  const hasFixtureSections = sections.some(
+    (s) =>
+      s.type === "live" ||
+      s.type === "fixtures" ||
+      s.id === "live_now" ||
+      s.id === "upcoming" ||
+      s.id === "todays_schedule" ||
+      s.id === "recently_finished" ||
+      s.id === "later_today"
+  );
+  let result = home;
+  if (
+    home.enabled !== false &&
+    !hasFixtureSections &&
+    isSportsClientEnabled("sports_fixtures_enabled")
+  ) {
+    const composed = await composeFixturesOnlyHome(
+      { ...home, sections: [] },
+      options
+    );
+    const composedSections = Array.isArray(composed.sections)
+      ? composed.sections
+      : [];
+    result = {
+      ...composed,
+      sections: [...composedSections, ...sections],
+    };
+  }
+
+  // Never cache disabled / empty-failed payloads as durable success.
+  if (result.enabled !== false) {
+    setSportsBrowseCache(cacheKey, result, SPORTS_HOME_CACHE_TTL_MS);
+  }
+  return result;
+}
+
+async function composeFixturesOnlyHome(
+  home: SportsHomeResponse,
+  options: FetchOptions
+): Promise<SportsHomeResponse> {
+  const platform = options.platform || "ios";
+  const country = options.country || "ZZ";
+  const limit = SPORTS_DEFAULT_PAGE_LIMIT;
+  const [liveRes, upcomingRes, finishedRes] = await Promise.all([
+    sportsFetch<{
+      success?: boolean;
+      enabled?: boolean;
+      items?: SportsMatchCard[];
+    }>(`/api/sports/live?limit=${limit}`, {
+      signal: options.signal,
+      country,
+      platform,
+      userId: options.userId,
+    }),
+    fetchSportsFixtures({
+      ...options,
+      upcoming: true,
+      limit,
+    }),
+    fetchSportsFixtures({
+      ...options,
+      finished: true,
+      limit,
+    }),
+  ]);
+
+  const live = normalizeMatchCards(liveRes.items);
+  const upcoming = normalizeMatchCards(upcomingRes.items);
+  const finished = sortFinishedNewestFirst(
+    normalizeMatchCards(finishedRes.items)
+  );
+
+  const composed: SportsHomeSection[] = [
+    {
+      id: "live_now",
+      type: "live",
+      title: "Live now",
+      subtitle:
+        live.length === 0
+          ? "No confirmed live events right now"
+          : undefined,
+      rank: 10,
+      items: live,
+    },
+    {
+      id: "upcoming",
+      type: "fixtures",
+      title: "Upcoming fixtures",
+      rank: 30,
+      items: upcoming,
+    },
+    {
+      id: "recently_finished",
+      type: "fixtures",
+      title: "Recently finished",
+      rank: 90,
+      items: finished,
+    },
+  ];
+
+  return {
+    ...home,
+    enabled: true,
+    sections: composed,
+    message: undefined,
+  };
 }
 export async function fetchSportsFixtures(
   options: FetchOptions & {
@@ -160,6 +305,9 @@ export async function fetchSportsFixtures(
     competitionId?: string;
     status?: string;
     date?: string;
+    upcoming?: boolean;
+    finished?: boolean;
+    live?: boolean;
   } = {}
 ): Promise<{
   success: boolean;
@@ -190,16 +338,29 @@ export async function fetchSportsFixtures(
   if (options.competitionId) qs.set("competitionId", options.competitionId);
   if (options.status) qs.set("status", options.status);
   if (options.date) qs.set("date", options.date);
+  if (options.upcoming) qs.set("upcoming", "true");
+  if (options.finished) qs.set("finished", "true");
+  if (options.live) qs.set("live", "true");
   // Do not pass storefront country as fixtureCountry — that poisoned sport hubs with ZZ.
-  return dedupe(
+  const res = await dedupe(
     `fixtures:${sportsAccessMode()}:${qs.toString()}:${options.platform || "ios"}`,
     () =>
-      sportsFetch(`/api/sports/fixtures?${qs}`, {
+      sportsFetch<{
+        success: boolean;
+        enabled?: boolean;
+        items?: SportsMatchCard[];
+        pagination?: { page: number; limit: number; hasMore: boolean };
+      }>(`/api/sports/fixtures?${qs}`, {
         signal: options.signal,
         country: options.country || "ZZ",
         platform: options.platform || "ios",
       })
   );
+  let items = normalizeMatchCards(res.items);
+  if (options.finished) {
+    items = sortFinishedNewestFirst(items);
+  }
+  return { ...res, items };
 }
 export async function fetchSportsFixtureDetail(
   fixtureId: string,
@@ -221,12 +382,22 @@ export async function fetchSportsFixtureDetail(
   }
   return dedupe(
     `fixture:${sportsAccessMode()}:${fixtureId}:${options.platform || "ios"}`,
-    () =>
-      sportsFetch(`/api/sports/fixtures/${encodeURIComponent(fixtureId)}`, {
+    async () => {
+      const res = await sportsFetch<{
+        success: boolean;
+        enabled?: boolean;
+        fixture?: SportsFixtureDetail | null;
+        message?: string;
+      }>(`/api/sports/fixtures/${encodeURIComponent(fixtureId)}`, {
         signal: options.signal,
         country: options.country || "ZZ",
         platform: options.platform || "ios",
-      })
+      });
+      return {
+        ...res,
+        fixture: normalizeFixtureDetail(res.fixture) ?? null,
+      };
+    }
   );
 }
 export async function fetchSportsWatchOptions(
@@ -386,13 +557,28 @@ export async function fetchSportsSportHub(
       ...getDevSportHub(slug),
     };
   }
-  const [sports, fixtures, competitions] = await Promise.all([
-    fetchSportsList(options),
+  const hubCacheKey = sportsSportHubCacheKey(
+    slug,
+    options.country || "ZZ",
+    options.platform || "ios"
+  );
+  if (!options.signal?.aborted) {
+    const cached = getSportsBrowseCache<{
+      success: boolean;
+      enabled?: boolean;
+      sport?: SportsWorldCard | null;
+      sections?: import("../types/sports").SportsHomeSection[];
+    }>(hubCacheKey);
+    if (cached && cached.enabled !== false) return cached;
+  }
+
+  // Two bounded requests — do not fan-out the full sports taxonomy list.
+  const [fixtures, competitions] = await Promise.all([
     fetchSportsFixtures({ ...options, sportSlug: slug, limit: 40 }),
     fetchSportsCompetitions({ ...options, sportSlug: slug, limit: 20 }),
   ]);
 
-  if (fixtures.enabled === false && sports.enabled === false) {
+  if (fixtures.enabled === false && competitions.enabled === false) {
     return {
       success: true,
       enabled: false,
@@ -401,13 +587,11 @@ export async function fetchSportsSportHub(
     };
   }
 
-  const sport =
-    (sports.items || []).find((s) => normalizeSportsSlug(s.slug) === slug) ||
-    ({
-      id: slug,
-      slug,
-      name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    } as SportsWorldCard);
+  const sport = {
+    id: slug,
+    slug,
+    name: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  } as SportsWorldCard;
 
   const all = fixtures.items || [];
   const now = Date.now();
@@ -425,7 +609,9 @@ export async function fetchSportsSportHub(
     const t = Date.parse(String(f.timing?.startsAt || ""));
     return Number.isFinite(t) && t > endOfToday.getTime();
   });
-  const finished = all.filter((f) => f.status?.finished);
+  const finished = sortFinishedNewestFirst(
+    all.filter((f) => f.status?.finished)
+  );
   const comps = (competitions.items || []).filter(
     (c) => !c.sportSlug || normalizeSportsSlug(c.sportSlug) === slug
   );
@@ -462,12 +648,16 @@ export async function fetchSportsSportHub(
     },
   ].filter((s) => (s.items?.length || 0) > 0);
 
-  return {
+  const result = {
     success: true,
     enabled: true,
     sport,
     sections,
   };
+  if (!options.signal?.aborted) {
+    setSportsBrowseCache(hubCacheKey, result, SPORTS_HUB_CACHE_TTL_MS);
+  }
+  return result;
 }
 
 export async function fetchSportsCountryHub(
@@ -504,36 +694,47 @@ export async function fetchSportsCountryHub(
     };
   }
 
+  const hubCacheKey = sportsCountryHubCacheKey(
+    code,
+    options.country || "ZZ",
+    options.platform || "ios"
+  );
+  if (!options.signal?.aborted) {
+    const cached = getSportsBrowseCache<{
+      success: boolean;
+      enabled?: boolean;
+      country?: SportsCountryCard | null;
+      sections?: SportsHomeSection[];
+    }>(hubCacheKey);
+    if (cached && cached.enabled !== false) return cached;
+  }
+
   const qs = new URLSearchParams({
     page: "1",
     limit: "40",
     countryCode: code,
   });
-  const [countries, fixturesRes, competitions] = await Promise.all([
-    fetchSportsCountries(options),
-    dedupe(
-      `country-fixtures:${sportsAccessMode()}:${code}:${options.platform || "ios"}`,
-      () =>
-        sportsFetch<{
-          success: boolean;
-          enabled?: boolean;
-          items?: SportsMatchCard[];
-        }>(`/api/sports/fixtures?${qs}`, {
-          signal: options.signal,
-          country: options.country || "ZZ",
-          platform: options.platform || "ios",
-        })
-    ),
-    fetchSportsCompetitions({ ...options, limit: 40 }),
-  ]);
+  // One fixtures request — derive competitions from fixture cards.
+  // Avoid full countries + global competitions fan-out.
+  const fixturesRes = await dedupe(
+    `country-fixtures:${sportsAccessMode()}:${code}:${options.platform || "ios"}`,
+    () =>
+      sportsFetch<{
+        success: boolean;
+        enabled?: boolean;
+        items?: SportsMatchCard[];
+      }>(`/api/sports/fixtures?${qs}`, {
+        signal: options.signal,
+        country: options.country || "ZZ",
+        platform: options.platform || "ios",
+      })
+  );
 
   if (fixturesRes.enabled === false) {
     return { success: true, enabled: false, country: null, sections: [] };
   }
 
-  const country =
-    (countries.items || []).find((c) => c.code === code) ||
-    ({ code, name: code } as SportsCountryCard);
+  const country = { code, name: code } as SportsCountryCard;
   const fixtures = fixturesRes.items || [];
   const competitionMap = new Map<string, SportsCompetitionCard>();
   for (const f of fixtures) {
@@ -550,18 +751,18 @@ export async function fetchSportsCountryHub(
       logoUrl: f.competition.logoUrl,
     });
   }
-  for (const c of competitions.items || []) {
-    const cc = String(c.countryCode || (c as { country_code?: string }).country_code || "").toUpperCase();
-    if (cc === code) competitionMap.set(c.id, c);
-  }
   const comps = [...competitionMap.values()];
 
-  return {
+  const result = {
     success: true,
     enabled: true,
     country,
     sections: buildCountrySections(fixtures, comps),
   };
+  if (!options.signal?.aborted) {
+    setSportsBrowseCache(hubCacheKey, result, SPORTS_HUB_CACHE_TTL_MS);
+  }
+  return result;
 }
 
 function buildCountrySections(
@@ -579,7 +780,9 @@ function buildCountrySections(
     const t = Date.parse(String(f.timing?.startsAt || ""));
     return Number.isFinite(t) && t > endOfToday.getTime();
   });
-  const finished = fixtures.filter((f) => f.status?.finished);
+  const finished = sortFinishedNewestFirst(
+    fixtures.filter((f) => f.status?.finished)
+  );
   return [
     { id: "live_now", type: "live", title: "Live", rank: 10, items: live },
     { id: "today", type: "fixtures", title: "Today", rank: 20, items: today },
@@ -631,16 +834,27 @@ export async function searchSportsCatalog(
   }
   const page = options.page || 1;
   const limit = options.limit || 40;
+  const country = options.country || "ZZ";
+  const platform = options.platform || "ios";
+  const cacheKey = sportsSearchCacheKey(q, page, limit, country, platform);
+  if (!options.signal?.aborted) {
+    const cached = getSportsBrowseCache<SportsSearchResponse>(cacheKey);
+    if (cached && cached.enabled !== false) return cached;
+  }
   const qs = new URLSearchParams({
     q,
     page: String(page),
     limit: String(limit),
   });
-  return sportsFetch(`/api/sports/search?${qs}`, {
+  const result = await sportsFetch<SportsSearchResponse>(`/api/sports/search?${qs}`, {
     signal: options.signal,
-    country: options.country || "ZZ",
-    platform: options.platform || "ios",
+    country,
+    platform,
   });
+  if (!options.signal?.aborted && result.enabled !== false) {
+    setSportsBrowseCache(cacheKey, result, SPORTS_SEARCH_CACHE_TTL_MS);
+  }
+  return result;
 }
 export async function fetchSportsVideos(
   options: FetchOptions & {

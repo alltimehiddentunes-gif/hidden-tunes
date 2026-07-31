@@ -327,6 +327,7 @@ export type SportsFavorite = {
 };
 export const SPORTS_HOME_SECTION_RANK: Record<string, number> = {
   live_now: 10,
+  live_sports_tv: 15,
   starting_soon: 20,
   featured: 30,
   because_you_follow: 40,
@@ -335,6 +336,7 @@ export const SPORTS_HOME_SECTION_RANK: Record<string, number> = {
   browse_sports: 70,
   browse_countries: 80,
   todays_schedule: 90,
+  upcoming: 95,
   trending: 100,
   recently_finished: 110,
   highlights: 120,
@@ -342,6 +344,7 @@ export const SPORTS_HOME_SECTION_RANK: Record<string, number> = {
 };
 export const SPORTS_HOME_SECTION_TITLES: Record<string, string> = {
   live_now: "Live Now",
+  live_sports_tv: "Live Sports TV",
   starting_soon: "Starting Soon",
   featured: "Featured",
   because_you_follow: "Because You Follow",
@@ -349,7 +352,8 @@ export const SPORTS_HOME_SECTION_TITLES: Record<string, string> = {
   popular_competitions: "Popular Competitions",
   browse_sports: "Browse Sports",
   browse_countries: "Browse Countries",
-  todays_schedule: "Today's Schedule",
+  todays_schedule: "Today's Fixtures",
+  upcoming: "Upcoming Fixtures",
   trending: "Trending",
   recently_finished: "Recently Finished",
   highlights: "Highlights",

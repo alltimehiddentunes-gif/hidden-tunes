@@ -15,8 +15,13 @@ import { SPORTS_COLORS } from "@/lib/sports/ui/sportsTheme";
 import { buildMatchAccessibilityLabel } from "@/lib/sports/ui/buildAccessibilityLabel";
 import { formatCountdown, formatFinishedTime, formatKickoff } from "@/lib/sports/ui/formatKickoff";
 import {
+  formatMatchContextPrimary,
+  formatMatchContextSecondary,
+} from "@/lib/sports/ui/formatMatchContext";
+import {
   formatMatchTitle,
   formatScore,
+  participantBadgeTone,
   participantBySide,
   participantInitials,
 } from "@/lib/sports/ui/formatScore";
@@ -70,14 +75,21 @@ function ParticipantBadge({
       />
     );
   }
+  const tone = participantBadgeTone(participant?.name);
   return (
     <View
       style={[
         styles.initialsBadge,
-        { width: size, height: size, borderRadius: size / 4 },
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 4,
+          backgroundColor: tone.backgroundColor,
+          borderColor: tone.borderColor,
+        },
       ]}
     >
-      <Text style={[styles.initialsText, { fontSize: size * 0.32 }]}>
+      <Text style={[styles.initialsText, { fontSize: size * 0.34, color: tone.color }]}>
         {participantInitials(participant?.name)}
       </Text>
     </View>
@@ -88,19 +100,24 @@ function ParticipantRow({
   participant,
   score,
   emphasize,
-  logoSize = 22,
+  logoSize = 24,
+  nameLines = 2,
 }: {
   participant: SportsMatchParticipant | undefined;
   score: string | number | null | undefined;
   emphasize: boolean;
   logoSize?: number;
+  nameLines?: number;
 }) {
   return (
     <View style={styles.participantRow}>
       <ParticipantBadge participant={participant} size={logoSize} />
       <Text
         style={[styles.participantName, emphasize && styles.participantNameWinner]}
-        numberOfLines={1}
+        numberOfLines={nameLines}
+        ellipsizeMode="tail"
+        adjustsFontSizeToFit
+        minimumFontScale={0.82}
       >
         {participant?.name || "TBD"}
       </Text>
@@ -174,11 +191,13 @@ function SportsMatchCard({
     onSave?.(card);
   }, [onSave, card]);
 
-  const competitionLabel = card.competition?.shortName || card.competition?.name || null;
-  const sportLabel = card.sport?.name || null;
-  const metaLine = [competitionLabel, sportLabel && !competitionLabel ? sportLabel : null]
-    .filter(Boolean)
-    .join(" · ");
+  const competitionLabel = formatMatchContextPrimary(card);
+  const secondaryLine = formatMatchContextSecondary(
+    card,
+    typeof clockMs === "number" ? clockMs : 0
+  );
+  const metaPrimary = competitionLabel;
+  const metaSecondary = secondaryLine;
 
   const artworkUrl = card.artwork?.posterUrl || card.artwork?.thumbnailUrl || null;
 
@@ -303,9 +322,14 @@ function SportsMatchCard({
             score={away?.score}
             emphasize={!!away?.winner}
           />
-          {variant === "search" && metaLine ? (
-            <Text style={styles.rowMeta} numberOfLines={1}>
-              {metaLine}
+          {variant === "search" && (metaPrimary || metaSecondary) ? (
+            <Text style={styles.rowMeta} numberOfLines={2}>
+              {[metaPrimary, metaSecondary].filter(Boolean).join(" · ")}
+            </Text>
+          ) : null}
+          {!countdown && metaSecondary && variant === "schedule" ? (
+            <Text style={styles.rowCountdown} numberOfLines={1}>
+              {metaSecondary}
             </Text>
           ) : null}
           {countdown ? (
@@ -332,17 +356,35 @@ function SportsMatchCard({
         accessibilityLabel={accessibilityLabel}
       >
         <View style={styles.finishedHeader}>
-          <SportsStatusBadge code={card.status?.code} label={card.status?.label} size="sm" />
+          <SportsStatusBadge
+            code={card.status?.code || "finished"}
+            label={card.status?.label || "FINAL"}
+            size="sm"
+          />
           {saveButton}
         </View>
+        {competitionLabel ? (
+          <Text style={styles.finishedCompetition} numberOfLines={2}>
+            {competitionLabel}
+          </Text>
+        ) : null}
         <View style={styles.finishedBody}>
-          <ParticipantRow participant={home} score={home?.score} emphasize={!!home?.winner} />
-          <ParticipantRow participant={away} score={away?.score} emphasize={!!away?.winner} />
+          <ParticipantRow
+            participant={home}
+            score={home?.score}
+            emphasize={!!home?.winner}
+            nameLines={2}
+          />
+          <ParticipantRow
+            participant={away}
+            score={away?.score}
+            emphasize={!!away?.winner}
+            nameLines={2}
+          />
         </View>
-        <Text style={styles.finishedMeta} numberOfLines={1}>
-          {[metaLine, finishedTime].filter(Boolean).join(" · ")}
+        <Text style={styles.finishedWhen} numberOfLines={2}>
+          {finishedTime || kickoff || metaSecondary || " "}
         </Text>
-        {actionButton ? <View style={styles.finishedActionRow}>{actionButton}</View> : null}
       </Pressable>
     );
   }
@@ -376,16 +418,20 @@ function SportsMatchCard({
             {saveButton}
           </View>
           {competitionLabel ? (
-            <Text style={styles.featuredCompetition} numberOfLines={1}>
+            <Text style={styles.featuredCompetition} numberOfLines={2}>
               {competitionLabel}
             </Text>
           ) : null}
         </View>
         <View style={styles.featuredBody}>
-          <ParticipantRow participant={home} score={home?.score} emphasize={!!home?.winner} logoSize={26} />
-          <ParticipantRow participant={away} score={away?.score} emphasize={!!away?.winner} logoSize={26} />
-          <Text style={styles.featuredKickoff} numberOfLines={1}>
-            {isLive ? "In progress" : countdown || kickoff}
+          <ParticipantRow participant={home} score={home?.score} emphasize={!!home?.winner} logoSize={28} />
+          <ParticipantRow participant={away} score={away?.score} emphasize={!!away?.winner} logoSize={28} />
+          <Text style={styles.featuredKickoff} numberOfLines={2}>
+            {isLive
+              ? minute
+                ? `${minute} · In progress`
+                : "In progress"
+              : metaSecondary || countdown || kickoff}
           </Text>
         </View>
         {actionButton ? <View style={styles.featuredActionRow}>{actionButton}</View> : null}
@@ -393,24 +439,55 @@ function SportsMatchCard({
     );
   }
 
-  // default: shelf
+  // default: shelf (upcoming / live / starting soon)
   return (
     <Pressable
       onPress={handlePress}
-      style={[styles.card, styles.cardShelf, style]}
+      style={[styles.card, styles.cardShelf, isLive && styles.cardLive, style]}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
       <View style={styles.shelfHeader}>
-        <SportsStatusBadge code={card.status?.code} label={card.status?.label} minute={minute} size="sm" />
+        <SportsStatusBadge
+          code={card.status?.code}
+          label={card.status?.label}
+          minute={minute}
+          size="sm"
+        />
         {saveButton}
       </View>
+      {competitionLabel ? (
+        <Text style={styles.shelfCompetition} numberOfLines={2}>
+          {competitionLabel}
+        </Text>
+      ) : null}
+      {!isLive ? (
+        <Text style={styles.shelfKickoff} numberOfLines={2}>
+          {kickoff || countdown || "Kickoff TBA"}
+        </Text>
+      ) : null}
       <View style={styles.shelfBody}>
-        <ParticipantRow participant={home} score={home?.score} emphasize={!!home?.winner} />
-        <ParticipantRow participant={away} score={away?.score} emphasize={!!away?.winner} />
+        <ParticipantRow
+          participant={home}
+          score={isLive ? home?.score : null}
+          emphasize={!!home?.winner}
+          nameLines={2}
+        />
+        <ParticipantRow
+          participant={away}
+          score={isLive ? away?.score : null}
+          emphasize={!!away?.winner}
+          nameLines={2}
+        />
       </View>
-      <Text style={styles.shelfMeta} numberOfLines={1}>
-        {metaLine || (isLive ? "Live now" : countdown || kickoff || finishedTime)}
+      <Text style={styles.shelfMetaSecondary} numberOfLines={2}>
+        {isLive
+          ? minute
+            ? `${minute} · Live`
+            : metaSecondary || "Live now"
+          : countdown && countdown !== kickoff
+            ? countdown
+            : metaSecondary || " "}
       </Text>
       {actionButton ? <View style={styles.shelfActionRow}>{actionButton}</View> : null}
     </Pressable>
@@ -442,8 +519,6 @@ function areEqual(prev: SportsMatchCardProps, next: SportsMatchCardProps) {
 
 export default memo(SportsMatchCard, areEqual);
 
-const CARD_WIDTH = 172;
-
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
@@ -454,23 +529,46 @@ const styles = StyleSheet.create({
   },
 
   cardShelf: {
-    width: CARD_WIDTH,
+    width: "100%",
     padding: 12,
   },
 
+  cardLive: {
+    borderColor: "rgba(255,77,109,0.35)",
+    backgroundColor: "rgba(255,77,109,0.06)",
+  },
+
   cardFeatured: {
-    width: CARD_WIDTH + 68,
+    width: "100%",
   },
 
   shelfHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+
+  shelfCompetition: {
+    color: SPORTS_COLORS.amber,
+    fontSize: 11.5,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    marginBottom: 4,
+    lineHeight: 15,
+  },
+
+  shelfKickoff: {
+    color: SPORTS_COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 8,
+    lineHeight: 14,
   },
 
   shelfBody: {
     gap: 8,
+    minHeight: 52,
   },
 
   shelfMeta: {
@@ -478,6 +576,22 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: "700",
     marginTop: 10,
+  },
+
+  shelfMetaPrimary: {
+    color: SPORTS_COLORS.amber,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 10,
+    letterSpacing: 0.2,
+  },
+
+  shelfMetaSecondary: {
+    color: SPORTS_COLORS.textDim,
+    fontSize: 10.5,
+    fontWeight: "600",
+    marginTop: 8,
+    lineHeight: 14,
   },
 
   shelfActionRow: {
@@ -488,11 +602,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+
+  finishedCompetition: {
+    color: SPORTS_COLORS.amber,
+    fontSize: 11.5,
+    fontWeight: "800",
+    marginBottom: 8,
+    lineHeight: 15,
+  },
+
+  finishedWhen: {
+    color: SPORTS_COLORS.textDim,
+    fontSize: 10.5,
+    fontWeight: "600",
+    marginTop: 10,
+    lineHeight: 14,
   },
 
   finishedBody: {
     gap: 8,
+    minHeight: 56,
   },
 
   finishedMeta: {
@@ -530,6 +661,7 @@ const styles = StyleSheet.create({
     color: SPORTS_COLORS.textMuted,
     fontSize: 13,
     fontWeight: "700",
+    lineHeight: 17,
   },
 
   participantNameWinner: {
@@ -539,7 +671,7 @@ const styles = StyleSheet.create({
 
   participantScore: {
     color: SPORTS_COLORS.textMuted,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "800",
     minWidth: 18,
     textAlign: "right",

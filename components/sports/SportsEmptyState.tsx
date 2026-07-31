@@ -33,7 +33,7 @@ function SportsEmptyState({
         {title}
       </Text>
       {message ? (
-        <Text style={[styles.message, compact && styles.messageCompact]} numberOfLines={3}>
+        <Text style={[styles.message, compact && styles.messageCompact]} numberOfLines={4}>
           {message}
         </Text>
       ) : null}

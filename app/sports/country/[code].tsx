@@ -1,8 +1,15 @@
 /**
  * Country hub — fixtures and competitions for a canonical country code.
+ * FlatList-owned vertical list (no ScrollView + full .map tree).
  */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, RefreshControl, ScrollView, StyleSheet } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FlatList,
+  Platform,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -25,6 +32,7 @@ import {
   openSportsPlayerIfPlayable,
   shouldOpenSportsPlayer,
 } from "../../../lib/sports/ui/availability";
+import { boundSectionItems, sectionItemLimit } from "../../../lib/sports/ui/homeSections";
 import type {
   SportsCompetitionCard,
   SportsCountryCard,
@@ -39,7 +47,6 @@ export default function CountryHubScreen() {
   const gate = useSportsFullUiGate();
   const params = useLocalSearchParams<{ code?: string }>();
   const countryCode = normalizeSportsCountryCode(String(params.code || ""));
-  const nowMs = useSportsNowClock();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,12 +57,24 @@ export default function CountryHubScreen() {
   const abortRef = useRef<AbortController | null>(null);
   const navGuardRef = useRef(createTapGuardState());
 
-  const load = useCallback(async () => {
+  const countdownNeeded = useMemo(() => {
+    for (const section of sections) {
+      if (section.type !== "fixtures" && section.type !== "live") continue;
+      for (const item of section.items || []) {
+        if (needsSportsCountdownClock(item as SportsMatchCardType)) return true;
+      }
+    }
+    return false;
+  }, [sections]);
+  const nowMs = useSportsNowClock(countdownNeeded ? 30_000 : 0);
+
+  const load = useCallback(async (opts?: { background?: boolean }) => {
     if (!countryCode) return;
+    const background = opts?.background === true;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    setError(null);
+    if (!background) setError(null);
 
     try {
       const res = await fetchSportsCountryHub(countryCode, {
@@ -66,14 +85,16 @@ export default function CountryHubScreen() {
       if (controller.signal.aborted) return;
 
       if (!res.enabled) {
-        setSections([]);
-        setError("Sports preview is unavailable.");
+        if (!background) {
+          setSections([]);
+          setError("Sports preview is unavailable.");
+        }
         return;
       }
       setCountry(res.country || null);
       setSections((res.sections || []).filter((s) => (s.items?.length || 0) > 0));
     } catch {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && !background) {
         setError("Sports could not be loaded. Try again.");
       }
     } finally {
@@ -89,6 +110,11 @@ export default function CountryHubScreen() {
     void load();
     return () => abortRef.current?.abort();
   }, [gate.allowed, load]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void load({ background: true });
+  }, [load]);
 
   const onPressMatch = useCallback((card: SportsMatchCardType) => {
     if (shouldIgnoreDuplicateTap(navGuardRef.current, `fixture:${card.id}`)) return;
@@ -108,6 +134,44 @@ export default function CountryHubScreen() {
     router.push(`/sports/competition/${encodeURIComponent(c.id)}` as any);
   }, []);
 
+  const renderSection = useCallback(
+    ({ item: section }: { item: SportsHomeSection }) => {
+      const itemLimit = sectionItemLimit(section.id);
+      if (section.type === "competitions") {
+        return (
+          <SportsSection title={section.title}>
+            <SportsCompetitionShelf
+              sectionId={section.id}
+              competitions={boundSectionItems(
+                section.items as SportsCompetitionCard[],
+                itemLimit
+              )}
+              onPress={onPressCompetition}
+            />
+          </SportsSection>
+        );
+      }
+      return (
+        <SportsSection title={section.title}>
+          <SportsHorizontalShelf columns="auto" maxItems={itemLimit}>
+            {boundSectionItems(section.items as SportsMatchCardType[], itemLimit).map(
+              (card) => (
+                <SportsMatchCard
+                  key={card.id}
+                  card={card}
+                  nowMs={needsSportsCountdownClock(card) ? nowMs : undefined}
+                  onPress={onPressMatch}
+                  onWatch={onWatchMatch}
+                />
+              )
+            )}
+          </SportsHorizontalShelf>
+        </SportsSection>
+      );
+    },
+    [nowMs, onPressCompetition, onPressMatch, onWatchMatch]
+  );
+
   if (!gate.allowed) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -118,60 +182,48 @@ export default function CountryHubScreen() {
     );
   }
 
+  const showFullSkeleton = loading && !sections.length;
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <SportsScreenHeader title={country?.name || countryCode || "Country"} />
 
-      {loading ? (
-        <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 40 }}>
+      {showFullSkeleton ? (
+        <View style={{ paddingTop: 8, paddingBottom: 40 }}>
           <SportsSkeletonRow render={() => <SportsMatchCardSkeleton />} count={3} />
-        </ScrollView>
+        </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={sections}
+          keyExtractor={(section) => section.id}
+          renderItem={renderSection}
+          ListHeaderComponent={
+            error ? <SportsErrorState message={error} onRetry={load} /> : null
+          }
+          ListEmptyComponent={
+            !error ? (
+              <SportsEmptyState
+                title="No verified fixtures are available right now."
+                message="There are no verified fixtures or competitions for this country right now."
+              />
+            ) : null
+          }
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} tintColor={SPORTS_COLORS.amber} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={SPORTS_COLORS.amber}
+            />
           }
           contentContainerStyle={{ paddingBottom: 40 }}
           showsVerticalScrollIndicator={false}
-        >
-          {error ? <SportsErrorState message={error} onRetry={load} /> : null}
-          {!sections.length && !error ? (
-            <SportsEmptyState
-              title="No verified fixtures are available right now."
-              message="There are no verified fixtures or competitions for this country right now."
-            />
-          ) : (
-            sections.map((section) => {
-              if (section.type === "competitions") {
-                return (
-                  <SportsSection key={section.id} title={section.title}>
-                    <SportsCompetitionShelf
-                      sectionId={section.id}
-                      competitions={section.items as SportsCompetitionCard[]}
-                      onPress={onPressCompetition}
-                    />
-                  </SportsSection>
-                );
-              }
-              return (
-                <SportsSection key={section.id} title={section.title}>
-                  <SportsHorizontalShelf columns={1}>
-                    {(section.items as SportsMatchCardType[]).map((card) => (
-                      <SportsMatchCard
-                        key={card.id}
-                        card={card}
-                        nowMs={needsSportsCountdownClock(card) ? nowMs : undefined}
-                        onPress={onPressMatch}
-                        onWatch={onWatchMatch}
-                      />
-                    ))}
-                  </SportsHorizontalShelf>
-                </SportsSection>
-              );
-            })
-          )}
-        </ScrollView>
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={Platform.OS === "android"}
+        />
       )}
     </SafeAreaView>
   );

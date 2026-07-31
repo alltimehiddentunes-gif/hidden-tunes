@@ -33,20 +33,23 @@ import {
   SportsScheduleSection,
   SportsSection,
   SportsSkeletonRow,
+  SportsTvShelf,
   SportsVideoCard,
   SportsWorldGrid,
 } from "../../components/sports";
 import {
   isSportsClientEnabled,
   sportsLiveScoresEnabled,
-  sportsStreamsEnabled,
+  sportsTvEnabled,
 } from "../../constants/sportsFlags";
+import { useSportsTvCatalog } from "../../hooks/useSportsTvCatalog";
 import {
   boundSectionItems,
   ensureLiveNowSection,
   omitEmptySportsSections,
   pickSportsHero,
   sectionItemLimit,
+  sortSportsHomeSections,
 } from "../../lib/sports/ui/homeSections";
 import {
   followSportsEntity,
@@ -60,6 +63,12 @@ import {
   clearSportsReminder,
   unfollowSportsEntity,
 } from "../../services/sports";
+import {
+  getSportsBrowseCache,
+  isSportsBrowseCacheStale,
+  sportsHomeCacheKey,
+  SPORTS_HOME_STALE_MS,
+} from "../../services/sports/sportsBrowseCache";
 import type {
   SportsCompetitionCard as SportsCompetitionCardType,
   SportsCountryCard as SportsCountryCardType,
@@ -78,10 +87,75 @@ import {
   openSportsPlayerIfPlayable,
   shouldOpenSportsPlayer,
 } from "../../lib/sports/ui/availability";
+import { formatCountdown, formatKickoff } from "../../lib/sports/ui/formatKickoff";
+import { formatMatchTitle } from "../../lib/sports/ui/formatScore";
 
 import { SPORTS_COLORS, SportsDisabledState, navigateSportsHomeBack, useSportsFullUiGate, useSportsNowClock } from "./_shared";
 
 type DevProfile = "anonymous" | "football" | "basketball";
+
+type SportFilterId = "all" | "football" | "basketball" | "cricket" | "more";
+
+const SPORT_FILTERS: { id: SportFilterId; label: string; slugs?: string[] }[] = [
+  { id: "all", label: "All" },
+  { id: "football", label: "Football", slugs: ["football", "soccer"] },
+  { id: "basketball", label: "Basketball", slugs: ["basketball"] },
+  { id: "cricket", label: "Cricket", slugs: ["cricket"] },
+  { id: "more", label: "More" },
+];
+
+function matchPassesSportFilter(
+  card: SportsMatchCardType,
+  filter: SportFilterId
+): boolean {
+  if (filter === "all") return true;
+  const slug = String(card.sport?.slug || "").toLowerCase();
+  const name = String(card.sport?.name || "").toLowerCase();
+  if (filter === "more") {
+    const primary = new Set(["football", "soccer", "basketball", "cricket"]);
+    return !primary.has(slug);
+  }
+  const entry = SPORT_FILTERS.find((f) => f.id === filter);
+  const slugs = entry?.slugs || [filter];
+  return slugs.some((s) => slug === s || name.includes(s));
+}
+
+function filterSectionsBySport(
+  sections: SportsHomeSection[],
+  filter: SportFilterId
+): SportsHomeSection[] {
+  if (filter === "all") return sections;
+  return sections.map((section) => {
+    if (section.type !== "fixtures" && section.type !== "live") return section;
+    if (section.id === "live_sports_tv") return section;
+    const items = (section.items as SportsMatchCardType[]).filter((card) =>
+      matchPassesSportFilter(card, filter)
+    );
+    return { ...section, items };
+  });
+}
+
+/** Inject Live Sports TV placeholder section immediately after Live now. */
+function ensureLiveSportsTvSection(
+  sections: SportsHomeSection[],
+  enabled: boolean
+): SportsHomeSection[] {
+  const without = sections.filter((s) => s.id !== "live_sports_tv");
+  if (!enabled) return without;
+  const liveIdx = without.findIndex((s) => s.id === "live_now");
+  const tvSection: SportsHomeSection = {
+    id: "live_sports_tv",
+    type: "tv_channels",
+    title: "Live Sports TV",
+    subtitle: "Sports channels from the Hidden Tunes TV catalog",
+    rank: 15,
+    items: [{ id: "sports-tv-surface" }],
+  };
+  if (liveIdx < 0) return sortSportsHomeSections([tvSection, ...without]);
+  const next = [...without];
+  next.splice(liveIdx + 1, 0, tvSection);
+  return sortSportsHomeSections(next);
+}
 
 /** Development-only local reordering demo — never active in production builds. */
 function applyDevProfile(
@@ -156,9 +230,12 @@ function SportsHomeInner() {
   const [error, setError] = useState<string | null>(null);
   const [sections, setSections] = useState<SportsHomeSection[]>([]);
   const [devProfile, setDevProfile] = useState<DevProfile>("anonymous");
+  const [sportFilter, setSportFilter] = useState<SportFilterId>("all");
   const [remindedIds, setRemindedIds] = useState<Set<string>>(new Set());
   const [savedFixtureIds, setSavedFixtureIds] = useState<Set<string>>(new Set());
   const [followedCompetitionIds, setFollowedCompetitionIds] = useState<Set<string>>(new Set());
+
+  const sportsTv = useSportsTvCatalog({ enabled: sportsTvEnabled });
 
   const countdownNeeded = useMemo(() => {
     for (const section of sections) {
@@ -183,9 +260,27 @@ function SportsHomeInner() {
   const navGuardRef = useRef(createTapGuardState());
   const refreshInFlightRef = useRef(false);
   const focusedRef = useRef(false);
+  const lastFetchedAtRef = useRef(0);
+  const liveFixtureCountRef = useRef(0);
+  const prefsLoadedRef = useRef(false);
 
-  const load = useCallback(async (opts?: { background?: boolean }) => {
+  const applyHomeSections = useCallback((raw: SportsHomeSection[], sectionErrors?: { section: string; error: string }[]) => {
+    const merged = mergeSectionErrors(raw, sectionErrors);
+    setSections(
+      omitEmptySportsSections(
+        ensureLiveNowSection(filterUnsupportedHomeSections(merged))
+      )
+    );
+  }, []);
+
+  const load = useCallback(async (opts?: {
+    background?: boolean;
+    skipPrefs?: boolean;
+    forceNetwork?: boolean;
+  }) => {
     const background = opts?.background === true;
+    const skipPrefs = opts?.skipPrefs === true || (background && prefsLoadedRef.current);
+    const forceNetwork = opts?.forceNetwork === true || background;
     if (background && refreshInFlightRef.current) return;
     refreshInFlightRef.current = true;
     abortRef.current?.abort();
@@ -194,33 +289,47 @@ function SportsHomeInner() {
     if (!background) setError(null);
 
     try {
-      const [home, reminders, favorites, follows] = await Promise.all([
-        fetchSportsHome({ signal: controller.signal, country: "ZZ", platform: Platform.OS }),
-        getSportsReminders(),
-        getSportsFavorites(),
-        getSportsFollows(),
-      ]);
+      const homePromise = fetchSportsHome({
+        signal: controller.signal,
+        country: "ZZ",
+        platform: Platform.OS,
+        forceNetwork,
+      });
+
+      let home;
+      if (skipPrefs) {
+        home = await homePromise;
+      } else {
+        const [homeRes, reminders, favorites, follows] = await Promise.all([
+          homePromise,
+          getSportsReminders(),
+          getSportsFavorites(),
+          getSportsFollows(),
+        ]);
+        home = homeRes;
+        if (controller.signal.aborted) return;
+        setRemindedIds(new Set(reminders.map((r) => r.fixtureId)));
+        setSavedFixtureIds(new Set(favorites.filter((f) => f.kind === "fixture").map((f) => f.id)));
+        setFollowedCompetitionIds(
+          new Set(follows.filter((f) => f.type === "competition").map((f) => f.id))
+        );
+        prefsLoadedRef.current = true;
+      }
       if (controller.signal.aborted) return;
 
-      setRemindedIds(new Set(reminders.map((r) => r.fixtureId)));
-      setSavedFixtureIds(new Set(favorites.filter((f) => f.kind === "fixture").map((f) => f.id)));
-      setFollowedCompetitionIds(
-        new Set(follows.filter((f) => f.type === "competition").map((f) => f.id))
-      );
+      lastFetchedAtRef.current = Date.now();
 
       if (!home.enabled) {
-        setSections([]);
-        if (!background) setError(home.message || "Sports preview is unavailable.");
+        // Keep prior sections if background refresh reports disabled briefly.
+        if (!background) {
+          setSections([]);
+          setError(home.message || "Sports preview is unavailable.");
+        }
         return;
       }
 
       const raw = Array.isArray(home.sections) ? home.sections : [];
-      const merged = mergeSectionErrors(raw, home.sectionErrors);
-      setSections(
-        omitEmptySportsSections(
-          ensureLiveNowSection(filterUnsupportedHomeSections(merged))
-        )
-      );
+      applyHomeSections(raw, home.sectionErrors);
     } catch {
       if (!controller.signal.aborted && !background) {
         setError("Sports could not be loaded. Try again.");
@@ -232,36 +341,71 @@ function SportsHomeInner() {
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [applyHomeSections]);
 
+  // Instant paint from browse cache — never blank while a fresh network load runs.
   useEffect(() => {
     if (!gate.allowed) return;
-    void load();
+    const key = sportsHomeCacheKey("ZZ", Platform.OS, "public");
+    // Private pilot mode key may differ; still try public hydrate first.
+    const cached =
+      getSportsBrowseCache<{
+        enabled?: boolean;
+        sections?: SportsHomeSection[];
+        sectionErrors?: { section: string; error: string }[];
+      }>(key) ||
+      getSportsBrowseCache<{
+        enabled?: boolean;
+        sections?: SportsHomeSection[];
+        sectionErrors?: { section: string; error: string }[];
+      }>(sportsHomeCacheKey("ZZ", Platform.OS, "private-pilot"));
+    if (cached?.enabled !== false && Array.isArray(cached?.sections) && cached.sections.length) {
+      applyHomeSections(cached.sections, cached.sectionErrors);
+      setLoading(false);
+      lastFetchedAtRef.current = Date.now() - (isSportsBrowseCacheStale(key) ? SPORTS_HOME_STALE_MS : 0);
+    }
+    void load({
+      forceNetwork: !cached || isSportsBrowseCacheStale(key),
+      skipPrefs: false,
+    });
     return () => {
       abortRef.current?.abort();
     };
-  }, [gate.allowed, load]);
+  }, [gate.allowed, load, applyHomeSections]);
 
-  // Focused live refresh — only when live scores or streams need freshness.
-  // Fixtures-only pilots rely on initial load + pull-to-refresh + resume refetch.
+  // Capability-aware live refresh:
+  // - no interval when live scores off or live count is 0
+  // - pause in background
+  // - AppState/focus refresh only after meaningful staleness
+  // - Sports TV is never polled here
   useFocusEffect(
     useCallback(() => {
       if (!gate.allowed) return undefined;
       focusedRef.current = true;
-      const liveRefreshNeeded = sportsLiveScoresEnabled || sportsStreamsEnabled;
-      const LIVE_REFRESH_MS = 60_000;
+
+      const age = Date.now() - lastFetchedAtRef.current;
+      if (lastFetchedAtRef.current > 0 && age >= SPORTS_HOME_STALE_MS) {
+        void load({ background: true, skipPrefs: true, forceNetwork: true });
+      }
+
+      const LIVE_REFRESH_MS = 45_000;
       const tick = () => {
         if (!focusedRef.current) return;
         if (AppState.currentState !== "active") return;
-        void load({ background: true });
+        if (!sportsLiveScoresEnabled) return;
+        if (liveFixtureCountRef.current <= 0) return;
+        void load({ background: true, skipPrefs: true, forceNetwork: true });
       };
-      const intervalId = liveRefreshNeeded
+      const intervalId = sportsLiveScoresEnabled
         ? setInterval(tick, LIVE_REFRESH_MS)
         : null;
+
       const onAppState = (state: AppStateStatus) => {
         if (state !== "active") return;
         if (!focusedRef.current) return;
-        void load({ background: true });
+        const staleAge = Date.now() - lastFetchedAtRef.current;
+        if (staleAge < SPORTS_HOME_STALE_MS) return;
+        void load({ background: true, skipPrefs: true, forceNetwork: true });
       };
       const sub = AppState.addEventListener("change", onAppState);
       return () => {
@@ -275,14 +419,37 @@ function SportsHomeInner() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    void load();
+    void load({ forceNetwork: true });
   }, [load]);
 
-  const displaySections = useMemo(
-    () => applyDevProfile(sections, devProfile),
-    [sections, devProfile]
-  );
+  const displaySections = useMemo(() => {
+    const profiled = applyDevProfile(sections, devProfile);
+    const filtered = filterSectionsBySport(profiled, sportFilter);
+    return ensureLiveSportsTvSection(
+      omitEmptySportsSections(filtered),
+      sportsTvEnabled
+    );
+  }, [sections, devProfile, sportFilter]);
   const hero = useMemo(() => pickSportsHero(displaySections), [displaySections]);
+  const nextUpcoming = useMemo(() => {
+    const upcoming =
+      displaySections.find((s) => s.id === "upcoming") ||
+      displaySections.find((s) => s.id === "starting_soon");
+    const items = Array.isArray(upcoming?.items)
+      ? (upcoming.items as SportsMatchCardType[])
+      : [];
+    return items[0] || null;
+  }, [displaySections]);
+  const recentFinishedCount = useMemo(() => {
+    const finished = displaySections.find((s) => s.id === "recently_finished");
+    return Array.isArray(finished?.items) ? finished.items.length : 0;
+  }, [displaySections]);
+  const liveFixtureCount = useMemo(() => {
+    const live = displaySections.find((s) => s.id === "live_now");
+    return Array.isArray(live?.items) ? live.items.length : 0;
+  }, [displaySections]);
+  liveFixtureCountRef.current = liveFixtureCount;
+  const hasPlayableSportsTv = sportsTv.videos.length > 0;
 
   const goSearch = useCallback(() => router.push("/sports/search" as any), []);
   const goFollowing = useCallback(() => router.push("/sports/following" as any), []);
@@ -394,6 +561,112 @@ function SportsHomeInner() {
     [goFixture]
   );
 
+  const listHeader = useMemo(
+    () => (
+      <>
+        {error ? (
+          <View style={styles.topError}>
+            <Text style={styles.topErrorText}>{error}</Text>
+            <Pressable onPress={() => { void load({ forceNetwork: true }); }} hitSlop={10}>
+              <Text style={styles.topErrorRetry}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {__DEV__ ? (
+          <View style={styles.devRow}>
+            {(
+              [
+                ["anonymous", "Anon"],
+                ["football", "Football"],
+                ["basketball", "Basketball"],
+              ] as const
+            ).map(([id, label]) => (
+              <Pressable
+                key={id}
+                onPress={() => setDevProfile(id)}
+                style={[styles.devChip, devProfile === id ? styles.devChipOn : null]}
+              >
+                <Text style={styles.devChipText}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.filterRow}>
+          {SPORT_FILTERS.map((filter) => (
+            <Pressable
+              key={filter.id}
+              onPress={() => setSportFilter(filter.id)}
+              style={[
+                styles.filterChip,
+                sportFilter === filter.id ? styles.filterChipOn : null,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: sportFilter === filter.id }}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  sportFilter === filter.id ? styles.filterChipTextOn : null,
+                ]}
+              >
+                {filter.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {hero ? (
+          <View style={{ paddingHorizontal: 18, marginBottom: 22 }}>
+            <SportsHero
+              card={hero}
+              nowMs={needsSportsCountdownClock(hero) ? nowMs : undefined}
+              reminded={remindedIds.has(hero.id)}
+              onPress={onPressMatch}
+              onWatch={onWatchMatch}
+              onRemind={onRemindMatch}
+            />
+          </View>
+        ) : null}
+      </>
+    ),
+    [
+      error,
+      load,
+      devProfile,
+      sportFilter,
+      hero,
+      nowMs,
+      remindedIds,
+      onPressMatch,
+      onWatchMatch,
+      onRemindMatch,
+    ]
+  );
+
+  // Narrow TV shelf props so playback progress elsewhere cannot churn this list.
+  const sportsTvShelfProps = useMemo(
+    () => ({
+      videos: sportsTv.videos,
+      loading: sportsTv.loading,
+      loadingMore: sportsTv.loadingMore,
+      error: sportsTv.error,
+      hasMore: sportsTv.hasMore,
+      onLoadMore: sportsTv.loadMore,
+      onRetry: sportsTv.refresh,
+    }),
+    [
+      sportsTv.videos,
+      sportsTv.loading,
+      sportsTv.loadingMore,
+      sportsTv.error,
+      sportsTv.hasMore,
+      sportsTv.loadMore,
+      sportsTv.refresh,
+    ]
+  );
+
   if (!gate.allowed) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -404,52 +677,6 @@ function SportsHomeInner() {
   }
 
   const showFullSkeleton = loading && !sections.length;
-
-  const listHeader = (
-    <>
-      {error ? (
-        <View style={styles.topError}>
-          <Text style={styles.topErrorText}>{error}</Text>
-          <Pressable onPress={() => { void load(); }} hitSlop={10}>
-            <Text style={styles.topErrorRetry}>Retry</Text>
-          </Pressable>
-        </View>
-      ) : null}
-
-      {__DEV__ ? (
-        <View style={styles.devRow}>
-          {(
-            [
-              ["anonymous", "Anon"],
-              ["football", "Football"],
-              ["basketball", "Basketball"],
-            ] as const
-          ).map(([id, label]) => (
-            <Pressable
-              key={id}
-              onPress={() => setDevProfile(id)}
-              style={[styles.devChip, devProfile === id ? styles.devChipOn : null]}
-            >
-              <Text style={styles.devChipText}>{label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
-
-      {hero ? (
-        <View style={{ paddingHorizontal: 18, marginBottom: 22 }}>
-          <SportsHero
-            card={hero}
-            nowMs={needsSportsCountdownClock(hero) ? nowMs : undefined}
-            reminded={remindedIds.has(hero.id)}
-            onPress={onPressMatch}
-            onWatch={onWatchMatch}
-            onRemind={onRemindMatch}
-          />
-        </View>
-      ) : null}
-    </>
-  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -495,6 +722,11 @@ function SportsHomeInner() {
               remindedIds,
               savedFixtureIds,
               followedCompetitionIds,
+              nextUpcoming,
+              recentFinishedCount,
+              liveFixtureCount,
+              hasPlayableSportsTv,
+              sportsTv: sportsTvShelfProps,
               onPressMatch,
               onWatchMatch,
               onRemindMatch,
@@ -515,9 +747,9 @@ function SportsHomeInner() {
           }
           contentContainerStyle={{ paddingBottom: 48 }}
           showsVerticalScrollIndicator={false}
-          initialNumToRender={4}
-          maxToRenderPerBatch={3}
-          windowSize={7}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={5}
           updateCellsBatchingPeriod={50}
           removeClippedSubviews={Platform.OS === "android"}
         />
@@ -531,6 +763,19 @@ type HomeSectionHandlers = {
   remindedIds: Set<string>;
   savedFixtureIds: Set<string>;
   followedCompetitionIds: Set<string>;
+  nextUpcoming: SportsMatchCardType | null;
+  recentFinishedCount: number;
+  liveFixtureCount: number;
+  hasPlayableSportsTv: boolean;
+  sportsTv: {
+    videos: ReturnType<typeof useSportsTvCatalog>["videos"];
+    loading: boolean;
+    loadingMore: boolean;
+    error: string | null;
+    hasMore: boolean;
+    onLoadMore: () => void;
+    onRetry: () => void;
+  };
   onPressMatch: (c: SportsMatchCardType) => void;
   onWatchMatch: (c: SportsMatchCardType) => void;
   onRemindMatch: (c: SportsMatchCardType) => void;
@@ -545,13 +790,57 @@ type HomeSectionHandlers = {
 function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
   const itemLimit = sectionItemLimit(section.id);
 
+  if (section.id === "live_sports_tv" || section.type === "tv_channels") {
+    if (!sportsTvEnabled) return null;
+    if (
+      !h.sportsTv.loading &&
+      !h.sportsTv.error &&
+      !h.hasPlayableSportsTv &&
+      h.liveFixtureCount === 0
+    ) {
+      return (
+        <SportsSection title="Live Sports TV">
+          <SportsEmptyState
+            icon="tv-outline"
+            title="No live matches or sports channels are available right now."
+            message="Check upcoming fixtures below."
+            compact
+          />
+        </SportsSection>
+      );
+    }
+    if (!h.hasPlayableSportsTv && !h.sportsTv.loading && !h.sportsTv.error) {
+      return null;
+    }
+    return (
+      <SportsSection
+        title={section.title || "Live Sports TV"}
+        subtitle={section.subtitle}
+      >
+        <SportsTvShelf
+          videos={h.sportsTv.videos}
+          loading={h.sportsTv.loading}
+          loadingMore={h.sportsTv.loadingMore}
+          error={h.sportsTv.error}
+          hasMore={h.sportsTv.hasMore}
+          onLoadMore={h.sportsTv.onLoadMore}
+          onRetry={h.sportsTv.onRetry}
+        />
+      </SportsSection>
+    );
+  }
+
   if (section.id === "todays_schedule" && section.type === "fixtures") {
     const matches = boundSectionItems(
       section.items as SportsMatchCardType[],
       itemLimit
     );
     return (
-      <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
+      <SportsSection
+        title={section.title || "Today’s Fixtures"}
+        subtitle={section.subtitle}
+        error={section.error}
+      >
         <SportsScheduleSection
           matches={matches}
           nowMs={h.nowMs}
@@ -569,26 +858,48 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
       itemLimit
     );
     if (section.id === "live_now" && items.length === 0) {
+      const next = h.nextUpcoming;
+      const nextTitle = next ? formatMatchTitle(next) : null;
+      const nextWhen = next
+        ? formatCountdown(next.timing?.startsAt, h.nowMs) ||
+          formatKickoff(next.timing?.startsAt, h.nowMs)
+        : null;
+      const tvHint = sportsTvEnabled
+        ? "Live sports channels are available below"
+        : null;
+      const messageParts = [
+        tvHint,
+        nextTitle && nextWhen
+          ? `Next up: ${nextTitle} · ${nextWhen}`
+          : nextTitle
+            ? `Next up: ${nextTitle}`
+            : null,
+        !tvHint && h.recentFinishedCount > 0
+          ? `${h.recentFinishedCount} recent results ready to browse.`
+          : null,
+      ].filter(Boolean);
       return (
-        <SportsSection title={section.title || "Live now"} error={section.error}>
+        <SportsSection title={section.title || "Live Now"} error={section.error}>
           <SportsEmptyState
             icon="radio-outline"
-            title="No confirmed live events right now"
-            message="Check today’s fixtures below."
+            title="No confirmed live matches right now"
+            message={messageParts.join(". ") || "Check upcoming fixtures below."}
             compact
+            ctaLabel={next && !tvHint ? "View next match" : undefined}
+            onCta={next && !tvHint ? () => h.onPressMatch(next) : undefined}
           />
         </SportsSection>
       );
     }
     return (
       <SportsSection title={section.title} subtitle={section.subtitle} error={section.error}>
-        <SportsHorizontalShelf maxItems={itemLimit}>
+        <SportsHorizontalShelf maxItems={itemLimit} columns="auto">
           {items.map((card) => (
             <SportsMatchCard
               key={card.id}
               card={card}
               variant={variant}
-              nowMs={needsSportsCountdownClock(card) ? h.nowMs : undefined}
+              nowMs={h.nowMs}
               reminded={h.remindedIds.has(card.id)}
               favorited={h.savedFixtureIds.has(card.id)}
               onPress={h.onPressMatch}
@@ -700,6 +1011,33 @@ const styles = StyleSheet.create({
   savedLinkRow: { alignItems: "flex-end", paddingHorizontal: 18, paddingBottom: 6 },
   savedLinkBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
   savedLinkText: { color: SPORTS_COLORS.textMuted, fontSize: 12, fontWeight: "600" },
+  filterRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingBottom: 14,
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: SPORTS_COLORS.border,
+    backgroundColor: SPORTS_COLORS.surfaceGlass,
+  },
+  filterChipOn: {
+    borderColor: SPORTS_COLORS.amber,
+    backgroundColor: SPORTS_COLORS.amberSoft,
+  },
+  filterChipText: {
+    color: SPORTS_COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  filterChipTextOn: {
+    color: SPORTS_COLORS.amber,
+  },
   center: { padding: 32, alignItems: "center" },
   centerText: { color: SPORTS_COLORS.textDim, fontSize: 13, textAlign: "center" },
 });

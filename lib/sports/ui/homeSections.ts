@@ -5,11 +5,11 @@ import {
 } from "../../../types/sports";
 export const SPORTS_SECTION_LIMITS = {
   hero: 1,
-  horizontal: 16,
-  schedule: 40,
-  sportGrid: 24,
-  competitionGrid: 20,
-  searchPage: 40,
+  horizontal: 12,
+  schedule: 24,
+  sportGrid: 16,
+  competitionGrid: 16,
+  searchPage: 24,
 } as const;
 export function isHomeSectionArray(
   sections: SportsHomeSection[] | Partial<Record<string, unknown[]>> | undefined
