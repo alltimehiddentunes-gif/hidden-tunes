@@ -58,11 +58,13 @@ final class HiddenAudioCarPlayManager: NSObject {
     emitDiagnostic(data)
   }
 
-  /// Attach after the scene delegate has already installed the safe CPListTemplate root.
+  /// Attach after the scene delegate has successfully installed the safe CPListTemplate root.
+  /// Never upgrades to tabs in the same turn as an in-flight `setRootTemplate`.
   func attachConnectedSession(
     interfaceController: CPInterfaceController,
     window: CPWindow? = nil,
-    preinstalledRoot: CPListTemplate
+    preinstalledRoot: CPListTemplate,
+    rootInstallConfirmed: Bool = true
   ) {
     let work = { [weak self] in
       guard let self else { return }
@@ -75,6 +77,10 @@ final class HiddenAudioCarPlayManager: NSObject {
           self.carWindow = window
         }
         NSLog("[HTCarPlay] connect_idempotent_skip")
+        self.emitLifecycleDiagnostic(
+          "carplay_attach_idempotent_skip",
+          ["hasInterfaceController": true]
+        )
         return
       }
 
@@ -85,7 +91,8 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.carWindow = window
       self.isConnected = true
       self.isInstallingRoot = false
-      self.hasInstalledRoot = true
+      // Only treat the root as installed when the scene (or manager) confirmed setRoot success.
+      self.hasInstalledRoot = rootInstallConfirmed
       self.hasUpgradedToTabs = false
       self.rootListTemplate = preinstalledRoot
       self.tabBarTemplate = nil
@@ -97,12 +104,34 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.ensureSessionConfiguration()
       self.refreshVideoCapability(reason: "connected")
       NSLog("[HTCarPlay] interface_controller_attached")
-      NSLog("[HTCarPlay] connected hasWindow=%d preinstalled_root=1", window != nil ? 1 : 0)
+      NSLog(
+        "[HTCarPlay] connected hasWindow=%d preinstalled_root=1 confirmed=%d",
+        window != nil ? 1 : 0,
+        rootInstallConfirmed ? 1 : 0
+      )
       NSLog("[HTCarPlay] root_retained")
+      self.emitLifecycleDiagnostic(
+        "carplay_interface_attached",
+        [
+          "hasInterfaceController": true,
+          "hasWindow": window != nil,
+          "rootInstallConfirmed": rootInstallConfirmed,
+          "generation": generation,
+        ]
+      )
 
-      // Populate the visible safe list, then attempt a validated tab upgrade.
-      self.updateExistingRootListFromCatalog()
-      self.tryUpgradeToValidatedTabRoot(generation: generation)
+      if rootInstallConfirmed {
+        // Replay any catalog that arrived before CarPlay connected (in-place; never blanks).
+        self.updateExistingRootListFromCatalog()
+        self.emitLifecycleDiagnostic(
+          "carplay_catalog_replayed_after_connect",
+          ["generation": generation]
+        )
+        // Defer tab upgrade so it cannot race the scene's completed setRootTemplate.
+        self.scheduleValidatedTabUpgrade(generation: generation)
+      } else {
+        self.installSafeFallbackRoot(generation: generation, attempt: 1)
+      }
 
       self.emitDiagnostic([
         "event": "carplay_connected",
@@ -111,6 +140,7 @@ final class HiddenAudioCarPlayManager: NSObject {
         "supportsVideoPlayback": self.supportsVideoPlaybackCached,
         "generation": generation,
         "preinstalledRoot": true,
+        "rootInstallConfirmed": rootInstallConfirmed,
       ])
     }
 
@@ -174,7 +204,11 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.refreshVideoCapability(reason: "connected")
       NSLog("[HTCarPlay] interface_controller_attached")
       NSLog("[HTCarPlay] connected hasWindow=%d", window != nil ? 1 : 0)
-      self.installSafeFallbackRoot(generation: generation)
+      self.emitLifecycleDiagnostic(
+        "carplay_manager_connect_installing_root",
+        ["hasInterfaceController": true, "generation": generation]
+      )
+      self.installSafeFallbackRoot(generation: generation, attempt: 1)
       self.emitDiagnostic([
         "event": "carplay_connected",
         "hasInterfaceController": true,
@@ -229,6 +263,7 @@ final class HiddenAudioCarPlayManager: NSObject {
   }
 
   /// Catalog sync refreshes sections in place — never blanks the screen.
+  /// When CarPlay is not connected yet, the snapshot is retained for replay after attach.
   func reloadTemplates() {
     performOnMain { [weak self] in
       guard let self else { return }
@@ -280,24 +315,52 @@ final class HiddenAudioCarPlayManager: NSObject {
       "sectionCount": sectionCount,
       "itemCount": itemCount,
       "connected": isConnected,
+      "pendingReplay": !isConnected,
     ])
     if isConnected {
       reloadTemplates()
+    } else {
+      NSLog("[HTCarPlay] catalog_cached_pending_carplay_connect")
+      emitLifecycleDiagnostic(
+        "carplay_catalog_cached_pending_connect",
+        ["trackCount": trackCount, "sectionCount": sectionCount]
+      )
     }
   }
 
   // MARK: - Safe fallback root
 
-  private func installSafeFallbackRoot(generation: UInt64) {
+  private static let maxRootInstallAttempts = 3
+
+  /// Defer tab upgrade so it cannot race a just-completed scene `setRootTemplate`.
+  private func scheduleValidatedTabUpgrade(generation: UInt64) {
+    NSLog("[HTCarPlay] tab_upgrade_scheduled generation=%llu", generation)
+    emitLifecycleDiagnostic("carplay_tab_upgrade_scheduled", ["generation": generation])
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      guard generation == self.activeConnectionGeneration, self.isConnected else {
+        NSLog("[HTCarPlay] stale_update_ignored reason=tab_upgrade_schedule_stale")
+        return
+      }
+      guard self.hasInstalledRoot, !self.isInstallingRoot, !self.hasUpgradedToTabs else {
+        NSLog("[HTCarPlay] tab_upgrade_skipped already_tabs_or_installing")
+        return
+      }
+      self.tryUpgradeToValidatedTabRoot(generation: generation)
+    }
+  }
+
+  private func installSafeFallbackRoot(generation: UInt64, attempt: Int = 1) {
     guard let interfaceController else {
       NSLog("[HTCarPlay] root_install_skipped no_interface_controller")
+      emitLifecycleDiagnostic("carplay_root_install_skipped", ["reason": "no_interface_controller"])
       return
     }
     guard generation == activeConnectionGeneration, isConnected else {
       NSLog("[HTCarPlay] stale_update_ignored reason=install_stale_generation")
       return
     }
-    if hasInstalledRoot || rootListTemplate != nil || tabBarTemplate != nil {
+    if hasInstalledRoot || tabBarTemplate != nil {
       NSLog("[HTCarPlay] root_install_skipped already_installed")
       reloadTemplates()
       return
@@ -318,6 +381,10 @@ final class HiddenAudioCarPlayManager: NSObject {
     NSLog("[HTCarPlay] root_type=CPListTemplate")
     NSLog("[HTCarPlay] fallback_item_count=%d", itemCount)
     NSLog("[HTCarPlay] setRootTemplate start")
+    emitLifecycleDiagnostic(
+      "carplay_manager_root_install_started",
+      ["attempt": attempt, "maxAttempts": Self.maxRootInstallAttempts, "generation": generation]
+    )
 
     interfaceController.setRootTemplate(list, animated: false) { [weak self] success, error in
       guard let self else { return }
@@ -332,14 +399,17 @@ final class HiddenAudioCarPlayManager: NSObject {
       if success {
         self.hasInstalledRoot = true
         NSLog("[HTCarPlay] root_retained")
+        NSLog("[HTCarPlay] root_template_installed")
         self.emitDiagnostic([
           "event": "carplay_root_installed",
           "success": true,
           "message": "",
           "rootType": "CPListTemplate",
           "itemCount": itemCount,
+          "attempt": attempt,
         ])
-        self.tryUpgradeToValidatedTabRoot(generation: generation)
+        self.updateExistingRootListFromCatalog()
+        self.scheduleValidatedTabUpgrade(generation: generation)
       } else {
         self.hasInstalledRoot = false
         self.rootListTemplate = nil
@@ -349,12 +419,28 @@ final class HiddenAudioCarPlayManager: NSObject {
           "success": false,
           "message": message,
           "rootType": "CPListTemplate",
+          "attempt": attempt,
         ])
+        if attempt < Self.maxRootInstallAttempts {
+          let next = attempt + 1
+          NSLog("[HTCarPlay] root_install_retry attempt=%d", next)
+          self.emitLifecycleDiagnostic(
+            "carplay_manager_root_install_retry",
+            ["attempt": next, "maxAttempts": Self.maxRootInstallAttempts]
+          )
+          self.installSafeFallbackRoot(generation: generation, attempt: next)
+        } else {
+          NSLog("[HTCarPlay] root_install_exhausted attempts=%d", attempt)
+          self.emitLifecycleDiagnostic(
+            "carplay_manager_root_install_exhausted",
+            ["attempt": attempt, "message": message]
+          )
+        }
       }
     }
   }
 
-  private func installSafeFallbackRoot(on interfaceController: CPInterfaceController) {
+  private func installSafeFallbackRoot(on interfaceController: CPInterfaceController, attempt: Int = 1) {
     let (list, itemCount) = makeVisibleFallbackListTemplate()
     rootListTemplate = list
     tabBarTemplate = nil
@@ -362,10 +448,12 @@ final class HiddenAudioCarPlayManager: NSObject {
     radioTabTemplate = nil
     libraryTabTemplate = nil
     hasUpgradedToTabs = false
+    isInstallingRoot = true
     NSLog("[HTCarPlay] fallback_restored reason=invalid_tabs item_count=%d", itemCount)
     NSLog("[HTCarPlay] setRootTemplate start")
     interfaceController.setRootTemplate(list, animated: false) { [weak self] success, error in
       guard let self else { return }
+      self.isInstallingRoot = false
       NSLog(
         "[HTCarPlay] minimal root installed success=%d error=%@",
         success ? 1 : 0,
@@ -374,11 +462,17 @@ final class HiddenAudioCarPlayManager: NSObject {
       if success {
         self.hasInstalledRoot = true
         self.rootListTemplate = list
+        NSLog("[HTCarPlay] root_template_installed")
         self.updateExistingRootListFromCatalog()
       } else {
         self.hasInstalledRoot = false
         self.rootListTemplate = nil
         NSLog("[HTCarPlay] fallback_restored reason=setRoot_failed")
+        if attempt < Self.maxRootInstallAttempts {
+          let next = attempt + 1
+          NSLog("[HTCarPlay] root_install_retry attempt=%d", next)
+          self.installSafeFallbackRoot(on: interfaceController, attempt: next)
+        }
       }
     }
   }
@@ -499,7 +593,7 @@ final class HiddenAudioCarPlayManager: NSObject {
         self.radioTabTemplate = nil
         self.libraryTabTemplate = nil
         NSLog("[HTCarPlay] fallback_restored reason=tab_setRoot_failed")
-        self.installSafeFallbackRoot(on: interfaceController)
+        self.installSafeFallbackRoot(on: interfaceController, attempt: 1)
         self.emitDiagnostic([
           "event": "carplay_tab_root_install_failed",
           "success": false,

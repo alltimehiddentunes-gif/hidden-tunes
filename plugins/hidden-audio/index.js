@@ -641,8 +641,11 @@ const withHiddenAudioAppDelegate = (config) => {
           "[hidden-audio] AppDelegate already has complete CarPlay configurationForConnecting."
         );
       } else {
-        console.warn(
-          `[hidden-audio] AppDelegate CarPlay scene router not applied (${sceneConfig.reason}).`
+        // Fail the native build rather than ship a binary that shows CarPlay wallpaper
+        // because configurationForConnecting never selects CarPlaySceneDelegate.
+        throw new Error(
+          `[hidden-audio] FATAL: AppDelegate CarPlay scene router not applied (${sceneConfig.reason}). ` +
+            "CarPlay blank wallpaper would result without CarPlaySceneDelegate routing."
         );
       }
 

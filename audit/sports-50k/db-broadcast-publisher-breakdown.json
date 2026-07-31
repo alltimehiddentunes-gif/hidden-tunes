@@ -1,0 +1,89 @@
+{
+    "iptvOrg":  317,
+    "byPublisher":  [
+                        {
+                            "count":  444,
+                            "name":  "TV Catalog Sports Bridge"
+                        },
+                        {
+                            "count":  136,
+                            "name":  "iptv-org Sports"
+                        },
+                        {
+                            "count":  136,
+                            "name":  "iptv-org Country Sports"
+                        },
+                        {
+                            "count":  36,
+                            "name":  "iptv-org Sports M3U"
+                        },
+                        {
+                            "count":  9,
+                            "name":  "Wave4 Sports JSON"
+                        },
+                        {
+                            "count":  7,
+                            "name":  "iptv-org Sports Keywords"
+                        },
+                        {
+                            "count":  4,
+                            "name":  "FIBA 3x3"
+                        },
+                        {
+                            "count":  4,
+                            "name":  "FIBA Basketball"
+                        },
+                        {
+                            "count":  2,
+                            "name":  "Free-TV IPTV"
+                        },
+                        {
+                            "count":  2,
+                            "name":  "World Surf League"
+                        },
+                        {
+                            "count":  1,
+                            "name":  "AFL"
+                        },
+                        {
+                            "count":  1,
+                            "name":  "Asian Cricket Council"
+                        }
+                    ],
+    "byAvail":  [
+                    {
+                        "count":  770,
+                        "name":  "live"
+                    },
+                    {
+                        "count":  12,
+                        "name":  "quarantined"
+                    }
+                ],
+    "officialTrue":  782,
+    "byVerify":  {
+                     "count":  782,
+                     "name":  "verified"
+                 },
+    "byKind":  [
+                   {
+                       "count":  770,
+                       "name":  "hls"
+                   },
+                   {
+                       "count":  12,
+                       "name":  "iframe"
+                   }
+               ],
+    "total":  782,
+    "byValidation":  [
+                         {
+                             "count":  768,
+                             "name":  "validated"
+                         },
+                         {
+                             "count":  14,
+                             "name":  "failed"
+                         }
+                     ]
+}

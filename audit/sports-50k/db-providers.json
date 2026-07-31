@@ -1,0 +1,78 @@
+﻿[
+    {
+        "id":  "94547870-8f63-4752-946a-e1b85750e0d7",
+        "slug":  "phase1-test-provider",
+        "name":  "Phase 1 Test Provider",
+        "provider_type":  "test",
+        "official_domain":  "example.test",
+        "kill_switch":  false,
+        "is_enabled":  false,
+        "rate_limit_per_minute":  30,
+        "timeout_ms":  15000,
+        "health_status":  "disabled",
+        "last_health_at":  null,
+        "config":  {
+
+                   },
+        "notes":  "PHASE1_TEST_ONLY — not for production playback or import",
+        "created_at":  "2026-07-18T02:49:09.770662+00:00",
+        "updated_at":  "2026-07-18T02:49:09.770662+00:00"
+    },
+    {
+        "id":  "9a7e7f63-7ebc-4ee8-a4c1-60f6b5c1c451",
+        "slug":  "scorebat",
+        "name":  "ScoreBat",
+        "provider_type":  "official_embed",
+        "official_domain":  "scorebat.com",
+        "kill_switch":  true,
+        "is_enabled":  false,
+        "rate_limit_per_minute":  30,
+        "timeout_ms":  15000,
+        "health_status":  "disabled",
+        "last_health_at":  null,
+        "config":  {
+
+                   },
+        "notes":  "Private pilot — highlights only; live entitlement not confirmed; kill_switch on",
+        "created_at":  "2026-07-18T02:49:11.300029+00:00",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00"
+    },
+    {
+        "id":  "83023270-387f-4277-94ed-db4bcbdb4404",
+        "slug":  "youtubeOfficial",
+        "name":  "YouTube Official",
+        "provider_type":  "official_embed",
+        "official_domain":  "youtube.com",
+        "kill_switch":  false,
+        "is_enabled":  true,
+        "rate_limit_per_minute":  30,
+        "timeout_ms":  15000,
+        "health_status":  "healthy",
+        "last_health_at":  null,
+        "config":  {
+
+                   },
+        "notes":  "Official YouTube embeds for approved federations/leagues — keyless live pilot",
+        "created_at":  "2026-07-18T08:10:04.700176+00:00",
+        "updated_at":  "2026-07-18T17:23:01.175614+00:00"
+    },
+    {
+        "id":  "211e6083-6232-42dc-b39b-717dea7cdebf",
+        "slug":  "worldwideDirectHls",
+        "name":  "Worldwide Direct HLS",
+        "provider_type":  "public_broadcaster",
+        "official_domain":  null,
+        "kill_switch":  false,
+        "is_enabled":  true,
+        "rate_limit_per_minute":  30,
+        "timeout_ms":  15000,
+        "health_status":  "healthy",
+        "last_health_at":  null,
+        "config":  {
+
+                   },
+        "notes":  "Worldwide direct HLS — playable only after probe",
+        "created_at":  "2026-07-18T18:38:22.116608+00:00",
+        "updated_at":  "2026-07-18T20:51:23.638821+00:00"
+    }
+]

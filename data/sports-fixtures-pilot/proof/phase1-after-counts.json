@@ -1,0 +1,60 @@
+﻿{
+    "stamp":  "2026-07-25T21:12:19.2618232Z",
+    "totalFixtures":  791,
+    "quarantinedFixtures":  759,
+    "live":  0,
+    "scheduled":  10,
+    "completed":  22,
+    "playable":  0,
+    "totalBroadcasts":  782,
+    "quarantinedBroadcasts":  782,
+    "notQuarantinedBroadcasts":  0,
+    "officialTrue":  12,
+    "verifiedTrue":  12,
+    "staleLive":  0,
+    "liveIds":  [
+
+                ],
+    "flags":  {
+                  "value":  [
+                                {
+                                    "key":  "sports_enabled",
+                                    "enabled":  false
+                                },
+                                {
+                                    "key":  "sports_live_scores_enabled",
+                                    "enabled":  false
+                                }
+                            ],
+                  "Count":  2
+              },
+    "finalizedFixtures":  {
+                              "value":  [
+                                            {
+                                                "id":  "49657542-a8f2-4500-a137-2a2662e80e46",
+                                                "status":  "completed",
+                                                "playable":  false,
+                                                "availability_state":  "finished"
+                                            },
+                                            {
+                                                "id":  "58ef42f4-be97-4958-969c-b9c6a56748e0",
+                                                "status":  "completed",
+                                                "playable":  false,
+                                                "availability_state":  "finished"
+                                            },
+                                            {
+                                                "id":  "6e268bd9-a238-4107-af2a-3170cea79014",
+                                                "status":  "completed",
+                                                "playable":  false,
+                                                "availability_state":  "finished"
+                                            },
+                                            {
+                                                "id":  "730cba40-9623-4fb6-93ab-2010723cbad6",
+                                                "status":  "completed",
+                                                "playable":  false,
+                                                "availability_state":  "finished"
+                                            }
+                                        ],
+                              "Count":  4
+                          }
+}

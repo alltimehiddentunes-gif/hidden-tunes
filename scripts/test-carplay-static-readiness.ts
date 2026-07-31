@@ -46,19 +46,33 @@ function main() {
   assertOk(scene.includes("@objc(CarPlaySceneDelegate)"), "@objc CarPlaySceneDelegate");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_delegate_init")'), "scene_delegate_init");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_connection_start")'), "scene_connection_start");
-  assertOk(scene.includes("attachConnectedSession"), "scene attaches manager after inline root");
+  assertOk(scene.includes("attachConnectedSession"), "scene attaches manager after confirmed root");
+  assertOk(scene.includes("rootInstallConfirmed: true"), "scene only attaches after confirmed root");
   assertOk(scene.includes("setRootTemplate("), "scene installs root inline (Apple audio pattern)");
   assertOk(scene.includes("Loading your audio"), "scene minimal loading root");
   assertOk(scene.includes("makeImmediateFallbackRoot"), "scene fallback helper");
+  assertOk(scene.includes("installSafeRoot"), "scene bounded install helper");
+  assertOk(scene.includes("root_install_retry"), "scene retries failed setRoot");
+  assertOk(scene.includes("maxRootInstallAttempts"), "scene bounds retries");
   assertOk(scene.includes("private var interfaceController: CPInterfaceController?"), "strong IC");
   assertOk(!scene.includes("didConnect interfaceController: CPInterfaceController,\n    to window"), "no navigation 3-arg didConnect");
   assertOk(!scene.includes("didDisconnect interfaceController: CPInterfaceController,\n    from window"), "no navigation 3-arg didDisconnect");
   // Scene installs only the safe list root — never constructs the tab bar itself.
   assertOk(!scene.includes("CPTabBarTemplate("), "scene delegate does not construct tab bar");
+  // Completion-gated attach: success path passes rootInstallConfirmed; failure falls to manager.connect.
+  assertOk(scene.includes("HiddenAudioCarPlayManager.shared.connect("), "scene falls back to manager.connect");
+  assertOk(scene.includes("carplay_scene_root_install_succeeded"), "scene emits root success diagnostic");
+  assertOk(scene.includes("carplay_scene_root_install_exhausted"), "scene emits retry-exhausted diagnostic");
 
   const manager = read("plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioCarPlayManager.swift");
   assertOk(manager.includes("import CarPlay"), "manager imports CarPlay");
   assertOk(manager.includes("func attachConnectedSession("), "manager attachConnectedSession");
+  assertOk(manager.includes("rootInstallConfirmed"), "manager requires root confirmation");
+  assertOk(manager.includes("scheduleValidatedTabUpgrade"), "manager defers tab upgrade");
+  assertOk(manager.includes("carplay_catalog_replayed_after_connect"), "catalog replay after connect");
+  assertOk(manager.includes("carplay_catalog_cached_pending_connect"), "catalog cached when disconnected");
+  assertOk(manager.includes("root_install_retry"), "manager retries failed setRoot");
+  assertOk(manager.includes("maxRootInstallAttempts"), "manager bounds retries");
   assertOk(manager.includes("func connect("), "manager connect fallback");
   assertOk(manager.includes("private var interfaceController: CPInterfaceController?"), "strong IC");
   assertOk(!manager.includes("private weak var interfaceController"), "IC not weak");
@@ -92,6 +106,12 @@ function main() {
   assertOk(!/CPSearchTemplate\(\)[\s\S]{0,200}tabTitle/.test(manager), "search is not a tab");
   assertOk(!manager.includes('tabTitle = "Search"'), "search not a tab title");
   assertOk(!manager.includes('tabTitle = "Videos"'), "videos not a tab title");
+  // Tab upgrade must be scheduled, not invoked synchronously inside attachConnectedSession body
+  // before the next runloop (race guard).
+  assertOk(
+    manager.includes("DispatchQueue.main.async") && manager.includes("scheduleValidatedTabUpgrade"),
+    "tab upgrade deferred via main async"
+  );
 
   const validation = read(
     "plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioCarPlayTabValidation.swift"
@@ -118,13 +138,19 @@ function main() {
   const appJsonRaw = read("app.json");
   assertOk(appJsonRaw.includes("supportsPictureInPicture"), "TV PiP config preserved");
 
-  // Scene installs one safe root; manager may upgrade once after validation.
+  // Scene has a single setRootTemplate call site (retry helper reuses it).
   const sceneSetRoot = countOccurrences(scene, "setRootTemplate(");
-  assertOk(sceneSetRoot === 1, `scene has exactly one setRootTemplate (found ${sceneSetRoot})`);
+  assertOk(sceneSetRoot === 1, `scene has exactly one setRootTemplate call site (found ${sceneSetRoot})`);
+
+  const pluginAppDelegate = read("plugins/hidden-audio/index.js");
+  assertOk(
+    pluginAppDelegate.includes("FATAL: AppDelegate CarPlay scene router not applied"),
+    "plugin fails build when scene router missing"
+  );
 
   console.log("carplay-static-readiness: ok");
-  console.log("checks: safe list root first, validated Listen/Radio/Library tabs,");
-  console.log("  favorites sanitizer, no Search/Videos tabs, dual entitlements preserved");
+  console.log("checks: confirmed root before attach, deferred tab upgrade, bounded retries,");
+  console.log("  catalog replay after connect, fail-fast AppDelegate router, dual entitlements");
 }
 
 main();

@@ -1,0 +1,100 @@
+﻿[
+    {
+        "key":  "sports_admin_enabled",
+        "enabled":  true,
+        "description":  "Admin sports ops",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:09.685525+00:00"
+    },
+    {
+        "key":  "sports_embedded_playback_enabled",
+        "enabled":  false,
+        "description":  "Embedded playback off until private validation",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:09.685525+00:00"
+    },
+    {
+        "key":  "sports_enabled",
+        "enabled":  false,
+        "description":  "Master Sports API flag — private pilot keeps off for public",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:09.685525+00:00"
+    },
+    {
+        "key":  "sports_external_watch_enabled",
+        "enabled":  false,
+        "description":  "External watch off for public",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:09.685525+00:00"
+    },
+    {
+        "key":  "sports_home_ia_enabled",
+        "enabled":  false,
+        "description":  "Home IA off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:11.300029+00:00"
+    },
+    {
+        "key":  "sports_live_scores_enabled",
+        "enabled":  false,
+        "description":  "Live scores off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:09.685525+00:00"
+    },
+    {
+        "key":  "sports_mobile_pilot_enabled",
+        "enabled":  false,
+        "description":  "Mobile pilot flag off until operator enables privately",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:11.300029+00:00"
+    },
+    {
+        "key":  "sports_native_playback_enabled",
+        "enabled":  false,
+        "description":  "Native playback off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:09.685525+00:00"
+    },
+    {
+        "key":  "sports_notifications_enabled",
+        "enabled":  false,
+        "description":  "Notifications off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:09.685525+00:00"
+    },
+    {
+        "key":  "sports_personalization_enabled",
+        "enabled":  false,
+        "description":  "Personalization off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:11.300029+00:00"
+    },
+    {
+        "key":  "sports_provider_imports_enabled",
+        "enabled":  false,
+        "description":  "Imports off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:09.685525+00:00"
+    },
+    {
+        "key":  "sports_scorebat_discovery_enabled",
+        "enabled":  false,
+        "description":  "ScoreBat discovery off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:11.300029+00:00"
+    },
+    {
+        "key":  "sports_scorebat_enabled",
+        "enabled":  false,
+        "description":  "ScoreBat off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:11.300029+00:00"
+    },
+    {
+        "key":  "sports_scorebat_playback_enabled",
+        "enabled":  false,
+        "description":  "ScoreBat playback off",
+        "updated_at":  "2026-07-18T06:04:38.445497+00:00",
+        "created_at":  "2026-07-18T02:49:11.300029+00:00"
+    }
+]

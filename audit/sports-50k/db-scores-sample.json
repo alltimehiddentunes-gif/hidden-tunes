@@ -1,0 +1,106 @@
+﻿[
+    {
+        "id":  "3b5d72f1-0467-40d4-8fb1-024e23d26357",
+        "fixture_id":  "70483c1b-4a84-43a5-93b0-fcc888f65fa3",
+        "period":  "full_time",
+        "home_score":  2,
+        "away_score":  1,
+        "score_payload":  {
+
+                          },
+        "updated_source":  "pilot_score_backfill",
+        "created_at":  "2026-07-20T21:07:22.704503+00:00",
+        "updated_at":  "2026-07-20T21:07:22.704503+00:00"
+    },
+    {
+        "id":  "40863757-be25-43d8-8668-7194d10e904c",
+        "fixture_id":  "e9c71cd3-c302-4025-b08d-00cdbcaf3505",
+        "period":  "full_time",
+        "home_score":  1,
+        "away_score":  0,
+        "score_payload":  {
+
+                          },
+        "updated_source":  "pilot_score_backfill",
+        "created_at":  "2026-07-20T21:07:23.966925+00:00",
+        "updated_at":  "2026-07-20T21:07:23.966925+00:00"
+    },
+    {
+        "id":  "19ba9ef2-3de1-4c6f-8507-65521fb6a1ed",
+        "fixture_id":  "3da0acb2-5835-4b02-bd9d-b939d70f68d5",
+        "period":  "full_time",
+        "home_score":  2,
+        "away_score":  2,
+        "score_payload":  {
+
+                          },
+        "updated_source":  "pilot_score_backfill",
+        "created_at":  "2026-07-20T21:07:25.479375+00:00",
+        "updated_at":  "2026-07-20T21:07:25.479375+00:00"
+    },
+    {
+        "id":  "a5ba965c-82f1-4d5a-aff8-0b4582919a97",
+        "fixture_id":  "76dd0153-02f9-4c8f-a53d-ee1b1a9a9f25",
+        "period":  "full_time",
+        "home_score":  108,
+        "away_score":  101,
+        "score_payload":  {
+
+                          },
+        "updated_source":  "pilot_score_backfill",
+        "created_at":  "2026-07-20T21:07:26.612657+00:00",
+        "updated_at":  "2026-07-20T21:07:26.612657+00:00"
+    },
+    {
+        "id":  "276d30b0-d607-4acd-8f26-771d76a4b626",
+        "fixture_id":  "de04512d-a389-46b8-8d92-55e5f605b7a5",
+        "period":  "full_time",
+        "home_score":  121,
+        "away_score":  115,
+        "score_payload":  {
+
+                          },
+        "updated_source":  "pilot_score_backfill",
+        "created_at":  "2026-07-20T21:07:27.734661+00:00",
+        "updated_at":  "2026-07-20T21:07:27.734661+00:00"
+    },
+    {
+        "id":  "99cc49e1-1c93-4122-a210-2af53dbd6b9b",
+        "fixture_id":  "1a1ed5ae-33f1-4576-8c19-ad28990bb5c5",
+        "period":  "full_time",
+        "home_score":  1,
+        "away_score":  0,
+        "score_payload":  {
+
+                          },
+        "updated_source":  "pilot_score_backfill",
+        "created_at":  "2026-07-20T21:07:28.67737+00:00",
+        "updated_at":  "2026-07-20T21:07:28.67737+00:00"
+    },
+    {
+        "id":  "b964de87-2d90-48cf-a835-4bc7d1749470",
+        "fixture_id":  "06024c39-94df-4234-a41c-80acbbc3f7d3",
+        "period":  "full_time",
+        "home_score":  2,
+        "away_score":  1,
+        "score_payload":  {
+
+                          },
+        "updated_source":  "pilot_repair",
+        "created_at":  "2026-07-20T21:07:23.2196+00:00",
+        "updated_at":  "2026-07-20T21:07:23.2196+00:00"
+    },
+    {
+        "id":  "92a0bbc9-11fb-4785-8d00-16b657cb48df",
+        "fixture_id":  "e817debc-18ee-4661-bb5f-d63613298cec",
+        "period":  "full_time",
+        "home_score":  1,
+        "away_score":  1,
+        "score_payload":  {
+
+                          },
+        "updated_source":  "pilot_repair",
+        "created_at":  "2026-07-20T21:07:24.774479+00:00",
+        "updated_at":  "2026-07-20T21:07:24.774479+00:00"
+    }
+]

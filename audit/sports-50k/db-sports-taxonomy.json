@@ -1,0 +1,116 @@
+﻿[
+    {
+        "id":  "b48b8ccd-7b2c-488f-b904-a9f17b2a3b91",
+        "slug":  "football",
+        "name":  "Football",
+        "status":  "active"
+    },
+    {
+        "id":  "173d9c34-fd6c-429a-8dd3-e4dfd567bd59",
+        "slug":  "basketball",
+        "name":  "Basketball",
+        "status":  "active"
+    },
+    {
+        "id":  "c00c6571-a68d-4cca-8170-c0b142e9d469",
+        "slug":  "tennis",
+        "name":  "Tennis",
+        "status":  "active"
+    },
+    {
+        "id":  "e988bfe7-9383-4628-853b-0270f6894b17",
+        "slug":  "cricket",
+        "name":  "Cricket",
+        "status":  "active"
+    },
+    {
+        "id":  "484b3d09-8c4f-40b6-a504-db1b3b33e13a",
+        "slug":  "rugby",
+        "name":  "Rugby",
+        "status":  "active"
+    },
+    {
+        "id":  "68f7e263-2b70-4b89-8b3d-79e33f051e9e",
+        "slug":  "surfing",
+        "name":  "Surfing",
+        "status":  "active"
+    },
+    {
+        "id":  "169e7c8b-40ca-4533-988c-fc6f7fd33481",
+        "slug":  "australian-football",
+        "name":  "Australian Football",
+        "status":  "active"
+    },
+    {
+        "id":  "1e5850d0-cc93-4882-93f3-c6cf61f81242",
+        "slug":  "motorsport",
+        "name":  "Motorsport",
+        "status":  "active"
+    },
+    {
+        "id":  "02cc495d-aee3-48ad-9266-b4a7ea784ed1",
+        "slug":  "combat",
+        "name":  "Combat Sports",
+        "status":  "active"
+    },
+    {
+        "id":  "f01b802c-35e5-4eaa-97ae-a6e497abd08f",
+        "slug":  "multi-sport",
+        "name":  "Multi-Sport",
+        "status":  "active"
+    },
+    {
+        "id":  "1d41f274-d13f-4953-a6b7-e5b5e289c19d",
+        "slug":  "baseball",
+        "name":  "Baseball",
+        "status":  "active"
+    },
+    {
+        "id":  "befe4cad-a8e6-466b-972f-7e250dbb7439",
+        "slug":  "athletics",
+        "name":  "Athletics",
+        "status":  "active"
+    },
+    {
+        "id":  "4b1dd361-fdee-4582-b131-a3e03acdb142",
+        "slug":  "american-football",
+        "name":  "American Football",
+        "status":  "active"
+    },
+    {
+        "id":  "e8daada9-5f94-447d-a9a3-0f9adc52b58f",
+        "slug":  "hockey",
+        "name":  "Hockey",
+        "status":  "active"
+    },
+    {
+        "id":  "af26660d-4e21-44cb-b267-c729e70c68c3",
+        "slug":  "golf",
+        "name":  "Golf",
+        "status":  "active"
+    },
+    {
+        "id":  "98528142-d90c-476b-a967-d0d3153a4679",
+        "slug":  "swimming",
+        "name":  "Swimming",
+        "status":  "active"
+    },
+    {
+        "id":  "d3274e91-a688-4b79-bceb-95d62bc7ff45",
+        "slug":  "cycling",
+        "name":  "Cycling",
+        "status":  "active"
+    },
+    {
+        "id":  "a36296b5-67e8-4743-9063-a111af3d306f",
+        "slug":  "winter",
+        "name":  "Winter Sports",
+        "status":  "active"
+    },
+    {
+        "id":  "84b72e49-9fa1-4229-b8e1-f0b36a16bd47",
+        "slug":  "esports",
+        "name":  "Esports",
+        "status":  "active"
+    }
+]

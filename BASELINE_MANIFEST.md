@@ -1,5 +1,10 @@
 # Hidden Tunes Mobile Baseline Manifest
 
+> **Superseded for active development (2026-07-31):**  
+> Authoritative mobile workspace is now `D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142`.  
+> See `MOBILE_SOURCE_OF_TRUTH.md` and `RELEASE_BASELINE_SSD.md`.  
+> Paths below are historical protection-time records only.
+
 ## Source
 - Workspace: `C:\Users\Wills\Desktop\HiddenTunes-CLEAN-1.0.142`
 - Protected copy: `C:\Users\Wills\Desktop\HiddenTunes-CLEAN-1.0.142-PROTECTED`

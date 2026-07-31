@@ -1,0 +1,97 @@
+﻿[
+    {
+        "slug":  "football",
+        "name":  "Football",
+        "count":  44
+    },
+    {
+        "slug":  "basketball",
+        "name":  "Basketball",
+        "count":  17
+    },
+    {
+        "slug":  "tennis",
+        "name":  "Tennis",
+        "count":  23
+    },
+    {
+        "slug":  "cricket",
+        "name":  "Cricket",
+        "count":  7
+    },
+    {
+        "slug":  "rugby",
+        "name":  "Rugby",
+        "count":  1
+    },
+    {
+        "slug":  "surfing",
+        "name":  "Surfing",
+        "count":  2
+    },
+    {
+        "slug":  "australian-football",
+        "name":  "Australian Football",
+        "count":  1
+    },
+    {
+        "slug":  "motorsport",
+        "name":  "Motorsport",
+        "count":  9
+    },
+    {
+        "slug":  "combat",
+        "name":  "Combat Sports",
+        "count":  33
+    },
+    {
+        "slug":  "multi-sport",
+        "name":  "Multi-Sport",
+        "count":  617
+    },
+    {
+        "slug":  "baseball",
+        "name":  "Baseball",
+        "count":  4
+    },
+    {
+        "slug":  "athletics",
+        "name":  "Athletics",
+        "count":  2
+    },
+    {
+        "slug":  "american-football",
+        "name":  "American Football",
+        "count":  5
+    },
+    {
+        "slug":  "hockey",
+        "name":  "Hockey",
+        "count":  3
+    },
+    {
+        "slug":  "golf",
+        "name":  "Golf",
+        "count":  17
+    },
+    {
+        "slug":  "swimming",
+        "name":  "Swimming",
+        "count":  0
+    },
+    {
+        "slug":  "cycling",
+        "name":  "Cycling",
+        "count":  0
+    },
+    {
+        "slug":  "winter",
+        "name":  "Winter Sports",
+        "count":  0
+    },
+    {
+        "slug":  "esports",
+        "name":  "Esports",
+        "count":  6
+    }
+]

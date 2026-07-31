@@ -1,0 +1,26 @@
+﻿[
+    {
+        "id":  "730cba40-9623-4fb6-93ab-2010723cbad6",
+        "status":  503,
+        "ms":  445,
+        "body":  "{\"success\":true,\"session\":{\"status\":\"unavailable\",\"fixtureId\":\"730cba40-9623-4fb6-93ab-2010723cbad6\",\"reason\":\"provider_disabled\",\"message\":\"This broadcast is no longer available.\"}}"
+    },
+    {
+        "id":  "49657542-a8f2-4500-a137-2a2662e80e46",
+        "status":  503,
+        "ms":  372,
+        "body":  "{\"success\":true,\"session\":{\"status\":\"unavailable\",\"fixtureId\":\"49657542-a8f2-4500-a137-2a2662e80e46\",\"reason\":\"provider_disabled\",\"message\":\"This broadcast is no longer available.\"}}"
+    },
+    {
+        "id":  "58ef42f4-be97-4958-969c-b9c6a56748e0",
+        "status":  503,
+        "ms":  398,
+        "body":  "{\"success\":true,\"session\":{\"status\":\"unavailable\",\"fixtureId\":\"58ef42f4-be97-4958-969c-b9c6a56748e0\",\"reason\":\"provider_disabled\",\"message\":\"This broadcast is no longer available.\"}}"
+    },
+    {
+        "id":  "6e268bd9-a238-4107-af2a-3170cea79014",
+        "status":  503,
+        "ms":  365,
+        "body":  "{\"success\":true,\"session\":{\"status\":\"unavailable\",\"fixtureId\":\"6e268bd9-a238-4107-af2a-3170cea79014\",\"reason\":\"provider_disabled\",\"message\":\"This broadcast is no longer available.\"}}"
+    }
+]

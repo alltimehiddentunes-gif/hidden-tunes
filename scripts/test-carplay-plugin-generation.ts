@@ -144,6 +144,10 @@ function main() {
   assertOk(generatedValidation.includes("func validateCarPlayTabs"), "generated validator");
   assertOk(generatedScene.includes("didConnect entered"), "generated scene connect diagnostic");
   assertOk(generatedScene.includes("carplay_scene_delegate_initialized"), "generated scene init diagnostic");
+  assertOk(generatedScene.includes("rootInstallConfirmed: true"), "generated confirmed-root attach");
+  assertOk(generatedScene.includes("installSafeRoot"), "generated bounded root install");
+  assertOk(generatedManager.includes("scheduleValidatedTabUpgrade"), "generated deferred tab upgrade");
+  assertOk(generatedManager.includes("rootInstallConfirmed"), "generated root confirmation gate");
   assertOk(iosCatalog.includes("sanitizedFavoritesNodes"), "ios copy has sanitizer");
   assertOk(iosValidation.includes("func validateCarPlayTabs"), "ios copy has validator");
 
@@ -151,6 +155,11 @@ function main() {
     generatedManager.indexOf("HiddenAudioCarPlayTabValidation.validateCarPlayTabs(templates)") <
       generatedManager.indexOf("CPTabBarTemplate(templates: templates)"),
     "generated: validation before CPTabBarTemplate"
+  );
+
+  assertOk(
+    pluginSource.includes("FATAL: AppDelegate CarPlay scene router not applied"),
+    "plugin fails build when AppDelegate router missing"
   );
 
   // --- AppDelegate router injection (must not rely on hand-edited /ios) ---

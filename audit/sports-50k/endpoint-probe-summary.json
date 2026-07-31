@@ -1,0 +1,142 @@
+﻿[
+    {
+        "endpoint":  "/api/sports",
+        "status":  404,
+        "ms":  874,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/home",
+        "status":  200,
+        "ms":  188,
+        "bytes":  135,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"message\":\"Sports is disabled by feature flag.\",\"generatedAt\":\"2026-07-25T20:09:15.835Z\",\"sections\":[]}"
+    },
+    {
+        "endpoint":  "/api/sports/live",
+        "status":  200,
+        "ms":  66,
+        "bytes":  94,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "endpoint":  "/api/sports/events",
+        "status":  404,
+        "ms":  21,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/fixtures",
+        "status":  200,
+        "ms":  89,
+        "bytes":  112,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"nextCursor\":null,\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "endpoint":  "/api/sports/fixtures?page=1\u0026limit=5",
+        "status":  200,
+        "ms":  89,
+        "bytes":  112,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"nextCursor\":null,\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "endpoint":  "/api/sports/results",
+        "status":  404,
+        "ms":  22,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/search?q=football",
+        "status":  200,
+        "ms":  67,
+        "bytes":  106,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"query\":\"\",\"groups\":[],\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "endpoint":  "/api/sports/leagues",
+        "status":  404,
+        "ms":  23,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/competitions",
+        "status":  200,
+        "ms":  93,
+        "bytes":  94,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "endpoint":  "/api/sports/standings",
+        "status":  404,
+        "ms":  19,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/teams",
+        "status":  200,
+        "ms":  186,
+        "bytes":  94,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "endpoint":  "/api/sports/players",
+        "status":  404,
+        "ms":  20,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/incidents",
+        "status":  404,
+        "ms":  21,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/stats",
+        "status":  404,
+        "ms":  21,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/streams",
+        "status":  404,
+        "ms":  26,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/videos",
+        "status":  200,
+        "ms":  511,
+        "bytes":  94,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "endpoint":  "/api/health",
+        "status":  404,
+        "ms":  21,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/meta",
+        "status":  404,
+        "ms":  24,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "endpoint":  "/api/sports/status",
+        "status":  404,
+        "ms":  20,
+        "bytes":  0,
+        "snippet":  "The remote server returned an error: (404) Not Found."
+    }
+]

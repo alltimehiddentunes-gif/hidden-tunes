@@ -1,0 +1,41 @@
+---
+description: Enforce SSD Hidden Tunes mobile workspace as the only active source of truth
+alwaysApply: true
+---
+
+# SSD Mobile Source of Truth
+
+Authoritative Hidden Tunes mobile workspace:
+
+`D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142`
+
+## Before every task
+
+Print:
+
+- Git root (`git rev-parse --show-toplevel`)
+- branch
+- HEAD
+- Metro project root (if Metro is running)
+
+## Abort condition
+
+If the Git root is **not** exactly `D:/HiddenTunes/Active/HiddenTunes-CLEAN-1.0.142` (or the Windows equivalent path), **stop immediately**.
+
+Do not develop, start Metro, build, validate, commit, or release from any other Hidden Tunes mobile copy.
+
+## Forbidden
+
+- `C:\Users\Wills\Desktop\HiddenTunes*`
+- `C:\HiddenTunes-Archive\*`
+- Any other Hidden Tunes mobile checkout
+
+## Allowed sibling
+
+`D:\HiddenTunes\Active\HiddenTunes-Desktop` is the desktop app only — never treat it as the mobile source of truth.
+
+## History safety
+
+Do not switch branches, reset, rebase, clean, stash, or rewrite history unless the user explicitly instructs it.
+
+Future commits must descend from the recorded SSD release baseline HEAD.

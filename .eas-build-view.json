@@ -1,0 +1,49 @@
+{
+  "id": "66312707-7f2d-41df-b4a4-9053f8e4a73f",
+  "status": "FINISHED",
+  "platform": "IOS",
+  "artifacts": {
+    "buildUrl": "https://expo.dev/artifacts/eas/cf1sAoYdNc-QPd0Pg96XKH8qnPlDZiSBvQtyiWqNEBw.ipa",
+    "xcodeBuildLogsUrl": "https://storage.googleapis.com/eas-workflows-production/logs/9cf7fc48-6bf7-4ccc-8fe1-8b793530e70c/66312707-7f2d-41df-b4a4-9053f8e4a73f/2026-07-31T11%3A49%3A41Z-66312707-7f2d-41df-b4a4-9053f8e4a73f-xcode.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260731%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260731T115354Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=5e9d3480957fff74b2eada1a1cf9817e8e37789a4e0ba803bb61039bac9cbaadc2d3c53b34e457ed2dd35259fe0d33d8bc4c37cee8f677811dbd359b8a87d4f2768bb3007d515eacf58e2ffac5bd18e45577b127ccf9abc02d816cc9e85fa29a5401741ac3dc7d1baa0d65db7140b467455ecfac7801199842257ea1a68566fe64e392bcf843de55ed3a14d47fcf1e5b2af9a47ce199db4f7ce2890a3d250050b02da6fe8d245a33c0f2fd637f287d2c7c35cf294f37a6cd5fb0e48053d9f909ba6be0820606a91963917e5b8c5face729f61fb8c4fdcc61656d1b358a4acd54062f22e92034a079078e3eebb8cf9c8f9cb3ada345deb5167d496efc96d76e63",
+    "applicationArchiveUrl": "https://expo.dev/artifacts/eas/cf1sAoYdNc-QPd0Pg96XKH8qnPlDZiSBvQtyiWqNEBw.ipa"
+  },
+  "fingerprint": {
+    "id": "019fb802-265a-74c6-ad0b-474b3cfd0954",
+    "hash": "989bfa01aafcf6c7bb9efef136aefbc04fc1e695"
+  },
+  "initiatingActor": {
+    "id": "a67a6094-2d7e-47c6-8182-c6f4c6f92077",
+    "displayName": "hiddentunes_1"
+  },
+  "logFiles": [
+    "https://storage.googleapis.com/eas-workflows-production/logs/9cf7fc48-6bf7-4ccc-8fe1-8b793530e70c/66312707-7f2d-41df-b4a4-9053f8e4a73f/2026-07-31T11%3A49%3A41Z-1aed2396-1f95-448d-ad59-824ceeb4d34b.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260731%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260731T115354Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=704dc9ac9d4a53ffe46bbb10266415ef958826e8bd5cdecaff33ef19e0d0866e045766d11fa1013f2547e21da073b05c039c274b77168cd3a787babecea6e9f3ee395a22387a130921878114874f3d768d03ce515c7cefc4f2a7f451295417aae99bb845f064769cec1eed9f6ffac6f2884ebcc893354643b528dae433994b19cab7c40fdb22dd7976b601887389fbe1bf1e9b3c4f0237074bd0526ed6d0a8fa2c1d5ac346501ef743e95022d2d25a0172a6838942c961253e09c69c5c8f8f67396adf5444e7bf7a7986f9b36c79a68dc9e671cc21a6dc3720f97fddf7df43a66098b6091d92be873e683aafce5f1aa47b092c2a4fc5d9fed95054d6b638d669",
+    "https://storage.googleapis.com/eas-workflows-production/logs/9cf7fc48-6bf7-4ccc-8fe1-8b793530e70c/66312707-7f2d-41df-b4a4-9053f8e4a73f/2026-07-31T11%3A49%3A41Z-66312707-7f2d-41df-b4a4-9053f8e4a73f-xcode.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260731%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260731T115354Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=5e9d3480957fff74b2eada1a1cf9817e8e37789a4e0ba803bb61039bac9cbaadc2d3c53b34e457ed2dd35259fe0d33d8bc4c37cee8f677811dbd359b8a87d4f2768bb3007d515eacf58e2ffac5bd18e45577b127ccf9abc02d816cc9e85fa29a5401741ac3dc7d1baa0d65db7140b467455ecfac7801199842257ea1a68566fe64e392bcf843de55ed3a14d47fcf1e5b2af9a47ce199db4f7ce2890a3d250050b02da6fe8d245a33c0f2fd637f287d2c7c35cf294f37a6cd5fb0e48053d9f909ba6be0820606a91963917e5b8c5face729f61fb8c4fdcc61656d1b358a4acd54062f22e92034a079078e3eebb8cf9c8f9cb3ada345deb5167d496efc96d76e63"
+  ],
+  "project": {
+    "id": "9cf7fc48-6bf7-4ccc-8fe1-8b793530e70c",
+    "name": "hidden-tunes",
+    "slug": "hidden-tunes",
+    "ownerAccount": {
+      "id": "fdbbfd9b-1f12-4823-ad96-8af2ae428a00",
+      "name": "hiddentunes_1"
+    }
+  },
+  "distribution": "INTERNAL",
+  "buildProfile": "developmentClient",
+  "sdkVersion": "56.0.0",
+  "appVersion": "1.0.1",
+  "appBuildVersion": "1.0.192",
+  "gitCommitHash": "7de84b2163522b6afacb06e7cc7eeb5774e0cb23",
+  "gitCommitMessage": "fix(ios): disable removeClippedSubviews to stop Fabric watchdog hang\n\nCo-authored-by: Cursor <cursoragent@cursor.com>",
+  "priority": "HIGH",
+  "createdAt": "2026-07-31T11:49:36.436Z",
+  "updatedAt": "2026-07-31T11:53:49.287Z",
+  "completedAt": "2026-07-31T11:53:48.995Z",
+  "expirationDate": "2026-10-29T11:49:36.465Z",
+  "isForIosSimulator": false,
+  "metrics": {
+    "buildWaitTime": 4679,
+    "buildQueueTime": 27258,
+    "buildDuration": 220622
+  }
+}

@@ -2,56 +2,59 @@
 
 ## Active workspace
 
-`C:\Users\Wills\Desktop\HiddenTunes-CLEAN-1.0.142`
+`D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142`
 
-Do not develop mobile production work from any other Desktop copy, WSL path, backup, or temporary worktree.
+This is the **only** active Hidden Tunes mobile workspace.
 
-## Permanent branch
+Do not develop, start Metro, build, validate, commit, or release from any other Hidden Tunes mobile copy, including Desktop folders or `C:\HiddenTunes-Archive\*`.
 
-`mobile-golden-baseline`
+## Active development branch
 
-All future mobile work must start from this branch (branch from it, or rebase onto it). Do not treat older recovery / experiment branches as production sources.
+`fix/library-content-type-safe`
 
-## Protected tags
+## Active development baseline (SSD HEAD)
 
-- `mobile-golden-pre-carplay-2026-07-19` — verified pre-CarPlay golden baseline (device-validated 2026-07-19)
-- `mobile-current-production-source` — current production source pointer (same commit as the tag above at finalize time)
+Recorded 2026-07-31:
 
-Resolve the exact commit with:
-
-```bash
-git rev-parse mobile-golden-baseline
-git rev-parse mobile-golden-pre-carplay-2026-07-19^{commit}
-git rev-parse mobile-current-production-source^{commit}
+```text
+7de84b2163522b6afacb06e7cc7eeb5774e0cb23
 ```
 
-## Current commit hash
+Short:
 
-Recorded at finalize time in the repository tip / tags above. Canonical resolution:
-
-```bash
-git rev-parse mobile-golden-pre-carplay-2026-07-19^{commit}
+```text
+7de84b2
 ```
 
-(A Git commit cannot embed its own SHA in the same tree; always trust the tags and branch tip.)
+This HEAD contains both:
 
-## Baseline contents (verified)
+- `bbf3f1b` — Emotional Worlds full-catalog mood-room repair
+- `7de84b2` — iOS `removeClippedSubviews` Fabric watchdog repair
 
-- Pre-CarPlay CLEAN mobile state derived from `2a47c65`, plus the device-verified Library / More routing split:
-  - Home **More** → `/more`
-  - Bottom-nav **Library** → `/library` (collection only)
-- TV PiP/background, queue, podcast organization, back navigation, Sports navigation, and related pre-CarPlay fixes retained
-- Concerts unfinished WIP (`a47bb90`) **rejected** (does not build; not in this baseline)
-- CarPlay **not** included
+Future commits must descend from this HEAD unless explicitly instructed otherwise.
+
+Resolve with:
+
+```bash
+git -C "D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142" rev-parse HEAD
+```
+
+## Archive
+
+Historical / duplicate mobile copies live under:
+
+`C:\HiddenTunes-Archive`
+
+They are read-only recovery copies. Do not edit, Metro-serve, or build from them.
+
+## Desktop app sibling
+
+`D:\HiddenTunes\Active\HiddenTunes-Desktop` is the desktop app workspace only.
 
 ## Rules for future work
 
-1. **Start from `mobile-golden-baseline`.** Create a new feature branch for every change set.
-2. **CarPlay** must be developed only on a separate feature branch (never merged into this baseline until explicitly approved).
-3. **Concerts** and any other large unfinished experiments must stay on separate feature branches.
-4. Do not delete historical local/remote recovery branches unless a separate, approved cleanup is requested.
-5. Do not treat other workspaces (`HiddenTunes`, `HiddenTunes-main`, WSL copies, backups) as production sources.
-
-## Finalize note
-
-Device validation for Library / More routing and core domains passed on 2026-07-19. This document marks the approved mobile production source of truth.
+1. Open only the SSD mobile workspace in Cursor.
+2. Start Metro only from the SSD path.
+3. Run EAS / Expo builds only from the SSD path.
+4. Do not resurrect Desktop `HiddenTunes*` folders as active mobile workspaces.
+5. Do not switch branches, reset, rebase, clean, stash, or rewrite history unless explicitly instructed.

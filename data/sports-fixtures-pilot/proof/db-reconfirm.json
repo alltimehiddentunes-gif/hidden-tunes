@@ -1,0 +1,53 @@
+﻿{
+    "stamp":  "2026-07-25T21:20:21.8717727Z",
+    "fixtures_total":  "0-790/791",
+    "fixtures_live":  "*/0",
+    "fixtures_scheduled":  "0-9/10",
+    "fixtures_completed":  "0-21/22",
+    "fixtures_quarantined":  "0-758/759",
+    "fixtures_playable":  "*/0",
+    "fixtures_upcoming_starts":  "*/0",
+    "scores":  "0-7/8",
+    "participants":  "0-31/32",
+    "broadcasts_total":  "0-781/782",
+    "broadcasts_quarantined":  "0-781/782",
+    "broadcasts_open":  "*/0",
+    "provider_ids":  null,
+    "stream_classification_set":  "*/0",
+    "live_rows":  {
+                      "value":  [
+
+                                ],
+                      "Count":  0
+                  },
+    "finalized_sample":  [
+                             {
+                                 "id":  "49657542-a8f2-4500-a137-2a2662e80e46",
+                                 "status":  "completed",
+                                 "playable":  false,
+                                 "availability_state":  "finished",
+                                 "finalized":  "2026-07-25T21:11:06.490Z"
+                             },
+                             {
+                                 "id":  "58ef42f4-be97-4958-969c-b9c6a56748e0",
+                                 "status":  "completed",
+                                 "playable":  false,
+                                 "availability_state":  "finished",
+                                 "finalized":  "2026-07-25T21:11:06.490Z"
+                             },
+                             {
+                                 "id":  "6e268bd9-a238-4107-af2a-3170cea79014",
+                                 "status":  "completed",
+                                 "playable":  false,
+                                 "availability_state":  "finished",
+                                 "finalized":  "2026-07-25T21:11:06.490Z"
+                             },
+                             {
+                                 "id":  "730cba40-9623-4fb6-93ab-2010723cbad6",
+                                 "status":  "completed",
+                                 "playable":  false,
+                                 "availability_state":  "finished",
+                                 "finalized":  "2026-07-25T21:11:06.490Z"
+                             }
+                         ]
+}

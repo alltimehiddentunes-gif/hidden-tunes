@@ -1,0 +1,158 @@
+﻿[
+    {
+        "table":  "sports_fixtures",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_events",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_competitions",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_teams",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_athletes",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_broadcasts",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_videos",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_channels",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_sports",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_countries",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_standings",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_incidents",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_stats",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_lineups",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_streams",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_favorites",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_follows",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_playback_sessions",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_providers",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_source_events",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_fixture_providers",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sports_match_events",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "ht_sports_fixtures",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "fixture",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "fixtures",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    },
+    {
+        "table":  "sport_events",
+        "exists":  false,
+        "contentRange":  "",
+        "status":  404
+    }
+]

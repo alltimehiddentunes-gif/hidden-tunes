@@ -1,0 +1,58 @@
+﻿[
+    {
+        "url":  "https://admin.hiddentunes.com/api/sports/home",
+        "status":  200,
+        "ms":  592,
+        "bytes":  135,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"message\":\"Sports is disabled by feature flag.\",\"generatedAt\":\"2026-07-25T21:18:42.067Z\",\"sections\":[]}"
+    },
+    {
+        "url":  "https://admin.hiddentunes.com/api/sports/counts",
+        "status":  200,
+        "ms":  56,
+        "bytes":  163,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"message\":\"Sports counts require private pilot or admin access while Sports is disabled.\",\"generatedAt\":\"2026-07-25T21:18:42.219Z\"}"
+    },
+    {
+        "url":  "https://admin.hiddentunes.com/api/sports/live",
+        "status":  200,
+        "ms":  56,
+        "bytes":  94,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "url":  "https://admin.hiddentunes.com/api/sports/upcoming",
+        "status":  200,
+        "ms":  87,
+        "bytes":  94,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "url":  "https://admin.hiddentunes.com/api/sports/fixtures?page=1\u0026limit=5",
+        "status":  200,
+        "ms":  70,
+        "bytes":  112,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"nextCursor\":null,\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "url":  "https://admin.hiddentunes.com/api/sports/fixtures?status=live\u0026page=1\u0026limit=5",
+        "status":  200,
+        "ms":  308,
+        "bytes":  112,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"nextCursor\":null,\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "url":  "https://admin.hiddentunes.com/api/sports/fixtures?status=upcoming\u0026page=1\u0026limit=5",
+        "status":  200,
+        "ms":  135,
+        "bytes":  112,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"nextCursor\":null,\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    },
+    {
+        "url":  "https://admin.hiddentunes.com/api/sports/fixtures?status=completed\u0026page=1\u0026limit=5",
+        "status":  200,
+        "ms":  86,
+        "bytes":  112,
+        "snippet":  "{\"success\":true,\"enabled\":false,\"items\":[],\"nextCursor\":null,\"pagination\":{\"page\":1,\"limit\":20,\"hasMore\":false}}"
+    }
+]

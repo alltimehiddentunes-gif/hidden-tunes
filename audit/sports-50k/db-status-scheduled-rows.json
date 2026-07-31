@@ -1,0 +1,72 @@
+﻿[
+    {
+        "id":  "d0c294d3-814d-433f-a57b-cdcc4840ef54",
+        "title":  "SF Match",
+        "starts_at":  "2026-07-18T12:04:38.445497+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "ce587fd8-55f2-4b29-bcc6-57727c9dd6a3",
+        "title":  "Finals R1",
+        "starts_at":  "2026-07-18T18:04:38.445497+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "a401a8ed-c3ef-4db2-9d32-8f3f28eb372c",
+        "title":  "Lakers vs Celtics",
+        "starts_at":  "2026-07-21T06:04:38.445497+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "16c3c614-6eb1-460d-b2c9-9e12a27ac26b",
+        "title":  "Bayern Munich vs Borussia Dortmund",
+        "starts_at":  "2026-07-22T08:53:09.215+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "5ba779fc-1172-4779-9bc2-7844a9dd19f6",
+        "title":  "Arsenal vs Chelsea",
+        "starts_at":  "2026-07-22T20:53:09.215+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "c63852d6-f72e-419d-be7d-f4f1ba30c152",
+        "title":  "Barcelona vs Real Madrid",
+        "starts_at":  "2026-07-23T20:53:09.215+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "1f0d2189-b12f-4662-88e9-072dd0ed96c6",
+        "title":  "Los Angeles Lakers vs Boston Celtics",
+        "starts_at":  "2026-07-24T08:53:09.215+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "7a137010-1fbb-4a88-a41d-e26c71c43f9e",
+        "title":  "Golden State Warriors vs Denver Nuggets",
+        "starts_at":  "2026-07-24T20:53:09.215+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "b456ffc3-fc9b-4243-b9cc-8b8a524e9c9a",
+        "title":  "India vs Australia",
+        "starts_at":  "2026-07-25T08:53:09.215+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    },
+    {
+        "id":  "9a73a959-c26b-4c45-bbca-d600571bfa3e",
+        "title":  "Novak Djokovic vs Carlos Alcaraz",
+        "starts_at":  "2026-07-25T20:53:09.215+00:00",
+        "availability_state":  "upcoming",
+        "playable":  false
+    }
+]

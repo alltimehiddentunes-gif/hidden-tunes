@@ -59,7 +59,6 @@ class HiddenAudioModule: RCTEventEmitter {
   deinit {
     emitDiagnostic("hidden_audio_module_deinit")
     cleanupPlayerObservers()
-    unregisterRemoteCommands()
     NotificationCenter.default.removeObserver(self)
   }
 
@@ -992,19 +991,6 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     emitDiagnostic("hidden_audio_remote_commands_registered")
-  }
-
-  private func unregisterRemoteCommands() {
-    guard remoteCommandsRegistered else { return }
-    let commandCenter = MPRemoteCommandCenter.shared()
-    commandCenter.playCommand.removeTarget(nil)
-    commandCenter.pauseCommand.removeTarget(nil)
-    commandCenter.togglePlayPauseCommand.removeTarget(nil)
-    commandCenter.nextTrackCommand.removeTarget(nil)
-    commandCenter.previousTrackCommand.removeTarget(nil)
-    commandCenter.changePlaybackPositionCommand.removeTarget(nil)
-    remoteCommandsRegistered = false
-    emitDiagnostic("hidden_audio_remote_commands_unregistered")
   }
 
   private func updateRemoteCommandAvailability() {
