@@ -16,7 +16,7 @@ Working tree at lock time: clean except one untracked audit folder. All Metro-re
 | `hooks/usePodcastPlaybackBinding.ts` | Podcast auto-next/continuation fix | already in `f6176ce` | On-demand resolve binding |
 | `utils/PodcastPlaybackController.ts` | Podcast auto-next/continuation fix | already in `f6176ce` | Same-show/category continuation |
 | `utils/podcastShowQueue.ts` | Podcast auto-next/continuation fix | already in `f6176ce` | Queue continuation helpers |
-| `utils/podcastPlayback.ts` | Podcast auto-next/continuation fix | already in `f6176ce` | Skip/failure helpers |
+| `utils/podcastPlayback.ts` | Podcast auto-next/continuation fix | yes (lint cleanup) | Skip/failure helpers; remove unused `podcastSkipGeneration` (no runtime readers) |
 | `utils/podcastPlaybackAdapter.ts` | Podcast auto-next/continuation fix | already in `f6176ce` | Adapter + queue context |
 | `utils/maturePodcastSettings.ts` | Podcast mature-catalog fix | already in `f6176ce` | Age-gate helpers |
 | `services/podcastCatalogApi.ts` | Podcast episode-loading + mature play | already in `f6176ce` | includeMature + mature play endpoint |
@@ -33,6 +33,7 @@ Working tree at lock time: clean except one untracked audit folder. All Metro-re
 | `app/sports/search.tsx` | Sports fixture/grid fix | already in `c37ade9` | Search integration |
 | `app/sports/country/[code].tsx` | Sports fixture/grid fix | already in `c37ade9` | Country browse |
 | `app/sports/sport/[sportSlug].tsx` | Sports fixture/grid fix | already in `c37ade9` | Sport browse |
+| `components/sports/SportsPlayerShell.tsx` | Sports TV / unrelated lint | yes (lint cleanup) | Strip UTF-8 BOM only; no logic change |
 | `components/sports/SportsMatchCard.tsx` | Sports fixture/grid + performance | already in `c37ade9` | Premium card UI |
 | `components/sports/SportsTvShelf.tsx` | Sports TV integration + TV handoff | already in `c37ade9` | Existing TV player handoff |
 | `components/sports/SportsTvChannelCard.tsx` | Sports TV integration | already in `c37ade9` | TV channel card |
@@ -51,17 +52,15 @@ Working tree at lock time: clean except one untracked audit folder. All Metro-re
 | `tsconfig.json` | release configuration | already in `3fe6c9f` | Exclude `scripts/` from app typecheck |
 | `audit/release/HIDDEN-TUNES-PRODUCTION-RELEASE-REPORT.md` | documentation/report | already in `8e9ad68` | Prior production release report |
 
-## Proposed for this lock commit
+## Proposed for this follow-up lock commit
 
 | File | Classification | Commit? | Reason |
 | --- | --- | ---: | --- |
-| `audit/build-mature-podcast/BUILD-MATURE-PODCAST-AUDIT.md` | documentation/report | yes | Mature build audit evidence |
-| `audit/release-lock/WORKING-METRO-STATE-BEFORE-COMMIT.md` | documentation/report | yes | Pre-commit snapshot |
-| `audit/release-lock/working-tree-status-before.txt` | documentation/report | yes | Status snapshot |
-| `audit/release-lock/tracked-diff-before.patch` | documentation/report | yes | Empty tracked diff proof |
-| `audit/release-lock/untracked-files-before.txt` | documentation/report | yes | Untracked list snapshot |
+| `components/sports/SportsPlayerShell.tsx` | temporary instrumentation / lint | yes | BOM strip only |
+| `utils/podcastPlayback.ts` | temporary instrumentation / lint | yes | Remove unread generation counter |
+| `audit/release-lock/MATURE-CATALOG-RETRY.md` | documentation/report | yes | Attempt 1 timeout / attempt 2 pass |
 | `audit/release-lock/COMMIT-MANIFEST.md` | documentation/report | yes | This manifest |
-| `audit/release-lock/METRO-PARITY-VERIFICATION.md` | documentation/report | yes | Parity evidence |
+| `audit/release-lock/METRO-PARITY-VERIFICATION.md` | documentation/report | yes | Parity evidence + mature retry |
 | `audit/release-lock/HIDDEN-TUNES-WORKING-METRO-LOCK.md` | documentation/report | yes | Locked checkpoint |
 | `audit/release-lock/HIDDEN-TUNES-METRO-TO-GITHUB-LOCK-REPORT.md` | documentation/report | yes | Final lock report |
 

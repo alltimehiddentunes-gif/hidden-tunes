@@ -30,7 +30,7 @@ Date/time: 2026-07-31 23:32 +02:00
 | Feature | Evidence | Result |
 | --- | --- | --- |
 | Mature section after age gate | `app/podcasts/mature.tsx` + `useMaturePodcastCatalog` in HEAD | Pass (source) |
-| Mature pagination to full catalog | `test-mature-podcast-catalog.mjs` → reachableViaPagination 1761 | Pass |
+| Mature pagination to full catalog | Attempt 1: timeout to admin.hiddentunes.com; Attempt 2: reachableViaPagination **1766** (`MATURE-CATALOG-RETRY.md`) | Pass (retry) |
 | `includeMature=true` on episodes | `test-podcast-episode-pipeline.mjs` → rawBroken 0 / rawFixed >0 | Pass |
 | Reported shows expose episodes | same pipeline samples | Pass |
 | No double flicker / abort / dedupe | `test-podcast-ultra-performance.mjs` | Pass |

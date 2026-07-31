@@ -2,12 +2,12 @@
 
 | Field | Value |
 | --- | --- |
-| Date/time | 2026-07-31 23:33 +02:00 |
+| Date/time | 2026-07-31 23:35 +02:00 |
 | Authoritative path | `D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142` |
 | Git root | `D:/HiddenTunes/Active/HiddenTunes-CLEAN-1.0.142` |
 | Branch | `fix/library-content-type-safe` |
 | Locked app-source SHA | `3fe6c9f3102acbc9bac3f7fc7c77e8b1b8ee235a` (podcast + sports + production EAS flags) |
-| Lock documentation tip | `4839304324e63a0f6269c184b72d13555f617b7d` |
+| Lock tip after mature-retry + lint cleanup | updated after commit (see GitHub tip) |
 | Remote | `https://github.com/alltimehiddentunes-gif/hidden-tunes.git` |
 | Metro port | `8081` |
 | Metro root | `D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142` |
@@ -46,8 +46,8 @@ Fixtures are enabled locally for development (`EXPO_PUBLIC_SPORTS_FIXTURES_ENABL
 | Check | Result |
 | --- | --- |
 | TypeScript | Pass |
-| Targeted ESLint | Pass (0 errors; 2 pre-existing warnings) |
-| Mature catalog | Pass |
+| Targeted ESLint | Pass (0 errors; BOM + unused-var cleaned) |
+| Mature catalog | Attempt 1: network timeout; Attempt 2: **Pass** (1766) — see `MATURE-CATALOG-RETRY.md` |
 | Episode pipeline | Pass |
 | Mature play gate | Pass |
 | Continuation / isolation | Pass |

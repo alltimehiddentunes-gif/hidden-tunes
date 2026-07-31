@@ -54,15 +54,15 @@ This lock task adds release-lock documentation + mature build audit.
 
 ## 6. Secret-scan result
 
-No service-role keys, private keys, Expo tokens, or credential files proposed for commit. Secrets remain in ignored local env files only.
+Re-scan of proposed paths (lint cleanup + lock docs): no service-role keys, private keys, Expo tokens, or credential files. Secrets remain in ignored local env files only.
 
 ## 7. Validation results
 
 | Check | Result |
 | --- | --- |
 | TypeScript | Pass |
-| Targeted ESLint | Pass (0 errors) |
-| Mature catalog | Pass (backendMatureTotal 1761) |
+| Targeted ESLint | Pass (0 errors; BOM + unused-var cleaned) |
+| Mature catalog | Attempt 1: network timeout; Attempt 2: **Pass** (backendMatureTotal **1766**) |
 | Episode pipeline | Pass (`includeMature=true`) |
 | Mature play gate | Pass (403 vs 200) |
 | Continuation + mature isolation | Pass |
@@ -78,7 +78,7 @@ No service-role keys, private keys, Expo tokens, or credential files proposed fo
 See `audit/release-lock/METRO-PARITY-VERIFICATION.md`.
 
 - Metro root = SSD path on port **8081** (proven)
-- Automated feature contracts pass
+- Automated feature contracts pass including mature catalog retry
 - Physical force-close/reopen not automated (`adb` missing); user confirmed Metro app correct
 
 ## 9. Commit SHA(s) for this lock
@@ -87,27 +87,28 @@ See `audit/release-lock/METRO-PARITY-VERIFICATION.md`.
 | --- | --- |
 | `a2253fc` | chore: lock working Metro state to GitHub checkpoint |
 | `4839304` | docs: finalize Metro lock SHA checkpoint |
+| `d8f432c` | docs: sync Metro lock report with authoritative SHAs |
+| *(next)* | chore: record mature catalog retry and clear lint warnings |
 
 Prior Metro-source commits already on GitHub: `f6176ce`, `c37ade9`, `3fe6c9f`, `8e9ad68`.
 
 ## 10. Final local SHA
 
-`4839304324e63a0f6269c184b72d13555f617b7d` (tip before this SHA-sync commit)
+Updated after commit/push of this follow-up.
 
 Authoritative app-source SHA for Metro reproduction: `3fe6c9f3102acbc9bac3f7fc7c77e8b1b8ee235a`
 
 ## 11. GitHub remote SHA
 
-Matches local after each push; tip after `4839304` push was identical locally and remotely.
+Must match final local SHA after push.
 
 ## 12. Push result
 
-- `8e9ad68..a2253fc` lock docs — succeeded
-- `a2253fc..4839304` SHA finalize — succeeded
+Prior lock pushes succeeded. Follow-up push recorded after this commit.
 
 ## 13. Final working-tree status
 
-Clean vs origin (ignored locals only: `.env`, `.env.local`, `.expo`).
+Clean vs origin after push (ignored locals only: `.env`, `.env.local`, `.expo`).
 
 ## 14. Required environment variables
 
@@ -130,7 +131,7 @@ Clean vs origin (ignored locals only: `.env`, `.env.local`, `.expo`).
 
 ## 15. Podcast Mature verification
 
-Pass — paginated mature catalog reachable (1761 observed).
+Pass — attempt 1 network timeout; attempt 2 paginated mature catalog reachable (**1766**). See `MATURE-CATALOG-RETRY.md`.
 
 ## 16. Podcast continuation verification
 

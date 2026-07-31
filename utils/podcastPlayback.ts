@@ -105,14 +105,12 @@ type PlayPodcastEpisodeFromShowArgs = {
 };
 
 let podcastSkipFailures = 0;
-let podcastSkipGeneration = 0;
 
 /** In-flight tap guard keyed by episode id (not a long global lock). */
 const playInFlightByEpisodeId = new Map<string, number>();
 
 export function resetPodcastSkipFailures() {
   podcastSkipFailures = 0;
-  podcastSkipGeneration += 1;
 }
 
 export function getPodcastSkipFailures() {
