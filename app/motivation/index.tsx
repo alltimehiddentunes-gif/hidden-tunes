@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   InteractionManager,
   RefreshControl,
@@ -9,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -946,7 +946,7 @@ export default function MotivationHomeScreen() {
           initialNumToRender={4}
           maxToRenderPerBatch={2}
           windowSize={5}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === "android"}
           refreshControl={
             isSearching ? undefined : (
               <RefreshControl

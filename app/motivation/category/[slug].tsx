@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -644,7 +644,7 @@ export default function MotivationCategoryScreen() {
           maxToRenderPerBatch={4}
           windowSize={5}
           updateCellsBatchingPeriod={60}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === "android"}
           keyboardShouldPersistTaps="handled"
           ListFooterComponent={
             loadingMore ? (

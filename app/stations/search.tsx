@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
   FlatList,
   RefreshControl,
@@ -9,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -318,7 +318,7 @@ export default function RadioSearchScreen() {
           }
           renderItem={renderItem}
           {...listPerformance}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === "android"}
         />
       )}
 

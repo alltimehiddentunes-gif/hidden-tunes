@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo } from "react";
-import {
-  Alert,
+import { Alert,
   SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
   type SectionListRenderItemInfo,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -203,7 +203,7 @@ export default function FavoritesScreen() {
             maxToRenderPerBatch={8}
             updateCellsBatchingPeriod={50}
             windowSize={7}
-            removeClippedSubviews
+            removeClippedSubviews={Platform.OS === "android"}
           />
         )}
       </LinearGradient>

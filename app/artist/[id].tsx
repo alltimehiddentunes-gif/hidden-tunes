@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
   FlatList,
   RefreshControl,
@@ -9,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { LinearGradient } from "expo-linear-gradient";
@@ -907,7 +907,7 @@ export default function ArtistScreen() {
         maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
         windowSize={listPerformance.windowSize}
         updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === "android"}
         onScrollBeginDrag={() => markFastScrolling(true)}
         onMomentumScrollBegin={() => markFastScrolling(true)}
         onMomentumScrollEnd={() => markFastScrolling(false)}

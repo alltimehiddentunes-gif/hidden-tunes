@@ -2084,7 +2084,7 @@ export default function SearchScreen() {
                       initialNumToRender={4}
                       maxToRenderPerBatch={4}
                       windowSize={5}
-                      removeClippedSubviews
+                      removeClippedSubviews={Platform.OS === "android"}
                       renderItem={({ item: album }) => (
                         <View style={styles.albumCardWrap}>
                           <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
@@ -2123,7 +2123,7 @@ export default function SearchScreen() {
                       initialNumToRender={4}
                       maxToRenderPerBatch={4}
                       windowSize={5}
-                      removeClippedSubviews
+                      removeClippedSubviews={Platform.OS === "android"}
                       renderItem={({ item: artist }) => (
                         <View style={styles.albumCardWrap}>
                           <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
@@ -2218,7 +2218,7 @@ export default function SearchScreen() {
                       initialNumToRender={4}
                       maxToRenderPerBatch={4}
                       windowSize={5}
-                      removeClippedSubviews
+                      removeClippedSubviews={Platform.OS === "android"}
                       renderItem={({ item: playlist }) => (
                         <TouchableOpacity
                           activeOpacity={0.88}
@@ -2517,7 +2517,7 @@ export default function SearchScreen() {
                       initialNumToRender={4}
                       maxToRenderPerBatch={4}
                       windowSize={5}
-                      removeClippedSubviews
+                      removeClippedSubviews={Platform.OS === "android"}
                       renderItem={({ item: artist }) => (
                         <TouchableOpacity
                           activeOpacity={0.88}
@@ -2547,7 +2547,7 @@ export default function SearchScreen() {
                       initialNumToRender={4}
                       maxToRenderPerBatch={4}
                       windowSize={5}
-                      removeClippedSubviews
+                      removeClippedSubviews={Platform.OS === "android"}
                       renderItem={({ item: album }) => (
                         <TouchableOpacity
                           activeOpacity={0.88}

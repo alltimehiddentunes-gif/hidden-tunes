@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useMemo } from "react";
-import {
-  FlatList,
+import { FlatList,
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -326,7 +326,7 @@ export default function MoreScreen() {
           initialNumToRender={2}
           maxToRenderPerBatch={2}
           windowSize={3}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === "android"}
         />
       </LinearGradient>
     </AppShell>

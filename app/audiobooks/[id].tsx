@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -429,7 +429,7 @@ export default function AudiobookDetailScreen() {
         initialNumToRender={14}
         maxToRenderPerBatch={12}
         windowSize={9}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === "android"}
         ListEmptyComponent={
           <Text style={styles.stateText}>No chapter metadata available.</Text>
         }

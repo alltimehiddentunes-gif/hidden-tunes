@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
   FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -490,7 +490,7 @@ export default function PodcastCategoryScreen() {
                 </TouchableOpacity>
               ) : null
             }
-            removeClippedSubviews
+            removeClippedSubviews={Platform.OS === "android"}
             initialNumToRender={12}
             maxToRenderPerBatch={8}
             windowSize={7}
@@ -563,7 +563,7 @@ export default function PodcastCategoryScreen() {
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === "android"}
         initialNumToRender={12}
         maxToRenderPerBatch={8}
         windowSize={7}

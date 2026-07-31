@@ -1,12 +1,12 @@
 import { memo, useCallback, useMemo } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -129,7 +129,7 @@ function WorldDetailScreen() {
           initialNumToRender={10}
           maxToRenderPerBatch={8}
           windowSize={7}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === "android"}
         />
       </SafeAreaView>
     </LinearGradient>

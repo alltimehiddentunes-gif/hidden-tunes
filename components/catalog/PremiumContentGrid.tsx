@@ -1,12 +1,12 @@
 import { memo, useMemo, type ReactElement } from "react";
-import {
-  FlatList,
+import { FlatList,
   StyleSheet,
   useWindowDimensions,
   View,
   type ListRenderItem,
   type StyleProp,
   type ViewStyle,
+  Platform,
 } from "react-native";
 
 import { getPremiumGridLayout, type PremiumGridLayout } from "@/utils/premiumGridLayout";
@@ -142,7 +142,7 @@ function PremiumContentGridInner<T>({
         maxToRenderPerBatch={layout.columns * 2}
         windowSize={5}
         updateCellsBatchingPeriod={70}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === "android"}
       />
     </View>
   );

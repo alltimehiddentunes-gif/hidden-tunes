@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
   FlatList,
   ScrollView,
@@ -8,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -344,7 +344,7 @@ export default function RadioStationsHomeScreen() {
                   initialNumToRender={3}
                   maxToRenderPerBatch={3}
                   windowSize={5}
-                  removeClippedSubviews
+                  removeClippedSubviews={Platform.OS === "android"}
                   renderItem={({ item }) => {
                     const catalogTarget =
                       getRadioEmotionalWorld(item.world.id)?.catalogTarget || undefined;

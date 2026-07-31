@@ -1,5 +1,7 @@
 import React, { memo, useMemo } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View,
+  Platform,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import MediaCard from "./MediaCard";
@@ -369,7 +371,7 @@ function UniversalSearchGroupedResults({
             initialNumToRender={8}
             maxToRenderPerBatch={6}
             windowSize={5}
-            removeClippedSubviews
+            removeClippedSubviews={Platform.OS === "android"}
           />
         </View>
       )}
@@ -547,7 +549,7 @@ function UniversalSearchGroupedResults({
             initialNumToRender={6}
             maxToRenderPerBatch={4}
             windowSize={4}
-            removeClippedSubviews
+            removeClippedSubviews={Platform.OS === "android"}
           />
         </View>
       )}

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, StyleSheet, Switch, Text, View } from "react-native";
+import { FlatList, StyleSheet, Switch, Text, View,
+  Platform,
+} from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -165,7 +167,7 @@ export default function MaturePodcastsScreen() {
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === "android"}
         initialNumToRender={12}
         maxToRenderPerBatch={8}
         windowSize={7}

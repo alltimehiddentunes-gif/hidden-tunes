@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -526,7 +526,7 @@ export default function AudiobooksHomeScreen() {
           contentContainerStyle={styles.listContent}
           onEndReached={loadMore}
           onEndReachedThreshold={0.45}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === "android"}
           initialNumToRender={10}
           maxToRenderPerBatch={10}
           updateCellsBatchingPeriod={60}

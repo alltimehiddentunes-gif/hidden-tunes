@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -552,7 +552,7 @@ export default function WorldsIndexScreen() {
                     initialNumToRender={3}
                     maxToRenderPerBatch={3}
                     windowSize={5}
-                    removeClippedSubviews
+                    removeClippedSubviews={Platform.OS === "android"}
                     renderItem={({ item }) => (
                       <TouchableOpacity
                         activeOpacity={0.9}
@@ -606,7 +606,7 @@ export default function WorldsIndexScreen() {
                     initialNumToRender={4}
                     maxToRenderPerBatch={4}
                     windowSize={5}
-                    removeClippedSubviews
+                    removeClippedSubviews={Platform.OS === "android"}
                     renderItem={({ item: song }) => (
                       <TouchableOpacity
                         activeOpacity={0.88}
@@ -640,7 +640,7 @@ export default function WorldsIndexScreen() {
                     initialNumToRender={3}
                     maxToRenderPerBatch={3}
                     windowSize={5}
-                    removeClippedSubviews
+                    removeClippedSubviews={Platform.OS === "android"}
                     renderItem={({ item: room }) => (
                       <TouchableOpacity
                         activeOpacity={0.9}
@@ -703,7 +703,7 @@ export default function WorldsIndexScreen() {
                     initialNumToRender={3}
                     maxToRenderPerBatch={3}
                     windowSize={5}
-                    removeClippedSubviews
+                    removeClippedSubviews={Platform.OS === "android"}
                     renderItem={({ item: room }) => (
                       <TouchableOpacity
                         activeOpacity={0.9}
@@ -737,7 +737,7 @@ export default function WorldsIndexScreen() {
                     initialNumToRender={4}
                     maxToRenderPerBatch={4}
                     windowSize={5}
-                    removeClippedSubviews
+                    removeClippedSubviews={Platform.OS === "android"}
                     renderItem={({ item: genre }) => (
                       <TouchableOpacity
                         activeOpacity={0.88}
@@ -766,7 +766,7 @@ export default function WorldsIndexScreen() {
                     initialNumToRender={4}
                     maxToRenderPerBatch={4}
                     windowSize={5}
-                    removeClippedSubviews
+                    removeClippedSubviews={Platform.OS === "android"}
                     renderItem={({ item }) =>
                       item.type === "album" ? (
                         <TouchableOpacity
@@ -807,7 +807,7 @@ export default function WorldsIndexScreen() {
                     initialNumToRender={4}
                     maxToRenderPerBatch={4}
                     windowSize={5}
-                    removeClippedSubviews
+                    removeClippedSubviews={Platform.OS === "android"}
                     renderItem={({ item: artist }) => (
                       <TouchableOpacity
                         activeOpacity={0.88}

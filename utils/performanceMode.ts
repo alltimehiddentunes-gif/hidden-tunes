@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { recordDeferredTaskScheduled } from "./playbackStressDiagnostics";
 
@@ -127,13 +127,16 @@ export function getPrefetchLimit(requested = 4) {
 }
 
 export function getListPerformanceSettings(itemCount: number) {
+  // iOS RN default is false; forcing true can hang Fabric clipped-subview walks (0x8BADF00D).
+  const removeClippedSubviews = Platform.OS === "android";
+
   if (itemCount >= VERY_LARGE_LIST_THRESHOLD) {
     return {
       initialNumToRender: 6,
       maxToRenderPerBatch: 5,
       windowSize: 5,
       updateCellsBatchingPeriod: 120,
-      removeClippedSubviews: true,
+      removeClippedSubviews,
     };
   }
 
@@ -143,7 +146,7 @@ export function getListPerformanceSettings(itemCount: number) {
       maxToRenderPerBatch: 6,
       windowSize: 7,
       updateCellsBatchingPeriod: 90,
-      removeClippedSubviews: true,
+      removeClippedSubviews,
     };
   }
 
@@ -152,18 +155,21 @@ export function getListPerformanceSettings(itemCount: number) {
     maxToRenderPerBatch: 8,
     windowSize: 9,
     updateCellsBatchingPeriod: 70,
-    removeClippedSubviews: true,
+    removeClippedSubviews,
   };
 }
 
 export function getHorizontalListPerformanceSettings(itemCount: number) {
+  // Keep Android clipping; leave iOS on RN's safer default (false).
+  const removeClippedSubviews = Platform.OS === "android";
+
   if (itemCount >= 24) {
     return {
       initialNumToRender: 4,
       maxToRenderPerBatch: 4,
       windowSize: 4,
       updateCellsBatchingPeriod: 90,
-      removeClippedSubviews: true,
+      removeClippedSubviews,
     };
   }
 
@@ -172,7 +178,7 @@ export function getHorizontalListPerformanceSettings(itemCount: number) {
     maxToRenderPerBatch: 5,
     windowSize: 5,
     updateCellsBatchingPeriod: 70,
-    removeClippedSubviews: true,
+    removeClippedSubviews,
   };
 }
 

@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -378,7 +378,7 @@ export default function MotivationProgramScreen() {
           maxToRenderPerBatch={8}
           updateCellsBatchingPeriod={60}
           windowSize={7}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === "android"}
           ListHeaderComponent={
             <View style={styles.hero}>
               <TouchableOpacity

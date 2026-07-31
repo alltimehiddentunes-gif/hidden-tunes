@@ -1,10 +1,10 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
-import {
-  FlatList,
+import { FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -245,7 +245,7 @@ function RecentlyPlayedScreen() {
         maxToRenderPerBatch={listPerformance.maxToRenderPerBatch}
         windowSize={listPerformance.windowSize}
         updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === "android"}
         onScrollBeginDrag={() => markFastScrolling(true)}
         onMomentumScrollBegin={() => markFastScrolling(true)}
         onMomentumScrollEnd={() => markFastScrolling(false)}

@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import {
-  Alert,
+import { Alert,
   FlatList,
   Modal,
   Pressable,
@@ -10,6 +9,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { useFocusEffect, router } from "expo-router";
@@ -496,7 +496,7 @@ export default function PlaylistsScreen() {
                   initialNumToRender={4}
                   maxToRenderPerBatch={4}
                   windowSize={5}
-                  removeClippedSubviews
+                  removeClippedSubviews={Platform.OS === "android"}
                 />
               </>
             )}

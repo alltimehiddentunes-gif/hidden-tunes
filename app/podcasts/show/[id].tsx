@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   Alert,
   FlatList,
   StyleSheet,
   Text,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -547,7 +547,7 @@ export default function PodcastShowScreen() {
         maxToRenderPerBatch={8}
         updateCellsBatchingPeriod={60}
         windowSize={7}
-        removeClippedSubviews
+        removeClippedSubviews={Platform.OS === "android"}
       />
 
       <MaturePodcastConsentModal

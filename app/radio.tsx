@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
+import { ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -504,7 +504,7 @@ export default function RadioScreen() {
           initialNumToRender={8}
           maxToRenderPerBatch={6}
           windowSize={7}
-          removeClippedSubviews
+          removeClippedSubviews={Platform.OS === "android"}
           updateCellsBatchingPeriod={50}
           ListHeaderComponent={
             <View style={styles.sectionHeader}>
