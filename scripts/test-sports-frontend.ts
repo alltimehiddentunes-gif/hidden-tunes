@@ -152,7 +152,7 @@ function main() {
   assert.equal(formatScore(DEV_FOOTBALL_LIVE), "2–1");
   // Streams disabled by default — never advertise Watch Live in fixtures pilot
   assert.equal(SPORTS_CLIENT_FLAGS.sports_streams_enabled, false);
-  assert.equal(SPORTS_CLIENT_FLAGS.sports_fixtures_enabled, false);
+  assert.equal(SPORTS_CLIENT_FLAGS.sports_fixtures_enabled, true);
   assert.equal(canShowWatchAction(DEV_FOOTBALL_LIVE), false);
   assert.equal(primaryActionLabel(DEV_FOOTBALL_LIVE), "Live score");
   assert.equal(getSportsWatchAction(DEV_FOOTBALL_LIVE).kind, "fixture_only");

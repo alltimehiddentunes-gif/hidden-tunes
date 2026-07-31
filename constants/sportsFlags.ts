@@ -13,7 +13,7 @@ export const SPORTS_CLIENT_FLAGS = {
   sports_enabled: false,
 
   /** Fixture browse / schedules / results — independent of streams. */
-  sports_fixtures_enabled: false,
+  sports_fixtures_enabled: true,
 
   sports_home_ia_enabled: false,
 
@@ -40,7 +40,7 @@ export const SPORTS_CLIENT_FLAGS = {
    * Canonical Live Sports TV catalog surface (category=Sports).
    * Independent of sports_streams_enabled — does not re-enable fixture broadcasts.
    */
-  sports_tv_enabled: false,
+  sports_tv_enabled: true,
 
   sports_notifications_enabled: false,
 

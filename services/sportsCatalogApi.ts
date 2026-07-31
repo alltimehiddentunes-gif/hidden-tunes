@@ -54,11 +54,13 @@ import {
 export const SPORTS_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const SPORTS_DEFAULT_PAGE_LIMIT = 20;
 
-/** Dev-only private pilot header — never embedded in production release builds. */
+/** Dev+production private pilot header when token is configured.
+ * Token is EXPO_PUBLIC (client-visible). Production EAS must supply it for Metro parity.
+ * Streams remain independently gated off.
+ */
 const SPORTS_PRIVATE_PILOT_HEADER = "X-Hidden-Tunes-Sports-Pilot";
 
 function privatePilotToken(): string | null {
-  if (typeof __DEV__ !== "undefined" && !__DEV__) return null;
   const token = String(
     process.env.EXPO_PUBLIC_SPORTS_PRIVATE_PILOT_TOKEN || ""
   ).trim();

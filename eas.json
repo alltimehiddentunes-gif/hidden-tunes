@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 15.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "developmentClient": {
@@ -52,6 +52,7 @@
         "EXPO_PUBLIC_SPORTS_STREAMS_ENABLED": "false",
         "EXPO_PUBLIC_SPORTS_TV_ENABLED": "true",
         "EXPO_PUBLIC_SPORTS_LIVE_SCORES_ENABLED": "false",
+        "EXPO_PUBLIC_SPORTS_HOME_IA_ENABLED": "true",
         "EXPO_PUBLIC_SPORTS_USE_DEV_FIXTURES": "false",
         "EXPO_PUBLIC_SPORTS_NOTIFICATIONS_ENABLED": "false",
         "SHARP_IGNORE_GLOBAL_LIBVIPS": "true",

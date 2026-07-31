@@ -2,7 +2,7 @@
   "expo": {
     "name": "Hidden Tunes",
     "slug": "hidden-tunes",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "hiddentunes",
@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hiddentunes.app",
-      "buildNumber": "1.0.0",
+      "buildNumber": "1.0.195",
       "icon": "./assets/images/icon.png",
       "entitlements": {
         "com.apple.developer.carplay-audio": true,
