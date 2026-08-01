@@ -76,7 +76,7 @@ pass(!/Compare plans/.test(app), 'no Compare plans CTA without real plans')
 pass(!/Preview pricing/.test(app), 'no preview pricing copy')
 pass(!/\$\d/.test(app), 'no invented dollar prices in App')
 
-pass(/Membership coming soon/.test(app), 'sidebar hints membership coming soon')
+pass(/Membership (coming soon|purchasing unavailable)/i.test(app), 'sidebar hints membership unavailable honestly')
 pass(/Membership preview/.test(app), 'Premium page uses Membership preview heading')
 pass(/PREMIUM_MEMBERSHIP\.accountStatusLabel/.test(app), 'sidebar uses canonical account status')
 pass(/PREMIUM_MEMBERSHIP\.membershipStatusLabel/.test(app), 'Settings/Premium share membership status')

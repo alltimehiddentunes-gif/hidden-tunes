@@ -192,6 +192,8 @@ import { HiddenTunesGlobalBackground } from './components/HiddenTunesGlobalBackg
 import { LaunchGate } from './components/LaunchGate'
 import { GlobalTopNav } from './components/music/GlobalTopNav'
 import { MusicWorkspace } from './components/music/MusicWorkspace'
+import { AccountRequiredDialog } from './components/account/AccountRequiredDialog'
+import { resolveAccountGate } from './lib/account/accountGate'
 import type { MusicSectionId } from './lib/music/types'
 import { PRIMARY_SECTION_NAV, type GlobalNavKey } from './lib/music/navTypes'
 import {
@@ -2941,7 +2943,7 @@ const Sidebar = memo(function Sidebar({
           </span>
           <span className="sidebar-premium-copy">
             <span className="sidebar-premium-label">Premium</span>
-            <span className="sidebar-premium-hint">Membership coming soon</span>
+            <span className="sidebar-premium-hint">Membership purchasing unavailable</span>
           </span>
         </button>
 
@@ -2950,7 +2952,7 @@ const Sidebar = memo(function Sidebar({
             <span>H</span>
           </div>
           <div className="sidebar-user-copy">
-            <span className="sidebar-user-name">Hidden Listener</span>
+            <span className="sidebar-user-name">Local preview</span>
             <span className="sidebar-user-badge">
               {PREMIUM_MEMBERSHIP.accountStatusLabel}
             </span>
@@ -3227,6 +3229,7 @@ function MusicPage({
   onOpenAlbum,
   onBrowseSearch,
   onOpenSettings,
+  onOpenDownloads,
 }: {
   musicSection: MusicSectionId
   onMusicSectionChange: (section: MusicSectionId) => void
@@ -3235,6 +3238,7 @@ function MusicPage({
   onOpenAlbum: (album: ApiAlbum) => void
   onBrowseSearch: (query: string) => void
   onOpenSettings: () => void
+  onOpenDownloads: () => void
 }) {
   const {
     songs,
@@ -3285,6 +3289,7 @@ function MusicPage({
         onOpenAlbum={onOpenAlbum}
         onBrowseSearch={onBrowseSearch}
         onOpenSettings={onOpenSettings}
+        onOpenDownloads={onOpenDownloads}
       />
     </div>
   )
@@ -5687,11 +5692,25 @@ function SettingsPage({
           <button type="button" className="settings-nav-item active">
             About
           </button>
-          <button type="button" className="settings-nav-item" disabled>
+          <button
+            type="button"
+            className="settings-nav-item is-disabled"
+            disabled
+            title="Additional settings sections are not available in this desktop preview"
+            aria-label="Appearance — not available in this desktop preview"
+          >
             Appearance
+            <span className="settings-nav-hint">Preview only</span>
           </button>
-          <button type="button" className="settings-nav-item" disabled>
+          <button
+            type="button"
+            className="settings-nav-item is-disabled"
+            disabled
+            title="Use Playback quality below — separate Playback section nav is not available yet"
+            aria-label="Playback section — not available; quality controls are on this page"
+          >
             Playback
+            <span className="settings-nav-hint">See quality below</span>
           </button>
         </nav>
         <div className="settings-panels">
@@ -5785,22 +5804,23 @@ function SettingsPage({
           />
           <section className="settings-panel">
             <h2>Appearance</h2>
-            <p className="settings-panel-desc">Cinematic dark theme tuned for desktop browsing.</p>
+            <p className="settings-panel-desc">
+              This desktop preview uses a fixed cinematic dark theme. Theme switching is not available
+              in this build.
+            </p>
             <div className="settings-row">
               <div className="settings-label">
                 <span>Cinematic dark theme</span>
-                <small>Low-light, premium contrast</small>
+                <small>Low-light, premium contrast — active for this install</small>
               </div>
               <span className="settings-badge">Active</span>
             </div>
             <div className="settings-row">
               <div className="settings-label">
-                <span>Accent glow intensity</span>
-                <small>Highlights on cards and navigation</small>
+                <span>Updates</span>
+                <small>Automatic updates are not configured in this desktop preview</small>
               </div>
-              <div className="settings-slider" aria-hidden="true">
-                <div className="settings-slider-fill" style={{ width: '70%' }} />
-              </div>
+              <span className="settings-badge settings-badge--muted">Not available</span>
             </div>
           </section>
         </div>
@@ -6693,6 +6713,9 @@ function ArtistDetailView({
   const [followerCount, setFollowerCount] = useState(0)
   const [followBusy, setFollowBusy] = useState(false)
   const [followMessage, setFollowMessage] = useState<string | null>(null)
+  const [accountGateOpen, setAccountGateOpen] = useState(false)
+  const [accountGateTitle, setAccountGateTitle] = useState('')
+  const [accountGateBody, setAccountGateBody] = useState('')
   const [aboutExpanded, setAboutExpanded] = useState(false)
   const followInFlightRef = useRef(false)
 
@@ -6728,6 +6751,7 @@ function ArtistDetailView({
     setFollowerCount(0)
     setFollowBusy(false)
     setFollowMessage(null)
+    setAccountGateOpen(false)
     setAboutExpanded(false)
     setShowAllSongs(false)
   }
@@ -6846,13 +6870,27 @@ function ArtistDetailView({
 
     const session = await getDesktopSupabaseSessionSummary()
     if (!session.isSignedIn) {
-      setFollowMessage('Sign in to follow artists.')
+      const gate = resolveAccountGate('follow', {
+        isSignedIn: false,
+        signInUiAvailable: false,
+      })
+      setAccountGateTitle(gate.title)
+      setAccountGateBody(gate.body)
+      setAccountGateOpen(true)
+      setFollowMessage(null)
       return
     }
 
     const tokenResult = await getDesktopSupabaseAccessToken()
     if (!tokenResult.accessToken) {
-      setFollowMessage(tokenResult.error || 'Sign in to follow artists.')
+      const gate = resolveAccountGate('follow', {
+        isSignedIn: false,
+        signInUiAvailable: false,
+      })
+      setAccountGateTitle(gate.title)
+      setAccountGateBody(gate.body)
+      setAccountGateOpen(true)
+      setFollowMessage(null)
       return
     }
 
@@ -7260,6 +7298,12 @@ function ArtistDetailView({
           ) : null}
         </section>
       ) : null}
+      <AccountRequiredDialog
+        open={accountGateOpen}
+        title={accountGateTitle}
+        body={accountGateBody}
+        onClose={() => setAccountGateOpen(false)}
+      />
     </PageFrame>
   )
 }
@@ -7845,6 +7889,7 @@ function PageContent({
             onNavigateNav('search')
           }}
           onOpenSettings={() => onNavigateNav('settings')}
+          onOpenDownloads={() => onNavigateNav('downloads')}
         />
       )
     case 'radio':

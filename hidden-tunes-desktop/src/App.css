@@ -27657,6 +27657,80 @@ button.lecture-detail-crumb:focus-visible {
   background: rgba(251, 191, 36, 0.08);
 }
 
+.sports-banner--info {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.account-gate-root {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+}
+
+.account-gate-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(5, 5, 8, 0.62);
+  cursor: pointer;
+}
+
+.account-gate-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(420px, calc(100vw - 48px));
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(160deg, rgba(28, 24, 40, 0.98), rgba(12, 10, 18, 0.98));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  padding: 22px 22px 18px;
+  color: rgba(245, 243, 250, 0.96);
+}
+
+.account-gate-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+  font-weight: 650;
+}
+
+.account-gate-dialog p {
+  margin: 0 0 18px;
+  line-height: 1.45;
+  color: rgba(245, 243, 250, 0.78);
+  font-size: 0.92rem;
+}
+
+.account-gate-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-nav-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.68rem;
+  opacity: 0.65;
+  font-weight: 500;
+}
+
+.settings-nav-item.is-disabled,
+.settings-nav-item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-badge--muted {
+  opacity: 0.75;
+  border-style: dashed;
+}
+
 .sports-tabs {
   display: flex;
   flex-wrap: wrap;

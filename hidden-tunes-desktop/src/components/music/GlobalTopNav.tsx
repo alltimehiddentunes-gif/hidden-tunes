@@ -77,8 +77,8 @@ export const GlobalTopNav = memo(function GlobalTopNav({
         <button
           type="button"
           className="global-top-nav-icon is-disabled"
-          aria-label="Notifications coming soon"
-          title="Notifications coming soon"
+          aria-label="Notifications not available in this desktop preview"
+          title="Notifications are not available in this desktop preview"
           disabled
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
