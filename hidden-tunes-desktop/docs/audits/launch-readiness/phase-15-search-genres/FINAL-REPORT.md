@@ -1,7 +1,7 @@
-﻿# Phase 15 Final Report
+# Phase 15 Final Report
 
 Starting HEAD: b17d8cbb
-Ending HEAD: *(after commit)*
+Ending HEAD: 3dcd758f
 
 ## Delivered
 - Discover empty respects global family hits/errors
