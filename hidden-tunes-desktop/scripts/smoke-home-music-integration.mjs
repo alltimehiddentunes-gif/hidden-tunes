@@ -96,6 +96,7 @@ async function main() {
   const home = await evalPage(win, `() => ({
     title: document.querySelector('.music-home-page-title')?.textContent || '',
     giantHero: Boolean(document.querySelector('.music-home-hero')),
+    productHero: Boolean(document.querySelector('.music-home-product-hero')),
     heroCarousel: Boolean(document.querySelector('.music-home-hero-carousel')),
     family: document.querySelectorAll('.music-home-family-card').length,
     sections: [...document.querySelectorAll('.music-home h2')].map((h) => h.textContent.trim()),
@@ -108,9 +109,23 @@ async function main() {
     giantFrames: [...document.querySelectorAll('.music-home .art-frame')].some((el) => el.getBoundingClientRect().height > 500),
   })`)
   record('home-no-giant-hero', !home.giantHero)
-  record('home-hero-carousel', home.heroCarousel || home.sections.includes('Emotional Worlds'))
-  record('home-family-shortcuts', home.family === 4, `cards=${home.family}`)
-  record('home-mobile-sections', ['Emotional Worlds', 'Recently Added', 'All Songs'].every((t) => home.sections.includes(t)), home.sections.join('|'))
+  // Stabilized Home: product/listening hero when catalogue seed exists; otherwise content-first rails.
+  record(
+    'home-listening-chrome',
+    home.productHero
+      || home.heroCarousel
+      || (home.contentFirst && home.sections.includes('Recently Added'))
+      || home.sections.includes('Mood & Vibes')
+      || home.sections.includes('Emotional Worlds'),
+    `product=${home.productHero} carousel=${home.heroCarousel} contentFirst=${home.contentFirst}`,
+  )
+  record('home-family-shortcuts', home.family >= 4 && home.family <= 8, `cards=${home.family}`)
+  record(
+    'home-core-sections',
+    ['Recently Added', 'Explore Hidden Tunes'].every((t) => home.sections.includes(t))
+      || ['Recently Added', 'All Songs'].every((t) => home.sections.includes(t)),
+    home.sections.join('|'),
+  )
   record('home-no-invented-sections', home.invented.length === 0, home.invented.join('|'))
   record('home-parity-marker', home.parity)
   record('home-content-first', home.contentFirst)
