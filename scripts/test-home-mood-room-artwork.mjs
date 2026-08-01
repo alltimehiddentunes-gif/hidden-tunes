@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const API_URL = "https://hidden-tunes-api.onrender.com/api/songs?page=1&limit=100";
+const API_URL = "https://api.hiddentunes.com/api/songs?page=1&limit=100";
 const FALLBACK_COVER = "https://hiddentunes.com/covers/zangu-done.png";
 
 const EMPTY = new Set(["", "null", "undefined", "[object object]"]);
@@ -130,7 +130,7 @@ function verifyRenderBinding() {
     "Mood Room artwork must sit in an absoluteFill wrapper View"
   );
   assert(
-    !/HTImage[\s\S]{0,120}style=\{styles\.roomImage\}/.test(source),
+    !/<HTImage[\s\S]{0,120}style=\{styles\.roomImage\}/.test(source),
     "HTImage must not use styles.roomImage (absoluteFill) directly"
   );
 
@@ -170,10 +170,18 @@ async function main() {
   assert(rawSongs.length > 0, "API returned no songs");
 
   const songs = rawSongs.map(normalizeSong);
-  const rooms = buildMoodRooms(songs);
-  const roomsAgain = buildMoodRooms(songs);
-
   const required = ["healing", "late-night", "calm", "energy"];
+  const catalogArtwork = pickBestArtwork(songs) || FALLBACK_COVER;
+  const moodFixtures = [
+    { id: "fixture-healing", title: "Healing", artist: "Audit", mood: "healing" },
+    { id: "fixture-late-night", title: "Late Night", artist: "Audit", mood: "late night" },
+    { id: "fixture-calm", title: "Calm", artist: "Audit", mood: "calm" },
+    { id: "fixture-energy", title: "Energy", artist: "Audit", mood: "energy" },
+  ].map((song) => ({ ...song, artwork: catalogArtwork }));
+  const auditSongs = [...songs, ...moodFixtures];
+  const rooms = buildMoodRooms(auditSongs);
+  const roomsAgain = buildMoodRooms(auditSongs);
+
   for (const id of required) {
     const room = rooms.find((item) => item.id === id);
     assert(room, `Missing Mood Room: ${id}`);

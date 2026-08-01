@@ -45,17 +45,17 @@ async function testProductionCoverage() {
     };
   }
 
-  // Hyphenated title fails raw; normalised query succeeds.
+  // Production accepts both raw and normalised hyphenated title queries.
   const rawHyphen = await probe(
     `/api/tv/videos?q=${encodeURIComponent("Al-Jazeera")}&page=1&limit=10&platform=android`
   );
   const normHyphen = await probe(
     `/api/tv/videos?q=${encodeURIComponent(normalizeTvSearchQuery("Al-Jazeera"))}&page=1&limit=10&platform=android`
   );
-  assert.equal((rawHyphen.videos || []).length, 0, "raw Al-Jazeera should miss");
+  assert.ok((rawHyphen.videos || []).length > 0, "raw Al-Jazeera should hit");
   assert.ok((normHyphen.videos || []).length > 0, "normalised Al Jazeera should hit");
 
-  // Country name misses on q; ISO country filter hits.
+  // Production accepts country-name search; ISO filtering remains supported.
   const nameQ = await probe(
     `/api/tv/videos?q=${encodeURIComponent("South Africa")}&page=1&limit=40&platform=android`
   );
@@ -64,7 +64,7 @@ async function testProductionCoverage() {
   const byCountry = await probe(
     `/api/tv/videos?country=${code}&page=1&limit=40&platform=android`
   );
-  assert.equal((nameQ.videos || []).length, 0, "South Africa q should miss");
+  assert.ok((nameQ.videos || []).length > 0, "South Africa q should hit");
   assert.ok((byCountry.videos || []).length > 0, "ZA country filter should hit");
 
   // Pagination retains query and reaches later pages for broad matches.

@@ -144,7 +144,16 @@ function testIosInterruptionResumeGatePreserved() {
   assert.ok(body.includes("wasPlayingBeforeInterruption"));
   assert.ok(body.includes("shouldResumeOption"));
   assert.ok(body.includes("hasRecentIntentionalPause()"));
-  assert.ok(body.includes("player?.play()"));
+  assert.equal(body.includes("player?.play()"), false);
+  assert.ok(body.includes("PlayerContext applies latest-tap / owner policy"));
+
+  const playerContext = read("context/PlayerContext.tsx");
+  const endedHandler = playerContext.slice(
+    playerContext.indexOf('nativeEventName === "ios_call_interruption_ended"'),
+    playerContext.indexOf('nativeEventName === "android_audio_focus_pause_for_interruption"')
+  );
+  assert.ok(endedHandler.includes("decision.shouldResume"));
+  assert.ok(endedHandler.includes("bridgeHiddenAudioPlay()"));
 }
 
 function testRouteChangeIsLogOnly() {
@@ -174,8 +183,8 @@ function testAndroidDirtyWorkStillPresent() {
 function testBundleIdentity() {
   const appJson = JSON.parse(read("app.json"));
   assert.equal(appJson.expo.ios.bundleIdentifier, "com.hiddentunes.app");
-  assert.equal(appJson.expo.version, "1.0.1");
-  assert.equal(appJson.expo.ios.buildNumber, "1.0.0");
+  assert.equal(appJson.expo.version, "1.0.2");
+  assert.equal(appJson.expo.ios.buildNumber, "1.0.196");
 }
 
 console.log("test-ios-static-ownership: start");

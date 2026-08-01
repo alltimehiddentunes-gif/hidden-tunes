@@ -186,7 +186,7 @@ function main() {
     boundSectionItems(many, SPORTS_SECTION_LIMITS.horizontal).length,
     SPORTS_SECTION_LIMITS.horizontal
   );
-  assert.equal(SPORTS_SECTION_LIMITS.horizontal, 16);
+  assert.equal(SPORTS_SECTION_LIMITS.horizontal, 12);
 
   // --- Player route replace flag ---
   setSportsPlayerRouteActive(false);

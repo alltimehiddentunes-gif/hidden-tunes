@@ -51,7 +51,7 @@ assert.doesNotMatch(audiobookIndex, /bypassCache:\s*Boolean\(cached/);
 const podcastShow = fs.readFileSync(path.join(root, "app/podcasts/show/[id].tsx"), "utf8");
 assert.match(podcastShow, /FlatList/);
 assert.doesNotMatch(podcastShow, /ScrollView/);
-assert.match(podcastShow, /windowSize=\{7\}/);
+assert.match(podcastShow, /windowSize=\{5\}/);
 
 console.log("PASS content performance guards", {
   diagnosticsNamespace: "HTContentPerformance",
