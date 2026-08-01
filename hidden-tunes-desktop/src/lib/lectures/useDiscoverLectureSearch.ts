@@ -61,7 +61,7 @@ export function useDiscoverLectureSearch(debouncedQuery: string) {
       } catch (reason) {
         if (requestId !== requestRef.current) return
         if (reason instanceof DOMException && reason.name === 'AbortError') return
-        setCourses([])
+        // Keep prior courses on failure — abort/error must not look like an empty success.
         setError(readError(reason))
       } finally {
         if (requestId === requestRef.current) setLoading(false)

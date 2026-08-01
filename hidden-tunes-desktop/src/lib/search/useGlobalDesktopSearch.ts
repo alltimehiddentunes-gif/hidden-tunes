@@ -224,6 +224,26 @@ export function useGlobalDesktopSearch(debouncedQuery: string) {
     ],
   )
 
+  const isFamilyLoading = Boolean(trimmed) && (
+    radioView.loading
+    || podcastView.loading
+    || audiobookView.loading
+    || motivationalView.loading
+    || tvView.loading
+    || sportsView.loading
+    || downloadsView.loading
+  )
+
+  const hasFamilyErrors = Boolean(trimmed) && Boolean(
+    radioView.error
+    || podcastView.error
+    || audiobookView.error
+    || motivationalView.error
+    || tvView.error
+    || sportsView.error
+    || downloadsView.error
+  )
+
   return {
     radio: radioView,
     podcastShows: podcastView,
@@ -235,6 +255,8 @@ export function useGlobalDesktopSearch(debouncedQuery: string) {
     playlists,
     downloads: downloadsView,
     hasRemoteResults,
+    isFamilyLoading,
+    hasFamilyErrors,
     active: trimmed.length > 0,
   }
 }

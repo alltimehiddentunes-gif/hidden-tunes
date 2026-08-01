@@ -3565,22 +3565,39 @@ function DiscoverPage({
   }, [genreDefinition, genreId, hasRemoteQuery, trimmedQuery])
 
   const loadMoreRemoteSongs = useCallback(() => {
-    if (!genreDefinition || remoteLoadingMore || !remoteHasMore) return
+    if (remoteLoadingMore || !remoteHasMore) return
+    if (!genreDefinition && !trimmedQuery) return
     const controller = new AbortController()
+    const gen = remoteSearchGen.current
     const nextPage = remotePage + 1
     setRemoteLoadingMore(true)
-    void loadFilteredGenrePage(genreDefinition, nextPage, controller.signal).then((result) => {
-      setRemoteSongs((previous) => {
-        const seen = new Set(previous.map((song) => song.id))
-        return [...previous, ...result.items.filter((song) => !seen.has(song.id))]
-      })
-      setRemotePage(result.page)
-      setRemoteHasMore(result.hasMore)
-    }).catch((error) => {
-      if (error instanceof CatalogRequestError && error.kind === 'abort') return
-      setRemoteSearchError(error instanceof Error ? error.message : 'Could not load more songs.')
-    }).finally(() => setRemoteLoadingMore(false))
-  }, [genreDefinition, remoteHasMore, remoteLoadingMore, remotePage])
+    void (async () => {
+      try {
+        const result = await (genreDefinition
+          ? loadFilteredGenrePage(genreDefinition, nextPage, controller.signal)
+          : searchMusicSongsPage({
+              query: trimmedQuery,
+              page: nextPage,
+              limit: MUSIC_CATALOG_PAGE_SIZE,
+              signal: controller.signal,
+            }))
+        if (gen !== remoteSearchGen.current) return
+        setRemoteSongs((previous) => {
+          const seen = new Set(previous.map((song) => song.id))
+          return [...previous, ...result.items.filter((song) => !seen.has(song.id))]
+        })
+        setRemotePage('page' in result ? result.page : nextPage)
+        setRemoteHasMore(result.hasMore)
+      } catch (error) {
+        if (gen !== remoteSearchGen.current) return
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        if (error instanceof CatalogRequestError && error.kind === 'abort') return
+        setRemoteSearchError(error instanceof Error ? error.message : 'Could not load more songs.')
+      } finally {
+        if (gen === remoteSearchGen.current) setRemoteLoadingMore(false)
+      }
+    })()
+  }, [genreDefinition, remoteHasMore, remoteLoadingMore, remotePage, trimmedQuery])
 
   const localSearchResult = useMemo(
     () =>
@@ -3611,6 +3628,8 @@ function DiscoverPage({
     courses: lectureCourses,
     speakers: lectureSpeakers,
     hasResults: hasLectureResults,
+    error: lectureSearchError,
+    loading: lectureSearchLoading,
   } = useDiscoverLectureSearch(genreDefinition ? '' : debouncedQuery)
   const globalSearch = useGlobalDesktopSearch(genreDefinition ? '' : debouncedQuery)
 
@@ -3699,8 +3718,47 @@ function DiscoverPage({
     visibleSongs.length === 0 &&
     matchedArtists.length === 0 &&
     matchedAlbums.length === 0 &&
-    !hasLectureResults
-    && !remoteSearchError
+    !hasLectureResults &&
+    !lectureSearchLoading &&
+    !lectureSearchError &&
+    !remoteSearchError &&
+    !globalSearch.hasRemoteResults &&
+    !globalSearch.isFamilyLoading &&
+    !globalSearch.hasFamilyErrors
+
+  const retryRemoteSearch = useCallback(() => {
+    remoteSearchGen.current += 1
+    setRemoteSearchError(null)
+    // Trigger effect by bumping via forced state refresh of the same query deps.
+    setRemoteSearchLoading(true)
+    const controller = new AbortController()
+    const gen = remoteSearchGen.current
+    void (async () => {
+      try {
+        const result = await (genreDefinition
+          ? loadFilteredGenrePage(genreDefinition, 1, controller.signal)
+          : searchMusicSongsPage({
+              query: trimmedQuery,
+              page: 1,
+              limit: MUSIC_CATALOG_PAGE_SIZE,
+              signal: controller.signal,
+            }))
+        if (gen !== remoteSearchGen.current) return
+        startTransition(() => {
+          setRemoteSongs(result.items)
+          setRemotePage('page' in result ? result.page : 1)
+          setRemoteHasMore(result.hasMore)
+        })
+      } catch (err) {
+        if (gen !== remoteSearchGen.current) return
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        if (err instanceof CatalogRequestError && err.kind === 'abort') return
+        setRemoteSearchError(err instanceof Error ? err.message : 'Search failed.')
+      } finally {
+        if (gen === remoteSearchGen.current) setRemoteSearchLoading(false)
+      }
+    })()
+  }, [genreDefinition, trimmedQuery])
 
   const isSongActive = useCallback(
     (songId: string) => currentTrack?.id === songId && isPlaying,
@@ -3769,6 +3827,19 @@ function DiscoverPage({
           />
         ) : (
           <>
+            {remoteSearchError ? (
+              <section className="psd-search-error" role="alert" data-search-error="music">
+                <p>{remoteSearchError}</p>
+                <button type="button" className="btn-secondary btn-sm" onClick={retryRemoteSearch}>
+                  Retry music search
+                </button>
+              </section>
+            ) : null}
+            {lectureSearchError ? (
+              <section className="psd-search-error" role="status" data-search-error="lectures">
+                <p>{lectureSearchError}</p>
+              </section>
+            ) : null}
             {showMainResults && topResult ? (
               <section className="psd-search-top-result" aria-label="Top result">
                 <span className="psd-search-top-result-label">Top Result</span>
@@ -3865,14 +3936,19 @@ function DiscoverPage({
                     )
                   })}
                 </div>
-                {genreDefinition && remoteHasMore ? (
+                {(genreDefinition || trimmedQuery) && remoteHasMore ? (
                   <button
                     type="button"
                     className="catalog-show-more"
                     disabled={remoteLoadingMore}
                     onClick={loadMoreRemoteSongs}
+                    data-search-load-more={genreDefinition ? 'genre' : 'query'}
                   >
-                    {remoteLoadingMore ? 'Loading more…' : `Load more ${genreDefinition.label} songs`}
+                    {remoteLoadingMore
+                      ? 'Loading more…'
+                      : genreDefinition
+                        ? `Load more ${genreDefinition.label} songs`
+                        : 'Load more songs'}
                   </button>
                 ) : null}
               </section>

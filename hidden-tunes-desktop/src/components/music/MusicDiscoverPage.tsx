@@ -13,13 +13,12 @@ import type { QueueContext, QueueSeedMetadata } from '../../lib/desktopPlayback/
 import { resolveRecentlyPlayedSongs } from '../../lib/home/musicHomeSections'
 import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
 import {
-  buildGenreTiles,
   buildMoodVibeCards,
   buildNewReleaseCards,
   buildPopularChartCards,
 } from '../../lib/music/musicPageSections'
 import type { MusicSectionId } from '../../lib/music/types'
-import { createMusicGenreIntent, getMusicGenreByLabelOrAlias } from '../../lib/musicGenres'
+import { createMusicGenreIntent, MUSIC_GENRES } from '../../lib/musicGenres'
 import { MusicArt } from './MusicArt'
 import { MusicPageSection } from './MusicPageSection'
 
@@ -134,10 +133,6 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
   )
 
   const moodCards = useMemo(() => buildMoodVibeCards(songs, 8), [songs])
-  const genreTiles = useMemo(
-    () => buildGenreTiles(indexes, recentlyPlayed, 12),
-    [indexes, recentlyPlayed],
-  )
 
   const featuredArtists = useMemo(() => {
     const ranked = sortArtistsList(artists, 'tracks')
@@ -397,33 +392,28 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
         </MusicPageSection>
       ) : null}
 
-      {genreTiles.length > 0 ? (
-        <MusicPageSection
-          title="Genres"
-          hint="Explore your sound"
-          onViewAll={() => onSectionChange('genres-moods')}
-        >
-          <div className="music-discover-genre-grid music-discover-genre-grid--editorial">
-            {genreTiles.map((genre) => (
-              <button
-                key={genre.id}
-                type="button"
-                className="music-discover-genre-tile"
-                onClick={() => {
-                  const definition = getMusicGenreByLabelOrAlias(genre.label)
-                  onBrowseSearch(definition ? createMusicGenreIntent(definition.slug) : genre.label)
-                }}
-                aria-label={`Browse ${genre.label}`}
-              >
-                <span className="music-discover-genre-fallback" aria-hidden="true">
-                  {genre.label.slice(0, 1)}
-                </span>
-                <span>{genre.label}</span>
-              </button>
-            ))}
-          </div>
-        </MusicPageSection>
-      ) : null}
+      <MusicPageSection
+        title="Genres"
+        hint="Canonical catalogue destinations"
+        onViewAll={() => onSectionChange('genres-moods')}
+      >
+        <div className="music-discover-genre-grid music-discover-genre-grid--editorial" data-genre-registry="music-discover">
+          {MUSIC_GENRES.map((genre) => (
+            <button
+              key={genre.id}
+              type="button"
+              className="music-discover-genre-tile"
+              onClick={() => onBrowseSearch(createMusicGenreIntent(genre.slug))}
+              aria-label={`Browse ${genre.label}`}
+            >
+              <span className="music-discover-genre-fallback" aria-hidden="true">
+                {genre.label.slice(0, 1)}
+              </span>
+              <span>{genre.label}</span>
+            </button>
+          ))}
+        </div>
+      </MusicPageSection>
 
       {moodCards.length > 0 ? (
         <MusicPageSection

@@ -30,6 +30,8 @@
     "verify:phase13-settings": "node scripts/verify-phase13-settings.mjs",
     "verify:downloads": "node scripts/verify-downloads-contract.mjs",
     "verify:phase14-downloads": "node scripts/verify-phase14-downloads.mjs",
+    "verify:phase15-search": "node scripts/verify-phase15-search.mjs",
+    "verify:global-search": "node scripts/verify-global-search-contract.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

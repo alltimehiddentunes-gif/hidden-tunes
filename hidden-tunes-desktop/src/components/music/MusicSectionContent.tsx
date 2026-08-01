@@ -10,13 +10,12 @@ import {
 } from '../../lib/catalogDisplayText'
 import type { QueueContext, QueueSeedMetadata } from '../../lib/desktopPlayback/types'
 import {
-  buildGenreTiles,
   buildMoodVibeCards,
   buildNewReleaseCards,
   buildPopularChartCards,
 } from '../../lib/music/musicPageSections'
 import type { MusicSectionId } from '../../lib/music/types'
-import { createMusicGenreIntent, getMusicGenreByLabelOrAlias } from '../../lib/musicGenres'
+import { createMusicGenreIntent, MUSIC_GENRES } from '../../lib/musicGenres'
 import { resolveRecentlyPlayedSongs } from '../../lib/home/musicHomeSections'
 import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
 import { useMusicLikes } from '../../lib/home/useMusicLikes'
@@ -151,7 +150,6 @@ export const MusicSectionContent = memo(function MusicSectionContent({
   )
   const chartCards = useMemo(() => buildPopularChartCards(songs, indexes, 12), [indexes, songs])
   const moodCards = useMemo(() => buildMoodVibeCards(songs, 12), [songs])
-  const genreTiles = useMemo(() => buildGenreTiles(indexes, recentlyPlayed, 20), [indexes, recentlyPlayed])
   const sortedSongs = useMemo(() => sortSongsList(songs, 'latest'), [songs])
   const sortedArtists = useMemo(() => sortArtistsList(artists, 'tracks'), [artists])
   const sortedAlbums = useMemo(() => sortAlbumsList(albums, 'latest'), [albums])
@@ -252,25 +250,18 @@ export const MusicSectionContent = memo(function MusicSectionContent({
             <p>Open a dedicated catalogue for each genre. Results load from the live catalog — not a text search stub.</p>
           </header>
           <MusicPageSection title="Genre catalogue">
-            <div className="music-discover-genre-grid music-discover-genre-grid--wide">
-              {genreTiles.map((genre) => (
+            <div className="music-discover-genre-grid music-discover-genre-grid--wide" data-genre-registry="music-section">
+              {MUSIC_GENRES.map((genre) => (
                 <button
                   key={genre.id}
                   type="button"
                   className="music-discover-genre-tile"
-                  onClick={() => {
-                    const definition = getMusicGenreByLabelOrAlias(genre.label)
-                    onBrowseSearch(definition ? createMusicGenreIntent(definition.slug) : genre.label)
-                  }}
+                  onClick={() => onBrowseSearch(createMusicGenreIntent(genre.slug))}
                   aria-label={`Open ${genre.label} catalogue`}
                 >
-                  {genre.artworkUrl ? (
-                    <MusicArt src={genre.artworkUrl} seed={genre.id} label={genre.label} size="chip" />
-                  ) : (
-                    <span className="music-discover-genre-fallback" aria-hidden="true">
-                      {genre.label.slice(0, 1)}
-                    </span>
-                  )}
+                  <span className="music-discover-genre-fallback" aria-hidden="true">
+                    {genre.label.slice(0, 1)}
+                  </span>
                   <span>{genre.label}</span>
                 </button>
               ))}
