@@ -116,6 +116,7 @@ async function main() {
       || home.heroCarousel
       || (home.contentFirst && home.sections.includes('Recently Added'))
       || home.sections.includes('Mood & Vibes')
+      || home.sections.includes('Mood Rooms')
       || home.sections.includes('Emotional Worlds'),
     `product=${home.productHero} carousel=${home.heroCarousel} contentFirst=${home.contentFirst}`,
   )

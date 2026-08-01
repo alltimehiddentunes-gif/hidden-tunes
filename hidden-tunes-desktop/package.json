@@ -24,6 +24,7 @@
     "verify:motivational-video-layout": "node scripts/verify-motivational-video-layout.mjs",
     "verify:music-home": "node scripts/verify-music-home-interactions.mjs",
     "verify:phase9-honesty": "node scripts/verify-phase9-product-honesty.mjs",
+    "verify:phase10-home": "node scripts/verify-phase10-home.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

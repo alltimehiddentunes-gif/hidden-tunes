@@ -30,6 +30,10 @@ assert(!src.includes('Feel Every Beat'), 'Promotional script hero copy removed')
 assert(src.includes("context: 'home'") || src.includes("'home'"), 'Home playback context preserved')
 assert(src.includes("seedType: 'album'"), 'Album seedType preserved')
 assert(src.includes("navKey: 'recent'"), 'Recently Played quick access present')
+assert(src.includes('buildMoodRooms'), 'Mood Rooms use catalog-matched builder')
+assert(src.includes('buildEmotionalWorldCards'), 'Emotional Worlds use real lane builder')
+assert(src.includes('resolveRecentlyPlayedSongs'), 'Recently Played rail uses real history')
+assert(!src.includes("onBrowseSearch(mood.query)"), 'Mood cards no longer use free-text search stub')
 
 if (process.exitCode) {
   console.error('verify-music-home-interactions FAILED')

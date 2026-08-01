@@ -16,11 +16,17 @@ import {
   buildBecauseYouListenedSongs,
   buildCreatorsInOrbit,
   buildHomeHeroCards,
+  buildMoodRooms,
   buildOpenRooms,
   buildRecentlyAddedSongs,
   buildSmartMusicQueueSongs,
   type HomeAlbumWorthCard,
 } from '../../lib/home/mobileHomeParity'
+import {
+  buildEmotionalWorldCards,
+  buildPersonalMixes,
+  resolveRecentlyPlayedSongs,
+} from '../../lib/home/musicHomeSections'
 import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
 import { ArtworkImage } from '../ArtworkImage'
 import { formatSongCountLabel, isGenericAlbumTitle } from '../../lib/catalogDisplayText'
@@ -88,19 +94,17 @@ const QUICK_ACCESS = [
   { navKey: 'recent' as const, label: 'Recently Played', hint: 'Your history', glyph: '↺' },
   { navKey: 'playlists' as const, label: 'Playlists', hint: 'Your collections', glyph: '☷' },
   { navKey: 'albums' as const, label: 'Albums', hint: 'Browse albums', glyph: '◫' },
+  { navKey: 'library' as const, label: 'Library', hint: 'Your collection', glyph: '▤' },
   { navKey: 'downloads' as const, label: 'Downloads', hint: 'Saved locally', glyph: '↓' },
 ]
 
-const HOME_MOODS = [
-  { label: 'Chill', subtitle: 'Relax & unwind', query: 'chill', artwork: '/home-reference/mood-chill.webp' },
-  { label: 'Focus', subtitle: 'Stay in the zone', query: 'focus', artwork: '/home-reference/mood-focus.webp' },
-  { label: 'Workout', subtitle: 'High energy', query: 'workout', artwork: '/home-reference/mood-workout.webp' },
-  { label: 'Romance', subtitle: 'Feel the love', query: 'romance', artwork: '/home-reference/mood-romance.webp' },
-  { label: 'Party', subtitle: 'Turn it up', query: 'party', artwork: '/home-reference/mood-party.webp' },
-  { label: 'Sleep', subtitle: 'Drift away', query: 'sleep', artwork: '/home-reference/mood-sleep.webp' },
-  { label: 'Worship', subtitle: 'Soul uplifting', query: 'worship', artwork: '/home-reference/mood-worship.webp' },
-  { label: 'Road Trip', subtitle: 'On the go', query: 'road trip', artwork: '/home-reference/mood-road-trip.webp' },
-]
+/** Editorial artwork for navigation moods only — never used as fake song/album art. */
+const MOOD_ROOM_ART: Record<string, string> = {
+  healing: '/home-reference/mood-worship.webp',
+  'late-night': '/home-reference/mood-chill.webp',
+  calm: '/home-reference/mood-sleep.webp',
+  energy: '/home-reference/mood-workout.webp',
+}
 
 const HOME_GENRE_ICONS = {
   afrobeats: 'headphones',
@@ -322,6 +326,17 @@ export const MusicHomePage = memo(function MusicHomePage({
     () => buildRecentlyAddedSongs(songs, HOME_SECTION_PREVIEW_LIMIT),
     [songs],
   )
+  const recentlyPlayedSongs = useMemo(
+    () => resolveRecentlyPlayedSongs(recentlyPlayed, indexes.songsById, HOME_SECTION_PREVIEW_LIMIT),
+    [indexes.songsById, recentlyPlayed],
+  )
+  const moodRooms = useMemo(() => buildMoodRooms(songs), [songs])
+  const emotionalWorlds = useMemo(() => buildEmotionalWorldCards(songs, 8), [songs])
+  const personalMixes = useMemo(
+    () => buildPersonalMixes(songs, artists, indexes, recentlyPlayed),
+    [artists, indexes, recentlyPlayed, songs],
+  )
+  const featuredMix = personalMixes[0] ?? null
   const becauseYouListened = useMemo(
     () => buildBecauseYouListenedSongs(songs, recentlyPlayed, indexes.songsById),
     [indexes.songsById, recentlyPlayed, songs],
@@ -388,6 +403,32 @@ export const MusicHomePage = memo(function MusicHomePage({
         : heroCard?.title || 'Home Featured'
     playFromQueue(heroSong, songs.slice(0, 24), queueTitle, { bounded: false })
   }, [heroCard, heroIsCurrent, heroSong, isPlaying, pause, playFromQueue, resume, songs])
+
+  const playFeaturedMix = useCallback(() => {
+    if (featuredMix && featuredMix.tracks.length > 0) {
+      const start = featuredMix.tracks[0]!
+      if (currentTrack?.id && String(currentTrack.id) === String(start.id)) {
+        if (isPlaying) pause()
+        else resume()
+        return
+      }
+      playFromQueue(start, featuredMix.tracks, featuredMix.title, { bounded: true })
+      return
+    }
+    playHero()
+  }, [currentTrack, featuredMix, isPlaying, pause, playFromQueue, playHero, resume])
+
+  const mixIsCurrent =
+    Boolean(
+      featuredMix?.tracks[0]?.id &&
+        currentTrack?.id &&
+        String(currentTrack.id) === String(featuredMix.tracks[0].id),
+    ) || (!featuredMix && heroIsCurrent)
+
+  const isCurrentSong = useCallback(
+    (songId: string) => Boolean(currentTrack?.id && String(currentTrack.id) === String(songId)),
+    [currentTrack],
+  )
 
   return (
     <div
@@ -461,20 +502,26 @@ export const MusicHomePage = memo(function MusicHomePage({
         </section>
         {showEditorialMix ? (
         <aside className={`music-home-mix-column${editorialMixExiting ? ' is-exiting' : ''}`} aria-label="Quick listening">
-          <section className="music-home-mix-card">
+          <section className="music-home-mix-card" data-home-mix={featuredMix ? 'personal' : 'catalogue'}>
             <div className="music-home-mix-copy">
-              <span className="music-home-product-hero-kicker">CATALOGUE MIX</span>
-              <h2>{heroCard.title}</h2>
-              <p>{heroCard.subtitle} — start from this track and continue through the catalogue.</p>
-              <button type="button" onClick={playHero}>
-                <span aria-hidden="true">{heroIsCurrent && isPlaying ? '❚❚' : '▶'}</span>{' '}
-                {heroIsCurrent ? (isPlaying ? 'Pause' : 'Resume') : 'Play'}
+              <span className="music-home-product-hero-kicker">
+                {featuredMix ? 'PERSONAL MIX' : 'CATALOGUE MIX'}
+              </span>
+              <h2>{featuredMix?.title ?? heroCard.title}</h2>
+              <p>
+                {featuredMix
+                  ? featuredMix.subtitle
+                  : `${heroCard.subtitle} — start from this track and continue through the catalogue.`}
+              </p>
+              <button type="button" onClick={playFeaturedMix}>
+                <span aria-hidden="true">{mixIsCurrent && isPlaying ? '❚❚' : '▶'}</span>{' '}
+                {mixIsCurrent ? (isPlaying ? 'Pause' : 'Resume') : 'Play'}
               </button>
             </div>
             <HomeArt
-              src={heroSong.artwork}
-              seed={heroSong.id}
-              label={heroCard.title}
+              src={featuredMix?.tracks[0]?.artwork ?? heroSong.artwork}
+              seed={featuredMix?.tracks[0]?.id ?? heroSong.id}
+              label={featuredMix?.title ?? heroCard.title}
               size="rail"
             />
           </section>
@@ -531,13 +578,15 @@ export const MusicHomePage = memo(function MusicHomePage({
             {recentlyAdded.map((song, index) => {
               const title = song.title?.trim() || 'Untitled'
               const artist = song.artist?.trim() || 'Unknown artist'
+              const playing = isCurrentSong(song.id)
               return (
                 <button
                   key={song.id}
                   type="button"
-                  className={`music-home-release-card${index === 0 ? ' is-featured' : ''}`}
+                  className={`music-home-release-card${index === 0 ? ' is-featured' : ''}${playing ? ' is-playing' : ''}`}
                   onClick={() => playFromQueue(song, recentlyAdded, HOME_UI.sections.recentlyAdded)}
                   aria-label={`Play ${title} by ${artist}`}
+                  aria-current={playing ? 'true' : undefined}
                 >
                   <HomeArt
                     src={song.artwork}
@@ -547,6 +596,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                     size="rail"
                   />
                   {index === 0 ? <span className="music-home-new-badge">NEW</span> : null}
+                  {playing ? <span className="music-home-now-playing-badge">Now playing</span> : null}
                   <span className="music-home-release-copy">
                     <strong title={title}>{title}</strong>
                     <small title={artist}>{artist}</small>
@@ -560,94 +610,56 @@ export const MusicHomePage = memo(function MusicHomePage({
         )}
       </MusicHomeSection>
 
-      {songs.length > 0 ? (
+      {recentlyPlayedSongs.length > 0 ? (
         <MusicHomeSection
-          eyebrow={HOME_UI.sections.forYourMood}
-          title="Mood & Vibes"
-          onSeeAll={() => onNavigateNav('worlds')}
+          eyebrow="HISTORY"
+          title="Recently Played"
+          onSeeAll={() => onNavigateNav('recent')}
         >
-          <div className="music-home-mood-rail">
-            {HOME_MOODS.map((mood) => (
-              <button
-                key={mood.label}
-                type="button"
-                className="music-home-mood-card-reference"
-                onClick={() => {
-                  onBrowseSearch(mood.query)
-                  onNavigateNav('search')
-                }}
-                aria-label={`Browse ${mood.label}`}
-              >
-                <img src={mood.artwork} alt="" loading="lazy" decoding="async" />
-                <span>
-                  <strong>{mood.label}</strong>
-                  <small>{mood.subtitle}</small>
-                </span>
-              </button>
-            ))}
+          <div className="music-home-song-rail">
+            {recentlyPlayedSongs.map((song) => {
+              const playing = isCurrentSong(song.id)
+              return (
+                <button
+                  key={`recent-${song.id}`}
+                  type="button"
+                  className={`music-home-song-card${playing ? ' is-playing' : ''}`}
+                  onClick={() => playFromQueue(song, recentlyPlayedSongs, 'Recently Played')}
+                  aria-label={`Play ${song.title} by ${song.artist}`}
+                  aria-current={playing ? 'true' : undefined}
+                >
+                  <HomeArt src={song.artwork} seed={song.id} label={song.title} />
+                  <strong title={song.title}>{song.title}</strong>
+                  <span title={song.artist}>{song.artist}</span>
+                </button>
+              )
+            })}
           </div>
         </MusicHomeSection>
       ) : null}
-
-      {songs.length > 0 ? (
-        <MusicHomeSection eyebrow="EXPLORE" title="Genres" onSeeAll={() => onNavigateNav('worlds')}>
-          <div className="music-home-genre-row">
-            {MUSIC_GENRES.map((genre, index) => (
-              <button
-                key={`home-genre-${genre.slug}`}
-                type="button"
-                className={`music-home-genre-card music-home-genre-card--${index % 6}`}
-                onClick={() => {
-                  onBrowseSearch(createMusicGenreIntent(genre.slug))
-                  onNavigateNav('search')
-                }}
-                aria-label={`Open ${genre.label} catalogue`}
-              >
-                <HomeGenreIcon kind={HOME_GENRE_ICONS[genre.slug as keyof typeof HOME_GENRE_ICONS]} />
-                <strong>{genre.label}</strong>
-              </button>
-            ))}
-          </div>
-        </MusicHomeSection>
-      ) : null}
-
-      <MusicHomeSection eyebrow="DISCOVER" title="Explore Hidden Tunes">
-        <div className="music-home-family-grid" aria-label="Explore Hidden Tunes">
-          {FAMILY_SHORTCUTS.map((shortcut) => (
-            <button
-              key={shortcut.navKey}
-              type="button"
-              className="music-home-family-card music-home-family-card--editorial"
-              onClick={() => onNavigateNav(shortcut.navKey)}
-            >
-              <img src={shortcut.artwork} alt="" loading="lazy" decoding="async" />
-              <span className="music-home-family-copy">
-                <strong>{shortcut.label}</strong>
-                <span>{shortcut.hint}</span>
-              </span>
-            </button>
-          ))}
-        </div>
-      </MusicHomeSection>
 
       {becauseYouListened.length > 0 ? (
         <MusicHomeSection eyebrow={HOME_UI.sections.listener} title={HOME_UI.sections.becauseYouListened}>
           <div className="music-home-song-rail">
-            {becauseYouListened.map((song) => (
-              <button
-                key={`because-${song.id}`}
-                type="button"
-                className="music-home-song-card"
-                onClick={() =>
-                  playFromQueue(song, becauseYouListened, HOME_UI.sections.becauseYouListened)
-                }
-                aria-label={`Play ${song.title} by ${song.artist}`}
-              >
-                <HomeArt src={song.artwork} seed={song.id} label={song.title} />
-                <strong title={song.title}>{song.title}</strong>
-                <span title={song.artist}>{song.artist}</span>
-              </button>
-            ))}
+            {becauseYouListened.map((song) => {
+              const playing = isCurrentSong(song.id)
+              return (
+                <button
+                  key={`because-${song.id}`}
+                  type="button"
+                  className={`music-home-song-card${playing ? ' is-playing' : ''}`}
+                  onClick={() =>
+                    playFromQueue(song, becauseYouListened, HOME_UI.sections.becauseYouListened)
+                  }
+                  aria-label={`Play ${song.title} by ${song.artist}`}
+                  aria-current={playing ? 'true' : undefined}
+                >
+                  <HomeArt src={song.artwork} seed={song.id} label={song.title} />
+                  <strong title={song.title}>{song.title}</strong>
+                  <span title={song.artist}>{song.artist}</span>
+                </button>
+              )
+            })}
           </div>
         </MusicHomeSection>
       ) : null}
@@ -655,44 +667,20 @@ export const MusicHomePage = memo(function MusicHomePage({
       {smartQueue.length > 0 ? (
         <MusicHomeSection eyebrow={HOME_UI.sections.next} title={HOME_UI.sections.smartMusicQueue}>
           <div className="music-home-song-rail">
-            {smartQueue.map((song) => (
-              <button
-                key={`smart-${song.id}`}
-                type="button"
-                className="music-home-song-card"
-                onClick={() => playFromQueue(song, smartQueue, HOME_UI.sections.smartMusicQueue)}
-                aria-label={`Play ${song.title} by ${song.artist}`}
-              >
-                <HomeArt src={song.artwork} seed={song.id} label={song.title} />
-                <strong title={song.title}>{song.title}</strong>
-                <span title={song.artist}>{song.artist}</span>
-              </button>
-            ))}
-          </div>
-        </MusicHomeSection>
-      ) : null}
-
-      {creators.length > 0 ? (
-        <MusicHomeSection eyebrow={HOME_UI.sections.creators} title={HOME_UI.sections.creatorsInOrbit}>
-          <div className="music-home-artist-grid">
-                        {creators.map(({ artist, playableSongCount }) => {
-              const countLabel = formatSongCountLabel(playableSongCount, {
-                noun: 'song',
-                omitZero: true,
-              })
+            {smartQueue.map((song) => {
+              const playing = isCurrentSong(song.id)
               return (
                 <button
-                  key={artist.id}
+                  key={`smart-${song.id}`}
                   type="button"
-                  className="music-home-artist-card"
-                  onClick={() => onOpenArtist(artist)}
-                  aria-label={
-                    countLabel ? `Open ${artist.name}, ${countLabel}` : `Open ${artist.name}`
-                  }
+                  className={`music-home-song-card${playing ? ' is-playing' : ''}`}
+                  onClick={() => playFromQueue(song, smartQueue, HOME_UI.sections.smartMusicQueue)}
+                  aria-label={`Play ${song.title} by ${song.artist}`}
+                  aria-current={playing ? 'true' : undefined}
                 >
-                  <HomeArt src={artist.artwork} seed={artist.id} label={artist.name} />
-                  <strong title={artist.name}>{artist.name}</strong>
-                  {countLabel ? <span>{countLabel}</span> : null}
+                  <HomeArt src={song.artwork} seed={song.id} label={song.title} />
+                  <strong title={song.title}>{song.title}</strong>
+                  <span title={song.artist}>{song.artist}</span>
                 </button>
               )
             })}
@@ -760,6 +748,142 @@ export const MusicHomePage = memo(function MusicHomePage({
         </MusicHomeSection>
       ) : null}
 
+      {creators.length > 0 ? (
+        <MusicHomeSection eyebrow={HOME_UI.sections.creators} title={HOME_UI.sections.creatorsInOrbit}>
+          <div className="music-home-artist-grid">
+            {creators.map(({ artist, playableSongCount }) => {
+              const countLabel = formatSongCountLabel(playableSongCount, {
+                noun: 'song',
+                omitZero: true,
+              })
+              return (
+                <button
+                  key={artist.id}
+                  type="button"
+                  className="music-home-artist-card"
+                  onClick={() => onOpenArtist(artist)}
+                  aria-label={
+                    countLabel ? `Open ${artist.name}, ${countLabel}` : `Open ${artist.name}`
+                  }
+                >
+                  <HomeArt src={artist.artwork} seed={artist.id} label={artist.name} />
+                  <strong title={artist.name}>{artist.name}</strong>
+                  {countLabel ? <span>{countLabel}</span> : null}
+                </button>
+              )
+            })}
+          </div>
+        </MusicHomeSection>
+      ) : null}
+
+      {moodRooms.length > 0 ? (
+        <MusicHomeSection
+          eyebrow={HOME_UI.sections.forYourMood}
+          title={HOME_UI.sections.moodRooms}
+          onSeeAll={() => onNavigateNav('worlds')}
+        >
+          <div className="music-home-mood-rail" data-home-moods="catalog-matched">
+            {moodRooms.map((room) => (
+              <button
+                key={room.id}
+                type="button"
+                className="music-home-mood-card-reference"
+                onClick={() => playFromQueue(room.songs[0]!, room.songs, room.title)}
+                aria-label={`Play ${room.title} — ${room.subtitle}`}
+              >
+                <img
+                  src={room.artwork || MOOD_ROOM_ART[room.id] || '/home-reference/mood-chill.webp'}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+                <span>
+                  <strong>{room.title}</strong>
+                  <small>{room.subtitle}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        </MusicHomeSection>
+      ) : null}
+
+      {emotionalWorlds.length > 0 ? (
+        <MusicHomeSection
+          eyebrow="WORLDS"
+          title={HOME_UI.emotionalWorlds.title}
+          onSeeAll={() => onNavigateNav('worlds')}
+        >
+          <div className="music-home-world-rail" data-home-worlds="emotional-lanes">
+            {emotionalWorlds.map((world) => {
+              const tracks = world.songIds
+                .map((id) => indexes.songsById.get(id) ?? songs.find((s) => s.id === id))
+                .filter((entry): entry is ApiSong => Boolean(entry))
+                .slice(0, 16)
+              if (tracks.length === 0) return null
+              const art = tracks.find((t) => t.artwork)?.artwork ?? null
+              return (
+                <button
+                  key={world.id}
+                  type="button"
+                  className="music-home-world-card"
+                  onClick={() => playFromQueue(tracks[0]!, tracks, world.label)}
+                  aria-label={`Play ${world.label}`}
+                >
+                  <HomeArt src={art} seed={world.id} label={world.label} size="rail" />
+                  <strong title={world.label}>{world.label}</strong>
+                  <span title={world.subtitle}>{world.subtitle}</span>
+                </button>
+              )
+            })}
+          </div>
+        </MusicHomeSection>
+      ) : null}
+
+      {songs.length > 0 ? (
+        <MusicHomeSection
+          eyebrow="EXPLORE"
+          title={HOME_UI.sections.moodGenreSpotlights}
+          onSeeAll={() => onNavigateNav('music')}
+        >
+          <div className="music-home-genre-row" data-home-genres="canonical">
+            {MUSIC_GENRES.map((genre, index) => (
+              <button
+                key={`home-genre-${genre.slug}`}
+                type="button"
+                className={`music-home-genre-card music-home-genre-card--${index % 6}`}
+                onClick={() => {
+                  onBrowseSearch(createMusicGenreIntent(genre.slug))
+                  onNavigateNav('search')
+                }}
+                aria-label={`Open ${genre.label} catalogue`}
+              >
+                <HomeGenreIcon kind={HOME_GENRE_ICONS[genre.slug as keyof typeof HOME_GENRE_ICONS]} />
+                <strong>{genre.label}</strong>
+              </button>
+            ))}
+          </div>
+        </MusicHomeSection>
+      ) : null}
+
+      <MusicHomeSection eyebrow="DISCOVER" title="Explore Hidden Tunes">
+        <div className="music-home-family-grid" aria-label="Explore Hidden Tunes">
+          {FAMILY_SHORTCUTS.map((shortcut) => (
+            <button
+              key={shortcut.navKey}
+              type="button"
+              className="music-home-family-card music-home-family-card--editorial"
+              onClick={() => onNavigateNav(shortcut.navKey)}
+            >
+              <img src={shortcut.artwork} alt="" loading="lazy" decoding="async" />
+              <span className="music-home-family-copy">
+                <strong>{shortcut.label}</strong>
+                <span>{shortcut.hint}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </MusicHomeSection>
+
       {openRooms.length > 0 ? (
         <MusicHomeSection eyebrow={HOME_UI.sections.rooms} title={HOME_UI.sections.openRooms}>
           <div className="music-home-room-grid">
@@ -801,21 +925,25 @@ export const MusicHomePage = memo(function MusicHomePage({
               {Math.min(visibleCatalogCount, songs.length)}/{songs.length}
             </div>
             <div className="music-home-all-songs-list">
-              {visibleCatalogSongs.map((song) => (
-                <button
-                  key={`catalog-${song.id}`}
-                  type="button"
-                  className="music-home-all-songs-row"
-                  onClick={() => playFromQueue(song, songs, 'Full Catalog', { bounded: false })}
-                  aria-label={`Play ${song.title} by ${song.artist}`}
-                >
-                  <HomeArt src={song.artwork} seed={song.id} label={song.title} size="thumb" />
-                  <div className="music-home-all-songs-copy">
-                    <strong title={song.title}>{song.title}</strong>
-                    <span title={song.artist}>{song.artist}</span>
-                  </div>
-                </button>
-              ))}
+              {visibleCatalogSongs.map((song) => {
+                const playing = isCurrentSong(song.id)
+                return (
+                  <button
+                    key={`catalog-${song.id}`}
+                    type="button"
+                    className={`music-home-all-songs-row${playing ? ' is-playing' : ''}`}
+                    onClick={() => playFromQueue(song, songs, 'Full Catalog', { bounded: false })}
+                    aria-label={`Play ${song.title} by ${song.artist}`}
+                    aria-current={playing ? 'true' : undefined}
+                  >
+                    <HomeArt src={song.artwork} seed={song.id} label={song.title} size="thumb" />
+                    <div className="music-home-all-songs-copy">
+                      <strong title={song.title}>{song.title}</strong>
+                      <span title={song.artist}>{song.artist}</span>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
             {canLoadMore ? (
               <button

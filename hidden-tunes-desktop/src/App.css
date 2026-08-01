@@ -31275,3 +31275,89 @@ button.lecture-detail-crumb:focus-visible {
     transition: none;
   }
 }
+
+/* Phase 10 — Home polish: playing state, Emotional Worlds rail, section rhythm */
+.music-home-song-card.is-playing,
+.music-home-release-card.is-playing,
+.music-home-all-songs-row.is-playing {
+  outline: 1px solid rgba(244, 194, 88, 0.55);
+  box-shadow: 0 0 0 1px rgba(244, 194, 88, 0.18);
+}
+
+.music-home-now-playing-badge {
+  position: absolute;
+  z-index: 3;
+  top: 8px;
+  left: 8px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(8, 5, 14, 0.88);
+  color: #f4c258;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.music-home-world-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(148px, 168px);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+}
+
+.music-home-world-card {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+
+.music-home-world-card .music-home-art {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.music-home-world-card strong {
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.music-home-world-card span {
+  font-size: 0.75rem;
+  opacity: 0.72;
+  line-height: 1.25;
+}
+
+.music-home-world-card:focus-visible,
+.music-home-mood-card-reference:focus-visible,
+.music-home-song-card:focus-visible,
+.music-home-genre-card:focus-visible,
+.music-home-quick-card:focus-visible {
+  outline: 2px solid rgba(244, 194, 88, 0.85);
+  outline-offset: 2px;
+}
+
+.music-home-section--parity + .music-home-section--parity {
+  margin-top: 6px;
+}
+
+@media (max-width: 1024px) {
+  .music-home-quick-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .music-home-world-rail {
+    grid-auto-columns: minmax(132px, 148px);
+  }
+}
+
