@@ -5,6 +5,8 @@ type AccountRequiredDialogProps = {
   title: string
   body: string
   onClose: () => void
+  /** When set, shows a Sign in action that does not stop playback. */
+  onSignIn?: () => void
 }
 
 /**
@@ -16,13 +18,14 @@ export function AccountRequiredDialog({
   title,
   body,
   onClose,
+  onSignIn,
 }: AccountRequiredDialogProps) {
   const titleId = useId()
-  const closeRef = useRef<HTMLButtonElement>(null)
+  const primaryRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
-    closeRef.current?.focus()
+    primaryRef.current?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
@@ -52,14 +55,30 @@ export function AccountRequiredDialog({
         <h2 id={titleId}>{title}</h2>
         <p>{body}</p>
         <div className="account-gate-actions">
-          <button
-            ref={closeRef}
-            type="button"
-            className="btn-primary btn-sm"
-            onClick={onClose}
-          >
-            Got it
-          </button>
+          {onSignIn ? (
+            <>
+              <button type="button" className="btn-secondary btn-sm" onClick={onClose}>
+                Not now
+              </button>
+              <button
+                ref={primaryRef}
+                type="button"
+                className="btn-primary btn-sm"
+                onClick={onSignIn}
+              >
+                Sign in
+              </button>
+            </>
+          ) : (
+            <button
+              ref={primaryRef}
+              type="button"
+              className="btn-primary btn-sm"
+              onClick={onClose}
+            >
+              Got it
+            </button>
+          )}
         </div>
       </div>
     </div>

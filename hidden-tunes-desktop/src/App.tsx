@@ -76,6 +76,8 @@ import {
   getDesktopSupabaseAccessToken,
   getDesktopSupabaseSessionSummary,
 } from './services/desktopSupabaseAuth'
+import { DesktopAuthProvider } from './context/DesktopAuthProvider'
+import { useDesktopAuth } from './context/useDesktopAuth'
 import {
   buildQueueCandidatePools,
   buildQueueSeedPool,
@@ -2883,9 +2885,21 @@ const Sidebar = memo(function Sidebar({
   activeNavKey: NavKey
   onNavigateNav: (navKey: NavKey) => void
 }) {
+  const { configured, session, openSignIn, signOut } = useDesktopAuth()
   const groups = activeNavKey === 'home'
     ? HOME_REFERENCE_SIDEBAR_GROUPS
     : SIDEBAR_NAV_GROUPS
+
+  const accountLabel = session.isSignedIn
+    ? (session.email ?? 'Signed in')
+    : configured
+      ? 'Sign in'
+      : 'Local preview'
+  const accountHint = session.isSignedIn
+    ? 'Hidden Tunes account'
+    : configured
+      ? 'Tap to sign in'
+      : PREMIUM_MEMBERSHIP.accountStatusLabel
 
   return (
     <aside className="sidebar sidebar--psd">
@@ -2947,16 +2961,37 @@ const Sidebar = memo(function Sidebar({
           </span>
         </button>
 
-        <div className="sidebar-user" aria-label="Profile">
-          <div className="sidebar-user-avatar" aria-hidden="true">
-            <span>H</span>
+        <div className="sidebar-user-block">
+          <div className="sidebar-user" aria-label="Account">
+            <div className="sidebar-user-avatar" aria-hidden="true">
+              <span>{session.isSignedIn ? (session.email?.[0]?.toUpperCase() ?? 'H') : 'H'}</span>
+            </div>
+            <div className="sidebar-user-copy">
+              <span className="sidebar-user-name" title={accountLabel}>
+                {accountLabel}
+              </span>
+              <span className="sidebar-user-badge">{accountHint}</span>
+            </div>
           </div>
-          <div className="sidebar-user-copy">
-            <span className="sidebar-user-name">Local preview</span>
-            <span className="sidebar-user-badge">
-              {PREMIUM_MEMBERSHIP.accountStatusLabel}
-            </span>
-          </div>
+          {session.isSignedIn ? (
+            <button
+              type="button"
+              className="sidebar-user-action btn-secondary btn-sm"
+              onClick={() => {
+                void signOut()
+              }}
+            >
+              Sign out
+            </button>
+          ) : configured ? (
+            <button
+              type="button"
+              className="sidebar-user-action btn-secondary btn-sm"
+              onClick={openSignIn}
+            >
+              Sign in
+            </button>
+          ) : null}
         </div>
       </div>
     </aside>
@@ -5666,10 +5701,12 @@ function SettingsPage({
     currentQueue,
     currentIndex,
   } = useDesktopPlayback()
+  const { configured, session, openSignIn, signOut } = useDesktopAuth()
   const { resetDesktopPreferencesState } = usePreferencesReset()
   const { clearCatalogCache } = useCatalog()
   const [resetNotice, setResetNotice] = useState('')
   const [cacheNotice, setCacheNotice] = useState('')
+  const [accountNotice, setAccountNotice] = useState('')
 
   const hasActivePlayback = Boolean(
     currentTrack && currentQueue.length > 0 && currentIndex >= 0,
@@ -5684,6 +5721,12 @@ function SettingsPage({
     clearCatalogCache()
     setCacheNotice('Saved catalog cache cleared locally.')
   }
+
+  const accountStatusLabel = session.isSignedIn
+    ? (session.email ?? 'Signed in')
+    : configured
+      ? 'Signed out'
+      : PREMIUM_MEMBERSHIP.accountStatusLabel
 
   return (
     <PageFrame>
@@ -5743,7 +5786,7 @@ function SettingsPage({
               </div>
               <div className="settings-identity-row">
                 <dt>Account</dt>
-                <dd>{PREMIUM_MEMBERSHIP.accountStatusLabel}</dd>
+                <dd>{accountStatusLabel}</dd>
               </div>
               <div className="settings-identity-row">
                 <dt>Membership</dt>
@@ -5757,6 +5800,36 @@ function SettingsPage({
             <p className="settings-identity-note">
               Mobile app and playback remain separate. No Premium entitlement is applied on this desktop preview.
             </p>
+            {configured ? (
+              <div className="settings-account-actions">
+                {session.isSignedIn ? (
+                  <button
+                    type="button"
+                    className="btn-secondary btn-sm"
+                    onClick={() => {
+                      void signOut().then((result) => {
+                        setAccountNotice(
+                          result.error
+                            ? result.error
+                            : 'Signed out. Device-local library and downloads are unchanged.',
+                        )
+                      })
+                    }}
+                  >
+                    Sign out
+                  </button>
+                ) : (
+                  <button type="button" className="btn-primary btn-sm" onClick={openSignIn}>
+                    Sign in
+                  </button>
+                )}
+                {accountNotice ? <p className="settings-identity-note">{accountNotice}</p> : null}
+              </div>
+            ) : (
+              <p className="settings-identity-note">
+                Account sign-in is not configured in this desktop build (missing Supabase public env).
+              </p>
+            )}
           </section>
           <section className="settings-panel">
             <h2>Desktop preferences</h2>
@@ -6721,6 +6794,8 @@ function ArtistDetailView({
   const [accountGateOpen, setAccountGateOpen] = useState(false)
   const [accountGateTitle, setAccountGateTitle] = useState('')
   const [accountGateBody, setAccountGateBody] = useState('')
+  const [accountGateShowSignIn, setAccountGateShowSignIn] = useState(false)
+  const { configured: authConfigured, openSignIn } = useDesktopAuth()
   const [aboutExpanded, setAboutExpanded] = useState(false)
   const followInFlightRef = useRef(false)
 
@@ -6877,10 +6952,11 @@ function ArtistDetailView({
     if (!session.isSignedIn) {
       const gate = resolveAccountGate('follow', {
         isSignedIn: false,
-        signInUiAvailable: false,
+        signInUiAvailable: authConfigured,
       })
       setAccountGateTitle(gate.title)
       setAccountGateBody(gate.body)
+      setAccountGateShowSignIn(gate.showSignIn)
       setAccountGateOpen(true)
       setFollowMessage(null)
       return
@@ -6890,10 +6966,11 @@ function ArtistDetailView({
     if (!tokenResult.accessToken) {
       const gate = resolveAccountGate('follow', {
         isSignedIn: false,
-        signInUiAvailable: false,
+        signInUiAvailable: authConfigured,
       })
       setAccountGateTitle(gate.title)
       setAccountGateBody(gate.body)
+      setAccountGateShowSignIn(gate.showSignIn)
       setAccountGateOpen(true)
       setFollowMessage(null)
       return
@@ -6952,6 +7029,7 @@ function ArtistDetailView({
     }
   }, [
     artist.id,
+    authConfigured,
     followAvailable,
     followBusy,
     followerCount,
@@ -7307,7 +7385,19 @@ function ArtistDetailView({
         open={accountGateOpen}
         title={accountGateTitle}
         body={accountGateBody}
-        onClose={() => setAccountGateOpen(false)}
+        onClose={() => {
+          setAccountGateOpen(false)
+          setAccountGateShowSignIn(false)
+        }}
+        onSignIn={
+          accountGateShowSignIn
+            ? () => {
+                setAccountGateOpen(false)
+                setAccountGateShowSignIn(false)
+                openSignIn()
+              }
+            : undefined
+        }
       />
     </PageFrame>
   )
@@ -8110,15 +8200,17 @@ function AppBootShell() {
 function App() {
   return (
     <PreferencesResetProvider>
-      <DesktopPlaybackProvider>
-        <AtmosphereProvider>
-          <PremiumAudioVisualizerProvider>
-            <CatalogProvider>
-              <AppBootShell />
-            </CatalogProvider>
-          </PremiumAudioVisualizerProvider>
-        </AtmosphereProvider>
-      </DesktopPlaybackProvider>
+      <DesktopAuthProvider>
+        <DesktopPlaybackProvider>
+          <AtmosphereProvider>
+            <PremiumAudioVisualizerProvider>
+              <CatalogProvider>
+                <AppBootShell />
+              </CatalogProvider>
+            </PremiumAudioVisualizerProvider>
+          </AtmosphereProvider>
+        </DesktopPlaybackProvider>
+      </DesktopAuthProvider>
     </PreferencesResetProvider>
   )
 }

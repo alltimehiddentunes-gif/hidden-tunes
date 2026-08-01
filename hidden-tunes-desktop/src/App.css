@@ -27746,6 +27746,82 @@ button.lecture-detail-crumb:focus-visible {
   gap: 8px;
 }
 
+.account-auth-dialog {
+  width: min(440px, calc(100vw - 48px));
+}
+
+.account-auth-form {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.account-auth-field {
+  display: grid;
+  gap: 6px;
+  font-size: 0.82rem;
+}
+
+.account-auth-field input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(8, 6, 14, 0.75);
+  color: inherit;
+  padding: 10px 12px;
+}
+
+.account-auth-password-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.account-auth-error {
+  margin: 0 !important;
+  color: #ffb4b4 !important;
+}
+
+.account-auth-info {
+  margin: 0 !important;
+  color: rgba(244, 194, 88, 0.95) !important;
+}
+
+.account-auth-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.account-auth-switch button {
+  border: 0;
+  background: transparent;
+  color: rgba(244, 194, 88, 0.92);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sidebar-user-action {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.sidebar-user-block {
+  display: grid;
+  gap: 0;
+}
+
+.settings-account-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .settings-nav-hint {
   display: block;
   margin-top: 2px;
