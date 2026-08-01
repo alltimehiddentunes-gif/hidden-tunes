@@ -8,6 +8,7 @@ import {
 } from 'react'
 import { ArtworkImage } from '../ArtworkImage'
 import { acquireTvVideoPlaybackService } from '../../lib/tv/tvVideoPlayback'
+import type { VideoSurfaceLayout } from '../../lib/player/resolveVideoSurfaceLayout'
 
 type TvVideoSurfaceProps = {
   channelId: string
@@ -30,6 +31,14 @@ type TvVideoSurfaceProps = {
   onPictureInPicture: () => void
   pipSupported: boolean
   volumeMuted: boolean
+  /** TV live streams only — Sports/Motivational must not invent LIVE. */
+  showLiveBadge?: boolean
+  ariaLabel?: string
+  transportGroupLabel?: string
+  previousLabel?: string
+  nextLabel?: string
+  volumeLabel?: string
+  videoLayout?: Exclude<VideoSurfaceLayout, 'none'>
 }
 
 export const TvVideoSurface = memo(function TvVideoSurface({
@@ -53,6 +62,13 @@ export const TvVideoSurface = memo(function TvVideoSurface({
   onPictureInPicture,
   pipSupported,
   volumeMuted,
+  showLiveBadge = true,
+  ariaLabel,
+  transportGroupLabel = 'Channel transport',
+  previousLabel = 'Previous channel',
+  nextLabel = 'Next channel',
+  volumeLabel = 'TV volume',
+  videoLayout = 'tv-cinema',
 }: TvVideoSurfaceProps) {
   const mountRef = useRef<HTMLDivElement | null>(null)
   const surfaceRef = useRef<HTMLDivElement | null>(null)
@@ -131,9 +147,10 @@ export const TvVideoSurface = memo(function TvVideoSurface({
     <div
       ref={surfaceRef}
       className="tv-video-surface"
+      data-video-layout={videoLayout}
       tabIndex={0}
       role="region"
-      aria-label={`Live video for ${title}`}
+      aria-label={ariaLabel ?? `Live video for ${title}`}
       onKeyDown={handleKeyDown}
     >
       <div ref={mountRef} className="tv-video-surface-mount" />
@@ -155,20 +172,20 @@ export const TvVideoSurface = memo(function TvVideoSurface({
         </div>
       ) : null}
       <div className="tv-video-surface-overlay">
-        <span className="tv-live-badge">LIVE</span>
+        {showLiveBadge ? <span className="tv-live-badge">LIVE</span> : null}
         <span className="tv-video-surface-state">
-          {error ? 'Unavailable' : isLoading ? 'Connecting…' : isPlaying ? 'On air' : 'Paused'}
+          {error ? 'Unavailable' : isLoading ? 'Connecting…' : isPlaying ? (showLiveBadge ? 'On air' : 'Playing') : 'Paused'}
         </span>
       </div>
-      <div className="tv-video-surface-toolbar" role="toolbar" aria-label="TV video controls">
-        <div className="tv-video-surface-transport" role="group" aria-label="Channel transport">
+      <div className="tv-video-surface-toolbar" role="toolbar" aria-label="Video controls">
+        <div className="tv-video-surface-transport" role="group" aria-label={transportGroupLabel}>
           <button
             type="button"
             className="tv-rail-btn tv-rail-btn--skip"
             onClick={onPrevious}
             disabled={previousDisabled}
-            aria-label={hasPrevious ? 'Previous channel' : 'Previous channel unavailable'}
-            title={hasPrevious ? 'Previous channel' : 'Previous channel unavailable'}
+            aria-label={hasPrevious ? previousLabel : `${previousLabel} unavailable`}
+            title={hasPrevious ? previousLabel : `${previousLabel} unavailable`}
           >
             ⏮
           </button>
@@ -177,7 +194,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
             className="tv-rail-btn tv-rail-btn--gold"
             onClick={onPlayPause}
             disabled={playDisabled}
-            aria-label={isLoading ? 'Connecting channel' : isPlaying ? 'Pause' : 'Play'}
+            aria-label={isLoading ? 'Connecting' : isPlaying ? 'Pause' : 'Play'}
             aria-busy={isLoading}
           >
             {isLoading ? '…' : isPlaying ? '❚❚' : '▶'}
@@ -187,8 +204,8 @@ export const TvVideoSurface = memo(function TvVideoSurface({
             className="tv-rail-btn tv-rail-btn--skip"
             onClick={onNext}
             disabled={nextDisabled}
-            aria-label={hasNext ? 'Next channel' : 'Next channel unavailable'}
-            title={hasNext ? 'Next channel' : 'Next channel unavailable'}
+            aria-label={hasNext ? nextLabel : `${nextLabel} unavailable`}
+            title={hasNext ? nextLabel : `${nextLabel} unavailable`}
           >
             ⏭
           </button>
@@ -204,7 +221,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
           step={0.01}
           value={volumeMuted ? 0 : volume}
           onChange={(event) => onVolumeChange(Number(event.target.value))}
-          aria-label="TV volume"
+          aria-label={volumeLabel}
         />
         <button type="button" className="tv-rail-btn tv-rail-btn--secondary" onClick={onStop} aria-label="Stop">
           ■

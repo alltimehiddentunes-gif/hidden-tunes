@@ -2237,7 +2237,17 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       service.destroy()
       serviceRef.current = null
     }
-  }, [cancelUpgradeSession, extendQueueIfNeeded, getService, persistAudiobookProgress, persistPodcastProgress])
+  }, [
+    cancelUpgradeSession,
+    emitPositionSeconds,
+    extendQueueIfNeeded,
+    getService,
+    persistAudiobookProgress,
+    persistLectureProgress,
+    persistMotivationalProgress,
+    persistMusicProgress,
+    persistPodcastProgress,
+  ])
 
   useEffect(() => {
     const videoService = getVideoService()

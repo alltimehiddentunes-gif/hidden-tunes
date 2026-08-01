@@ -1,5 +1,9 @@
 import { memo, useCallback, useMemo } from 'react'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
+import { isMotivationalVideoSong } from '../../lib/motivationals/motivationalPlaybackAdapter'
+import { requiresVideoSurface } from '../../lib/player/resolveActivePlayerSurface'
+import { resolvePlaybackCapabilities } from '../../lib/queue/capabilities'
+import { isSportsQueueSong } from '../../lib/sports/sportsPlaybackAdapter'
 import { isTvQueueSong } from '../../lib/tv/tvPlaybackAdapter'
 import {
   resolveTvChannelTransportAvailability,
@@ -7,15 +11,34 @@ import {
 import { isTvFavorite, toggleTvFavorite } from '../../lib/tv/tvLocalState'
 import { acquireTvVideoPlaybackService } from '../../lib/tv/tvVideoPlayback'
 import { TvVideoSurface } from './TvVideoSurface'
+import type { VideoSurfaceLayout } from '../../lib/player/resolveVideoSurfaceLayout'
 
 type TvNowPlayingPanelProps = {
   onBrowseAll: () => void
   onBrowseFeatured: () => void
+  /** Presentation shell only — does not change the shared video owner. */
+  videoLayout?: Exclude<VideoSurfaceLayout, 'none'>
 }
 
+type VideoFamily = 'tv' | 'sports' | 'motivational'
+
+function resolveVideoFamily(track: Parameters<typeof isTvQueueSong>[0]): VideoFamily | null {
+  if (!track) return null
+  if (isTvQueueSong(track)) return 'tv'
+  if (isSportsQueueSong(track)) return 'sports'
+  if (isMotivationalVideoSong(track)) return 'motivational'
+  return null
+}
+
+/**
+ * Shared visible video rail for TV, Sports, and Motivational video.
+ * Mounts the single HtmlVideoPlaybackService element via TvVideoSurface.
+ * TV-only chrome (favorites, channel discover, LIVE) stays gated to TV.
+ */
 export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
   onBrowseAll,
   onBrowseFeatured,
+  videoLayout = 'tv-cinema',
 }: TvNowPlayingPanelProps) {
   const {
     currentTrack,
@@ -36,36 +59,62 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
 
   const activeTrack =
     currentIndex >= 0 ? (currentQueue[currentIndex] ?? currentTrack ?? null) : null
-  const isTvActive = Boolean(activeTrack && isTvQueueSong(activeTrack))
-
-  const channelId = activeTrack?.id.replace(/^tv-/, '') ?? ''
-  const pipSupported = useMemo(() => acquireTvVideoPlaybackService().supportsPictureInPicture(), [])
-
-  const transport = useMemo(
-    () => resolveTvChannelTransportAvailability({
-      isActive: isTvActive,
-      currentIndex,
-      queueLength: currentQueue.length,
-      isLoading,
-      repeatMode,
-    }),
-    [currentIndex, currentQueue.length, isLoading, isTvActive, repeatMode],
+  const videoFamily = resolveVideoFamily(activeTrack)
+  const isVideoActive = Boolean(activeTrack && requiresVideoSurface(activeTrack))
+  const isTvActive = videoFamily === 'tv'
+  const capabilities = useMemo(
+    () => resolvePlaybackCapabilities(activeTrack),
+    [activeTrack],
   )
 
+  const surfaceId = activeTrack?.id ?? ''
+  const channelId = isTvActive ? activeTrack!.id.replace(/^tv-/, '') : surfaceId
+  const pipSupported = useMemo(() => acquireTvVideoPlaybackService().supportsPictureInPicture(), [])
+
+  const transport = useMemo(() => {
+    if (isTvActive) {
+      return resolveTvChannelTransportAvailability({
+        isActive: true,
+        currentIndex,
+        queueLength: currentQueue.length,
+        isLoading,
+        repeatMode,
+      })
+    }
+    // Sports: no next/prev per capabilities. Motivational: allow when queue supports it.
+    const hasPrevious = Boolean(capabilities.previous && currentIndex > 0)
+    const hasNext = Boolean(
+      capabilities.next && currentIndex >= 0 && currentIndex < currentQueue.length - 1,
+    )
+    return {
+      hasPrevious,
+      hasNext,
+      canChangeChannel: !isLoading && (hasPrevious || hasNext),
+    }
+  }, [
+    capabilities.next,
+    capabilities.previous,
+    currentIndex,
+    currentQueue.length,
+    isLoading,
+    isTvActive,
+    repeatMode,
+  ])
+
   const isFavorite = useMemo(() => {
-    if (!channelId) return false
+    if (!isTvActive || !channelId) return false
     return isTvFavorite(channelId)
-  }, [channelId])
+  }, [channelId, isTvActive])
 
   const handleToggleFavorite = useCallback(() => {
-    if (!channelId || !activeTrack) return
+    if (!isTvActive || !channelId || !activeTrack) return
     toggleTvFavorite(channelId, {
       title: activeTrack.title,
       channelName: activeTrack.album,
       artworkUrl: activeTrack.artwork,
       category: activeTrack.genre,
     })
-  }, [activeTrack, channelId])
+  }, [activeTrack, channelId, isTvActive])
 
   const handlePlayPause = useCallback(() => {
     if (isLoading) return
@@ -127,9 +176,9 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
     setVolume(volume <= 0 ? 0.85 : 0)
   }, [setVolume, volume])
 
-  if (!isTvActive || !activeTrack) {
+  if (!isVideoActive || !activeTrack || !videoFamily) {
     return (
-      <aside className="tv-rail tv-rail--discover" aria-label="TV discovery">
+      <aside className="tv-rail tv-rail--discover" aria-label="TV discovery" data-video-layout={videoLayout}>
         <header className="tv-rail-header">
           <h2>Discover More</h2>
         </header>
@@ -148,15 +197,42 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
     )
   }
 
+  const headerTitle =
+    videoFamily === 'tv'
+      ? 'Now Playing on TV'
+      : videoFamily === 'sports'
+        ? 'Now Playing — Sports'
+        : 'Now Playing — Motivational'
+
+  const railAria =
+    videoFamily === 'tv'
+      ? 'Now playing on TV'
+      : videoFamily === 'sports'
+        ? 'Now playing Sports video'
+        : 'Now playing Motivational video'
+
+  const showLiveBadge = videoFamily === 'tv' || (videoFamily === 'sports' && capabilities.isLive)
+
   const upcoming = currentIndex >= 0
-    ? currentQueue.slice(currentIndex + 1, currentIndex + 4).filter(isTvQueueSong)
+    ? currentQueue
+      .slice(currentIndex + 1, currentIndex + 4)
+      .filter((track) => {
+        if (videoFamily === 'tv') return isTvQueueSong(track)
+        if (videoFamily === 'sports') return isSportsQueueSong(track)
+        return isMotivationalVideoSong(track)
+      })
     : []
 
   return (
-    <aside className="tv-rail tv-rail--now-playing" aria-label="Now playing on TV">
+    <aside
+      className={`tv-rail tv-rail--now-playing${videoLayout === 'motivational-contained' ? ' tv-rail--motivational-contained' : ''}`}
+      aria-label={railAria}
+      data-video-family={videoFamily}
+      data-video-layout={videoLayout}
+    >
       <header className="tv-rail-header">
-        <h2>Now Playing on TV</h2>
-        <span className="tv-live-badge">LIVE</span>
+        <h2>{headerTitle}</h2>
+        {showLiveBadge ? <span className="tv-live-badge">LIVE</span> : null}
       </header>
 
       <TvVideoSurface
@@ -180,6 +256,13 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
         onPictureInPicture={() => void handlePictureInPicture()}
         pipSupported={pipSupported}
         volumeMuted={volume <= 0}
+        showLiveBadge={showLiveBadge}
+        ariaLabel={`Video for ${activeTrack.title}`}
+        transportGroupLabel={videoFamily === 'tv' ? 'Channel transport' : 'Session transport'}
+        previousLabel={videoFamily === 'tv' ? 'Previous channel' : 'Previous'}
+        nextLabel={videoFamily === 'tv' ? 'Next channel' : 'Next'}
+        volumeLabel="Volume"
+        videoLayout={videoLayout}
       />
 
       <div className="tv-rail-meta">
@@ -188,14 +271,16 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
             <h3>{activeTrack.title}</h3>
             <p>{activeTrack.artist}</p>
           </div>
-          <button
-            type="button"
-            className={`tv-favorite-btn tv-favorite-btn--inline${isFavorite ? ' is-active' : ''}`}
-            onClick={handleToggleFavorite}
-            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-          >
-            ♥
-          </button>
+          {isTvActive ? (
+            <button
+              type="button"
+              className={`tv-favorite-btn tv-favorite-btn--inline${isFavorite ? ' is-active' : ''}`}
+              onClick={handleToggleFavorite}
+              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              ♥
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -208,21 +293,25 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
             ))}
           </ul>
         ) : (
-          <p className="tv-rail-note">End of this channel list.</p>
+          <p className="tv-rail-note">
+            {videoFamily === 'tv' ? 'End of this channel list.' : 'No more items in this queue.'}
+          </p>
         )}
       </section>
 
-      <section className="tv-rail-section" aria-labelledby="tv-discover-heading">
-        <h3 id="tv-discover-heading">Discover More</h3>
-        <div className="tv-discover-links tv-discover-links--compact">
-          <button type="button" className="tv-discover-card" onClick={onBrowseFeatured}>
-            <strong>Featured channels</strong>
-          </button>
-          <button type="button" className="tv-discover-card" onClick={onBrowseAll}>
-            <strong>Browse all channels</strong>
-          </button>
-        </div>
-      </section>
+      {isTvActive ? (
+        <section className="tv-rail-section" aria-labelledby="tv-discover-heading">
+          <h3 id="tv-discover-heading">Discover More</h3>
+          <div className="tv-discover-links tv-discover-links--compact">
+            <button type="button" className="tv-discover-card" onClick={onBrowseFeatured}>
+              <strong>Featured channels</strong>
+            </button>
+            <button type="button" className="tv-discover-card" onClick={onBrowseAll}>
+              <strong>Browse all channels</strong>
+            </button>
+          </div>
+        </section>
+      ) : null}
     </aside>
   )
 })

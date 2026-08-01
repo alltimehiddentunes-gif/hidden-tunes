@@ -26,8 +26,28 @@ function isTvQueueSong(song) {
   return Boolean(song?.id?.startsWith('tv-'))
 }
 
+function isSportsQueueSong(song) {
+  return Boolean(song?.id?.startsWith('sports-'))
+}
+
+function isMotivationalVideoSong(song) {
+  return Boolean(
+    song?.id?.startsWith('motivation-')
+    && song?.tags?.some((tag) => tag === 'motivational-video' || tag === 'motivational-stream'),
+  )
+}
+
+/** Same rule as requiresVideoSurface in resolveActivePlayerSurface.ts */
+function requiresVideoSurface(currentTrack) {
+  if (!currentTrack) return false
+  if (isTvQueueSong(currentTrack)) return true
+  if (isSportsQueueSong(currentTrack)) return true
+  if (isMotivationalVideoSong(currentTrack)) return true
+  return false
+}
+
 function resolveActivePlayerSurface(currentTrack) {
-  if (currentTrack && isTvQueueSong(currentTrack)) return 'tv'
+  if (requiresVideoSurface(currentTrack)) return 'tv'
   return 'audio'
 }
 
@@ -38,8 +58,19 @@ function assertPass(condition, message) {
 
 // --- 1–5, 10–11, 19–20: surface follows session, not route ---
 
-const routes = ['home', 'music', 'podcasts', 'radio', 'library', 'search', 'tv', 'sports']
+const routes = ['home', 'music', 'podcasts', 'radio', 'library', 'search', 'tv', 'sports', 'motivationals']
 const tvTrack = { id: 'tv-channel-42', title: 'News 24' }
+const sportsTrack = { id: 'sports-fixture-1', title: 'Match Live', tags: ['sports', 'live'] }
+const motivationalVideoTrack = {
+  id: 'motivation-prog--sess',
+  title: 'Focus Film',
+  tags: ['motivational-video'],
+}
+const motivationalAudioTrack = {
+  id: 'motivation-prog--sess-audio',
+  title: 'Focus Talk',
+  tags: ['motivational'],
+}
 const musicTrack = { id: 'song-abc', title: 'Midnight Drive' }
 const podcastTrack = { id: 'podcast-ep-1', title: 'Episode 1' }
 const radioTrack = { id: 'radio-1', title: 'Chill FM' }
@@ -49,6 +80,18 @@ for (const route of routes) {
   assertPass(
     resolveActivePlayerSurface(tvTrack) === 'tv',
     `TV session stays TV surface while browsing ${route}`,
+  )
+  assertPass(
+    resolveActivePlayerSurface(sportsTrack) === 'tv',
+    `Sports session stays video surface while browsing ${route}`,
+  )
+  assertPass(
+    resolveActivePlayerSurface(motivationalVideoTrack) === 'tv',
+    `Motivational video session stays video surface while browsing ${route}`,
+  )
+  assertPass(
+    resolveActivePlayerSurface(motivationalAudioTrack) === 'audio',
+    `Motivational audio stays audio surface while browsing ${route}`,
   )
   assertPass(
     resolveActivePlayerSurface(musicTrack) === 'audio',
@@ -88,6 +131,14 @@ session = musicTrack // explicit Play on a song
 assertPass(resolveActivePlayerSurface(session) === 'audio', 'Explicit music play switches surface to audio')
 session = tvTrack // explicit TV channel select
 assertPass(resolveActivePlayerSurface(session) === 'tv', 'Explicit TV play switches surface to TV')
+session = sportsTrack
+assertPass(resolveActivePlayerSurface(session) === 'tv', 'Explicit Sports play uses shared video surface')
+session = radioTrack
+assertPass(resolveActivePlayerSurface(session) === 'audio', 'Explicit Radio play replaces Sports via session change')
+session = motivationalVideoTrack
+assertPass(resolveActivePlayerSurface(session) === 'tv', 'Explicit Motivational video uses shared video surface')
+session = motivationalAudioTrack
+assertPass(resolveActivePlayerSurface(session) === 'audio', 'Explicit Motivational audio uses audio surface')
 
 // --- Source architecture guards ---
 
@@ -113,8 +164,15 @@ assertPass(
   'App selects right rail from activeSessionTrack via resolveActivePlayerSurface',
 )
 assertPass(
-  /\{\s*activePlayerSurface === ['"]tv['"]\s*\?[\s\S]{0,80}<TvNowPlayingPanel/.test(appSource),
-  'TV rail mounts from activePlayerSurface, not route',
+  /activePlayerSurface === ['"]tv['"]/.test(appSource)
+    && /<TvNowPlayingPanel/.test(appSource)
+    && /!useMotivationalVideoStage/.test(appSource),
+  'TV rail mounts from activePlayerSurface when not on motivational contained stage',
+)
+assertPass(
+  /motivational-video-stage/.test(appSource)
+    && /videoLayout=\"motivational-contained\"/.test(appSource),
+  'Motivational video mounts a bounded main-stage shell, not the default right rail',
 )
 const resolverCodeOnly = resolverSource
   .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -126,6 +184,18 @@ assertPass(
 assertPass(
   /Do not pass activeNavKey/.test(resolverSource),
   'Resolver documents route-agnostic contract',
+)
+assertPass(
+  /isSportsQueueSong/.test(resolverSource) && /isMotivationalVideoSong/.test(resolverSource),
+  'Resolver includes Sports and Motivational video in requiresVideoSurface',
+)
+assertPass(
+  /requiresVideoSurface/.test(resolverSource),
+  'Canonical requiresVideoSurface helper exists',
+)
+assertPass(
+  /requiresVideoSurface/.test(readSrc('src/components/tv/TvNowPlayingPanel.tsx')),
+  'TvNowPlayingPanel gates active video chrome via requiresVideoSurface',
 )
 
 // Footer still binds to playback provider track (not page selection alone)

@@ -24,7 +24,9 @@ export function usePlayerOverlayController(): PlayerOverlayController {
   const phaseTimerRef = useRef<number | null>(null)
   const openPlayerStyleRef = useRef<NowPlayingStyle | null>(null)
 
-  openPlayerStyleRef.current = openPlayerStyle
+  useEffect(() => {
+    openPlayerStyleRef.current = openPlayerStyle
+  }, [openPlayerStyle])
 
   const clearPhaseTimer = useCallback(() => {
     if (phaseTimerRef.current != null) {

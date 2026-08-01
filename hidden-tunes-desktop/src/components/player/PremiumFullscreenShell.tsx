@@ -225,7 +225,19 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
     >
-      <div className="premium-shell-bg entity-atmosphere entity-atmosphere--placeholder" aria-hidden="true" />
+      <div
+        className={`premium-shell-bg entity-atmosphere${displayArtwork ? '' : ' entity-atmosphere--placeholder'}`}
+        aria-hidden="true"
+        style={
+          displayArtwork
+            ? {
+                backgroundImage: `linear-gradient(180deg, rgba(8,6,14,0.55), rgba(6,4,12,0.92)), url("${String(displayArtwork).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : undefined
+        }
+      />
       <div className="premium-shell-veil" aria-hidden="true" />
 
       <header className="premium-shell-topbar">
