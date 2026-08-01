@@ -1,4 +1,5 @@
 import type { ApiSong } from '../api'
+import { isPlayableMediaUrl } from '../desktopPlayback/isPlayableMediaUrl'
 import type { LectureItem, LectureSeries } from './types'
 
 export const LECTURE_SONG_ID_PREFIX = 'lecture-'
@@ -57,7 +58,7 @@ export function lectureSessionToApiSong(
   series: LectureSeries,
   playbackUrl: string | null = null,
 ): ApiSong {
-  const resolvedUrl = playbackUrl?.trim().startsWith('http') ? playbackUrl.trim() : null
+  const resolvedUrl = isPlayableMediaUrl(playbackUrl) ? playbackUrl!.trim() : null
   const speakerLabel =
     session.speaker?.name
     ?? series.speaker?.name
@@ -96,7 +97,7 @@ export function patchLectureSessionWithPlayUrl(
     mediaType?: string | null
   },
 ): ApiSong {
-  const normalizedUrl = play.playbackUrl.trim().startsWith('http') ? play.playbackUrl.trim() : null
+  const normalizedUrl = isPlayableMediaUrl(play.playbackUrl) ? play.playbackUrl.trim() : null
   if (!normalizedUrl) return song
 
   return {

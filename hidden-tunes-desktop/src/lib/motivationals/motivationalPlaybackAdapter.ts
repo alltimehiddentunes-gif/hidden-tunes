@@ -1,4 +1,5 @@
 import type { ApiSong } from '../api'
+import { isPlayableMediaUrl } from '../desktopPlayback/isPlayableMediaUrl'
 import type {
   MotivationalProgramMeta,
   MotivationalSessionMeta,
@@ -45,7 +46,7 @@ export function motivationalSessionToApiSong(
   program: MotivationalProgramMeta,
   audioUrl: string | null = null,
 ): ApiSong {
-  const resolvedAudio = audioUrl?.trim().startsWith('http') ? audioUrl.trim() : null
+  const resolvedAudio = isPlayableMediaUrl(audioUrl) ? audioUrl!.trim() : null
   const programId = program.id
   const genre = program.categorySlug ?? session.categorySlug ?? session.category
 
@@ -92,7 +93,7 @@ export function patchMotivationalSessionWithPlayUrl(
     mediaType?: string | null
   },
 ): ApiSong {
-  const normalizedAudio = play.audioUrl.trim().startsWith('http') ? play.audioUrl.trim() : null
+  const normalizedAudio = isPlayableMediaUrl(play.audioUrl) ? play.audioUrl.trim() : null
   if (!normalizedAudio) return song
 
   const tags = motivationalTagsForMediaType(play.mediaType)

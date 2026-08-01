@@ -1,4 +1,5 @@
 import type { ApiSong } from '../api'
+import { isPlayableMediaUrl } from '../desktopPlayback/isPlayableMediaUrl'
 import type {
   AudiobookBookMeta,
   AudiobookChapterMeta,
@@ -33,10 +34,10 @@ export function audiobookChapterToApiSong(
   audioUrl: string | null = null,
 ): ApiSong {
   const resolvedAudio =
-    audioUrl?.trim().startsWith('http')
-      ? audioUrl.trim()
-      : 'audioUrl' in chapter && chapter.audioUrl?.startsWith('http')
-        ? chapter.audioUrl
+    isPlayableMediaUrl(audioUrl)
+      ? audioUrl!.trim()
+      : 'audioUrl' in chapter && isPlayableMediaUrl(chapter.audioUrl)
+        ? chapter.audioUrl!.trim()
         : null
 
   return {
@@ -69,8 +70,8 @@ export function buildAudiobookQueueSongs(
 ) {
   return chapters.map((chapter) => {
     const url =
-      includeResolvedUrls && 'audioUrl' in chapter && chapter.audioUrl?.startsWith('http')
-        ? chapter.audioUrl
+      includeResolvedUrls && 'audioUrl' in chapter && isPlayableMediaUrl(chapter.audioUrl)
+        ? chapter.audioUrl!
         : null
     return audiobookChapterToApiSong(chapter, book, url)
   })
@@ -80,7 +81,7 @@ export function patchAudiobookChapterWithPlayUrl(
   song: ApiSong,
   play: { audioUrl: string; durationSeconds?: number | null },
 ): ApiSong {
-  const normalizedAudio = play.audioUrl.trim().startsWith('http') ? play.audioUrl.trim() : null
+  const normalizedAudio = isPlayableMediaUrl(play.audioUrl) ? play.audioUrl.trim() : null
   if (!normalizedAudio) return song
 
   return {

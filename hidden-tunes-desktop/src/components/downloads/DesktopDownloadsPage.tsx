@@ -46,7 +46,8 @@ function progressLabel(item: DesktopDownloadItem) {
   if (item.status === 'completed') return 'Downloaded'
   if (item.status === 'failed') return item.errorMessage || 'Failed'
   if (item.status === 'missing') return 'File missing'
-  if (item.status === 'paused') return 'Paused'
+  if (item.status === 'corrupt') return item.errorMessage || 'Corrupt file'
+  if (item.status === 'paused') return 'Cancelled — Retry to restart'
   if (item.status === 'invalid') return 'Invalid file'
   return item.status
 }
@@ -75,7 +76,9 @@ function groupItems(items: DesktopDownloadItem[]) {
     ),
     completed: items.filter((item) => item.status === 'completed'),
     failed: items.filter((item) => item.status === 'failed'),
-    missing: items.filter((item) => item.status === 'missing' || item.status === 'invalid'),
+    missing: items.filter((item) =>
+      item.status === 'missing' || item.status === 'corrupt' || item.status === 'invalid',
+    ),
   }
 }
 

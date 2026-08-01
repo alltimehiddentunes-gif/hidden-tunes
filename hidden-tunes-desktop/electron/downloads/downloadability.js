@@ -72,14 +72,18 @@ function userFacingError(code) {
       return 'Not enough disk space.'
     case 'missing':
       return 'The downloaded file is missing.'
+    case 'corrupt':
+      return 'The downloaded file is incomplete or corrupt.'
     case 'cancelled':
       return 'The download was cancelled.'
     case 'no_resume':
-      return 'The server does not support resuming this download.'
+      return 'Pause/resume is not available for this transfer. Cancel and Retry instead.'
     case 'too_large':
       return 'This file is too large to download on this device.'
     case 'invalid_response':
       return 'The server returned an invalid media response.'
+    case 'size_mismatch':
+      return 'The downloaded file size did not match the server response.'
     default:
       return 'The download failed. Try again.'
   }

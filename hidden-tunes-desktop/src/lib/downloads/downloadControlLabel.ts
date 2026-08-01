@@ -13,8 +13,15 @@ export function downloadControlLabel(item: DesktopDownloadItem | null | undefine
     }
     return 'Downloading…'
   }
-  if (item.status === 'paused') return 'Paused'
-  if (item.status === 'failed' || item.status === 'missing' || item.status === 'invalid') return 'Retry'
+  if (item.status === 'paused') return 'Retry'
+  if (
+    item.status === 'failed'
+    || item.status === 'missing'
+    || item.status === 'corrupt'
+    || item.status === 'invalid'
+  ) {
+    return 'Retry'
+  }
   return 'Download'
 }
 

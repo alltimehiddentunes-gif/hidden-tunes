@@ -25,6 +25,8 @@ export { useDesktopDownloads } from './useDesktopDownloads'
 export { useDesktopConnectivity } from './useDesktopConnectivity'
 export { downloadItemToQueueSong } from './dispatchDownloadPlayback'
 export type { OfflinePlaybackSong } from './dispatchDownloadPlayback'
+export { applyLocalDownloadUrls } from './preferLocalPlayback'
+export type { LocalPreferSong } from './preferLocalPlayback'
 export {
   downloadControlLabel,
   isActiveDownloadStatus,

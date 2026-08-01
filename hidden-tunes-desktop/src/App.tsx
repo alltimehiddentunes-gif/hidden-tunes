@@ -211,6 +211,7 @@ import {
 } from './lib/home/editorialPlaylists'
 import { useMusicLikes } from './lib/home/useMusicLikes'
 import {
+  applyLocalDownloadUrls,
   downloadControlLabel,
   hasDesktopDownloadsBridge,
   isActiveDownloadStatus,
@@ -6030,8 +6031,9 @@ function SettingsPage({
             <section className="settings-panel" id="settings-downloads">
               <h2>Download preferences</h2>
               <p className="settings-panel-desc">
-                Download creation, pause, resume, delete, and disk usage are managed by the real
-                Downloads destination — not a second settings store.
+                Download creation, cancel, retry, delete, and disk usage are managed by the real
+                Downloads destination — not a second settings store. True pause/resume (byte-range)
+                is not available; Cancel stops a transfer and Retry restarts it.
               </p>
               <div className="settings-row">
                 <div className="settings-label">
@@ -8673,23 +8675,27 @@ function AppShell() {
       queueTitle?: string,
       seedMetadata?: QueueSeedMetadata,
     ) => {
-      const resolved = songsById.get(song.id) ?? song
-      const playableQueue = queue.length > 0
-        ? queue.map((entry) => songsById.get(entry.id) ?? entry)
-        : [resolved]
-      const selectedIndex = playableQueue.findIndex((entry) => entry.id === resolved.id)
-      const safeIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, Math.min(startIndex, playableQueue.length - 1))
+      void (async () => {
+        const resolved = songsById.get(song.id) ?? song
+        const baseQueue = queue.length > 0
+          ? queue.map((entry) => songsById.get(entry.id) ?? entry)
+          : [resolved]
+        const playableQueue = await applyLocalDownloadUrls(baseQueue)
+        const selectedIndex = playableQueue.findIndex((entry) => entry.id === resolved.id)
+        const safeIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, Math.min(startIndex, playableQueue.length - 1))
+        const track = playableQueue[safeIndex] ?? resolved
 
-      playQueue(playableQueue, safeIndex, context, queueTitle, seedMetadata)
-      // Home and Music Discover plays stay on the catalogue page — persistent/compact
-      // players own the now-playing UI. Do not replace the centre with PlayerWorkspace.
-      if (context === 'home' || context === 'discover') {
-        setDesktopSelectedTrack(resolved)
-        return
-      }
-      startTransition(() => {
-        openSong(resolved)
-      })
+        playQueue(playableQueue, safeIndex, context, queueTitle, seedMetadata)
+        // Home and Music Discover plays stay on the catalogue page — persistent/compact
+        // players own the now-playing UI. Do not replace the centre with PlayerWorkspace.
+        if (context === 'home' || context === 'discover') {
+          setDesktopSelectedTrack(track)
+          return
+        }
+        startTransition(() => {
+          openSong(track)
+        })
+      })()
     },
     [openSong, playQueue, songsById],
   )
@@ -8726,25 +8732,28 @@ function AppShell() {
         resumePositionSeconds?: number | null
       },
     ) => {
-      const showMap = new Map<string, PodcastShowMeta>()
-      if (options?.show?.id) {
-        showMap.set(options.show.id, options.show)
-      }
+      void (async () => {
+        const showMap = new Map<string, PodcastShowMeta>()
+        if (options?.show?.id) {
+          showMap.set(options.show.id, options.show)
+        }
 
-      const apiQueue = buildPodcastQueueSongs(
-        queue,
-        showMap.size > 0 ? showMap : undefined,
-      )
-      if (apiQueue.length === 0) return
+        const baseQueue = buildPodcastQueueSongs(
+          queue,
+          showMap.size > 0 ? showMap : undefined,
+        )
+        if (baseQueue.length === 0) return
+        const apiQueue = await applyLocalDownloadUrls(baseQueue)
 
-      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-      const track = apiQueue[safeIndex]
-      setDesktopSelectedTrack(track)
-      setPendingPodcastResumeSeconds(options?.resumePositionSeconds ?? null)
-      playQueue(apiQueue, safeIndex, 'podcast', queueTitle, {
-        seedType: 'manual',
-        seedTracks: apiQueue,
-      })
+        const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+        const track = apiQueue[safeIndex]
+        setDesktopSelectedTrack(track)
+        setPendingPodcastResumeSeconds(options?.resumePositionSeconds ?? null)
+        playQueue(apiQueue, safeIndex, 'podcast', queueTitle, {
+          seedType: 'manual',
+          seedTracks: apiQueue,
+        })
+      })()
     },
     [playQueue],
   )
@@ -8760,17 +8769,20 @@ function AppShell() {
         resumePositionSeconds?: number | null
       },
     ) => {
-      const apiQueue = buildAudiobookQueueSongs(book, queue)
-      if (apiQueue.length === 0) return
+      void (async () => {
+        const baseQueue = buildAudiobookQueueSongs(book, queue)
+        if (baseQueue.length === 0) return
+        const apiQueue = await applyLocalDownloadUrls(baseQueue)
 
-      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-      const track = apiQueue[safeIndex]
-      setDesktopSelectedTrack(track)
-      setPendingAudiobookResumeSeconds(options?.resumePositionSeconds ?? null)
-      playQueue(apiQueue, safeIndex, 'audiobook', queueTitle, {
-        seedType: 'manual',
-        seedTracks: apiQueue,
-      })
+        const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+        const track = apiQueue[safeIndex]
+        setDesktopSelectedTrack(track)
+        setPendingAudiobookResumeSeconds(options?.resumePositionSeconds ?? null)
+        playQueue(apiQueue, safeIndex, 'audiobook', queueTitle, {
+          seedType: 'manual',
+          seedTracks: apiQueue,
+        })
+      })()
     },
     [playQueue],
   )
@@ -8786,17 +8798,20 @@ function AppShell() {
         resumePositionSeconds?: number | null
       },
     ) => {
-      const apiQueue = buildMotivationalQueueSongs(program, queue)
-      if (apiQueue.length === 0) return
+      void (async () => {
+        const baseQueue = buildMotivationalQueueSongs(program, queue)
+        if (baseQueue.length === 0) return
+        const apiQueue = await applyLocalDownloadUrls(baseQueue)
 
-      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-      const track = apiQueue[safeIndex]
-      setDesktopSelectedTrack(track)
-      setPendingMotivationalResumeSeconds(options?.resumePositionSeconds ?? null)
-      playQueue(apiQueue, safeIndex, 'motivational', queueTitle, {
-        seedType: 'manual',
-        seedTracks: apiQueue,
-      })
+        const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+        const track = apiQueue[safeIndex]
+        setDesktopSelectedTrack(track)
+        setPendingMotivationalResumeSeconds(options?.resumePositionSeconds ?? null)
+        playQueue(apiQueue, safeIndex, 'motivational', queueTitle, {
+          seedType: 'manual',
+          seedTracks: apiQueue,
+        })
+      })()
     },
     [playQueue],
   )
@@ -8812,17 +8827,20 @@ function AppShell() {
         resumePositionSeconds?: number | null
       },
     ) => {
-      const apiQueue = buildLectureQueueSongs(series, queue)
-      if (apiQueue.length === 0) return
+      void (async () => {
+        const baseQueue = buildLectureQueueSongs(series, queue)
+        if (baseQueue.length === 0) return
+        const apiQueue = await applyLocalDownloadUrls(baseQueue)
 
-      const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-      const track = apiQueue[safeIndex]
-      setDesktopSelectedTrack(track)
-      setPendingLectureResumeSeconds(options?.resumePositionSeconds ?? null)
-      playQueue(apiQueue, safeIndex, 'lecture', queueTitle, {
-        seedType: 'manual',
-        seedTracks: apiQueue,
-      })
+        const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
+        const track = apiQueue[safeIndex]
+        setDesktopSelectedTrack(track)
+        setPendingLectureResumeSeconds(options?.resumePositionSeconds ?? null)
+        playQueue(apiQueue, safeIndex, 'lecture', queueTitle, {
+          seedType: 'manual',
+          seedTracks: apiQueue,
+        })
+      })()
     },
     [playQueue],
   )

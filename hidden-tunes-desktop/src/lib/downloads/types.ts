@@ -17,6 +17,7 @@ export const DESKTOP_DOWNLOAD_STATUSES = [
   'failed',
   'removing',
   'missing',
+  'corrupt',
   'invalid',
 ] as const
 

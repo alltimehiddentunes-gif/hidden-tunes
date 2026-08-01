@@ -28,6 +28,8 @@
     "verify:phase11-music": "node scripts/verify-phase11-music.mjs",
     "verify:phase12-auth": "node scripts/verify-phase12-auth.mjs",
     "verify:phase13-settings": "node scripts/verify-phase13-settings.mjs",
+    "verify:downloads": "node scripts/verify-downloads-contract.mjs",
+    "verify:phase14-downloads": "node scripts/verify-phase14-downloads.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

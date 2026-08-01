@@ -1,9 +1,10 @@
 'use strict'
 
+const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const { pipeline } = require('stream/promises')
-const { createWriteStream } = require('fs')
+const { createWriteStream, createReadStream } = require('fs')
 const { Readable } = require('stream')
 const { fetchApprovedCatalog } = require('../catalogBridge')
 const {
@@ -41,6 +42,16 @@ function nowIso() {
 
 function makeDownloadId(type, id) {
   return `${type}__${sanitizeSegment(id, 'id')}`
+}
+
+function sha256File(absPath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256')
+    const stream = createReadStream(absPath)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('error', reject)
+    stream.on('end', () => resolve(hash.digest('hex')))
+  })
 }
 
 function freeDiskBytes(dirPath) {
@@ -500,12 +511,19 @@ class DownloadManager {
         fs.unlinkSync(finalAbs)
         throw Object.assign(new Error(userFacingError('invalid_response')), { code: 'invalid_response' })
       }
+      if (probe.size && probe.size > 0 && stats.size !== probe.size) {
+        fs.unlinkSync(finalAbs)
+        throw Object.assign(new Error(userFacingError('size_mismatch')), { code: 'size_mismatch' })
+      }
+
+      const checksum = await sha256File(finalAbs)
 
       this.patch(downloadId, {
         status: 'completed',
         localRelativePath: relative.replace(/\\/g, '/'),
         downloadedBytes: stats.size,
         fileSize: stats.size,
+        checksum,
         errorCode: null,
         errorMessage: null,
       })
@@ -738,9 +756,18 @@ class DownloadManager {
           }
           try {
             const abs = absoluteFromRelative(this.userData(), item.localRelativePath)
-            if (!fs.existsSync(abs) || fs.statSync(abs).size <= 0) {
+            if (!fs.existsSync(abs)) {
               changed = true
               return { ...item, status: 'missing', errorCode: 'missing', errorMessage: userFacingError('missing'), updatedAt: nowIso() }
+            }
+            const size = fs.statSync(abs).size
+            if (size <= 0) {
+              changed = true
+              return { ...item, status: 'corrupt', errorCode: 'corrupt', errorMessage: userFacingError('corrupt'), updatedAt: nowIso() }
+            }
+            if (item.fileSize && item.fileSize > 0 && size !== item.fileSize) {
+              changed = true
+              return { ...item, status: 'corrupt', errorCode: 'corrupt', errorMessage: userFacingError('corrupt'), updatedAt: nowIso() }
             }
           } catch {
             changed = true

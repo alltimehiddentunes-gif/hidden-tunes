@@ -1,4 +1,5 @@
 import type { ApiSong } from '../api'
+import { isPlayableMediaUrl } from '../desktopPlayback/isPlayableMediaUrl'
 import type { PodcastEpisodeMeta, PodcastQueueContextMeta, PodcastShowMeta } from './types'
 
 export const PODCAST_SONG_ID_PREFIX = 'podcast-'
@@ -41,7 +42,7 @@ export function podcastEpisodeToApiSong(
   audioUrl: string | null = null,
 ): ApiSong {
   const showTitle = formatEpisodeSubtitle(episode, show)
-  const normalizedAudio = audioUrl?.trim().startsWith('http') ? audioUrl.trim() : null
+  const normalizedAudio = isPlayableMediaUrl(audioUrl) ? audioUrl!.trim() : null
   const artwork = episode.artworkUrl ?? show?.artworkUrl ?? null
   const genre = show?.primaryCategory ?? show?.categories[0] ?? null
 
@@ -79,7 +80,7 @@ export function patchPodcastEpisodeWithPlayUrl(
   song: ApiSong,
   play: { audioUrl: string; durationSeconds?: number | null },
 ): ApiSong {
-  const normalizedAudio = play.audioUrl.trim().startsWith('http') ? play.audioUrl.trim() : null
+  const normalizedAudio = isPlayableMediaUrl(play.audioUrl) ? play.audioUrl.trim() : null
   if (!normalizedAudio) return song
 
   return {
