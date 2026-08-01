@@ -24,6 +24,7 @@ function dedupeSessions(sessions: LectureItem[]) {
 }
 
 export function useLectureSeriesData(seriesId: string) {
+  const cleanId = seriesId.trim()
   const [series, setSeries] = useState<LectureSeries | null>(null)
   const [sessions, setSessions] = useState<LectureItem[]>([])
   const [pagination, setPagination] = useState<LecturePagination | null>(null)
@@ -32,22 +33,28 @@ export function useLectureSeriesData(seriesId: string) {
   const [error, setError] = useState<string | null>(null)
   const bootstrapRef = useRef(0)
   const loadMoreRef = useRef(0)
+  const [prevCleanId, setPrevCleanId] = useState(cleanId)
 
-  useEffect(() => {
-    const cleanId = seriesId.trim()
+  if (cleanId !== prevCleanId) {
+    setPrevCleanId(cleanId)
     if (!cleanId) {
       setSeries(null)
       setSessions([])
       setPagination(null)
       setLoading(false)
       setError('Lecture course not found.')
-      return
     }
+  }
+
+  useEffect(() => {
+    if (!cleanId) return
 
     const requestId = ++bootstrapRef.current
     const controller = new AbortController()
 
     void (async () => {
+      await Promise.resolve()
+      if (requestId !== bootstrapRef.current) return
       setLoading(true)
       setError(null)
       try {
@@ -73,7 +80,7 @@ export function useLectureSeriesData(seriesId: string) {
     })()
 
     return () => controller.abort()
-  }, [seriesId])
+  }, [cleanId])
 
   const loadMoreSessions = useCallback(() => {
     const cleanId = seriesId.trim()

@@ -12,19 +12,28 @@ export function useRelatedLectures(series: LectureSeries | null) {
   const [related, setRelated] = useState<LectureSeries[]>([])
   const [loading, setLoading] = useState(false)
   const requestRef = useRef(0)
+  const seriesId = series?.id ?? null
+  const [prevSeriesId, setPrevSeriesId] = useState(seriesId)
 
-  useEffect(() => {
-    if (!series?.id) {
+  if (seriesId !== prevSeriesId) {
+    setPrevSeriesId(seriesId)
+    if (!seriesId) {
       setRelated([])
       setLoading(false)
-      return
     }
+  }
+
+  useEffect(() => {
+    if (!series?.id) return
 
     const requestId = ++requestRef.current
     const controller = new AbortController()
-    setLoading(true)
 
     void (async () => {
+      await Promise.resolve()
+      if (requestId !== requestRef.current) return
+      setLoading(true)
+
       try {
         const collected: LectureSeries[] = []
         const seen = new Set<string>([series.id])

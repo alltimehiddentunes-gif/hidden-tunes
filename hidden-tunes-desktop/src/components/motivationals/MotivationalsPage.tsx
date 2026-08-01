@@ -309,7 +309,7 @@ export const MotivationalsPage = memo(function MotivationalsPage({
     <div className="motivationals-destination">
       <SectionHero
         title="Motivationals"
-        subtitle="Premium mindset, discipline, and growth sessions for focused listening."
+        subtitle="Mindset, discipline, and growth sessions for focused listening."
         artwork={motivationalsArtwork}
         artworkAlt=""
         objectPosition="center 42%"

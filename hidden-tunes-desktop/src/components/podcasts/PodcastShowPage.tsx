@@ -144,7 +144,7 @@ export const PodcastShowPage = memo(function PodcastShowPage({
 }: PodcastShowPageProps) {
   const [tuningEpisodeId, setTuningEpisodeId] = useState<string | null>(null)
   const { currentTrack } = useDesktopPlayback()
-  const { continueListening } = usePodcastLocalState()
+  usePodcastLocalState()
   const library = useDesktopLibrary()
   const downloads = useDesktopDownloads()
   const canDownload = hasDesktopDownloadsBridge()
@@ -166,7 +166,7 @@ export const PodcastShowPage = memo(function PodcastShowPage({
 
   const showContinueEntries = useMemo(
     () => (show ? listPodcastProgressForShow(show.id) : []),
-    [show, continueListening],
+    [show],
   )
 
   const progressEpisodeIds = useMemo(

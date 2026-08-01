@@ -1,3 +1,4 @@
+import '../desktopBridgeTypes'
 import type {
   DesktopDownloadItem,
   DownloadDiskUsage,
@@ -29,14 +30,7 @@ type DownloadsBridge = {
   subscribe: (listener: (payload: { event: string; payload: unknown }) => void) => () => void
 }
 
-declare global {
-  interface Window {
-    hiddenTunesDesktop?: {
-      catalog?: { getJson: (path: string) => Promise<unknown> }
-      downloads?: DownloadsBridge
-    }
-  }
-}
+// Window.hiddenTunesDesktop is declared once in desktopBridgeTypes.ts
 
 export function hasDesktopDownloadsBridge() {
   return typeof window !== 'undefined' && typeof window.hiddenTunesDesktop?.downloads?.list === 'function'
@@ -46,7 +40,9 @@ function bridge(): DownloadsBridge {
   if (!hasDesktopDownloadsBridge()) {
     throw new Error('Desktop downloads bridge is unavailable. Open the Electron app to manage offline files.')
   }
-  return window.hiddenTunesDesktop!.downloads!
+  // Runtime-checked above. Shared ambient bridge uses unknown payloads;
+  // this module narrows to DesktopDownloadItem via DownloadsBridge.
+  return window.hiddenTunesDesktop!.downloads as DownloadsBridge
 }
 
 export async function listDesktopDownloads() {

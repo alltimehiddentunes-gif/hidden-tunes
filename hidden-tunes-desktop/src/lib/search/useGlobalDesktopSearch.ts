@@ -189,14 +189,15 @@ export function useGlobalDesktopSearch(debouncedQuery: string) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [trimmed])
 
-  const idle = emptyFamily()
-  const radioView = trimmed ? radio : idle
-  const podcastView = trimmed ? podcastShows : idle
-  const audiobookView = trimmed ? audiobooks : idle
-  const motivationalView = trimmed ? motivationals : idle
-  const tvView = trimmed ? tv : idle
-  const sportsView = trimmed ? sports : idle
-  const downloadsView = trimmed ? downloads : idle
+  // Typed idles — emptyFamily() without a type param widens items to unknown
+  // and collapses ReturnType<> for GlobalSearchSections.
+  const radioView = trimmed ? radio : emptyFamily<RadioStationMeta>()
+  const podcastView = trimmed ? podcastShows : emptyFamily<PodcastShowMeta>()
+  const audiobookView = trimmed ? audiobooks : emptyFamily<AudiobookBookMeta>()
+  const motivationalView = trimmed ? motivationals : emptyFamily<MotivationalSessionMeta>()
+  const tvView = trimmed ? tv : emptyFamily<TvChannelMeta>()
+  const sportsView = trimmed ? sports : emptyFamily<DesktopSportsFixture>()
+  const downloadsView = trimmed ? downloads : emptyFamily<DesktopDownloadItem>()
 
   const hasRemoteResults = useMemo(
     () =>

@@ -284,7 +284,7 @@ export const LecturesPage = memo(function LecturesPage({
     <div className="lectures-destination">
       <SectionHero
         title="Lectures"
-        subtitle="Premium courses, academic lectures, and educational sessions for focused learning."
+        subtitle="Courses, academic lectures, and educational sessions for focused learning."
         titleId="lectures-page-heading"
       />
 

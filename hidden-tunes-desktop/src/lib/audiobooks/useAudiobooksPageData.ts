@@ -53,19 +53,33 @@ export function useAudiobooksPageData(
 
   const trimmedSearch = searchQuery.trim()
   const filteredView = trimmedSearch.length > 0 || Boolean(categorySlug) || Boolean(languageFilter)
+  const [prevFilteredView, setPrevFilteredView] = useState(filteredView)
+
+  if (filteredView !== prevFilteredView) {
+    setPrevFilteredView(filteredView)
+    if (!filteredView) {
+      setSearchBooks([])
+      setContentError(null)
+      setContentLoading(false)
+    }
+  }
 
   useEffect(() => {
     const requestId = ++bootstrapRef.current
     const controller = new AbortController()
-    setLoading(true)
-    setError(null)
 
-    Promise.all([
-      fetchAudiobookCategories(controller.signal),
-      fetchAudiobookBooks({ page: 1, limit: FEATURED_LIMIT }, controller.signal),
-      fetchAudiobookBooks({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
-    ])
-      .then(([nextCategories, featuredResponse, browseResponse]) => {
+    void (async () => {
+      await Promise.resolve()
+      if (requestId !== bootstrapRef.current) return
+      setLoading(true)
+      setError(null)
+
+      try {
+        const [nextCategories, featuredResponse, browseResponse] = await Promise.all([
+          fetchAudiobookCategories(controller.signal),
+          fetchAudiobookBooks({ page: 1, limit: FEATURED_LIMIT }, controller.signal),
+          fetchAudiobookBooks({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
+        ])
         if (requestId !== bootstrapRef.current) return
         setCategories(nextCategories)
         setFeaturedBooks(
@@ -76,15 +90,14 @@ export function useAudiobooksPageData(
         setBrowseBooks(browseResponse.books)
         setBrowseCursor(browseResponse.pagination.nextCursor ?? null)
         setPagination(browseResponse.pagination)
-      })
-      .catch((reason) => {
+      } catch (reason) {
         if (requestId !== bootstrapRef.current) return
         if (reason instanceof DOMException && reason.name === 'AbortError') return
         setError(readError(reason, 'Could not load audiobooks.'))
-      })
-      .finally(() => {
+      } finally {
         if (requestId === bootstrapRef.current) setLoading(false)
-      })
+      }
+    })()
 
     return () => controller.abort()
   }, [])
@@ -96,45 +109,42 @@ export function useAudiobooksPageData(
     const requestId = ++browseRef.current
 
     if (!filteredView) {
-      setSearchBooks([])
-      setContentError(null)
-      setContentLoading(false)
       return () => controller.abort()
     }
 
-    setContentLoading(true)
-    setContentError(null)
-
     const timer = window.setTimeout(() => {
-      const request = trimmedSearch
-        ? searchAudiobooks(trimmedSearch, { page: 1, limit: BROWSE_LIMIT }, controller.signal)
-        : categorySlug
-          ? fetchAudiobookCategory(categorySlug, { page: 1, limit: BROWSE_LIMIT }, controller.signal)
-          : fetchAudiobookBooks(
-              {
-                page: 1,
-                limit: BROWSE_LIMIT,
-                language: languageFilter,
-              },
-              controller.signal,
-            )
+      void (async () => {
+        await Promise.resolve()
+        if (requestId !== browseRef.current) return
+        setContentLoading(true)
+        setContentError(null)
 
-      request
-        .then((response) => {
+        try {
+          const response = await (trimmedSearch
+            ? searchAudiobooks(trimmedSearch, { page: 1, limit: BROWSE_LIMIT }, controller.signal)
+            : categorySlug
+              ? fetchAudiobookCategory(categorySlug, { page: 1, limit: BROWSE_LIMIT }, controller.signal)
+              : fetchAudiobookBooks(
+                  {
+                    page: 1,
+                    limit: BROWSE_LIMIT,
+                    language: languageFilter,
+                  },
+                  controller.signal,
+                ))
           if (requestId !== browseRef.current) return
           setSearchBooks(response.books)
           setPagination(response.pagination)
           setBrowseCursor(response.pagination.nextCursor ?? null)
-        })
-        .catch((reason) => {
+        } catch (reason) {
           if (requestId !== browseRef.current) return
           if (reason instanceof DOMException && reason.name === 'AbortError') return
           setContentError(readError(reason, 'Could not load audiobook results.'))
           setSearchBooks([])
-        })
-        .finally(() => {
+        } finally {
           if (requestId === browseRef.current) setContentLoading(false)
-        })
+        }
+      })()
     }, trimmedSearch ? SEARCH_DEBOUNCE_MS : 0)
 
     return () => {

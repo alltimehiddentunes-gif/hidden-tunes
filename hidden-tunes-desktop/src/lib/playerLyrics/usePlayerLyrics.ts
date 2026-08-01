@@ -16,22 +16,15 @@ export function usePlayerLyrics(
   positionSeconds = 0,
   options: PlayerLyricsResolveOptions = {},
 ): UsePlayerLyricsResult {
+  const isLoading = options.isLoading
   const trackInput = useMemo(
     () => (track ? fromApiSong(track) : null),
     [track],
   )
 
   const viewState = useMemo(
-    () => resolvePlayerLyrics(trackInput, options),
-    [
-      trackInput,
-      options.isLoading,
-      track?.id,
-      track?.lyrics,
-      track?.lyricLines,
-      track?.syncedLyrics,
-      track?.lyricsSource,
-    ],
+    () => resolvePlayerLyrics(trackInput, { isLoading }),
+    [trackInput, isLoading],
   )
 
   const activeSyncedLineIndex = useMemo(() => {

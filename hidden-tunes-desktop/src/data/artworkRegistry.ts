@@ -189,8 +189,9 @@ export function resolveSongArtwork(song: ApiSong | null | undefined): string | n
 /** Catalog album artwork only — no UI registry fallback */
 export function resolveAlbumArtwork(
   album: ApiAlbum | null | undefined,
-  _artistName?: string | null,
+  artistName?: string | null,
 ): string | null {
+  void artistName
   if (!album) return null
   if (isValidArtworkUrl(album.artwork)) return album.artwork.trim()
   return null

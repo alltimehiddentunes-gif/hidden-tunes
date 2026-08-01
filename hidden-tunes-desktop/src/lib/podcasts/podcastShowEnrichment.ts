@@ -65,7 +65,6 @@ export async function enrichPodcastEpisodesWithShowTitles(
     for (const show of fetchedShows) {
       titleByShowId.set(show.id, show.title)
     }
-    knownShows = [...knownShows, ...fetchedShows]
   }
 
   return episodes.map((episode) => ({

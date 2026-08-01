@@ -7,6 +7,10 @@ import type {
   TvPlayResponse,
   TvRegionMeta,
 } from './types'
+import {
+  normalizeTvSearchQuery,
+  resolveTvSearchCountryCode,
+} from './tvSearchQuery'
 
 /**
  * Public catalog API (Next.js admin) — same host as Radio/Podcasts.
@@ -258,11 +262,32 @@ export async function fetchTvChannels(
   }
 }
 
+function mergeTvSearchChannels(
+  primary: TvChannelMeta[],
+  secondary: TvChannelMeta[],
+  limit: number,
+) {
+  const seen = new Set<string>()
+  const merged: TvChannelMeta[] = []
+  for (const channel of [...primary, ...secondary]) {
+    if (!channel.id || seen.has(channel.id)) continue
+    seen.add(channel.id)
+    merged.push(channel)
+    if (merged.length >= limit) break
+  }
+  return merged
+}
+
+/**
+ * Authoritative TV search — same catalogue contract as mobile:
+ * `GET /api/tv/channels?q=` (alias of `/api/tv/videos`), not the narrower
+ * legacy `/api/tv/search` field set still deployed on production.
+ */
 export async function searchTvChannels(
   query: string,
   options?: PaginationOptions & { signal?: AbortSignal },
 ): Promise<TvCatalogResponse> {
-  const trimmed = query.trim()
+  const trimmed = normalizeTvSearchQuery(query)
   if (trimmed.length < 2) {
     return {
       success: true,
@@ -277,30 +302,58 @@ export async function searchTvChannels(
     }
   }
 
-  const params = buildQuery({
-    q: trimmed,
-    page: options?.page ?? 1,
-    limit: Math.min(Math.max(options?.limit ?? 24, 1), 40),
+  const page = options?.page ?? 1
+  const limit = Math.min(Math.max(options?.limit ?? 24, 1), 40)
+  const countryCode = resolveTvSearchCountryCode(trimmed)
+
+  const textResponse = await fetchTvChannels({
+    query: trimmed,
+    page,
+    limit,
+    signal: options?.signal,
   })
 
-  const payload = await tvRequest<{
-    success?: boolean
-    videos?: unknown[]
-    pagination?: TvPagination
-  }>(`/api/tv/search?${params.toString()}`, options?.signal)
+  if (!countryCode) {
+    return textResponse
+  }
 
-  const channels = (Array.isArray(payload.videos) ? payload.videos : [])
-    .map((row) =>
-      row && typeof row === 'object'
-        ? normalizeChannel(row as Record<string, unknown>)
-        : null,
-    )
-    .filter((channel): channel is TvChannelMeta => Boolean(channel))
+  const countryResponse = await fetchTvChannels({
+    country: countryCode,
+    page,
+    limit,
+    signal: options?.signal,
+  })
+
+  if (!textResponse.success && !countryResponse.success) {
+    return textResponse
+  }
+
+  const channels = mergeTvSearchChannels(
+    textResponse.success ? textResponse.channels : [],
+    countryResponse.success ? countryResponse.channels : [],
+    limit,
+  )
+
+  const total = Math.max(
+    textResponse.success ? textResponse.pagination.total : 0,
+    countryResponse.success ? countryResponse.pagination.total : 0,
+    channels.length,
+  )
+  const hasMore = Boolean(
+    (textResponse.success && textResponse.pagination.hasMore) ||
+      (countryResponse.success && countryResponse.pagination.hasMore),
+  )
 
   return {
-    success: payload.success !== false,
+    success: true,
     channels,
-    pagination: normalizePagination(payload.pagination, options ?? {}, channels.length),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: total > 0 ? Math.ceil(total / limit) : 0,
+      hasMore,
+    },
   }
 }
 

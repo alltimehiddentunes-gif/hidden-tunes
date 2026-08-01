@@ -167,10 +167,9 @@ export const PodcastsPage = memo(function PodcastsPage({
     retryBrowse,
   } = usePodcastsPageData(activeTab, query)
 
-  const activePodcastEpisodeId = useMemo(() => {
-    if (!currentTrack?.id.startsWith('podcast-')) return null
-    return currentTrack.id.slice('podcast-'.length)
-  }, [currentTrack?.id])
+  const activePodcastEpisodeId = currentTrack?.id.startsWith('podcast-')
+    ? currentTrack.id.slice('podcast-'.length)
+    : null
 
   const playEpisode = useCallback(
     (episode: PodcastEpisodeMeta, queue: PodcastEpisodeMeta[], queueTitle: string) => {

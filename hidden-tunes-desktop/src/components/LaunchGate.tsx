@@ -39,10 +39,9 @@ export function LaunchGate({ children, loading, hasCatalogData }: LaunchGateProp
   const ready =
     forceReady || (minElapsed && (!loading || hasCatalogData))
 
-  useEffect(() => {
-    if (!ready || phase !== 'visible') return
+  if (ready && phase === 'visible') {
     setPhase('fading')
-  }, [ready, phase])
+  }
 
   useEffect(() => {
     if (phase !== 'fading') return undefined

@@ -3,7 +3,6 @@ import {
   createElement,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -199,10 +198,22 @@ export function usePersistedPreference<T>(
   const { resetVersion } = usePreferencesResetContext()
 
   const [value, setValue] = useState(() => readValidatedPreference(key, fallback, validate))
+  const [prevPreferenceDeps, setPrevPreferenceDeps] = useState({
+    key,
+    fallback,
+    validate,
+    resetVersion,
+  })
 
-  useEffect(() => {
+  if (
+    key !== prevPreferenceDeps.key
+    || fallback !== prevPreferenceDeps.fallback
+    || validate !== prevPreferenceDeps.validate
+    || resetVersion !== prevPreferenceDeps.resetVersion
+  ) {
+    setPrevPreferenceDeps({ key, fallback, validate, resetVersion })
     setValue(readValidatedPreference(key, fallback, validate))
-  }, [key, fallback, validate, resetVersion])
+  }
 
   const setPreference = useCallback(
     (next: T) => {

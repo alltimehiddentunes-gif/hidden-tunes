@@ -126,8 +126,9 @@ export function getArtworkForAlbum(
 
 export function getArtworkForArtist(
   artist: ApiArtist | null | undefined,
-  _context?: ArtworkContext,
+  context?: ArtworkContext,
 ): string | null {
+  void context
   return resolveArtistPortrait(artist)
 }
 
@@ -170,9 +171,11 @@ export function getArtworkForPlaylistCollage(
 
 export function getArtworkForWorld(
   world: WorldArtworkTarget,
-  _songs?: ApiSong[],
-  _context?: ArtworkContext,
+  songs?: ApiSong[],
+  context?: ArtworkContext,
 ): string | null {
+  void songs
+  void context
   return resolveWorldArtwork(world)
 }
 
@@ -191,9 +194,11 @@ export function getPlayerAtmosphereMetadata(mode: NowPlayingStyle): AtmosphereDe
 }
 
 export function getArtworkForTheater(
-  _track: ApiSong | null | undefined,
-  _context?: ArtworkContext,
+  track: ApiSong | null | undefined,
+  context?: ArtworkContext,
 ): string | null {
+  void track
+  void context
   return resolvePlayerBackground('master')
 }
 

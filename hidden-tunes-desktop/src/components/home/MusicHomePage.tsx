@@ -76,7 +76,7 @@ type MusicHomePageProps = {
 
 const FAMILY_SHORTCUTS = [
   { navKey: 'radio' as const, label: 'Radio', hint: 'Live worldwide radio', artwork: '/home-reference/explore-radio.webp' },
-  { navKey: 'podcasts' as const, label: 'Podcasts', hint: 'Premium conversations', artwork: '/home-reference/explore-podcasts.webp' },
+  { navKey: 'podcasts' as const, label: 'Podcasts', hint: 'Shows and episodes', artwork: '/home-reference/explore-podcasts.webp' },
   { navKey: 'audiobooks' as const, label: 'Audiobooks', hint: 'Stories brought to life', artwork: '/home-reference/explore-audiobooks.webp' },
   { navKey: 'tv' as const, label: 'TV', hint: 'Global television', artwork: '/home-reference/explore-tv.webp' },
   { navKey: 'motivationals' as const, label: 'Motivationals', hint: 'Become your best', artwork: '/home-reference/explore-motivationals.webp' },
@@ -85,26 +85,10 @@ const FAMILY_SHORTCUTS = [
 
 const QUICK_ACCESS = [
   { navKey: 'liked' as const, label: 'Liked Songs', hint: 'Your favourites', glyph: '♥' },
+  { navKey: 'recent' as const, label: 'Recently Played', hint: 'Your history', glyph: '↺' },
   { navKey: 'playlists' as const, label: 'Playlists', hint: 'Your collections', glyph: '☷' },
-  { navKey: 'downloads' as const, label: 'Downloads', hint: 'Listen offline', glyph: '↓' },
-]
-
-const HOME_CHARTS = [
-  { label: 'Global', query: 'global', artwork: '/home-reference/chart-global.webp' },
-  { label: 'USA', query: 'usa', artwork: '/home-reference/chart-usa.webp' },
-  { label: 'UK', query: 'uk', artwork: '/home-reference/chart-uk.webp' },
-  { label: 'Afrobeats', query: 'afrobeats', artwork: '/home-reference/chart-afrobeats.webp' },
-  { label: 'Hip-Hop', query: 'hip hop', artwork: '/home-reference/chart-hip-hop.webp' },
-  { label: 'Pop', query: 'pop', artwork: '/home-reference/chart-pop.webp' },
-]
-
-const HOME_RELEASES = [
-  { title: 'Sunset Dreams', artist: 'Jaden Moore', artwork: '/home-reference/release-sunset-dreams.webp' },
-  { title: 'Electric Hearts', artist: 'Luna Ray', artwork: '/home-reference/release-electric-hearts.webp' },
-  { title: 'Lost in Tokyo', artist: 'Kai Nakamura', artwork: '/home-reference/release-lost-in-tokyo.webp' },
-  { title: 'Golden Hour', artist: 'Aria Fields', artwork: '/home-reference/release-golden-hour.webp' },
-  { title: 'Echoes', artist: 'The Midnight', artwork: '/home-reference/release-echoes.webp' },
-  { title: 'Better Days', artist: 'Malik Johnson', artwork: '/home-reference/release-better-days.webp' },
+  { navKey: 'albums' as const, label: 'Albums', hint: 'Browse albums', glyph: '◫' },
+  { navKey: 'downloads' as const, label: 'Downloads', hint: 'Saved locally', glyph: '↓' },
 ]
 
 const HOME_MOODS = [
@@ -248,7 +232,7 @@ export const MusicHomePage = memo(function MusicHomePage({
   onBrowseSearch,
 }: MusicHomePageProps) {
   const { recentlyPlayed } = useMusicLocalState()
-  const { currentTrack, currentQueue } = useDesktopPlayback()
+  const { currentTrack, currentQueue, isPlaying, pause, resume } = useDesktopPlayback()
   const hasActiveMediaSession = Boolean(currentTrack?.id)
   const [showEditorialMix, setShowEditorialMix] = useState(!hasActiveMediaSession)
   const [editorialMixExiting, setEditorialMixExiting] = useState(false)
@@ -381,6 +365,30 @@ export const MusicHomePage = memo(function MusicHomePage({
   }, [hasActiveMediaSession])
 
   const catalogError = showCatalogError ? error : null
+  const heroCard = heroCards[0] ?? null
+  const heroSong = heroCard?.song ?? null
+  const heroIsCurrent =
+    Boolean(heroSong && currentTrack?.id && String(currentTrack.id) === String(heroSong.id))
+  const heroAlbum = useMemo(() => {
+    if (!heroSong?.albumId) return null
+    return albums.find((album) => String(album.id) === String(heroSong.albumId)) ?? null
+  }, [albums, heroSong])
+
+  const playHero = useCallback(() => {
+    if (!heroSong) return
+    if (heroIsCurrent) {
+      if (isPlaying) pause()
+      else resume()
+      return
+    }
+    const queueTitle = heroCard?.isCurrent
+      ? HOME_UI.listening.nowPlaying
+      : heroCard?.label === HOME_UI.hero.recentlyPlayed
+        ? 'Continue Listening'
+        : heroCard?.title || 'Home Featured'
+    playFromQueue(heroSong, songs.slice(0, 24), queueTitle, { bounded: false })
+  }, [heroCard, heroIsCurrent, heroSong, isPlaying, pause, playFromQueue, resume, songs])
+
   return (
     <div
       className="music-home music-home--parity music-home--content-first music-home--premium"
@@ -389,59 +397,86 @@ export const MusicHomePage = memo(function MusicHomePage({
       data-home-layout="content-first"
       data-home-polish="premium"
     >
-      {heroCards[0] ? (
+      {heroSong && heroCard ? (
         <div
           className={`music-home-reference-top${hasActiveMediaSession && !showEditorialMix ? ' is-active-session' : ' is-idle'}`}
           data-home-media-session={hasActiveMediaSession ? 'active' : 'idle'}
         >
-        <section className="music-home-product-hero" aria-label="Featured">
+        <section className="music-home-product-hero music-home-listening-hero" aria-label="Listening">
+          <button
+            type="button"
+            className="music-home-product-hero-art"
+            onClick={playHero}
+            aria-label={
+              heroIsCurrent && isPlaying
+                ? `Pause ${heroCard.title}`
+                : `Play ${heroCard.title} by ${heroCard.subtitle}`
+            }
+          >
+            <HomeArt
+              src={heroSong.artwork}
+              seed={heroSong.id}
+              label={heroCard.title}
+              priority
+              size="hero"
+            />
+            <span className="music-home-product-hero-art-copy">
+              <small>{heroCard.label}</small>
+              <strong title={heroCard.title}>{heroCard.title}</strong>
+              <span title={heroCard.subtitle}>{heroCard.subtitle}</span>
+            </span>
+          </button>
           <div className="music-home-product-hero-copy">
-            <span className="music-home-product-hero-kicker">DISCOVER HIDDEN TUNES</span>
-            <h1>Your world of sound, stories and live entertainment</h1>
-            <p>Music, radio, podcasts, TV and more—beautifully connected.</p>
-            <span className="music-home-product-hero-script">Feel Every Beat</span>
+            <span className="music-home-product-hero-kicker">{heroCard.label}</span>
+            <h1 title={heroCard.title}>{heroCard.title}</h1>
+            <p>{heroCard.subtitle}</p>
             <div className="music-home-product-hero-actions">
               <button
                 type="button"
                 className="music-home-product-hero-primary"
-                onClick={() =>
-                  playFromQueue(heroCards[0].song, songs.slice(0, 24), 'Home Featured', {
-                    bounded: false,
-                  })
-                }
+                onClick={playHero}
               >
-                <span aria-hidden="true">▶</span>
-                Start Listening
+                <span aria-hidden="true">{heroIsCurrent && isPlaying ? '❚❚' : '▶'}</span>
+                {heroIsCurrent ? (isPlaying ? 'Pause' : 'Resume') : 'Play'}
               </button>
-              <button
-                type="button"
-                className="music-home-product-hero-secondary"
-                onClick={() => onNavigateNav('music')}
-              >
-                Explore
-              </button>
+              {heroAlbum ? (
+                <button
+                  type="button"
+                  className="music-home-product-hero-secondary"
+                  onClick={() => onOpenAlbum(heroAlbum)}
+                >
+                  Open album
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="music-home-product-hero-secondary"
+                  onClick={() => onNavigateNav('search')}
+                >
+                  Search
+                </button>
+              )}
             </div>
           </div>
         </section>
         {showEditorialMix ? (
-        <aside className={`music-home-mix-column${editorialMixExiting ? ' is-exiting' : ''}`} aria-label="My Music Mix">
+        <aside className={`music-home-mix-column${editorialMixExiting ? ' is-exiting' : ''}`} aria-label="Quick listening">
           <section className="music-home-mix-card">
             <div className="music-home-mix-copy">
-              <span className="music-home-product-hero-kicker">PERSONAL MIX</span>
-              <h2>My Music Mix</h2>
-              <p>An endless mix shaped from the Hidden Tunes catalogue.</p>
-              <button
-                type="button"
-                onClick={() =>
-                  playFromQueue(heroCards[0].song, songs.slice(0, 24), 'My Music Mix', {
-                    bounded: false,
-                  })
-                }
-              >
-                <span aria-hidden="true">▶</span> Play Mix
+              <span className="music-home-product-hero-kicker">CATALOGUE MIX</span>
+              <h2>{heroCard.title}</h2>
+              <p>{heroCard.subtitle} — start from this track and continue through the catalogue.</p>
+              <button type="button" onClick={playHero}>
+                <span aria-hidden="true">{heroIsCurrent && isPlaying ? '❚❚' : '▶'}</span>{' '}
+                {heroIsCurrent ? (isPlaying ? 'Pause' : 'Resume') : 'Play'}
               </button>
             </div>
-            <img src="/home-reference/my-music-mix-vinyl.webp" alt="" />
+            <HomeArt
+              src={heroSong.artwork}
+              seed={heroSong.id}
+              label={heroCard.title}
+              size="rail"
+            />
           </section>
           <div className="music-home-quick-grid" aria-label="Quick access">
             {QUICK_ACCESS.map((item) => (
@@ -493,26 +528,28 @@ export const MusicHomePage = memo(function MusicHomePage({
       >
         {recentlyAdded.length > 0 ? (
           <div className="music-home-release-rail">
-            {HOME_RELEASES.map((release, index) => {
-              const song = recentlyAdded[index % recentlyAdded.length]!
+            {recentlyAdded.map((song, index) => {
+              const title = song.title?.trim() || 'Untitled'
+              const artist = song.artist?.trim() || 'Unknown artist'
               return (
                 <button
-                  key={release.title}
+                  key={song.id}
                   type="button"
                   className={`music-home-release-card${index === 0 ? ' is-featured' : ''}`}
                   onClick={() => playFromQueue(song, recentlyAdded, HOME_UI.sections.recentlyAdded)}
-                  aria-label={`Play ${song.title} by ${song.artist}`}
+                  aria-label={`Play ${title} by ${artist}`}
                 >
-                  <img
-                    src={release.artwork}
-                    alt=""
-                    loading={index === 0 ? 'eager' : 'lazy'}
-                    decoding="async"
+                  <HomeArt
+                    src={song.artwork}
+                    seed={song.id}
+                    label={title}
+                    priority={index === 0}
+                    size="rail"
                   />
-                  <span className="music-home-new-badge">NEW</span>
+                  {index === 0 ? <span className="music-home-new-badge">NEW</span> : null}
                   <span className="music-home-release-copy">
-                    <strong>{release.title}</strong>
-                    <small>{release.artist}</small>
+                    <strong title={title}>{title}</strong>
+                    <small title={artist}>{artist}</small>
                   </span>
                 </button>
               )
@@ -521,27 +558,6 @@ export const MusicHomePage = memo(function MusicHomePage({
         ) : (
           <p className="music-home-section-empty">{HOME_UI.recentlyAddedEmpty}</p>
         )}
-      </MusicHomeSection>
-
-      <MusicHomeSection eyebrow="TRENDING" title="Top Charts" onSeeAll={() => onNavigateNav('music')}>
-        <div className="music-home-chart-rail">
-          {HOME_CHARTS.map((chart) => (
-            <button
-              key={chart.label}
-              type="button"
-              className="music-home-chart-card"
-              onClick={() => {
-                onBrowseSearch(chart.query)
-                onNavigateNav('search')
-              }}
-            >
-              <img src={chart.artwork} alt="" loading="lazy" decoding="async" />
-              <span>Top 100</span>
-              <strong>{chart.label}</strong>
-              <i aria-hidden="true">›</i>
-            </button>
-          ))}
-        </div>
       </MusicHomeSection>
 
       {songs.length > 0 ? (
@@ -693,6 +709,7 @@ export const MusicHomePage = memo(function MusicHomePage({
             {albumsWorth.map((card) => {
               const isLoading = loadingAlbumId === card.album.id
               const locked = Boolean(loadingAlbumId)
+              const canPlay = card.playableTracks.length > 0
               return (
                 <div
                   key={card.album.id}
@@ -703,11 +720,9 @@ export const MusicHomePage = memo(function MusicHomePage({
                 >
                   <button
                     type="button"
-                    className={`music-home-album-card${isLoading ? ' is-loading' : ''}${isLoading ? ' is-pressed' : ''}`}
-                    onClick={() => playAlbumCollection(card)}
-                    disabled={locked && !isLoading}
-                    aria-busy={isLoading}
-                    aria-label={`Play ${card.displayTitle}`}
+                    className="music-home-album-card"
+                    onClick={() => onOpenAlbum(card.album)}
+                    aria-label={`Open album ${card.displayTitle}`}
                   >
                     <HomeArt
                       src={card.artwork}
@@ -724,11 +739,14 @@ export const MusicHomePage = memo(function MusicHomePage({
                   </button>
                   <button
                     type="button"
-                    className="music-home-album-details"
-                    onClick={() => onOpenAlbum(card.album)}
-                    aria-label={`Details for ${card.displayTitle}`}
+                    className={`music-home-album-play${isLoading ? ' is-loading is-pressed' : ''}`}
+                    onClick={() => playAlbumCollection(card)}
+                    disabled={!canPlay || (locked && !isLoading)}
+                    aria-busy={isLoading}
+                    aria-label={`Play album ${card.displayTitle}`}
                   >
-                    Details
+                    <span aria-hidden="true">{isLoading ? '…' : '▶'}</span>
+                    Play
                   </button>
                 </div>
               )

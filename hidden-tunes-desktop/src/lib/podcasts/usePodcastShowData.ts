@@ -10,17 +10,33 @@ function readError(reason: unknown, fallback: string) {
 }
 
 export function usePodcastShowData(showId: string | null) {
+  const cleanShowId = showId?.trim() ?? ''
   const [show, setShow] = useState<PodcastShowMeta | null>(null)
   const [episodes, setEpisodes] = useState<PodcastEpisodeMeta[]>([])
   const [episodesPagination, setEpisodesPagination] = useState<PodcastPagination | null>(null)
-  const [showLoading, setShowLoading] = useState(Boolean(showId))
-  const [episodesLoading, setEpisodesLoading] = useState(Boolean(showId))
+  const [showLoading, setShowLoading] = useState(Boolean(cleanShowId))
+  const [episodesLoading, setEpisodesLoading] = useState(Boolean(cleanShowId))
   const [episodesLoadingMore, setEpisodesLoadingMore] = useState(false)
   const [showError, setShowError] = useState<string | null>(null)
   const [showNotFound, setShowNotFound] = useState(false)
   const [episodesError, setEpisodesError] = useState<string | null>(null)
   const requestRef = useRef(0)
   const episodesAbortRef = useRef<AbortController | null>(null)
+  const [prevCleanShowId, setPrevCleanShowId] = useState(cleanShowId)
+
+  if (cleanShowId !== prevCleanShowId) {
+    setPrevCleanShowId(cleanShowId)
+    if (!cleanShowId) {
+      setShow(null)
+      setEpisodes([])
+      setShowLoading(false)
+      setEpisodesLoading(false)
+      setShowError(null)
+      setShowNotFound(false)
+      setEpisodesError(null)
+      setEpisodesPagination(null)
+    }
+  }
 
   const loadEpisodes = useCallback(
     async (targetShowId: string, page: number, signal?: AbortSignal, append = false) => {
@@ -50,14 +66,9 @@ export function usePodcastShowData(showId: string | null) {
   )
 
   const loadShowDetail = useCallback(async () => {
+    await Promise.resolve()
     const cleanId = showId?.trim()
-    if (!cleanId) {
-      setShow(null)
-      setEpisodes([])
-      setShowLoading(false)
-      setEpisodesLoading(false)
-      return
-    }
+    if (!cleanId) return
 
     episodesAbortRef.current?.abort()
     const episodesController = new AbortController()
@@ -72,14 +83,45 @@ export function usePodcastShowData(showId: string | null) {
     setEpisodes([])
     setEpisodesPagination(null)
 
-    let loadedShow: PodcastShowMeta | null = null
-
     try {
       const showResponse = await fetchPodcastShow(cleanId)
       if (requestId !== requestRef.current) return
-      loadedShow = showResponse.show
+      const loadedShow = showResponse.show
       setShow(loadedShow)
       setShowLoading(false)
+
+      try {
+        const response = await fetchPodcastEpisodes(
+          {
+            showId: cleanId,
+            page: 1,
+            limit: EPISODES_PAGE_SIZE,
+          },
+          episodesController.signal,
+        )
+
+        if (requestId !== requestRef.current || episodesController.signal.aborted) return
+
+        const knownShows = [loadedShow, ...response.shows]
+        const enriched = await enrichPodcastEpisodesWithShowTitles(
+          response.episodes,
+          knownShows,
+          episodesController.signal,
+        )
+
+        if (requestId !== requestRef.current || episodesController.signal.aborted) return
+
+        setEpisodes(enriched)
+        setEpisodesPagination(response.pagination)
+      } catch (error) {
+        if (requestId !== requestRef.current || episodesController.signal.aborted) return
+        setEpisodes([])
+        setEpisodesError(readError(error, 'Failed to load episodes.'))
+      } finally {
+        if (requestId === requestRef.current) {
+          setEpisodesLoading(false)
+        }
+      }
     } catch (error) {
       if (requestId !== requestRef.current) return
       setShow(null)
@@ -90,49 +132,84 @@ export function usePodcastShowData(showId: string | null) {
         setShowError(readError(error, 'Failed to load podcast show.'))
       }
       setEpisodesLoading(false)
-      return
-    }
-
-    try {
-      const response = await fetchPodcastEpisodes(
-        {
-          showId: cleanId,
-          page: 1,
-          limit: EPISODES_PAGE_SIZE,
-        },
-        episodesController.signal,
-      )
-
-      if (requestId !== requestRef.current || episodesController.signal.aborted) return
-
-      const knownShows = loadedShow ? [loadedShow, ...response.shows] : response.shows
-      const enriched = await enrichPodcastEpisodesWithShowTitles(
-        response.episodes,
-        knownShows,
-        episodesController.signal,
-      )
-
-      if (requestId !== requestRef.current || episodesController.signal.aborted) return
-
-      setEpisodes(enriched)
-      setEpisodesPagination(response.pagination)
-    } catch (error) {
-      if (requestId !== requestRef.current || episodesController.signal.aborted) return
-      setEpisodes([])
-      setEpisodesError(readError(error, 'Failed to load episodes.'))
-    } finally {
-      if (requestId === requestRef.current) {
-        setEpisodesLoading(false)
-      }
     }
   }, [showId])
 
   useEffect(() => {
-    void loadShowDetail()
+    if (!cleanShowId) return
+
+    const requestId = ++requestRef.current
+    episodesAbortRef.current?.abort()
+    const episodesController = new AbortController()
+    episodesAbortRef.current = episodesController
+
+    void (async () => {
+      await Promise.resolve()
+      if (requestId !== requestRef.current) return
+      setShowLoading(true)
+      setEpisodesLoading(true)
+      setShowError(null)
+      setShowNotFound(false)
+      setEpisodesError(null)
+      setEpisodes([])
+      setEpisodesPagination(null)
+
+      try {
+        const showResponse = await fetchPodcastShow(cleanShowId)
+        if (requestId !== requestRef.current) return
+        const loadedShow = showResponse.show
+        setShow(loadedShow)
+        setShowLoading(false)
+
+        try {
+          const response = await fetchPodcastEpisodes(
+            {
+              showId: cleanShowId,
+              page: 1,
+              limit: EPISODES_PAGE_SIZE,
+            },
+            episodesController.signal,
+          )
+
+          if (requestId !== requestRef.current || episodesController.signal.aborted) return
+
+          const knownShows = [loadedShow, ...response.shows]
+          const enriched = await enrichPodcastEpisodesWithShowTitles(
+            response.episodes,
+            knownShows,
+            episodesController.signal,
+          )
+
+          if (requestId !== requestRef.current || episodesController.signal.aborted) return
+
+          setEpisodes(enriched)
+          setEpisodesPagination(response.pagination)
+        } catch (error) {
+          if (requestId !== requestRef.current || episodesController.signal.aborted) return
+          setEpisodes([])
+          setEpisodesError(readError(error, 'Failed to load episodes.'))
+        } finally {
+          if (requestId === requestRef.current) {
+            setEpisodesLoading(false)
+          }
+        }
+      } catch (error) {
+        if (requestId !== requestRef.current) return
+        setShow(null)
+        setShowLoading(false)
+        if (error instanceof PodcastCatalogError && error.status === 404) {
+          setShowNotFound(true)
+        } else {
+          setShowError(readError(error, 'Failed to load podcast show.'))
+        }
+        setEpisodesLoading(false)
+      }
+    })()
+
     return () => {
       episodesAbortRef.current?.abort()
     }
-  }, [loadShowDetail])
+  }, [cleanShowId])
 
   const loadMoreEpisodes = useCallback(async () => {
     const cleanId = showId?.trim()

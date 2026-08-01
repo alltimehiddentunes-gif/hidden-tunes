@@ -234,7 +234,7 @@ export const LectureSeriesPage = memo(function LectureSeriesPage({
   const [tuningSessionId, setTuningSessionId] = useState<string | null>(null)
   const [saved, setSaved] = useState(() => isLectureSeriesSaved(seriesId))
   const [descriptionExpanded, setDescriptionExpanded] = useState(false)
-  const [playbackError, setPlaybackError] = useState<string | null>(null)
+  const [playSessionError, setPlaySessionError] = useState<string | null>(null)
   const videoMountRef = useRef<HTMLDivElement | null>(null)
   const downloads = useDesktopDownloads()
   const canDownload = hasDesktopDownloadsBridge()
@@ -279,6 +279,16 @@ export const LectureSeriesPage = memo(function LectureSeriesPage({
   const isCurrentSeries = Boolean(
     series && activeIds?.seriesId === series.id && isLectureQueueSong(currentTrack),
   )
+  const [prevIsCurrentSeries, setPrevIsCurrentSeries] = useState(isCurrentSeries)
+
+  if (isCurrentSeries !== prevIsCurrentSeries) {
+    setPrevIsCurrentSeries(isCurrentSeries)
+    if (!isCurrentSeries) {
+      setPlaySessionError(null)
+    }
+  }
+
+  const playbackError = isCurrentSeries ? (playerError ?? playSessionError) : null
   const activeSessionId = isCurrentSeries ? activeIds?.sessionId ?? null : null
   const isLecturePlaying = isCurrentSeries && isPlaying
   const isLectureLoading = isCurrentSeries && isLoading
@@ -319,18 +329,10 @@ export const LectureSeriesPage = memo(function LectureSeriesPage({
     }
   }, [isVideoLecture, mountTvVideo, activeSessionId])
 
-  useEffect(() => {
-    if (!isCurrentSeries) {
-      setPlaybackError(null)
-      return
-    }
-    if (playerError) setPlaybackError(playerError)
-  }, [isCurrentSeries, playerError])
-
   const playSession = useCallback(
     async (session: LectureItem, resumePositionSeconds?: number | null) => {
       if (!series) return
-      setPlaybackError(null)
+      setPlaySessionError(null)
       setTuningSessionId(session.id)
       try {
         const allSessions = await fetchAllLectureSeriesSessions(series.id)
@@ -340,7 +342,7 @@ export const LectureSeriesPage = memo(function LectureSeriesPage({
           resumePositionSeconds,
         })
       } catch (reason) {
-        setPlaybackError(
+        setPlaySessionError(
           reason instanceof Error
             ? reason.message
             : 'This lecture couldn\u2019t be played right now.',

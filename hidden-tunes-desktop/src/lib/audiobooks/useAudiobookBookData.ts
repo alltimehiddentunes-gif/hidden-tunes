@@ -7,29 +7,38 @@ function readError(reason: unknown, fallback: string) {
 }
 
 export function useAudiobookBookData(bookId: string | null) {
+  const cleanId = bookId?.trim() ?? ''
   const [book, setBook] = useState<AudiobookBookMeta | null>(null)
   const [chapters, setChapters] = useState<AudiobookChapterMeta[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestRef = useRef(0)
+  const [prevCleanId, setPrevCleanId] = useState(cleanId)
 
-  useEffect(() => {
-    const cleanId = bookId?.trim() ?? ''
+  if (cleanId !== prevCleanId) {
+    setPrevCleanId(cleanId)
     if (!cleanId) {
       setBook(null)
       setChapters([])
       setLoading(false)
       setError(null)
-      return
     }
+  }
+
+  useEffect(() => {
+    if (!cleanId) return
 
     const requestId = ++requestRef.current
     const controller = new AbortController()
-    setLoading(true)
-    setError(null)
 
-    fetchAudiobookDetail(cleanId, controller.signal)
-      .then((detail) => {
+    void (async () => {
+      await Promise.resolve()
+      if (requestId !== requestRef.current) return
+      setLoading(true)
+      setError(null)
+
+      try {
+        const detail = await fetchAudiobookDetail(cleanId, controller.signal)
         if (requestId !== requestRef.current) return
         if (!detail) {
           setBook(null)
@@ -39,20 +48,19 @@ export function useAudiobookBookData(bookId: string | null) {
         }
         setBook(detail.audiobook)
         setChapters(detail.chapters)
-      })
-      .catch((reason) => {
+      } catch (reason) {
         if (requestId !== requestRef.current) return
         if (reason instanceof DOMException && reason.name === 'AbortError') return
         setBook(null)
         setChapters([])
         setError(readError(reason, 'Could not load this audiobook.'))
-      })
-      .finally(() => {
+      } finally {
         if (requestId === requestRef.current) setLoading(false)
-      })
+      }
+    })()
 
     return () => controller.abort()
-  }, [bookId])
+  }, [cleanId])
 
   return { book, chapters, loading, error }
 }

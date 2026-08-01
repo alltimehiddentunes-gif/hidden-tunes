@@ -3,6 +3,8 @@
  * Renderer-safe: never includes sports private pilot token.
  */
 
+import '../desktopBridgeTypes'
+
 export type DesktopRuntimeEnvironment = 'development' | 'production' | 'unknown'
 
 export type DesktopRuntimeConfig = {
@@ -287,23 +289,5 @@ export function getAdminCatalogBaseUrlOrThrow(): string {
   return config.adminCatalogBaseUrl
 }
 
-declare global {
-  interface Window {
-    hiddenTunesDesktop?: {
-      catalog?: unknown
-      downloads?: unknown
-      runtime?: {
-        getInfo?: () => {
-          isPackaged: boolean
-          environment: string
-          ok?: boolean
-          errors?: string[]
-          warnings?: string[]
-          expressConfigured?: boolean
-          adminConfigured?: boolean
-          sportsPilotConfigured?: boolean
-        }
-      }
-    }
-  }
-}
+// Window.hiddenTunesDesktop is declared once in desktopBridgeTypes.ts
+

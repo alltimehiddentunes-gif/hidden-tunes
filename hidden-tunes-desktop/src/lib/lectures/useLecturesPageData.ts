@@ -55,12 +55,24 @@ export function useLecturesPageData(
   const trimmedSearch = searchQuery.trim()
   const filteredView =
     trimmedSearch.length > 0 || Boolean(categorySlug) || mediaFilter !== 'all' || Boolean(languageFilter)
+  const [prevFilteredView, setPrevFilteredView] = useState(filteredView)
+
+  if (filteredView !== prevFilteredView) {
+    setPrevFilteredView(filteredView)
+    if (!filteredView) {
+      setFilteredSeries([])
+      setContentError(null)
+      setContentLoading(false)
+    }
+  }
 
   useEffect(() => {
     const requestId = ++bootstrapRef.current
     const controller = new AbortController()
 
     void (async () => {
+      await Promise.resolve()
+      if (requestId !== bootstrapRef.current) return
       setLoading(true)
       setError(null)
       try {
@@ -107,12 +119,7 @@ export function useLecturesPageData(
   }, [])
 
   useEffect(() => {
-    if (!filteredView) {
-      setFilteredSeries([])
-      setContentError(null)
-      setContentLoading(false)
-      return
-    }
+    if (!filteredView) return
 
     browseAbortRef.current?.abort()
     const controller = new AbortController()
@@ -121,6 +128,8 @@ export function useLecturesPageData(
 
     const timer = window.setTimeout(() => {
       void (async () => {
+        await Promise.resolve()
+        if (requestId !== browseRef.current) return
         setContentLoading(true)
         setContentError(null)
         try {

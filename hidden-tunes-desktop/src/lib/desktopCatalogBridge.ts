@@ -1,8 +1,9 @@
-export type DesktopCatalogBridgeResponse = {
-  ok: boolean
-  status: number
-  payload: unknown
-}
+import type {
+  DesktopCatalogBridgeResponse,
+  HiddenTunesDesktopBridge,
+} from './desktopBridgeTypes'
+
+export type { DesktopCatalogBridgeResponse, HiddenTunesDesktopBridge }
 
 export type CatalogJsonRequestOptions = {
   path: string
@@ -11,37 +12,6 @@ export type CatalogJsonRequestOptions = {
   headers?: Record<string, string>
   timeoutMs?: number
   signal?: AbortSignal
-}
-
-type DesktopCatalogBridge = {
-  getJson: (path: string) => Promise<DesktopCatalogBridgeResponse>
-  requestJson?: (options: {
-    path: string
-    method?: 'GET' | 'POST'
-    body?: Record<string, unknown> | null
-  }) => Promise<DesktopCatalogBridgeResponse>
-}
-
-export type HiddenTunesDesktopBridge = {
-  catalog: DesktopCatalogBridge
-  runtime?: {
-    getInfo?: () => {
-      isPackaged: boolean
-      environment: string
-      ok?: boolean
-      errors?: string[]
-      warnings?: string[]
-      expressConfigured?: boolean
-      adminConfigured?: boolean
-      sportsPilotConfigured?: boolean
-    }
-  }
-}
-
-declare global {
-  interface Window {
-    hiddenTunesDesktop?: HiddenTunesDesktopBridge
-  }
 }
 
 const SPORTS_PILOT_HEADER = 'X-Hidden-Tunes-Sports-Pilot'
@@ -88,7 +58,11 @@ export async function requestCatalogJson(path: string): Promise<DesktopCatalogBr
   if (!hasDesktopCatalogBridge()) {
     throw new Error('Desktop catalog bridge is unavailable.')
   }
-  return window.hiddenTunesDesktop!.catalog.getJson(path)
+  const catalog = window.hiddenTunesDesktop?.catalog
+  if (!catalog?.getJson) {
+    throw new Error('Desktop catalog bridge is unavailable.')
+  }
+  return catalog.getJson(path)
 }
 
 export async function requestCatalogJsonRequest(
@@ -106,7 +80,11 @@ export async function requestCatalogJsonRequest(
   }
 
   if (hasCatalogRequestJson()) {
-    return window.hiddenTunesDesktop!.catalog.requestJson!({
+    const catalog = window.hiddenTunesDesktop?.catalog
+    if (!catalog?.requestJson) {
+      throw new Error('Desktop catalog request bridge is unavailable.')
+    }
+    return catalog.requestJson({
       path,
       method,
       body,

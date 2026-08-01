@@ -44,6 +44,12 @@ import {
 import { parseMusicGenreIntent, type MusicGenreDefinition } from './lib/musicGenres'
 import { getDesktopRuntimeConfig } from './lib/config/desktopRuntimeConfig'
 import {
+  DESKTOP_INCLUDED_CAPABILITIES,
+  MEMBERSHIP_COMING_SOON,
+  PREMIUM_MEMBERSHIP,
+  type PremiumCapabilitySpec,
+} from './lib/premium/premiumPresentation'
+import {
   buildSearchMetadataIndex,
   metadataRecordToApiSong,
   metadataRecordsToApiSongs,
@@ -136,7 +142,8 @@ import {
   useDesktopPlayback,
   useDesktopPlaybackProgress,
 } from './context/DesktopPlaybackProvider'
-import { AtmosphereProvider, useAtmosphere } from './context/AtmosphereContext'
+import { AtmosphereProvider } from './context/AtmosphereContext'
+import { useAtmosphere } from './context/useAtmosphere'
 import { resolveAtmosphereForWorld } from './lib/atmosphereManager'
 import type { QueueContext, QueueSeedMetadata } from './lib/desktopPlayback/types'
 import {
@@ -218,11 +225,13 @@ import { formatLectureSeriesSubtitle } from './lib/lectures/lectureFormatters'
 import { buildRadioQueueSongs, isRadioQueueSong } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
 import { resolveActivePlayerSurface } from './lib/player/resolveActivePlayerSurface'
+import { resolveVideoSurfaceLayout } from './lib/player/resolveVideoSurfaceLayout'
 import {
   resolveTvChannelTransportAvailability,
   resolveTvTransportLabels,
 } from './lib/tv/tvChannelTransport'
 import { isSportsQueueSong } from './lib/sports/sportsPlaybackAdapter'
+import { isMotivationalVideoSong } from './lib/motivationals/motivationalPlaybackAdapter'
 import { buildPodcastQueueSongs } from './lib/podcasts/podcastPlaybackAdapter'
 import { buildAudiobookQueueSongs } from './lib/audiobooks/audiobookPlaybackAdapter'
 import { buildMotivationalQueueSongs } from './lib/motivationals/motivationalPlaybackAdapter'
@@ -323,7 +332,6 @@ const PSD_ALBUMS_GRID_CARDS = [
   { key: 'alb9', title: 'Rainy Day Comfort', artist: 'Wills Afrobeats', year: '2017', songs: '13 songs' },
   { key: 'alb10', title: 'Live in Accra', artist: 'Wills Afrobeats', year: '2016', songs: '6 songs' },
 ] as const
-
 const PSD_PLAYER_TITLE = 'Midnight Reflection'
 const PSD_PLAYER_ARTIST = 'Wills Afrobeats'
 const PSD_PLAYER_SOURCE_ALBUM = 'Night Drive'
@@ -341,7 +349,6 @@ const PSD_PLAYER_LYRICS_LINES = [
   { tier: 'dimmed', text: 'Midnight whispers, soft and low' },
   { tier: 'dimmed', text: 'Guiding me where I should go' },
 ] as const
-
 const PSD_PLAYER2_TITLE_TOP = 'ECHOES'
 const PSD_PLAYER2_TITLE_MID = 'OF'
 const PSD_PLAYER2_TITLE_BOTTOM = 'MIDNIGHT'
@@ -374,7 +381,6 @@ const PSD_PLAYER2_SIDEBAR_NAV = [
   { key: 'liked', label: 'Favorites' },
   { key: 'downloads', label: 'Downloads' },
 ] as const
-
 const PSD_PLAYER3_SOURCE = 'Night Drive'
 const PSD_PLAYER3_TITLE_SCRIPT = 'Echoes of'
 const PSD_PLAYER3_TITLE_MAIN = 'MIDNIGHT'
@@ -450,7 +456,6 @@ const PSD_PLAYER4_SOUND_MODES = [
   { key: 'bass', label: 'BASS BOOST' },
   { key: 'spatial', label: 'SPATIAL AUDIO' },
 ] as const
-
 const DESKTOP_PLAYER_MODE_PLAYER5 = 'player-5' as const
 
 const PSD_PLAYER5_SOURCE = 'Night Drive'
@@ -521,7 +526,6 @@ const PSD_WAVEFORM_LYRICS = [
   'City lights paint the sky',
   'Dreams awake as I pass by',
 ] as const
-
 const PSD_LYRICS_ALBUM = 'Reflections at Midnight'
 const PSD_LYRICS_LINES = [
   { tier: 'active-purple', text: 'City lights' },
@@ -541,7 +545,6 @@ const PSD_LYRICS_LINES = [
   { tier: 'distant', text: 'A place where peace' },
   { tier: 'distant', text: 'resides' },
 ] as const
-
 /** PSD player design reference — not displayed as live playback data. */
 void [
   PSD_PLAYER_SOURCE_ALBUM,
@@ -1275,6 +1278,33 @@ type NavKey =
   | 'premium'
   | 'settings'
 
+const ALL_NAV_KEYS: readonly NavKey[] = [
+  'home',
+  'music',
+  'radio',
+  'podcasts',
+  'audiobooks',
+  'motivationals',
+  'lectures',
+  'tv',
+  'sports',
+  'worlds',
+  'search',
+  'library',
+  'liked',
+  'recent',
+  'downloads',
+  'playlists',
+  'artists',
+  'albums',
+  'premium',
+  'settings',
+] as const
+
+function isNavKey(value: string): value is NavKey {
+  return (ALL_NAV_KEYS as readonly string[]).includes(value)
+}
+
 const PSD_DESTINATION_NAV_KEYS: NavKey[] = [
   'home',
   'music',
@@ -1662,7 +1692,6 @@ const SIDEBAR_NAV_GROUPS = [
   { label: 'Listen and Learn', items: SIDEBAR_LEARN_NAV },
   { label: 'Account', items: SIDEBAR_ACCOUNT_NAV },
 ] as const
-
 function referenceSidebarItem(
   source: SidebarNavItem,
   key: string,
@@ -1699,7 +1728,6 @@ const HOME_REFERENCE_SIDEBAR_GROUPS = [
   },
   { label: '', items: SIDEBAR_ACCOUNT_NAV },
 ] as const
-
 if (import.meta.env.DEV) {
   const sidebarPrimaryKeys = SIDEBAR_PRIMARY_NAV.map((item) => item.navKey).join(',')
   const expectedPrimaryKeys = 'home,music,radio,podcasts,tv,sports'
@@ -1760,13 +1788,6 @@ function moodRoomScene(room: Pick<MoodRoom, 'title' | 'mood' | 'sceneId'>): Visu
   return room.sceneId ?? resolveVisualScene({ seed: room.title, mood: room.mood })
 }
 
-function MusicNoteIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 3v10.55A4 4 0 1014 17V7h4V3h-6z" />
-    </svg>
-  )
-}
 function useVisibleSlice<T>(
   items: T[],
   resetKey: string,
@@ -1780,10 +1801,12 @@ function useVisibleSlice<T>(
   const onNeedServerMore = options?.onNeedServerMore
   const hasServerMore = Boolean(options?.hasServerMore)
   const serverLoading = Boolean(options?.serverLoading)
+  const [prevResetKey, setPrevResetKey] = useState(resetKey)
 
-  useEffect(() => {
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey)
     setLimit(GRID_INITIAL_LIMIT)
-  }, [resetKey])
+  }
 
   const visible = useMemo(() => items.slice(0, limit), [items, limit])
   const hasMore = limit < items.length || hasServerMore
@@ -2270,14 +2293,24 @@ const HomeTopBar = memo(function HomeTopBar({
 }) {
   const [localQuery, setLocalQuery] = useState('')
   const isSearchShell = variant === 'search' && onSearchChange != null
-  const [draftQuery, setDraftQuery] = useState(searchValue ?? '')
+  const controlledSearchValue = searchValue ?? ''
+  const [draftQuery, setDraftQuery] = useState(controlledSearchValue)
   const commitTimerRef = useRef<number | null>(null)
   const query = isSearchShell ? draftQuery : localQuery
+  const [prevSearchShellState, setPrevSearchShellState] = useState({
+    isSearchShell,
+    controlledSearchValue,
+  })
 
-  useEffect(() => {
-    if (!isSearchShell) return
-    setDraftQuery(searchValue ?? '')
-  }, [isSearchShell, searchValue])
+  if (
+    isSearchShell !== prevSearchShellState.isSearchShell
+    || (isSearchShell && controlledSearchValue !== prevSearchShellState.controlledSearchValue)
+  ) {
+    setPrevSearchShellState({ isSearchShell, controlledSearchValue })
+    if (isSearchShell) {
+      setDraftQuery(controlledSearchValue)
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -2756,10 +2789,13 @@ function RadioFoundationSection({
       songs,
     ],
   )
+  const seedKey = `${seed?.id ?? ''}:${seed?.type ?? ''}`
+  const [prevSeedKey, setPrevSeedKey] = useState(seedKey)
 
-  useEffect(() => {
+  if (seedKey !== prevSeedKey) {
+    setPrevSeedKey(seedKey)
     setBuiltStation(null)
-  }, [seed?.id, seed?.type])
+  }
 
   const handleBuildStation = useCallback(() => {
     if (!seed) return
@@ -2892,7 +2928,7 @@ const Sidebar = memo(function Sidebar({
         <button
           type="button"
           className={`sidebar-premium-cta${activeNavKey === 'premium' ? ' is-active' : ''}`}
-          aria-label="Go Premium"
+          aria-label="Premium membership preview"
           aria-current={activeNavKey === 'premium' ? 'page' : undefined}
           onClick={() => onNavigateNav('premium')}
         >
@@ -2904,8 +2940,8 @@ const Sidebar = memo(function Sidebar({
             </svg>
           </span>
           <span className="sidebar-premium-copy">
-            <span className="sidebar-premium-label">Go Premium</span>
-            <span className="sidebar-premium-hint">Unlock every world</span>
+            <span className="sidebar-premium-label">Premium</span>
+            <span className="sidebar-premium-hint">Membership coming soon</span>
           </span>
         </button>
 
@@ -2916,7 +2952,7 @@ const Sidebar = memo(function Sidebar({
           <div className="sidebar-user-copy">
             <span className="sidebar-user-name">Hidden Listener</span>
             <span className="sidebar-user-badge">
-              Local profile
+              {PREMIUM_MEMBERSHIP.accountStatusLabel}
             </span>
           </div>
         </div>
@@ -3424,38 +3460,46 @@ function DiscoverPage({
   const [remoteHasMore, setRemoteHasMore] = useState(false)
   const [remoteLoadingMore, setRemoteLoadingMore] = useState(false)
   const remoteSearchGen = useRef(0)
+  const hasRemoteQuery = Boolean(trimmedQuery) || Boolean(genreDefinition)
+  const [prevHasRemoteQuery, setPrevHasRemoteQuery] = useState(hasRemoteQuery)
 
-  useEffect(() => {
-    if (!trimmedQuery && !genreDefinition) {
+  if (hasRemoteQuery !== prevHasRemoteQuery) {
+    setPrevHasRemoteQuery(hasRemoteQuery)
+    if (!hasRemoteQuery) {
       setRemoteSongs([])
       setRemoteSearchLoading(false)
       setRemoteSearchError(null)
-      return
     }
+  }
+
+  useEffect(() => {
+    if (!hasRemoteQuery) return
 
     const controller = new AbortController()
     const gen = ++remoteSearchGen.current
-    setRemoteSearchLoading(true)
-    setRemoteSearchError(null)
 
-    const request = genreDefinition
-      ? loadFilteredGenrePage(genreDefinition, 1, controller.signal)
-      : searchMusicSongsPage({
-          query: trimmedQuery,
-          page: 1,
-          limit: MUSIC_CATALOG_PAGE_SIZE,
-          signal: controller.signal,
-        })
-    void request
-      .then((result) => {
+    void (async () => {
+      await Promise.resolve()
+      if (gen !== remoteSearchGen.current) return
+      setRemoteSearchLoading(true)
+      setRemoteSearchError(null)
+
+      try {
+        const result = await (genreDefinition
+          ? loadFilteredGenrePage(genreDefinition, 1, controller.signal)
+          : searchMusicSongsPage({
+              query: trimmedQuery,
+              page: 1,
+              limit: MUSIC_CATALOG_PAGE_SIZE,
+              signal: controller.signal,
+            }))
         if (gen !== remoteSearchGen.current) return
         startTransition(() => {
           setRemoteSongs(result.items)
           setRemotePage('page' in result ? result.page : 1)
           setRemoteHasMore(result.hasMore)
         })
-      })
-      .catch((err) => {
+      } catch (err) {
         if (gen !== remoteSearchGen.current) return
         if (err instanceof DOMException && err.name === 'AbortError') return
         if (err instanceof CatalogRequestError && err.kind === 'abort') return
@@ -3463,15 +3507,15 @@ function DiscoverPage({
           err instanceof Error ? err.message : 'Search failed.',
         )
         // Do not wipe prior successful remote results on a transient failure.
-      })
-      .finally(() => {
+      } finally {
         if (gen === remoteSearchGen.current) setRemoteSearchLoading(false)
-      })
+      }
+    })()
 
     return () => {
       controller.abort()
     }
-  }, [genreDefinition, genreId, trimmedQuery])
+  }, [genreDefinition, genreId, hasRemoteQuery, trimmedQuery])
 
   const loadMoreRemoteSongs = useCallback(() => {
     if (!genreDefinition || remoteLoadingMore || !remoteHasMore) return
@@ -3941,7 +3985,9 @@ function DiscoverPage({
               <GlobalSearchSections
                 search={globalSearch}
                 ArtworkImage={ArtworkImage}
-                onNavigateNav={onNavigateNav}
+                onNavigateNav={(navKey) => {
+                  if (isNavKey(navKey)) onNavigateNav(navKey)
+                }}
                 onOpenPodcastShow={onOpenPodcastShow}
                 onOpenAudiobook={onOpenAudiobookBook}
                 onOpenMotivational={onOpenMotivationalProgram}
@@ -4792,7 +4838,8 @@ function AlbumsPage({
   )
 }
 
-function PlaylistsPage({
+/* Legacy page retained for reference; Library routes use DesktopPlaylistsPage. */
+export function PlaylistsPage({
   onOpenSong,
   query: selectedPlaylistQuery = '',
   setQuery: setSelectedPlaylistQuery,
@@ -5231,8 +5278,8 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   )
 }
 
-/* Phase D: Recently Played from device music history */
-function RecentPage({
+/* Phase D: Recently Played from device music history — retained export for reference. */
+export function RecentPage({
   onOpenSong,
   query = '',
 }: {
@@ -5390,86 +5437,23 @@ function DownloadsPage({
   )
 }
 
-type PremiumFeatureAction = 'settings' | 'worlds'
-
-type PremiumFeatureSpec = {
-  id: string
-  title: string
-  description: string
-  status: 'available' | 'coming-soon'
-  action?: PremiumFeatureAction
-  actionLabel?: string
-}
-
-type PremiumPlanSpec = {
-  id: string
-  title: string
-  priceLabel: string
-  detail: string
-  badge?: string
-}
-
-const PREMIUM_FEATURE_SPECS: PremiumFeatureSpec[] = [
-  {
-    id: 'hq-audio',
-    title: 'High Quality Audio',
-    description: 'Choose standard, high-quality, or lossless playback for this desktop install.',
-    status: 'available',
-    action: 'settings',
-    actionLabel: 'Open settings',
-  },
-  {
-    id: 'worlds',
-    title: 'Emotional Worlds',
-    description: 'Browse cinematic listening scenes curated from your catalog moods and genres.',
-    status: 'available',
-    action: 'worlds',
-    actionLabel: 'Browse worlds',
-  },
-  {
-    id: 'cinema',
-    title: 'Cinematic Player Modes',
-    description: 'Full-screen premium player experiences with reactive visuals and lyrics stages.',
-    status: 'coming-soon',
-  },
-  {
-    id: 'offline',
-    title: 'Offline Listening',
-    description: 'Keep selected songs and playlists available when you are away from the network.',
-    status: 'coming-soon',
-  },
-]
-
-const PREMIUM_PLAN_SPECS: PremiumPlanSpec[] = [
-  {
-    id: 'monthly',
-    title: 'Monthly',
-    priceLabel: 'Coming soon',
-    detail: 'Flexible membership preview for desktop.',
-  },
-  {
-    id: 'annual',
-    title: 'Annual',
-    priceLabel: 'Coming soon',
-    detail: 'Best value membership preview for desktop.',
-    badge: 'Best value',
-  },
-]
-
 function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => void }) {
   const premiumHeroArt = getArtworkForPremium('hero')
-  const featuresRef = useRef<HTMLElement | null>(null)
-  const plansRef = useRef<HTMLElement | null>(null)
+  const includedRef = useRef<HTMLElement | null>(null)
+  const comingSoonRef = useRef<HTMLElement | null>(null)
 
   const scrollToSection = useCallback((node: HTMLElement | null) => {
     node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [])
 
-  const handleFeatureAction = useCallback(
-    (feature: PremiumFeatureSpec) => {
-      if (feature.status !== 'available' || !feature.action) return
+  const handleIncludedAction = useCallback(
+    (feature: PremiumCapabilitySpec) => {
       if (feature.action === 'settings') {
         onNavigateNav('settings')
+        return
+      }
+      if (feature.action === 'downloads') {
+        onNavigateNav('downloads')
         return
       }
       onNavigateNav('worlds')
@@ -5500,24 +5484,25 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
             </div>
             <div className="psd-premium-hero-copy">
               <p className="psd-page-eyebrow">Hidden Tunes Premium</p>
-              <h1 id="premium-heading">Unlock Every World</h1>
+              <h1 id="premium-heading">Membership preview</h1>
               <p className="psd-page-subtitle">
-                Cinematic listening, deeper worlds, and gold-tier atmosphere — built for emotional immersion.
+                Desktop membership checkout is not available yet. Catalogue listening, downloads, and
+                player layouts below already work on this preview without a purchase.
               </p>
               <div className="psd-hero-actions psd-premium-hero-actions">
                 <button
                   type="button"
                   className="psd-btn psd-btn--gold"
-                  onClick={() => scrollToSection(featuresRef.current)}
+                  onClick={() => scrollToSection(includedRef.current)}
                 >
-                  Explore features
+                  What works today
                 </button>
                 <button
                   type="button"
                   className="psd-btn psd-btn--ghost"
-                  onClick={() => scrollToSection(plansRef.current)}
+                  onClick={() => scrollToSection(comingSoonRef.current)}
                 >
-                  Compare plans
+                  Coming soon
                 </button>
               </div>
             </div>
@@ -5525,11 +5510,13 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
         </section>
 
         <section className="psd-premium-notice" aria-label="Membership availability">
-          <span className="psd-premium-notice-badge">Preview</span>
+          <span className="psd-premium-notice-badge">Coming soon</span>
           <div className="psd-premium-notice-copy">
-            <strong>Membership checkout is not available on this desktop preview.</strong>
+            <strong>{PREMIUM_MEMBERSHIP.membershipStatusLabel}.</strong>
             <p>
-              Explore included playback quality settings and emotional worlds now. Billing and plan management will arrive in a future release.
+              {PREMIUM_MEMBERSHIP.billingStatusLabel}. There are no plans, prices, upgrade buttons, or
+              Premium entitlements on this install. Account status stays local until backend membership
+              authority exists.
             </p>
           </div>
           <button
@@ -5537,63 +5524,64 @@ function PremiumPage({ onNavigateNav }: { onNavigateNav: (navKey: NavKey) => voi
             className="psd-btn psd-btn--ghost psd-btn--compact"
             onClick={() => onNavigateNav('settings')}
           >
-            Manage in Settings
+            View account status
           </button>
         </section>
 
         <section
-          ref={featuresRef}
+          ref={includedRef}
           className="psd-premium-section"
-          aria-labelledby="premium-features-heading"
+          aria-labelledby="premium-included-heading"
         >
           <header className="psd-premium-section-header">
-            <h2 id="premium-features-heading">Premium features</h2>
-            <p>Only live capabilities are marked available. Everything else stays clearly preview-only.</p>
+            <h2 id="premium-included-heading">Included in this desktop preview</h2>
+            <p>
+              These capabilities work now and are not sold as Premium-only. Labels below match real
+              Settings and Downloads behaviour.
+            </p>
           </header>
           <div className="psd-premium-grid">
-            {PREMIUM_FEATURE_SPECS.map((feature) => (
-              <article key={feature.id} className="psd-premium-card" data-status={feature.status}>
+            {DESKTOP_INCLUDED_CAPABILITIES.map((feature) => (
+              <article key={feature.id} className="psd-premium-card" data-status="included">
                 <div className="psd-premium-card-top">
                   <span className="psd-premium-card-icon" aria-hidden="true">✦</span>
-                  <span className={`psd-premium-status${feature.status === 'available' ? ' is-live' : ''}`}>
-                    {feature.status === 'available' ? 'Available' : 'Coming soon'}
-                  </span>
+                  <span className="psd-premium-status is-live">Included</span>
                 </div>
                 <strong>{feature.title}</strong>
                 <p>{feature.description}</p>
-                {feature.status === 'available' && feature.action && feature.actionLabel ? (
-                  <button
-                    type="button"
-                    className="psd-premium-card-action"
-                    onClick={() => handleFeatureAction(feature)}
-                  >
-                    {feature.actionLabel}
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className="psd-premium-card-action"
+                  onClick={() => handleIncludedAction(feature)}
+                >
+                  {feature.actionLabel}
+                </button>
               </article>
             ))}
           </div>
         </section>
 
         <section
-          ref={plansRef}
+          ref={comingSoonRef}
           className="psd-premium-section psd-premium-plans"
-          aria-labelledby="premium-plans-heading"
+          aria-labelledby="premium-coming-soon-heading"
         >
           <header className="psd-premium-section-header">
-            <h2 id="premium-plans-heading">Plans</h2>
-            <p>Preview pricing only — checkout is not connected on desktop yet.</p>
+            <h2 id="premium-coming-soon-heading">Coming soon</h2>
+            <p>
+              Membership purchase, billing, and entitlement-gated catalogue are not offered on desktop
+              yet. No placeholder prices or plan cards are shown.
+            </p>
           </header>
-          <div className="psd-premium-plan-grid">
-            {PREMIUM_PLAN_SPECS.map((plan) => (
-              <article key={plan.id} className="psd-premium-plan-card" data-plan={plan.id}>
-                {plan.badge ? <span className="psd-premium-plan-badge">{plan.badge}</span> : null}
-                <h3>{plan.title}</h3>
-                <p className="psd-premium-plan-price">{plan.priceLabel}</p>
-                <p className="psd-premium-plan-detail">{plan.detail}</p>
-                <button type="button" className="psd-premium-plan-cta" disabled>
-                  Not available yet
-                </button>
+          <div className="psd-premium-grid">
+            {MEMBERSHIP_COMING_SOON.map((item) => (
+              <article key={item.id} className="psd-premium-card" data-status="coming-soon">
+                <div className="psd-premium-card-top">
+                  <span className="psd-premium-card-icon" aria-hidden="true">✦</span>
+                  <span className="psd-premium-status">Coming soon</span>
+                </div>
+                <strong>{item.title}</strong>
+                <p>{item.description}</p>
               </article>
             ))}
           </div>
@@ -5729,9 +5717,21 @@ function SettingsPage({
                 <dt>Catalog</dt>
                 <dd>Read-only catalog mode</dd>
               </div>
+              <div className="settings-identity-row">
+                <dt>Account</dt>
+                <dd>{PREMIUM_MEMBERSHIP.accountStatusLabel}</dd>
+              </div>
+              <div className="settings-identity-row">
+                <dt>Membership</dt>
+                <dd>{PREMIUM_MEMBERSHIP.membershipStatusLabel}</dd>
+              </div>
+              <div className="settings-identity-row">
+                <dt>Billing</dt>
+                <dd>{PREMIUM_MEMBERSHIP.billingStatusLabel}</dd>
+              </div>
             </dl>
             <p className="settings-identity-note">
-              Mobile app and playback remain separate.
+              Mobile app and playback remain separate. No Premium entitlement is applied on this desktop preview.
             </p>
           </section>
           <section className="settings-panel">
@@ -6046,6 +6046,7 @@ const PlayerBar = memo(function PlayerBar({
     && !isRadioQueueSong(displayTrack)
     && !isTvQueueSong(displayTrack)
     && !isSportsQueueSong(displayTrack)
+    && !isMotivationalVideoSong(displayTrack)
   const canLikeTrack = Boolean(displayTrack && isMusicCatalogSong(displayTrack))
   const trackLiked = canLikeTrack ? isLiked(displayTrack!.id) : false
   const musicCandidateUrl = displayTrack
@@ -6709,9 +6710,10 @@ function ArtistDetailView({
     [artistSongs, showAllSongs],
   )
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+  const [prevArtistId, setPrevArtistId] = useState(artist.id)
 
-  useEffect(() => {
-    const abortController = new AbortController()
+  if (artist.id !== prevArtistId) {
+    setPrevArtistId(artist.id)
     setProfileShell(null)
     setProfileBio(null)
     setProfileAlbums(null)
@@ -6726,9 +6728,13 @@ function ArtistDetailView({
     setFollowerCount(0)
     setFollowBusy(false)
     setFollowMessage(null)
-    followInFlightRef.current = false
     setAboutExpanded(false)
     setShowAllSongs(false)
+  }
+
+  useEffect(() => {
+    followInFlightRef.current = false
+    const abortController = new AbortController()
 
     void (async () => {
       try {
@@ -7628,8 +7634,8 @@ function PageContent({
   onOpenPlayerByStyle,
   recentQuery = '',
   downloadsQuery = '',
-  playlistsQuery = '',
-  setPlaylistsQuery,
+  playlistsQuery: _playlistsQuery = '',
+  setPlaylistsQuery: _setPlaylistsQuery,
   libraryQuery = '',
   radioQuery = '',
   podcastsQuery = '',
@@ -7708,6 +7714,8 @@ function PageContent({
 }) {
   void _onOpenMood
   void onPlaylistBack
+  void _playlistsQuery
+  void _setPlaylistsQuery
   const { songs, indexes } = useCatalog()
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') {
@@ -8149,6 +8157,8 @@ function AppShell() {
       ? (currentTrack ?? currentQueue[currentIndex] ?? null)
       : null
   const activePlayerSurface = resolveActivePlayerSurface(activeSessionTrack)
+  const videoSurfaceLayout = resolveVideoSurfaceLayout(activeSessionTrack)
+  const useMotivationalVideoStage = videoSurfaceLayout === 'motivational-contained'
 
   const {
     cancelAutoOpenPlayer,
@@ -8188,13 +8198,25 @@ function AppShell() {
     ensureLibraryMigrated()
   }, [])
 
-  useEffect(() => {
-    if (!currentTrack) return
+  const currentTrackId = currentTrack?.id ?? null
+  const [prevPlaybackSync, setPrevPlaybackSync] = useState({
+    currentTrackId,
+    activeView,
+  })
+
+  if (
+    currentTrack
+    && (
+      currentTrackId !== prevPlaybackSync.currentTrackId
+      || activeView !== prevPlaybackSync.activeView
+    )
+  ) {
+    setPrevPlaybackSync({ currentTrackId, activeView })
     setDesktopSelectedTrack(currentTrack)
     setSelectedSong((previousSong) => (
       activeView === 'song' ? currentTrack : previousSong
     ))
-  }, [activeView, currentTrack])
+  }
 
   const selectAndPlay = useCallback(
     (
@@ -8515,6 +8537,7 @@ function AppShell() {
       <div
         className={`app-shell${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}
         data-has-active-media={hasActiveMediaSession ? 'true' : 'false'}
+        data-video-layout={videoSurfaceLayout}
       >
         <HiddenTunesGlobalBackground />
         <Sidebar activeNavKey={activeNavKey} onNavigateNav={navigateNav} />
@@ -8536,6 +8559,15 @@ function AppShell() {
                 activeView === 'song' ? ' main-scroll--player-workspace' : ''
               }`}
             >
+              {useMotivationalVideoStage ? (
+                <div className="motivational-video-stage" data-video-layout="motivational-contained">
+                  <TvNowPlayingPanel
+                    videoLayout="motivational-contained"
+                    onBrowseAll={() => navigateNav('motivationals')}
+                    onBrowseFeatured={() => navigateNav('motivationals')}
+                  />
+                </div>
+              ) : null}
               {isPsdDestinationNav(activeNavKey) && activeView === 'page' ? (
                 <GlobalTopNav
                   activeNavKey={activeNavKey}
@@ -8714,10 +8746,11 @@ function AppShell() {
                 />
               </div>
             </main>
-            {hasActiveMediaSession ? (
+            {hasActiveMediaSession && !useMotivationalVideoStage ? (
               <div className="conditional-player-rail" data-player-surface={activePlayerSurface}>
                 {activePlayerSurface === 'tv' ? (
                   <TvNowPlayingPanel
+                    videoLayout={videoSurfaceLayout === 'sports-wide' ? 'sports-wide' : 'tv-cinema'}
                     onBrowseAll={() => navigateNav('tv')}
                     onBrowseFeatured={() => navigateNav('tv')}
                   />

@@ -122,7 +122,7 @@ export function downloadItemToQueueSong(
         title: item.title,
         artist: item.subtitle || 'Unknown Artist',
         artistId: null,
-        album: metaString(item, 'album'),
+        album: metaString(item, 'album') ?? '',
         albumId: null,
         genre: null,
         mood: null,

@@ -21,7 +21,7 @@ export function playlistItemToQueueSong(
         title: item.title,
         artist: item.artist || item.subtitle || 'Unknown Artist',
         artistId: null,
-        album: item.album ?? null,
+        album: item.album ?? '',
         albumId: null,
         genre: null,
         mood: null,

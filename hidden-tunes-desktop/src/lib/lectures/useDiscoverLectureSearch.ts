@@ -27,21 +27,29 @@ export function useDiscoverLectureSearch(debouncedQuery: string) {
   const requestRef = useRef(0)
 
   const trimmed = debouncedQuery.trim()
+  const [prevTrimmed, setPrevTrimmed] = useState(trimmed)
 
-  useEffect(() => {
+  if (trimmed !== prevTrimmed) {
+    setPrevTrimmed(trimmed)
     if (!trimmed) {
       setCourses([])
       setLoading(false)
       setError(null)
-      return
     }
+  }
+
+  useEffect(() => {
+    if (!trimmed) return
 
     const requestId = ++requestRef.current
     const controller = new AbortController()
-    setLoading(true)
-    setError(null)
 
     void (async () => {
+      await Promise.resolve()
+      if (requestId !== requestRef.current) return
+      setLoading(true)
+      setError(null)
+
       try {
         const response = await searchLectures(
           trimmed,
