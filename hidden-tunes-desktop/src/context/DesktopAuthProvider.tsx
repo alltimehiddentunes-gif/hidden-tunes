@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -35,12 +36,32 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
   })
   const [refreshing, setRefreshing] = useState(false)
   const [signInOpen, setSignInOpen] = useState(false)
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null)
+  const knownSignedInRef = useRef(false)
+  const intentionalSignOutRef = useRef(false)
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
     try {
       const next = await getDesktopSupabaseSessionSummary()
-      setSession(next)
+      setSession((previous) => {
+        if (
+          knownSignedInRef.current &&
+          previous.isSignedIn &&
+          !next.isSignedIn &&
+          !intentionalSignOutRef.current
+        ) {
+          setSessionNotice(
+            'Your account session ended. Sign in again to use Follow and account features.',
+          )
+        }
+        if (next.isSignedIn) {
+          setSessionNotice(null)
+          intentionalSignOutRef.current = false
+        }
+        knownSignedInRef.current = next.isSignedIn
+        return next
+      })
       return next
     } finally {
       setRefreshing(false)
@@ -66,6 +87,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
+      intentionalSignOutRef.current = false
       const result = await signInDesktopWithPassword(email, password)
       await refresh()
       return { error: result.error }
@@ -75,6 +97,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(
     async (email: string, password: string) => {
+      intentionalSignOutRef.current = false
       const result = await signUpDesktopWithPassword(email, password)
       await refresh()
       return { error: result.error, needsEmailConfirmation: result.needsEmailConfirmation }
@@ -87,6 +110,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    intentionalSignOutRef.current = true
     const result = await signOutDesktopSession()
     await refresh()
     return { error: result.error }
@@ -94,6 +118,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
 
   const openSignIn = useCallback(() => setSignInOpen(true), [])
   const closeSignIn = useCallback(() => setSignInOpen(false), [])
+  const clearSessionNotice = useCallback(() => setSessionNotice(null), [])
 
   const value = useMemo(
     () => ({
@@ -101,6 +126,8 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
       session,
       refreshing,
       signInOpen,
+      sessionNotice,
+      clearSessionNotice,
       openSignIn,
       closeSignIn,
       refresh,
@@ -110,6 +137,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
       signOut,
     }),
     [
+      clearSessionNotice,
       closeSignIn,
       configured,
       openSignIn,
@@ -117,6 +145,7 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
       refreshing,
       requestPasswordReset,
       session,
+      sessionNotice,
       signIn,
       signInOpen,
       signOut,

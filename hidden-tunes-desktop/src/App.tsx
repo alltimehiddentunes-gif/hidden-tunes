@@ -78,6 +78,12 @@ import {
 } from './services/desktopSupabaseAuth'
 import { DesktopAuthProvider } from './context/DesktopAuthProvider'
 import { useDesktopAuth } from './context/useDesktopAuth'
+import { DesktopOfflineBanner } from './components/shell/DesktopOfflineBanner'
+import { DesktopSessionStatusBanner } from './components/shell/DesktopSessionStatusBanner'
+import {
+  getDesktopDownloadDiskUsage,
+  useDesktopConnectivity,
+} from './lib/downloads'
 import {
   buildQueueCandidatePools,
   buildQueueSeedPool,
@@ -5691,9 +5697,22 @@ function AudioQualitySelector({
 
 function SettingsPage({
   onOpenPlayerByStyle,
+  onNavigateNav,
 }: {
   onOpenPlayerByStyle: (style: NowPlayingStyle) => void
+  onNavigateNav: (navKey: NavKey) => void
 }) {
+  type SettingsSectionId =
+    | 'about'
+    | 'account'
+    | 'playback'
+    | 'appearance'
+    | 'downloads'
+    | 'storage'
+    | 'privacy'
+    | 'shortcuts'
+    | 'diagnostics'
+
   const {
     audioQualityMode,
     setAudioQualityMode,
@@ -5701,16 +5720,39 @@ function SettingsPage({
     currentQueue,
     currentIndex,
   } = useDesktopPlayback()
-  const { configured, session, openSignIn, signOut } = useDesktopAuth()
+  const { configured, session, openSignIn, signOut, refreshing } = useDesktopAuth()
+  const { offline } = useDesktopConnectivity()
   const { resetDesktopPreferencesState } = usePreferencesReset()
-  const { clearCatalogCache } = useCatalog()
+  const { clearCatalogCache, catalogStatus, error: catalogError } = useCatalog()
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>('about')
   const [resetNotice, setResetNotice] = useState('')
   const [cacheNotice, setCacheNotice] = useState('')
   const [accountNotice, setAccountNotice] = useState('')
+  const [diskUsage, setDiskUsage] = useState<Awaited<
+    ReturnType<typeof getDesktopDownloadDiskUsage>
+  > | null>(null)
+  const [diskError, setDiskError] = useState<string | null>(null)
 
   const hasActivePlayback = Boolean(
     currentTrack && currentQueue.length > 0 && currentIndex >= 0,
   )
+
+  useEffect(() => {
+    let cancelled = false
+    void getDesktopDownloadDiskUsage()
+      .then((usage) => {
+        if (!cancelled) {
+          setDiskUsage(usage)
+          setDiskError(null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDiskError('Could not read download storage on this install.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleResetPreferences = () => {
     resetDesktopPreferencesState()
@@ -5728,179 +5770,436 @@ function SettingsPage({
       ? 'Signed out'
       : PREMIUM_MEMBERSHIP.accountStatusLabel
 
+  const openExternal = (url: string) => {
+    void window.hiddenTunesDesktop?.shell?.openExternalUrl?.(url)
+  }
+
+  const formatBytes = (bytes: number | null | undefined) => {
+    if (bytes == null || !Number.isFinite(bytes) || bytes < 0) return 'Unavailable'
+    if (bytes < 1024) return `${bytes} B`
+    const units = ['KB', 'MB', 'GB', 'TB']
+    let value = bytes / 1024
+    let unit = 0
+    while (value >= 1024 && unit < units.length - 1) {
+      value /= 1024
+      unit += 1
+    }
+    return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`
+  }
+
+  const navItems: Array<{ id: SettingsSectionId; label: string }> = [
+    { id: 'about', label: 'About' },
+    { id: 'account', label: 'Account' },
+    { id: 'playback', label: 'Playback' },
+    { id: 'appearance', label: 'Appearance' },
+    { id: 'downloads', label: 'Downloads' },
+    { id: 'storage', label: 'Storage' },
+    { id: 'privacy', label: 'Privacy' },
+    { id: 'shortcuts', label: 'Shortcuts' },
+    { id: 'diagnostics', label: 'Diagnostics' },
+  ]
+
   return (
     <PageFrame>
       <PageHeader
         eyebrow="Preferences"
         title="Settings"
-        description="Desktop appearance and product information for this install."
+        description="Device-local preferences, account, storage, and honesty for this desktop install."
       />
-      <div className="settings-layout">
+      <div className="settings-layout" data-settings-phase="13">
         <nav className="settings-nav" aria-label="Settings sections">
-          <button type="button" className="settings-nav-item active">
-            About
-          </button>
-          <button
-            type="button"
-            className="settings-nav-item is-disabled"
-            disabled
-            title="Additional settings sections are not available in this desktop preview"
-            aria-label="Appearance — not available in this desktop preview"
-          >
-            Appearance
-            <span className="settings-nav-hint">Preview only</span>
-          </button>
-          <button
-            type="button"
-            className="settings-nav-item is-disabled"
-            disabled
-            title="Use Playback quality below — separate Playback section nav is not available yet"
-            aria-label="Playback section — not available; quality controls are on this page"
-          >
-            Playback
-            <span className="settings-nav-hint">See quality below</span>
-          </button>
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`settings-nav-item${activeSection === item.id ? ' active' : ''}`}
+              aria-current={activeSection === item.id ? 'page' : undefined}
+              onClick={() => setActiveSection(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
         </nav>
         <div className="settings-panels">
-          <section className="settings-panel settings-panel--about">
-            <h2>About &amp; identity</h2>
-            <p className="settings-panel-desc">
-              Installable desktop preview for browsing the Hidden Tunes catalog.
-            </p>
-            <dl className="settings-identity-list">
-              <div className="settings-identity-row">
-                <dt>App name</dt>
-                <dd>{APP_NAME}</dd>
+          {activeSection === 'about' ? (
+            <section className="settings-panel settings-panel--about" id="settings-about">
+              <h2>About &amp; identity</h2>
+              <p className="settings-panel-desc">
+                Installable desktop preview for browsing the Hidden Tunes catalog.
+              </p>
+              <dl className="settings-identity-list">
+                <div className="settings-identity-row">
+                  <dt>App name</dt>
+                  <dd>{APP_NAME}</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Version</dt>
+                  <dd>{APP_VERSION}</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Channel</dt>
+                  <dd>desktop/integrate-home-music-split preview</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Catalog</dt>
+                  <dd>Read-only catalog mode</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Membership</dt>
+                  <dd>{PREMIUM_MEMBERSHIP.membershipStatusLabel}</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Billing</dt>
+                  <dd>{PREMIUM_MEMBERSHIP.billingStatusLabel}</dd>
+                </div>
+              </dl>
+              <p className="settings-identity-note">
+                Mobile app and playback remain separate. No Premium entitlement is applied on this
+                desktop preview.
+              </p>
+              <div className="settings-legal-links" aria-label="Legal">
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => openExternal('https://hiddentunes.com/privacy')}
+                >
+                  Privacy Policy
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => openExternal('https://hiddentunes.com/terms')}
+                >
+                  Terms of Use
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => openExternal('https://hiddentunes.com/support')}
+                >
+                  Support
+                </button>
               </div>
-              <div className="settings-identity-row">
-                <dt>Version</dt>
-                <dd>{APP_VERSION}</dd>
+              <p className="settings-identity-note">
+                Legal pages open in your browser when available. If a link is unreachable, the product
+                policy has not been published at that address yet.
+              </p>
+            </section>
+          ) : null}
+
+          {activeSection === 'account' ? (
+            <section className="settings-panel" id="settings-account">
+              <h2>Account</h2>
+              <p className="settings-panel-desc">
+                Hidden Tunes account sessions use the same identity system as mobile. Preferences and
+                library on this desktop remain device-local unless a future sync feature ships.
+              </p>
+              <dl className="settings-identity-list">
+                <div className="settings-identity-row">
+                  <dt>Status</dt>
+                  <dd>{accountStatusLabel}</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Session</dt>
+                  <dd>
+                    {refreshing
+                      ? 'Refreshing…'
+                      : session.isSignedIn
+                        ? 'Active on this install'
+                        : configured
+                          ? 'Signed out'
+                          : 'Not configured'}
+                  </dd>
+                </div>
+              </dl>
+              <p className="settings-identity-note">
+                Account switching does not automatically wipe device-local likes, downloads, or
+                preferences. Those remain on this machine until you clear them.
+              </p>
+              {configured ? (
+                <div className="settings-account-actions">
+                  {session.isSignedIn ? (
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={() => {
+                        void signOut().then((result) => {
+                          setAccountNotice(
+                            result.error
+                              ? result.error
+                              : 'Signed out. Device-local library and downloads are unchanged.',
+                          )
+                        })
+                      }}
+                    >
+                      Sign out
+                    </button>
+                  ) : (
+                    <button type="button" className="btn-primary btn-sm" onClick={openSignIn}>
+                      Sign in
+                    </button>
+                  )}
+                  {accountNotice ? <p className="settings-identity-note">{accountNotice}</p> : null}
+                </div>
+              ) : (
+                <p className="settings-identity-note">
+                  Account sign-in is not configured in this desktop build (missing Supabase public
+                  env).
+                </p>
+              )}
+            </section>
+          ) : null}
+
+          {activeSection === 'playback' ? (
+            <>
+              <section className="settings-panel settings-panel--playback" id="settings-playback">
+                <h2>Playback preferences</h2>
+                <p className="settings-panel-desc">
+                  Audio quality is saved locally for this install. Queue restore never autoplays after
+                  restart — that behaviour is intentional and not a toggle yet.
+                </p>
+                <div className="settings-row settings-row--stacked">
+                  <div className="settings-label">
+                    <span>Audio quality</span>
+                    <small>Selected: {AUDIO_QUALITY_MODE_LABELS[audioQualityMode]}</small>
+                  </div>
+                  <AudioQualitySelector value={audioQualityMode} onChange={setAudioQualityMode} />
+                </div>
+                <div className="settings-row">
+                  <div className="settings-label">
+                    <span>Autoplay after restart</span>
+                    <small>Restored queues stay paused until you press Play</small>
+                  </div>
+                  <span className="settings-badge settings-badge--muted">Fixed off</span>
+                </div>
+                <div className="settings-row">
+                  <div className="settings-label">
+                    <span>Shuffle &amp; repeat</span>
+                    <small>Controlled from the player for the current session only</small>
+                  </div>
+                  <span className="settings-badge settings-badge--muted">Session only</span>
+                </div>
+              </section>
+              <AtmosphereSettingsPanel />
+              <PreferredPlayerStyleSelector
+                hasActivePlayback={hasActivePlayback}
+                onOpenPlayerByStyle={onOpenPlayerByStyle}
+              />
+            </>
+          ) : null}
+
+          {activeSection === 'appearance' ? (
+            <section className="settings-panel" id="settings-appearance">
+              <h2>Appearance &amp; language</h2>
+              <p className="settings-panel-desc">
+                This desktop preview uses a fixed cinematic dark theme. Theme switching and language
+                packs are not available in this build.
+              </p>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Cinematic dark theme</span>
+                  <small>Low-light, premium contrast — active for this install</small>
+                </div>
+                <span className="settings-badge">Active</span>
               </div>
-              <div className="settings-identity-row">
-                <dt>Build</dt>
-                <dd>Desktop Preview Build</dd>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Language</span>
+                  <small>English (United States) — localization not shipping yet</small>
+                </div>
+                <span className="settings-badge settings-badge--muted">English only</span>
               </div>
-              <div className="settings-identity-row">
-                <dt>Catalog</dt>
-                <dd>Read-only catalog mode</dd>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Updates</span>
+                  <small>Automatic updates are not configured in this desktop preview</small>
+                </div>
+                <span className="settings-badge settings-badge--muted">Not available</span>
               </div>
-              <div className="settings-identity-row">
-                <dt>Account</dt>
-                <dd>{accountStatusLabel}</dd>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Notifications</span>
+                  <small>Push and in-app alerts are not available in this desktop preview</small>
+                </div>
+                <span className="settings-badge settings-badge--muted">Not available</span>
               </div>
-              <div className="settings-identity-row">
-                <dt>Membership</dt>
-                <dd>{PREMIUM_MEMBERSHIP.membershipStatusLabel}</dd>
+            </section>
+          ) : null}
+
+          {activeSection === 'downloads' ? (
+            <section className="settings-panel" id="settings-downloads">
+              <h2>Download preferences</h2>
+              <p className="settings-panel-desc">
+                Download creation, pause, resume, delete, and disk usage are managed by the real
+                Downloads destination — not a second settings store.
+              </p>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Download manager</span>
+                  <small>Open the Downloads page for files, progress, and cleanup</small>
+                </div>
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => onNavigateNav('downloads')}
+                >
+                  Open Downloads
+                </button>
               </div>
-              <div className="settings-identity-row">
-                <dt>Billing</dt>
-                <dd>{PREMIUM_MEMBERSHIP.billingStatusLabel}</dd>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Wi‑Fi only / quality caps</span>
+                  <small>Not configurable in this desktop build</small>
+                </div>
+                <span className="settings-badge settings-badge--muted">Not available</span>
               </div>
-            </dl>
-            <p className="settings-identity-note">
-              Mobile app and playback remain separate. No Premium entitlement is applied on this desktop preview.
-            </p>
-            {configured ? (
-              <div className="settings-account-actions">
-                {session.isSignedIn ? (
+            </section>
+          ) : null}
+
+          {activeSection === 'storage' ? (
+            <>
+              <section className="settings-panel" id="settings-storage">
+                <h2>Storage &amp; cache</h2>
+                <p className="settings-panel-desc">
+                  Preferences and catalog cache are device-local. Download bytes are reported from the
+                  Downloads bridge when running in Electron.
+                </p>
+                <dl className="settings-identity-list">
+                  <div className="settings-identity-row">
+                    <dt>Downloads used</dt>
+                    <dd>{formatBytes(diskUsage?.downloadsBytes)}</dd>
+                  </div>
+                  <div className="settings-identity-row">
+                    <dt>Partial downloads</dt>
+                    <dd>{formatBytes(diskUsage?.partialBytes)}</dd>
+                  </div>
+                  <div className="settings-identity-row">
+                    <dt>Free space</dt>
+                    <dd>{formatBytes(diskUsage?.freeBytes)}</dd>
+                  </div>
+                </dl>
+                {diskError ? (
+                  <p className="settings-identity-note" role="status">
+                    {diskError}
+                  </p>
+                ) : null}
+                <div className="settings-row">
+                  <div className="settings-label">
+                    <span>Reset desktop preferences</span>
+                    <small>Clears local UI state · catalog and mobile stay unchanged</small>
+                  </div>
                   <button
                     type="button"
-                    className="btn-secondary btn-sm"
-                    onClick={() => {
-                      void signOut().then((result) => {
-                        setAccountNotice(
-                          result.error
-                            ? result.error
-                            : 'Signed out. Device-local library and downloads are unchanged.',
-                        )
-                      })
-                    }}
+                    className="btn-secondary btn-sm settings-reset-btn"
+                    onClick={handleResetPreferences}
                   >
-                    Sign out
+                    Reset
                   </button>
-                ) : (
-                  <button type="button" className="btn-primary btn-sm" onClick={openSignIn}>
-                    Sign in
-                  </button>
-                )}
-                {accountNotice ? <p className="settings-identity-note">{accountNotice}</p> : null}
-              </div>
-            ) : (
-              <p className="settings-identity-note">
-                Account sign-in is not configured in this desktop build (missing Supabase public env).
-              </p>
-            )}
-          </section>
-          <section className="settings-panel">
-            <h2>Desktop preferences</h2>
-            <p className="settings-panel-desc">
-              Saved locally on this device — sidebar page, search terms, and sort options only.
-            </p>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Reset desktop preferences</span>
-                <small>Clears local UI state · catalog and mobile stay unchanged</small>
-              </div>
-              <button
-                type="button"
-                className="btn-secondary btn-sm settings-reset-btn"
-                onClick={handleResetPreferences}
-              >
-                Reset
-              </button>
-            </div>
-            {resetNotice ? (
-              <p className="settings-reset-note" role="status">
-                {resetNotice}
-              </p>
-            ) : null}
-          </section>
-          <CatalogStatusSettings
-            cacheNotice={cacheNotice}
-            onClearCache={handleClearCatalogCache}
-          />
-          <section className="settings-panel settings-panel--playback">
-            <h2>Playback quality</h2>
-            <p className="settings-panel-desc">
-              Audio quality mode is saved locally for this desktop install. Playback source selection stays unchanged.
-            </p>
-            <div className="settings-row settings-row--stacked">
-              <div className="settings-label">
-                <span>Audio quality</span>
-                <small>Selected: {AUDIO_QUALITY_MODE_LABELS[audioQualityMode]}</small>
-              </div>
-              <AudioQualitySelector
-                value={audioQualityMode}
-                onChange={setAudioQualityMode}
+                </div>
+                {resetNotice ? (
+                  <p className="settings-reset-note" role="status">
+                    {resetNotice}
+                  </p>
+                ) : null}
+              </section>
+              <CatalogStatusSettings
+                cacheNotice={cacheNotice}
+                onClearCache={handleClearCatalogCache}
               />
-            </div>
-          </section>
-          <AtmosphereSettingsPanel />
-          <PreferredPlayerStyleSelector
-            hasActivePlayback={hasActivePlayback}
-            onOpenPlayerByStyle={onOpenPlayerByStyle}
-          />
-          <section className="settings-panel">
-            <h2>Appearance</h2>
-            <p className="settings-panel-desc">
-              This desktop preview uses a fixed cinematic dark theme. Theme switching is not available
-              in this build.
-            </p>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Cinematic dark theme</span>
-                <small>Low-light, premium contrast — active for this install</small>
+            </>
+          ) : null}
+
+          {activeSection === 'privacy' ? (
+            <section className="settings-panel" id="settings-privacy">
+              <h2>Privacy</h2>
+              <p className="settings-panel-desc">
+                This install stores playback history, likes, preferences, and downloads on the device.
+                Account Follow uses your signed-in Hidden Tunes session when available.
+              </p>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Device-local library</span>
+                  <small>Not wiped automatically when you sign out</small>
+                </div>
+                <span className="settings-badge">Local</span>
               </div>
-              <span className="settings-badge">Active</span>
-            </div>
-            <div className="settings-row">
-              <div className="settings-label">
-                <span>Updates</span>
-                <small>Automatic updates are not configured in this desktop preview</small>
+              <div className="settings-row">
+                <div className="settings-label">
+                  <span>Account deletion</span>
+                  <small>Not available from this desktop preview</small>
+                </div>
+                <span className="settings-badge settings-badge--muted">Not available</span>
               </div>
-              <span className="settings-badge settings-badge--muted">Not available</span>
-            </div>
-          </section>
+              <div className="settings-legal-links">
+                <button
+                  type="button"
+                  className="btn-secondary btn-sm"
+                  onClick={() => openExternal('https://hiddentunes.com/privacy')}
+                >
+                  Privacy Policy
+                </button>
+              </div>
+            </section>
+          ) : null}
+
+          {activeSection === 'shortcuts' ? (
+            <section className="settings-panel" id="settings-shortcuts">
+              <h2>Keyboard shortcuts</h2>
+              <p className="settings-panel-desc">
+                Playback shortcuts are active while the app is focused. They do not remount the
+                player.
+              </p>
+              <dl className="settings-identity-list settings-shortcuts-list">
+                <div className="settings-identity-row">
+                  <dt>Space</dt>
+                  <dd>Play / Pause</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>←</dt>
+                  <dd>Previous</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>→</dt>
+                  <dd>Next</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Media keys</dt>
+                  <dd>Play, pause, next, previous via OS media controls</dd>
+                </div>
+              </dl>
+            </section>
+          ) : null}
+
+          {activeSection === 'diagnostics' ? (
+            <section className="settings-panel" id="settings-diagnostics">
+              <h2>Diagnostics</h2>
+              <p className="settings-panel-desc">
+                Read-only status for this install. No developer tooling is exposed here.
+              </p>
+              <dl className="settings-identity-list">
+                <div className="settings-identity-row">
+                  <dt>Connectivity</dt>
+                  <dd>{offline ? 'Offline (advisory)' : 'Online (advisory)'}</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Catalog</dt>
+                  <dd>{CATALOG_STATUS_LABELS[catalogStatus]}</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Catalog error</dt>
+                  <dd>{catalogError?.trim() || 'None'}</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Auth configured</dt>
+                  <dd>{configured ? 'Yes' : 'No'}</dd>
+                </div>
+                <div className="settings-identity-row">
+                  <dt>Active media</dt>
+                  <dd>{hasActivePlayback ? 'Session active' : 'Idle'}</dd>
+                </div>
+              </dl>
+            </section>
+          ) : null}
         </div>
       </div>
     </PageFrame>
@@ -8169,7 +8468,12 @@ function PageContent({
     case 'sports':
       return <DesktopSportsPage pageActive />
     case 'settings':
-      return <SettingsPage onOpenPlayerByStyle={onOpenPlayerByStyle} />
+      return (
+        <SettingsPage
+          onOpenPlayerByStyle={onOpenPlayerByStyle}
+          onNavigateNav={onNavigateNav}
+        />
+      )
     default:
       return (
         <HomePage
@@ -8834,6 +9138,8 @@ function AppShell() {
                 />
               ) : null}
               {!isPsdDestinationNav(activeNavKey) ? <CatalogStatusBar /> : null}
+              <DesktopOfflineBanner onOpenDownloads={() => navigateNav('downloads')} />
+              <DesktopSessionStatusBanner />
               <CatalogStaleBanner />
               <div className="page-view" data-page={activePage} data-nav={activeNavKey} data-view={activeView}>
                 <CatalogDetailRouter

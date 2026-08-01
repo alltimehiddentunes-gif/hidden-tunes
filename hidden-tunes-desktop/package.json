@@ -27,6 +27,7 @@
     "verify:phase10-home": "node scripts/verify-phase10-home.mjs",
     "verify:phase11-music": "node scripts/verify-phase11-music.mjs",
     "verify:phase12-auth": "node scripts/verify-phase12-auth.mjs",
+    "verify:phase13-settings": "node scripts/verify-phase13-settings.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

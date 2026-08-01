@@ -6,6 +6,8 @@ export type DesktopAuthContextValue = {
   session: DesktopSupabaseSessionSummary
   refreshing: boolean
   signInOpen: boolean
+  sessionNotice: string | null
+  clearSessionNotice: () => void
   openSignIn: () => void
   closeSignIn: () => void
   refresh: () => Promise<DesktopSupabaseSessionSummary>
