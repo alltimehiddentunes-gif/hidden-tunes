@@ -1,8 +1,10 @@
-import { YOUTUBE_CONFIG } from "../constants/youtube";
+import {
+  YOUTUBE_CONFIG,
+  YOUTUBE_DATA_API_ENABLED,
+} from "../constants/youtube";
 
 const API_BASE_URL = "https://www.googleapis.com/youtube/v3";
 const DEFAULT_MAX_RESULTS = 50;
-const YOUTUBE_DATA_API_ENABLED = false;
 
 export type BackendYouTubeTrack = {
   id: string;
@@ -194,12 +196,17 @@ function getYouTubeErrorMessage(status: number, body: string) {
 }
 
 function buildSearchUrl(params: Record<string, string | number | undefined>) {
+  // Fail closed before credential-backed configuration is ever read.
+  if (!YOUTUBE_DATA_API_ENABLED) return "";
+  const apiKey = YOUTUBE_CONFIG.API_KEY;
+  if (!apiKey) return "";
+
   const query = new URLSearchParams({
     part: "snippet",
     type: "video",
     videoEmbeddable: "true",
     safeSearch: "moderate",
-    key: YOUTUBE_CONFIG.API_KEY,
+    key: apiKey,
   });
 
   Object.entries(params).forEach(([key, value]) => {

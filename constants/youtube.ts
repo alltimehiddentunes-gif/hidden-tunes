@@ -1,6 +1,9 @@
+/** YouTube Data API discovery is intentionally unavailable in the mobile client. */
+export const YOUTUBE_DATA_API_ENABLED = false;
+
 export const YOUTUBE_CONFIG = {
-  // Get from Google Cloud Console
-  API_KEY: "AIzaSyDvrNCMfsdTvHXooCCJqXYsY-oFDAHwIeU",
+  // Never place a Google API key in the mobile bundle.
+  API_KEY: undefined as string | undefined,
 
   // Your YouTube channel ID
   CHANNEL_ID: "UCr_GiZYfGzmzwdidgKPRWsg",
