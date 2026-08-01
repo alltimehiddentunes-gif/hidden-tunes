@@ -163,8 +163,26 @@ async function main() {
   record('music-sidebar-visible', music.sidebar)
   record('music-catalog-title', /^(music|browse the catalog)$/i.test(music.title.trim()), music.title)
   record('music-no-personalization', !music.personalization.some((h) => /made for|hidden gems/i.test(h)), music.personalization.join('|'))
-  record('music-no-downloads-tab', !music.downloads)
+  // Phase 9: Downloads tab routes to the real Downloads destination (not a stub catalogue).
+  record('music-downloads-tab-present', music.downloads, 'expects Downloads entry on Music subnav')
 
+  // Click Downloads → must leave Music stub and land on real Downloads page
+  await evalPage(win, `() => {
+    const hit = [...document.querySelectorAll('.music-sub-nav-item')].find((b) => /downloads/i.test(b.textContent || ''))
+    hit?.click()
+    return Boolean(hit)
+  }`)
+  await sleep(900)
+  const afterDownloads = await evalPage(win, `() => ({
+    stubCopy: /Offline downloads are not available on desktop yet/i.test(document.body.innerText),
+    downloadsPage: /download/i.test(document.body.innerText.slice(0, 6000)),
+    musicStubHeader: Boolean(document.querySelector('.music-section-page-header h1') && /downloads/i.test(document.querySelector('.music-section-page-header h1')?.textContent || '') && /not available on desktop yet/i.test(document.body.innerText)),
+  })`)
+  record('music-downloads-no-dishonest-stub', !afterDownloads.stubCopy && !afterDownloads.musicStubHeader)
+  record('music-downloads-reaches-real-surface', afterDownloads.downloadsPage)
+
+  await clickNav(win, 'Music')
+  await sleep(700)
   await evalPage(win, `() => {
     document.querySelector('.music-discover-song-row, .music-discover-featured-release-hit, .music-discover-release-hit, .music-discover-chart-hit')?.click()
     return true

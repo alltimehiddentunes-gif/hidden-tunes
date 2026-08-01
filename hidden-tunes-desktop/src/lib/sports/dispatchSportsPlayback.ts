@@ -2,6 +2,7 @@ import type { ApiSong } from '../api'
 import type { QueueContext, QueueSeedMetadata } from '../desktopPlayback/types'
 import { emitSportsDiagnostic } from './diagnostics'
 import { resolvePlayableStream } from './resolvePlayableStream'
+import { areSportsStreamsEnabled, SPORTS_STREAMS_OFF_SHORT } from './sportsFlags'
 import { resolveSportsPlay } from './sportsCatalogApi'
 import { sportsFixtureToApiSong } from './sportsPlaybackAdapter'
 import type { DesktopSportsFixture, SportsPlaybackDispatchResult } from './types'
@@ -38,6 +39,16 @@ export async function dispatchSportsPlayback(options: {
       status: 'error',
       fixtureId: '',
       userMessage: 'This event is not currently available to play.',
+    }
+  }
+
+  // Fixtures-only pilot: never POST /play or claim the shared video owner when streams are off.
+  if (!areSportsStreamsEnabled()) {
+    emitSportsDiagnostic('sports_streams_disabled', { fixtureId })
+    return {
+      status: 'unavailable',
+      fixtureId,
+      userMessage: SPORTS_STREAMS_OFF_SHORT,
     }
   }
 

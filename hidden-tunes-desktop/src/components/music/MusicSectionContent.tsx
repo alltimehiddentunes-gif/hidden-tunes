@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useEffect, useMemo } from 'react'
 import type { ApiAlbum, ApiArtist, ApiSong } from '../../lib/api'
 import { sortAlbumsList, sortArtistsList, sortSongsList } from '../../lib/api'
 import type { CatalogIndexes } from '../../lib/catalogIndexes'
@@ -54,6 +54,8 @@ type MusicSectionContentProps = {
   onOpenArtist: (artist: ApiArtist) => void
   onOpenAlbum: (album: ApiAlbum) => void
   onBrowseSearch: (query: string) => void
+  /** Route to the real Electron Downloads destination (never a fake music stub). */
+  onOpenDownloads?: () => void
 }
 
 function formatDuration(seconds: number | null | undefined): string | null {
@@ -118,10 +120,18 @@ export const MusicSectionContent = memo(function MusicSectionContent({
   onOpenArtist,
   onOpenAlbum,
   onBrowseSearch,
+  onOpenDownloads,
 }: MusicSectionContentProps) {
   const { recentlyPlayed } = useMusicLocalState()
   const { likedSongIds } = useMusicLikes()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+
+  // Music Downloads always belongs to the real Downloads destination — never a stub catalogue.
+  useEffect(() => {
+    if (section === 'downloads' && onOpenDownloads) {
+      onOpenDownloads()
+    }
+  }, [section, onOpenDownloads])
 
   const playFromQueue = useCallback(
     (song: ApiSong, queue: ApiSong[], queueTitle: string) => {
@@ -528,14 +538,23 @@ export const MusicSectionContent = memo(function MusicSectionContent({
       )
 
     case 'downloads':
-      // Downloads are intentionally omitted from Music SubNav until offline is wired.
       return (
         <div className="music-section-page">
           <header className="music-section-page-header">
             <h1>Downloads</h1>
-            <p>Offline downloads are not available on desktop yet.</p>
+            <p>
+              Offline listening uses the shared Downloads library for this desktop install — the same
+              destination as Library and the sidebar.
+            </p>
           </header>
-          <p className="music-section-empty">No downloaded tracks available in this build.</p>
+          <p className="music-section-empty">
+            Opening Downloads…
+          </p>
+          {onOpenDownloads ? (
+            <button type="button" className="btn-primary btn-sm" onClick={onOpenDownloads}>
+              Open Downloads
+            </button>
+          ) : null}
         </div>
       )
 

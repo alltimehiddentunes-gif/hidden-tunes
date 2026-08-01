@@ -1,6 +1,10 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { formatSportsStartTime } from '../../lib/sports/formatTime'
 import { fetchSportsFixtureDetail } from '../../lib/sports/sportsCatalogApi'
+import {
+  SPORTS_STREAMS_OFF_COPY,
+  SPORTS_STREAMS_OFF_SHORT,
+} from '../../lib/sports/sportsFlags'
 import type { DesktopSportsFixture } from '../../lib/sports/types'
 import { SportsStatusBadge } from './SportsStatusBadge'
 
@@ -12,6 +16,7 @@ export const SportsFixtureDetails = memo(function SportsFixtureDetails({
   playError,
   onBack,
   onPlay,
+  streamsEnabled = false,
 }: {
   fixtureId: string
   initialFixture?: DesktopSportsFixture | null
@@ -20,6 +25,8 @@ export const SportsFixtureDetails = memo(function SportsFixtureDetails({
   playError?: string | null
   onBack: () => void
   onPlay?: (fixture: DesktopSportsFixture) => void
+  /** When false, never expose Play/Watch (fixtures-only pilot). */
+  streamsEnabled?: boolean
 }) {
   const [fixture, setFixture] = useState<DesktopSportsFixture | null>(initialFixture ?? null)
   const [loading, setLoading] = useState(!initialFixture)
@@ -147,16 +154,18 @@ export const SportsFixtureDetails = memo(function SportsFixtureDetails({
             <div>
               <dt>Availability</dt>
               <dd>
-                {fixture.isPlayable
-                  ? 'Marked playable (browse hint)'
-                  : fixture.availabilityState || 'Not playable in browse'}
+                {!streamsEnabled
+                  ? 'Scores and fixtures only · streaming not enabled'
+                  : fixture.isPlayable
+                    ? 'Stream may be available'
+                    : fixture.availabilityState || 'Streaming not available for this event'}
               </dd>
             </div>
           </dl>
 
           {playError ? <p className="sports-play-error">{playError}</p> : null}
 
-          {fixture.isPlayable && onPlay ? (
+          {streamsEnabled && fixture.isPlayable && onPlay ? (
             <button
               type="button"
               className="sports-btn sports-btn--primary"
@@ -166,7 +175,9 @@ export const SportsFixtureDetails = memo(function SportsFixtureDetails({
               {playing ? 'Starting…' : 'Play'}
             </button>
           ) : (
-            <p className="sports-state-note">Play is not available for this event.</p>
+            <p className="sports-state-note">
+              {!streamsEnabled ? SPORTS_STREAMS_OFF_COPY : SPORTS_STREAMS_OFF_SHORT}
+            </p>
           )}
         </div>
       ) : null}

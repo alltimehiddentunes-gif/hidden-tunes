@@ -393,7 +393,12 @@ function main() {
   // —— Source file / wiring assertions ——
   check('DesktopSportsPage exists', exists('src/components/sports/DesktopSportsPage.tsx'))
   const pageSrc = readSrc('src/components/sports/DesktopSportsPage.tsx')
-  check('Play only when isPlayable', pageSrc.includes('fixture.isPlayable ?') && pageSrc.includes('onPlay'))
+  check(
+    'Play only when streams enabled and browse playable',
+    pageSrc.includes('canOfferPlay')
+      && pageSrc.includes('areSportsStreamsEnabled')
+      && /canOfferPlay\(fixture\)/.test(pageSrc),
+  )
 
   const apiSrc = readSrc('src/lib/sports/sportsCatalogApi.ts')
   check('resolveSportsPlay exists', /export async function resolveSportsPlay/.test(apiSrc))
@@ -429,6 +434,74 @@ function main() {
   check('dispatchSportsPlayback exists', exists('src/lib/sports/dispatchSportsPlayback.ts'))
   check('sportsPlaybackAdapter isSportsQueueSong', /export function isSportsQueueSong/.test(readSrc('src/lib/sports/sportsPlaybackAdapter.ts')))
   check('App wires DesktopSportsPage', readSrc('src/App.tsx').includes('DesktopSportsPage'))
+
+  // Phase 9 — streams-off honesty
+  check('sportsFlags module exists', exists('src/lib/sports/sportsFlags.ts'))
+  const flagsSrc = readSrc('src/lib/sports/sportsFlags.ts')
+  check(
+    'sports streams default disabled',
+    /DESKTOP_SPORTS_STREAMS_ENABLED[\s\S]*false/.test(flagsSrc)
+      || /readEnvFlag\(\s*'VITE_SPORTS_STREAMS_ENABLED',\s*false\s*\)/.test(flagsSrc),
+  )
+  check(
+    'streams-off honest copy defined',
+    flagsSrc.includes('Streaming is not currently enabled')
+      || flagsSrc.includes('Live video is not available'),
+  )
+
+  const dispatchSrc = readSrc('src/lib/sports/dispatchSportsPlayback.ts')
+  check(
+    'dispatch short-circuits when streams disabled',
+    dispatchSrc.includes('areSportsStreamsEnabled')
+      && /if\s*\(\s*!areSportsStreamsEnabled\(\)\s*\)/.test(dispatchSrc),
+  )
+  check(
+    'dispatch does not invent fake stream URLs',
+    !/https?:\/\/example\.com/.test(dispatchSrc)
+      && !/fake.*stream/i.test(dispatchSrc),
+  )
+
+  const pageSrcPhase9 = readSrc('src/components/sports/DesktopSportsPage.tsx')
+  check(
+    'Sports page gates Play with streamsEnabled',
+    pageSrcPhase9.includes('areSportsStreamsEnabled')
+      && pageSrcPhase9.includes('canOfferPlay'),
+  )
+  check(
+    'Sports page shows streams-off banner copy',
+    pageSrcPhase9.includes('SPORTS_STREAMS_OFF_COPY'),
+  )
+
+  const detailsPhase9 = readSrc('src/components/sports/SportsFixtureDetails.tsx')
+  check(
+    'Details require streamsEnabled for Play button',
+    detailsPhase9.includes('streamsEnabled')
+      && /streamsEnabled && fixture\.isPlayable/.test(detailsPhase9),
+  )
+  check(
+    'Details use streams-off copy when disabled',
+    detailsPhase9.includes('SPORTS_STREAMS_OFF_COPY'),
+  )
+
+  // Downloads honesty — no music stub claiming offline unavailable
+  const musicSection = readSrc('src/components/music/MusicSectionContent.tsx')
+  check(
+    'Music Downloads stub no longer claims offline unavailable',
+    !/Offline downloads are not available on desktop yet/.test(musicSection),
+  )
+  check(
+    'Music Downloads routes via onOpenDownloads',
+    musicSection.includes('onOpenDownloads')
+      && /section === 'downloads'/.test(musicSection),
+  )
+
+  const accountGate = readSrc('src/lib/account/accountGate.ts')
+  check('accountGate module exists', exists('src/lib/account/accountGate.ts'))
+  check('accountGate follow copy is honest', /Sign-in is not available in this desktop preview/.test(accountGate))
+  check(
+    'AccountRequiredDialog exists',
+    exists('src/components/account/AccountRequiredDialog.tsx'),
+  )
 
   console.log(`\nSports contract: ${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)

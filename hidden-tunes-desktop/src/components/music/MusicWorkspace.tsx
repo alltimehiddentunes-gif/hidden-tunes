@@ -42,6 +42,8 @@ type MusicWorkspaceProps = {
   onOpenAlbum: (album: ApiAlbum) => void
   onBrowseSearch: (query: string) => void
   onOpenSettings: () => void
+  /** Navigate to the real Downloads page (sidebar destination). */
+  onOpenDownloads?: () => void
 }
 
 export const MusicWorkspace = memo(function MusicWorkspace({
@@ -70,6 +72,7 @@ export const MusicWorkspace = memo(function MusicWorkspace({
   onOpenAlbum,
   onBrowseSearch,
   onOpenSettings,
+  onOpenDownloads,
 }: MusicWorkspaceProps) {
   return (
     <div className="music-workspace">
@@ -77,7 +80,8 @@ export const MusicWorkspace = memo(function MusicWorkspace({
         activeSection={musicSection}
         onSectionChange={onMusicSectionChange}
         onOpenSettings={onOpenSettings}
-        showDownloads={false}
+        showDownloads={Boolean(onOpenDownloads)}
+        onOpenDownloads={onOpenDownloads}
       />
       <div className="music-workspace-content">
         {musicSection === 'discover' ? (
@@ -97,6 +101,7 @@ export const MusicWorkspace = memo(function MusicWorkspace({
             onBrowseSearch={onBrowseSearch}
             onNavigateLiked={() => onMusicSectionChange('liked')}
             onNavigatePlaylists={() => onMusicSectionChange('playlists')}
+            onNavigateDownloads={onOpenDownloads}
           />
         ) : (
           <MusicSectionContent
@@ -119,6 +124,7 @@ export const MusicWorkspace = memo(function MusicWorkspace({
             onOpenArtist={onOpenArtist}
             onOpenAlbum={onOpenAlbum}
             onBrowseSearch={onBrowseSearch}
+            onOpenDownloads={onOpenDownloads}
           />
         )}
       </div>

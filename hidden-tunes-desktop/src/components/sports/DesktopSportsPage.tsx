@@ -1,6 +1,10 @@
 import { memo, useCallback, useState } from 'react'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import { dispatchSportsPlayback } from '../../lib/sports/dispatchSportsPlayback'
+import {
+  areSportsStreamsEnabled,
+  SPORTS_STREAMS_OFF_COPY,
+} from '../../lib/sports/sportsFlags'
 import { useDesktopSports } from '../../lib/sports/useDesktopSports'
 import type { DesktopSportsFixture, SportsBrowseFilter } from '../../lib/sports/types'
 import { SportsFixtureCard } from './SportsFixtureCard'
@@ -40,8 +44,14 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
     loadMore,
   } = useDesktopSports({ filter, pageActive })
 
+  const streamsEnabled = areSportsStreamsEnabled()
+
   const handlePlay = useCallback(
     async (fixture: DesktopSportsFixture) => {
+      if (!areSportsStreamsEnabled()) {
+        setPlayError(SPORTS_STREAMS_OFF_COPY)
+        return
+      }
       if (offline) {
         setPlayError('A network connection is required.')
         return
@@ -66,6 +76,11 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
     [offline, playQueue],
   )
 
+  const canOfferPlay = useCallback(
+    (fixture: DesktopSportsFixture) => streamsEnabled && fixture.isPlayable,
+    [streamsEnabled],
+  )
+
   if (selectedId) {
     return (
       <div className="sports-destination">
@@ -81,6 +96,7 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
             setPlayError(null)
           }}
           onPlay={handlePlay}
+          streamsEnabled={streamsEnabled}
         />
       </div>
     )
@@ -92,9 +108,19 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
         <div className="sports-hero-copy">
           <p className="sports-hero-eyebrow">Sports</p>
           <h1>Fixtures</h1>
-          <p>Live, upcoming, and completed events from the Sports catalog.</p>
+          <p>
+            {streamsEnabled
+              ? 'Live, upcoming, and completed events from the Sports catalog.'
+              : 'Scores and schedules for live, upcoming, and completed events. Streaming is not currently enabled.'}
+          </p>
         </div>
       </header>
+
+      {!streamsEnabled ? (
+        <div className="sports-banner sports-banner--info" role="status">
+          {SPORTS_STREAMS_OFF_COPY}
+        </div>
+      ) : null}
 
       {offline ? (
         <div className="sports-banner sports-banner--offline" role="status">
@@ -163,7 +189,9 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
                   setSelectedSeed(fixture)
                   setPlayError(null)
                 }}
-                onPlay={fixture.isPlayable ? () => void handlePlay(fixture) : undefined}
+                onPlay={
+                  canOfferPlay(fixture) ? () => void handlePlay(fixture) : undefined
+                }
               />
             ))}
           </div>

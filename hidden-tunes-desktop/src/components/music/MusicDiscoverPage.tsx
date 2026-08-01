@@ -48,6 +48,7 @@ type MusicDiscoverPageProps = {
   onBrowseSearch: (query: string) => void
   onNavigateLiked: () => void
   onNavigatePlaylists: () => void
+  onNavigateDownloads?: () => void
 }
 
 function formatDuration(seconds: number | null | undefined): string | null {
@@ -74,9 +75,11 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
   onBrowseSearch,
   onNavigateLiked: _onNavigateLiked,
   onNavigatePlaylists: _onNavigatePlaylists,
+  onNavigateDownloads: _onNavigateDownloads,
 }: MusicDiscoverPageProps) {
   void _onNavigateLiked
   void _onNavigatePlaylists
+  void _onNavigateDownloads
 
   const { recentlyPlayed } = useMusicLocalState()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])

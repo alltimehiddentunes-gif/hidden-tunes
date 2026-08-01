@@ -6,6 +6,8 @@ type MusicSubNavProps = {
   onSectionChange: (section: MusicSectionId) => void
   onOpenSettings: () => void
   showDownloads: boolean
+  /** Opens the real Downloads destination (not a Music section stub). */
+  onOpenDownloads?: () => void
 }
 
 /** Primary Music destinations — keep the tab strip short and scannable. */
@@ -93,9 +95,9 @@ export const MusicSubNav = memo(function MusicSubNav({
   activeSection,
   onSectionChange,
   onOpenSettings,
-  showDownloads: _showDownloads,
+  showDownloads,
+  onOpenDownloads,
 }: MusicSubNavProps) {
-  void _showDownloads
   const highlighted = resolveHighlightedTab(activeSection)
 
   return (
@@ -117,6 +119,24 @@ export const MusicSubNav = memo(function MusicSubNav({
             </button>
           )
         })}
+        {showDownloads && onOpenDownloads ? (
+          <button
+            type="button"
+            role="tab"
+            className="music-tab music-sub-nav-item"
+            aria-selected={false}
+            onClick={onOpenDownloads}
+          >
+            <MusicSubNavIcon>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M12 3v12" />
+                <path d="m8 11 4 4 4-4" />
+                <path d="M5 19h14" />
+              </svg>
+            </MusicSubNavIcon>
+            <span>Downloads</span>
+          </button>
+        ) : null}
       </nav>
       <button type="button" className="music-tab-settings" onClick={onOpenSettings} aria-label="Settings">
         <MusicSubNavIcon>
