@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { fetchApprovedCatalog, fetchApprovedCatalogRequest } = require('./catalogBridge');
@@ -8,6 +8,12 @@ const {
   registerDownloadProtocol,
   attachDownloadProtocolHandler,
 } = require('./downloads');
+const {
+  classifyDesktopNavigationTarget,
+  isAppDocumentUrl,
+  buildContentSecurityPolicy,
+  DEV_RENDERER_ORIGIN,
+} = require('./navigationPolicy');
 
 const isDev = !app.isPackaged;
 const WINDOW_TITLE = 'Hidden Tunes Desktop';
@@ -17,6 +23,21 @@ registerDownloadProtocol(() => app.getPath('userData'));
 
 let mainWindow = null;
 let downloadManager = null;
+let sessionSecurityAttached = false;
+
+function getAppFileRoots() {
+  return [
+    path.join(__dirname, '..', 'dist'),
+    path.join(__dirname),
+  ];
+}
+
+function getNavigationContext() {
+  return {
+    isPackaged: app.isPackaged,
+    appFileRoots: getAppFileRoots(),
+  };
+}
 
 function getDownloadManager() {
   if (!downloadManager) {
@@ -44,73 +65,110 @@ function logProduction(message, detail) {
   }
 }
 
+function logSecurity(message, detail) {
+  const prefix = '[Hidden Tunes Desktop][security]';
+  if (detail !== undefined) {
+    console.warn(prefix, message, detail);
+  } else {
+    console.warn(prefix, message);
+  }
+}
+
 function getProductionIndexPath() {
   return path.join(__dirname, '..', 'dist', 'index.html');
 }
 
-function buildFallbackHtml(title, message) {
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
-  <style>
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      background: #050508;
-      color: #f5f3fa;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      padding: 24px;
-    }
-    main {
-      max-width: 520px;
-      padding: 28px 32px;
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      background: #13131d;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-    }
-    h1 { margin: 0 0 12px; font-size: 1.35rem; }
-    p { margin: 0; line-height: 1.6; color: rgba(245, 243, 250, 0.72); }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>${title}</h1>
-    <p>${message}</p>
-  </main>
-</body>
-</html>`;
+function getFallbackHtmlPath() {
+  return path.join(__dirname, 'fallback.html');
 }
 
-function showFallbackPage(win, title, message) {
-  const html = buildFallbackHtml(title, message);
-  return win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+function showFallbackPage(win) {
+  const fallbackPath = getFallbackHtmlPath();
+  if (!fs.existsSync(fallbackPath)) {
+    logProduction('fallback.html missing', fallbackPath);
+    return Promise.resolve();
+  }
+  return win.loadFile(fallbackPath);
+}
+
+/**
+ * Open a URL in the OS browser only after policy classification.
+ * Never opens allow-internal or deny targets.
+ * @returns {Promise<{ ok: boolean, reason?: string }>}
+ */
+async function openValidatedExternalUrl(rawUrl) {
+  const decision = classifyDesktopNavigationTarget(rawUrl, getNavigationContext());
+  if (decision.action !== 'open-external' || typeof decision.url !== 'string') {
+    logSecurity('openExternal denied', { rawUrl, reason: decision.reason });
+    return { ok: false, reason: decision.reason || 'denied' };
+  }
+  try {
+    await shell.openExternal(decision.url);
+    return { ok: true };
+  } catch (error) {
+    logSecurity('openExternal failed', error);
+    return { ok: false, reason: 'open-failed' };
+  }
+}
+
+function attachSessionSecurity() {
+  if (sessionSecurityAttached) return;
+  sessionSecurityAttached = true;
+
+  const csp = buildContentSecurityPolicy(app.isPackaged);
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    if (!isAppDocumentUrl(details.url, { isPackaged: app.isPackaged })) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+
+    const responseHeaders = { ...(details.responseHeaders || {}) };
+    for (const key of Object.keys(responseHeaders)) {
+      if (key.toLowerCase() === 'content-security-policy') {
+        delete responseHeaders[key];
+      }
+    }
+    responseHeaders['Content-Security-Policy'] = [csp];
+    callback({ responseHeaders });
+  });
+}
+
+function attachWindowSecurity(win) {
+  win.webContents.on('will-navigate', (event, url) => {
+    const decision = classifyDesktopNavigationTarget(url, getNavigationContext());
+    if (decision.action === 'allow-internal') {
+      return;
+    }
+    event.preventDefault();
+    logSecurity('will-navigate blocked', { url, reason: decision.reason });
+    if (decision.action === 'open-external') {
+      void openValidatedExternalUrl(decision.url || url);
+    }
+  });
+
+  // Deny all Electron popup/window creation. Validated HTTPS may open externally.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    const decision = classifyDesktopNavigationTarget(url, getNavigationContext());
+    if (decision.action === 'open-external') {
+      void openValidatedExternalUrl(decision.url || url);
+    } else {
+      logSecurity('window-open denied', { url, reason: decision.reason });
+    }
+    return { action: 'deny' };
+  });
 }
 
 function attachWindowDiagnostics(win) {
   win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
     logProduction('did-fail-load', { errorCode, errorDescription, validatedURL });
     if (!isDev) {
-      showFallbackPage(
-        win,
-        'Hidden Tunes Desktop',
-        'The desktop shell could not load. Please reinstall or contact support if this continues.',
-      );
+      showFallbackPage(win);
     }
   });
 
   win.webContents.on('render-process-gone', (_event, details) => {
     logProduction('render-process-gone', details);
-    showFallbackPage(
-      win,
-      'Hidden Tunes Desktop',
-      'The catalog view stopped unexpectedly. Restart the app to try again.',
-    );
+    showFallbackPage(win);
   });
 
   win.webContents.on('unresponsive', () => {
@@ -150,35 +208,30 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
       preload: path.join(__dirname, 'preload.js'),
     },
   });
 
   mainWindow = win;
   win.setTitle(WINDOW_TITLE);
+  attachWindowSecurity(win);
   attachWindowDiagnostics(win);
 
   if (isDev) {
-    win.loadURL('http://localhost:5173');
+    win.loadURL(DEV_RENDERER_ORIGIN);
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
     const indexPath = getProductionIndexPath();
     if (!fs.existsSync(indexPath)) {
       logProduction('dist/index.html missing', indexPath);
-      showFallbackPage(
-        win,
-        'Hidden Tunes Desktop',
-        'Production build files were not found. Run npm run build, then package the app again.',
-      );
+      showFallbackPage(win);
     } else {
       logProduction('loading production index', indexPath);
       win.loadFile(indexPath).catch((error) => {
         logProduction('loadFile failed', error);
-        showFallbackPage(
-          win,
-          'Hidden Tunes Desktop',
-          'The desktop shell could not start. Please reinstall the app.',
-        );
+        showFallbackPage(win);
       });
     }
   }
@@ -189,59 +242,67 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  attachDownloadProtocolHandler(() => app.getPath('userData'))
+  attachSessionSecurity();
+  attachDownloadProtocolHandler(() => app.getPath('userData'));
 
   ipcMain.on('ht-runtime-info', (event) => {
-    event.returnValue = getRuntimeDiagnostics(app.isPackaged)
-  })
+    event.returnValue = getRuntimeDiagnostics(app.isPackaged);
+  });
+
+  ipcMain.handle('ht-shell-open-external', async (_event, rawUrl) => {
+    if (typeof rawUrl !== 'string') {
+      return { ok: false, reason: 'invalid-argument' };
+    }
+    return openValidatedExternalUrl(rawUrl);
+  });
 
   ipcMain.handle('ht-catalog-get', async (_event, catalogPath) => {
-    const cleanPath = typeof catalogPath === 'string' ? catalogPath.trim() : ''
+    const cleanPath = typeof catalogPath === 'string' ? catalogPath.trim() : '';
     if (!cleanPath.startsWith('/api/')) {
-      throw new Error('Catalog path is not allowed.')
+      throw new Error('Catalog path is not allowed.');
     }
-    return fetchApprovedCatalog(cleanPath)
-  })
+    return fetchApprovedCatalog(cleanPath);
+  });
 
   ipcMain.handle('ht-catalog-request', async (_event, options) => {
-    const cleanPath = typeof options?.path === 'string' ? options.path.trim() : ''
-    const methodRaw = typeof options?.method === 'string' ? options.method.trim().toUpperCase() : 'GET'
-    const method = methodRaw === 'POST' ? 'POST' : methodRaw === 'GET' ? 'GET' : ''
-    const body = options?.body === undefined ? null : options.body
+    const cleanPath = typeof options?.path === 'string' ? options.path.trim() : '';
+    const methodRaw = typeof options?.method === 'string' ? options.method.trim().toUpperCase() : 'GET';
+    const method = methodRaw === 'POST' ? 'POST' : methodRaw === 'GET' ? 'GET' : '';
+    const body = options?.body === undefined ? null : options.body;
 
     if (!cleanPath.startsWith('/api/')) {
-      throw new Error('Catalog path is not allowed.')
+      throw new Error('Catalog path is not allowed.');
     }
     if (method !== 'GET' && method !== 'POST') {
-      throw new Error('Catalog method is not allowed.')
+      throw new Error('Catalog method is not allowed.');
     }
     if (body !== null && (typeof body !== 'object' || Array.isArray(body))) {
-      throw new Error('Catalog body must be a plain object or null.')
+      throw new Error('Catalog body must be a plain object or null.');
     }
 
     return fetchApprovedCatalogRequest({
       path: cleanPath,
       method,
       body,
-    })
-  })
+    });
+  });
 
-  const downloads = getDownloadManager()
+  const downloads = getDownloadManager();
 
-  ipcMain.handle('ht-downloads-list', async () => downloads.list())
-  ipcMain.handle('ht-downloads-start', async (_event, request) => downloads.start(request || {}))
-  ipcMain.handle('ht-downloads-pause', async (_event, downloadId) => downloads.pause(String(downloadId || '')))
-  ipcMain.handle('ht-downloads-resume', async (_event, downloadId) => downloads.resume(String(downloadId || '')))
-  ipcMain.handle('ht-downloads-cancel', async (_event, downloadId) => downloads.cancel(String(downloadId || '')))
-  ipcMain.handle('ht-downloads-remove', async (_event, downloadId) => downloads.remove(String(downloadId || '')))
+  ipcMain.handle('ht-downloads-list', async () => downloads.list());
+  ipcMain.handle('ht-downloads-start', async (_event, request) => downloads.start(request || {}));
+  ipcMain.handle('ht-downloads-pause', async (_event, downloadId) => downloads.pause(String(downloadId || '')));
+  ipcMain.handle('ht-downloads-resume', async (_event, downloadId) => downloads.resume(String(downloadId || '')));
+  ipcMain.handle('ht-downloads-cancel', async (_event, downloadId) => downloads.cancel(String(downloadId || '')));
+  ipcMain.handle('ht-downloads-remove', async (_event, downloadId) => downloads.remove(String(downloadId || '')));
   ipcMain.handle('ht-downloads-get-playable-url', async (_event, downloadId) => (
     downloads.getPlayableUrl(String(downloadId || ''))
-  ))
-  ipcMain.handle('ht-downloads-disk-usage', async () => downloads.getDiskUsage())
-  ipcMain.handle('ht-downloads-reconcile', async () => downloads.reconcile())
+  ));
+  ipcMain.handle('ht-downloads-disk-usage', async () => downloads.getDiskUsage());
+  ipcMain.handle('ht-downloads-reconcile', async () => downloads.reconcile());
 
   // Non-blocking startup reconciliation
-  void downloads.reconcile()
+  void downloads.reconcile();
 
   createWindow();
 

@@ -5,6 +5,15 @@ contextBridge.exposeInMainWorld('hiddenTunesDesktop', {
     /** Diagnostics only — never includes secrets or private tokens. */
     getInfo: () => ipcRenderer.sendSync('ht-runtime-info'),
   },
+  shell: {
+    /**
+     * Request opening a URL in the OS default browser.
+     * Main process validates protocol/shape; renderer cannot bypass policy.
+     * @param {string} url
+     * @returns {Promise<{ ok: boolean, reason?: string }>}
+     */
+    openExternalUrl: (url) => ipcRenderer.invoke('ht-shell-open-external', url),
+  },
   catalog: {
     getJson: (path) => ipcRenderer.invoke('ht-catalog-get', path),
     requestJson: (options) => ipcRenderer.invoke('ht-catalog-request', options),
