@@ -12,10 +12,14 @@ import { ActivityIndicator,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
-import { safeRouterPush, safeRouterBack } from "../../utils/safeNavigation";
+import { safeRouterPush } from "../../utils/safeNavigation";
 import { getHorizontalListPerformanceSettings } from "../../utils/performanceMode";
+import {
+  bindRadioHardwareBack,
+  navigateRadioHomeBack,
+} from "../../utils/radioNavigation";
 
 import {
   RadioCategoryCard,
@@ -242,13 +246,17 @@ export default function RadioStationsHomeScreen() {
     [playStation, runWithMatureConsent]
   );
 
+  useFocusEffect(
+    useCallback(() => bindRadioHardwareBack(navigateRadioHomeBack), [])
+  );
+
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.85}
-          onPress={() => safeRouterBack("/radio")}
+          onPress={navigateRadioHomeBack}
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>

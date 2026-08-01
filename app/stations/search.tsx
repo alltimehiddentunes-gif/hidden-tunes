@@ -13,7 +13,7 @@ import { ActivityIndicator,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
 import MediaSearchEmptyState from "../../components/discovery/MediaSearchEmptyState";
@@ -34,6 +34,10 @@ import {
   getListPerformanceSettings,
 } from "../../utils/performanceMode";
 import { dedupeStationsById } from "../../utils/dedupeStationsById";
+import {
+  bindRadioHardwareBack,
+  navigateRadioChildBack,
+} from "../../utils/radioNavigation";
 import { useDebouncedSearchQuery } from "../../utils/useDebouncedValue";
 import { RADIO_SEARCH_DEBOUNCE_MS } from "../../utils/searchPerformance";
 
@@ -233,13 +237,17 @@ export default function RadioSearchScreen() {
     listItems.length === 0 &&
     !loadError;
 
+  useFocusEffect(
+    useCallback(() => bindRadioHardwareBack(navigateRadioChildBack), [])
+  );
+
   return (
     <LinearGradient colors={["#120818", "#050308"]} style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.85}
-          onPress={() => router.back()}
+          onPress={navigateRadioChildBack}
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>

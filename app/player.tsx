@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
+import { navigateRadioPlayerBack } from "../utils/radioNavigation";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -711,8 +712,19 @@ export default function PlayerScreen() {
   }));
 
   const handleBack = useCallback(() => {
+    if (isLiveRadioMode) {
+      navigateRadioPlayerBack({
+        searchQuery: activeQueueContext?.searchQuery,
+        railId: activeQueueContext?.railId,
+      });
+      return;
+    }
     safeRouterBack("/music-feed");
-  }, []);
+  }, [
+    isLiveRadioMode,
+    activeQueueContext?.searchQuery,
+    activeQueueContext?.railId,
+  ]);
 
   const openQueue = useCallback(() => {
     router.push("/queue" as any);

@@ -12,8 +12,11 @@ import { ActivityIndicator,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
-import { safeRouterBack } from "../../utils/safeNavigation";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import {
+  bindRadioHardwareBack,
+  navigateRadioChildBack,
+} from "../../utils/radioNavigation";
 
 import { RadioStationCard } from "../../components/radio/RadioBrowserCards";
 import MatureContentConsentModal from "../../components/mature/MatureContentConsentModal";
@@ -135,8 +138,12 @@ export default function RadioCategoryScreen() {
 
   useEffect(() => {
     if (!hasLoadedOnce || loading || refreshing || listItems.length > 0) return;
-    router.replace("/stations" as any);
+    navigateRadioChildBack();
   }, [hasLoadedOnce, listItems.length, loading, refreshing]);
+
+  useFocusEffect(
+    useCallback(() => bindRadioHardwareBack(navigateRadioChildBack), [])
+  );
 
   if (!category) {
     return (
@@ -144,7 +151,7 @@ export default function RadioCategoryScreen() {
         <View style={styles.center}>
           <Text style={styles.emptyTitle}>This room is not available</Text>
           <Text style={styles.emptyText}>Try another search.</Text>
-          <TouchableOpacity style={styles.backLink} onPress={() => safeRouterBack("/stations")}>
+          <TouchableOpacity style={styles.backLink} onPress={navigateRadioChildBack}>
             <Text style={styles.backLinkText}>Back to Live Stations</Text>
           </TouchableOpacity>
         </View>
@@ -158,7 +165,7 @@ export default function RadioCategoryScreen() {
         <TouchableOpacity
           style={styles.backButton}
           activeOpacity={0.85}
-          onPress={() => safeRouterBack("/stations")}
+          onPress={navigateRadioChildBack}
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
