@@ -7,8 +7,8 @@
 | Path | `D:\HiddenTunes\Active\HiddenTunes-Desktop` |
 | Branch | `desktop/integrate-home-music-split` |
 | Starting HEAD | `0d991ac75961d7d2f1f6f5f127ddaaf5b5c4eaf7` |
-| Ending HEAD | `b423eda37317a73658123cab17bf9ce8c6bb35ab` |
-| Remote HEAD | `b423eda37317a73658123cab17bf9ce8c6bb35ab` (match) |
+| Ending HEAD | `16c8daae1f72c2b5ed732e34f14e91277eb037cf` |
+| Remote HEAD | `16c8daae1f72c2b5ed732e34f14e91277eb037cf` (match) |
 | Initial status | Phase 8 clean desktop + safe exclusions; backend dirty untouched |
 | Final status | Desktop Phase 9 committed & pushed; remaining untracked = Phase 8 `_*.mjs` + `_bak*` only |
 | Recovery | Accidental checkout to mobile branch stashed WIP; restored via `git checkout desktop/integrate-home-music-split` + `stash apply` |
@@ -31,10 +31,11 @@ All permanent gates + phase9 honesty + dist + Electron family/home smokes **PASS
 | ------ | --- | ------- |
 | A | `57ab3f8c` | fix(desktop): align Sports and Downloads with truthful product capabilities |
 | B | `b423eda3` | fix(desktop): gate account actions and remove unsupported premium settings claims |
+| C | `16c8daae` | docs(desktop): record Phase 9 ending HEAD and push proof |
 
 - branch: `desktop/integrate-home-music-split`
-- push: success (`0d991ac7..b423eda3`)
-- local HEAD = remote HEAD = `b423eda37317a73658123cab17bf9ce8c6bb35ab`
+- push: success
+- local HEAD = remote HEAD = `16c8daae1f72c2b5ed732e34f14e91277eb037cf`
 
 ## Remaining launch blockers
 
