@@ -1,11 +1,11 @@
-﻿# Phase 14 Final Report
+# Phase 14 Final Report
 
 ## Workspace
 
 | | |
 |--|--|
 | Starting HEAD | `cdbd30ff` |
-| Ending HEAD | *(after commit)* |
+| Ending HEAD | 98d8e238 |
 
 ## Delivered
 
