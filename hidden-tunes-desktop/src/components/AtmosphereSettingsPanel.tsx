@@ -3,7 +3,7 @@ import {
   ATMOSPHERE_INTENSITY_LABELS,
   ATMOSPHERE_INTENSITY_MODES,
 } from '../lib/atmospherePreferences'
-import { useAtmosphere } from '../context/AtmosphereContext'
+import { useAtmosphere } from '../context/useAtmosphere'
 
 export function AtmosphereSettingsPanel() {
   const {

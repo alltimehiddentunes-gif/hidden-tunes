@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useMemo,
   type ReactNode,
 } from 'react'
@@ -14,27 +12,19 @@ import {
   DEFAULT_ATMOSPHERE_INTENSITY,
   parseAtmosphereIntensityMode,
   parseStoredAtmosphereEnabled,
-  type AtmosphereIntensityMode,
 } from '../lib/atmospherePreferences'
 import {
   DESKTOP_PREFERENCE_KEYS,
   usePersistedPreference,
 } from '../lib/localPreferences'
-import type { AtmosphereDefinition, AtmosphereId } from '../types/atmosphere'
+import type { AtmosphereId } from '../types/atmosphere'
 import { parseAtmosphereId } from '../types/atmosphere'
+import {
+  AtmosphereContext,
+  type AtmosphereContextValue,
+} from './atmosphereContextInstance'
 
-export type AtmosphereContextValue = {
-  activeAtmosphereId: AtmosphereId
-  setActiveAtmosphereId: (id: AtmosphereId) => void
-  atmosphereIntensity: AtmosphereIntensityMode
-  setAtmosphereIntensity: (intensity: AtmosphereIntensityMode) => void
-  atmosphereEnabled: boolean
-  setAtmosphereEnabled: (enabled: boolean) => void
-  resolvedAtmosphere: AtmosphereDefinition
-  availableAtmospheres: AtmosphereDefinition[]
-}
-
-const AtmosphereContext = createContext<AtmosphereContextValue | null>(null)
+export type { AtmosphereContextValue }
 
 export function AtmosphereProvider({ children }: { children: ReactNode }) {
   const defaultAtmosphere = useMemo(() => getDefaultAtmosphere(), [])
@@ -99,12 +89,4 @@ export function AtmosphereProvider({ children }: { children: ReactNode }) {
       {children}
     </AtmosphereContext.Provider>
   )
-}
-
-export function useAtmosphere(): AtmosphereContextValue {
-  const value = useContext(AtmosphereContext)
-  if (!value) {
-    throw new Error('useAtmosphere must be used within AtmosphereProvider')
-  }
-  return value
 }

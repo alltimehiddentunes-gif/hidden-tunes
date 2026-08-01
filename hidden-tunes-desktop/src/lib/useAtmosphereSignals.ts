@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useAtmosphere } from '../context/AtmosphereContext'
+import { useAtmosphere } from '../context/useAtmosphere'
 import {
   buildAtmosphereSignals,
   type AtmosphereSignals,
