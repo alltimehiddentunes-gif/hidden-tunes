@@ -8618,9 +8618,10 @@
 }
 
 .music-discover-page-header--compact {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 2px;
-  margin-bottom: 2px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 8px;
 }
 
 .music-discover-page-header--compact .music-discover-page-title {
@@ -8631,6 +8632,39 @@
   margin-top: 2px;
   max-width: 52ch;
   font-size: 0.82rem;
+}
+
+.music-discover-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.music-discover-quick-link {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(12, 8, 20, 0.55);
+  color: inherit;
+  font-size: 0.72rem;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.music-discover-quick-link:hover,
+.music-discover-quick-link:focus-visible {
+  border-color: rgba(244, 194, 88, 0.45);
+  outline: none;
+}
+
+@media (max-width: 1024px) {
+  .music-discover-page-header--compact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .music-discover-quick-links {
+    justify-content: flex-start;
+  }
 }
 
 .music-discover-song-list--compact {

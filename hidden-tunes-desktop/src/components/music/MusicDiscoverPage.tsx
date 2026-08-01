@@ -73,14 +73,10 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
   onOpenAlbum,
   onSectionChange,
   onBrowseSearch,
-  onNavigateLiked: _onNavigateLiked,
-  onNavigatePlaylists: _onNavigatePlaylists,
-  onNavigateDownloads: _onNavigateDownloads,
+  onNavigateLiked,
+  onNavigatePlaylists,
+  onNavigateDownloads,
 }: MusicDiscoverPageProps) {
-  void _onNavigateLiked
-  void _onNavigatePlaylists
-  void _onNavigateDownloads
-
   const { recentlyPlayed } = useMusicLocalState()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
@@ -174,6 +170,22 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
           <p className="music-discover-page-subtitle">
             Songs, albums, artists, and discovery from your catalog.
           </p>
+        </div>
+        <div className="music-discover-quick-links" aria-label="Music shortcuts">
+          <button type="button" className="music-discover-quick-link" onClick={onNavigateLiked}>
+            Liked
+          </button>
+          <button type="button" className="music-discover-quick-link" onClick={() => onSectionChange('recent')}>
+            Recent
+          </button>
+          <button type="button" className="music-discover-quick-link" onClick={onNavigatePlaylists}>
+            Scenes
+          </button>
+          {onNavigateDownloads ? (
+            <button type="button" className="music-discover-quick-link" onClick={onNavigateDownloads}>
+              Downloads
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -280,8 +292,21 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
                 <button
                   type="button"
                   className="music-discover-release-hit"
-                  onClick={() => playFromQueue(release.song, release.queue, release.queueTitle)}
-                  aria-label={`Play ${release.title} by ${release.artist}`}
+                  onClick={() => {
+                    if (release.kind === 'album' && release.albumId) {
+                      const album = albums.find((entry) => String(entry.id) === String(release.albumId))
+                      if (album) {
+                        onOpenAlbum(album)
+                        return
+                      }
+                    }
+                    playFromQueue(release.song, release.queue, release.queueTitle)
+                  }}
+                  aria-label={
+                    release.kind === 'album'
+                      ? `Open album ${release.title}`
+                      : `Play ${release.title} by ${release.artist}`
+                  }
                 >
                   <MusicArt src={release.artworkUrl} seed={release.id} label={release.title} size="rail" />
                   <span className="music-discover-release-badge">New</span>
@@ -404,7 +429,7 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
         <MusicPageSection
           title="Moods"
           hint="Emotional lanes from your library"
-          onViewAll={() => onSectionChange('genres-moods')}
+          onViewAll={() => onSectionChange('moods')}
         >
           <div className="music-discover-mood-rail music-discover-mood-rail--dense">
             {moodCards.map((mood) => (
@@ -427,7 +452,7 @@ export const MusicDiscoverPage = memo(function MusicDiscoverPage({
       {chartCards.length > 0 ? (
         <MusicPageSection
           title="Popular on Hidden Tunes"
-          hint="Ranked from your catalog"
+          hint="Fresh catalogue picks — not an official chart"
           onViewAll={() => onSectionChange('top-charts')}
         >
           <div className="music-discover-chart-rail music-discover-chart-rail--dense">

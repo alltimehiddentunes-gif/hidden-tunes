@@ -246,29 +246,12 @@ export const MusicSectionContent = memo(function MusicSectionContent({
 
     case 'genres-moods':
       return (
-        <div className="music-section-page">
+        <div className="music-section-page" data-music-genres="canonical">
           <header className="music-section-page-header">
-            <h1>Genres & Moods</h1>
-            <p>Browse by genre or emotional lane.</p>
+            <h1>Genres</h1>
+            <p>Open a dedicated catalogue for each genre. Results load from the live catalog — not a text search stub.</p>
           </header>
-          <MusicPageSection title="Moods & Vibes">
-            <div className="music-discover-mood-rail music-discover-mood-rail--wide">
-              {moodCards.map((mood) => (
-                <article key={mood.id} className={`music-discover-mood-card music-discover-mood-card--${mood.mood}`}>
-                  <button
-                    type="button"
-                    className="music-discover-mood-hit"
-                    onClick={() => playFromQueue(mood.tracks[0], mood.tracks, mood.label)}
-                    aria-label={`Play ${mood.label}`}
-                  >
-                    <h3>{mood.label}</h3>
-                    <p>{mood.subtitle}</p>
-                  </button>
-                </article>
-              ))}
-            </div>
-          </MusicPageSection>
-          <MusicPageSection title="Genres">
+          <MusicPageSection title="Genre catalogue">
             <div className="music-discover-genre-grid music-discover-genre-grid--wide">
               {genreTiles.map((genre) => (
                 <button
@@ -279,7 +262,7 @@ export const MusicSectionContent = memo(function MusicSectionContent({
                     const definition = getMusicGenreByLabelOrAlias(genre.label)
                     onBrowseSearch(definition ? createMusicGenreIntent(definition.slug) : genre.label)
                   }}
-                  aria-label={`Browse ${genre.label}`}
+                  aria-label={`Open ${genre.label} catalogue`}
                 >
                   {genre.artworkUrl ? (
                     <MusicArt src={genre.artworkUrl} seed={genre.id} label={genre.label} size="chip" />
@@ -293,6 +276,36 @@ export const MusicSectionContent = memo(function MusicSectionContent({
               ))}
             </div>
           </MusicPageSection>
+        </div>
+      )
+
+    case 'moods':
+      return (
+        <div className="music-section-page" data-music-moods="emotional-lanes">
+          <header className="music-section-page-header">
+            <h1>Moods</h1>
+            <p>Emotional lanes matched to real catalogue tracks. Play starts a mood queue on this page.</p>
+          </header>
+          {moodCards.length > 0 ? (
+            <div className="music-discover-mood-rail music-discover-mood-rail--wide">
+              {moodCards.map((mood) => (
+                <article key={mood.id} className={`music-discover-mood-card music-discover-mood-card--${mood.mood}`}>
+                  <button
+                    type="button"
+                    className="music-discover-mood-hit"
+                    onClick={() => playFromQueue(mood.tracks[0], mood.tracks, mood.label)}
+                    aria-label={`Play ${mood.label} mood — ${mood.tracks.length} tracks`}
+                  >
+                    <h3>{mood.label}</h3>
+                    <p>{mood.subtitle}</p>
+                    <span>{mood.tracks.length} tracks</span>
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="music-section-empty">No mood lanes have enough matching tracks yet.</p>
+          )}
         </div>
       )
 
@@ -471,10 +484,12 @@ export const MusicSectionContent = memo(function MusicSectionContent({
 
     case 'playlists':
       return (
-        <div className="music-section-page">
+        <div className="music-section-page" data-music-playlists="editorial-scenes">
           <header className="music-section-page-header">
-            <h1>Playlists</h1>
-            <p>Editorial collections built from your catalog scenes.</p>
+            <h1>Scenes</h1>
+            <p>
+              Editorial listening scenes built from your catalog. Your personal playlists live in Library → Playlists.
+            </p>
           </header>
           <div className="music-discover-playlist-grid">
             {editorialPlaylists.map(({ spec, tracks }) => (

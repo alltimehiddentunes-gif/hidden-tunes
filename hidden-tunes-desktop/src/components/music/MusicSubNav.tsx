@@ -17,7 +17,10 @@ const MUSIC_PRIMARY_TABS: Array<{ id: MusicSectionId; label: string }> = [
   { id: 'albums', label: 'Albums' },
   { id: 'artists', label: 'Artists' },
   { id: 'genres-moods', label: 'Genres' },
-  { id: 'playlists', label: 'Playlists' },
+  { id: 'moods', label: 'Moods' },
+  { id: 'liked', label: 'Liked' },
+  { id: 'recent', label: 'Recent' },
+  { id: 'playlists', label: 'Scenes' },
 ]
 
 const PRIMARY_IDS = new Set(MUSIC_PRIMARY_TABS.map((tab) => tab.id))
@@ -72,6 +75,31 @@ function sectionIcon(id: MusicSectionId) {
           </svg>
         </MusicSubNavIcon>
       )
+    case 'moods':
+      return (
+        <MusicSubNavIcon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.5-7 10-7 10Z" />
+          </svg>
+        </MusicSubNavIcon>
+      )
+    case 'liked':
+      return (
+        <MusicSubNavIcon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
+          </svg>
+        </MusicSubNavIcon>
+      )
+    case 'recent':
+      return (
+        <MusicSubNavIcon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <circle cx="12" cy="12" r="8.5" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+        </MusicSubNavIcon>
+      )
     case 'playlists':
       return (
         <MusicSubNavIcon>
@@ -85,9 +113,10 @@ function sectionIcon(id: MusicSectionId) {
   }
 }
 
-/** Map drill-down sections (New Releases, Charts, Liked, Recent) onto Discover tab highlight. */
+/** Map drill-down sections (New Releases, Charts) onto Discover tab highlight. */
 function resolveHighlightedTab(section: MusicSectionId): MusicSectionId {
   if (PRIMARY_IDS.has(section)) return section
+  if (section === 'moods') return 'moods'
   return 'discover'
 }
 

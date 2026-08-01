@@ -3,6 +3,7 @@ export type MusicSectionId =
   | 'new-releases'
   | 'top-charts'
   | 'genres-moods'
+  | 'moods'
   | 'artists'
   | 'albums'
   | 'songs'

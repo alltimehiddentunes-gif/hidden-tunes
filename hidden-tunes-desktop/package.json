@@ -25,6 +25,7 @@
     "verify:music-home": "node scripts/verify-music-home-interactions.mjs",
     "verify:phase9-honesty": "node scripts/verify-phase9-product-honesty.mjs",
     "verify:phase10-home": "node scripts/verify-phase10-home.mjs",
+    "verify:phase11-music": "node scripts/verify-phase11-music.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

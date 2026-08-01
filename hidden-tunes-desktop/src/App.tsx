@@ -3612,9 +3612,11 @@ function DiscoverPage({
   const topResult = visibleSongs[0] ?? null
   const topResultRecord = visibleRecords[0] ?? null
 
-  const songLimit = searchTab === 'songs'
-    ? SEARCH_SONG_EXPANDED_LIMIT
-    : SEARCH_SONG_PREVIEW_LIMIT
+  const songLimit = genreDefinition
+    ? Math.max(visibleSongs.length, SEARCH_SONG_EXPANDED_LIMIT)
+    : searchTab === 'songs'
+      ? SEARCH_SONG_EXPANDED_LIMIT
+      : SEARCH_SONG_PREVIEW_LIMIT
   const artistLimit = searchTab === 'artists'
     ? SEARCH_ARTIST_EXPANDED_LIMIT
     : SEARCH_ARTIST_PREVIEW_LIMIT
@@ -3677,7 +3679,10 @@ function DiscoverPage({
   void setQuery
 
   return (
-    <div className="psd-search-destination">
+    <div
+      className="psd-search-destination"
+      data-music-genre-catalogue={genreDefinition ? genreDefinition.slug : undefined}
+    >
       <PageFrame cinematic>
         <header className="psd-search-page-header" aria-labelledby="search-results-heading">
           <h1 id="search-results-heading" className="psd-search-page-title">

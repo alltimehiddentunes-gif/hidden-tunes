@@ -148,7 +148,7 @@ export function buildPopularChartCards(
     cards.push({
       id: `popular-${genreId}`,
       title: formatGenreLabel(genreId),
-      subtitle: 'Most played in this genre',
+      subtitle: 'Fresh picks in this genre from your catalog',
       tracks: sortSongsList(genreTracks, 'latest').slice(0, 20),
       accent: CHART_ACCENTS[accentIndex % CHART_ACCENTS.length],
     })
