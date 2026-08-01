@@ -1,0 +1,967 @@
+﻿[
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/electron/main.js",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/electron/preload.js",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/package.json",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/scripts/test-route-independent-media.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/App.css",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/App.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/AtmosphereSettingsPanel.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/LaunchGate.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/home/MusicHomePage.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/lectures/LectureSeriesPage.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/lectures/LecturesPage.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/motivationals/MotivationalsPage.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/player/PremiumFullscreenShell.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/podcasts/PodcastShowPage.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/podcasts/PodcastsPage.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/tv/TvNowPlayingPanel.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/components/tv/TvVideoSurface.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/context/AtmosphereContext.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/context/DesktopPlaybackProvider.tsx",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/data/artworkRegistry.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/artworkIntegrity.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/audiobooks/useAudiobookBookData.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/audiobooks/useAudiobooksPageData.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/config/desktopRuntimeConfig.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/desktopCatalogBridge.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/downloads/bridge.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/downloads/dispatchDownloadPlayback.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/lectures/useDiscoverLectureSearch.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/lectures/useLectureSeriesData.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/lectures/useLecturesPageData.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/lectures/useRelatedLectures.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/localPreferences.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/player/resolveActivePlayerSurface.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/playerLyrics/usePlayerLyrics.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/playlists/dispatchPlaylistPlayback.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/podcasts/podcastShowEnrichment.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/podcasts/usePodcastShowData.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/search/useGlobalDesktopSearch.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/tv/tvCatalogApi.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/useAtmosphereSignals.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "M",
+        "Path":  "hidden-tunes-desktop/src/lib/usePlayerOverlayController.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/ARCHITECTURE.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/BLOCKERS.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/BUILD.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/FUNCTIONAL-AUDIT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/MOBILE-PARITY.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/PERFORMANCE.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/ROADMAP.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/SECURITY.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/VISUAL-AUDIT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/desktop-launch-readiness-2026/WORKSPACE-PROOF.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-output.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/COMPLETION-SCORE.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/eslint-output.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/PHASE-1-TYPESCRIPT-BUILD-REPAIR.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/PHASE-2-VIDEO-SURFACE-REPAIR.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase1-build-baseline.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase1-build-success.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase1-dist.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase1-lint.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase1-tsc-baseline.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase1-tsc-pass1.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase1-tsc-pass2.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase2-build.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/phase2-dist.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/RELEASE-BLOCKERS.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/ROADMAP.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/ROUTES.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/tsc-b-output.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/verify-home-genres.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/verify-playback-mutex.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/VERIFY-RESULTS.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/VERIFY-SNAPSHOT.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/vite-build-only.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/WORKSPACE.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/baseline-from-prior-audit-tsc-b.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/BASELINE.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/ERROR-INVENTORY.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/ERROR-OWNERSHIP.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/FIX-LOG.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/lint-output.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/npm-run-build-final.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/npm-run-build.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/npm-run-dist.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/pass-current-tsc-b.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/TSC-PROJECT-GRAPH.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/VALIDATION.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/verify-mutex.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/build-repair/verify-route-media.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/electron-security-hardening/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/eslint-cleanup/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/motivational-video-layout/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/motivational-video-layout/screenshots/README.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/ACCESSIBILITY.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/CURRENT-MUSIC-AUDIT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/DATA-CONTRACT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/DESIGN-PLAN.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/FILES-CHANGED.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/INTERACTION-MATRIX.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/PERFORMANCE.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/PLAYBACK-FLOW.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/REGRESSION-RESULTS.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/SCREENSHOT-EVIDENCE.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/music-redesign/WORKSPACE-PROOF.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/premium-honesty/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/capture-log.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/npm-run-build.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/npm-run-dist.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/screenshots/01-home.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/screenshots/02-home-recently-added.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/screenshots/03-after-play.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/screenshots/04-player-identity.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/screenshots/after-play-probe.json",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/recently-added-truthfulness/screenshots/recently-added-probe.json",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/capture-log.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/cdp-capture-log.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/eslint-full.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/eslint-touched.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/npm-run-build.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/npm-run-dist.txt",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/ROOT-CAUSE.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/01-shell-home.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/02-after-nav-attempt.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/02-sports-route.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/03-final-state.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/03-motivationals-route.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/04-tv-route.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/05-final-state.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/10-cdp-home.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/11-cdp-sports.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/11-sports-probe.json",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/12-cdp-sports-after-play-attempt.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/13-cdp-motivationals.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/14-cdp-motivationals-video-filter.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/15-cdp-motivationals-after-play.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/15-motivational-probe.json",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/16-cdp-tv.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/17-cdp-tv-after-play.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/17-tv-probe.json",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/18-cdp-home-with-active-session.png",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/18-persist-probe.json",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/launch-readiness/video-surface-repair/screenshots/runtime-dom-probe.json",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/player-sidebar/_bak/DesktopPersistentPlayer.tsx",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/player-sidebar/_bak/playerDisplayMetadata.ts",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/player-sidebar/_bak_after/DesktopPersistentPlayer.tsx",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/player-sidebar/_bak_after/playerDisplayMetadata.ts",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/tv-catalogue-unification/FINAL-REPORT.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/tv-catalogue-unification/PLAYABLE-BUT-HIDDEN.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/tv-catalogue-unification/PRODUCTION-CHANGE-PLAN.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/tv-catalogue-unification/README.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/docs/audits/tv-catalogue-unification/SEARCH-UNIFICATION.md",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/electron/fallback.html",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/electron/navigationPolicy.js",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_diag-home-albums.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_isolate-app-catalog.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_isolate-app-home-player.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_patch-albums-fillers.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_patch-albums-fillers2.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_patch-app-display-meta.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_patch-full-catalog-bounded.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_patch-home-albums-worth.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_patch-music-section-display.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_peek-app-anchors.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_peek-head-mojibake.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_peek-player-fallback.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_probe-home-albums.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_probe-music-encoding.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_repair-app-mojibake.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_verify-encoding-fix.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/_verify-player-dash.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/capture-recently-added-evidence.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/capture-video-surface-cdp.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/capture-video-surface-evidence.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/smoke-electron-security.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/smoke-eslint-lifecycle.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/verify-electron-security.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/verify-motivational-video-layout.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/verify-music-home-interactions.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/verify-premium-honesty.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/verify-recently-added-truthfulness.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/scripts/verify-video-surface.mjs",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/src/context/atmosphereContextInstance.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/src/context/useAtmosphere.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/src/lib/desktopBridgeTypes.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/src/lib/player/resolveVideoSurfaceLayout.ts",
+        "Kind":  "leaf"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/src/lib/premium/premiumPresentation.ts",
+        "Kind":  "expanded"
+    },
+    {
+        "Status":  "??",
+        "Path":  "hidden-tunes-desktop/src/lib/tv/tvSearchQuery.ts",
+        "Kind":  "leaf"
+    }
+]

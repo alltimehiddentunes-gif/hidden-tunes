@@ -1,0 +1,109 @@
+{
+  "cardCount": 8,
+  "hasFakeArrayResidue": false,
+  "sectionPresent": true,
+  "items": [
+    {
+      "title": "Ikkimel IDGAF",
+      "artist": "Hidden Tunes",
+      "aria": "Play Ikkimel IDGAF by Hidden Tunes",
+      "ariaMatchesVisible": true,
+      "hasImg": true,
+      "imgSrc": "https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1785272655491-ChatGPT-Image-Jul-28-2026-10_54_44-PM.png",
+      "fakeTitles": [
+        "Sunset Dreams",
+        "Electric Hearts",
+        "Lost in Tokyo",
+        "Golden Hour",
+        "Echoes",
+        "Better Days"
+      ],
+      "isFakeTitle": false
+    },
+    {
+      "title": "PASHANIM & Ceren Shabab(es) im VIP",
+      "artist": "Hidden Tunes",
+      "aria": "Play PASHANIM & Ceren Shabab(es) im VIP by Hidden Tunes",
+      "ariaMatchesVisible": true,
+      "hasImg": true,
+      "imgSrc": "https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1785272651312-ChatGPT-Image-Jul-28-2026-10_54_44-PM.png",
+      "fakeTitles": [
+        "Sunset Dreams",
+        "Electric Hearts",
+        "Lost in Tokyo",
+        "Golden Hour",
+        "Echoes",
+        "Better Days"
+      ],
+      "isFakeTitle": false
+    },
+    {
+      "title": "$OHO BANI, Herbert Grönemeyer & Ericson Zeit, DASS SICH WAS DREHT",
+      "artist": "Hidden Tunes",
+      "aria": "Play $OHO BANI, Herbert Grönemeyer & Ericson Zeit, DASS SICH WAS DREHT by Hidden Tunes",
+      "ariaMatchesVisible": true,
+      "hasImg": true,
+      "imgSrc": "https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1785272644340-ChatGPT-Image-Jul-28-2026-10_54_44-PM.png",
+      "fakeTitles": [
+        "Sunset Dreams",
+        "Electric Hearts",
+        "Lost in Tokyo",
+        "Golden Hour",
+        "Echoes",
+        "Better Days"
+      ],
+      "isFakeTitle": false
+    },
+    {
+      "title": "Filow, Lucry & Suena & Ikkimel Jiggy",
+      "artist": "Hidden Tunes",
+      "aria": "Play Filow, Lucry & Suena & Ikkimel Jiggy by Hidden Tunes",
+      "ariaMatchesVisible": true,
+      "hasImg": true,
+      "imgSrc": "https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1785272630990-ChatGPT-Image-Jul-28-2026-10_54_44-PM.png",
+      "fakeTitles": [
+        "Sunset Dreams",
+        "Electric Hearts",
+        "Lost in Tokyo",
+        "Golden Hour",
+        "Echoes",
+        "Better Days"
+      ],
+      "isFakeTitle": false
+    },
+    {
+      "title": "Culcha Candela MONSTA RMX",
+      "artist": "Hidden Tunes",
+      "aria": "Play Culcha Candela MONSTA RMX by Hidden Tunes",
+      "ariaMatchesVisible": true,
+      "hasImg": true,
+      "imgSrc": "https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1785272623641-ChatGPT-Image-Jul-28-2026-10_54_44-PM.png",
+      "fakeTitles": [
+        "Sunset Dreams",
+        "Electric Hearts",
+        "Lost in Tokyo",
+        "Golden Hour",
+        "Echoes",
+        "Better Days"
+      ],
+      "isFakeTitle": false
+    },
+    {
+      "title": "CIVO Du Bist Schön FEIER & EIS Remix",
+      "artist": "Hidden Tunes",
+      "aria": "Play CIVO Du Bist Schön FEIER & EIS Remix by Hidden Tunes",
+      "ariaMatchesVisible": true,
+      "hasImg": true,
+      "imgSrc": "https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev/covers/1785272616675-ChatGPT-Image-Jul-28-2026-10_54_44-PM.png",
+      "fakeTitles": [
+        "Sunset Dreams",
+        "Electric Hearts",
+        "Lost in Tokyo",
+        "Golden Hour",
+        "Echoes",
+        "Better Days"
+      ],
+      "isFakeTitle": false
+    }
+  ]
+}

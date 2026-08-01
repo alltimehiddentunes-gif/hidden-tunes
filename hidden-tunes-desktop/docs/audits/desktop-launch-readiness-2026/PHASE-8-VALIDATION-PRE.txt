@@ -1,0 +1,16 @@
+﻿lint=0
+build=0
+dist=0
+playback-mutex=0
+route-media=0
+electron-security=0
+video-surface=0
+motivational-video=0
+recently-added=0
+premium-honesty=0
+music-home=0
+queue-contract=0
+downloads-contract=0
+home-music-smoke=0
+phase8-family-nav-smoke=0
+catalog-node-smoke=skipped (must run under electron)
