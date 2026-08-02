@@ -22,7 +22,7 @@ const QUALITY_TOKEN_PATTERN =
   /\b(4320p|2160p|1440p|1080p|720p|576p|480p|360p|240p|8k|4k|uhd|qhd|fhd|hd|sd)\b/i;
 
 /** Compact display labels for ISO country codes (consumer-facing, not full legal names). */
-const COUNTRY_DISPLAY_LABELS: Record<string, string> = {
+export const TV_COUNTRY_DISPLAY_LABELS: Readonly<Record<string, string>> = {
   US: "USA",
   GB: "UK",
   UK: "UK",
@@ -278,8 +278,8 @@ export function formatCountryLabel(country?: string | null): string | null {
   }
 
   const upper = raw.toUpperCase();
-  if (COUNTRY_DISPLAY_LABELS[upper]) {
-    return COUNTRY_DISPLAY_LABELS[upper];
+  if (TV_COUNTRY_DISPLAY_LABELS[upper]) {
+    return TV_COUNTRY_DISPLAY_LABELS[upper];
   }
 
   // Already a readable name

@@ -9,10 +9,12 @@ import type {
   TvResolvedPlayback,
 } from './types'
 import {
+  classifyTvSearchQuery,
   normalizeTvSearchQuery,
   resolveTvSearchCountryCode,
 } from './tvSearchQuery'
 import { resolveTvDesktopAvailability } from './tvDesktopPolicy'
+import { formatCountryLabel } from './formatTvChannelDisplay'
 
 /**
  * Public catalog API (Next.js admin) — same host as Radio/Podcasts.
@@ -207,7 +209,9 @@ export async function fetchTvRegionsFromCountries(
   countries: string[],
   signal?: AbortSignal,
 ): Promise<TvRegionMeta[]> {
-  const unique = [...new Set(countries.map((entry) => entry.trim()).filter(Boolean))]
+  const unique = [...new Set(countries.map((entry) =>
+    resolveTvSearchCountryCode(entry) ?? entry.trim(),
+  ).filter(Boolean))]
   const results = await Promise.all(
     unique.map(async (country) => {
       try {
@@ -215,8 +219,8 @@ export async function fetchTvRegionsFromCountries(
         if (count <= 0) return null
         return {
           id: country.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          name: country,
-          code: null,
+          name: formatCountryLabel(country) ?? country,
+          code: country,
           count,
         } as TvRegionMeta
       } catch {
@@ -250,6 +254,10 @@ export async function fetchTvChannels(
     pagination?: TvPagination
   }>(`/api/tv/channels?${query.toString()}`, options?.signal)
 
+  if (payload.success !== true || !Array.isArray(payload.videos)) {
+    throw new Error('TV catalogue returned an invalid response')
+  }
+
   const channels = (Array.isArray(payload.videos) ? payload.videos : [])
     .map((row) =>
       row && typeof row === 'object'
@@ -265,22 +273,6 @@ export async function fetchTvChannels(
   }
 }
 
-function mergeTvSearchChannels(
-  primary: TvChannelMeta[],
-  secondary: TvChannelMeta[],
-  limit: number,
-) {
-  const seen = new Set<string>()
-  const merged: TvChannelMeta[] = []
-  for (const channel of [...primary, ...secondary]) {
-    if (!channel.id || seen.has(channel.id)) continue
-    seen.add(channel.id)
-    merged.push(channel)
-    if (merged.length >= limit) break
-  }
-  return merged
-}
-
 /**
  * Authoritative TV search — same catalogue contract as mobile:
  * `GET /api/tv/channels?q=` (alias of `/api/tv/videos`), not the narrower
@@ -288,7 +280,7 @@ function mergeTvSearchChannels(
  */
 export async function searchTvChannels(
   query: string,
-  options?: PaginationOptions & { signal?: AbortSignal },
+  options?: PaginationOptions & { signal?: AbortSignal; category?: string | null; country?: string | null },
 ): Promise<TvCatalogResponse> {
   const trimmed = normalizeTvSearchQuery(query)
   if (trimmed.length < 2) {
@@ -307,57 +299,21 @@ export async function searchTvChannels(
 
   const page = options?.page ?? 1
   const limit = Math.min(Math.max(options?.limit ?? 24, 1), 40)
-  const countryCode = resolveTvSearchCountryCode(trimmed)
+  const intent = classifyTvSearchQuery(trimmed)
+  const scopedCountry = options?.country
+    ? resolveTvSearchCountryCode(options.country) ?? options.country
+    : intent.country
 
-  const textResponse = await fetchTvChannels({
-    query: trimmed,
+  return fetchTvChannels({
+    query: options?.country
+      ? (intent.country === scopedCountry ? intent.query : trimmed)
+      : intent.query,
+    country: scopedCountry,
+    category: options?.category,
     page,
     limit,
     signal: options?.signal,
   })
-
-  if (!countryCode) {
-    return textResponse
-  }
-
-  const countryResponse = await fetchTvChannels({
-    country: countryCode,
-    page,
-    limit,
-    signal: options?.signal,
-  })
-
-  if (!textResponse.success && !countryResponse.success) {
-    return textResponse
-  }
-
-  const channels = mergeTvSearchChannels(
-    textResponse.success ? textResponse.channels : [],
-    countryResponse.success ? countryResponse.channels : [],
-    limit,
-  )
-
-  const total = Math.max(
-    textResponse.success ? textResponse.pagination.total : 0,
-    countryResponse.success ? countryResponse.pagination.total : 0,
-    channels.length,
-  )
-  const hasMore = Boolean(
-    (textResponse.success && textResponse.pagination.hasMore) ||
-      (countryResponse.success && countryResponse.pagination.hasMore),
-  )
-
-  return {
-    success: true,
-    channels,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: total > 0 ? Math.ceil(total / limit) : 0,
-      hasMore,
-    },
-  }
 }
 
 export async function resolveTvPlayUrl(

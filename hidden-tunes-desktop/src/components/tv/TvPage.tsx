@@ -394,8 +394,8 @@ export const TvPage = memo(function TvPage({
                   <button
                     key={region.id}
                     type="button"
-                    className={`tv-region-card${selectedRegion === region.name ? ' is-active' : ''}`}
-                    onClick={() => handleRegionSelect(region.name)}
+                    className={`tv-region-card${selectedRegion === (region.code ?? region.name) ? ' is-active' : ''}`}
+                    onClick={() => handleRegionSelect(region.code ?? region.name)}
                   >
                     <span className="tv-region-code" aria-hidden="true">
                       {region.code ?? regionCode(region.name)}

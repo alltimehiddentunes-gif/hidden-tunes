@@ -236,18 +236,11 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
             ?? undefined
 
           const response = isSearchMode
-            ? category || effectiveSelectedRegion
-              ? await fetchTvChannels({
-                  query: trimmedSearch,
+            ? await searchTvChannels(trimmedSearch, {
                   page: requestPage,
                   limit: TV_PAGE_SIZE,
-                  category: category ?? undefined,
-                  country: effectiveSelectedRegion ?? undefined,
-                  signal: abort.signal,
-                })
-              : await searchTvChannels(trimmedSearch, {
-                  page: requestPage,
-                  limit: TV_PAGE_SIZE,
+                  category,
+                  country: effectiveSelectedRegion,
                   signal: abort.signal,
                 })
             : await fetchTvChannels({

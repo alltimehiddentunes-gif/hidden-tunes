@@ -7,6 +7,8 @@
   "version": "0.0.1",
   "main": "electron/main.js",
   "scripts": {
+    "verify:tv-country-search": "node scripts/verify-tv-country-search.mjs",
+    "verify:tv-country-search": "node scripts/verify-tv-country-search.mjs",
     "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
