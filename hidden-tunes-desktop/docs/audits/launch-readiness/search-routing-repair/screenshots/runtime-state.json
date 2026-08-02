@@ -29,8 +29,8 @@
       "id": "",
       "rect": [
         296.66668701171875,
-        701.0208740234375,
-        1548.666748046875,
+        495.0208435058594,
+        894.6666870117188,
         16
       ],
       "position": "static",
@@ -42,8 +42,8 @@
       "id": "",
       "rect": [
         296.66668701171875,
-        680.3541870117188,
-        1548.666748046875,
+        474.35418701171875,
+        894.6666870117188,
         36.66666793823242
       ],
       "position": "static",
@@ -55,9 +55,9 @@
       "id": "",
       "rect": [
         226.6666717529297,
-        664.6875,
-        1660.666748046875,
-        68
+        458.6875,
+        1006.6666870117188,
+        68.66667175292969
       ],
       "position": "static",
       "parent": "psd-search-side-card"
@@ -69,7 +69,7 @@
       "rect": [
         226,
         320.6875,
-        1662,
+        1008,
         412.66668701171875
       ],
       "position": "static",
@@ -82,7 +82,7 @@
       "rect": [
         226,
         286.6875,
-        1662,
+        1008,
         446.66668701171875
       ],
       "position": "static",
@@ -95,13 +95,64 @@
       "rect": [
         226,
         153.33334350585938,
-        1662,
-        2962.02099609375
+        1008,
+        2973.354248046875
       ],
       "position": "relative",
       "parent": "psd-search-destination"
     }
   ],
   "tvDestination": "tv",
-  "tvPlayStayedOnSearch": true
+  "tvPlayStayedOnSearch": true,
+  "sectionResults": [
+    {
+      "label": "Music",
+      "expected": "music",
+      "actual": "music",
+      "opened": true,
+      "input": true
+    },
+    {
+      "label": "Radio",
+      "expected": "radio",
+      "actual": "radio",
+      "opened": true,
+      "input": true
+    },
+    {
+      "label": "Podcasts",
+      "expected": "podcasts",
+      "actual": "podcasts",
+      "opened": true,
+      "input": true
+    },
+    {
+      "label": "Audiobooks",
+      "expected": "audiobooks",
+      "actual": "audiobooks",
+      "opened": true,
+      "input": true
+    },
+    {
+      "label": "TV",
+      "expected": "tv",
+      "actual": "tv",
+      "opened": true,
+      "input": true
+    },
+    {
+      "label": "Motivationals",
+      "expected": "motivationals",
+      "actual": "motivationals",
+      "opened": true,
+      "input": true
+    },
+    {
+      "label": "Lectures",
+      "expected": "lectures",
+      "actual": "lectures",
+      "opened": true,
+      "input": true
+    }
+  ]
 }

@@ -9097,13 +9097,14 @@ function AppShell() {
                       ? `Search music or replace ${discoverGenreIntent.label}…`
                       : TOP_BAR_PLACEHOLDERS[activeNavKey]
                   }
-                  onOpenDiscover={() => navigatePage('discover', 'search')}
+                  onOpenDiscover={
+                    activeNavKey === 'home'
+                      ? () => navigatePage('discover', 'search')
+                      : undefined
+                  }
                   onSearchSubmit={(query) => {
-                    if ((activeNavKey === 'home' || activeNavKey === 'music') && query) {
+                    if (activeNavKey === 'home' && query) {
                       setDiscoverQuery(query)
-                    }
-                    if (activeNavKey === 'music' && query) {
-                      navigatePage('discover', 'search')
                     }
                   }}
                   variant={

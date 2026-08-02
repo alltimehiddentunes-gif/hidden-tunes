@@ -12,3 +12,4 @@
 - Production configuration: 18/18 PASS
 - Distribution/NSIS: PASS after closing stale packaged processes that locked the prior output
 - Packaged Electron Search: PASS; 29 BBC mixed-family rows, Radio and TV groups present, TV card routes to TV, TV Play stays on Search
+- Packaged section search submit: PASS; Music, Radio, Podcasts, Audiobooks, TV, Motivationals, and Lectures each remain on their own route

@@ -88,7 +88,40 @@ async function main() {
   await sleep(1000)
   const afterPlay = await evaluate(`document.querySelector('.page-view')?.dataset.nav || ''`)
   if (!tvPlay || afterPlay !== 'search') throw new Error(`TV Play changed route to ${afterPlay || 'nothing'}`)
-  const finalState = { ...state, tvDestination, tvPlayStayedOnSearch: afterPlay === 'search' }
+  const sectionSearches = [
+    ['Music', 'music', 'Burna'],
+    ['Radio', 'radio', 'BBC'],
+    ['Podcasts', 'podcasts', 'Jazz'],
+    ['Audiobooks', 'audiobooks', 'King'],
+    ['TV', 'tv', 'RO'],
+    ['Motivationals', 'motivationals', 'success'],
+    ['Lectures', 'lectures', 'business'],
+  ]
+  const sectionResults = []
+  for (const [label, nav, query] of sectionSearches) {
+    const openedSection = await evaluate(`(() => {
+      const label=${JSON.stringify(label)}
+      const n=[...document.querySelectorAll('button,a')].find(x=>(x.textContent||'').trim()===label)
+      n?.click()
+      return !!n
+    })()`)
+    await sleep(500)
+    const result = await evaluate(`(() => {
+      const query=${JSON.stringify(query)}
+      const input=document.querySelector('input[type="search"],input[placeholder*="Search" i]')
+      if (!input) return { input:false }
+      const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set
+      setter.call(input,query)
+      input.dispatchEvent(new Event('input',{bubbles:true}))
+      input.closest('form')?.requestSubmit()
+      return { input:true }
+    })()`)
+    await sleep(700)
+    const actual = await evaluate(`document.querySelector('.page-view')?.dataset.nav || ''`)
+    sectionResults.push({ label, expected: nav, actual, opened: openedSection, ...result })
+    if (actual !== nav) throw new Error(`${label} Search redirected to ${actual || 'nothing'}`)
+  }
+  const finalState = { ...state, tvDestination, tvPlayStayedOnSearch: afterPlay === 'search', sectionResults }
   fs.writeFileSync(path.join(outDir, 'runtime-state.json'), JSON.stringify(finalState, null, 2))
   console.log('PASS: packaged Search renderer', JSON.stringify(finalState))
   cdp.close()

@@ -1,3 +1,5 @@
 # Root cause
 
 `useGlobalDesktopSearch` retained correct family types, but `GlobalSearchSections` reduced TV and Radio results to `(id, title, artwork)`. `DiscoverPage` reconstructed incomplete objects, discarding country, language, categories/tags, quality/reliability, protocol, verification, popularity, and description. The entire card was also Play, so navigation and playback lacked independent contracts. The fix passes canonical objects, makes card navigation explicit, and uses a separate Play button with stopped propagation.
+
+A follow-up report exposed an earlier routing defect: `HomeTopBar.handleSubmit` always invoked `onOpenDiscover`, while App supplied `navigatePage('discover', 'search')` to the header on every destination. Submitting TV, Radio, Podcast, Audiobook, Motivational, Lecture, or Music input therefore abandoned that section for the Music-shaped global Search page. App now supplies this navigation callback only on Home; destination pages keep their own query owner and route.

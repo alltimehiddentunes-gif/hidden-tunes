@@ -40,6 +40,7 @@ check('Audiobook opens its detail handler', ui.includes('onOpenAudiobook?.(book.
 check('Motivational opens its program handler', ui.includes('onOpenMotivational?.(session.programId || session.id)'))
 check('Sports exposes navigation only', ui.includes("onClick={() => onNavigateNav('sports')}") && !ui.includes('onPlaySports'))
 check('Search song playback remains route-independent', app.includes("'discover',") && app.includes("context === 'home' || context === 'discover'"))
+check('Section search submit cannot redirect to global Music-shaped Search', app.includes("activeNavKey === 'home'\n                      ? () => navigatePage('discover', 'search')") && !app.includes("if (activeNavKey === 'music' && query)"))
 
-console.log(`\nSearch routing repair: ${20 - failures} passed, ${failures} failed`)
+console.log(`\nSearch routing repair: ${21 - failures} passed, ${failures} failed`)
 if (failures) process.exit(1)
