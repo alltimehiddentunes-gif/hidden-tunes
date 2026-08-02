@@ -11,6 +11,7 @@ module.exports = ({ config }) => {
     "";
   const isDevClientBuild = profile === "developmentClient";
   const isPreviewBuild = profile === "preview";
+  const isProductionBuild = profile === "production";
   const isStandaloneBuild = !isDevClientBuild;
 
   const basePlugins = (appJson.expo.plugins || []).filter((entry) => {
@@ -94,6 +95,8 @@ module.exports = ({ config }) => {
       ? `${appJson.expo.version}-dev.${appJson.expo.ios.buildNumber}`
       : isPreviewBuild
       ? `${appJson.expo.version}-preview.${appJson.expo.ios.buildNumber}`
+      : isProductionBuild
+      ? `${appJson.expo.version}-production.${appJson.expo.ios.buildNumber}`
       : config.runtimeVersion || appJson.expo.runtimeVersion,
     plugins,
     ios: {

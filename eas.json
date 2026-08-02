@@ -41,7 +41,7 @@
     },
     "production": {
       "developmentClient": false,
-      "autoIncrement": true,
+      "autoIncrement": false,
       "distribution": "store",
       "channel": "production",
       "environment": "production",
@@ -50,9 +50,10 @@
       },
       "env": {
         "EXPO_PUBLIC_BUILD_PROFILE": "production",
-        "EXPO_PUBLIC_SPORTS_ENABLED": "true",
-        "EXPO_PUBLIC_SPORTS_MOBILE_PILOT_ENABLED": "true",
-        "EXPO_PUBLIC_SPORTS_FULL_UI_ENABLED": "true",
+        "EXPO_PUBLIC_MATURE_PODCASTS_DEVICE_LOCK_ENABLED": "true",
+        "EXPO_PUBLIC_SPORTS_ENABLED": "false",
+        "EXPO_PUBLIC_SPORTS_MOBILE_PILOT_ENABLED": "false",
+        "EXPO_PUBLIC_SPORTS_FULL_UI_ENABLED": "false",
         "EXPO_PUBLIC_SPORTS_FIXTURES_ENABLED": "true",
         "EXPO_PUBLIC_SPORTS_STREAMS_ENABLED": "false",
         "EXPO_PUBLIC_SPORTS_TV_ENABLED": "true",

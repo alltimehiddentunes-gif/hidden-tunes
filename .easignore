@@ -1,4 +1,6 @@
 audit/
+docs/audits/
+scripts/audit-*.mjs
 *.log
 .expo/
 node_modules/
