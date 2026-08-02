@@ -2,6 +2,7 @@ import "react-native-url-polyfill/auto";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { lockMaturePodcastSession } from "../utils/maturePodcastSettings";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || "";
 const SUPABASE_ANON_KEY =
@@ -133,6 +134,7 @@ export async function signInArtistWithPassword(email: string, password: string) 
 }
 
 export async function signOutArtistSession() {
+  lockMaturePodcastSession();
   const supabase = getMobileSupabaseClient();
 
   if (!supabase) {

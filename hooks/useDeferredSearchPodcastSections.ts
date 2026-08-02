@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 import { searchPodcasts } from "../services/podcastService";
 import type { PodcastSearchResult } from "../types/podcast";
-import { shouldIncludeMaturePodcasts } from "../utils/maturePodcastSettings";
 import { useMountedRef } from "./useMountedRef";
 import { SEARCH_MEDIA_DEFER_MS } from "../utils/searchPerformance";
 
@@ -51,7 +50,7 @@ export function useDeferredSearchPodcastSections(submittedQuery: string) {
 
       try {
         const results = searchPodcasts(query, {
-          includeMature: shouldIncludeMaturePodcasts(),
+          includeMature: false,
           limit: 12,
         });
         if (generationRef.current !== generation || !mountedRef.current) return;
@@ -73,7 +72,7 @@ export function useDeferredSearchPodcastSections(submittedQuery: string) {
     }, SEARCH_MEDIA_DEFER_MS);
 
     return () => clearTimeout(timer);
-  }, [submittedQuery, safeSet]);
+  }, [mountedRef, safeSet, submittedQuery]);
 
   return state;
 }

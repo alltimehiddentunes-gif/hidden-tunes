@@ -10,6 +10,7 @@ import {
   getActivePlaybackContentKind,
   getActivePlaybackOwner,
 } from "../playback/PlaybackHandoffCoordinator";
+import { isVerbosePlaybackDiagnosticsEnabled } from "../../utils/devDiagnostics";
 
 function safeAppState(): string {
   try {
@@ -130,7 +131,7 @@ export function logTvMediaSessionDiag(
   event: TvMediaSessionDiagEvent,
   details?: Record<string, unknown>
 ): void {
-  if (typeof __DEV__ === "undefined" || !__DEV__) return;
+  if (!isVerbosePlaybackDiagnosticsEnabled()) return;
   console.log("[HTTVNowPlayingDiag]", event, {
     correlationId: activeCorrelationId,
     currentOwner: getActivePlaybackOwner(),

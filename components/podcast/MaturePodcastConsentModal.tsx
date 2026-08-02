@@ -19,16 +19,16 @@ export default function MaturePodcastConsentModal({
         <Pressable style={styles.card} onPress={() => undefined}>
           <Text style={styles.title}>Mature Podcasts 18+</Text>
           <Text style={styles.message}>
-            I confirm that I am 18 or older and understand this section may contain explicit or
-            adult podcast content.
+            This optional section may contain explicit adult podcast content.
           </Text>
+          <Text style={styles.confirmation}>I confirm that I am at least 18 years old.</Text>
 
           <View style={styles.actions}>
             <Pressable style={styles.cancelButton} onPress={onCancel}>
               <Text style={styles.cancelText}>Cancel</Text>
             </Pressable>
             <Pressable style={styles.confirmButton} onPress={onConfirm}>
-              <Text style={styles.confirmText}>I am 18+ and continue</Text>
+              <Text style={styles.confirmText}>Confirm and Continue</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -62,6 +62,12 @@ const styles = StyleSheet.create({
   },
   message: {
     color: COLORS.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 12,
+  },
+  confirmation: {
+    color: COLORS.text,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 12,

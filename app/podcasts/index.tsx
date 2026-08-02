@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -10,7 +10,6 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
 
 import AppShell from "../../components/navigation/AppShell";
 import { PodcastEpisodeCard } from "../../components/podcast/PodcastCards";
@@ -31,7 +30,14 @@ import {
 } from "../../services/podcastCatalogApi";
 import { isValidRecentlyPlayedPodcastEpisode } from "../../services/podcastRecentlyPlayed";
 import type { PodcastEpisode } from "../../types/podcast";
-import { shouldIncludeMaturePodcasts } from "../../utils/maturePodcastSettings";
+import { authenticateForMaturePodcasts } from "../../utils/maturePodcastAuthentication";
+import {
+  acceptMaturePodcastConsent,
+  hasRememberedMatureConsent,
+  refreshTrustedMatureAgeStatus,
+  shouldIncludeMaturePodcasts,
+  unlockMaturePodcastSession,
+} from "../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../utils/safeNavigation";
 
 function SectionHeader({ title }: { title: string }) {
@@ -43,11 +49,50 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export default function PodcastHomeScreen() {
+  const [matureConsentVisible, setMatureConsentVisible] = useState(false);
   const { playPodcastEpisode } = usePlaybackRouter();
   const { consentVisible, runWithMaturePodcastConsent, cancelConsent, confirmConsent } =
     useMaturePodcastGate();
   const { recentlyPlayed, error } = usePodcastHome();
   const { query, setQuery, results, hasQuery } = usePodcastLocalSearch();
+
+  const authenticateAndOpenMature = useCallback(async (rememberConsent = false) => {
+    const result = await authenticateForMaturePodcasts();
+    if (!result.success) {
+      if (result.reason === "native_module_missing") {
+        Alert.alert(
+          "App Update Required",
+          "Install the latest Hidden Tunes development build to use Face ID or device passcode authentication for Mature Podcasts."
+        );
+      } else if (result.reason === "device_security_missing") {
+        Alert.alert(
+          "Device Security Required",
+          "Set up Face ID, fingerprint, PIN, pattern, password, or device passcode in your phone settings before opening Mature Podcasts."
+        );
+      }
+      return;
+    }
+    if (rememberConsent) await acceptMaturePodcastConsent();
+    if (unlockMaturePodcastSession()) safeRouterPush("/podcasts/mature" as any);
+  }, []);
+
+  const beginMatureAccess = useCallback(async () => {
+    const ageStatus = await refreshTrustedMatureAgeStatus();
+    if (ageStatus === "under_18") {
+      Alert.alert(
+        "Mature Podcasts Unavailable",
+        "This section is available only to users aged 18 or older."
+      );
+      return;
+    }
+    if (hasRememberedMatureConsent()) return authenticateAndOpenMature();
+    setMatureConsentVisible(true);
+  }, [authenticateAndOpenMature]);
+
+  const confirmMatureAccess = useCallback(async () => {
+    setMatureConsentVisible(false);
+    await authenticateAndOpenMature(true);
+  }, [authenticateAndOpenMature]);
 
   const openShow = useCallback((showId: string) => {
     safeRouterPush({ pathname: "/podcasts/show/[id]", params: { id: showId } });
@@ -164,20 +209,18 @@ export default function PodcastHomeScreen() {
               <TouchableOpacity
                 activeOpacity={0.88}
                 style={styles.matureCard}
-                onPress={() => router.push("/podcasts/mature" as any)}
+                onPress={() => void beginMatureAccess()}
               >
                 <Ionicons
-                  name={shouldIncludeMaturePodcasts() ? "lock-open-outline" : "lock-closed-outline"}
+                  name="lock-closed-outline"
                   size={20}
                   color={COLORS.danger}
                 />
                 <View style={styles.matureCopy}>
                   <Text style={styles.matureTitle}>Mature Podcasts 18+</Text>
-                  <Text style={styles.matureSubtitle}>
-                    {shouldIncludeMaturePodcasts()
-                      ? "Unlocked — explicit podcasts enabled"
-                      : "Locked — confirm age to unlock"}
-                  </Text>
+                  <Text style={styles.matureLocked}>Locked</Text>
+                  <Text style={styles.matureSubtitle}>Adult podcasts are hidden until unlocked.</Text>
+                  <Text style={styles.matureAction}>Tap to Continue →</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
               </TouchableOpacity>
@@ -189,6 +232,11 @@ export default function PodcastHomeScreen() {
           visible={consentVisible}
           onCancel={cancelConsent}
           onConfirm={confirmConsent}
+        />
+        <MaturePodcastConsentModal
+          visible={matureConsentVisible}
+          onCancel={() => setMatureConsentVisible(false)}
+          onConfirm={() => void confirmMatureAccess()}
         />
       </LinearGradient>
     </AppShell>
@@ -216,7 +264,9 @@ const styles = StyleSheet.create({
   },
   matureCopy: { flex: 1 },
   matureTitle: { color: COLORS.text, fontWeight: "800", fontSize: 15 },
+  matureLocked: { color: COLORS.danger, fontWeight: "800", fontSize: 12, marginTop: 5 },
   matureSubtitle: { color: COLORS.textMuted, fontSize: 12, marginTop: 3 },
+  matureAction: { color: COLORS.text, fontWeight: "800", fontSize: 12, marginTop: 7 },
   categoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

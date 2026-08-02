@@ -29,6 +29,7 @@
     "typecheck": "tsc --noEmit",
     "test:sports-frontend": "npx tsx scripts/test-sports-frontend.ts",
     "test:localization": "npx tsx scripts/test-localization.mjs",
+    "test:mature-podcast-device-lock": "node scripts/test-mature-podcast-device-lock.mjs",
     "validate:localization": "npx tsx scripts/validate-localization.mjs"
   },
   "dependencies": {
@@ -49,6 +50,7 @@
     "expo-image": "~56.0.9",
     "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.13",
+    "expo-local-authentication": "~56.0.5",
     "expo-media-control": "~1.0.12",
     "expo-router": "~56.2.8",
     "expo-screen-orientation": "~56.0.5",

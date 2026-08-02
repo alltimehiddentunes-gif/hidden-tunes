@@ -323,7 +323,7 @@ export function logLockscreenPlaybackDiagnostic(
 
   const entry = createEntry(event, details);
 
-  if (__DEV__) {
+  if (__DEV__ && shouldRecordLockscreenEvent(event)) {
     console.log(`[HTLockscreenDiag] ${event}`, {
       ...details,
       timestamp: entry.iso,

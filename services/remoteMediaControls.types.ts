@@ -50,6 +50,18 @@ export function buildRemoteMediaMetadata(
 
   if (!song) return null;
 
+  const matureScope = String(song.matureScope || "").toLowerCase();
+  if (matureScope && matureScope !== "safe" && matureScope !== "general_only") {
+    return {
+      title: "Private podcast playing",
+      artist: "Hidden Tunes",
+      album: "Hidden Tunes",
+      artwork: { uri: FALLBACK_ARTWORK },
+      duration: Math.max(0, Math.round(durationMillis / 1000)),
+      elapsedTime: Math.max(0, Math.round(positionMillis / 1000)),
+    };
+  }
+
   const artist =
     song.artist ||
     song.channelTitle ||

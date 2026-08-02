@@ -8,6 +8,7 @@ import { ActivityIndicator,
   TouchableOpacity,
   View,
   Platform,
+  PixelRatio,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -38,6 +39,7 @@ import {
   type MoodRoomGroup,
 } from "../../utils/moodRooms";
 import {
+  getDiscoveryPreferredGenres,
   hydrateDiscoveryPreferredGenres,
   sortItemsByPreferredGenres,
 } from "../../utils/discoveryPreferences";
@@ -237,14 +239,27 @@ export default function WorldsIndexScreen() {
   const albumCardWidth = Math.min(220, Math.max(176, viewportWidth * 0.52));
   const creatorCardWidth = Math.min(184, Math.max(154, viewportWidth * 0.44));
   const railGap = compactLayout ? 10 : 12;
+  const decodeScale = Math.min(PixelRatio.get(), 3);
+  const decodePixels = (points: number) => Math.ceil(points * decodeScale);
 
   const { playSong } = usePlayerActions();
   const { currentSong, isPlaying } = usePlayerNowPlaying();
   const { recentlyPlayed } = usePlayerState();
 
-  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog>(EMPTY_CATALOG);
-  const [loading, setLoading] = useState(true);
-  const [moodRooms, setMoodRooms] = useState<ExploreMoodRoom[]>([]);
+  const [initialCatalog] = useState(() => {
+    const cached = getCachedHiddenTunesCatalog();
+    return cached && isDerivedCatalogTrusted(cached) ? cached : null;
+  });
+  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog>(
+    () => initialCatalog || EMPTY_CATALOG
+  );
+  const [loading, setLoading] = useState(() => !initialCatalog);
+  const [moodRooms, setMoodRooms] = useState<ExploreMoodRoom[]>(() =>
+    initialCatalog ? buildMoodRoomGroups(initialCatalog.songs, 6) : []
+  );
+  const [preferredGenres, setPreferredGenres] = useState(() => [
+    ...getDiscoveryPreferredGenres(),
+  ]);
 
   const songs = catalog.songs;
   const artists = catalog.artists;
@@ -252,27 +267,33 @@ export default function WorldsIndexScreen() {
   const genres = catalog.genres;
 
   const loadExplore = useCallback(async () => {
-    setLoading(true);
+    const cached = getCachedHiddenTunesCatalog();
+    const trustedCached = cached && isDerivedCatalogTrusted(cached) ? cached : null;
 
     try {
-      await hydrateDiscoveryPreferredGenres();
-      const cached = getCachedHiddenTunesCatalog();
-      const data =
-        cached && isDerivedCatalogTrusted(cached)
-          ? cached
-          : await fetchHiddenTunesDiscoveryCatalog();
-      setCatalog(data);
-      setMoodRooms(buildMoodRoomGroups(data.songs, 6));
+      const hydratedGenres = await hydrateDiscoveryPreferredGenres();
+      setPreferredGenres((current) =>
+        current.length === hydratedGenres.length &&
+        current.every((genre, index) => genre === hydratedGenres[index])
+          ? current
+          : [...hydratedGenres]
+      );
+
+      if (!trustedCached) {
+        const data = await fetchHiddenTunesDiscoveryCatalog();
+        setCatalog(data);
+        setMoodRooms(buildMoodRoomGroups(data.songs, 6));
+      }
     } catch {
-      setCatalog(EMPTY_CATALOG);
-      setMoodRooms([]);
+      // Preserve any trusted cache already rendered while hydration/fetching fails.
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadExplore();
+    const timer = setTimeout(() => void loadExplore(), 0);
+    return () => clearTimeout(timer);
   }, [loadExplore]);
 
   const discoveryRooms = useMemo(
@@ -290,14 +311,9 @@ export default function WorldsIndexScreen() {
     [discoveryRooms]
   );
 
-  const countryStation = useMemo(
-    () => discoveryRooms.find((room) => room.id === "country-station") || discoveryRooms[0],
-    [discoveryRooms]
-  );
-
   const visibleGenres = useMemo(
-    () => sortItemsByPreferredGenres(genres).slice(0, 10),
-    [genres]
+    () => sortItemsByPreferredGenres(genres, preferredGenres).slice(0, 10),
+    [genres, preferredGenres]
   );
 
   const deepAlbums = useMemo(() => albums.slice(0, 10), [albums]);
@@ -399,7 +415,7 @@ export default function WorldsIndexScreen() {
       : null;
 
     return uniqSongs([...(currentMatch ? [currentMatch] : []), ...resolved]).slice(0, 6);
-  }, [currentSong?.id, recentlyPlayed, songs]);
+  }, [currentSong, recentlyPlayed, songs]);
 
   const playQueue = useCallback(
     (song: HiddenTunesSong, queueSongs: HiddenTunesSong[], label: string, source: "mood" | "genre" | "full_catalog") => {
@@ -563,6 +579,8 @@ export default function WorldsIndexScreen() {
                           source={item.artwork}
                           style={styles.carouselImage}
                           contentFit="cover"
+                          maxDecodeWidth={decodePixels(heroWidth)}
+                          maxDecodeHeight={decodePixels(356)}
                         />
                         <LinearGradient
                           pointerEvents="none"
@@ -613,7 +631,13 @@ export default function WorldsIndexScreen() {
                         style={styles.continueTile}
                         onPress={() => playQueue(song, continueTracks, "Continue Listening", "full_catalog")}
                       >
-                        <HTImage source={song} style={styles.continueArt} contentFit="cover" />
+                        <HTImage
+                          source={song}
+                          style={styles.continueArt}
+                          contentFit="cover"
+                          maxDecodeWidth={decodePixels(136)}
+                          maxDecodeHeight={decodePixels(116)}
+                        />
                         <Text numberOfLines={1} style={styles.cardTitle}>{song.title}</Text>
                         <Text numberOfLines={1} style={styles.cardSubtitle}>{song.artist}</Text>
                       </TouchableOpacity>
@@ -647,7 +671,13 @@ export default function WorldsIndexScreen() {
                         style={[styles.roomCard, { width: featureCardWidth }]}
                         onPress={() => openRoom(room)}
                       >
-                        <HTImage source={room.artwork || room.songs[0]} style={styles.roomImage} contentFit="cover" />
+                        <HTImage
+                          source={room.artwork || room.songs[0]}
+                          style={styles.roomImage}
+                          contentFit="cover"
+                          maxDecodeWidth={decodePixels(featureCardWidth)}
+                          maxDecodeHeight={decodePixels(214)}
+                        />
                         <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.78)"]} style={styles.roomShade} />
                         <View style={styles.roomCopy}>
                           <View style={styles.roomIconRow}>
@@ -710,7 +740,13 @@ export default function WorldsIndexScreen() {
                         style={[styles.stationCard, { width: featureCardWidth }]}
                         onPress={() => openRoom(room)}
                       >
-                        <HTImage source={room.artwork || room.songs[0]} style={styles.stationArt} contentFit="cover" />
+                        <HTImage
+                          source={room.artwork || room.songs[0]}
+                          style={styles.stationArt}
+                          contentFit="cover"
+                          maxDecodeWidth={decodePixels(featureCardWidth - 20)}
+                          maxDecodeHeight={decodePixels(154)}
+                        />
                         <View style={styles.stationCopy}>
                           <View style={styles.stationIcon}>
                             <Ionicons name={room.icon} size={17} color={COLORS.cyan} />
@@ -744,7 +780,13 @@ export default function WorldsIndexScreen() {
                         style={[styles.genreSpotlight, { width: albumCardWidth }]}
                         onPress={() => openGenre(genre)}
                       >
-                        <HTImage source={getGenreArtwork(genre)} style={styles.genreArt} contentFit="cover" />
+                        <HTImage
+                          source={getGenreArtwork(genre)}
+                          style={styles.genreArt}
+                          contentFit="cover"
+                          maxDecodeWidth={decodePixels(albumCardWidth - 20)}
+                          maxDecodeHeight={decodePixels(136)}
+                        />
                         <Text numberOfLines={1} style={styles.cardTitle}>{genre.title}</Text>
                         <Text style={styles.cardSubtitle}>{genre.songs.length} song{genre.songs.length === 1 ? "" : "s"}</Text>
                       </TouchableOpacity>
@@ -774,7 +816,13 @@ export default function WorldsIndexScreen() {
                           style={[styles.albumCard, { width: albumCardWidth }]}
                           onPress={() => openAlbum(item.album)}
                         >
-                          <HTImage source={item.album.artwork} style={styles.albumArt} contentFit="cover" />
+                          <HTImage
+                            source={item.album.artwork}
+                            style={styles.albumArt}
+                            contentFit="cover"
+                            maxDecodeWidth={decodePixels(albumCardWidth - 20)}
+                            maxDecodeHeight={decodePixels(146)}
+                          />
                           <Text numberOfLines={1} style={styles.cardTitle}>{item.album.title}</Text>
                           <Text numberOfLines={1} style={styles.cardSubtitle}>{item.album.artist}</Text>
                         </TouchableOpacity>
@@ -784,7 +832,13 @@ export default function WorldsIndexScreen() {
                           style={[styles.albumCard, { width: albumCardWidth }]}
                           onPress={() => playQueue(item.song, deepCuts, "Deep Cuts", "full_catalog")}
                         >
-                          <HTImage source={item.song} style={styles.albumArt} contentFit="cover" />
+                          <HTImage
+                            source={item.song}
+                            style={styles.albumArt}
+                            contentFit="cover"
+                            maxDecodeWidth={decodePixels(albumCardWidth - 20)}
+                            maxDecodeHeight={decodePixels(146)}
+                          />
                           <Text numberOfLines={1} style={styles.cardTitle}>{item.song.title}</Text>
                           <Text numberOfLines={1} style={styles.cardSubtitle}>{item.song.artist}</Text>
                         </TouchableOpacity>
@@ -814,7 +868,13 @@ export default function WorldsIndexScreen() {
                         style={[styles.creatorCard, { width: creatorCardWidth }]}
                         onPress={() => openArtist(artist)}
                       >
-                        <HTImage source={artist.artwork} style={styles.creatorArt} contentFit="cover" />
+                        <HTImage
+                          source={artist.artwork}
+                          style={styles.creatorArt}
+                          contentFit="cover"
+                          maxDecodeWidth={decodePixels(creatorCardWidth - 20)}
+                          maxDecodeHeight={decodePixels(134)}
+                        />
                         <Text numberOfLines={1} style={styles.cardTitle}>{artist.name}</Text>
                         <Text style={styles.cardSubtitle}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
                       </TouchableOpacity>

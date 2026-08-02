@@ -1,0 +1,7 @@
+audit/
+*.log
+.expo/
+node_modules/
+coverage/
+dist/
+build/

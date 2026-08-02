@@ -19,14 +19,11 @@ import { isProductionBuild } from "../components/ProductionRouteDenied";
 import AppShell from "../components/navigation/AppShell";
 import { getMobileScrollTailPadding } from "../components/navigation/navigationConfig";
 import MatureContentConsentModal from "../components/mature/MatureContentConsentModal";
-import MaturePodcastConsentModal from "../components/podcast/MaturePodcastConsentModal";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { usePlayerState } from "../context/PlayerContext";
 import { useMatureContentSettings } from "../hooks/useMatureContentSettings";
 import {
-  disableMaturePodcasts,
-  enableMaturePodcastsWithConsent,
-  shouldIncludeMaturePodcasts,
+  hasRememberedMatureConsent,
   subscribeMaturePodcastSettings,
 } from "../utils/maturePodcastSettings";
 import { useFavorites } from "../hooks/useFavorites";
@@ -35,8 +32,7 @@ import {
   getStoredUserRole,
   type UserRole,
 } from "../services/onboardingPreferences";
-import { useLocalization } from "../localization";
-import { getLocaleNativeName } from "../localization";
+import { getLocaleNativeName, useLocalization } from "../localization";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -144,10 +140,8 @@ export default function ProfileScreen() {
   const { enabled, enableWithConsent, disable } = useMatureContentSettings();
   const [enableMatureModalVisible, setEnableMatureModalVisible] = useState(false);
   const [maturePodcastsEnabled, setMaturePodcastsEnabled] = useState(
-    shouldIncludeMaturePodcasts()
+    hasRememberedMatureConsent()
   );
-  const [enableMaturePodcastsModalVisible, setEnableMaturePodcastsModalVisible] =
-    useState(false);
   const [userRole, setUserRole] = useState<UserRole>("listener");
   const [downloadsCount, setDownloadsCount] = useState<number | null>(null);
 
@@ -298,9 +292,9 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       void refreshProfileData();
-      setMaturePodcastsEnabled(shouldIncludeMaturePodcasts());
+      setMaturePodcastsEnabled(hasRememberedMatureConsent());
       return subscribeMaturePodcastSettings(() => {
-        setMaturePodcastsEnabled(shouldIncludeMaturePodcasts());
+        setMaturePodcastsEnabled(hasRememberedMatureConsent());
       });
     }, [refreshProfileData])
   );
@@ -332,18 +326,8 @@ export default function ProfileScreen() {
   }, [enableWithConsent]);
 
   const handleMaturePodcastsToggle = useCallback((nextValue: boolean) => {
-    if (nextValue) {
-      setEnableMaturePodcastsModalVisible(true);
-      return;
-    }
-    void disableMaturePodcasts();
-  }, []);
-
-  const confirmEnableMaturePodcasts = useCallback(() => {
-    void enableMaturePodcastsWithConsent().then(() => {
-      setEnableMaturePodcastsModalVisible(false);
-      setMaturePodcastsEnabled(true);
-    });
+    void nextValue;
+    router.push("/podcasts" as never);
   }, []);
 
   return (
@@ -521,11 +505,6 @@ export default function ProfileScreen() {
           visible={enableMatureModalVisible}
           onCancel={cancelEnableMature}
           onConfirm={confirmEnableMature}
-        />
-        <MaturePodcastConsentModal
-          visible={enableMaturePodcastsModalVisible}
-          onCancel={() => setEnableMaturePodcastsModalVisible(false)}
-          onConfirm={confirmEnableMaturePodcasts}
         />
       </LinearGradient>
     </AppShell>

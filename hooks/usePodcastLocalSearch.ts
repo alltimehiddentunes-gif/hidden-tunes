@@ -32,7 +32,7 @@ export function usePodcastLocalSearch(options?: UsePodcastLocalSearchOptions) {
     }
 
     return searchPodcasts(trimmed, {
-      includeMature: matureOnly ? true : shouldIncludeMaturePodcasts(),
+      includeMature: matureOnly,
       matureOnly,
       categoryIds: options?.categoryIds,
       limit: options?.limit ?? 20,

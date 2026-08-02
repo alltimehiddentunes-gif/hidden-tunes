@@ -58,6 +58,12 @@
       "expo-dev-client",
       "expo-router",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Hidden Tunes uses Face ID to protect access to Mature Podcasts."
+        }
+      ],
+      [
         "expo-video",
         {
           "supportsPictureInPicture": true,

@@ -41,6 +41,7 @@ Thumbs.db
 # logs and coverage
 *.log
 coverage/
+audit/
 
 # typescript
 *.tsbuildinfo

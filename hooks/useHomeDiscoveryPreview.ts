@@ -8,7 +8,6 @@ import type { PodcastCategoryDef } from "../constants/podcastCategories";
 import type { PodcastShow } from "../types/podcast";
 import type { PodcastHomeShowSection } from "../services/podcastService";
 import type { RadioStationListItem } from "../types/radio";
-import { shouldIncludeMaturePodcasts } from "../utils/maturePodcastSettings";
 
 type HomeDiscoveryPreviewState = {
   radioStations: RadioStationListItem[];
@@ -33,7 +32,7 @@ export function useHomeDiscoveryPreview(enabled: boolean): HomeDiscoveryPreviewS
   const [radioLoading, setRadioLoading] = useState(false);
 
   const podcastSnapshot = useMemo(() => {
-    const includeMature = shouldIncludeMaturePodcasts();
+    const includeMature = false;
     const home = buildStaticPodcastHomeSync(includeMature);
     return {
       podcastFeatured: home.featured.slice(0, 8),
@@ -47,29 +46,31 @@ export function useHomeDiscoveryPreview(enabled: boolean): HomeDiscoveryPreviewS
   }, []);
 
   useEffect(() => {
-    if (!enabled) {
-      setRadioStations([]);
-      setRadioLoading(false);
-      return;
-    }
-
     let cancelled = false;
-    setRadioLoading(true);
+    const timer = setTimeout(() => {
+      if (!enabled) {
+        setRadioStations([]);
+        setRadioLoading(false);
+        return;
+      }
 
-    void loadRadioHomeLanePage("featured", { limit: 8 })
-      .then((result) => {
-        if (cancelled) return;
-        setRadioStations(result.stations.map(toRadioStationListItem));
-      })
-      .catch(() => {
-        if (!cancelled) setRadioStations([]);
-      })
-      .finally(() => {
-        if (!cancelled) setRadioLoading(false);
-      });
+      setRadioLoading(true);
+      void loadRadioHomeLanePage("featured", { limit: 8 })
+        .then((result) => {
+          if (cancelled) return;
+          setRadioStations(result.stations.map(toRadioStationListItem));
+        })
+        .catch(() => {
+          if (!cancelled) setRadioStations([]);
+        })
+        .finally(() => {
+          if (!cancelled) setRadioLoading(false);
+        });
+    }, 0);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [enabled]);
 

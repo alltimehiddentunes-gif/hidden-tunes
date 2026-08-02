@@ -4,6 +4,7 @@ import type { PodcastEpisode } from "../types/podcast";
 import { isPlayablePodcastAudioUrl } from "../utils/podcastPlaybackAdapter";
 
 const RECENT_KEY = "hidden_tunes_podcast_recently_played_v2";
+const MATURE_RECENT_KEY = "hidden_tunes_podcast_mature_recently_played_v1";
 const LEGACY_RECENT_KEY = "hidden_tunes_podcast_recently_played_v1";
 
 const BACKEND_EPISODE_ID_RE =
@@ -37,7 +38,13 @@ export function isValidRecentlyPlayedPodcastEpisode(
 }
 
 function filterValidRecentlyPlayed(episodes: PodcastEpisode[]) {
-  return episodes.filter(isValidRecentlyPlayedPodcastEpisode);
+  return episodes.filter(
+    (episode) => isValidRecentlyPlayedPodcastEpisode(episode) && !isMatureEpisode(episode)
+  );
+}
+
+function isMatureEpisode(episode: PodcastEpisode) {
+  return Boolean(episode.matureLevel && episode.matureLevel !== "safe");
 }
 
 async function readStoredEpisodes(key: string) {
@@ -106,6 +113,14 @@ export async function addPodcastRecentlyPlayed(episode: PodcastEpisode) {
     return loadPodcastRecentlyPlayed(60);
   }
 
+  if (isMatureEpisode(episode)) {
+    const stored = await readStoredEpisodes(MATURE_RECENT_KEY);
+    const next = [episode, ...stored.filter((item) => item.id !== episode.id)]
+      .filter(isValidRecentlyPlayedPodcastEpisode)
+      .slice(0, 60);
+    await AsyncStorage.setItem(MATURE_RECENT_KEY, JSON.stringify(next));
+    return next;
+  }
   const current = await loadPodcastRecentlyPlayed(60);
   const next = [episode, ...current.filter((item) => item.id !== episode.id)].slice(0, 60);
   await persistRecentlyPlayed(next);
@@ -114,4 +129,11 @@ export async function addPodcastRecentlyPlayed(episode: PodcastEpisode) {
 
 export async function clearPodcastRecentlyPlayed() {
   await AsyncStorage.multiRemove([RECENT_KEY, LEGACY_RECENT_KEY]);
+}
+
+export async function loadMaturePodcastRecentlyPlayed(limit = 20) {
+  const stored = await readStoredEpisodes(MATURE_RECENT_KEY);
+  return stored
+    .filter((episode) => isValidRecentlyPlayedPodcastEpisode(episode) && isMatureEpisode(episode))
+    .slice(0, limit);
 }
