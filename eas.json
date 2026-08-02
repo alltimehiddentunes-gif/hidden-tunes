@@ -20,7 +20,7 @@
     },
     "preview": {
       "developmentClient": false,
-      "autoIncrement": true,
+      "autoIncrement": false,
       "distribution": "internal",
       "channel": "preview",
       "environment": "preview",

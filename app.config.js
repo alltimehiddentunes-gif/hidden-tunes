@@ -10,6 +10,7 @@ module.exports = ({ config }) => {
     process.env.EXPO_PUBLIC_BUILD_PROFILE ||
     "";
   const isDevClientBuild = profile === "developmentClient";
+  const isPreviewBuild = profile === "preview";
   const isStandaloneBuild = !isDevClientBuild;
 
   const basePlugins = (appJson.expo.plugins || []).filter((entry) => {
@@ -88,9 +89,11 @@ module.exports = ({ config }) => {
     ...config,
     // A deterministic dev-client runtime avoids cross-platform fingerprint
     // drift between the Windows uploader and EAS's macOS dependency install.
-    // Preview and production retain the existing fingerprint policy.
+    // Production retains the existing fingerprint policy.
     runtimeVersion: isDevClientBuild
       ? `${appJson.expo.version}-dev.${appJson.expo.ios.buildNumber}`
+      : isPreviewBuild
+      ? `${appJson.expo.version}-preview.${appJson.expo.ios.buildNumber}`
       : config.runtimeVersion || appJson.expo.runtimeVersion,
     plugins,
     ios: {
