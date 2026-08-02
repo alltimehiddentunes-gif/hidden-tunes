@@ -31,13 +31,12 @@ export type ResolveDesktopRuntimeConfigInput = {
   runtimeBridge?: { isPackaged?: boolean; environment?: string } | null
 }
 
-const DEV_EXPRESS_DEFAULT = 'https://hidden-tunes-api.onrender.com'
+const DEV_EXPRESS_DEFAULT = 'https://api.hiddentunes.com'
 const DEV_ADMIN_DEFAULT = 'https://admin.hiddentunes.com'
 
 /** Hosts allowed for Express music API in packaged production. */
 export const PRODUCTION_EXPRESS_ALLOWLIST = new Set([
   'api.hiddentunes.com',
-  'hidden-tunes-api.onrender.com',
 ])
 
 /** Hosts allowed for admin multi-family API. */

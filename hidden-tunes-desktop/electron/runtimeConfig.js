@@ -3,12 +3,11 @@
  * Sports private pilot token stays here — never sent to renderer.
  */
 
-const DEV_EXPRESS_DEFAULT = 'https://hidden-tunes-api.onrender.com'
+const DEV_EXPRESS_DEFAULT = 'https://api.hiddentunes.com'
 const DEV_ADMIN_DEFAULT = 'https://admin.hiddentunes.com'
 
 const PRODUCTION_EXPRESS_ALLOWLIST = new Set([
   'api.hiddentunes.com',
-  'hidden-tunes-api.onrender.com',
 ])
 const PRODUCTION_ADMIN_ALLOWLIST = new Set(['admin.hiddentunes.com'])
 const LOCALHOST_RE = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/i

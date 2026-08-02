@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type { ApiAlbum, ApiArtist, ApiSong } from '../../lib/api'
 import type { CatalogIndexes } from '../../lib/catalogIndexes'
 import {
@@ -80,13 +80,17 @@ type MusicHomePageProps = {
   onBrowseSearch: (query: string) => void
 }
 
+function homeReferenceAsset(fileName: string) {
+  return `${import.meta.env.BASE_URL}home-reference/${fileName}`
+}
+
 const FAMILY_SHORTCUTS = [
-  { navKey: 'radio' as const, label: 'Radio', hint: 'Live worldwide radio', artwork: '/home-reference/explore-radio.webp' },
-  { navKey: 'podcasts' as const, label: 'Podcasts', hint: 'Shows and episodes', artwork: '/home-reference/explore-podcasts.webp' },
-  { navKey: 'audiobooks' as const, label: 'Audiobooks', hint: 'Stories brought to life', artwork: '/home-reference/explore-audiobooks.webp' },
-  { navKey: 'tv' as const, label: 'TV', hint: 'Global television', artwork: '/home-reference/explore-tv.webp' },
-  { navKey: 'motivationals' as const, label: 'Motivationals', hint: 'Become your best', artwork: '/home-reference/explore-motivationals.webp' },
-  { navKey: 'lectures' as const, label: 'Lectures', hint: 'Learn something new every day', artwork: '/home-reference/explore-lectures.webp' },
+  { navKey: 'radio' as const, label: 'Radio', hint: 'Live worldwide radio', artwork: homeReferenceAsset('explore-radio.webp') },
+  { navKey: 'podcasts' as const, label: 'Podcasts', hint: 'Shows and episodes', artwork: homeReferenceAsset('explore-podcasts.webp') },
+  { navKey: 'audiobooks' as const, label: 'Audiobooks', hint: 'Stories brought to life', artwork: homeReferenceAsset('explore-audiobooks.webp') },
+  { navKey: 'tv' as const, label: 'TV', hint: 'Global television', artwork: homeReferenceAsset('explore-tv.webp') },
+  { navKey: 'motivationals' as const, label: 'Motivationals', hint: 'Become your best', artwork: homeReferenceAsset('explore-motivationals.webp') },
+  { navKey: 'lectures' as const, label: 'Lectures', hint: 'Learn something new every day', artwork: homeReferenceAsset('explore-lectures.webp') },
 ]
 
 const QUICK_ACCESS = [
@@ -100,10 +104,10 @@ const QUICK_ACCESS = [
 
 /** Editorial artwork for navigation moods only — never used as fake song/album art. */
 const MOOD_ROOM_ART: Record<string, string> = {
-  healing: '/home-reference/mood-worship.webp',
-  'late-night': '/home-reference/mood-chill.webp',
-  calm: '/home-reference/mood-sleep.webp',
-  energy: '/home-reference/mood-workout.webp',
+  healing: homeReferenceAsset('mood-worship.webp'),
+  'late-night': homeReferenceAsset('mood-chill.webp'),
+  calm: homeReferenceAsset('mood-sleep.webp'),
+  energy: homeReferenceAsset('mood-workout.webp'),
 }
 
 const HOME_GENRE_ICONS = {
@@ -433,6 +437,9 @@ export const MusicHomePage = memo(function MusicHomePage({
   return (
     <div
       className="music-home music-home--parity music-home--content-first music-home--premium"
+      style={{
+        '--music-home-hero-background': `url("${homeReferenceAsset('home-hero-headphones.webp')}")`,
+      } as CSSProperties}
       aria-label="Home"
       data-home-parity="mobile"
       data-home-layout="content-first"
@@ -792,7 +799,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 aria-label={`Play ${room.title} — ${room.subtitle}`}
               >
                 <img
-                  src={room.artwork || MOOD_ROOM_ART[room.id] || '/home-reference/mood-chill.webp'}
+                  src={room.artwork || MOOD_ROOM_ART[room.id] || homeReferenceAsset('mood-chill.webp')}
                   alt=""
                   loading="lazy"
                   decoding="async"

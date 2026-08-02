@@ -34,7 +34,7 @@ console.log('Phase 7A — production config')
   ok(
     'packaged uses allowlisted Express production default',
     missing.ok
-      && missing.expressCatalogBaseUrl === 'https://hidden-tunes-api.onrender.com'
+      && missing.expressCatalogBaseUrl === 'https://api.hiddentunes.com'
       && missing.warnings.some((warning) => /allowlisted production default/i.test(warning)),
   )
 }
@@ -88,17 +88,15 @@ console.log('Phase 7A — production config')
     },
   })
   ok(
-    'packaged accepts allowlisted Express URL',
-    config.ok
-      && config.expressCatalogBaseUrl === 'https://hidden-tunes-api.onrender.com'
-      && config.adminCatalogBaseUrl === 'https://admin.hiddentunes.com',
+    'packaged rejects retired Render Express URL',
+    !config.ok && config.errors.some((error) => error.includes('not allowlisted')),
   )
 }
 
 {
   const config = resolveMainRuntimeConfig({ isPackaged: false, env: {} })
   ok(
-    'development defaults Express to Render',
+    'development defaults to the production Express catalog',
     Boolean(config.expressCatalogBaseUrl)
       && !/localhost/i.test(config.expressCatalogBaseUrl || ''),
   )

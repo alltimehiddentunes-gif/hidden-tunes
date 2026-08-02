@@ -30980,7 +30980,7 @@ button.lecture-detail-crumb:focus-visible {
   padding: 24px 28px;
   background:
     linear-gradient(90deg, rgba(4, 2, 10, 0.94) 0%, rgba(8, 3, 15, 0.68) 48%, rgba(7, 2, 12, 0.06) 75%),
-    url('/home-reference/home-hero-headphones.webp') center / cover no-repeat;
+    var(--music-home-hero-background) center / cover no-repeat;
 }
 
 .music-home-product-hero-copy {
