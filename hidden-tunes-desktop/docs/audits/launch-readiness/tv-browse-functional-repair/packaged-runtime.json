@@ -1,0 +1,178 @@
+{
+  "url": "file:///D:/HiddenTunes/Active/HiddenTunes-Desktop/hidden-tunes-desktop/release/win-unpacked/resources/app.asar/dist/index.html",
+  "browse": {
+    "categories": [
+      {
+        "label": "Trending",
+        "count": "7 channels"
+      },
+      {
+        "label": "News",
+        "count": "1,137 channels"
+      },
+      {
+        "label": "Sports",
+        "count": "771 channels"
+      },
+      {
+        "label": "Movies",
+        "count": "693 channels"
+      },
+      {
+        "label": "Entertainment",
+        "count": "3,985 channels"
+      },
+      {
+        "label": "Kids",
+        "count": "355 channels"
+      }
+    ],
+    "regions": [
+      {
+        "label": "US",
+        "count": "2,312 channels"
+      },
+      {
+        "label": "DE",
+        "count": "581 channels"
+      },
+      {
+        "label": "FR",
+        "count": "441 channels"
+      },
+      {
+        "label": "AT",
+        "count": "29 channels"
+      },
+      {
+        "label": "JP",
+        "count": "14 channels"
+      }
+    ],
+    "nav": "tv"
+  },
+  "checks": [
+    {
+      "type": "category",
+      "label": "Trending",
+      "count": "7 channels",
+      "clicked": true,
+      "heading": "Trending",
+      "cards": 7,
+      "nav": "tv"
+    },
+    {
+      "type": "category",
+      "label": "News",
+      "count": "1,137 channels",
+      "clicked": true,
+      "heading": "News",
+      "cards": 40,
+      "nav": "tv"
+    },
+    {
+      "type": "category",
+      "label": "Sports",
+      "count": "771 channels",
+      "clicked": true,
+      "heading": "Sports",
+      "cards": 40,
+      "nav": "tv"
+    },
+    {
+      "type": "category",
+      "label": "Movies",
+      "count": "693 channels",
+      "clicked": true,
+      "heading": "Movies",
+      "cards": 40,
+      "nav": "tv"
+    },
+    {
+      "type": "category",
+      "label": "Entertainment",
+      "count": "3,985 channels",
+      "clicked": true,
+      "heading": "Entertainment",
+      "cards": 40,
+      "nav": "tv"
+    },
+    {
+      "type": "category",
+      "label": "Kids",
+      "count": "355 channels",
+      "clicked": true,
+      "heading": "Kids",
+      "cards": 40,
+      "nav": "tv"
+    },
+    {
+      "type": "region",
+      "label": "US",
+      "count": "2,312 channels",
+      "clicked": true,
+      "heading": "Channels in US",
+      "cards": 40,
+      "nav": "tv"
+    },
+    {
+      "type": "region",
+      "label": "DE",
+      "count": "581 channels",
+      "clicked": true,
+      "heading": "Channels in DE",
+      "cards": 40,
+      "nav": "tv"
+    },
+    {
+      "type": "region",
+      "label": "FR",
+      "count": "441 channels",
+      "clicked": true,
+      "heading": "Channels in FR",
+      "cards": 40,
+      "nav": "tv"
+    },
+    {
+      "type": "region",
+      "label": "AT",
+      "count": "29 channels",
+      "clicked": true,
+      "heading": "Channels in AT",
+      "cards": 29,
+      "nav": "tv"
+    },
+    {
+      "type": "region",
+      "label": "JP",
+      "count": "14 channels",
+      "clicked": true,
+      "heading": "Channels in JP",
+      "cards": 14,
+      "nav": "tv"
+    }
+  ],
+  "functional": {
+    "pagination": {
+      "initialNewsCount": 40,
+      "loadedNewsCount": 80,
+      "passed": true
+    },
+    "filteredSearch": {
+      "submitted": true,
+      "heading": "News",
+      "cards": 13,
+      "nav": "tv",
+      "passed": true
+    },
+    "playback": {
+      "clicked": true,
+      "nav": "tv",
+      "active": "true",
+      "video": true,
+      "passed": true
+    }
+  },
+  "failed": [],
+  "passed": 14
+}

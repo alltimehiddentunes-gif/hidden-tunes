@@ -95,9 +95,8 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
   const trimmedSearch = searchQuery.trim()
   const isSearchMode = trimmedSearch.length >= TV_SEARCH_MIN_LENGTH
 
-  const effectiveSelectedCategory =
-    activeFilter === 'genres' ? selectedCategory : null
-  const effectiveSelectedRegion = activeFilter === 'all' ? selectedRegion : null
+  const effectiveSelectedCategory = selectedCategory
+  const effectiveSelectedRegion = selectedRegion
 
   const catalogQueryKey = [
     activeFilter,
@@ -237,11 +236,20 @@ export function useTvPageData(activeFilter: TvFilterId, searchQuery: string) {
             ?? undefined
 
           const response = isSearchMode
-            ? await searchTvChannels(trimmedSearch, {
-                page: requestPage,
-                limit: TV_PAGE_SIZE,
-                signal: abort.signal,
-              })
+            ? category || effectiveSelectedRegion
+              ? await fetchTvChannels({
+                  query: trimmedSearch,
+                  page: requestPage,
+                  limit: TV_PAGE_SIZE,
+                  category: category ?? undefined,
+                  country: effectiveSelectedRegion ?? undefined,
+                  signal: abort.signal,
+                })
+              : await searchTvChannels(trimmedSearch, {
+                  page: requestPage,
+                  limit: TV_PAGE_SIZE,
+                  signal: abort.signal,
+                })
             : await fetchTvChannels({
                 page: requestPage,
                 limit: TV_PAGE_SIZE,

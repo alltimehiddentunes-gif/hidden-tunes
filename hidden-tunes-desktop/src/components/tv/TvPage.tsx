@@ -146,6 +146,7 @@ export const TvPage = memo(function TvPage({
   const [tuningChannelId, setTuningChannelId] = useState<string | null>(null)
   const [favoriteRevision, setFavoriteRevision] = useState(0)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
+  const catalogRef = useRef<HTMLElement | null>(null)
   const { currentTrack, isPlaying } = useDesktopPlayback()
 
   const {
@@ -219,18 +220,32 @@ export const TvPage = memo(function TvPage({
 
   const handleFilterChange = useCallback((filter: TvFilterId) => {
     setActiveFilter(filter)
+    setSelectedCategory(null)
+    setSelectedRegion(null)
     resetCatalogQuery()
-  }, [resetCatalogQuery])
+  }, [resetCatalogQuery, setSelectedCategory, setSelectedRegion])
+
+  const revealCatalog = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      catalogRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [])
 
   const handleCategorySelect = useCallback((label: string) => {
-    setSelectedCategory((current) => (current === label ? null : label))
+    setActiveFilter('all')
+    setSelectedCategory(label)
+    setSelectedRegion(null)
     resetCatalogQuery()
-  }, [resetCatalogQuery, setSelectedCategory])
+    revealCatalog()
+  }, [resetCatalogQuery, revealCatalog, setSelectedCategory, setSelectedRegion])
 
   const handleRegionSelect = useCallback((name: string) => {
-    setSelectedRegion((current) => (current === name ? null : name))
+    setActiveFilter('all')
+    setSelectedRegion(name)
+    setSelectedCategory(null)
     resetCatalogQuery()
-  }, [resetCatalogQuery, setSelectedRegion])
+    revealCatalog()
+  }, [resetCatalogQuery, revealCatalog, setSelectedCategory, setSelectedRegion])
 
   useEffect(() => {
     const node = loadMoreRef.current
@@ -307,10 +322,7 @@ export const TvPage = memo(function TvPage({
                     key={category.id}
                     type="button"
                     className={`tv-genre-card${selectedCategory === category.label ? ' is-active' : ''}`}
-                    onClick={() => {
-                      handleCategorySelect(category.label)
-                      setActiveFilter('all')
-                    }}
+                    onClick={() => handleCategorySelect(category.label)}
                   >
                     <span className="tv-genre-icon" aria-hidden="true">{category.icon}</span>
                     <strong>{category.label}</strong>
@@ -390,7 +402,7 @@ export const TvPage = memo(function TvPage({
             </section>
           ) : null}
 
-          <section className="tv-section" aria-labelledby="tv-catalog-heading">
+          <section ref={catalogRef} className="tv-section" aria-labelledby="tv-catalog-heading">
             <div className="tv-section-header">
               <h2 id="tv-catalog-heading">
                 {selectedRegion
@@ -453,6 +465,16 @@ export const TvPage = memo(function TvPage({
                     : null}
                 </div>
                 <div ref={loadMoreRef} className="tv-load-more-sentinel" aria-hidden="true" />
+                {hasMore ? (
+                  <button
+                    type="button"
+                    className="btn-secondary btn-sm tv-load-more-btn"
+                    disabled={loadingMore}
+                    onClick={loadMore}
+                  >
+                    {loadingMore ? 'Loading more channels…' : 'Load more channels'}
+                  </button>
+                ) : null}
                 {loadingMore ? (
                   <p className="tv-section-meta tv-section-meta--centered">Loading more channels…</p>
                 ) : null}
