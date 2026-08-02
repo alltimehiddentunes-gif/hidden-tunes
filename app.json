@@ -8,6 +8,12 @@
     "scheme": "hiddentunes",
     "userInterfaceStyle": "dark",
     "description": "Discover and stream music with Hidden Tunes.",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9cf7fc48-6bf7-4ccc-8fe1-8b793530e70c"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
