@@ -86,6 +86,12 @@ module.exports = ({ config }) => {
     ...appJson.expo,
     name: "Hidden Tunes",
     ...config,
+    // A deterministic dev-client runtime avoids cross-platform fingerprint
+    // drift between the Windows uploader and EAS's macOS dependency install.
+    // Preview and production retain the existing fingerprint policy.
+    runtimeVersion: isDevClientBuild
+      ? `${appJson.expo.version}-dev.${appJson.expo.ios.buildNumber}`
+      : config.runtimeVersion || appJson.expo.runtimeVersion,
     plugins,
     ios: {
       ...appJson.expo.ios,
