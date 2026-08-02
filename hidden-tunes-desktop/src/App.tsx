@@ -4120,44 +4120,10 @@ function DiscoverPage({
                 onOpenAudiobook={onOpenAudiobookBook}
                 onOpenMotivational={onOpenMotivationalProgram}
                 Chevron={PsdIconChevronRight}
-                onPlayRadio={(stationId, title, artwork) => {
-                  const station: RadioStationMeta = {
-                    id: stationId,
-                    name: title,
-                    artworkUrl: artwork,
-                    country: null,
-                    countryCode: null,
-                    language: null,
-                    tags: [],
-                    categories: [],
-                    bitrate: null,
-                    codec: null,
-                    qualityScore: 0,
-                    reliabilityScore: 0,
-                    isFeatured: false,
-                    isMature: false,
-                    contentRating: null,
-                    popularity: { votes: 0, clickCount: 0 },
-                  }
+                onPlayRadio={(station) => {
                   onPlayRadioStation?.(station, [station], 0, 'Search Radio')
                 }}
-                onPlayTv={(channelId, title, artwork) => {
-                  const channel: TvChannelMeta = {
-                    id: channelId,
-                    title,
-                    channelName: title,
-                    artworkUrl: artwork,
-                    country: null,
-                    language: null,
-                    categories: [],
-                    tags: [],
-                    isFeatured: false,
-                    verified: false,
-                    reliabilityScore: 0,
-                    streamProtocol: null,
-                    streamIsHttps: false,
-                    description: null,
-                  }
+                onPlayTv={(channel) => {
                   onPlayTvChannel?.(channel, [channel], 0, 'Search TV')
                 }}
               />

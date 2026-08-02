@@ -1,0 +1,107 @@
+{
+  "nav": "search",
+  "tv": 1,
+  "radio": 1,
+  "play": [
+    "Play BBC World Service",
+    "Play BBC Somali",
+    "Play BBC Radio Berkshire",
+    "Play BBC CWR",
+    "Play BBC Radio Cambridge",
+    "Play BBC Essex",
+    "Play BBC Radio Tees",
+    "Play BBC Radio 3 Classic",
+    "Play BBC Adventure",
+    "Play BBC America East HD (720p)",
+    "Play BBC Arabic",
+    "Play BBC Comedy",
+    "Play BBC Comedy",
+    "Play BBC Comedy (720p)",
+    "Play BBC Doctor Who Classic (1080p)",
+    "Play BBC Drama"
+  ],
+  "rows": 29,
+  "url": "file:///D:/HiddenTunes/Active/HiddenTunes-Desktop/hidden-tunes-desktop/release/win-unpacked/resources/app.asar/dist/index.html",
+  "center": [
+    {
+      "tag": "SPAN",
+      "cls": "",
+      "id": "",
+      "rect": [
+        296.66668701171875,
+        701.0208740234375,
+        1548.666748046875,
+        16
+      ],
+      "position": "static",
+      "parent": "psd-search-side-copy"
+    },
+    {
+      "tag": "SPAN",
+      "cls": "psd-search-side-copy",
+      "id": "",
+      "rect": [
+        296.66668701171875,
+        680.3541870117188,
+        1548.666748046875,
+        36.66666793823242
+      ],
+      "position": "static",
+      "parent": "psd-search-side-row"
+    },
+    {
+      "tag": "BUTTON",
+      "cls": "psd-search-side-row",
+      "id": "",
+      "rect": [
+        226.6666717529297,
+        664.6875,
+        1660.666748046875,
+        68
+      ],
+      "position": "static",
+      "parent": "psd-search-side-card"
+    },
+    {
+      "tag": "DIV",
+      "cls": "psd-search-side-card",
+      "id": "",
+      "rect": [
+        226,
+        320.6875,
+        1662,
+        412.66668701171875
+      ],
+      "position": "static",
+      "parent": "psd-search-songs-panel"
+    },
+    {
+      "tag": "SECTION",
+      "cls": "psd-search-songs-panel",
+      "id": "",
+      "rect": [
+        226,
+        286.6875,
+        1662,
+        446.66668701171875
+      ],
+      "position": "static",
+      "parent": "content-inner content-inner--cinematic"
+    },
+    {
+      "tag": "DIV",
+      "cls": "content-inner content-inner--cinematic",
+      "id": "",
+      "rect": [
+        226,
+        153.33334350585938,
+        1662,
+        2962.02099609375
+      ],
+      "position": "relative",
+      "parent": "psd-search-destination"
+    }
+  ],
+  "tvDestination": "tv",
+  "tvPlayStayedOnSearch": true
+}

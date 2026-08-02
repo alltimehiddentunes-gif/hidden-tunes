@@ -33,6 +33,7 @@
     "verify:phase15-search": "node scripts/verify-phase15-search.mjs",
     "verify:phase16-sports": "node scripts/verify-sports-contract.mjs",
     "verify:global-search": "node scripts/verify-global-search-contract.mjs",
+    "verify:search-routing": "node scripts/verify-search-routing-repair.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

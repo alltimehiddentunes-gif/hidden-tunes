@@ -12046,6 +12046,13 @@
   overflow: hidden;
 }
 
+.psd-search-side-avatar,
+.psd-search-side-art {
+  position: relative;
+  display: block;
+  flex: 0 0 44px;
+}
+
 .psd-search-side-art,
 .psd-search-side-art .art-frame {
   border-radius: 10px;
@@ -28028,6 +28035,39 @@ button.lecture-detail-crumb:focus-visible {
 
 .sports-status-badge--unknown {
   opacity: 0.75;
+}
+
+.psd-search-side-row--actions {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.psd-search-result-body {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.psd-search-result-play {
+  min-width: 58px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-weight: 700;
+}
+
+.psd-search-result-body:focus-visible,
+.psd-search-result-play:focus-visible {
+  outline: 2px solid var(--psd-accent, #a855f7);
+  outline-offset: 3px;
 }
 
 .sports-status-badge--paused {

@@ -1,5 +1,7 @@
 import { memo, type ComponentType, type ReactNode } from 'react'
 import type { useGlobalDesktopSearch } from '../../lib/search/useGlobalDesktopSearch'
+import type { RadioStationMeta } from '../../lib/radio/types'
+import type { TvChannelMeta } from '../../lib/tv/types'
 
 type ArtworkImageProps = {
   src: string | null
@@ -15,8 +17,8 @@ type GlobalSearchSectionsProps = {
   onOpenPodcastShow?: (showId: string) => void
   onOpenAudiobook?: (bookId: string) => void
   onOpenMotivational?: (programId: string) => void
-  onPlayRadio?: (stationId: string, title: string, artwork: string | null) => void
-  onPlayTv?: (channelId: string, title: string, artwork: string | null) => void
+  onPlayRadio?: (station: RadioStationMeta) => void
+  onPlayTv?: (channel: TvChannelMeta) => void
   Chevron: ComponentType<{ className?: string }>
 }
 
@@ -82,21 +84,29 @@ export const GlobalSearchSections = memo(function GlobalSearchSections({
         count={search.radio.items.length}
       >
         {search.radio.items.map((station) => (
-          <button
+          <div
             key={station.id}
-            type="button"
-            className="psd-search-side-row"
-            onClick={() => onPlayRadio?.(station.id, station.name, station.artworkUrl)}
+            className="psd-search-side-row psd-search-side-row--actions"
           >
-            <span className="psd-search-side-art">
-              <ArtworkImage src={station.artworkUrl} alt="" seed={station.id} label={station.name} />
-            </span>
-            <span className="psd-search-side-copy">
-              <strong>{station.name}</strong>
-              <span>{station.country || 'Radio'}</span>
-            </span>
-            <Chevron className="psd-search-side-chevron" />
-          </button>
+            <button type="button" className="psd-search-result-body" onClick={() => onNavigateNav('radio')}>
+              <span className="psd-search-side-art">
+                <ArtworkImage src={station.artworkUrl} alt="" seed={station.id} label={station.name} />
+              </span>
+              <span className="psd-search-side-copy">
+                <strong>{station.name}</strong>
+                <span>{station.country || 'Radio'}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="psd-search-result-play"
+              aria-label={`Play ${station.name}`}
+              onClick={(event) => {
+                event.stopPropagation()
+                onPlayRadio?.(station)
+              }}
+            >Play</button>
+          </div>
         ))}
       </Section>
 
@@ -166,21 +176,29 @@ export const GlobalSearchSections = memo(function GlobalSearchSections({
         count={search.tv.items.length}
       >
         {search.tv.items.map((channel) => (
-          <button
+          <div
             key={channel.id}
-            type="button"
-            className="psd-search-side-row"
-            onClick={() => onPlayTv?.(channel.id, channel.title, channel.artworkUrl)}
+            className="psd-search-side-row psd-search-side-row--actions"
           >
-            <span className="psd-search-side-art">
-              <ArtworkImage src={channel.artworkUrl} alt="" seed={channel.id} label={channel.title} />
-            </span>
-            <span className="psd-search-side-copy">
-              <strong>{channel.title}</strong>
-              <span>{channel.channelName || 'TV'}</span>
-            </span>
-            <Chevron className="psd-search-side-chevron" />
-          </button>
+            <button type="button" className="psd-search-result-body" onClick={() => onNavigateNav('tv')}>
+              <span className="psd-search-side-art">
+                <ArtworkImage src={channel.artworkUrl} alt="" seed={channel.id} label={channel.title} />
+              </span>
+              <span className="psd-search-side-copy">
+                <strong>{channel.title}</strong>
+                <span>{channel.channelName || 'TV'}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="psd-search-result-play"
+              aria-label={`Play ${channel.title}`}
+              onClick={(event) => {
+                event.stopPropagation()
+                onPlayTv?.(channel)
+              }}
+            >Play</button>
+          </div>
         ))}
       </Section>
 
