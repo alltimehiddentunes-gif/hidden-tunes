@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { isProductionBuild } from "../components/ProductionRouteDenied";
 
 import AppShell from "../components/navigation/AppShell";
 import { getMobileScrollTailPadding } from "../components/navigation/navigationConfig";
@@ -173,12 +174,14 @@ export default function ProfileScreen() {
         icon: PROFILE_ACTION_ICONS.downloads,
         href: "/downloads",
       },
-      {
-        label: t("profile.diagnostics"),
-        description: t("profile.diagnosticsDescription"),
-        icon: PROFILE_ACTION_ICONS.diagnostics,
-        href: "/playback-diagnostics",
-      },
+      ...(!isProductionBuild
+        ? [{
+            label: t("profile.diagnostics"),
+            description: t("profile.diagnosticsDescription"),
+            icon: PROFILE_ACTION_ICONS.diagnostics,
+            href: "/playback-diagnostics" as const,
+          }]
+        : []),
       {
         label: t("profile.privacy"),
         description: t("profile.privacyDescription"),

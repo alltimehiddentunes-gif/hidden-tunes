@@ -13,6 +13,7 @@ import { router } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import { isProductionBuild, ProductionRouteDenied } from "../components/ProductionRouteDenied";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -63,6 +64,11 @@ const UPLOADER_SECTIONS: UploaderSection[] = [
 ];
 
 export default function UploaderDashboardScreen() {
+  if (isProductionBuild) return <ProductionRouteDenied />;
+  return <UploaderDashboardContent />;
+}
+
+function UploaderDashboardContent() {
   const summary = useMemo(
     () => ({
       sections: UPLOADER_SECTIONS.length,

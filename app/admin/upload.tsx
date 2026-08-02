@@ -18,12 +18,18 @@ import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { safeRouterBack } from "../../utils/safeNavigation";
+import { isProductionBuild, ProductionRouteDenied } from "../../components/ProductionRouteDenied";
 
 const API_BASE_URL = "https://hidden-tunes-backend.onrender.com";
 
 type PickedAsset = DocumentPicker.DocumentPickerAsset | null;
 
 export default function AdminUploadScreen() {
+  if (isProductionBuild) return <ProductionRouteDenied />;
+  return <AdminUploadContent />;
+}
+
+function AdminUploadContent() {
   const [song, setSong] = useState<PickedAsset>(null);
   const [cover, setCover] = useState<PickedAsset>(null);
   const [lyrics, setLyrics] = useState<PickedAsset>(null);

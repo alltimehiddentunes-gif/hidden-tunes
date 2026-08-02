@@ -2,9 +2,21 @@
 
 ## Executive verdict
 
-**Grade: C — No-go**
+**Grade: B pending physical-device gate — conditional no-go**
 
-The verified Podcast transport/progress repair is now locked in commit `6473b448` and is ready to push. The app is still not fully production-ready because no physical device is attached for mandatory smoke/soak, Expo Updates is not configured, direct admin/upload route protection needs review, and the full lint gate remains red with legacy debt.
+The Podcast repair, OTA configuration, and production-only route guards are committed or staged for a focused push. The remaining release blocker is the mandatory physical-device smoke/soak. Build 1.0.2 (1.0.197) predates `expo-updates`, so one final OTA-enabled production build is required before future compatible JS/TS fixes can use OTA. Legacy ESLint debt remains documented and was not mass-edited.
+
+### 2026-08-02 OTA and route-gate update
+
+- OTA config commit: `c05705af` (`chore(ota): configure safe EAS updates`). `expo-updates` 56.0.23 is installed; update URL is `https://u.expo.dev/9cf7fc48-6bf7-4ccc-8fe1-8b793530e70c`; runtime policy is `fingerprint`.
+- EAS `preview` and `production` channels/branches exist. Production remains unpublished. Preview and production profiles explicitly select their matching EAS environments.
+- Production EAS app-facing variables match the production build flags. The previously empty preview environment now matches the four preview app-facing flags.
+- Harmless preview publication passed from clean commit `c05705af`: iOS group `a7c0bba5-f16a-4564-a423-57d161292ea2`; Android group `b23f1b69-0f1f-48a0-a83e-283dda19ab3d`.
+- Rollback-to-embedded passed on preview: iOS group `87b26d0b-30e0-4b84-adef-efd46ef06321`; Android group `78fe8b49-fbad-449c-a4bb-f1f42d1957f5`.
+- Exact build evidence: EAS build `90049b48-cc9d-43a6-8289-800346677954`, app 1.0.2 (1.0.197), source `094bfc85`, has no `expo-updates`, update URL, runtime version, or channel. It cannot receive OTA. One final OTA-enabled native build is required.
+- `/admin/upload`, `/admin-dashboard`, `/uploader-dashboard`, and `/playback-diagnostics` now return a safe denial in production. Profile hides its diagnostics shortcut in production. Preview/development behavior remains available.
+- TypeScript passes. The 79-suite matrix passes 79/79 using TSX for TS/MJS tests. Targeted route lint has no new error; the one error is the pre-existing `react-hooks/set-state-in-effect` finding in playback diagnostics, plus existing unused-import/duplicate-import warnings.
+- Grade A remains prohibited until a real phone proves the OTA-enabled build, update receive/rollback, Podcast transport/progress, lock-screen behavior, and soak/thermal stability.
 
 ## 1. Workspace and Git proof
 

@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import { isProductionBuild, ProductionRouteDenied } from "../components/ProductionRouteDenied";
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -80,6 +81,11 @@ const ADMIN_SECTIONS: AdminSection[] = [
 ];
 
 export default function AdminDashboardScreen() {
+  if (isProductionBuild) return <ProductionRouteDenied />;
+  return <AdminDashboardContent />;
+}
+
+function AdminDashboardContent() {
   const summary = useMemo(
     () => ({
       sections: ADMIN_SECTIONS.length,

@@ -15,6 +15,7 @@ import { safeRouterBack } from "../utils/safeNavigation";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "../constants/theme";
+import { isProductionBuild, ProductionRouteDenied } from "../components/ProductionRouteDenied";
 import {
   clearPlaybackCriticalLogs,
   getPlaybackCriticalLogs,
@@ -145,6 +146,11 @@ function LogRow({ entry }: { entry: CombinedLogEntry }) {
 }
 
 export default function PlaybackDiagnosticsScreen() {
+  if (isProductionBuild) return <ProductionRouteDenied />;
+  return <PlaybackDiagnosticsContent />;
+}
+
+function PlaybackDiagnosticsContent() {
   const [logs, setLogs] = useState<CombinedLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
