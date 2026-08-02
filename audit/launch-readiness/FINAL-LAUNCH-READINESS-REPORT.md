@@ -116,8 +116,28 @@ Release can move to **B / conditional GO** only after both platforms complete th
 
 ## Required next actions
 
-1. Permanently align `.env.local` with production-safe Sports flags.
-2. Remove/rotate the public-prefixed Sports pilot token; do not ship secrets through `EXPO_PUBLIC_*`.
-3. Complete and record the physical-device soak matrix.
-4. Re-run 71-script matrix, TypeScript, Expo lint, and fresh Metro bundle after local configuration cleanup.
+1. Rotate/invalidate the removed Sports pilot credential through an authenticated admin/backend owner; do not ship secrets through `EXPO_PUBLIC_*`.
+2. Complete and record the physical-device soak matrix.
+3. Re-run the final bundle and automated matrix after credential invalidation if backend behavior changes.
 
+## Final blocker-closure update — 2026-08-02
+
+Local configuration closure completed without exposing the credential value:
+
+- The obsolete public Sports pilot credential assignment is absent from both ignored `.env.local` and `.env`.
+- `.env.local` now permanently sets Sports streams, live scores, native playback, and embedded playback to `false`.
+- Dev fixtures and the test player remain `false`.
+- Metro was restarted cleanly from the authoritative SSD workspace without process-level Sports overrides.
+- Expo's startup export list no longer contains the Sports pilot credential variable.
+- Fresh Metro iOS bundle: 17,133,550 bytes.
+- Fresh bundle Google API key literals: 0.
+- Fresh bundle non-empty Sports pilot credential: false.
+- Fresh bundle Sports streams/live scores/native/embedded playback: all false.
+- TypeScript: passed after local cleanup.
+- Complete test-script matrix after local cleanup: 71/71 passed.
+
+Credential invalidation was investigated but could not be completed from this environment. The mobile repository contains only the client header consumer (`X-Hidden-Tunes-Sports-Pilot`) and no issuance/revocation mechanism. The production admin dashboard requires authentication, and no authenticated external browser session is connected. Rotation therefore remains an operational release gate for an authorized admin/backend owner.
+
+No physical Android or iOS device is attached and no device-control tooling is available. The required Radio, Podcasts, Motivationals, Sports, TV, background/foreground, and lock/unlock soak remains unperformed. Temperature, battery trend, user-visible lag, freezes, duplicate playback, and physical-device request activity are not claimed.
+
+**Grade remains C / NO-GO** until credential invalidation and the physical-device soak are both recorded as passed.
