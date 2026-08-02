@@ -20,7 +20,7 @@ import { router } from "expo-router";
 import { safeRouterBack } from "../../utils/safeNavigation";
 import { isProductionBuild, ProductionRouteDenied } from "../../components/ProductionRouteDenied";
 
-const API_BASE_URL = "https://hidden-tunes-backend.onrender.com";
+const API_BASE_URL = "https://admin.hiddentunes.com";
 
 type PickedAsset = DocumentPicker.DocumentPickerAsset | null;
 

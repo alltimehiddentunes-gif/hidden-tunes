@@ -18,6 +18,15 @@ The Podcast repair, OTA configuration, and production-only route guards are comm
 - TypeScript passes. The 79-suite matrix passes 79/79 using TSX for TS/MJS tests. Targeted route lint has no new error; the one error is the pre-existing `react-hooks/set-state-in-effect` finding in playback diagnostics, plus existing unused-import/duplicate-import warnings.
 - Grade A remains prohibited until a real phone proves the OTA-enabled build, update receive/rollback, Podcast transport/progress, lock-screen behavior, and soak/thermal stability.
 
+### Authoritative deployment model
+
+- GitHub is the only source-control and release-history authority.
+- The existing VPS behind `https://admin.hiddentunes.com` is the only production backend runtime.
+- Expo/EAS is the only mobile build and OTA system; preview must pass before production.
+- Vercel, Render, Netlify, Railway, alternate repositories, alternate backend hosts, and alternate Hidden Tunes workspaces are prohibited.
+- The remaining active Render endpoint in `app/admin/upload.tsx` was replaced with `https://admin.hiddentunes.com`. Historical audit documents and retired-host probe scripts may retain Render names as evidence, but no Render or Vercel host remains active in mobile runtime configuration.
+- Backend deployment requires local/GitHub SHA equality, explicit reviewed files or exact pushed SHA, a timestamped VPS backup, the verified VPS app path and PM2 process, then post-restart production checks. No backend deployment was performed in this audit.
+
 ## 1. Workspace and Git proof
 
 - Authoritative workspace and Git root verified: `D:\HiddenTunes\Active\HiddenTunes-CLEAN-1.0.142`
