@@ -14,7 +14,8 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_BUILD_PROFILE": "developmentClient"
+        "EXPO_PUBLIC_BUILD_PROFILE": "developmentClient",
+        "EXPO_PUBLIC_MATURE_PODCASTS_DEVICE_LOCK_ENABLED": "true"
       }
     },
     "preview": {
