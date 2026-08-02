@@ -7,6 +7,7 @@ import {
 import type {
   DesktopSportsFixture,
   SportsBrowseFilter,
+  SportsCatalogFilters,
   SportsFixtureDetailResult,
 } from './types'
 import { SPORTS_LIVE_REFRESH_MS, SPORTS_PAGE_SIZE } from './types'
@@ -31,6 +32,7 @@ export type UseDesktopSportsOptions = {
   /** Pass false when the Sports route is inactive to stop live refresh. */
   pageActive?: boolean
   sport?: string | null
+  catalogFilters?: SportsCatalogFilters
 }
 
 /**
@@ -38,9 +40,13 @@ export type UseDesktopSportsOptions = {
  * Abort on filter change, stale-response protection, offline-aware, live refresh 45s.
  */
 export function useDesktopSports(options: UseDesktopSportsOptions = {}) {
-  const filter = options.filter || 'live'
+  const filter = options.filter || 'today'
   const pageActive = options.pageActive !== false
   const sport = options.sport?.trim() || null
+  const date = options.catalogFilters?.date?.trim() || null
+  const status = options.catalogFilters?.status?.trim() || null
+  const country = options.catalogFilters?.country?.trim() || null
+  const competition = options.catalogFilters?.competition?.trim() || null
   const { online, offline } = useDesktopConnectivity()
 
   const [fixtures, setFixtures] = useState<DesktopSportsFixture[]>([])
@@ -85,6 +91,10 @@ export function useDesktopSports(options: UseDesktopSportsOptions = {}) {
           page: nextPage,
           limit: SPORTS_PAGE_SIZE,
           sport,
+          date,
+          status,
+          country,
+          competition,
           signal: controller.signal,
         })
 
@@ -111,10 +121,8 @@ export function useDesktopSports(options: UseDesktopSportsOptions = {}) {
         if (isAbortError(reason) || controller.signal.aborted) return
         if (generation !== requestGenerationRef.current) return
         setError(readError(reason, offline))
-        if (mode === 'replace') {
-          setFixtures([])
-          setHasMore(false)
-        }
+        // Preserve proven prior content on refresh failure. Empty initial loads
+        // still render the dedicated error state because fixtures is empty.
       } finally {
         if (generation === requestGenerationRef.current) {
           setLoading(false)
@@ -122,7 +130,7 @@ export function useDesktopSports(options: UseDesktopSportsOptions = {}) {
         }
       }
     },
-    [offline, sport],
+    [competition, country, date, offline, sport, status],
   )
 
   const retry = useCallback(() => {
@@ -165,7 +173,7 @@ export function useDesktopSports(options: UseDesktopSportsOptions = {}) {
       abortRef.current?.abort()
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [filter, loadPage])
+  }, [competition, country, date, filter, loadPage, sport, status])
 
   // Live refresh — 45s only when appropriate
   useEffect(() => {
@@ -198,6 +206,10 @@ export function useDesktopSports(options: UseDesktopSportsOptions = {}) {
             page: 1,
             limit: SPORTS_PAGE_SIZE,
             sport,
+            date,
+            status,
+            country,
+            competition,
           })
           if (cancelled) return
           if (filterRef.current !== filter) return
@@ -228,7 +240,7 @@ export function useDesktopSports(options: UseDesktopSportsOptions = {}) {
       clearTimer()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [enabled, filter, hasLiveFixture, offline, online, pageActive, sport])
+  }, [competition, country, date, enabled, filter, hasLiveFixture, offline, online, pageActive, sport, status])
 
   return {
     filter,

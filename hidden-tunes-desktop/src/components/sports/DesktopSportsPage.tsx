@@ -6,14 +6,15 @@ import {
   SPORTS_STREAMS_OFF_COPY,
 } from '../../lib/sports/sportsFlags'
 import { useDesktopSports } from '../../lib/sports/useDesktopSports'
-import type { DesktopSportsFixture, SportsBrowseFilter } from '../../lib/sports/types'
+import type { DesktopSportsFixture, SportsBrowseFilter, SportsCatalogFilters } from '../../lib/sports/types'
 import { SportsFixtureCard } from './SportsFixtureCard'
 import { SportsFixtureDetails } from './SportsFixtureDetails'
 
 const FILTERS: { id: Exclude<SportsBrowseFilter, 'all'>; label: string }[] = [
+  { id: 'today', label: 'Today' },
   { id: 'live', label: 'Live' },
   { id: 'upcoming', label: 'Upcoming' },
-  { id: 'completed', label: 'Completed' },
+  { id: 'results', label: 'Results' },
 ]
 
 export type DesktopSportsPageProps = {
@@ -24,7 +25,9 @@ export type DesktopSportsPageProps = {
 export const DesktopSportsPage = memo(function DesktopSportsPage({
   pageActive = true,
 }: DesktopSportsPageProps) {
-  const [filter, setFilter] = useState<Exclude<SportsBrowseFilter, 'all'>>('live')
+  const [filter, setFilter] = useState<Exclude<SportsBrowseFilter, 'all'>>('today')
+  const [draftFilters, setDraftFilters] = useState<SportsCatalogFilters>({})
+  const [catalogFilters, setCatalogFilters] = useState<SportsCatalogFilters>({})
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedSeed, setSelectedSeed] = useState<DesktopSportsFixture | null>(null)
   const [playingId, setPlayingId] = useState<string | null>(null)
@@ -42,7 +45,7 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
     offline,
     retry,
     loadMore,
-  } = useDesktopSports({ filter, pageActive })
+  } = useDesktopSports({ filter, pageActive, catalogFilters })
 
   const streamsEnabled = areSportsStreamsEnabled()
 
@@ -143,12 +146,56 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
         ))}
       </div>
 
+      <form
+        className="sports-filter-panel"
+        aria-label="Fixture filters"
+        onSubmit={(event) => {
+          event.preventDefault()
+          setCatalogFilters(draftFilters)
+        }}
+      >
+        {([
+          ['sport', 'Sport'],
+          ['date', 'Date'],
+          ['status', 'Status'],
+          ['country', 'Country'],
+          ['competition', 'Competition'],
+        ] as const).map(([key, label]) => (
+          <label key={key}>
+            <span>{label}</span>
+            <input
+              type={key === 'date' ? 'date' : 'text'}
+              value={draftFilters[key] || ''}
+              onChange={(event) => setDraftFilters((current) => ({ ...current, [key]: event.target.value }))}
+            />
+          </label>
+        ))}
+        <button type="submit" className="sports-btn sports-btn--primary">Apply filters</button>
+        <button
+          type="button"
+          className="sports-btn sports-btn--ghost"
+          onClick={() => {
+            setDraftFilters({})
+            setCatalogFilters({})
+          }}
+        >
+          Clear
+        </button>
+      </form>
+
+      {error && fixtures.length > 0 ? (
+        <div className="sports-banner sports-banner--offline" role="alert">
+          Refresh failed. Showing the most recent fixtures. {error}
+          <button type="button" className="sports-btn sports-btn--ghost" onClick={retry}>Retry</button>
+        </div>
+      ) : null}
+
       {!enabled ? (
         <div className="sports-state">
           <h2>Sports unavailable</h2>
           <p>{message || 'Sports is not available right now.'}</p>
         </div>
-      ) : error ? (
+      ) : error && fixtures.length === 0 ? (
         <div className="sports-state sports-state--error">
           <h2>Sports could not be loaded</h2>
           <p>{error}</p>
@@ -169,11 +216,13 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
         <div className="sports-state">
           <h2>No fixtures</h2>
           <p>
-            {filter === 'live'
+            {filter === 'today'
+              ? 'No fixtures scheduled for today.'
+              : filter === 'live'
               ? 'No live events right now.'
               : filter === 'upcoming'
                 ? 'No upcoming fixtures in this list.'
-                : 'No completed fixtures in this list.'}
+                : 'No results in this list.'}
           </p>
         </div>
       ) : (

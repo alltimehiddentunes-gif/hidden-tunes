@@ -2,6 +2,7 @@ import { requestCatalogJsonWithFallbackRequest } from '../desktopCatalogBridge'
 import { emitSportsDiagnostic } from './diagnostics'
 import {
   formatSportsScore,
+  normalizeSportsParticipants,
   normalizeSportsFixtureStatus,
   participantsToTeams,
 } from './status'
@@ -154,6 +155,7 @@ export function normalizeSportsMatchCard(row: unknown): DesktopSportsFixture | n
   const watchability = asRecord(record.watchability)
 
   const teams = participantsToTeams(record.participants)
+  const participants = normalizeSportsParticipants(record.participants)
   const startTime =
     readString(timing?.startsAt)
     || readString(record.startTime)
@@ -229,6 +231,7 @@ export function normalizeSportsMatchCard(row: unknown): DesktopSportsFixture | n
     homeTeam,
     awayTeam,
     title,
+    participants,
     status: normalized.status,
     backendStatusCode: readString(statusObj?.code) || readString(record.status),
     startTime,
@@ -273,7 +276,7 @@ function filterQueryParam(filter: SportsBrowseFilter | undefined) {
       return { live: 1 }
     case 'upcoming':
       return { upcoming: 1 }
-    case 'completed':
+    case 'results':
       return { finished: 1 }
     default:
       return {}
@@ -285,12 +288,17 @@ export async function fetchSportsFixtures(options: {
   page?: number
   limit?: number
   sport?: string | null
+  date?: string | null
+  status?: string | null
+  country?: string | null
+  competition?: string | null
   signal?: AbortSignal
 } = {}): Promise<SportsFixturesPage> {
   const page = clampPage(options.page)
   const limit = clampLimit(options.limit ?? SPORTS_PAGE_SIZE)
   const filter = options.filter || 'all'
   const sport = options.sport?.trim() || undefined
+  const date = options.date?.trim() || (filter === 'today' ? new Date().toISOString().slice(0, 10) : undefined)
 
   emitSportsDiagnostic('sports_browse_started', { filter, page, limit, sport: sport || null })
 
@@ -298,6 +306,10 @@ export async function fetchSportsFixtures(options: {
     page,
     limit,
     sport,
+    date,
+    status: options.status?.trim() || undefined,
+    countryCode: options.country?.trim() || undefined,
+    competition: options.competition?.trim() || undefined,
     ...filterQueryParam(filter),
   })
 

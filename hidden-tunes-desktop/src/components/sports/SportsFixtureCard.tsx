@@ -18,7 +18,9 @@ export const SportsFixtureCard = memo(function SportsFixtureCard({
     fixture.title
     || (fixture.homeTeam && fixture.awayTeam
       ? `${fixture.homeTeam} vs ${fixture.awayTeam}`
-      : fixture.league || 'Match')
+      : fixture.participants.length > 0
+        ? fixture.participants.map((participant) => participant.name).join(' · ')
+        : fixture.league || 'Event')
   const meta = [fixture.league, fixture.sport].filter(Boolean).join(' · ')
   const kickoff = formatSportsStartTime(fixture.startTime)
   const score = fixture.score || '—'
@@ -34,6 +36,11 @@ export const SportsFixtureCard = memo(function SportsFixtureCard({
         </div>
         <h3 className="sports-fixture-title">{title}</h3>
         {meta ? <p className="sports-fixture-meta">{meta}</p> : null}
+        {fixture.participants.length > 2 ? (
+          <p className="sports-fixture-participants">
+            {fixture.participants.map((participant) => participant.name).join(' · ')}
+          </p>
+        ) : null}
         <div className="sports-fixture-score-row">
           <span className="sports-fixture-score" aria-label="Score">
             {score}

@@ -14,18 +14,43 @@ const Hls = require('hls.js')
 
 const API_BASE = process.env.HT_TV_API_BASE ?? 'https://admin.hiddentunes.com'
 
-const TEST_CHANNELS = [
+const CONTROLLED_FIXTURES = [
+  {
+    label: 'Controlled HLS fixture (Mux x36xhzz)',
+    channelId: 'fixture:mux-x36xhzz',
+    streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+    sourceType: 'controlled_hls_fixture',
+    gate: 'architecture',
+  },
+  {
+    label: 'Controlled HLS fixture (Mux test_001)',
+    channelId: 'fixture:mux-test-001',
+    streamUrl: 'https://test-streams.mux.dev/test_001/stream.m3u8',
+    sourceType: 'controlled_hls_fixture',
+    gate: 'architecture',
+  },
+]
+
+const LIVE_HEALTH_CHANNELS = [
   {
     label: 'Vyas Channel (IN, NIC HLS)',
     channelId: 'd1da95cb-4291-470b-a5fa-f9a0a06b0c60',
+    gate: 'source-health',
   },
   {
     label: 'Catalog HLS sample',
     discover: { limit: 40, country: 'DE' },
+    gate: 'source-health',
   },
   {
     label: 'Catalog HLS sample (ID)',
     discover: { limit: 40, country: 'ID' },
+    gate: 'source-health',
+  },
+  {
+    label: 'Catalog HLS sample (FR)',
+    discover: { limit: 40, country: 'FR' },
+    gate: 'source-health',
   },
 ]
 
@@ -77,15 +102,15 @@ async function discoverHlsChannel({ limit, country }) {
 }
 
 async function prepareCases() {
-  const cases = []
-  for (const entry of TEST_CHANNELS) {
+  const cases = [...CONTROLLED_FIXTURES]
+  for (const entry of LIVE_HEALTH_CHANNELS) {
     if (entry.channelId) {
       const resolved = await resolvePlayUrl(entry.channelId)
-      cases.push({ label: entry.label, channelId: entry.channelId, ...resolved })
+      cases.push({ label: entry.label, channelId: entry.channelId, gate: entry.gate, ...resolved })
       continue
     }
     if (entry.discover) {
-      cases.push(await discoverHlsChannel(entry.discover))
+      cases.push({ ...(await discoverHlsChannel(entry.discover)), gate: entry.gate })
     }
   }
   return cases
@@ -242,12 +267,12 @@ async function runElectronVerification(cases) {
       channelId: testCase.channelId,
       sourceType: testCase.sourceType,
       streamHost: new URL(testCase.streamUrl).host,
+      gate: testCase.gate,
       ...outcome,
     })
   }
 
   await window.close()
-  await app.quit()
   return results
 }
 
@@ -257,11 +282,13 @@ async function main() {
   console.log(`[ht-tv-verify] running ${cases.length} playback checks in Electron…`)
   const results = await runElectronVerification(cases)
 
-  let failures = 0
+  let architectureFailures = 0
+  let sourceHealthFailures = 0
   for (const result of results) {
     const status = result.ok ? 'PASS' : 'FAIL'
-    if (!result.ok) failures += 1
-    console.log(`\n[${status}] ${result.label}`)
+    if (!result.ok && result.gate === 'architecture') architectureFailures += 1
+    if (!result.ok && result.gate === 'source-health') sourceHealthFailures += 1
+    console.log(`\n[${status}] ${result.label} [${result.gate}]`)
     console.log(`  channel: ${result.channelId}`)
     console.log(`  source: ${result.sourceType} via ${result.streamHost}`)
     if (result.metrics) {
@@ -277,12 +304,16 @@ async function main() {
     }
   }
 
-  if (failures > 0) {
-    process.exitCode = 1
-    console.error(`\n[ht-tv-verify] ${failures} playback check(s) failed`)
+  if (sourceHealthFailures > 0) {
+    console.warn(`\n[ht-tv-verify] ${sourceHealthFailures} external source-health probe(s) failed (non-blocking)`)
+  }
+  if (architectureFailures > 0) {
+    console.error(`[ht-tv-verify] ${architectureFailures} controlled architecture fixture(s) failed`)
+    app.exit(1)
     return
   }
-  console.log('\n[ht-tv-verify] all playback checks passed')
+  console.log('[ht-tv-verify] controlled TV architecture regression PASS')
+  app.exit(0)
 }
 
 main().catch((error) => {

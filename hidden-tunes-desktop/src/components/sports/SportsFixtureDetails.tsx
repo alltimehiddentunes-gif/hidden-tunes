@@ -161,6 +161,12 @@ export const SportsFixtureDetails = memo(function SportsFixtureDetails({
                     : fixture.availabilityState || 'Streaming not available for this event'}
               </dd>
             </div>
+            {fixture.participants.length > 0 ? (
+              <div>
+                <dt>Participants</dt>
+                <dd>{fixture.participants.map((participant) => participant.name).join(' · ')}</dd>
+              </div>
+            ) : null}
           </dl>
 
           {playError ? <p className="sports-play-error">{playError}</p> : null}

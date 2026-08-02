@@ -20,7 +20,9 @@ export type NormalizeSportsStatusResult = {
   diagnostics: string[]
 }
 
-const TERMINAL_CANCELLED = new Set(['cancelled', 'canceled', 'abandoned', 'abandoned_match'])
+const TERMINAL_CANCELLED = new Set(['cancelled', 'canceled'])
+const TERMINAL_ABANDONED = new Set(['abandoned', 'abandoned_match'])
+const TERMINAL_SUSPENDED = new Set(['suspended'])
 const TERMINAL_POSTPONED = new Set(['postponed'])
 const TERMINAL_COMPLETED = new Set([
   'finished',
@@ -96,7 +98,7 @@ export function normalizeSportsFixtureStatus(
         diagnostics.push('sports_status_conflict')
       }
     }
-    return { status: 'completed', diagnostics }
+    return { status: 'finished', diagnostics }
   }
 
   // Live family — only via live flag OR code in live family (never startTime alone).
@@ -107,13 +109,16 @@ export function normalizeSportsFixtureStatus(
         diagnostics.push('sports_status_conflict')
       }
     }
-    return { status: 'live', diagnostics }
+    return { status: code === 'half_time' || code === 'halftime' || code === 'ht' || code === 'intermission' ? 'paused' : 'live', diagnostics }
   }
 
   if (UPCOMING_FAMILY.has(code)) {
     if (!startTime) diagnostics.push('sports_missing_start_time')
-    return { status: 'upcoming', diagnostics }
+    return { status: 'scheduled', diagnostics }
   }
+
+  if (TERMINAL_SUSPENDED.has(code)) return { status: 'suspended', diagnostics }
+  if (TERMINAL_ABANDONED.has(code)) return { status: 'abandoned', diagnostics }
 
   if (code === 'unavailable' || code === 'unknown') {
     diagnostics.push('sports_unknown_status')
@@ -185,4 +190,16 @@ export function participantsToTeams(participants: unknown): {
     homeScore: home?.score ?? null,
     awayScore: away?.score ?? null,
   }
+}
+
+export function normalizeSportsParticipants(participants: unknown) {
+  if (!Array.isArray(participants)) return []
+  return participants.flatMap((row) => {
+    if (!row || typeof row !== 'object') return []
+    const record = row as SportsParticipantLike
+    const name = typeof record.name === 'string' ? record.name.trim() : ''
+    if (!name) return []
+    const side = typeof record.side === 'string' ? record.side.trim().toLowerCase() : null
+    return [{ name, side: side || null, score: record.score ?? null }]
+  })
 }

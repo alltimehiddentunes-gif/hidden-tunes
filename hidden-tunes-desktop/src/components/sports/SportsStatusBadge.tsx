@@ -2,11 +2,14 @@ import { memo } from 'react'
 import type { SportsFixtureStatus } from '../../lib/sports/types'
 
 const STATUS_LABELS: Record<SportsFixtureStatus, string> = {
+  scheduled: 'Scheduled',
   live: 'Live',
-  upcoming: 'Upcoming',
-  completed: 'Final',
+  paused: 'Paused',
+  finished: 'Finished',
   postponed: 'Postponed',
   cancelled: 'Cancelled',
+  suspended: 'Suspended',
+  abandoned: 'Abandoned',
   unknown: 'Unknown',
 }
 

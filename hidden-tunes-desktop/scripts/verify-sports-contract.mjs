@@ -33,7 +33,9 @@ function exists(rel) {
 
 /* ——— Pure status normalizer (mirrors src/lib/sports/status.ts) ——— */
 
-const TERMINAL_CANCELLED = new Set(['cancelled', 'canceled', 'abandoned', 'abandoned_match'])
+const TERMINAL_CANCELLED = new Set(['cancelled', 'canceled'])
+const TERMINAL_ABANDONED = new Set(['abandoned', 'abandoned_match'])
+const TERMINAL_SUSPENDED = new Set(['suspended'])
 const TERMINAL_POSTPONED = new Set(['postponed'])
 const TERMINAL_COMPLETED = new Set([
   'finished',
@@ -95,17 +97,20 @@ function normalizeSportsFixtureStatus(input) {
     return { status: 'postponed', diagnostics }
   }
   if (TERMINAL_COMPLETED.has(code) || finishedFlag) {
-    return { status: 'completed', diagnostics }
+    return { status: 'finished', diagnostics }
   }
 
   if (LIVE_FAMILY.has(code) || liveFlag) {
-    return { status: 'live', diagnostics }
+    return { status: ['half_time', 'halftime', 'ht', 'intermission'].includes(code) ? 'paused' : 'live', diagnostics }
   }
 
   if (UPCOMING_FAMILY.has(code)) {
     if (!startTime) diagnostics.push('sports_missing_start_time')
-    return { status: 'upcoming', diagnostics }
+    return { status: 'scheduled', diagnostics }
   }
+
+  if (TERMINAL_SUSPENDED.has(code)) return { status: 'suspended', diagnostics }
+  if (TERMINAL_ABANDONED.has(code)) return { status: 'abandoned', diagnostics }
 
   diagnostics.push('sports_unknown_status')
   if (!startTime) diagnostics.push('sports_missing_start_time')
@@ -273,11 +278,14 @@ function normalizeHistoryItem(raw) {
 function main() {
   // —— Status ——
   check('explicit live remains live', normalizeSportsFixtureStatus({ code: 'live' }).status === 'live')
-  check('upcoming remains upcoming', normalizeSportsFixtureStatus({ code: 'upcoming' }).status === 'upcoming')
-  check('completed remains completed', normalizeSportsFixtureStatus({ code: 'completed' }).status === 'completed')
-  check('finished remains completed', normalizeSportsFixtureStatus({ code: 'finished' }).status === 'completed')
+  check('upcoming remains scheduled', normalizeSportsFixtureStatus({ code: 'upcoming' }).status === 'scheduled')
+  check('completed remains finished', normalizeSportsFixtureStatus({ code: 'completed' }).status === 'finished')
+  check('finished remains finished', normalizeSportsFixtureStatus({ code: 'finished' }).status === 'finished')
+  check('half-time remains paused', normalizeSportsFixtureStatus({ code: 'half_time' }).status === 'paused')
   check('cancelled remains cancelled', normalizeSportsFixtureStatus({ code: 'cancelled' }).status === 'cancelled')
   check('postponed remains postponed', normalizeSportsFixtureStatus({ code: 'postponed' }).status === 'postponed')
+  check('suspended remains suspended', normalizeSportsFixtureStatus({ code: 'suspended' }).status === 'suspended')
+  check('abandoned remains abandoned', normalizeSportsFixtureStatus({ code: 'abandoned' }).status === 'abandoned')
   check('unknown value becomes unknown', normalizeSportsFixtureStatus({ code: 'weird_state' }).status === 'unknown')
   check(
     'passed start time alone does NOT create live',
@@ -300,13 +308,13 @@ function main() {
       code: 'finished',
       // title is intentionally ignored by the normalizer API
       startTime: new Date().toISOString(),
-    }).status === 'completed'
-      && normalizeSportsFixtureStatus({ code: 'finished' }).status === 'completed',
+    }).status === 'finished'
+      && normalizeSportsFixtureStatus({ code: 'finished' }).status === 'finished',
   )
   // Finished with misleading display title still completed (normalizer has no title field).
   check(
     'finished + LIVE-looking metadata stays completed',
-    normalizeSportsFixtureStatus({ code: 'finished', live: false }).status === 'completed',
+    normalizeSportsFixtureStatus({ code: 'finished', live: false }).status === 'finished',
   )
 
   // —— Identity / playability ——
@@ -471,6 +479,17 @@ function main() {
     'Sports page shows streams-off banner copy',
     pageSrcPhase9.includes('SPORTS_STREAMS_OFF_COPY'),
   )
+  check('Sports page exposes Today, Live, Upcoming and Results',
+    ["'today'", "'live'", "'upcoming'", "'results'"].every((token) => pageSrcPhase9.includes(token)))
+  check('Sports filters include sport/date/status/country/competition',
+    ['sport', 'date', 'status', 'country', 'competition'].every((token) => pageSrcPhase9.includes(`['${token}'`)))
+
+  const hookSrc = readSrc('src/lib/sports/useDesktopSports.ts')
+  check('filter changes reset page', hookSrc.includes('setPage(1)') && hookSrc.includes("loadPage(1, 'replace', filter)"))
+  check('stale pages cannot append', hookSrc.includes('requestGenerationRef') && hookSrc.includes('generation !== requestGenerationRef.current'))
+  check('refresh failure preserves prior fixtures', hookSrc.includes('Preserve proven prior content on refresh failure'))
+  check('fixture-only records cannot resolve playback while streams off',
+    pageSrcPhase9.includes('streamsEnabled && fixture.isPlayable') || pageSrcPhase9.includes('streamsEnabled && fixture.isPlayable'))
 
   const detailsPhase9 = readSrc('src/components/sports/SportsFixtureDetails.tsx')
   check(
@@ -497,7 +516,11 @@ function main() {
 
   const accountGate = readSrc('src/lib/account/accountGate.ts')
   check('accountGate module exists', exists('src/lib/account/accountGate.ts'))
-  check('accountGate follow copy is honest', /Sign-in is not available in this desktop preview/.test(accountGate))
+  check(
+    'accountGate follow copy is honest',
+    /Sign-in is not configured in this desktop build/.test(accountGate)
+      && /Follow cannot be completed/.test(accountGate),
+  )
   check(
     'AccountRequiredDialog exists',
     exists('src/components/account/AccountRequiredDialog.tsx'),

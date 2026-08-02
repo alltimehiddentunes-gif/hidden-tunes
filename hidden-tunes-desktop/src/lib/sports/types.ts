@@ -1,12 +1,21 @@
 /** Desktop Sports fixture / playback contracts — stream_only, no Downloads. */
 
 export type SportsFixtureStatus =
+  | 'scheduled'
   | 'live'
-  | 'upcoming'
-  | 'completed'
+  | 'paused'
+  | 'finished'
   | 'postponed'
   | 'cancelled'
+  | 'suspended'
+  | 'abandoned'
   | 'unknown'
+
+export type SportsParticipant = {
+  name: string
+  side: string | null
+  score: string | number | null
+}
 
 export type DesktopSportsFixture = {
   id: string
@@ -16,6 +25,7 @@ export type DesktopSportsFixture = {
   homeTeam: string | null
   awayTeam: string | null
   title: string | null
+  participants: SportsParticipant[]
   status: SportsFixtureStatus
   backendStatusCode: string | null
   startTime: string | null
@@ -32,7 +42,15 @@ export type DesktopSportsFixture = {
   metadata: Record<string, unknown> | null
 }
 
-export type SportsBrowseFilter = 'live' | 'upcoming' | 'completed' | 'all'
+export type SportsBrowseFilter = 'today' | 'live' | 'upcoming' | 'results' | 'all'
+
+export type SportsCatalogFilters = {
+  sport?: string | null
+  date?: string | null
+  status?: string | null
+  country?: string | null
+  competition?: string | null
+}
 
 export type SportsPlaySessionStatus =
   | 'ready'
