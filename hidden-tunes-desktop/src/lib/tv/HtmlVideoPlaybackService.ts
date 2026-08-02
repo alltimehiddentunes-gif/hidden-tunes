@@ -1,4 +1,5 @@
 import Hls from 'hls.js'
+import type { TvResolvedPlayback } from './types'
 
 const HLS_MIME = 'application/vnd.apple.mpegurl'
 
@@ -62,6 +63,25 @@ function safeEndpoint(value: unknown) {
 function clampVolume(volume: number): number {
   if (!Number.isFinite(volume)) return 1
   return Math.min(1, Math.max(0, volume))
+}
+
+export type TvSourceAdapter = 'hls' | 'direct' | 'dash' | 'web' | 'unsupported'
+
+export function resolveTvSourceAdapter(source: TvResolvedPlayback): TvSourceAdapter {
+  const url = source.streamUrl.trim().toLowerCase()
+  const sourceType = source.sourceType?.trim().toLowerCase() || ''
+  const protocol = source.streamProtocol?.trim().toLowerCase() || ''
+  if (sourceType.includes('youtube')) return 'web'
+  if (protocol === 'dash' || /\.mpd(?:\?|$)/i.test(url)) return 'dash'
+  if (
+    protocol === 'hls'
+    || sourceType === 'hls_stream'
+    || sourceType === 'm3u_playlist'
+    || url.includes('.m3u8')
+    || url.includes('mpegurl')
+  ) return 'hls'
+  if (/^https?:\/\//i.test(url)) return 'direct'
+  return 'unsupported'
 }
 
 function isHlsStream(url: string): boolean {
@@ -241,21 +261,30 @@ export class HtmlVideoPlaybackService {
     })
   }
 
-  private async attachSource(url: string): Promise<void> {
+  private async attachSource(url: string, adapter: TvSourceAdapter | null): Promise<void> {
     this.destroyHls()
     this.video.pause()
     this.video.removeAttribute('src')
 
-    const useNative = isHlsStream(url) && canPlayNativeHls(this.video)
+    const hlsSource = adapter === 'hls' || (adapter === null && isHlsStream(url))
+    const useNative = hlsSource && canPlayNativeHls(this.video)
     if (useNative) {
       this.nativeHls = true
       this.video.src = url
       this.video.load()
-      await this.waitForCanPlay()
-      return
+      try {
+        await this.waitForCanPlay()
+        return
+      } catch (nativeError) {
+        this.nativeHls = false
+        this.video.pause()
+        this.video.removeAttribute('src')
+        this.video.load()
+        if (!Hls.isSupported()) throw nativeError
+      }
     }
 
-    if (isHlsStream(url) && Hls.isSupported()) {
+    if (hlsSource && Hls.isSupported()) {
       this.usesHlsJs = true
       const hls = new Hls({
         enableWorker: true,
@@ -349,7 +378,7 @@ export class HtmlVideoPlaybackService {
       return
     }
 
-    if (isHlsStream(url)) {
+    if (hlsSource) {
       throw new Error('HLS playback is not supported on this device.')
     }
 
@@ -358,16 +387,28 @@ export class HtmlVideoPlaybackService {
     await this.waitForCanPlay()
   }
 
-  async play(url: string): Promise<void> {
-    const normalized = url.trim()
+  async play(input: string | TvResolvedPlayback): Promise<void> {
+    const source = typeof input === 'string' ? null : input
+    const normalized = (typeof input === 'string' ? input : input.streamUrl).trim()
     if (!normalized) {
       throw new Error('Missing stream URL')
     }
 
     this.video.muted = false
 
+    const adapter = source ? resolveTvSourceAdapter(source) : null
+    if (adapter === 'dash') {
+      throw new Error('This backend-approved DASH source is not supported by the current Desktop player.')
+    }
+    if (adapter === 'web') {
+      throw new Error('This backend-approved web source requires an approved Desktop web-player surface.')
+    }
+    if (adapter === 'unsupported') {
+      throw new Error('This channel source format is not supported on Desktop.')
+    }
+
     if (this.lastUrl !== normalized) {
-      await this.attachSource(normalized)
+      await this.attachSource(normalized, adapter)
       this.lastUrl = normalized
       await this.video.play()
       return

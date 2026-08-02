@@ -55,6 +55,15 @@ export type TvPlayResponse = {
   source_id?: string | null
 }
 
+export type TvResolvedPlayback = {
+  channelId: string
+  sourceId: string | null
+  sourceType: string | null
+  streamProtocol: string | null
+  streamUrl: string
+  embedUrl: string | null
+}
+
 export type TvFilterId =
   | 'all'
   | 'featured'

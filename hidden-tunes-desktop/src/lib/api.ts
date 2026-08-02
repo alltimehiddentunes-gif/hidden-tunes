@@ -68,6 +68,15 @@ export type ApiSong = {
   /** Pre-split plain lyric lines when supplied separately from `lyrics`. */
   lyricLines?: string[] | null
   lyricsSource?: string | null
+  /** Backend-approved TV playback metadata retained through the shared queue. */
+  tvPlayback?: {
+    channelId: string
+    sourceId: string | null
+    sourceType: string | null
+    streamProtocol: string | null
+    streamUrl: string
+    embedUrl: string | null
+  }
 }
 
 export type ApiAlbum = {

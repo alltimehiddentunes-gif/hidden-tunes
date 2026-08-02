@@ -1031,7 +1031,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
         videoService.setVolume(volume)
         setIsLoading(true)
         void videoService
-          .play(streamUrl)
+          .play(isTvQueueSong(song) && song.tvPlayback ? song.tvPlayback : streamUrl)
           .then(() => {
             if (currentTrackRef.current?.id !== song.id) return
             if (isTvQueueSong(song)) {
@@ -1554,7 +1554,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
           }
 
           try {
-            const play = await resolveTvPlayUrl(channelId)
+            const play = await resolveTvPlayUrl(channelId, song.tvPlayback?.streamProtocol ?? null)
             if (generation !== mediaResolveGenerationRef.current) return
             if (currentTrackRef.current?.id !== song.id) return
             if (!play?.streamUrl?.startsWith('http')) {
@@ -1568,6 +1568,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
               ...song,
               audioUrl: play.streamUrl,
               previewUrl: play.streamUrl,
+              tvPlayback: play,
             }
 
             const queue = queueRef.current

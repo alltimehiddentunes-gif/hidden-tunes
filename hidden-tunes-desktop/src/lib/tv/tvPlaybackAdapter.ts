@@ -70,6 +70,14 @@ export function tvChannelToApiSong(
     highQualityUrl: null,
     durationSeconds: null,
     createdAt: null,
+    tvPlayback: {
+      channelId: channel.id,
+      sourceId: null,
+      sourceType: null,
+      streamProtocol: channel.streamProtocol,
+      streamUrl: normalizedStream ?? '',
+      embedUrl: null,
+    },
   }
 }
 

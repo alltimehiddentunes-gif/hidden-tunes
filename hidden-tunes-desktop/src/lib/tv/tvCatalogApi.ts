@@ -6,6 +6,7 @@ import type {
   TvPagination,
   TvPlayResponse,
   TvRegionMeta,
+  TvResolvedPlayback,
 } from './types'
 import {
   normalizeTvSearchQuery,
@@ -359,7 +360,8 @@ export async function searchTvChannels(
 
 export async function resolveTvPlayUrl(
   channelId: string,
-): Promise<{ streamUrl: string; embedUrl: string | null; sourceType: string | null } | null> {
+  streamProtocol: string | null = null,
+): Promise<TvResolvedPlayback | null> {
   const cleanId = channelId.trim()
   if (!cleanId) return null
 
@@ -371,6 +373,11 @@ export async function resolveTvPlayUrl(
   if (!streamUrl.startsWith('http')) return null
 
   return {
+    channelId: cleanId,
+    sourceId:
+      typeof payload.source_id === 'string' && payload.source_id.trim()
+        ? payload.source_id.trim()
+        : null,
     streamUrl,
     embedUrl:
       typeof payload.embed_url === 'string' && payload.embed_url.startsWith('http')
@@ -378,5 +385,6 @@ export async function resolveTvPlayUrl(
         : null,
     sourceType:
       typeof payload.source_type === 'string' ? payload.source_type.trim() : null,
+    streamProtocol: streamProtocol?.trim() || null,
   }
 }

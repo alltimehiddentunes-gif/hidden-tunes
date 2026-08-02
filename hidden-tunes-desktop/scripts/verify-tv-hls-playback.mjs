@@ -163,9 +163,30 @@ function buildHarnessHtml() {
 
         try {
           if (native === 'probably' || native === 'maybe') {
-            video.src = streamUrl
-            video.load()
-          } else if (window.Hls && window.Hls.isSupported()) {
+            try {
+              video.src = streamUrl
+              video.load()
+              await video.play()
+              await waitFor(() =>
+                video.readyState >= 2
+                && video.videoWidth > 0
+                && video.videoHeight > 0
+                && !video.paused,
+                15000,
+              )
+            } catch (nativeError) {
+              video.pause()
+              video.removeAttribute('src')
+              video.load()
+              if (!window.Hls || !window.Hls.isSupported()) throw nativeError
+              usesHlsJs = true
+            }
+          }
+
+          if (usesHlsJs || (native !== 'probably' && native !== 'maybe')) {
+            if (!window.Hls || !window.Hls.isSupported()) {
+              throw new Error('HLS playback is not supported on this device.')
+            }
             usesHlsJs = true
             hls = new window.Hls({
               manifestLoadingMaxRetry: 2,
@@ -180,11 +201,9 @@ function buildHarnessHtml() {
               hls.loadSource(streamUrl)
               hls.attachMedia(video)
             })
-          } else {
-            throw new Error('HLS playback is not supported on this device.')
           }
 
-          await video.play()
+          if (video.paused) await video.play()
           await waitFor(() =>
             video.readyState >= 2
             && video.videoWidth > 0
