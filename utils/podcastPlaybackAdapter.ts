@@ -58,6 +58,14 @@ function podcastArtist(episode: PodcastEpisode) {
   return episode.showTitle || episode.publisher || "Podcast";
 }
 
+/** Episode artwork wins; otherwise retain the stable show artwork in every queue row. */
+export function resolvePodcastArtworkUrl(
+  episodeArtworkUrl?: string | null,
+  showArtworkUrl?: string | null
+) {
+  return String(episodeArtworkUrl || "").trim() || String(showArtworkUrl || "").trim();
+}
+
 /** Metadata or playable Podcast episode → AppSong. Empty URL allowed for resolve-on-demand. */
 export function podcastEpisodeToAppSong(episode: PodcastEpisode): AppSong {
   const artist = podcastArtist(episode);
@@ -71,6 +79,16 @@ export function podcastEpisodeToAppSong(episode: PodcastEpisode): AppSong {
     artist,
     album: episode.showTitle || artist,
     albumId: showId || undefined,
+    contentType: PODCAST_QUEUE_TYPE,
+    episodeId: String(episode.id || "").trim() || undefined,
+    podcastId: showId || undefined,
+    showId: showId || undefined,
+    episodeTitle: episode.title || "Untitled Episode",
+    showTitle: episode.showTitle || artist,
+    publishedAt: episode.publishedAt,
+    category: categoryId,
+    matureScope: episode.matureLevel === "safe" ? "general" : "mature",
+    provider: episode.source,
     user: { name: artist },
     channelTitle: artist,
     artworkUrl: episode.artworkUrl,

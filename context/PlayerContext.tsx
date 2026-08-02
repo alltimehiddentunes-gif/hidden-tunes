@@ -296,6 +296,17 @@ export type AppSong = {
   album?: string;
   albumId?: string;
   artistId?: string;
+  /** Stable media-domain metadata retained after the originating screen unmounts. */
+  contentType?: string;
+  episodeId?: string;
+  podcastId?: string;
+  showId?: string;
+  episodeTitle?: string;
+  showTitle?: string;
+  publishedAt?: string;
+  category?: string;
+  matureScope?: string;
+  provider?: string;
   genre?: string;
   mood?: string;
   duration?: number | string;
@@ -527,6 +538,7 @@ function yieldToNextFrame(): Promise<void> {
 const PLAYBACK_UPDATE_INTERVAL_MS = 1500;
 const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 5000;
 const POSITION_STATE_UPDATE_MIN_MS = 1500;
+const PODCAST_POSITION_STATE_UPDATE_MIN_MS = 1000;
 const POSITION_STATE_UPDATE_BACKGROUND_MS = 5000;
 const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_INTERVAL_BACKGROUND_MS = 30000;
@@ -665,6 +677,18 @@ function isAudiobookPlaybackDomain(
   if (String(song?.id || "").startsWith("audiobook-chapter-")) return true;
   if (String(song?.sourceName || "").toLowerCase() === "audiobook") return true;
   return false;
+}
+
+function isPodcastPlaybackDomain(
+  context?: PlaybackQueueContext | null,
+  song?: AppSong | null
+): boolean {
+  if (context?.queueType === "podcast") return true;
+  if (context?.contextType === "podcast-show") return true;
+  if (String(song?.contentType || "").toLowerCase() === "podcast") return true;
+  if (String(song?.id || "").startsWith("podcast-")) return true;
+  const sourceName = String(song?.sourceName || "").toLowerCase();
+  return sourceName === "podcast" || sourceName === "podcasts";
 }
 
 function isLiveRadioPlaybackDomain(
@@ -911,10 +935,12 @@ function shouldBlockJsPlaybackStateClear(
 }
 
 
-function getProgressUpdateIntervalMs(state: AppStateStatus) {
+function getProgressUpdateIntervalMs(state: AppStateStatus, isPodcast = false) {
   return isBackgroundAppState(state)
     ? PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS
-    : PLAYBACK_UPDATE_INTERVAL_MS;
+    : isPodcast
+      ? PODCAST_POSITION_STATE_UPDATE_MIN_MS
+      : PLAYBACK_UPDATE_INTERVAL_MS;
 }
 
 function getPositionSaveIntervalMs(state: AppStateStatus) {
@@ -923,10 +949,12 @@ function getPositionSaveIntervalMs(state: AppStateStatus) {
     : POSITION_SAVE_INTERVAL_MS;
 }
 
-function getPositionStateUpdateMinMs(state: AppStateStatus) {
+function getPositionStateUpdateMinMs(state: AppStateStatus, isPodcast = false) {
   return isBackgroundAppState(state)
     ? POSITION_STATE_UPDATE_BACKGROUND_MS
-    : POSITION_STATE_UPDATE_MIN_MS;
+    : isPodcast
+      ? PODCAST_POSITION_STATE_UPDATE_MIN_MS
+      : POSITION_STATE_UPDATE_MIN_MS;
 }
 
 function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
@@ -1364,6 +1392,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (progress.positionMillis > 0 || progress.isPlaying) {
         positionMillisRef.current = progress.positionMillis;
+        const isPodcast = isPodcastPlaybackDomain(
+          activeQueueContextRef.current,
+          currentSongRef.current
+        );
         const isLiveRadio =
           activeQueueModeRef.current === "live_stream" ||
           isRadioStreamSong(currentSongRef.current);
@@ -1372,7 +1404,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           ? isBackgroundAppState(appStateRef.current)
             ? 15_000
             : 8_000
-          : getPositionStateUpdateMinMs(appStateRef.current);
+          : getPositionStateUpdateMinMs(appStateRef.current, isPodcast);
         // Require the time gate. Do NOT OR a small delta — that defeated the throttle
         // (native ticks ~500ms with ~500ms position advance → setState every tick).
         const positionDeltaMinMs = isLiveRadio ? 5_000 : 400;
@@ -4473,6 +4505,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     navigateLiveRadioStationRef.current = navigateLiveRadioStation;
   }, [navigateLiveRadioStation]);
 
+  const resolvePodcastQueueTarget = useCallback(
+    async (song: AppSong): Promise<AppSong> => {
+      const normalizedSong = normalizeSong(song);
+      if (
+        !isPodcastPlaybackDomain(activeQueueContextRef.current, normalizedSong) ||
+        getPlayableUri(normalizedSong)
+      ) {
+        return normalizedSong;
+      }
+
+      const episodeId = String(normalizedSong.episodeId || normalizedSong.id || "")
+        .replace(/^podcast-/, "")
+        .trim();
+      if (!episodeId) throw new Error("Podcast queue target has no episode id");
+
+      const [{ fetchPodcastEpisodePlay }, { shouldIncludeMaturePodcasts }] =
+        await Promise.all([
+          import("../services/podcastCatalogApi"),
+          import("../utils/maturePodcastSettings"),
+        ]);
+      const resolved = await fetchPodcastEpisodePlay(episodeId, {
+        includeMature: shouldIncludeMaturePodcasts(),
+      });
+      const audioUrl = String(resolved.play?.audioUrl || "").trim();
+      if (!resolved.success || !audioUrl) {
+        throw new Error(`Podcast episode ${episodeId} has no playable audio`);
+      }
+
+      return normalizeSong({
+        ...normalizedSong,
+        title: resolved.play?.title || normalizedSong.title,
+        duration: resolved.play?.durationSeconds ?? normalizedSong.duration,
+        publishedAt: resolved.play?.publishedAt || normalizedSong.publishedAt,
+        streamUrl: audioUrl,
+        url: audioUrl,
+        audioUrl,
+      });
+    },
+    [getPlayableUri, normalizeSong]
+  );
+
   const nextSong = useCallback(async (options?: { source?: "remote" | "app" | "auto" }) => {
     const isAutoAdvance = options?.source === "auto";
     // Stale queue auto-next must not reclaim ownership after TV/video/sports wins.
@@ -4642,7 +4715,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       const safeIndex = Math.max(0, Math.min(nextIndex, queue.length - 1));
-      const song = normalizeSong(queue[safeIndex]);
+      const targetSong = normalizeSong(queue[safeIndex]);
+      let song = targetSong;
+      if (isPodcastPlaybackDomain(activeQueueContextRef.current, targetSong)) {
+        try {
+          song = await resolvePodcastQueueTarget(targetSong);
+        } catch (error) {
+          logAutoNextFailure({
+            reason: "podcast_target_resolve_failed",
+            nextSongId: targetSong.id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+          return;
+        }
+      }
+      const queueForPlayback =
+        song === targetSong
+          ? queue
+          : queue.map((entry, index) => (index === safeIndex ? song : entry));
       logLockscreenPlaybackDiagnostic("auto_next_advance_start", {
         nextIndex: safeIndex,
         nextSongId: song.id,
@@ -4655,6 +4745,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       setActiveQueueIndex(safeIndex);
       activeQueueIndexRef.current = safeIndex;
+      if (queueForPlayback !== queue) {
+        await syncActiveQueue(
+          queueForPlayback,
+          safeIndex,
+          activeQueueModeRef.current,
+          activeQueueContextRef.current
+        );
+      }
 
       await removeStoredValues([POSITION_KEY]);
       logLockscreenPlaybackDiagnostic("auto_next_position_cleared_before_load", {
@@ -4682,7 +4780,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
       persistActiveQueueDeferred(
-        queue,
+        queueForPlayback,
         safeIndex,
         activeQueueModeRef.current,
         activeQueueContextRef.current,
@@ -4698,6 +4796,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     persistActiveQueueDeferred,
     removeStoredValues,
     navigateLiveRadioStation,
+    resolvePodcastQueueTarget,
+    syncActiveQueue,
   ]);
 
   const handleTrackFinished = useCallback(async () => {
@@ -6234,13 +6334,38 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       const safeIndex = repaired.index;
-      const song = normalizeSong(queue[safeIndex]);
+      const targetSongAtIndex = normalizeSong(queue[safeIndex]);
+      let song = targetSongAtIndex;
+      if (isPodcastPlaybackDomain(activeQueueContextRef.current, targetSongAtIndex)) {
+        try {
+          song = await resolvePodcastQueueTarget(targetSongAtIndex);
+        } catch (error) {
+          logAutoNextFailure({
+            reason: "podcast_target_resolve_failed",
+            nextSongId: targetSongAtIndex.id,
+            message: error instanceof Error ? error.message : String(error),
+          });
+          return;
+        }
+      }
+      const queueForPlayback =
+        song === targetSongAtIndex
+          ? queue
+          : queue.map((entry, queueIndex) => (queueIndex === safeIndex ? song : entry));
 
       setActiveQueueIndex(safeIndex);
       activeQueueIndexRef.current = safeIndex;
+      if (queueForPlayback !== queue) {
+        await syncActiveQueue(
+          queueForPlayback,
+          safeIndex,
+          activeQueueModeRef.current,
+          activeQueueContextRef.current
+        );
+      }
 
       persistActiveQueueDeferred(
-        queue,
+        queueForPlayback,
         safeIndex,
         activeQueueModeRef.current,
         activeQueueContextRef.current,
@@ -6257,6 +6382,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       removeStoredValues,
       loadAndPlay,
       syncActiveQueue,
+      resolvePodcastQueueTarget,
     ]
   );
 
@@ -8384,7 +8510,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
 
         const positionStateMinMs = getPositionStateUpdateMinMs(
-          appStateRef.current
+          appStateRef.current,
+          isPodcastPlaybackDomain(activeQueueContextRef.current, currentSongRef.current)
         );
 
         // Same contract as applyHiddenAudioProgressToUi: time AND meaningful delta.
@@ -8489,7 +8616,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void pollHiddenAudioProgress().finally(() => {
           scheduleNextPoll();
         });
-      }, getProgressUpdateIntervalMs(appStateRef.current));
+      }, getProgressUpdateIntervalMs(
+        appStateRef.current,
+        isPodcastPlaybackDomain(activeQueueContextRef.current, currentSongRef.current)
+      ));
     };
 
     scheduleNextPoll();

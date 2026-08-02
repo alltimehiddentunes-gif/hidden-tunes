@@ -44,7 +44,10 @@ import {
 } from "../../../services/podcastService";
 import type { PodcastEpisode, PodcastShow } from "../../../types/podcast";
 import { cleanPodcastDescription } from "../../../utils/podcastDescription";
-import { isPlayablePodcastAudioUrl } from "../../../utils/podcastPlaybackAdapter";
+import {
+  isPlayablePodcastAudioUrl,
+  resolvePodcastArtworkUrl,
+} from "../../../utils/podcastPlaybackAdapter";
 import { shouldIncludeMaturePodcasts } from "../../../utils/maturePodcastSettings";
 import { safeRouterPush } from "../../../utils/safeNavigation";
 import { createTapGuardState, shouldIgnoreDuplicateTap } from "../../../utils/tapPressGuard";
@@ -100,7 +103,8 @@ const playEpisodeTapGuard = createTapGuardState();
 function catalogEpisodeToDisplayEpisode(
   metadata: PodcastCatalogEpisodeMetadata,
   showTitle: string,
-  mature: boolean
+  mature: boolean,
+  showArtworkUrl = ""
 ): PodcastEpisode {
   return {
     id: metadata.id,
@@ -108,7 +112,7 @@ function catalogEpisodeToDisplayEpisode(
     showTitle,
     title: metadata.title,
     description: metadata.description || "",
-    artworkUrl: metadata.artworkUrl || "",
+    artworkUrl: resolvePodcastArtworkUrl(metadata.artworkUrl, showArtworkUrl),
     audioUrl: "",
     durationSeconds: metadata.durationSeconds,
     publishedAt: metadata.publishedAt,
@@ -124,7 +128,8 @@ function catalogEpisodeToPlayableEpisode(
   metadata: PodcastCatalogEpisodeMetadata,
   play: NonNullable<Awaited<ReturnType<typeof fetchPodcastEpisodePlay>>["play"]>,
   showTitle: string,
-  mature: boolean
+  mature: boolean,
+  showArtworkUrl = ""
 ): PodcastEpisode {
   return {
     id: play.id,
@@ -132,7 +137,7 @@ function catalogEpisodeToPlayableEpisode(
     showTitle,
     title: play.title || metadata.title,
     description: metadata.description || "",
-    artworkUrl: metadata.artworkUrl || "",
+    artworkUrl: resolvePodcastArtworkUrl(metadata.artworkUrl, showArtworkUrl),
     audioUrl: play.audioUrl,
     durationSeconds: play.durationSeconds ?? metadata.durationSeconds,
     publishedAt: play.publishedAt ?? metadata.publishedAt,
@@ -199,11 +204,23 @@ export default function PodcastShowScreen() {
   const latestEpisode = useMemo(() => {
     if (isBackendShow) {
       return catalogEpisodes[0]
-        ? catalogEpisodeToDisplayEpisode(catalogEpisodes[0], show?.title || "Podcast", showIsMature)
+        ? catalogEpisodeToDisplayEpisode(
+            catalogEpisodes[0],
+            show?.title || "Podcast",
+            showIsMature,
+            show?.artworkUrl
+          )
         : null;
     }
     return playableEpisodes.length > 0 ? playableEpisodes[0] : null;
-  }, [catalogEpisodes, isBackendShow, playableEpisodes, show?.title, showIsMature]);
+  }, [
+    catalogEpisodes,
+    isBackendShow,
+    playableEpisodes,
+    show?.artworkUrl,
+    show?.title,
+    showIsMature,
+  ]);
 
   const relatedShows = useMemo(
     () => (show && !isBackendShow ? getRelatedPodcastShows(show, 5) : []),
@@ -435,13 +452,19 @@ export default function PodcastShowScreen() {
           metadata,
           resolved.play,
           show.title,
-          showIsMature
+          showIsMature,
+          show.artworkUrl
         );
         // Same-show queue: preserve catalog API order; only the selected row has audio yet.
         const showQueue = catalogEpisodes.map((entry) =>
           entry.id === metadata.id
             ? playable
-            : catalogEpisodeToDisplayEpisode(entry, show.title, showIsMature)
+            : catalogEpisodeToDisplayEpisode(
+                entry,
+                show.title,
+                showIsMature,
+                show.artworkUrl
+              )
         );
         await runWithMaturePodcastConsent(playable, () =>
           playPodcastEpisodeFromShow(playable, showQueue.length ? showQueue : [playable], undefined, {
@@ -534,7 +557,7 @@ export default function PodcastShowScreen() {
     if (!show) return [] as PodcastEpisode[];
     return isBackendShow
       ? catalogEpisodes.map((item) =>
-          catalogEpisodeToDisplayEpisode(item, show.title, showIsMature)
+          catalogEpisodeToDisplayEpisode(item, show.title, showIsMature, show.artworkUrl)
         )
       : episodes;
   }, [catalogEpisodes, episodes, isBackendShow, show, showIsMature]);
