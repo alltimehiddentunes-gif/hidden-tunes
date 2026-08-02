@@ -76,6 +76,8 @@ export type ApiSong = {
     streamProtocol: string | null
     streamUrl: string
     embedUrl: string | null
+    desktopPlayable?: boolean
+    desktopReason?: string | null
   }
 }
 

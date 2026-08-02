@@ -12,6 +12,7 @@ import {
   normalizeTvSearchQuery,
   resolveTvSearchCountryCode,
 } from './tvSearchQuery'
+import { resolveTvDesktopAvailability } from './tvDesktopPolicy'
 
 /**
  * Public catalog API (Next.js admin) — same host as Radio/Podcasts.
@@ -234,6 +235,7 @@ export async function fetchTvChannels(
   options?: FetchTvChannelsOptions,
 ): Promise<TvCatalogResponse> {
   const query = buildQuery({
+    platform: 'desktop',
     page: options?.page ?? 1,
     limit: Math.min(Math.max(options?.limit ?? 24, 1), 40),
     category: options?.category ?? undefined,
@@ -366,11 +368,24 @@ export async function resolveTvPlayUrl(
   if (!cleanId) return null
 
   const payload = await tvRequest<TvPlayResponse>(
-    `/api/tv/channels/${encodeURIComponent(cleanId)}/play`,
+    `/api/tv/channels/${encodeURIComponent(cleanId)}/play?platform=desktop`,
   )
 
   const streamUrl = typeof payload.stream_url === 'string' ? payload.stream_url.trim() : ''
   if (!streamUrl.startsWith('http')) return null
+
+  const sourceType =
+    typeof payload.source_type === 'string' ? payload.source_type.trim() : null
+  const resolvedProtocol =
+    typeof payload.stream_protocol === 'string' && payload.stream_protocol.trim()
+      ? payload.stream_protocol.trim()
+      : streamProtocol?.trim() || null
+  const desktop = resolveTvDesktopAvailability({
+    streamProtocol: resolvedProtocol,
+    sourceType,
+    backendPlayable: payload.desktop_playable,
+    backendReason: payload.desktop_reason,
+  })
 
   return {
     channelId: cleanId,
@@ -383,8 +398,9 @@ export async function resolveTvPlayUrl(
       typeof payload.embed_url === 'string' && payload.embed_url.startsWith('http')
         ? payload.embed_url.trim()
         : null,
-    sourceType:
-      typeof payload.source_type === 'string' ? payload.source_type.trim() : null,
-    streamProtocol: streamProtocol?.trim() || null,
+    sourceType,
+    streamProtocol: resolvedProtocol,
+    desktopPlayable: desktop.playable,
+    desktopReason: desktop.reason,
   }
 }

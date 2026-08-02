@@ -77,6 +77,8 @@ export function tvChannelToApiSong(
       streamProtocol: channel.streamProtocol,
       streamUrl: normalizedStream ?? '',
       embedUrl: null,
+      desktopPlayable: true,
+      desktopReason: null,
     },
   }
 }

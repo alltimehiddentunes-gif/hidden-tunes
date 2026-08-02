@@ -1,4 +1,5 @@
 import Hls from 'hls.js'
+import * as dashjs from 'dashjs'
 import type { TvResolvedPlayback } from './types'
 
 const HLS_MIME = 'application/vnd.apple.mpegurl'
@@ -112,6 +113,7 @@ export class HtmlVideoPlaybackService {
   private readonly video: HTMLVideoElement
   private readonly parkingHost: HTMLDivElement
   private hls: Hls | null = null
+  private dash: dashjs.MediaPlayerClass | null = null
   private mountedHost: HTMLElement | null = null
   private lastUrl: string | null = null
   private usesHlsJs = false
@@ -227,6 +229,18 @@ export class HtmlVideoPlaybackService {
     this.nativeHls = false
   }
 
+  private destroyDash() {
+    if (this.dash) {
+      this.dash.reset()
+      this.dash = null
+    }
+  }
+
+  private destroyAdaptiveEngines() {
+    this.destroyHls()
+    this.destroyDash()
+  }
+
   private waitForCanPlay(timeoutMs = 15000): Promise<void> {
     const video = this.video
     if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
@@ -262,11 +276,55 @@ export class HtmlVideoPlaybackService {
   }
 
   private async attachSource(url: string, adapter: TvSourceAdapter | null): Promise<void> {
-    this.destroyHls()
+    this.destroyAdaptiveEngines()
     this.video.pause()
     this.video.removeAttribute('src')
 
     const hlsSource = adapter === 'hls' || (adapter === null && isHlsStream(url))
+    if (adapter === 'dash') {
+      if (typeof MediaSource === 'undefined') {
+        throw new Error('DASH playback requires Media Source Extensions on this device.')
+      }
+
+      const player = dashjs.MediaPlayer().create()
+      this.dash = player
+      player.updateSettings({
+        streaming: {
+          retryAttempts: {
+            MPD: 2,
+            MediaSegment: 2,
+            InitializationSegment: 2,
+          },
+          buffer: {
+            bufferTimeDefault: 20,
+            bufferTimeAtTopQuality: 30,
+          },
+        },
+      })
+
+      await new Promise<void>((resolve, reject) => {
+        let settled = false
+        const finish = (error?: Error) => {
+          if (settled) return
+          settled = true
+          if (error) reject(error)
+          else resolve()
+        }
+        const onStreamInitialized = () => {
+          void this.waitForCanPlay().then(() => finish()).catch((error) => finish(
+            error instanceof Error ? error : new Error(String(error)),
+          ))
+        }
+        const onError = (event: { error?: { code?: number; message?: string } | string }) => {
+          const detail = typeof event.error === 'string' ? event.error : event.error?.message
+          finish(new Error(detail || 'The DASH manifest, segments, or codecs are not playable on this desktop.'))
+        }
+        player.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, onStreamInitialized)
+        player.on(dashjs.MediaPlayer.events.ERROR, onError)
+        player.initialize(this.video, url, false)
+      })
+      return
+    }
     const useNative = hlsSource && canPlayNativeHls(this.video)
     if (useNative) {
       this.nativeHls = true
@@ -397,8 +455,8 @@ export class HtmlVideoPlaybackService {
     this.video.muted = false
 
     const adapter = source ? resolveTvSourceAdapter(source) : null
-    if (adapter === 'dash') {
-      throw new Error('This backend-approved DASH source is not supported by the current Desktop player.')
+    if (source && source.desktopPlayable === false) {
+      throw new Error(source.desktopReason || 'This source is not available on Desktop.')
     }
     if (adapter === 'web') {
       throw new Error('This backend-approved web source requires an approved Desktop web-player surface.')
@@ -440,7 +498,7 @@ export class HtmlVideoPlaybackService {
 
   stop(): void {
     this.pauseSerial += 1
-    this.destroyHls()
+    this.destroyAdaptiveEngines()
     this.video.pause()
     this.video.removeAttribute('src')
     void this.video.load()

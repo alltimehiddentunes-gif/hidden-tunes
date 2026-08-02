@@ -14,6 +14,8 @@
     "dist": "npm run build && electron-builder",
     "lint": "eslint .",
     "verify:tv-hls": "electron scripts/verify-tv-hls-playback.mjs",
+    "verify:tv-dash": "electron scripts/verify-tv-dash-playback.mjs",
+    "verify:tv-formats": "node scripts/verify-tv-format-compatibility.mjs",
     "verify:lecture-play": "node scripts/verify-lecture-playback.mjs",
     "verify:playback-mutex": "node scripts/verify-playback-mutex.mjs",
     "verify:video-surface": "node scripts/verify-video-surface.mjs",
@@ -34,10 +36,12 @@
     "verify:phase16-sports": "node scripts/verify-sports-contract.mjs",
     "verify:global-search": "node scripts/verify-global-search-contract.mjs",
     "verify:search-routing": "node scripts/verify-search-routing-repair.mjs",
+    "verify:tv-browse": "node scripts/verify-tv-browse-routing.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
+    "dashjs": "^5.0.3",
     "hls.js": "^1.6.16",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"

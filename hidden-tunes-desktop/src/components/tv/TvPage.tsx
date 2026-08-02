@@ -3,6 +3,7 @@ import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import type { TvChannelMeta, TvFilterId } from '../../lib/tv/types'
 import { useTvPageData } from '../../lib/tv/useTvPageData'
 import { isTvFavorite, toggleTvFavorite } from '../../lib/tv/tvLocalState'
+import { resolveTvDesktopAvailability } from '../../lib/tv/tvDesktopPolicy'
 import {
   formatChannelDisplayName,
   formatCountryLabel,
@@ -71,6 +72,7 @@ const ChannelCard = memo(function ChannelCard({
     channel.title
   const qualityBadge = resolveQualityBadge({ title: channel.title })
   const showVerified = channel.verified === true
+  const desktop = resolveTvDesktopAvailability({ streamProtocol: channel.streamProtocol })
 
   return (
     <article className="tv-station-card">
@@ -78,8 +80,9 @@ const ChannelCard = memo(function ChannelCard({
         type="button"
         className="tv-station-card-hit"
         onClick={onPlay}
-        disabled={tuning}
-        aria-label={`Watch ${displayName}`}
+        disabled={tuning || !desktop.playable}
+        aria-label={desktop.playable ? `Watch ${displayName}` : `${displayName} is unavailable on Desktop`}
+        title={desktop.reason ?? undefined}
       >
         <div className="tv-station-card-art">
           <ArtworkImage
@@ -88,7 +91,7 @@ const ChannelCard = memo(function ChannelCard({
             seed={channel.id}
             label={displayName}
           />
-          <span className="tv-live-badge">LIVE</span>
+          {desktop.playable ? <span className="tv-live-badge">LIVE</span> : null}
           <span className="tv-station-card-play" aria-hidden="true">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z" />
@@ -105,6 +108,9 @@ const ChannelCard = memo(function ChannelCard({
               ) : null}
               {qualityBadge ? (
                 <span className="tv-station-pill">{qualityBadge}</span>
+              ) : null}
+              {!desktop.playable ? (
+                <span className="tv-station-pill">Other platforms</span>
               ) : null}
             </div>
           )}

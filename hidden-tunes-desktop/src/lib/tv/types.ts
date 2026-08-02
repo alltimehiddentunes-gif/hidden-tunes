@@ -53,6 +53,9 @@ export type TvPlayResponse = {
   embed_url?: string | null
   source_type?: string | null
   source_id?: string | null
+  stream_protocol?: string | null
+  desktop_playable?: boolean
+  desktop_reason?: string | null
 }
 
 export type TvResolvedPlayback = {
@@ -62,6 +65,8 @@ export type TvResolvedPlayback = {
   streamProtocol: string | null
   streamUrl: string
   embedUrl: string | null
+  desktopPlayable?: boolean
+  desktopReason?: string | null
 }
 
 export type TvFilterId =

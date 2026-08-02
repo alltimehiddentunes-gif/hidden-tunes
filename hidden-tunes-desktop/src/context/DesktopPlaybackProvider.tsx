@@ -1570,6 +1570,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
               previewUrl: play.streamUrl,
               tvPlayback: play,
             }
+            if (play.desktopPlayable === false) {
+              setIsLoading(false)
+              if (trySkipFailedTvChannel(song)) return
+              setError(play.desktopReason || 'This source is not available on Desktop.')
+              return
+            }
 
             const queue = queueRef.current
             const queueIndex = queue.findIndex((entry) => entry.id === song.id)
