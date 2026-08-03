@@ -158,7 +158,20 @@ function assertCarPlaySceneManifest(manifest, label) {
     throw new Error(`[hidden-audio] FATAL: ${label} missing UISceneConfigurations`);
   }
 
-  const requiredRoles = [PHONE_SCENE_ROLE, CARPLAY_SCENE_ROLE, CARPLAY_WINDOW_SCENE_ROLE];
+  // Invalid pairing that crashes UIKit on device:
+  // UIWindowSceneSessionRoleCarPlay + CPTemplateApplicationScene
+  const windowCarPlayEntries = configs[CARPLAY_WINDOW_SCENE_ROLE];
+  if (Array.isArray(windowCarPlayEntries) && windowCarPlayEntries.length > 0) {
+    for (const entry of windowCarPlayEntries) {
+      if (entry && entry.UISceneClassName === "CPTemplateApplicationScene") {
+        throw new Error(
+          `[hidden-audio] FATAL: ${label} invalid pairing ${CARPLAY_WINDOW_SCENE_ROLE} + CPTemplateApplicationScene`
+        );
+      }
+    }
+  }
+
+  const requiredRoles = [PHONE_SCENE_ROLE, CARPLAY_SCENE_ROLE];
   for (const role of requiredRoles) {
     const entries = configs[role];
     if (!Array.isArray(entries) || entries.length < 1) {
@@ -166,24 +179,22 @@ function assertCarPlaySceneManifest(manifest, label) {
     }
   }
 
-  for (const role of [CARPLAY_SCENE_ROLE, CARPLAY_WINDOW_SCENE_ROLE]) {
-    const entry = configs[role][0] || {};
-    if (entry.UISceneClassName !== "CPTemplateApplicationScene") {
-      throw new Error(
-        `[hidden-audio] FATAL: ${label} ${role} must use CPTemplateApplicationScene (got ${entry.UISceneClassName})`
-      );
-    }
-    const delegate = String(entry.UISceneDelegateClassName || "");
-    if (!delegate.includes("CarPlaySceneDelegate")) {
-      throw new Error(
-        `[hidden-audio] FATAL: ${label} ${role} must use CarPlaySceneDelegate (got ${delegate})`
-      );
-    }
-    if (entry.UISceneConfigurationName !== "HiddenTunesCarPlay") {
-      throw new Error(
-        `[hidden-audio] FATAL: ${label} ${role} must use HiddenTunesCarPlay (got ${entry.UISceneConfigurationName})`
-      );
-    }
+  const carPlay = (configs[CARPLAY_SCENE_ROLE] || [])[0] || {};
+  if (carPlay.UISceneClassName !== "CPTemplateApplicationScene") {
+    throw new Error(
+      `[hidden-audio] FATAL: ${label} ${CARPLAY_SCENE_ROLE} must use CPTemplateApplicationScene (got ${carPlay.UISceneClassName})`
+    );
+  }
+  const delegate = String(carPlay.UISceneDelegateClassName || "");
+  if (!delegate.includes("CarPlaySceneDelegate")) {
+    throw new Error(
+      `[hidden-audio] FATAL: ${label} ${CARPLAY_SCENE_ROLE} must use CarPlaySceneDelegate (got ${delegate})`
+    );
+  }
+  if (carPlay.UISceneConfigurationName !== "HiddenTunesCarPlay") {
+    throw new Error(
+      `[hidden-audio] FATAL: ${label} ${CARPLAY_SCENE_ROLE} must use HiddenTunesCarPlay (got ${carPlay.UISceneConfigurationName})`
+    );
   }
 
   const phone = (configs[PHONE_SCENE_ROLE] || [])[0] || {};
@@ -227,18 +238,27 @@ const withHiddenAudioInfoPlist = (config) => {
       : ["audio"];
 
     // Dual-scene manifesto: phone UIWindowScene + CarPlay template scene.
-    // Also register UIWindowSceneSessionRoleCarPlay with the same template
-    // configuration so runtime role strings observed on device still resolve
-    // to CarPlaySceneDelegate / CPTemplateApplicationScene.
+    // Do NOT register UIWindowSceneSessionRoleCarPlay with CPTemplateApplicationScene —
+    // that pairing crashes UIKit (NSInternalInconsistencyException).
     // CarPlay-only manifesto blanks the iPhone UI on modern iOS SDKs.
     config.modResults.UIApplicationSceneManifest = {
       UIApplicationSupportsMultipleScenes: true,
       UISceneConfigurations: {
         [PHONE_SCENE_ROLE]: [PHONE_SCENE_CONFIG],
         [CARPLAY_SCENE_ROLE]: [CARPLAY_SCENE_CONFIG],
-        [CARPLAY_WINDOW_SCENE_ROLE]: [CARPLAY_SCENE_CONFIG],
       },
     };
+
+    // Strip any prior invalid window-CarPlay + template pairing.
+    if (
+      config.modResults.UIApplicationSceneManifest.UISceneConfigurations[
+        CARPLAY_WINDOW_SCENE_ROLE
+      ]
+    ) {
+      delete config.modResults.UIApplicationSceneManifest.UISceneConfigurations[
+        CARPLAY_WINDOW_SCENE_ROLE
+      ];
+    }
 
     assertCarPlaySceneManifest(
       config.modResults.UIApplicationSceneManifest,

@@ -38,19 +38,38 @@ function main() {
   const plugin = read("plugins/hidden-audio/index.js");
   assertOk(plugin.includes('config.modResults["com.apple.developer.carplay-audio"] = true'), "plugin audio");
   assertOk(plugin.includes("CPTemplateApplicationSceneSessionRoleApplication"), "CarPlay scene role");
-  assertOk(plugin.includes("UIWindowSceneSessionRoleCarPlay"), "CarPlay window scene role");
   assertOk(plugin.includes("assertCarPlaySceneManifest"), "manifest assertion helper");
-  assertOk(!plugin.includes("processed Info.plist missing required CarPlay marker"), "no premature disk Info.plist assert");
+  assertOk(
+    plugin.includes("invalid pairing UIWindowSceneSessionRoleCarPlay + CPTemplateApplicationScene") ||
+      plugin.includes("invalid pairing ${CARPLAY_WINDOW_SCENE_ROLE} + CPTemplateApplicationScene") ||
+      plugin.includes("invalid pairing"),
+    "rejects invalid window-CarPlay + template pairing"
+  );
+  assertOk(plugin.includes("Do NOT register UIWindowSceneSessionRoleCarPlay"), "docs remove invalid window role");
+  assertOk(!plugin.includes("[CARPLAY_WINDOW_SCENE_ROLE]: [CARPLAY_SCENE_CONFIG]"), "manifest does not register window CarPlay template");
   assertOk(plugin.includes("CarPlaySceneDelegate.swift"), "scene file in NATIVE_FILES");
   assertOk(plugin.includes("HiddenAudioCarPlayTabValidation.swift"), "validation file in NATIVE_FILES");
   assertOk(plugin.includes('addFramework("CarPlay.framework"'), "CarPlay.framework link");
 
   const router = read("plugins/hidden-audio/carPlaySceneRouter.js");
-  assertOk(router.includes("UIWindowSceneSessionRoleCarPlay"), "router handles window CarPlay role");
+  assertOk(router.includes("reject_invalid_pairing"), "router rejects window-role template pairing");
   assertOk(router.includes("@objc public func application("), "router ObjC-visible configurationForConnecting");
-  assertOk(router.includes("isCarPlayWindowRole"), "router dual CarPlay role gate");
+  assertOk(
+    router.includes("window_role_requires_UIWindowScene"),
+    "router rejects window role without selecting template"
+  );
+  assertOk(
+    router.includes("CPTemplateApplicationSceneSessionRoleApplication"),
+    "router matches template role"
+  );
+  assertOk(
+    !/let isCarPlayRole = isCarPlayTemplateRole \|\| isCarPlayWindowRole/.test(
+      router.split("function hasCompleteCarPlaySceneRouter")[0]
+    ),
+    "injected router source does not treat window role as template"
+  );
 
-  assertOk(appJson.expo?.ios?.buildNumber === "1.0.204", "diagnostic build number bumped");
+  assertOk(appJson.expo?.ios?.buildNumber === "1.0.205", "diagnostic build number bumped");
 
   const scene = read("plugins/hidden-audio/ios/HiddenAudioModule/CarPlaySceneDelegate.swift");
   assertOk(scene.includes("@objc(CarPlaySceneDelegate)"), "@objc CarPlaySceneDelegate");

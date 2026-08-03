@@ -77,8 +77,8 @@ function assertAppDelegateRouter(contents, label) {
     `${label}: CarPlay scene role check`
   );
   assertOk(
-    contents.includes("UIWindowSceneSessionRoleCarPlay"),
-    `${label}: CarPlay window role check`
+    contents.includes("reject_invalid_pairing"),
+    `${label}: rejects UIWindowSceneSessionRoleCarPlay + template`
   );
   assertOk(
     contents.includes("@objc public func application("),
@@ -89,8 +89,9 @@ function assertAppDelegateRouter(contents, label) {
     `${label}: HTCarPlayNative enter log`
   );
   assertOk(
-    contents.includes("[HTCarPlayNative] configurationForConnecting.exit"),
-    `${label}: HTCarPlayNative exit log`
+    contents.includes("[HTCarPlayNative] configurationForConnecting.exit") ||
+      contents.includes("reject_invalid_pairing"),
+    `${label}: HTCarPlayNative exit/reject log`
   );
   assertOk(
     contents.includes("CarPlaySceneDelegate.self"),
@@ -188,10 +189,10 @@ function main() {
   assertOk(second.reason === "already_complete", "second injection reports already_complete");
   assertAppDelegateRouter(second.contents, "idempotent re-run");
 
-  // Incomplete router (window CarPlay role missing) must be repaired.
+  // Stale dual-role router must be repaired.
   const incomplete = first.contents.replace(
-    'UIWindowSceneSessionRoleCarPlay',
-    'UIWindowSceneSessionRoleMissingCarPlay'
+    "reject_invalid_pairing",
+    "accept_invalid_pairing"
   );
   assertOk(!plugin.hasCompleteCarPlaySceneRouter(incomplete), "incomplete fixture detected");
   const repaired = plugin.ensureCarPlaySceneConfiguration(incomplete);

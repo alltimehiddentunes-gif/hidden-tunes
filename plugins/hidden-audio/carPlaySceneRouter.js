@@ -1,6 +1,12 @@
 /**
  * Idempotent AppDelegate injection for CarPlay + phone scene routing.
  * Permanent source of truth — /ios is gitignored and may be regenerated.
+ *
+ * SDK role constant for template/audio CarPlay apps:
+ *   CPTemplateApplicationSceneSessionRoleApplication
+ *
+ * Do NOT pair UIWindowSceneSessionRoleCarPlay with CPTemplateApplicationScene —
+ * UIKit throws NSInternalInconsistencyException on that combination.
  */
 
 const CARPLAY_TEMPLATE_ROLE = "CPTemplateApplicationSceneSessionRoleApplication";
@@ -25,13 +31,20 @@ const CARPLAY_SCENE_CONFIGURATION_METHOD = `
     )
     NSLog("[HTCarPlay] configurationForConnecting role=%@", role)
 
-    let isCarPlayTemplateRole = role == "${CARPLAY_TEMPLATE_ROLE}"
-    let isCarPlayWindowRole = role == "${CARPLAY_WINDOW_ROLE}"
-    let isCarPlayRole = isCarPlayTemplateRole || isCarPlayWindowRole
+    // UIKit forbids CPTemplateApplicationScene under UIWindowSceneSessionRoleCarPlay.
+    if role == "${CARPLAY_WINDOW_ROLE}" {
+      NSLog(
+        "[HTCarPlayNative] configurationForConnecting.reject_invalid_pairing role=%@ reason=window_role_requires_UIWindowScene sessionId=%@",
+        role,
+        sessionId
+      )
+      return UISceneConfiguration(
+        name: connectingSceneSession.configuration.name,
+        sessionRole: connectingSceneSession.role
+      )
+    }
 
-    if isCarPlayRole {
-      // Always return the template-application configuration for either CarPlay role
-      // string observed on device. Name matches Info.plist HiddenTunesCarPlay entry.
+    if role == "${CARPLAY_TEMPLATE_ROLE}" {
       let configuration = UISceneConfiguration(
         name: "${CARPLAY_CONFIG_NAME}",
         sessionRole: connectingSceneSession.role
@@ -89,11 +102,13 @@ function hasCompleteCarPlaySceneRouter(contents) {
   return (
     contents.includes("configurationForConnecting connectingSceneSession") &&
     contents.includes(CARPLAY_TEMPLATE_ROLE) &&
+    contents.includes("reject_invalid_pairing") &&
     contents.includes(CARPLAY_WINDOW_ROLE) &&
     contents.includes("CarPlaySceneDelegate.self") &&
     contents.includes("PhoneSceneDelegate.self") &&
     contents.includes(".windowApplication") &&
-    contents.includes("@objc public func application(")
+    contents.includes("@objc public func application(") &&
+    !contents.includes("let isCarPlayRole = isCarPlayTemplateRole || isCarPlayWindowRole")
   );
 }
 
