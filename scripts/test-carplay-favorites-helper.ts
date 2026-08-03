@@ -194,9 +194,19 @@ function main() {
   assertOk(validateIdx > upgradeIdx, "validation inside upgrade");
   assertOk(constructIdx > validateIdx, "construction after validation");
 
+  // 14. JS bridge must publish real favorites and must not overwrite with a probe catalog
+  const bridge = read("services/carPlayCatalogBridge.ts");
+  assertOk(bridge.includes("getFavorites"), "CarPlay bridge reads phone favorites");
+  assertOk(bridge.includes("collectCarPlayFavoriteEntries"), "CarPlay favorites collector present");
+  assertOk(bridge.includes("fav:song:"), "CarPlay favorites use playable media ids");
+  assertOk(!bridge.includes("runVisibleRootProbeOnce"), "no visible-root probe overwrite");
+  assertOk(!bridge.includes("SoundHelix"), "no SoundHelix probe track");
+  assertOk(!bridge.includes("carplay-probe-1"), "no probe media id");
+
   console.log("carplay-favorites-helper: ok");
   console.log("checks: available/empty/malformed/artwork/dupes/catalog-fail,");
-  console.log("  tab validation, fallback, disconnect/reconnect markers");
+  console.log("  tab validation, fallback, disconnect/reconnect markers,");
+  console.log("  real favorites publish + no production probe overwrite");
 }
 
 main();

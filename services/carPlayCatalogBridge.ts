@@ -13,6 +13,7 @@ import {
   type AndroidAutoCatalogSnapshot,
   type AndroidAutoTrackPayload,
 } from "./androidAutoCatalogSync";
+import { getFavorites } from "./favorites/unifiedFavorites";
 import {
   ensureHiddenAudioNativeSetup,
   isHiddenAudioNativeEngineAvailable,
@@ -29,7 +30,6 @@ let bindingCleanup: (() => void) | null = null;
 let bindingReuseLogged = false;
 let initialCatalogPublishPromise: Promise<void> | null = null;
 let inFlightCatalogPublishPromise: Promise<void> | null = null;
-let visibleRootProbeScheduled = false;
 let lastCarPlayStatus: Record<string, unknown> = {};
 
 type CarPlayBrowseNode = {
@@ -123,6 +123,79 @@ export function sanitizeCarPlayFavorites(
   return out;
 }
 
+/** Build playable CarPlay favorite nodes + track payloads from phone favorites (bounded). */
+function collectCarPlayFavoriteEntries(): {
+  items: CarPlayBrowseNode[];
+  tracks: AndroidAutoTrackPayload[];
+} {
+  const items: CarPlayBrowseNode[] = [];
+  const tracks: AndroidAutoTrackPayload[] = [];
+  const seen = new Set<string>();
+
+  try {
+    for (const fav of getFavorites().slice(0, 48)) {
+      if (items.length >= 25) break;
+      if (fav.type === "song") {
+        const id = String(fav.id || "").trim();
+        const title = String(fav.title || "").trim();
+        const url = String(fav.metadata?.streamUrl || "").trim();
+        if (!id || !title || !url) continue;
+        const mediaId = `fav:song:${id}`;
+        if (seen.has(mediaId)) continue;
+        seen.add(mediaId);
+        items.push({
+          mediaId,
+          title,
+          subtitle: String(fav.subtitle || "Favorite").trim() || "Favorite",
+          playable: true,
+        });
+        tracks.push({
+          mediaId,
+          id,
+          url,
+          title,
+          artist: String(fav.subtitle || "Hidden Tunes").trim() || "Hidden Tunes",
+          album: "",
+          artworkUrl: String(fav.artwork || ""),
+          durationSeconds: 0,
+          contentType: "music",
+          isLive: false,
+        });
+      } else if (fav.type === "radio_station") {
+        const id = String(fav.id || "").trim();
+        const title = String(fav.title || "").trim();
+        const url = String(fav.metadata?.streamUrl || "").trim();
+        if (!id || !title || !url) continue;
+        const mediaId = `fav:radio:${id}`;
+        if (seen.has(mediaId)) continue;
+        seen.add(mediaId);
+        items.push({
+          mediaId,
+          title,
+          subtitle: String(fav.subtitle || "Live radio").trim() || "Live radio",
+          playable: true,
+        });
+        tracks.push({
+          mediaId,
+          id,
+          url,
+          title,
+          artist: String(fav.subtitle || "Live radio").trim() || "Live radio",
+          album: "Radio",
+          artworkUrl: String(fav.artwork || ""),
+          durationSeconds: 0,
+          contentType: "radio",
+          isLive: true,
+        });
+      }
+    }
+  } catch {
+    // Favorites unavailable — native empty-state is fine.
+  }
+
+  return { items: sanitizeCarPlayFavorites(items), tracks };
+}
+
 function handleCarPlayNativeDiagnostic(event: {
   eventName?: string;
   data?: Record<string, unknown>;
@@ -165,95 +238,6 @@ function handleCarPlayNativeDiagnostic(event: {
     ...data,
     event: nestedEvent || name,
   });
-}
-
-function buildMinimalOneItemCatalogSnapshot(): AndroidAutoCatalogSnapshot {
-  const mediaId = "song:carplay-probe-1";
-  return {
-    roots: [
-      {
-        mediaId: "recently_played",
-        title: "Recently Played",
-        subtitle: "Probe",
-        playable: false,
-      },
-    ],
-    sections: [
-      {
-        parentId: "recently_played",
-        items: [
-          {
-            mediaId,
-            title: "CarPlay Probe Track",
-            subtitle: "Minimal one-item catalog",
-            playable: true,
-          },
-        ],
-      },
-      { parentId: "favorites", items: [] },
-      { parentId: "made_for_you", items: [] },
-      { parentId: "radio", items: [] },
-      { parentId: "playlists", items: [] },
-      { parentId: "music", items: [] },
-      { parentId: "podcasts", items: [] },
-      { parentId: "audiobooks", items: [] },
-    ],
-    tracks: [
-      {
-        mediaId,
-        id: "carplay-probe-1",
-        url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        title: "CarPlay Probe Track",
-        artist: "Hidden Tunes",
-        album: "Probe",
-        artworkUrl: "",
-        durationSeconds: 30,
-        contentType: "music",
-        isLive: false,
-      },
-    ],
-  };
-}
-
-/**
- * Metro-only visible-root probe.
- * There is no JS-exposed refreshCarPlay/reloadTemplates — only syncCarPlayCatalog.
- * Re-publishing triggers native applyCatalogSnapshot → reloadTemplates when connected.
- */
-async function runVisibleRootProbeOnce(): Promise<void> {
-  if (visibleRootProbeScheduled) return;
-  visibleRootProbeScheduled = true;
-
-  logCarPlayJs("visible-root probe scheduled", {
-    note: "no JS getCarPlayStatus/reloadTemplates; using setup + syncCarPlayCatalog only",
-    lastStatus: lastCarPlayStatus,
-  });
-
-  const setupOk = await ensureHiddenAudioNativeSetup();
-  logCarPlayJs("visible-root probe setup", { setupOk });
-
-  // Allow scene connect diagnostics (if any) to arrive after setup wires onCarPlayDiagnostic.
-  await new Promise((resolve) => setTimeout(resolve, 750));
-
-  logCarPlayJs("visible-root probe status before refresh", { ...lastCarPlayStatus });
-
-  try {
-    const minimal = buildMinimalOneItemCatalogSnapshot();
-    lastSyncSignature = ""; // force native apply even if identical to prior probe
-    await syncHiddenAudioCarPlayCatalog(minimal as unknown as Record<string, unknown>);
-    logCarPlayJs("visible-root probe minimal catalog published", {
-      sectionCount: minimal.sections.length,
-      trackCount: minimal.tracks.length,
-      listenItems: minimal.sections.find((s) => s.parentId === "recently_played")?.items.length ?? 0,
-    });
-  } catch (error) {
-    logCarPlayJs("visible-root probe minimal catalog failed", {
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  logCarPlayJs("visible-root probe status after refresh", { ...lastCarPlayStatus });
 }
 
 /**
@@ -359,7 +343,11 @@ export function buildCarPlayCatalogSnapshot(
     .map(playableSongItem)
     .filter((item): item is CarPlayBrowseNode => !!item);
 
-  const favorites = sanitizeCarPlayFavorites([]);
+  const favoritesBundle = collectCarPlayFavoriteEntries();
+  const favorites = favoritesBundle.items;
+  for (const track of favoritesBundle.tracks) {
+    tracks.push(track);
+  }
   // Empty favorites is valid — native supplies "No favorites yet".
 
   sections.push({ parentId: "recently_played", items: listenItems.slice(0, 8) });
@@ -526,8 +514,6 @@ async function publishCarPlayCatalogSnapshot(): Promise<void> {
       trackCount: snapshot.tracks.length,
       sectionCount: snapshot.sections.length,
     });
-    // Catalog acceptance ≠ visible root. Probe existing sync path + wire setup diagnostics.
-    void runVisibleRootProbeOnce();
   } catch (error) {
     logCarPlayJs("catalog publish completed", { success: false });
     if (typeof __DEV__ !== "undefined" && __DEV__) {
