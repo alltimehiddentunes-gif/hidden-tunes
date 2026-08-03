@@ -712,53 +712,12 @@ const withHiddenAudioAppDelegate = (config) => {
   ]);
 };
 
-const withHiddenAudioInfoPlistAssert = (config) => {
-  return withDangerousMod(config, [
-    "ios",
-    async (config) => {
-      const { platformProjectRoot, projectRoot } = config.modRequest;
-      const appName = IOSConfig.XcodeUtils.getProjectName(projectRoot);
-      const infoPlistPath = path.join(platformProjectRoot, appName, "Info.plist");
-      if (!fs.existsSync(infoPlistPath)) {
-        throw new Error(
-          `[hidden-audio] FATAL: Info.plist missing at ${infoPlistPath}; cannot verify CarPlay scene manifest.`
-        );
-      }
-
-      const raw = fs.readFileSync(infoPlistPath, "utf8");
-      const required = [
-        "CPTemplateApplicationSceneSessionRoleApplication",
-        "UIWindowSceneSessionRoleCarPlay",
-        "UIWindowSceneSessionRoleApplication",
-        "CPTemplateApplicationScene",
-        "CarPlaySceneDelegate",
-        "HiddenTunesCarPlay",
-        "PhoneSceneDelegate",
-        "HiddenTunesPhone",
-      ];
-      for (const needle of required) {
-        if (!raw.includes(needle)) {
-          throw new Error(
-            `[hidden-audio] FATAL: processed Info.plist missing required CarPlay marker: ${needle}`
-          );
-        }
-      }
-
-      console.log(
-        "[hidden-audio] Info.plist CarPlay scene manifest verified (template + window CarPlay roles)."
-      );
-      return config;
-    },
-  ]);
-};
-
 const withHiddenAudio = (config) => {
   config = withHiddenAudioEntitlements(config);
   config = withHiddenAudioInfoPlist(config);
   config = withHiddenAudioNativeSources(config);
   config = withHiddenAudioXcodeProject(config);
   config = withHiddenAudioAppDelegate(config);
-  config = withHiddenAudioInfoPlistAssert(config);
   config = withHiddenAudioAndroidSources(config);
   config = withHiddenAudioAndroidGradle(config);
   config = withHiddenAudioAndroidManifest(config);

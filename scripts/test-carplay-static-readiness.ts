@@ -40,7 +40,7 @@ function main() {
   assertOk(plugin.includes("CPTemplateApplicationSceneSessionRoleApplication"), "CarPlay scene role");
   assertOk(plugin.includes("UIWindowSceneSessionRoleCarPlay"), "CarPlay window scene role");
   assertOk(plugin.includes("assertCarPlaySceneManifest"), "manifest assertion helper");
-  assertOk(plugin.includes("Info.plist CarPlay scene manifest verified"), "processed Info.plist assertion");
+  assertOk(!plugin.includes("processed Info.plist missing required CarPlay marker"), "no premature disk Info.plist assert");
   assertOk(plugin.includes("CarPlaySceneDelegate.swift"), "scene file in NATIVE_FILES");
   assertOk(plugin.includes("HiddenAudioCarPlayTabValidation.swift"), "validation file in NATIVE_FILES");
   assertOk(plugin.includes('addFramework("CarPlay.framework"'), "CarPlay.framework link");
@@ -50,7 +50,7 @@ function main() {
   assertOk(router.includes("@objc public func application("), "router ObjC-visible configurationForConnecting");
   assertOk(router.includes("isCarPlayWindowRole"), "router dual CarPlay role gate");
 
-  assertOk(appJson.expo?.ios?.buildNumber === "1.0.203", "diagnostic build number bumped");
+  assertOk(appJson.expo?.ios?.buildNumber === "1.0.204", "diagnostic build number bumped");
 
   const scene = read("plugins/hidden-audio/ios/HiddenAudioModule/CarPlaySceneDelegate.swift");
   assertOk(scene.includes("@objc(CarPlaySceneDelegate)"), "@objc CarPlaySceneDelegate");
