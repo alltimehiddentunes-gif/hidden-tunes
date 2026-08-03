@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator,
   FlatList,
   ScrollView,
@@ -26,6 +26,7 @@ import {
 } from "../../context/PlayerContext";
 import {
   fetchHiddenTunesDiscoveryCatalog,
+  hydrateCachedHiddenTunesCatalog,
   isDerivedCatalogTrusted,
   getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
@@ -248,7 +249,7 @@ export default function WorldsIndexScreen() {
 
   const [initialCatalog] = useState(() => {
     const cached = getCachedHiddenTunesCatalog();
-    return cached && isDerivedCatalogTrusted(cached) ? cached : null;
+    return cached?.songs.length ? cached : null;
   });
   const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog>(
     () => initialCatalog || EMPTY_CATALOG
@@ -260,40 +261,79 @@ export default function WorldsIndexScreen() {
   const [preferredGenres, setPreferredGenres] = useState(() => [
     ...getDiscoveryPreferredGenres(),
   ]);
+  const catalogRef = useRef(catalog);
+  const mountedRef = useRef(true);
+  const loadGenerationRef = useRef(0);
+  const loadInFlightRef = useRef<Promise<void> | null>(null);
 
   const songs = catalog.songs;
   const artists = catalog.artists;
   const albums = catalog.albums;
   const genres = catalog.genres;
 
-  const loadExplore = useCallback(async () => {
-    const cached = getCachedHiddenTunesCatalog();
-    const trustedCached = cached && isDerivedCatalogTrusted(cached) ? cached : null;
-
-    try {
-      const hydratedGenres = await hydrateDiscoveryPreferredGenres();
-      setPreferredGenres((current) =>
-        current.length === hydratedGenres.length &&
-        current.every((genre, index) => genre === hydratedGenres[index])
-          ? current
-          : [...hydratedGenres]
-      );
-
-      if (!trustedCached) {
-        const data = await fetchHiddenTunesDiscoveryCatalog();
-        setCatalog(data);
-        setMoodRooms(buildMoodRoomGroups(data.songs, 6));
-      }
-    } catch {
-      // Preserve any trusted cache already rendered while hydration/fetching fails.
-    } finally {
-      setLoading(false);
-    }
+  const applyCatalog = useCallback((nextCatalog: HiddenTunesDerivedCatalog) => {
+    if (!mountedRef.current || nextCatalog.songs.length === 0) return false;
+    catalogRef.current = nextCatalog;
+    setCatalog(nextCatalog);
+    setMoodRooms(buildMoodRoomGroups(nextCatalog.songs, 6));
+    setLoading(false);
+    return true;
   }, []);
 
+  const loadExplore = useCallback((forceRefresh = false) => {
+    if (loadInFlightRef.current) {
+      return loadInFlightRef.current;
+    }
+
+    const generation = ++loadGenerationRef.current;
+    const cached = getCachedHiddenTunesCatalog();
+    if (cached?.songs.length) applyCatalog(cached);
+    if (!catalogRef.current.songs.length) setLoading(true);
+
+    const run = (async () => {
+      const preferencesTask = hydrateDiscoveryPreferredGenres().then((hydratedGenres) => {
+        if (!mountedRef.current || generation !== loadGenerationRef.current) return;
+        setPreferredGenres((current) =>
+          current.length === hydratedGenres.length &&
+          current.every((genre, index) => genre === hydratedGenres[index])
+            ? current
+            : [...hydratedGenres]
+        );
+      });
+
+      const catalogTask = (async () => {
+        if (!forceRefresh) {
+          const hydrated = await hydrateCachedHiddenTunesCatalog();
+          if (generation !== loadGenerationRef.current || !mountedRef.current) return;
+          if (hydrated?.songs.length) applyCatalog(hydrated);
+          if (hydrated && isDerivedCatalogTrusted(hydrated)) return;
+        }
+
+        const data = await fetchHiddenTunesDiscoveryCatalog({ forceRefresh });
+        if (generation !== loadGenerationRef.current || !mountedRef.current) return;
+        applyCatalog(data);
+      })();
+
+      await Promise.allSettled([preferencesTask, catalogTask]);
+    })().finally(() => {
+      if (generation === loadGenerationRef.current && mountedRef.current) {
+        setLoading(false);
+      }
+      if (loadInFlightRef.current === run) loadInFlightRef.current = null;
+    });
+
+    loadInFlightRef.current = run;
+    return run;
+  }, [applyCatalog]);
+
   useEffect(() => {
+    mountedRef.current = true;
     const timer = setTimeout(() => void loadExplore(), 0);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      mountedRef.current = false;
+      loadGenerationRef.current += 1;
+    };
   }, [loadExplore]);
 
   const discoveryRooms = useMemo(
@@ -535,7 +575,7 @@ export default function WorldsIndexScreen() {
               <Text style={styles.subtitle}>Listening rooms, moods, stations, albums, and creators.</Text>
             </View>
 
-            <TouchableOpacity style={styles.refreshButton} onPress={loadExplore}>
+            <TouchableOpacity style={styles.refreshButton} onPress={() => void loadExplore(true)}>
               <Ionicons name="refresh" size={22} color={COLORS.cyan} />
             </TouchableOpacity>
           </View>

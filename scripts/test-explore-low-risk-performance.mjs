@@ -28,12 +28,13 @@ assert.match(
 
 const initialCache = explore.indexOf("const [initialCatalog] = useState");
 const initialCatalogState = explore.indexOf("() => initialCatalog || EMPTY_CATALOG");
-const hydration = explore.indexOf("await hydrateDiscoveryPreferredGenres()");
-assert.ok(initialCache >= 0 && initialCache < hydration, "trusted cache must be read before hydration");
+const hydration = explore.indexOf("const preferencesTask = hydrateDiscoveryPreferredGenres()");
+assert.ok(initialCache >= 0 && initialCache < hydration, "usable cache must be read before preference hydration");
 assert.ok(
   initialCatalogState > initialCache && initialCatalogState < hydration,
-  "trusted cache must seed visible catalog state before hydration"
+  "usable cache must seed visible catalog state before preference hydration"
 );
+assert.match(explore, /return cached\?\.songs\.length \? cached : null;/, "any usable memory cache must seed the first render");
 
 const loadStart = explore.indexOf("const loadExplore = useCallback");
 const loadEnd = explore.indexOf("useEffect(() =>", loadStart);
@@ -49,6 +50,18 @@ assert.match(
   /sortItemsByPreferredGenres\(genres, preferredGenres\)/,
   "hydrated preferences must still personalize genres"
 );
+
+assert.match(explore, /await hydrateCachedHiddenTunesCatalog\(\)/, "cold Explore must hydrate persisted catalog data");
+assert.match(loadSource, /if \(cached\?\.songs\.length\) applyCatalog\(cached\)/, "memory cache must render immediately");
+assert.doesNotMatch(loadSource, /setCatalog\(EMPTY_CATALOG\)|setMoodRooms\(\[\]\)/, "refresh must preserve rendered content");
+assert.match(loadSource, /Promise\.allSettled\(\[preferencesTask, catalogTask\]\)/, "preferences and catalog must settle independently");
+assert.match(loadSource, /setLoading\(false\)/, "all completion paths must exit global loading");
+assert.match(loadSource, /loadInFlightRef\.current/, "identical concurrent Explore loads must share one request");
+assert.match(loadSource, /generation !== loadGenerationRef\.current/, "stale Explore responses must be ignored");
+assert.match(explore, /mountedRef\.current = false;[\s\S]*loadGenerationRef\.current \+= 1;/, "unmounted Explore must invalidate pending responses");
+assert.match(explore, /onPress=\{\(\) => void loadExplore\(true\)\}/, "explicit refresh must force a catalog refresh");
+assert.equal((explore.match(/setTimeout\(/g) || []).length, 1, "Explore must not introduce polling timers");
+assert.doesNotMatch(explore, /usePlayerProgress/, "Explore must not subscribe to playback progress");
 
 assert.match(explore, /const decodeScale = Math\.min\(PixelRatio\.get\(\), 3\)/, "decode sizing must preserve up to 3x Retina density");
 const expectedBounds = [
