@@ -19,6 +19,8 @@ export const MOTIVATION_SEARCH_API_PATH = "/api/motivation/search";
 export const MOTIVATION_DEFAULT_PAGE_LIMIT = 40;
 export const MOTIVATION_MAX_PAGE_LIMIT = 40;
 export const MOTIVATION_CATEGORY_PROGRAM_PAGE_LIMIT = 24;
+/** Home lanes are previews; never normalize an unbounded home response. */
+export const MOTIVATION_HOME_LANE_LIMIT = 30;
 
 const BLOCKED_BROWSE_KEYS = new Set([
   "audio_url",
@@ -155,17 +157,22 @@ export async function fetchMotivationHome(signal?: AbortSignal) {
     }
   >(MOTIVATION_HOME_API_PATH, signal);
 
-  const featuredItems = (body.featured_items || []).map(normalizeItem);
-  const recommended = (body.recommended || []).map(normalizeItem);
-  const popular = (body.popular || []).map(normalizeItem);
-  const newReleases = (body.new_releases || []).map(normalizeItem);
-  const featuredPrograms = (body.featured_programs || []).map(normalizeProgram);
+  const featuredRows = (body.featured_items || []).slice(0, MOTIVATION_HOME_LANE_LIMIT);
+  const recommendedRows = (body.recommended || []).slice(0, MOTIVATION_HOME_LANE_LIMIT);
+  const popularRows = (body.popular || []).slice(0, MOTIVATION_HOME_LANE_LIMIT);
+  const newReleaseRows = (body.new_releases || []).slice(0, MOTIVATION_HOME_LANE_LIMIT);
+  const featuredProgramRows = (body.featured_programs || []).slice(0, MOTIVATION_HOME_LANE_LIMIT);
+  const featuredItems = featuredRows.map(normalizeItem);
+  const recommended = recommendedRows.map(normalizeItem);
+  const popular = popularRows.map(normalizeItem);
+  const newReleases = newReleaseRows.map(normalizeItem);
+  const featuredPrograms = featuredProgramRows.map(normalizeProgram);
 
   assertMetadataOnly([
-    ...(body.featured_items || []),
-    ...(body.recommended || []),
-    ...(body.popular || []),
-    ...(body.new_releases || []),
+    ...featuredRows,
+    ...recommendedRows,
+    ...popularRows,
+    ...newReleaseRows,
   ]);
 
   return {

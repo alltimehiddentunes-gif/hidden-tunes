@@ -11,7 +11,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 
 import HTImage from "../../../components/HTImage";
 import { PodcastEpisodeCard, PodcastShowCard } from "../../../components/podcast/PodcastCards";
@@ -179,6 +179,17 @@ export default function PodcastShowScreen() {
   const catalogCountRef = useRef(0);
   const showRef = useRef<PodcastShow | null>(staticShow);
   const rssEpisodeCountRef = useRef(0);
+
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        // Native stack blur retains this screen; cancel metadata pagination promptly.
+        abortRef.current?.abort();
+        inflightPageRef.current = null;
+      },
+      []
+    )
+  );
 
   useEffect(() => {
     catalogCountRef.current = catalogEpisodes.length;

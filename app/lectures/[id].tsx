@@ -11,7 +11,7 @@ import { ActivityIndicator,
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, GRADIENTS } from "@/constants/theme";
@@ -117,6 +117,18 @@ export default function EducationalProgramDetailScreen() {
   const playGenerationRef = useRef(0);
   const hasDetailContentRef = useRef(false);
   const detailGenerationRef = useRef(0);
+
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        // Stack blur must invalidate pagination and playback resolves, not only unmount.
+        detailGenerationRef.current += 1;
+        loadMoreControllerRef.current?.abort();
+        playControllerRef.current?.abort();
+      },
+      []
+    )
+  );
 
   const loadDetail = useCallback(
     async (options?: { page?: number; reset?: boolean; signal?: AbortSignal }) => {

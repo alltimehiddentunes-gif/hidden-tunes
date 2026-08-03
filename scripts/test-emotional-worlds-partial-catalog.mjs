@@ -113,8 +113,38 @@ assert.match(apiSource, /FULL_CATALOG_TRUSTED_CACHE_MIN\s*=\s*1500/);
 assert.match(apiSource, /allowCatalogPagination/);
 
 const genreSource = readSource("app/genre.tsx");
-assert.match(genreSource, /MOOD_ROOM_MIN_SONGS/);
-assert.match(genreSource, /moodRoom/);
+assert.doesNotMatch(
+  genreSource,
+  /fetchHiddenTunesCatalog/,
+  "genre rooms must never start a full catalog walk"
+);
+assert.match(
+  genreSource,
+  /(?:loadCatalogView|getInstantCatalogView)/,
+  "genre rooms must use the bounded catalog view"
+);
+assert.match(
+  genreSource,
+  /onEndReached=\{loadMore\}/,
+  "genre rooms must paginate incrementally"
+);
+assert.match(
+  genreSource,
+  /loadGenerationRef\.current \+= 1/,
+  "blur/unmount must invalidate stale catalog responses"
+);
+assert.match(
+  genreSource,
+  /MAX_HELD_TRACKS = 150/,
+  "genre room queues must remain bounded"
+);
+
+const unifiedCatalogSource = readSource("services/unifiedCatalog.ts");
+assert.match(
+  unifiedCatalogSource,
+  /target\.type === "mood"[\s\S]{0,500}query: target\.query \|\| target\.title/,
+  "mood rooms must use a bounded search fallback when genre filtering is empty"
+);
 
 const moodSource = readSource("utils/moodRooms.ts");
 assert.match(moodSource, /indie/);

@@ -18,6 +18,7 @@ type MatureCatalogState = {
   error: string | null;
   refresh: () => void;
   loadMore: () => void;
+  cancel: () => void;
 };
 
 function dedupeShows(existing: PodcastShow[], incoming: PodcastShow[]) {
@@ -161,6 +162,11 @@ export function useMaturePodcastCatalog(options?: {
     void loadPage(page + 1, "append");
   }, [enabled, hasMore, loadPage, loading, loadingMore, page]);
 
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+    inflightPageRef.current = null;
+  }, []);
+
   return useMemo(
     () => ({
       shows,
@@ -172,7 +178,8 @@ export function useMaturePodcastCatalog(options?: {
       error,
       refresh,
       loadMore,
+      cancel,
     }),
-    [error, hasMore, loadMore, loading, loadingMore, page, refresh, shows, total]
+    [cancel, error, hasMore, loadMore, loading, loadingMore, page, refresh, shows, total]
   );
 }

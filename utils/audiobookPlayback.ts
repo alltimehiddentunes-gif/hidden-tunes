@@ -22,6 +22,7 @@ type PlaySongFn = (
 ) => Promise<void>;
 
 type SeekToFn = (millis: number) => Promise<void>;
+export const AUDIOBOOK_INITIAL_QUEUE_LIMIT = 40;
 
 export type PlayAudiobookChapterQueueArgs = {
   book: AudiobookItem;
@@ -40,13 +41,15 @@ export async function playAudiobookChapterQueue({
   seekTo,
   startPositionMillis = 0,
 }: PlayAudiobookChapterQueueArgs) {
+  // A true full-tail queue requires a backend continuation endpoint. Keep native
+  // queue construction bounded while preserving Auto Next within this window.
   const playableChapters = orderAudiobookChapters(
     chapters.filter(
       (chapter) =>
         Boolean(chapter.audio_url?.trim()) &&
         isPlayableAudiobookChapterAudioUrl(chapter.audio_url)
     )
-  );
+  ).slice(0, AUDIOBOOK_INITIAL_QUEUE_LIMIT);
 
   if (!playableChapters.length) {
     return { ok: false as const, error: "This chapter is unavailable" };

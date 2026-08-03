@@ -13,7 +13,7 @@ import { ActivityIndicator,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HTImage from "@/components/HTImage";
@@ -306,6 +306,8 @@ export default function MotivationHomeScreen() {
   const mountedRef = useMountedRef();
   const insets = useSafeAreaInsets();
   const abortRef = useRef<AbortController | null>(null);
+  const focusedRef = useRef(false);
+  const focusGenerationRef = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playGuardRef = useRef<string | null>(null);
@@ -377,14 +379,14 @@ export default function MotivationHomeScreen() {
   const scheduleSecondary = useCallback(() => {
     secondaryTaskRef.current?.cancel();
     const task = InteractionManager.runAfterInteractions(() => {
-      if (mountedRef.current) setSecondaryReady(true);
+      if (mountedRef.current && focusedRef.current) setSecondaryReady(true);
     });
     secondaryTaskRef.current = task;
   }, [mountedRef]);
 
   const applyHomeCache = useCallback(
     (payload: HomeCache, opts?: { schedule?: boolean }) => {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || !focusedRef.current) return;
       setCategories(payload.categories);
       setProgramGroups(payload.programGroups);
       setSecondaryGroups(payload.secondaryGroups);
@@ -462,7 +464,7 @@ export default function MotivationHomeScreen() {
       listContinueMotivationEntries(LIMITS.continue),
       listMotivationRecentlyPlayed(LIMITS.recent),
     ]);
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || !focusedRef.current) return;
     setContinueItems(continueRows);
     setRecentItems(recentRows);
   }, [mountedRef]);
@@ -486,11 +488,11 @@ export default function MotivationHomeScreen() {
       try {
         await hydrateFromHome(controller.signal, force);
       } catch (err) {
-        if (!mountedRef.current || controller.signal.aborted || isAbortError(err)) return;
+        if (!mountedRef.current || !focusedRef.current || controller.signal.aborted || isAbortError(err)) return;
         if (!homeCache) setError("Couldn't load Motivationals. Pull to retry.");
         setPrimaryLoading(false);
       } finally {
-        if (mountedRef.current && !controller.signal.aborted) {
+        if (mountedRef.current && focusedRef.current && !controller.signal.aborted) {
           setRefreshing(false);
         }
       }
@@ -498,16 +500,30 @@ export default function MotivationHomeScreen() {
     [hydrateFromHome, loadLocal, mountedRef]
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      focusedRef.current = true;
+      focusGenerationRef.current += 1;
+      void loadHome(false);
+
+      return () => {
+        focusedRef.current = false;
+        focusGenerationRef.current += 1;
+        abortRef.current?.abort();
+        searchAbortRef.current?.abort();
+        secondaryTaskRef.current?.cancel();
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+      };
+    }, [loadHome])
+  );
+
   useEffect(() => {
-    void loadHome(false);
     return () => {
       abortRef.current?.abort();
       searchAbortRef.current?.abort();
       secondaryTaskRef.current?.cancel();
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
-    // Mount-once: in-flight dedupe + AbortController handle revisits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const entitySourceGroups = useMemo(
@@ -565,7 +581,7 @@ export default function MotivationHomeScreen() {
           limit: LIMITS.searchPage,
           signal: controller.signal,
         });
-        if (!mountedRef.current || controller.signal.aborted) return;
+        if (!mountedRef.current || !focusedRef.current || controller.signal.aborted) return;
         const ranked = rankMotivationSearchResults(result.items, q).slice(0, LIMITS.searchPage);
         const grouped = groupMotivationItemsIntoPrograms(ranked, {
           excludeMisplacedAudiobooks: false,
@@ -630,11 +646,11 @@ export default function MotivationHomeScreen() {
         ];
         setSearchHits(hits);
       } catch (err) {
-        if (!mountedRef.current || isAbortError(err)) return;
+        if (!mountedRef.current || !focusedRef.current || isAbortError(err)) return;
         setSearchError("Search failed. Try again.");
         setSearchHits([]);
       } finally {
-        if (mountedRef.current && !controller.signal.aborted) setSearchLoading(false);
+        if (mountedRef.current && focusedRef.current && !controller.signal.aborted) setSearchLoading(false);
       }
     },
     [categories, entities.allOrganizations, entities.allSpeakers, mountedRef]

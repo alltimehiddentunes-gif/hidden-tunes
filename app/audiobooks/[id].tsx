@@ -11,7 +11,7 @@ import { ActivityIndicator,
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../../utils/safeNavigation";
 
 import { COLORS } from "../../constants/theme";
@@ -40,6 +40,8 @@ import {
 function hasAbortError(error: unknown) {
   return error instanceof Error && error.name === "AbortError";
 }
+
+const MAX_RETAINED_CHAPTERS = 200;
 
 const ChapterRow = memo(function ChapterRow({
   chapter,
@@ -100,10 +102,14 @@ export default function AudiobookDetailScreen() {
   const [error, setError] = useState(false);
   const [playError, setPlayError] = useState(false);
   const [loadingChapterId, setLoadingChapterId] = useState<string | null>(null);
+  const [loadingMoreChapters, setLoadingMoreChapters] = useState(false);
   const [savedProgress, setSavedProgress] = useState<AudiobookProgressEntry | null>(null);
   const playControllerRef = useRef<AbortController | null>(null);
+  const detailControllerRef = useRef<AbortController | null>(null);
+  const detailGenerationRef = useRef(0);
 
-  useEffect(() => {
+  useFocusEffect(
+    useCallback(() => {
     if (!audiobookId) {
       setLoading(false);
       setError(true);
@@ -111,34 +117,84 @@ export default function AudiobookDetailScreen() {
     }
 
     const controller = new AbortController();
+    const generation = ++detailGenerationRef.current;
+    detailControllerRef.current?.abort();
+    detailControllerRef.current = controller;
     playControllerRef.current?.abort();
     setLoading(true);
     setError(false);
 
     void fetchAudiobookDetail(audiobookId, controller.signal)
-      .then(setDetail)
+      .then((nextDetail) => {
+        if (controller.signal.aborted || generation !== detailGenerationRef.current) return;
+        setDetail(nextDetail);
+      })
       .catch((loadError) => {
-        if (hasAbortError(loadError)) return;
+        if (hasAbortError(loadError) || generation !== detailGenerationRef.current) return;
         setDetail(null);
         setError(true);
       })
       .finally(() => {
+        if (controller.signal.aborted || generation !== detailGenerationRef.current) return;
         setLoading(false);
       });
 
     return () => controller.abort();
-  }, [audiobookId]);
+  }, [audiobookId])
+  );
 
   useEffect(
     () => () => {
       playControllerRef.current?.abort();
+      detailControllerRef.current?.abort();
     },
     []
   );
 
   const audiobook = detail?.audiobook;
   const chapters = detail?.chapters || [];
+  const chapterPagination = detail?.chapterPagination;
   const firstChapter = chapters[0] || null;
+
+  const loadMoreChapters = useCallback(() => {
+    if (
+      !audiobookId ||
+      !detail ||
+      !chapterPagination?.hasMore ||
+      loadingMoreChapters ||
+      chapters.length >= MAX_RETAINED_CHAPTERS
+    ) {
+      return;
+    }
+
+    const controller = new AbortController();
+    detailControllerRef.current?.abort();
+    detailControllerRef.current = controller;
+    const generation = detailGenerationRef.current;
+    setLoadingMoreChapters(true);
+    void fetchAudiobookDetail(audiobookId, controller.signal, chapterPagination.page + 1)
+      .then((nextPage) => {
+        if (controller.signal.aborted || generation !== detailGenerationRef.current) return;
+        setDetail((current) => {
+          if (!current) return current;
+          const seen = new Set(current.chapters.map((chapter) => chapter.id));
+          const appended = nextPage.chapters.filter((chapter) => !seen.has(chapter.id));
+          return {
+            ...current,
+            chapters: [...current.chapters, ...appended].slice(0, MAX_RETAINED_CHAPTERS),
+            chapterPagination: nextPage.chapterPagination,
+          };
+        });
+      })
+      .catch((loadError) => {
+        if (!hasAbortError(loadError)) setPlayError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted && generation === detailGenerationRef.current) {
+          setLoadingMoreChapters(false);
+        }
+      });
+  }, [audiobookId, chapterPagination, chapters.length, detail, loadingMoreChapters]);
 
   useEffect(() => {
     if (!audiobook?.id) {
@@ -371,7 +427,9 @@ export default function AudiobookDetailScreen() {
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Chapters</Text>
-              <Text style={styles.sectionMeta}>{chapters.length} total</Text>
+              <Text style={styles.sectionMeta}>
+                {chapterPagination?.total ?? chapters.length} total
+              </Text>
             </View>
           </>
         ) : null}
@@ -430,6 +488,15 @@ export default function AudiobookDetailScreen() {
         maxToRenderPerBatch={12}
         windowSize={9}
         removeClippedSubviews={Platform.OS === "android"}
+        onEndReached={loadMoreChapters}
+        onEndReachedThreshold={0.45}
+        ListFooterComponent={
+          loadingMoreChapters ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator color={COLORS.primary} />
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <Text style={styles.stateText}>No chapter metadata available.</Text>
         }
@@ -671,6 +738,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
+  footerLoader: { paddingVertical: 18, alignItems: "center" },
   centerState: {
     flex: 1,
     alignItems: "center",

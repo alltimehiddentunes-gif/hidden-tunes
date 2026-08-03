@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,7 +12,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
 
 import HTImage from "../components/HTImage";
@@ -29,28 +29,19 @@ import {
   logEntityArtworkResolved,
   logEntityTapReceived,
 } from "../utils/entityDiagnostics";
-import { resolveGenreRoomEntity } from "../utils/entityResolution";
 import {
-  fetchHiddenTunesCatalog,
-  getCachedHiddenTunesCatalog,
-  isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
-  type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
 } from "../services/hiddenTunes";
+import {
+  getInstantCatalogView,
+  loadCatalogView,
+} from "../services/unifiedCatalog";
 import { useLocalization } from "@/localization";
 import { RELATED_SONGS_LABEL } from "@/utils/entityResolution";
 
 function clean(value: string) {
   return String(value || "").trim().toLowerCase();
-}
-
-function roomSearchTerms(value: string) {
-  const normalized = clean(value)
-    .replace(/\b(station|room|radio)\b/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return Array.from(new Set([clean(value), normalized, ...normalized.split(" ")].filter(Boolean)));
 }
 
 function getSongDurationSeconds(song: HiddenTunesSong) {
@@ -150,9 +141,27 @@ export default function GenreScreen() {
     }),
     [t]
   );
-  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
+  const CATALOG_PAGE_LIMIT = 30;
+  const MAX_HELD_TRACKS = 150;
+  const [tracks, setTracks] = useState<HiddenTunesSong[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const nextPageRef = useRef(2);
+  const focusedRef = useRef(false);
+  const loadGenerationRef = useRef(0);
+
+  const catalogOptions = useMemo(
+    () => ({
+      type: String(params.type || "genre") as "genre" | "mood",
+      id: String(params.id || ""),
+      title,
+      query: String(params.query || title),
+      limit: CATALOG_PAGE_LIMIT,
+    }),
+    [params.id, params.query, params.type, title]
+  );
 
   useEffect(() => {
     logEntityTapReceived(String(params.type || "genre") === "mood" ? "mood" : "genre", {
@@ -160,80 +169,130 @@ export default function GenreScreen() {
       id: String(params.id || ""),
       type: String(params.type || "genre"),
     });
-    void loadGenreCatalog();
-  }, [title, params.id, params.type]);
+  }, [params.id, params.type, title]);
 
-  async function loadGenreCatalog() {
-    try {
-      setLoading(true);
-      const moodRoom = String(params.type || "genre") === "mood";
-      // Mood rooms need a deep catalog. A trusted discovery/first-page slice
-      // (~100 songs) is enough for Home but yields 0 Heartbreak/Healing matches.
-      const MOOD_ROOM_MIN_SONGS = 1500;
-      const cached = getCachedHiddenTunesCatalog();
-      const cachedCount = cached?.songs?.length || 0;
-      const canUseCached =
-        cached &&
-        isDerivedCatalogTrusted(cached) &&
-        (!moodRoom || cachedCount >= MOOD_ROOM_MIN_SONGS);
+  const loadFirstPage = useCallback(async (refresh = false) => {
+    const generation = ++loadGenerationRef.current;
+    const cached = getInstantCatalogView({ ...catalogOptions, page: 1 });
 
-      const nextCatalog = canUseCached
-        ? cached
-        : await fetchHiddenTunesCatalog({
-            forceRefresh: moodRoom && cachedCount > 0 && cachedCount < MOOD_ROOM_MIN_SONGS,
-          });
-
-      if (
-        typeof __DEV__ !== "undefined" &&
-        __DEV__ &&
-        moodRoom
-      ) {
-        console.log("[EWCatalogLoad]", {
-          roomTitle: title,
-          roomType: String(params.type || "genre"),
-          usedCached: Boolean(canUseCached),
-          cachedCount,
-          loadedCount: nextCatalog?.songs?.length || 0,
-        });
-      }
-
-      setCatalog(nextCatalog);
-    } catch (error) {
-      console.log("Genre catalog load error:", error);
-      setCatalog(null);
-    } finally {
+    if (cached?.songs.length) {
+      const cachedTracks = cached.songs.slice(0, MAX_HELD_TRACKS) as HiddenTunesSong[];
+      setTracks(cachedTracks);
+      setHasMore(cached.hasMore && cachedTracks.length < MAX_HELD_TRACKS);
+      nextPageRef.current = 2;
       setLoading(false);
-      setRefreshing(false);
+    } else {
+      setLoading(true);
     }
-  }
+
+    try {
+      const result = await loadCatalogView({
+        ...catalogOptions,
+        page: 1,
+        forceRefresh: refresh,
+      });
+      if (!focusedRef.current || generation !== loadGenerationRef.current) return;
+
+      const firstPage = result.songs.slice(0, MAX_HELD_TRACKS) as HiddenTunesSong[];
+      setTracks(firstPage);
+      setHasMore(result.hasMore && firstPage.length < MAX_HELD_TRACKS);
+      nextPageRef.current = 2;
+    } catch (error) {
+      if (!focusedRef.current || generation !== loadGenerationRef.current) return;
+      console.log("Genre catalog load error:", error);
+      if (!cached?.songs.length) {
+        setTracks([]);
+        setHasMore(false);
+      }
+    } finally {
+      if (focusedRef.current && generation === loadGenerationRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, [catalogOptions]);
+
+  useFocusEffect(
+    useCallback(() => {
+      focusedRef.current = true;
+      return () => {
+        focusedRef.current = false;
+        // Ignore in-flight first-page and pagination responses after blur.
+        loadGenerationRef.current += 1;
+        setLoadingMore(false);
+      };
+    }, [])
+  );
+
+  useEffect(() => {
+    void loadFirstPage();
+  }, [loadFirstPage]);
 
   async function onRefresh() {
     setRefreshing(true);
-    await loadGenreCatalog();
+    await loadFirstPage(true);
   }
 
-  const roomResolution = useMemo(
-    () =>
-      resolveGenreRoomEntity(catalog, {
-        id: String(params.id || ""),
-        title,
-        query: String(params.query || title),
-        type: String(params.type || "genre"),
-      }),
-    [catalog, params.id, params.query, params.type, title]
-  );
+  const loadMore = useCallback(async () => {
+    if (!focusedRef.current || !hasMore || loadingMore || loading || tracks.length >= MAX_HELD_TRACKS) {
+      return;
+    }
 
-  const tracks = roomResolution.tracks;
+    const generation = loadGenerationRef.current;
+    const page = nextPageRef.current;
+    setLoadingMore(true);
+    try {
+      const result = await loadCatalogView({ ...catalogOptions, page });
+      if (!focusedRef.current || generation !== loadGenerationRef.current) return;
+
+      setTracks((previous) => {
+        const seen = new Set(previous.map((song) => String(song.id)));
+        const appended = result.songs.filter((song) => !seen.has(String(song.id))) as HiddenTunesSong[];
+        const merged = [...previous, ...appended].slice(0, MAX_HELD_TRACKS);
+        const reachedCap = merged.length >= MAX_HELD_TRACKS;
+        setHasMore(result.hasMore && !reachedCap);
+        return merged;
+      });
+      nextPageRef.current = page + 1;
+    } catch (error) {
+      if (focusedRef.current && generation === loadGenerationRef.current) {
+        console.log("Genre catalog pagination error:", error);
+      }
+    } finally {
+      if (focusedRef.current && generation === loadGenerationRef.current) {
+        setLoadingMore(false);
+      }
+    }
+  }, [catalogOptions, hasMore, loading, loadingMore, tracks.length]);
+
   const listPerformance = useMemo(
     () => getListPerformanceSettings(tracks.length),
     [tracks.length]
   );
-  const recoveryLabel = roomResolution.recoveryLabel;
+  const recoveryLabel = undefined;
 
   const albums = useMemo<HiddenTunesAlbumCatalogItem[]>(() => {
-    const trackIds = new Set(tracks.map((song) => song.id));
-    return (catalog?.albums || []).filter((album) => album.songs.some((song) => trackIds.has(song.id)));
-  }, [catalog?.albums, tracks]);
+    const byAlbum = new Map<string, HiddenTunesAlbumCatalogItem>();
+    tracks.forEach((song) => {
+      const albumTitle = String(song.album || "").trim();
+      if (!albumTitle) return;
+      const artist = String(song.artist || "Hidden Tunes").trim() || "Hidden Tunes";
+      const key = `${clean(albumTitle)}:${clean(artist)}`;
+      const existing = byAlbum.get(key);
+      if (existing) {
+        existing.songs.push(song);
+        return;
+      }
+      byAlbum.set(key, {
+        id: String((song as any).albumId || key),
+        title: albumTitle,
+        artist,
+        artwork: song.artwork || song.cover || song.thumbnail || "",
+        songs: [song],
+      });
+    });
+    return Array.from(byAlbum.values()).slice(0, 12);
+  }, [tracks]);
 
   const artists = useMemo(() => {
     const seen = new Map<string, { name: string; songCount: number; artworkSource: HiddenTunesSong }>();
@@ -341,6 +400,8 @@ export default function GenreScreen() {
           updateCellsBatchingPeriod={listPerformance.updateCellsBatchingPeriod}
           removeClippedSubviews={listPerformance.removeClippedSubviews}
           refreshControl={<RefreshControl tintColor={COLORS.primary} refreshing={refreshing} onRefresh={onRefresh} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
           ListHeaderComponent={
             <>
               <LinearGradient colors={GRADIENTS.card} style={styles.hero}>
@@ -449,6 +510,13 @@ export default function GenreScreen() {
               />
             </View>
           }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.loadMore}>
+                <ActivityIndicator color={COLORS.primary} />
+              </View>
+            ) : null
+          }
           renderItem={({ item, index }) => {
             const duration = getSongDurationSeconds(item);
 
@@ -522,6 +590,7 @@ const styles = StyleSheet.create({
   metaText: { color: COLORS.textMuted, fontSize: 11, fontWeight: "800" },
   playCircle: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.1)" },
   empty: { alignItems: "center", paddingVertical: 42, paddingHorizontal: 4 },
+  loadMore: { paddingVertical: 20, alignItems: "center" },
   emptyTitle: { color: COLORS.text, fontSize: 18, fontWeight: "800" },
   emptyText: { color: COLORS.textMuted, fontSize: 13, textAlign: "center", paddingHorizontal: 24 },
 });

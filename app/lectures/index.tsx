@@ -13,6 +13,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HTImage from "@/components/HTImage";
@@ -173,6 +174,7 @@ export default function LecturesHomeScreen() {
   const hasBrowseContentRef = useRef(false);
   const browseKeyRef = useRef<string | null>(null);
   const landingGenerationRef = useRef(0);
+  const focusedRef = useRef(false);
 
   const isSearching = searchQuery.trim().length > 0;
   const listItems = isSearching ? searchItems : items;
@@ -238,6 +240,7 @@ export default function LecturesHomeScreen() {
 
         if (
           !mountedRef.current ||
+          !focusedRef.current ||
           requestId !== categoryRequestRef.current ||
           generation !== landingGenerationRef.current
         ) {
@@ -268,6 +271,7 @@ export default function LecturesHomeScreen() {
         }
         if (
           !mountedRef.current ||
+          !focusedRef.current ||
           requestId !== categoryRequestRef.current ||
           generation !== landingGenerationRef.current
         ) {
@@ -277,6 +281,7 @@ export default function LecturesHomeScreen() {
       } finally {
         if (
           !mountedRef.current ||
+          !focusedRef.current ||
           requestId !== categoryRequestRef.current ||
           generation !== landingGenerationRef.current
         ) {
@@ -311,7 +316,7 @@ export default function LecturesHomeScreen() {
         listEducationalRecentlyPlayed(8),
       ]);
 
-      if (!mountedRef.current || generation !== landingGenerationRef.current) return;
+      if (!mountedRef.current || !focusedRef.current || generation !== landingGenerationRef.current) return;
       setCategories(categoriesResult);
       setContinueItems(
         dedupeLectureItemsById(
@@ -344,13 +349,19 @@ export default function LecturesHomeScreen() {
     }
   }, [mountedRef]);
 
-  useEffect(() => {
-    // Mount-only. Category changes load via onSelectCategory — do not also
-    // depend on loadBrowsePage or selecting a chip starts a second full fetch.
-    void loadHomeRails();
-    void loadBrowsePage({ reset: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional mount-only
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      focusedRef.current = true;
+      void loadHomeRails();
+      void loadBrowsePage({ reset: true });
+      return () => {
+        focusedRef.current = false;
+        landingGenerationRef.current += 1;
+        browseAbortRef.current?.abort();
+        searchPagingAbortRef.current?.abort();
+      };
+    }, [loadBrowsePage, loadHomeRails])
+  );
 
   useEffect(() => {
     if (!isSearching) return undefined;

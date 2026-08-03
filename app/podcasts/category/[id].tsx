@@ -12,7 +12,7 @@ import { ActivityIndicator,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import HTImage from "../../../components/HTImage";
@@ -257,6 +257,17 @@ export default function PodcastCategoryScreen() {
   const [playingEpisodeId, setPlayingEpisodeId] = useState<string | null>(null);
   const episodeRequestRef = useRef<AbortController | null>(null);
   const inflightEpisodePageRef = useRef<number | null>(null);
+
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        // Category routes remain mounted in the stack after blur.
+        episodeRequestRef.current?.abort();
+        inflightEpisodePageRef.current = null;
+      },
+      []
+    )
+  );
 
   useEffect(() => {
     const unsubscribe = subscribeMaturePodcastSettings(() => {

@@ -12,7 +12,7 @@ import { ActivityIndicator,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { safeRouterBack } from "../../utils/safeNavigation";
 
 import HTImage from "../../components/HTImage";
@@ -128,6 +128,22 @@ export default function AudiobooksHomeScreen() {
   const selectedCategoryRef = useRef(selectedCategory);
   const searchQueryRef = useRef(searchQuery);
   const paginationAbortRef = useRef<AbortController | null>(null);
+  const treeAbortRef = useRef<AbortController | null>(null);
+  const browseAbortRef = useRef<AbortController | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        // Stack blur retains the browse screen; cancel all catalog work.
+        treeAbortRef.current?.abort();
+        browseAbortRef.current?.abort();
+        searchAbortRef.current?.abort();
+        paginationAbortRef.current?.abort();
+      },
+      []
+    )
+  );
 
   const isSearching = searchQuery.trim().length > 0;
   const listItems = isSearching ? searchItems : items;
@@ -154,6 +170,7 @@ export default function AudiobooksHomeScreen() {
 
   useEffect(() => {
     const controller = new AbortController();
+    treeAbortRef.current = controller;
 
     void fetchAudiobookTree(controller.signal)
       .then((nextCategories) => {
@@ -184,6 +201,7 @@ export default function AudiobooksHomeScreen() {
   useEffect(() => {
     if (!selectedCategory || searchQuery.trim()) return undefined;
     const controller = new AbortController();
+    browseAbortRef.current = controller;
     const requestId = ++categoryRequestRef.current;
 
     const cached = peekBrowsePage(selectedCategory, 1);
@@ -240,6 +258,7 @@ export default function AudiobooksHomeScreen() {
     }
 
     const controller = new AbortController();
+    searchAbortRef.current = controller;
     const requestId = ++searchRequestRef.current;
     const cached = peekCachedAudiobookPage("search", query.toLowerCase(), 1, PAGE_LIMIT);
     if (cached?.items.length) {

@@ -18,6 +18,8 @@ import {
 
 export const AUDIOBOOK_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const AUDIOBOOK_PAGE_LIMIT = 40;
+/** Detail endpoint currently returns all chapters; retain one render page per request. */
+export const AUDIOBOOK_CHAPTER_PAGE_SIZE = 40;
 /** Synthetic browse slug for unfiltered `/api/audiobooks` (not a DB category). */
 export const AUDIOBOOK_ALL_CATEGORY_SLUG = "all";
 
@@ -541,7 +543,8 @@ export async function searchAudiobooks(
 
 export async function fetchAudiobookDetail(
   id: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  chapterPage = 1
 ): Promise<AudiobookDetail> {
   const payload = await fetchAudiobookJson<{
     audiobook?: Record<string, unknown>;
@@ -555,13 +558,27 @@ export async function fetchAudiobookDetail(
     throw new Error("audiobook_not_found");
   }
 
+  // Backend pagination is required to avoid receiving this full array. Until then,
+  // normalize for stable order, then immediately retain only the requested UI page.
+  const normalizedChapters = orderAudiobookChapters(
+    (payload.chapters || [])
+      .map((chapter) => normalizeChapter(chapter))
+      .filter((chapter): chapter is AudiobookChapter => Boolean(chapter))
+  );
+  const page = Math.max(1, chapterPage);
+  const total = audiobook.chapter_count || normalizedChapters.length;
+  const start = (page - 1) * AUDIOBOOK_CHAPTER_PAGE_SIZE;
+
   return {
     audiobook,
-    chapters: orderAudiobookChapters(
-      (payload.chapters || [])
-        .map((chapter) => normalizeChapter(chapter))
-        .filter((chapter): chapter is AudiobookChapter => Boolean(chapter))
-    ),
+    chapters: normalizedChapters.slice(start, start + AUDIOBOOK_CHAPTER_PAGE_SIZE),
+    chapterPagination: {
+      page,
+      limit: AUDIOBOOK_CHAPTER_PAGE_SIZE,
+      total,
+      totalPages: Math.ceil(total / AUDIOBOOK_CHAPTER_PAGE_SIZE),
+      hasMore: start + AUDIOBOOK_CHAPTER_PAGE_SIZE < total,
+    },
   };
 }
 
@@ -618,11 +635,12 @@ export async function fetchAudiobookChapterQueuePlay(
     throw new Error("audiobook_not_found");
   }
 
+  // Backend needs a bounded queue endpoint. Never pass an unbounded tail to native playback.
   const chapters = orderAudiobookChapters(
     (payload.chapters || [])
       .map((chapter) => normalizeChapterPlayItem(chapter))
       .filter((chapter): chapter is AudiobookChapterPlayItem => Boolean(chapter))
-  );
+  ).slice(0, 40);
 
   if (!chapters.length) {
     throw new Error("audiobook_chapter_audio_unavailable");

@@ -64,6 +64,7 @@ export type AudiobookPage = {
 export type AudiobookDetail = {
   audiobook: AudiobookItem;
   chapters: AudiobookChapter[];
+  chapterPagination: AudiobookPagination;
 };
 
 export type AudiobookPlayResponse = {

@@ -13,7 +13,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { PodcastCategoryCard, PodcastShowCard } from "../../components/podcast/PodcastCards";
 import PodcastScreenHeader from "../../components/podcast/PodcastScreenHeader";
@@ -74,6 +74,16 @@ export default function MaturePodcastsScreen() {
     enabled,
     query: deferredQuery,
   });
+
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        // Mature catalog must stop as soon as the obscured route loses focus.
+        catalog.cancel();
+      },
+      [catalog.cancel]
+    )
+  );
 
   const pageData = useMemo(
     () => getMaturePodcastPageSections(enabled),

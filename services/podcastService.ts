@@ -35,6 +35,10 @@ export const ENABLE_PODCAST_RSS_HOME_LOADING = false;
 export const ENABLE_PODCAST_RSS_SEARCH = false;
 export const PODCAST_SHOW_EPISODE_LIMIT = 10;
 export const PODCAST_FEED_TIMEOUT_MS = 5000;
+export const PODCAST_CATEGORY_PREVIEW_LIMIT = 30;
+export const PODCAST_ROOT_SECTION_PREVIEW_LIMIT = 20;
+export const PODCAST_MATURE_SECTION_PREVIEW_LIMIT = 20;
+const PODCAST_LOCAL_SEARCH_SCAN_BUDGET = 240;
 
 export type PodcastHomeShowSection = {
   id: string;
@@ -292,21 +296,27 @@ export function getNonEmptyPodcastChildCategories(
   }) as PodcastCategoryDef[];
 }
 
-export function getPodcastShowsForRootSection(sectionId: string, includeMature?: boolean) {
+export function getPodcastShowsForRootSection(
+  sectionId: string,
+  includeMature?: boolean,
+  limit = PODCAST_ROOT_SECTION_PREVIEW_LIMIT
+) {
   const mature = includeMature ?? shouldIncludeMaturePodcasts();
   const children = getNonEmptyPodcastChildCategories(sectionId, mature);
   const seen = new Set<string>();
   const shows: PodcastShow[] = [];
 
   for (const child of children) {
-    for (const show of getPodcastShowsByCategory(child.id, mature)) {
+    for (const show of getPodcastShowsByCategory(child.id, mature, limit)) {
+      if (shows.length >= limit) break;
       if (seen.has(show.id)) continue;
       seen.add(show.id);
       shows.push(show);
     }
+    if (shows.length >= limit) break;
   }
 
-  return shows;
+  return shows.slice(0, limit);
 }
 
 export function getPodcastHomeShowSections(includeMature?: boolean): PodcastHomeShowSection[] {
@@ -330,7 +340,11 @@ export function getPodcastHomeShowSections(includeMature?: boolean): PodcastHome
     .filter((show) => filterMatureShow(show, mature));
 
   if (allShows.length > 0) {
-    sections.push({ id: "all-podcasts", title: "All Podcasts", shows: allShows });
+    sections.push({
+      id: "all-podcasts",
+      title: "All Podcasts",
+      shows: allShows.slice(0, PODCAST_ROOT_SECTION_PREVIEW_LIMIT),
+    });
   }
 
   return sections;
@@ -344,6 +358,7 @@ export function getMaturePodcastPageSections(includeMature?: boolean) {
 
   const matureShows = getSafePodcastSeeds(true)
     .filter((seed) => seed.matureLevel !== "safe")
+    .slice(0, PODCAST_MATURE_SECTION_PREVIEW_LIMIT)
     .map(seedToStaticShow);
 
   const sections: PodcastHomeShowSection[] = [];
@@ -359,7 +374,9 @@ export function getMaturePodcastPageSections(includeMature?: boolean) {
   for (const group of MATURE_PAGE_CATEGORY_GROUPS) {
     const seen = new Set<string>();
     const shows = group.categoryIds
-      .flatMap((categoryId) => getPodcastShowsByCategory(categoryId, true))
+      .flatMap((categoryId) =>
+        getPodcastShowsByCategory(categoryId, true, PODCAST_MATURE_SECTION_PREVIEW_LIMIT)
+      )
       .filter((show) => {
         if (seen.has(show.id)) return false;
         seen.add(show.id);
@@ -367,25 +384,26 @@ export function getMaturePodcastPageSections(includeMature?: boolean) {
       });
 
     if (shows.length > 0) {
-      sections.push({ id: group.id, title: group.title, shows });
+      sections.push({
+        id: group.id,
+        title: group.title,
+        shows: shows.slice(0, PODCAST_MATURE_SECTION_PREVIEW_LIMIT),
+      });
     }
   }
 
   const nonEmptyCategories = getNonEmptyPodcastChildCategories("mature-podcasts", true);
-  if (matureShows.length > 0) {
-    sections.push({
-      id: "all-mature-podcasts",
-      title: "All Mature Podcasts",
-      shows: matureShows,
-    });
-  }
-
   return { sections, categories: nonEmptyCategories };
 }
 
-export function getPodcastShowsByCategory(categoryId: string, includeMature?: boolean) {
+export function getPodcastShowsByCategory(
+  categoryId: string,
+  includeMature?: boolean,
+  limit = PODCAST_CATEGORY_PREVIEW_LIMIT
+) {
   const mature = includeMature ?? shouldIncludeMaturePodcasts();
   return getSeedsForCategory(categoryId, mature)
+    .slice(0, Math.max(1, limit))
     .map(seedToStaticShow)
     .filter((show) => filterMatureShow(show, mature));
 }
@@ -480,8 +498,11 @@ export function searchPodcasts(
 
   const results: PodcastSearchResult[] = [];
 
+  let scanned = 0;
+  // Local seed search is a bounded fallback. Interactive/global search needs backend indexing.
   for (const seed of getSafePodcastSeeds(includeMature)) {
     if (results.length >= limit) break;
+    if (scanned++ >= PODCAST_LOCAL_SEARCH_SCAN_BUDGET) break;
     if (matureOnly && seed.matureLevel === "safe") continue;
     if (categoryIds?.length && !categoryIds.includes(seed.category)) continue;
 
