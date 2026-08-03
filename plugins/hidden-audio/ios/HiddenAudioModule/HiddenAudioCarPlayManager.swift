@@ -37,6 +37,12 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var activeConnectionGeneration: UInt64 = 0
 
   func startIfNeeded() {
+    NSLog(
+      "[HTCarPlayNative] manager.init.enter generation=%llu connected=%d mainThread=%d",
+      activeConnectionGeneration,
+      isConnected ? 1 : 0,
+      Thread.isMainThread ? 1 : 0
+    )
     HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
     ensureSessionConfiguration()
     refreshVideoCapability(reason: "manager_ready")
@@ -47,6 +53,12 @@ final class HiddenAudioCarPlayManager: NSObject {
       "supportsVideoPlayback": supportsVideoPlaybackCached,
     ])
     NSLog("[HTCarPlay] manager_ready connected=%d", isConnected ? 1 : 0)
+    NSLog(
+      "[HTCarPlayNative] manager.init.exit generation=%llu connected=%d mainThread=%d",
+      activeConnectionGeneration,
+      isConnected ? 1 : 0,
+      Thread.isMainThread ? 1 : 0
+    )
   }
 
   /// Scene-lifecycle diagnostics for Metro (`ios_carplay_status`) when setup has wired the sink.
@@ -381,6 +393,20 @@ final class HiddenAudioCarPlayManager: NSObject {
     NSLog("[HTCarPlay] root_type=CPListTemplate")
     NSLog("[HTCarPlay] fallback_item_count=%d", itemCount)
     NSLog("[HTCarPlay] setRootTemplate start")
+    NSLog(
+      "[HTCarPlayNative] root.build.exit generation=%llu rootClass=%@ nonNil=%d itemCount=%d",
+      generation,
+      String(describing: type(of: list)),
+      1,
+      itemCount
+    )
+    NSLog(
+      "[HTCarPlayNative] setRootTemplate.enter generation=%llu rootClass=%@ attempt=%d mainThread=%d",
+      generation,
+      String(describing: type(of: list)),
+      attempt,
+      Thread.isMainThread ? 1 : 0
+    )
     emitLifecycleDiagnostic(
       "carplay_manager_root_install_started",
       ["attempt": attempt, "maxAttempts": Self.maxRootInstallAttempts, "generation": generation]
@@ -394,6 +420,14 @@ final class HiddenAudioCarPlayManager: NSObject {
         return
       }
       let message = error?.localizedDescription ?? ""
+      NSLog(
+        "[HTCarPlayNative] setRootTemplate.completion generation=%llu success=%d error=%@ attempt=%d mainThread=%d",
+        generation,
+        success ? 1 : 0,
+        message.isEmpty ? "<none>" : message,
+        attempt,
+        Thread.isMainThread ? 1 : 0
+      )
       NSLog("[HTCarPlay] setRootTemplate complete success=%d", success ? 1 : 0)
       NSLog("[HTCarPlay] setRootTemplate success=%d", success ? 1 : 0)
       if success {

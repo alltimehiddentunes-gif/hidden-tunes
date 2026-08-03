@@ -21,13 +21,34 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
   /// Bounds wallpaper-guard retries for the initial root install.
   private static let maxRootInstallAttempts = 3
 
+  /// Connection generation for diagnostic correlation (observe-only).
+  private var diagnosticConnectionGeneration: UInt64 = 0
+
   override init() {
     super.init()
+    NSLog(
+      "[HTCarPlayNative] CarPlaySceneDelegate.init mainThread=%d",
+      Thread.isMainThread ? 1 : 0
+    )
     NSLog("[HTCarPlay] CarPlaySceneDelegate initialized")
     NSLog("[HTCarPlay] scene_delegate_init")
     HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
       "carplay_scene_delegate_initialized",
       ["hasInterfaceController": false]
+    )
+  }
+
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    NSLog(
+      "[HTCarPlayNative] scene.willConnect sceneClass=%@ role=%@ sessionId=%@ mainThread=%d",
+      String(describing: type(of: scene)),
+      session.role.rawValue,
+      session.persistentIdentifier,
+      Thread.isMainThread ? 1 : 0
     )
   }
 
@@ -37,6 +58,22 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     _ templateApplicationScene: CPTemplateApplicationScene,
     didConnect interfaceController: CPInterfaceController
   ) {
+    diagnosticConnectionGeneration &+= 1
+    let generation = diagnosticConnectionGeneration
+    let sessionId = templateApplicationScene.session.persistentIdentifier
+    let role = templateApplicationScene.session.role.rawValue
+    let mainThread = Thread.isMainThread ? 1 : 0
+
+    NSLog(
+      "[HTCarPlayNative] didConnect.enter generation=%llu sessionId=%@ role=%@ sceneClass=%@ controller=%d window=%d mainThread=%d",
+      generation,
+      sessionId,
+      role,
+      String(describing: type(of: templateApplicationScene)),
+      1,
+      templateApplicationScene.carWindow != nil ? 1 : 0,
+      mainThread
+    )
     NSLog("[HTCarPlay] didConnect entered")
     NSLog("[HTCarPlay] scene_configuration_requested")
     NSLog("[HTCarPlay] scene_connection_start")
@@ -68,10 +105,29 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     // Do not wait on Metro, network, catalog, auth, or JS readiness.
     // Do not call attachConnectedSession / tab upgrade until this install succeeds.
     NSLog("[HTCarPlay] root_template_creation_started type=CPListTemplate")
+    NSLog(
+      "[HTCarPlayNative] root.build.enter generation=%llu sessionId=%@",
+      generation,
+      sessionId
+    )
     let root = Self.makeImmediateFallbackRoot()
+    NSLog(
+      "[HTCarPlayNative] root.build.exit generation=%llu sessionId=%@ rootClass=%@ nonNil=%d",
+      generation,
+      sessionId,
+      String(describing: type(of: root)),
+      1
+    )
     NSLog("[HTCarPlay] root_created type=CPListTemplate item_count=1")
     NSLog("[HTCarPlay] root_type=CPListTemplate")
     NSLog("[HTCarPlay] setRootTemplate start")
+    NSLog(
+      "[HTCarPlayNative] setRootTemplate.enter generation=%llu sessionId=%@ rootClass=%@ mainThread=%d",
+      generation,
+      sessionId,
+      String(describing: type(of: root)),
+      Thread.isMainThread ? 1 : 0
+    )
     HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
       "carplay_scene_root_install_started",
       [
@@ -85,7 +141,9 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
       on: interfaceController,
       root: root,
       attempt: 1,
-      maxAttempts: Self.maxRootInstallAttempts
+      maxAttempts: Self.maxRootInstallAttempts,
+      generation: generation,
+      sessionId: sessionId
     ) { [weak self] success, installedRoot in
       guard let self else { return }
 
@@ -126,6 +184,12 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     _ templateApplicationScene: CPTemplateApplicationScene,
     didDisconnectInterfaceController interfaceController: CPInterfaceController
   ) {
+    NSLog(
+      "[HTCarPlayNative] didDisconnect generation=%llu sessionId=%@ mainThread=%d",
+      diagnosticConnectionGeneration,
+      templateApplicationScene.session.persistentIdentifier,
+      Thread.isMainThread ? 1 : 0
+    )
     NSLog("[HTCarPlay] scene_disconnect")
     NSLog("[HTCarPlay] disconnect")
     HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
@@ -146,9 +210,21 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
     root: CPListTemplate,
     attempt: Int,
     maxAttempts: Int,
+    generation: UInt64,
+    sessionId: String,
     completion: @escaping (_ success: Bool, _ installedRoot: CPListTemplate?) -> Void
   ) {
     interfaceController.setRootTemplate(root, animated: false) { [weak self] success, error in
+      let message = error?.localizedDescription ?? ""
+      NSLog(
+        "[HTCarPlayNative] setRootTemplate.completion generation=%llu sessionId=%@ success=%d error=%@ attempt=%d mainThread=%d",
+        generation,
+        sessionId,
+        success ? 1 : 0,
+        message.isEmpty ? "<none>" : message,
+        attempt,
+        Thread.isMainThread ? 1 : 0
+      )
       NSLog(
         "[HTCarPlay] minimal root installed success=%d error=%@ attempt=%d",
         success ? 1 : 0,
@@ -163,14 +239,13 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         return
       }
 
-      let message = error?.localizedDescription ?? "unknown"
-      NSLog("[HTCarPlay] setRootTemplate_failed message=%@", message)
+      NSLog("[HTCarPlay] setRootTemplate_failed message=%@", message.isEmpty ? "unknown" : message)
       HiddenAudioCarPlayManager.shared.emitLifecycleDiagnostic(
         "carplay_scene_root_install_failed",
         [
           "attempt": attempt,
           "maxAttempts": maxAttempts,
-          "message": message,
+          "message": message.isEmpty ? "unknown" : message,
         ]
       )
 
@@ -187,11 +262,21 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
         ["attempt": nextAttempt, "maxAttempts": maxAttempts]
       )
       let retryRoot = Self.makeImmediateFallbackRoot()
+      NSLog(
+        "[HTCarPlayNative] setRootTemplate.enter generation=%llu sessionId=%@ rootClass=%@ attempt=%d mainThread=%d",
+        generation,
+        sessionId,
+        String(describing: type(of: retryRoot)),
+        nextAttempt,
+        Thread.isMainThread ? 1 : 0
+      )
       self?.installSafeRoot(
         on: interfaceController,
         root: retryRoot,
         attempt: nextAttempt,
         maxAttempts: maxAttempts,
+        generation: generation,
+        sessionId: sessionId,
         completion: completion
       )
     }

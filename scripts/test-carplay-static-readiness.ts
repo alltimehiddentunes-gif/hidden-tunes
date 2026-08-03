@@ -46,6 +46,9 @@ function main() {
   assertOk(scene.includes("@objc(CarPlaySceneDelegate)"), "@objc CarPlaySceneDelegate");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_delegate_init")'), "scene_delegate_init");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_connection_start")'), "scene_connection_start");
+  assertOk(scene.includes("[HTCarPlayNative]"), "scene emits HTCarPlayNative diagnostics");
+  assertOk(scene.includes("didConnect.enter"), "scene native didConnect diagnostic");
+  assertOk(scene.includes("setRootTemplate.completion"), "scene native setRoot completion diagnostic");
   assertOk(scene.includes("attachConnectedSession"), "scene attaches manager after confirmed root");
   assertOk(scene.includes("rootInstallConfirmed: true"), "scene only attaches after confirmed root");
   assertOk(scene.includes("setRootTemplate("), "scene installs root inline (Apple audio pattern)");

@@ -11,6 +11,14 @@ const CARPLAY_SCENE_CONFIGURATION_METHOD = `
     options: UIScene.ConnectionOptions
   ) -> UISceneConfiguration {
     let role = connectingSceneSession.role.rawValue
+    let sessionId = connectingSceneSession.persistentIdentifier
+    let mainThread = Thread.isMainThread ? 1 : 0
+    NSLog(
+      "[HTCarPlayNative] configurationForConnecting.enter role=%@ sessionId=%@ mainThread=%d",
+      role,
+      sessionId,
+      mainThread
+    )
     NSLog("[HTCarPlay] configurationForConnecting role=%@", role)
 
     if role == "CPTemplateApplicationSceneSessionRoleApplication" {
@@ -20,6 +28,18 @@ const CARPLAY_SCENE_CONFIGURATION_METHOD = `
         sessionRole: connectingSceneSession.role
       )
       configuration.delegateClass = CarPlaySceneDelegate.self
+      let delegateName = NSStringFromClass(CarPlaySceneDelegate.self)
+      let resolvedObjc = NSClassFromString("CarPlaySceneDelegate") != nil ? 1 : 0
+      let resolvedModule = NSClassFromString("HiddenTunes.CarPlaySceneDelegate") != nil ? 1 : 0
+      NSLog(
+        "[HTCarPlayNative] configurationForConnecting.exit name=HiddenTunesCarPlay sceneClass=CPTemplateApplicationScene delegateClass=%@ nsClassObjc=%d nsClassModule=%d role=%@ sessionId=%@ mainThread=%d",
+        delegateName,
+        resolvedObjc,
+        resolvedModule,
+        role,
+        sessionId,
+        mainThread
+      )
       NSLog("[HTCarPlay] configurationForConnecting selected=CarPlaySceneDelegate")
       return configuration
     }
@@ -30,9 +50,25 @@ const CARPLAY_SCENE_CONFIGURATION_METHOD = `
         sessionRole: connectingSceneSession.role
       )
       configuration.delegateClass = PhoneSceneDelegate.self
+      let delegateName = NSStringFromClass(PhoneSceneDelegate.self)
+      NSLog(
+        "[HTCarPlayNative] configurationForConnecting.exit name=HiddenTunesPhone sceneClass=UIWindowScene delegateClass=%@ role=%@ sessionId=%@ mainThread=%d",
+        delegateName,
+        role,
+        sessionId,
+        mainThread
+      )
       return configuration
     }
 
+    let fallbackName = connectingSceneSession.configuration.name ?? "<nil>"
+    NSLog(
+      "[HTCarPlayNative] configurationForConnecting.exit name=%@ sceneClass=<session-default> delegateClass=<unset> role=%@ sessionId=%@ mainThread=%d",
+      fallbackName,
+      role,
+      sessionId,
+      mainThread
+    )
     return UISceneConfiguration(
       name: connectingSceneSession.configuration.name,
       sessionRole: connectingSceneSession.role

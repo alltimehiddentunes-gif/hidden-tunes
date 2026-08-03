@@ -77,6 +77,14 @@ function assertAppDelegateRouter(contents, label) {
     `${label}: CarPlay scene role check`
   );
   assertOk(
+    contents.includes("[HTCarPlayNative] configurationForConnecting.enter"),
+    `${label}: HTCarPlayNative enter log`
+  );
+  assertOk(
+    contents.includes("[HTCarPlayNative] configurationForConnecting.exit"),
+    `${label}: HTCarPlayNative exit log`
+  );
+  assertOk(
     contents.includes("CarPlaySceneDelegate.self"),
     `${label}: CarPlaySceneDelegate.self`
   );
