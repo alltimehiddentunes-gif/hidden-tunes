@@ -110,8 +110,23 @@ export default function AdminShell({
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (!mounted) return;
+      // Recovery links may land on Site URL → /admin/upload when redirectTo
+      // is not allowlisted. Never keep the user in the dashboard shell.
+      if (event === "PASSWORD_RECOVERY") {
+        router.replace("/admin/reset-password");
+      }
+    });
+
     async function loadProfile() {
       const { profile: activeProfile } = await getActiveUploaderSession();
+
+      if (!mounted) return;
 
       if (!activeProfile) {
         router.replace("/admin/login");
@@ -123,6 +138,11 @@ export default function AdminShell({
     }
 
     loadProfile();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   async function handleLogout() {
