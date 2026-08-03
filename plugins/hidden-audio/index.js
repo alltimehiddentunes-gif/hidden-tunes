@@ -137,6 +137,7 @@ const NATIVE_FILES = [
 ];
 
 const CARPLAY_SCENE_ROLE = "CPTemplateApplicationSceneSessionRoleApplication";
+const CARPLAY_WINDOW_SCENE_ROLE = "UIWindowSceneSessionRoleCarPlay";
 const PHONE_SCENE_ROLE = "UIWindowSceneSessionRoleApplication";
 
 const CARPLAY_SCENE_CONFIG = {
@@ -150,6 +151,51 @@ const PHONE_SCENE_CONFIG = {
   UISceneConfigurationName: "HiddenTunesPhone",
   UISceneDelegateClassName: "$(PRODUCT_MODULE_NAME).PhoneSceneDelegate",
 };
+
+function assertCarPlaySceneManifest(manifest, label) {
+  const configs = manifest && manifest.UISceneConfigurations;
+  if (!configs || typeof configs !== "object") {
+    throw new Error(`[hidden-audio] FATAL: ${label} missing UISceneConfigurations`);
+  }
+
+  const requiredRoles = [PHONE_SCENE_ROLE, CARPLAY_SCENE_ROLE, CARPLAY_WINDOW_SCENE_ROLE];
+  for (const role of requiredRoles) {
+    const entries = configs[role];
+    if (!Array.isArray(entries) || entries.length < 1) {
+      throw new Error(`[hidden-audio] FATAL: ${label} missing scene role ${role}`);
+    }
+  }
+
+  for (const role of [CARPLAY_SCENE_ROLE, CARPLAY_WINDOW_SCENE_ROLE]) {
+    const entry = configs[role][0] || {};
+    if (entry.UISceneClassName !== "CPTemplateApplicationScene") {
+      throw new Error(
+        `[hidden-audio] FATAL: ${label} ${role} must use CPTemplateApplicationScene (got ${entry.UISceneClassName})`
+      );
+    }
+    const delegate = String(entry.UISceneDelegateClassName || "");
+    if (!delegate.includes("CarPlaySceneDelegate")) {
+      throw new Error(
+        `[hidden-audio] FATAL: ${label} ${role} must use CarPlaySceneDelegate (got ${delegate})`
+      );
+    }
+    if (entry.UISceneConfigurationName !== "HiddenTunesCarPlay") {
+      throw new Error(
+        `[hidden-audio] FATAL: ${label} ${role} must use HiddenTunesCarPlay (got ${entry.UISceneConfigurationName})`
+      );
+    }
+  }
+
+  const phone = (configs[PHONE_SCENE_ROLE] || [])[0] || {};
+  if (phone.UISceneClassName !== "UIWindowScene") {
+    throw new Error(`[hidden-audio] FATAL: ${label} phone scene must remain UIWindowScene`);
+  }
+  if (String(phone.UISceneDelegateClassName || "").includes("CarPlaySceneDelegate")) {
+    throw new Error(
+      `[hidden-audio] FATAL: ${label} phone role must not use CarPlaySceneDelegate`
+    );
+  }
+}
 
 function getRepoSourceDir(projectRoot) {
   return path.join(
@@ -181,14 +227,23 @@ const withHiddenAudioInfoPlist = (config) => {
       : ["audio"];
 
     // Dual-scene manifesto: phone UIWindowScene + CarPlay template scene.
+    // Also register UIWindowSceneSessionRoleCarPlay with the same template
+    // configuration so runtime role strings observed on device still resolve
+    // to CarPlaySceneDelegate / CPTemplateApplicationScene.
     // CarPlay-only manifesto blanks the iPhone UI on modern iOS SDKs.
     config.modResults.UIApplicationSceneManifest = {
       UIApplicationSupportsMultipleScenes: true,
       UISceneConfigurations: {
         [PHONE_SCENE_ROLE]: [PHONE_SCENE_CONFIG],
         [CARPLAY_SCENE_ROLE]: [CARPLAY_SCENE_CONFIG],
+        [CARPLAY_WINDOW_SCENE_ROLE]: [CARPLAY_SCENE_CONFIG],
       },
     };
+
+    assertCarPlaySceneManifest(
+      config.modResults.UIApplicationSceneManifest,
+      "withInfoPlist UIApplicationSceneManifest"
+    );
 
     return config;
   });
@@ -657,12 +712,53 @@ const withHiddenAudioAppDelegate = (config) => {
   ]);
 };
 
+const withHiddenAudioInfoPlistAssert = (config) => {
+  return withDangerousMod(config, [
+    "ios",
+    async (config) => {
+      const { platformProjectRoot, projectRoot } = config.modRequest;
+      const appName = IOSConfig.XcodeUtils.getProjectName(projectRoot);
+      const infoPlistPath = path.join(platformProjectRoot, appName, "Info.plist");
+      if (!fs.existsSync(infoPlistPath)) {
+        throw new Error(
+          `[hidden-audio] FATAL: Info.plist missing at ${infoPlistPath}; cannot verify CarPlay scene manifest.`
+        );
+      }
+
+      const raw = fs.readFileSync(infoPlistPath, "utf8");
+      const required = [
+        "CPTemplateApplicationSceneSessionRoleApplication",
+        "UIWindowSceneSessionRoleCarPlay",
+        "UIWindowSceneSessionRoleApplication",
+        "CPTemplateApplicationScene",
+        "CarPlaySceneDelegate",
+        "HiddenTunesCarPlay",
+        "PhoneSceneDelegate",
+        "HiddenTunesPhone",
+      ];
+      for (const needle of required) {
+        if (!raw.includes(needle)) {
+          throw new Error(
+            `[hidden-audio] FATAL: processed Info.plist missing required CarPlay marker: ${needle}`
+          );
+        }
+      }
+
+      console.log(
+        "[hidden-audio] Info.plist CarPlay scene manifest verified (template + window CarPlay roles)."
+      );
+      return config;
+    },
+  ]);
+};
+
 const withHiddenAudio = (config) => {
   config = withHiddenAudioEntitlements(config);
   config = withHiddenAudioInfoPlist(config);
   config = withHiddenAudioNativeSources(config);
   config = withHiddenAudioXcodeProject(config);
   config = withHiddenAudioAppDelegate(config);
+  config = withHiddenAudioInfoPlistAssert(config);
   config = withHiddenAudioAndroidSources(config);
   config = withHiddenAudioAndroidGradle(config);
   config = withHiddenAudioAndroidManifest(config);

@@ -77,6 +77,14 @@ function assertAppDelegateRouter(contents, label) {
     `${label}: CarPlay scene role check`
   );
   assertOk(
+    contents.includes("UIWindowSceneSessionRoleCarPlay"),
+    `${label}: CarPlay window role check`
+  );
+  assertOk(
+    contents.includes("@objc public func application("),
+    `${label}: ObjC-visible configurationForConnecting`
+  );
+  assertOk(
     contents.includes("[HTCarPlayNative] configurationForConnecting.enter"),
     `${label}: HTCarPlayNative enter log`
   );
@@ -180,10 +188,10 @@ function main() {
   assertOk(second.reason === "already_complete", "second injection reports already_complete");
   assertAppDelegateRouter(second.contents, "idempotent re-run");
 
-  // Incomplete router (role check missing) must be repaired.
+  // Incomplete router (window CarPlay role missing) must be repaired.
   const incomplete = first.contents.replace(
-    'if role == "CPTemplateApplicationSceneSessionRoleApplication"',
-    'if role == "SomeOtherRole"'
+    'UIWindowSceneSessionRoleCarPlay',
+    'UIWindowSceneSessionRoleMissingCarPlay'
   );
   assertOk(!plugin.hasCompleteCarPlaySceneRouter(incomplete), "incomplete fixture detected");
   const repaired = plugin.ensureCarPlaySceneConfiguration(incomplete);

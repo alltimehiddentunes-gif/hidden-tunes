@@ -3,9 +3,13 @@
  * Permanent source of truth — /ios is gitignored and may be regenerated.
  */
 
+const CARPLAY_TEMPLATE_ROLE = "CPTemplateApplicationSceneSessionRoleApplication";
+const CARPLAY_WINDOW_ROLE = "UIWindowSceneSessionRoleCarPlay";
+const CARPLAY_CONFIG_NAME = "HiddenTunesCarPlay";
+
 const CARPLAY_SCENE_CONFIGURATION_METHOD = `
   // ExpoAppDelegate does not declare this UIApplicationDelegate method, so do not mark override.
-  public func application(
+  @objc public func application(
     _ application: UIApplication,
     configurationForConnecting connectingSceneSession: UISceneSession,
     options: UIScene.ConnectionOptions
@@ -21,10 +25,15 @@ const CARPLAY_SCENE_CONFIGURATION_METHOD = `
     )
     NSLog("[HTCarPlay] configurationForConnecting role=%@", role)
 
-    if role == "CPTemplateApplicationSceneSessionRoleApplication" {
-      // Name matches Info.plist HiddenTunesCarPlay entry (CPTemplateApplicationScene).
+    let isCarPlayTemplateRole = role == "${CARPLAY_TEMPLATE_ROLE}"
+    let isCarPlayWindowRole = role == "${CARPLAY_WINDOW_ROLE}"
+    let isCarPlayRole = isCarPlayTemplateRole || isCarPlayWindowRole
+
+    if isCarPlayRole {
+      // Always return the template-application configuration for either CarPlay role
+      // string observed on device. Name matches Info.plist HiddenTunesCarPlay entry.
       let configuration = UISceneConfiguration(
-        name: "HiddenTunesCarPlay",
+        name: "${CARPLAY_CONFIG_NAME}",
         sessionRole: connectingSceneSession.role
       )
       configuration.delegateClass = CarPlaySceneDelegate.self
@@ -32,7 +41,7 @@ const CARPLAY_SCENE_CONFIGURATION_METHOD = `
       let resolvedObjc = NSClassFromString("CarPlaySceneDelegate") != nil ? 1 : 0
       let resolvedModule = NSClassFromString("HiddenTunes.CarPlaySceneDelegate") != nil ? 1 : 0
       NSLog(
-        "[HTCarPlayNative] configurationForConnecting.exit name=HiddenTunesCarPlay sceneClass=CPTemplateApplicationScene delegateClass=%@ nsClassObjc=%d nsClassModule=%d role=%@ sessionId=%@ mainThread=%d",
+        "[HTCarPlayNative] configurationForConnecting.exit name=${CARPLAY_CONFIG_NAME} sceneClass=CPTemplateApplicationScene delegateClass=%@ nsClassObjc=%d nsClassModule=%d role=%@ sessionId=%@ mainThread=%d",
         delegateName,
         resolvedObjc,
         resolvedModule,
@@ -79,10 +88,12 @@ const CARPLAY_SCENE_CONFIGURATION_METHOD = `
 function hasCompleteCarPlaySceneRouter(contents) {
   return (
     contents.includes("configurationForConnecting connectingSceneSession") &&
-    contents.includes("CPTemplateApplicationSceneSessionRoleApplication") &&
+    contents.includes(CARPLAY_TEMPLATE_ROLE) &&
+    contents.includes(CARPLAY_WINDOW_ROLE) &&
     contents.includes("CarPlaySceneDelegate.self") &&
     contents.includes("PhoneSceneDelegate.self") &&
-    contents.includes(".windowApplication")
+    contents.includes(".windowApplication") &&
+    contents.includes("@objc public func application(")
   );
 }
 
@@ -108,11 +119,11 @@ function ensureCarPlaySceneConfiguration(contents) {
   let next = contents;
   if (next.includes("configurationForConnecting connectingSceneSession")) {
     next = next.replace(
-      /\n\s*\/\/[^\n]*configurationForConnecting[\s\S]*?public func application\(\s*_ application: UIApplication,\s*configurationForConnecting connectingSceneSession: UISceneSession,\s*options: UIScene\.ConnectionOptions\s*\)\s*->\s*UISceneConfiguration\s*\{[\s\S]*?\n\s*\}\n/,
+      /\n\s*\/\/[^\n]*configurationForConnecting[\s\S]*?(?:@objc\s+)?public func application\(\s*_ application: UIApplication,\s*configurationForConnecting connectingSceneSession: UISceneSession,\s*options: UIScene\.ConnectionOptions\s*\)\s*->\s*UISceneConfiguration\s*\{[\s\S]*?\n\s*\}\n/,
       "\n"
     );
     next = next.replace(
-      /\n\s*public func application\(\s*_ application: UIApplication,\s*configurationForConnecting connectingSceneSession: UISceneSession,\s*options: UIScene\.ConnectionOptions\s*\)\s*->\s*UISceneConfiguration\s*\{[\s\S]*?\n\s*\}\n/,
+      /\n\s*(?:@objc\s+)?public func application\(\s*_ application: UIApplication,\s*configurationForConnecting connectingSceneSession: UISceneSession,\s*options: UIScene\.ConnectionOptions\s*\)\s*->\s*UISceneConfiguration\s*\{[\s\S]*?\n\s*\}\n/,
       "\n"
     );
     next = next.replace(
@@ -165,6 +176,9 @@ function ensureCarPlaySceneConfiguration(contents) {
 
 module.exports = {
   CARPLAY_SCENE_CONFIGURATION_METHOD,
+  CARPLAY_TEMPLATE_ROLE,
+  CARPLAY_WINDOW_ROLE,
+  CARPLAY_CONFIG_NAME,
   hasCompleteCarPlaySceneRouter,
   countConfigurationForConnectingMethods,
   ensureCarPlaySceneConfiguration,
