@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
-  fetchHiddenTunesCatalog,
+  fetchHiddenTunesDiscoveryCatalog,
   type HiddenTunesCatalogPlaylist,
 } from "../services/hiddenTunes";
 
@@ -31,7 +31,7 @@ export default function CloudPlaylistsScreen() {
   async function loadPlaylists() {
     try {
       setLoading(true);
-      const data = await fetchHiddenTunesCatalog();
+      const data = await fetchHiddenTunesDiscoveryCatalog();
       setPlaylists(data.playlists);
     } catch (error) {
       console.log("Load derived playlists error:", error);

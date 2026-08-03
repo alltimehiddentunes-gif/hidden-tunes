@@ -9,10 +9,7 @@ export const ENABLE_BASIC_PERF_DIAGNOSTICS = false;
 /** RAF long-task monitor, scroll jank, render probes, stress logs, perf summaries. */
 export const ENABLE_HEAVY_PERF_DIAGNOSTICS = false;
 
-/**
- * TEMPORARY runtime bottleneck instrumentation (AppState, renders, prefetch).
- * Set false or remove utils/runtimeInstrumentation.ts when diagnosis is complete.
- */
+/** Runtime bottleneck instrumentation; enable only during targeted diagnosis. */
 export const ENABLE_RUNTIME_INSTRUMENTATION = false;
 
 export function isDevEnvironment() {
@@ -60,17 +57,16 @@ export function isRadioDiscoveryDiagnosticsEnabled() {
   return isDevEnvironment() && ENABLE_HEAVY_PERF_DIAGNOSTICS;
 }
 
-/** Verbose playback/progress/queue logs — opt-in only (runtime or heavy perf flags). */
+/** Verbose playback/progress/queue logs — opt-in only (heavy perf flag). */
 export function isVerbosePlaybackDiagnosticsEnabled() {
-  return isRuntimeInstrumentationEnabled() || isHeavyPerfDiagnosticsEnabled();
+  // Do not couple to ENABLE_RUNTIME_INSTRUMENTATION — that amplified lockscreen/TV
+  // diag spam during global lag diagnosis and polluted the JS thread.
+  return isHeavyPerfDiagnosticsEnabled();
 }
 
-/** Persist lockscreen/critical diagnostic rings to AsyncStorage — dev-only by default. */
+/** Persist lockscreen/critical diagnostic rings to AsyncStorage — heavy perf only. */
 export function isDiagnosticsAsyncStorageEnabled() {
-  return (
-    isDevEnvironment() &&
-    (ENABLE_HEAVY_PERF_DIAGNOSTICS || ENABLE_RUNTIME_INSTRUMENTATION)
-  );
+  return isDevEnvironment() && ENABLE_HEAVY_PERF_DIAGNOSTICS;
 }
 
 /** Verbose lockscreen event ring buffer — dev-only unless heavy perf is on. */

@@ -204,40 +204,50 @@ export function getInstantCatalogView(
   options: CatalogViewLoadOptions
 ): CatalogViewResult | null {
   const target = buildCatalogViewTarget(options);
+  const limit = Math.min(Math.max(Number(options.limit) || GENRE_PAGE_LIMIT, 1), 100);
   const cached = readUnifiedViewCache(target.cacheKey);
 
   if (cached?.entry.songs.length) {
-    return buildResultFromCache(
+    const result = buildResultFromCache(
       target,
       cached.entry,
       cached.freshness,
       cached.persistedHit
     );
+    const songs = result.songs.slice(0, limit);
+    return { ...result, songs, hasMore: result.hasMore || result.songs.length > songs.length };
   }
 
   const snapshot = getHiddenTunesCatalogSnapshot();
   if (!snapshot.length) return null;
 
-  const matched = matchSongsForCatalogTarget(snapshot, target);
+  // Bound the scan so a previously bloated in-memory cache cannot stall room open.
+  const scanSource =
+    snapshot.length > HYDRATED_SNAPSHOT_SCAN_MAX
+      ? snapshot.slice(0, HYDRATED_SNAPSHOT_SCAN_MAX)
+      : snapshot;
+  const matched = matchSongsForCatalogTarget(scanSource, target);
   if (!matched.length) return null;
+  const songs = matched.slice(0, limit);
 
   logCatalogViewDiagnostics("catalog_snapshot_hit", {
     viewKey: target.cacheKey,
-    matchedCount: matched.length,
+    matchedCount: songs.length,
   });
 
   return {
     target,
-    songs: matched,
-    hasMore: true,
+    songs,
+    hasMore:
+      matched.length > songs.length || snapshot.length > scanSource.length,
     page: 1,
     showedCached: true,
     cacheHit: true,
     persistedHit: false,
     viewFreshness: "catalog_snapshot",
     fallbackUsed: false,
-    sourceSongCount: snapshot.length,
-    matchedFromCache: matched.length,
+    sourceSongCount: scanSource.length,
+    matchedFromCache: songs.length,
     refreshResultCount: 0,
     emptyStateReason: "content_available",
   };
@@ -387,6 +397,20 @@ export async function loadCatalogView(
 
     sourceSongCount = genrePage.songs.length;
     let apiMatches = matchSongsForCatalogTarget(genrePage.songs, target);
+    let scopedPage = genrePage;
+
+    if (target.type === "mood" && !apiMatches.length) {
+      // The songs endpoint has no dedicated mood filter. Search remains a bounded
+      // page request so Emotional Worlds never expands into a catalog walk.
+      const moodSearchPage = await getHiddenTunesSongsPage({
+        page,
+        limit,
+        query: target.query || target.title,
+      });
+      sourceSongCount += moodSearchPage.songs.length;
+      apiMatches = matchSongsForCatalogTarget(moodSearchPage.songs, target);
+      scopedPage = moodSearchPage;
+    }
 
     if (page === 1 && !apiMatches.length && !cachedMatches.length) {
       const fallbackPage = await getHiddenTunesSongsPage({
@@ -414,7 +438,7 @@ export async function loadCatalogView(
       writeUnifiedViewCache(
         target,
         resolvedSongs,
-        genrePage.hasMore,
+        scopedPage.hasMore,
         fallbackUsed,
         showedCached && persistedHit ? "persisted" : "memory"
       );
@@ -451,7 +475,7 @@ export async function loadCatalogView(
     return {
       target,
       songs: resolvedSongs,
-      hasMore: genrePage.hasMore,
+      hasMore: scopedPage.hasMore,
       page,
       showedCached,
       cacheHit: showedCached,

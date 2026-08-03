@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 
 import { isHiddenAudioEnabledOnAndroid } from "../constants/playbackConfig";
-import { fetchHiddenTunesCatalog, getCachedHiddenTunesCatalog } from "./hiddenTunes";
+import { getCachedHiddenTunesCatalog } from "./hiddenTunes";
 import {
   buildAndroidAutoCatalogSnapshot,
   buildAndroidAutoMinimalCatalogSnapshot,
@@ -102,7 +102,9 @@ export async function syncAndroidAutoCatalogFromDerived(): Promise<void> {
       await notifyHiddenAudioReactHostReady().catch(() => undefined);
     }
 
-    const catalog = getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog());
+    // Android Auto must never trigger a full catalog walk. Native receives a
+    // minimal snapshot until a catalog is already available in memory.
+    const catalog = getCachedHiddenTunesCatalog();
     const extras = await buildExtras();
     const snapshot = catalog?.songs?.length
       ? buildAndroidAutoCatalogSnapshot(catalog, extras)

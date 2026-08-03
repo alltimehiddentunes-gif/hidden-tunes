@@ -15,10 +15,6 @@ import {
   logEntityTracksResolved,
   type EntityDiagnosticKind,
 } from "./entityDiagnostics";
-import {
-  getSongMoodTokensForAudit,
-  songMatchesMoodLabel,
-} from "./moodRooms";
 import type {
   HiddenTunesAlbumCatalogItem,
   HiddenTunesArtistCatalogItem,
@@ -582,46 +578,6 @@ export function resolveGenreRoomEntity(
     songs as unknown as CatalogSongLike[],
     target
   ) as unknown as HiddenTunesSong[];
-
-  if (
-    typeof __DEV__ !== "undefined" &&
-    __DEV__ &&
-    resolverType === "mood" &&
-    /heartbreak/i.test(title)
-  ) {
-    const sample = songs.slice(0, 8).map((song) => {
-      const tokens = getSongMoodTokensForAudit(song as any);
-      const matched = songMatchesMoodLabel(song as any, target.title);
-      return {
-        title: song.title,
-        genre: song.genre,
-        mood: song.mood,
-        tags: (song as any).tags ?? null,
-        moodGenre: (song as any).moodGenre ?? null,
-        tokens,
-        matched,
-      };
-    });
-    console.log("[EWHeartbreakAudit]", {
-      roomTitle: title,
-      roomSlug: params.id || slugifyEntityKey(title),
-      catalogSource: catalog ? "derived_catalog" : "null",
-      totalCatalogCount: songs.length,
-      targetTitle: target.title,
-      targetLabels: target.labels,
-      matchedCount: catalogMatches.length,
-      sampleSongShape: songs[0]
-        ? {
-            keys: Object.keys(songs[0]).slice(0, 20),
-            genre: songs[0].genre,
-            mood: songs[0].mood,
-            tags: (songs[0] as any).tags ?? null,
-            moodGenre: (songs[0] as any).moodGenre ?? null,
-          }
-        : null,
-      sample,
-    });
-  }
 
   if (catalogMatches.length) {
     tracks = dedupeSongs(catalogMatches);

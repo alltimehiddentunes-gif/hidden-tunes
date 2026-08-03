@@ -34,10 +34,7 @@ import {
   type HiddenTunesAlbum,
   type HiddenTunesNormalizedSong,
 } from "../../services/hiddenTunesApi";
-import {
-  fetchHiddenTunesCatalog,
-  getCachedHiddenTunesCatalog,
-} from "../../services/hiddenTunes";
+import { getCachedHiddenTunesCatalog } from "../../services/hiddenTunes";
 import { getArtworkUri, resolveEntityArtwork } from "../../utils/artwork";
 import { logEntityTapReceived } from "../../utils/entityDiagnostics";
 import {
@@ -189,8 +186,9 @@ async function applyAlbumCatalogFallback(
   albumId: string,
   current: HiddenTunesAlbum | null
 ): Promise<HiddenTunesAlbum | null> {
-  const catalog =
-    getCachedHiddenTunesCatalog() || (await fetchHiddenTunesCatalog().catch(() => null));
+  // Never start a full-catalog walk from album detail. Prefer the bounded
+  // in-memory/persisted snapshot already available on device.
+  const catalog = getCachedHiddenTunesCatalog();
   if (!catalog) return current;
 
   const resolved = resolveAlbumEntity(catalog, {

@@ -434,6 +434,16 @@ function buildCatalogFingerprint(songs: HiddenTunesSong[]) {
 
 export const DISCOVERY_MIN_TRUSTED_CATALOG_SIZE = 50;
 export const DISCOVERY_CATALOG_PAGE_LIMIT = 60;
+export const HOME_BOUNDED_CATALOG_LIMIT = 100;
+
+export function boundHiddenTunesCatalog(
+  catalog: HiddenTunesDerivedCatalog | null | undefined,
+  maxSongs: number
+): HiddenTunesDerivedCatalog | null {
+  if (!catalog?.songs?.length) return catalog ?? null;
+  if (catalog.songs.length <= maxSongs) return catalog;
+  return deriveHiddenTunesCatalog(catalog.songs.slice(0, maxSongs));
+}
 
 function mapSnapshotSongs(snapshot: HiddenTunesNormalizedSong[]) {
   const seen = new Set<string>();
@@ -567,13 +577,15 @@ export async function fetchHiddenTunesCatalog(options?: {
   if (options?.forceRefresh) {
     clearHiddenTunesCatalogCache();
   } else {
+    // Join an in-flight full walk instead of returning a small trusted slice
+    // while the walk is still privately hydrating.
+    if (catalogFetchInflight) {
+      return catalogFetchInflight;
+    }
+
     syncDerivedCatalogFromSnapshot();
     if (derivedCatalogCache && isDerivedCatalogTrusted(derivedCatalogCache)) {
       return derivedCatalogCache;
-    }
-
-    if (catalogFetchInflight) {
-      return catalogFetchInflight;
     }
   }
 

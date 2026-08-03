@@ -37,7 +37,7 @@ import {
   RELATED_SONGS_LABEL,
 } from "../utils/entityResolution";
 import {
-  fetchHiddenTunesCatalog,
+  fetchHiddenTunesDiscoveryCatalog,
   getCachedHiddenTunesCatalog,
   isDerivedCatalogTrusted,
   type HiddenTunesAlbumCatalogItem,
@@ -183,7 +183,7 @@ export default function AlbumScreen() {
       setCatalog(
         cached && isDerivedCatalogTrusted(cached)
           ? cached
-          : await fetchHiddenTunesCatalog()
+          : await fetchHiddenTunesDiscoveryCatalog()
       );
     } catch (error) {
       console.log("Album catalog load error:", error);

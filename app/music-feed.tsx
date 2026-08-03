@@ -51,10 +51,10 @@ import {
 } from "@/context/PlayerContext";
 import type { PlaybackQueueContext } from "@/context/PlayerContext";
 import {
-  fetchHiddenTunesCatalog,
+  boundHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
   hydrateCachedHiddenTunesCatalog,
-  isDerivedCatalogTrusted,
+  HOME_BOUNDED_CATALOG_LIMIT,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
@@ -86,11 +86,6 @@ import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
 import PremiumEmptyState from "@/components/PremiumEmptyState";
 import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
 import GenreSpotlightCard from "@/components/home/GenreSpotlightCard";
-import {
-  albumGroupKey,
-  canonicalAlbumSlug,
-  canonicalArtistId,
-} from "@/utils/hiddenTunesAlbumIdentity";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
 import { useLocalization } from "@/localization";
@@ -238,8 +233,10 @@ const HOME_CONTINUOUS_MOTION_ENABLED = false;
 const HOME_HERO_AUTO_SLIDE_ENABLED = false;
 
 function getInitialHomeCatalog() {
-  const cached = getCachedHiddenTunesCatalog();
-  return cached && isDerivedCatalogTrusted(cached) ? cached : null;
+  return boundHiddenTunesCatalog(
+    getCachedHiddenTunesCatalog(),
+    HOME_BOUNDED_CATALOG_LIMIT
+  );
 }
 
 const PremiumAmbientGlow = memo(function PremiumAmbientGlow({
@@ -898,6 +895,8 @@ export default function MusicFeedScreen() {
   const [homeAnimationsPaused, setHomeAnimationsPaused] = useState(false);
   const [homeFocused, setHomeFocused] = useState(true);
   const mountedRef = useRef(true);
+  const focusedRef = useRef(true);
+  const loadGenerationRef = useRef(0);
   const loadedHomeOnceRef = useRef(Boolean(initialCatalogStateRef.current));
   const catalogRequestRef = useRef<Promise<void> | null>(null);
   const homeMountAtRef = useRef(Date.now());
@@ -929,8 +928,18 @@ export default function MusicFeedScreen() {
     });
   }
 
-  const applyCatalog = useCallback((data: HiddenTunesDerivedCatalog | null | undefined) => {
-    if (!data?.songs.length || !mountedRef.current) return;
+  const applyCatalog = useCallback((
+    data: HiddenTunesDerivedCatalog | null | undefined,
+    generation: number
+  ) => {
+    if (
+      !data?.songs.length ||
+      !mountedRef.current ||
+      !focusedRef.current ||
+      generation !== loadGenerationRef.current
+    ) {
+      return;
+    }
     setCatalog(data);
     setLoading(false);
     loadedHomeOnceRef.current = true;
@@ -946,6 +955,7 @@ export default function MusicFeedScreen() {
 
     const request = (async () => {
       const startedAt = Date.now();
+      const generation = ++loadGenerationRef.current;
       try {
         // 1) Disk cache first — paint immediately when anything is available.
         const hydratedStarted = Date.now();
@@ -953,47 +963,33 @@ export default function MusicFeedScreen() {
         logHomeLoad("disk_hydrate", {
           ms: Date.now() - hydratedStarted,
           songs: hydrated?.songs.length || 0,
-          trusted: isDerivedCatalogTrusted(hydrated),
         });
         if (hydrated) {
-          applyCatalog(hydrated);
+          const boundedHydrated = boundHiddenTunesCatalog(
+            hydrated,
+            HOME_BOUNDED_CATALOG_LIMIT
+          );
+          applyCatalog(boundedHydrated, generation);
           logHomeLoad("cached_content", {
             ms: Date.now() - homeMountAtRef.current,
-            songs: hydrated.songs.length,
+            songs: boundedHydrated?.songs.length || 0,
           });
         }
 
-        // Trusted disk catalog: keep UI live; soft-refresh in background only.
-        if (isDerivedCatalogTrusted(hydrated)) {
-          void fetchHiddenTunesCatalog()
-            .then((data) => {
-              applyCatalog(data);
-              logHomeLoad("background_refresh_done", {
-                ms: Date.now() - startedAt,
-                songs: data.songs.length,
-              });
-            })
-            .catch((error) => {
-              logHomeLoad("background_refresh_error", {
-                error: error instanceof Error ? error.message : String(error),
-              });
-            });
-          return;
-        }
-
-        // 2) Cold / partial: start full catalog, but surface first page ASAP.
-        // Do not await the multi-page crawl — apply when ready so Home stays interactive.
+        // 2) Refresh Home from only the first catalog page. This screen must
+        // never start a complete catalog walk.
         const networkStarted = Date.now();
-        const fullPromise = fetchHiddenTunesCatalog();
-
         try {
           await getHiddenTunesSongsPage({
             page: 1,
             limit: HOME_FIRST_PAGE_LIMIT,
           });
-          const firstPageCatalog = getCachedHiddenTunesCatalog();
+          const firstPageCatalog = boundHiddenTunesCatalog(
+            getCachedHiddenTunesCatalog(),
+            HOME_BOUNDED_CATALOG_LIMIT
+          );
           if (firstPageCatalog?.songs.length) {
-            applyCatalog(firstPageCatalog);
+            applyCatalog(firstPageCatalog, generation);
             logHomeLoad("first_page", {
               ms: Date.now() - networkStarted,
               songs: firstPageCatalog.songs.length,
@@ -1004,29 +1000,17 @@ export default function MusicFeedScreen() {
             error: error instanceof Error ? error.message : String(error),
           });
         }
-
-        void fullPromise
-          .then((data) => {
-            if (!mountedRef.current) return;
-            applyCatalog(data);
-            logHomeLoad("full_catalog", {
-              ms: Date.now() - networkStarted,
-              totalMs: Date.now() - startedAt,
-              songs: data.songs.length,
-            });
-          })
-          .catch((error) => {
-            logHomeLoad("full_catalog_error", {
-              error: error instanceof Error ? error.message : String(error),
-            });
-          });
       } catch (error) {
         logHomeLoad("load_error", {
           error: error instanceof Error ? error.message : String(error),
         });
       } finally {
         catalogRequestRef.current = null;
-        if (mountedRef.current) {
+        if (
+          mountedRef.current &&
+          focusedRef.current &&
+          generation === loadGenerationRef.current
+        ) {
           setLoading(false);
         }
         logHomeLoad("load_finally", {
@@ -1053,15 +1037,29 @@ export default function MusicFeedScreen() {
   const refreshCatalog = useCallback(async () => {
     setRefreshing(true);
     const startedAt = Date.now();
+    const generation = ++loadGenerationRef.current;
     try {
-      const data = await fetchHiddenTunesCatalog({ forceRefresh: true });
-      if (data.songs.length) {
+      await getHiddenTunesSongsPage({
+        page: 1,
+        limit: HOME_FIRST_PAGE_LIMIT,
+        forceRefresh: true,
+      });
+      const data = boundHiddenTunesCatalog(
+        getCachedHiddenTunesCatalog(),
+        HOME_BOUNDED_CATALOG_LIMIT
+      );
+      if (
+        data?.songs.length &&
+        mountedRef.current &&
+        focusedRef.current &&
+        generation === loadGenerationRef.current
+      ) {
         setCatalog(data);
       }
       setVisibleCatalogCount(CATALOG_PAGE_SIZE);
       logHomeLoad("pull_refresh", {
         ms: Date.now() - startedAt,
-        songs: data.songs.length,
+        songs: data?.songs.length || 0,
       });
     } catch (error) {
       logHomeLoad("pull_refresh_error", {
@@ -1115,62 +1113,7 @@ export default function MusicFeedScreen() {
   );
   const visibleAlbums = useMemo(() => {
     if (!showDeferredHomeSections) return [];
-    const preview = albums.slice(0, HOME_SECTION_PREVIEW_LIMIT);
-
-    if (typeof __DEV__ !== "undefined" && __DEV__ && preview.length > 0) {
-      const rows = preview.map((album) => {
-        const id = String(album.id || "").trim();
-        const reactKey =
-          id ||
-          `album:${String(album.artist || "").trim()}:${String(album.title || "").trim()}`;
-        return {
-          id,
-          title: album.title,
-          artist: album.artist,
-          canonicalArtist: canonicalArtistId(album.artist),
-          canonicalAlbum: canonicalAlbumSlug(album.title),
-          sourceSongCount: album.songs?.length ?? 0,
-          originalGroupingKey: albumGroupKey(album.artist, album.title),
-          finalReactKey: reactKey,
-          songsSample: (album.songs || []).slice(0, 3).map((song) => ({
-            id: song.id,
-            artist: song.artist,
-            album: song.album,
-            groupKey: albumGroupKey(song.artist, song.album),
-          })),
-        };
-      });
-      console.log("[home_albums_audit] rendered_rows", rows);
-
-      const byId = new Map<string, typeof preview>();
-      for (const album of preview) {
-        const id = String(album.id || "").trim();
-        if (!id) continue;
-        const list = byId.get(id) || [];
-        list.push(album);
-        byId.set(id, list);
-      }
-      const dups = [...byId.entries()].filter(([, list]) => list.length > 1);
-      if (dups.length) {
-        for (const [id, list] of dups) {
-          console.warn("[home_albums_audit] DUPLICATE_ALBUM_ID", id, {
-            left: list[0],
-            right: list[1],
-            all: list,
-          });
-        }
-        console.assert(
-          false,
-          `[home_albums_audit] album ids must be unique; duplicates: ${dups
-            .map(([id, list]) => `${id} x${list.length}`)
-            .join(", ")}`
-        );
-      } else {
-        console.log("[home_albums_audit] album_ids_unique", preview.length);
-      }
-    }
-
-    return preview;
+    return albums.slice(0, HOME_SECTION_PREVIEW_LIMIT);
   }, [albums, showDeferredHomeSections]);
   const genreSignature = useMemo(() => buildSongListSignature(genres), [genres]);
   const catalogGenreById = useMemo(() => {
@@ -1330,12 +1273,15 @@ export default function MusicFeedScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      focusedRef.current = true;
       setHomeFocused(true);
       void refreshGenreSpotlightSignals();
       const interaction = InteractionManager.runAfterInteractions(() => {
         setShowDeferredHomeSections(true);
       });
       return () => {
+        focusedRef.current = false;
+        loadGenerationRef.current += 1;
         setHomeFocused(false);
         interaction.cancel();
       };

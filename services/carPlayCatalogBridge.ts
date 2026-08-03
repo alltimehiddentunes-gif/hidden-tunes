@@ -2,7 +2,6 @@ import { Platform } from "react-native";
 
 import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
 import {
-  fetchHiddenTunesCatalog,
   getCachedHiddenTunesCatalog,
   type HiddenTunesDerivedCatalog,
   type HiddenTunesSong,
@@ -483,15 +482,7 @@ async function publishCarPlayCatalogSnapshot(): Promise<void> {
   logCarPlayJs("catalog publish started");
 
   try {
-    // Prefer cache first so CarPlay is not blocked on network.
     let catalog = getCachedHiddenTunesCatalog();
-    if (!catalog?.songs?.length) {
-      try {
-        catalog = await fetchHiddenTunesCatalog();
-      } catch {
-        catalog = null;
-      }
-    }
 
     let snapshot: AndroidAutoCatalogSnapshot;
     try {
