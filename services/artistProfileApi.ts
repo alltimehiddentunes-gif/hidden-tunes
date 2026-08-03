@@ -1,6 +1,6 @@
 /**
  * Typed client for the Next.js Artist Profile API on admin.hiddentunes.com.
- * Metadata only ÔÇö no stream URLs. Playback stays on existing catalog/player paths.
+ * Metadata only -- no stream URLs. Playback stays on existing catalog/player paths.
  */
 
 export const ARTIST_PROFILE_API_BASE_URL = "https://admin.hiddentunes.com";

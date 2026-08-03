@@ -1,7 +1,7 @@
 /**
  * Isolated TV media handoff tokens.
  * Prevents stale async TV resolver results from overriding a newer user action.
- * Does not own playback engines ÔÇö callers use existing public stop/open APIs.
+ * Does not own playback engines -- callers use existing public stop/open APIs.
  */
 
 let currentTransitionId = 0;

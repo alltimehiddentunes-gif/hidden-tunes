@@ -16,7 +16,7 @@ const DW_ENGLISH_TEST_STREAM =
 const MATURE_TV_TEST_CHANNELS: TVChannel[] = [
   {
     id: "mature-gate-test-primary",
-    name: "Mature Gate Playback Test ÔÇö Working Stream",
+    name: "Mature Gate Playback Test — Working Stream",
     description:
       "Internal 18+ gate playback test using a verified public HLS stream. Not adult content.",
     streamUrl: FRANCE_24_TEST_STREAM,
@@ -34,7 +34,7 @@ const MATURE_TV_TEST_CHANNELS: TVChannel[] = [
   },
   {
     id: "mature-gate-test-alternate",
-    name: "Mature Gate Playback Test ÔÇö Alternate Stream",
+    name: "Mature Gate Playback Test — Alternate Stream",
     description:
       "Internal 18+ gate playback test using a second verified public HLS stream. Not adult content.",
     streamUrl: DW_ENGLISH_TEST_STREAM,

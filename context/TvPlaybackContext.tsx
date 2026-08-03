@@ -924,7 +924,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Direct playSong/playQueue paths bypass usePlaybackRouter ÔÇö stop TV when
+  // Direct playSong/playQueue paths bypass usePlaybackRouter -- stop TV when
   // the shared now-playing snapshot shows audio becoming active.
   useEffect(() => {
     return subscribeNowPlaying(() => {

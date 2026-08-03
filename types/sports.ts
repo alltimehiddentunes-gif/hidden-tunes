@@ -1,4 +1,4 @@
-/** Sports public event statuses â€” aligned with backend home IA contract. */
+/** Sports public event statuses -- aligned with backend home IA contract. */
 export const SPORTS_PUBLIC_EVENT_STATUSES = [
   "scheduled",
   "starting_soon",

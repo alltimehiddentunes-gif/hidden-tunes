@@ -5,7 +5,7 @@
 
 let tvSessionActive = false;
 let tvTabFocused = false;
-/** @deprecated Prefer setTvSessionActive ÔÇö kept for gradual call-site migration. */
+/** @deprecated Prefer setTvSessionActive -- kept for gradual call-site migration. */
 let tvPlayerOpenCount = 0;
 
 export function setTvSessionActive(active: boolean) {
@@ -14,7 +14,7 @@ export function setTvSessionActive(active: boolean) {
 }
 
 export function markTvPlayerOpen() {
-  // Legacy route-based counting ÔÇö sync to session-active semantics.
+  // Legacy route-based counting -- sync to session-active semantics.
   tvPlayerOpenCount += 1;
   tvSessionActive = tvPlayerOpenCount > 0;
 }

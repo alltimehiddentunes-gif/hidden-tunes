@@ -113,7 +113,7 @@ export async function toggleTvChannelFavorite(
     return { favorited: false, favorites, persisted: true };
   }
 
-  // Deduplicate rapid taps ÔÇö ignore while a toggle for this channel is in flight.
+  // Deduplicate rapid taps -- ignore while a toggle for this channel is in flight.
   if (inFlightToggles.has(channelId)) {
     const favorites = await loadTvFavorites();
     return {

@@ -14,6 +14,11 @@ import { ActivityIndicator,
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../../utils/safeNavigation";
+import {
+  joinMetadataParts,
+  META_SEPARATOR,
+  normalizeDisplayText,
+} from "../../utils/normalizeDisplayText";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -217,13 +222,17 @@ export default function ArtistScreen() {
 
   const genreLabel = useMemo(() => {
     if (profileShell?.artist.genres?.length) {
-      return profileShell.artist.genres.slice(0, 3).join(" ┬À ");
+      return normalizeDisplayText(
+        profileShell.artist.genres.slice(0, 3).join(META_SEPARATOR)
+      );
     }
-    return artist?.genre || "";
+    return normalizeDisplayText(String(artist?.genre || ""));
   }, [artist?.genre, profileShell?.artist.genres]);
 
   const bioText = useMemo(() => {
-    return String(profileAbout?.bio || profileShell?.artist.bio || artist?.bio || "").trim();
+    return normalizeDisplayText(
+      String(profileAbout?.bio || profileShell?.artist.bio || artist?.bio || "").trim()
+    );
   }, [artist?.bio, profileAbout?.bio, profileShell?.artist.bio]);
 
   const followerLabel = useMemo(() => {
@@ -415,7 +424,7 @@ export default function ArtistScreen() {
                 setSimilarCursor(similarPage?.pagination.nextCursor || null);
               })
               .catch(() => {
-                // Optional section ÔÇö keep profile usable when similar fails.
+                // Optional section -- keep profile usable when similar fails.
               });
           });
         };
@@ -452,7 +461,7 @@ export default function ArtistScreen() {
             });
             setLoading(false);
 
-            // Follow comes from shell + local cache ÔÇö no duplicate GET.
+            // Follow comes from shell + local cache -- no duplicate GET.
             const cachedFollow = getCachedArtistFollowState(shell.artist.id);
             const initialFollowing =
               cachedFollow?.is_following ?? shell.viewer.is_following === true;
@@ -843,9 +852,10 @@ export default function ArtistScreen() {
         index={index}
         active={currentSong?.id === item.id}
         isPlaying={isPlaying}
-        metaLine={`${item.album || artist?.name || ""}${
-          item.duration ? ` ÔÇó ${formatDuration(item.duration)}` : ""
-        }`}
+        metaLine={joinMetadataParts([
+          item.album || artist?.name || "",
+          item.duration ? formatDuration(item.duration) : null,
+        ])}
         onPress={handlePlay}
       />
     ),
@@ -966,12 +976,12 @@ export default function ArtistScreen() {
           </Text>
 
           <Text style={styles.meta}>
-            {tracks.length}
-            {tracksHasMore ? "+" : ""} song{tracks.length === 1 ? "" : "s"} ÔÇó{" "}
-            {albums.length}
-            {releasesHasMore ? "+" : ""} album{albums.length === 1 ? "" : "s"}
-            {genreLabel ? ` ÔÇó ${genreLabel}` : ""}
-            {followerLabel ? ` ÔÇó ${followerLabel}` : ""}
+            {joinMetadataParts([
+              `${tracks.length}${tracksHasMore ? "+" : ""} song${tracks.length === 1 ? "" : "s"}`,
+              `${albums.length}${releasesHasMore ? "+" : ""} album${albums.length === 1 ? "" : "s"}`,
+              genreLabel,
+              followerLabel,
+            ])}
           </Text>
 
           {bioText ? (

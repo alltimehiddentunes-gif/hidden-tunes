@@ -192,7 +192,7 @@ export default function ArtistScreen() {
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
         <View style={styles.loader}>
           <ActivityIndicator color={COLORS.primary} />
-          <Text style={styles.loadingText}>Opening artistÔÇª</Text>
+          <Text style={styles.loadingText}>Opening artist…</Text>
         </View>
       </LinearGradient>
     );

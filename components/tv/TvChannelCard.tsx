@@ -19,6 +19,7 @@ import {
 } from "@/services/tv/tvFavorites";
 import type { TVChannel } from "@/types/tv";
 import { formatTvChannelTitle } from "@/utils/formatTvChannelDisplay";
+import { META_SEPARATOR } from "@/utils/normalizeDisplayText";
 
 type TvChannelCardProps = {
   channel: TVChannel;
@@ -182,7 +183,7 @@ function TvChannelCard({
 
       <Text numberOfLines={1} style={styles.meta}>
         {formatCategoryLabel(channel.category)}
-        {channel.country ? ` ┬À ${channel.country}` : ""}
+        {channel.country ? `${META_SEPARATOR}${channel.country}` : ""}
       </Text>
 
       {channel.language ? (
