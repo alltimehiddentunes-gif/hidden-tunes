@@ -136,6 +136,10 @@ const NATIVE_FILES = [
   "PhoneSceneDelegate.swift",
 ];
 
+const CARPLAY_MANIFEST_VALIDATION_PHASE = "[HT] Validate CarPlay Scene Manifest";
+const CARPLAY_MANIFEST_VALIDATION_SCRIPT =
+  '/usr/bin/tr -d \'\\r\' < "${SRCROOT}/../plugins/hidden-audio/ios/validate-carplay-scene-manifest.sh" | /bin/sh';
+
 const CARPLAY_SCENE_ROLE = "CPTemplateApplicationSceneSessionRoleApplication";
 const CARPLAY_WINDOW_SCENE_ROLE = "UIWindowSceneSessionRoleCarPlay";
 const PHONE_SCENE_ROLE = "UIWindowSceneSessionRoleApplication";
@@ -158,24 +162,26 @@ function assertCarPlaySceneManifest(manifest, label) {
     throw new Error(`[hidden-audio] FATAL: ${label} missing UISceneConfigurations`);
   }
 
-  // Invalid pairing that crashes UIKit on device:
-  // UIWindowSceneSessionRoleCarPlay + CPTemplateApplicationScene
+  // This audio-template app must not register the window-CarPlay role at all.
   const windowCarPlayEntries = configs[CARPLAY_WINDOW_SCENE_ROLE];
   if (Array.isArray(windowCarPlayEntries) && windowCarPlayEntries.length > 0) {
-    for (const entry of windowCarPlayEntries) {
-      if (entry && entry.UISceneClassName === "CPTemplateApplicationScene") {
-        throw new Error(
-          `[hidden-audio] FATAL: ${label} invalid pairing ${CARPLAY_WINDOW_SCENE_ROLE} + CPTemplateApplicationScene`
-        );
-      }
-    }
+    throw new Error(
+      `[hidden-audio] FATAL: ${label} must not contain ${CARPLAY_WINDOW_SCENE_ROLE}`
+    );
   }
 
   const requiredRoles = [PHONE_SCENE_ROLE, CARPLAY_SCENE_ROLE];
+  if (Object.keys(configs).length !== requiredRoles.length) {
+    throw new Error(
+      `[hidden-audio] FATAL: ${label} expected exactly ${requiredRoles.length} scene roles`
+    );
+  }
   for (const role of requiredRoles) {
     const entries = configs[role];
-    if (!Array.isArray(entries) || entries.length < 1) {
-      throw new Error(`[hidden-audio] FATAL: ${label} missing scene role ${role}`);
+    if (!Array.isArray(entries) || entries.length !== 1) {
+      throw new Error(
+        `[hidden-audio] FATAL: ${label} expected exactly one scene configuration for ${role}`
+      );
     }
   }
 
@@ -201,9 +207,14 @@ function assertCarPlaySceneManifest(manifest, label) {
   if (phone.UISceneClassName !== "UIWindowScene") {
     throw new Error(`[hidden-audio] FATAL: ${label} phone scene must remain UIWindowScene`);
   }
-  if (String(phone.UISceneDelegateClassName || "").includes("CarPlaySceneDelegate")) {
+  if (phone.UISceneConfigurationName !== "HiddenTunesPhone") {
     throw new Error(
-      `[hidden-audio] FATAL: ${label} phone role must not use CarPlaySceneDelegate`
+      `[hidden-audio] FATAL: ${label} phone scene must use HiddenTunesPhone`
+    );
+  }
+  if (!String(phone.UISceneDelegateClassName || "").includes("PhoneSceneDelegate")) {
+    throw new Error(
+      `[hidden-audio] FATAL: ${label} phone role must use PhoneSceneDelegate`
     );
   }
 }
@@ -331,6 +342,28 @@ const withHiddenAudioXcodeProject = (config) => {
       console.warn(
         "[hidden-audio] CarPlay.framework link skipped:",
         error && error.message ? error.message : error
+      );
+    }
+
+    const shellPhases = xcodeProject.hash.project.objects.PBXShellScriptBuildPhase || {};
+    const hasValidationPhase = Object.values(shellPhases).some(
+      (phase) =>
+        phase &&
+        typeof phase === "object" &&
+        String(phase.name || "").includes(CARPLAY_MANIFEST_VALIDATION_PHASE)
+    );
+    if (!hasValidationPhase) {
+      xcodeProject.addBuildPhase(
+        [],
+        "PBXShellScriptBuildPhase",
+        CARPLAY_MANIFEST_VALIDATION_PHASE,
+        targetUuid,
+        {
+          shellPath: "/bin/sh",
+          shellScript: CARPLAY_MANIFEST_VALIDATION_SCRIPT,
+          inputPaths: ['"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)"'],
+          outputPaths: [],
+        }
       );
     }
 

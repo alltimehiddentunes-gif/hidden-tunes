@@ -39,12 +39,9 @@ function main() {
   assertOk(plugin.includes('config.modResults["com.apple.developer.carplay-audio"] = true'), "plugin audio");
   assertOk(plugin.includes("CPTemplateApplicationSceneSessionRoleApplication"), "CarPlay scene role");
   assertOk(plugin.includes("assertCarPlaySceneManifest"), "manifest assertion helper");
-  assertOk(
-    plugin.includes("invalid pairing UIWindowSceneSessionRoleCarPlay + CPTemplateApplicationScene") ||
-      plugin.includes("invalid pairing ${CARPLAY_WINDOW_SCENE_ROLE} + CPTemplateApplicationScene") ||
-      plugin.includes("invalid pairing"),
-    "rejects invalid window-CarPlay + template pairing"
-  );
+  assertOk(plugin.includes("must not contain ${CARPLAY_WINDOW_SCENE_ROLE}"), "rejects any window-CarPlay role");
+  assertOk(plugin.includes("expected exactly ${requiredRoles.length} scene roles"), "requires exactly two generated roles");
+  assertOk(plugin.includes("phone role must use PhoneSceneDelegate"), "requires generated phone delegate");
   assertOk(plugin.includes("Do NOT register UIWindowSceneSessionRoleCarPlay"), "docs remove invalid window role");
   assertOk(!plugin.includes("[CARPLAY_WINDOW_SCENE_ROLE]: [CARPLAY_SCENE_CONFIG]"), "manifest does not register window CarPlay template");
   assertOk(plugin.includes("CarPlaySceneDelegate.swift"), "scene file in NATIVE_FILES");
@@ -69,26 +66,53 @@ function main() {
     "injected router source does not treat window role as template"
   );
 
-  assertOk(appJson.expo?.ios?.buildNumber === "1.0.205", "diagnostic build number bumped");
+  assertOk(appJson.expo?.ios?.buildNumber === "1.0.209", "diagnostic build number bumped");
+  const manifestValidator = read("plugins/hidden-audio/ios/validate-carplay-scene-manifest.sh");
+  assertOk(manifestValidator.includes("${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"), "validates processed plist");
+  assertOk(manifestValidator.includes("processed plist must not contain $WINDOW_CARPLAY_ROLE"), "rejects processed window-CarPlay role");
+  assertOk(manifestValidator.includes("processed plist must contain exactly two scene roles"), "requires exactly two processed roles");
+  assertOk(manifestValidator.includes("must resolve to PRODUCT_MODULE_NAME.PhoneSceneDelegate"), "requires processed phone delegate");
+  assertOk(manifestValidator.includes("expected exactly one $TEMPLATE_ROLE configuration"), "rejects duplicate template role");
+  assertOk(manifestValidator.includes("installed CarPlay SDK"), "verifies installed SDK declaration");
+  assertOk(plugin.includes("/usr/bin/tr -d"), "normalizes validator line endings before execution");
 
   const scene = read("plugins/hidden-audio/ios/HiddenAudioModule/CarPlaySceneDelegate.swift");
   assertOk(scene.includes("@objc(CarPlaySceneDelegate)"), "@objc CarPlaySceneDelegate");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_delegate_init")'), "scene_delegate_init");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_connection_start")'), "scene_connection_start");
   assertOk(scene.includes("[HTCarPlayNative]"), "scene emits HTCarPlayNative diagnostics");
+  assertOk(scene.includes("private var templateApplicationScene"), "scene strongly retained");
+  assertOk(scene.includes("private var rootTemplate"), "root strongly retained");
+  assertOk(scene.includes("diagnostic_root.visible_window_started"), "diagnostic root visibility window");
+  assertOk(scene.includes('text: "CarPlay Connected"'), "unmistakable native diagnostic row");
+  assertOk(scene.includes('detailText: "Native runtime active"'), "native diagnostic detail");
   assertOk(scene.includes("didConnect.enter"), "scene native didConnect diagnostic");
   assertOk(scene.includes("setRootTemplate.completion"), "scene native setRoot completion diagnostic");
   assertOk(scene.includes("attachConnectedSession"), "scene attaches manager after confirmed root");
   assertOk(scene.includes("rootInstallConfirmed: true"), "scene only attaches after confirmed root");
   assertOk(scene.includes("setRootTemplate("), "scene installs root inline (Apple audio pattern)");
-  assertOk(scene.includes("Loading your audio"), "scene minimal loading root");
+  assertOk(!scene.includes("Loading your audio"), "diagnostic root is unmistakable");
+  for (const marker of [
+    "delegate_init",
+    "did_connect_enter",
+    "interface_controller_received",
+    "root_template_created",
+    "set_root_template_called",
+    "set_root_template_result",
+    "cached_catalog_replay_started",
+    "cached_catalog_replay_completed",
+    "did_disconnect",
+  ]) {
+    assertOk(scene.includes(`[HTCarPlayNative] ${marker}`), `native diagnostic ${marker}`);
+  }
   assertOk(scene.includes("makeImmediateFallbackRoot"), "scene fallback helper");
   assertOk(scene.includes("installSafeRoot"), "scene bounded install helper");
   assertOk(scene.includes("root_install_retry"), "scene retries failed setRoot");
   assertOk(scene.includes("maxRootInstallAttempts"), "scene bounds retries");
   assertOk(scene.includes("private var interfaceController: CPInterfaceController?"), "strong IC");
-  assertOk(!scene.includes("didConnect interfaceController: CPInterfaceController,\n    to window"), "no navigation 3-arg didConnect");
-  assertOk(!scene.includes("didDisconnect interfaceController: CPInterfaceController,\n    from window"), "no navigation 3-arg didDisconnect");
+  assertOk(/didConnect interfaceController: CPInterfaceController,\s+to window/.test(scene), "window callback compatibility entry");
+  assertOk(/didDisconnect interfaceController: CPInterfaceController,\s+from window/.test(scene), "window disconnect compatibility entry");
+  assertOk(scene.includes("reason=duplicate_callback"), "callback variants are idempotent");
   // Scene installs only the safe list root — never constructs the tab bar itself.
   assertOk(!scene.includes("CPTabBarTemplate("), "scene delegate does not construct tab bar");
   // Completion-gated attach: success path passes rootInstallConfirmed; failure falls to manager.connect.
