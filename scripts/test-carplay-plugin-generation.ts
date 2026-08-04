@@ -81,6 +81,10 @@ function assertAppDelegateRouter(contents, label) {
     `${label}: rejects UIWindowSceneSessionRoleCarPlay + template`
   );
   assertOk(
+    contents.includes("RejectedCarPlayWindowSceneDelegate.self"),
+    `${label}: unexpected window CarPlay role has a non-React rejecting owner`
+  );
+  assertOk(
     contents.includes("@objc public func application("),
     `${label}: ObjC-visible configurationForConnecting`
   );

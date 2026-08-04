@@ -84,9 +84,9 @@ class HiddenAudioModule: RCTEventEmitter {
       }
       carPlayManager.startIfNeeded()
       emitDiagnostic("ios_carplay_prepared", [
-        "entitlementMode": "carplay-audio+video",
+        "entitlementMode": "carplay-audio",
         "hasCarPlayAudioEntitlement": true,
-        "hasCarPlayVideoEntitlement": true,
+        "hasCarPlayVideoEntitlement": false,
         "sceneDelegate": "CarPlaySceneDelegate",
       ])
       resolve(nil)

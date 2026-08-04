@@ -34,9 +34,14 @@ function main() {
     appJson.expo?.ios?.entitlements?.["com.apple.developer.carplay-audio"] === true,
     "app.json carplay-audio entitlement"
   );
+  assertOk(
+    !("com.apple.developer.carplay-video" in appJson.expo.ios.entitlements),
+    "app.json excludes carplay-video entitlement"
+  );
 
   const plugin = read("plugins/hidden-audio/index.js");
   assertOk(plugin.includes('config.modResults["com.apple.developer.carplay-audio"] = true'), "plugin audio");
+  assertOk(plugin.includes('delete config.modResults["com.apple.developer.carplay-video"]'), "plugin removes video entitlement");
   assertOk(plugin.includes("CPTemplateApplicationSceneSessionRoleApplication"), "CarPlay scene role");
   assertOk(plugin.includes("assertCarPlaySceneManifest"), "manifest assertion helper");
   assertOk(plugin.includes("must not contain ${CARPLAY_WINDOW_SCENE_ROLE}"), "rejects any window-CarPlay role");
@@ -56,6 +61,10 @@ function main() {
     "router rejects window role without selecting template"
   );
   assertOk(
+    router.includes("RejectedCarPlayWindowSceneDelegate.self"),
+    "unexpected window CarPlay role cannot be owned by Expo/React"
+  );
+  assertOk(
     router.includes("CPTemplateApplicationSceneSessionRoleApplication"),
     "router matches template role"
   );
@@ -66,7 +75,7 @@ function main() {
     "injected router source does not treat window role as template"
   );
 
-  assertOk(appJson.expo?.ios?.buildNumber === "1.0.209", "diagnostic build number bumped");
+  assertOk(appJson.expo?.ios?.buildNumber === "1.0.210", "diagnostic build number bumped");
   const manifestValidator = read("plugins/hidden-audio/ios/validate-carplay-scene-manifest.sh");
   assertOk(manifestValidator.includes("${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"), "validates processed plist");
   assertOk(manifestValidator.includes("processed plist must not contain $WINDOW_CARPLAY_ROLE"), "rejects processed window-CarPlay role");
@@ -78,6 +87,8 @@ function main() {
 
   const scene = read("plugins/hidden-audio/ios/HiddenAudioModule/CarPlaySceneDelegate.swift");
   assertOk(scene.includes("@objc(CarPlaySceneDelegate)"), "@objc CarPlaySceneDelegate");
+  assertOk(scene.includes("@objc(RejectedCarPlayWindowSceneDelegate)"), "defensive window scene owner");
+  assertOk(scene.includes("requestSceneSessionDestruction"), "unexpected vehicle window destroyed");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_delegate_init")'), "scene_delegate_init");
   assertOk(scene.includes('NSLog("[HTCarPlay] scene_connection_start")'), "scene_connection_start");
   assertOk(scene.includes("[HTCarPlayNative]"), "scene emits HTCarPlayNative diagnostics");
@@ -206,7 +217,7 @@ function main() {
 
   console.log("carplay-static-readiness: ok");
   console.log("checks: confirmed root before attach, deferred tab upgrade, bounded retries,");
-  console.log("  catalog replay after connect, fail-fast AppDelegate router, dual entitlements");
+  console.log("  catalog replay after connect, fail-fast AppDelegate router, audio-only entitlement");
 }
 
 main();

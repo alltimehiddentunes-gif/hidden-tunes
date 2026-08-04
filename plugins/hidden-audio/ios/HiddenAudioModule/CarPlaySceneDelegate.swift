@@ -1,6 +1,31 @@
 import CarPlay
 import UIKit
 
+/// Defensive owner for an unexpected video/window CarPlay session. Hidden Tunes
+/// is an audio-template app; never create a UIWindow or attach Expo/React here.
+@objc(RejectedCarPlayWindowSceneDelegate)
+final class RejectedCarPlayWindowSceneDelegate: UIResponder, UIWindowSceneDelegate {
+  func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions
+  ) {
+    NSLog(
+      "[HTCarPlayNative] window_scene_rejected role=%@ sessionId=%@ sceneClass=%@ reason=audio_template_only",
+      session.role.rawValue,
+      session.persistentIdentifier,
+      String(describing: type(of: scene))
+    )
+    UIApplication.shared.requestSceneSessionDestruction(session, options: nil) { error in
+      NSLog(
+        "[HTCarPlayNative] window_scene_reject_failed sessionId=%@ error=%@",
+        session.persistentIdentifier,
+        error.localizedDescription
+      )
+    }
+  }
+}
+
 /// CarPlay template scene delegate for Audio entitlement apps.
 /// Phone UI scene remains owned by PhoneSceneDelegate.
 ///

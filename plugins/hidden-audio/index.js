@@ -231,12 +231,10 @@ function getRepoSourceDir(projectRoot) {
 
 const withHiddenAudioEntitlements = (config) => {
   return withEntitlementsPlist(config, (config) => {
-    // Dual approved managed capabilities (Apple CarPlay Developer Guide keys):
-    // - com.apple.developer.carplay-audio  (ordinary CarPlay systems)
-    // - com.apple.developer.carplay-video (vehicles with video-in-car)
-    // Keep both so the icon remains visible on audio-only vehicles.
+    // Audio-template CarPlay only. A video entitlement allows iOS to request a
+    // UIWindowSceneSessionRoleCarPlay scene that Expo Development Client can own.
     config.modResults["com.apple.developer.carplay-audio"] = true;
-    config.modResults["com.apple.developer.carplay-video"] = true;
+    delete config.modResults["com.apple.developer.carplay-video"];
     delete config.modResults["com.apple.developer.playable-content"];
     return config;
   });

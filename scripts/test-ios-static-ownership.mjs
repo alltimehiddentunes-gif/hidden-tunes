@@ -47,13 +47,14 @@ function testCarPlayEntitlementsAndScenes() {
   const appJson = JSON.parse(read("app.json"));
   const ents = appJson.expo.ios.entitlements;
   assert.equal(ents["com.apple.developer.carplay-audio"], true);
-  assert.equal(ents["com.apple.developer.carplay-video"], true);
+  assert.equal(ents["com.apple.developer.carplay-video"], undefined);
   assert.ok(
     appJson.expo.ios.infoPlist.UIBackgroundModes.includes("audio")
   );
 
   const plugin = read("plugins/hidden-audio/index.js");
   assert.ok(plugin.includes("com.apple.developer.carplay-audio"));
+  assert.ok(plugin.includes('delete config.modResults["com.apple.developer.carplay-video"]'));
   assert.ok(plugin.includes("CarPlaySceneDelegate"));
   assert.ok(plugin.includes("PhoneSceneDelegate"));
 
@@ -184,7 +185,7 @@ function testBundleIdentity() {
   const appJson = JSON.parse(read("app.json"));
   assert.equal(appJson.expo.ios.bundleIdentifier, "com.hiddentunes.app");
   assert.equal(appJson.expo.version, "1.0.2");
-  assert.equal(appJson.expo.ios.buildNumber, "1.0.209");
+  assert.equal(appJson.expo.ios.buildNumber, "1.0.210");
 }
 
 console.log("test-ios-static-ownership: start");

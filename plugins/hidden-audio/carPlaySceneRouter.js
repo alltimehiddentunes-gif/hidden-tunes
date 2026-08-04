@@ -31,17 +31,22 @@ const CARPLAY_SCENE_CONFIGURATION_METHOD = `
     )
     NSLog("[HTCarPlay] configurationForConnecting role=%@", role)
 
-    // UIKit forbids CPTemplateApplicationScene under UIWindowSceneSessionRoleCarPlay.
+    // This audio-template app never presents a vehicle UIWindow. If a stale
+    // entitlement/profile causes this role to arrive, a dedicated no-window
+    // delegate destroys it before Expo/React can attach a root view.
     if role == "${CARPLAY_WINDOW_ROLE}" {
       NSLog(
         "[HTCarPlayNative] configurationForConnecting.reject_invalid_pairing role=%@ reason=window_role_requires_UIWindowScene sessionId=%@",
         role,
         sessionId
       )
-      return UISceneConfiguration(
-        name: connectingSceneSession.configuration.name,
+      let configuration = UISceneConfiguration(
+        name: "HiddenTunesRejectedCarPlayWindow",
         sessionRole: connectingSceneSession.role
       )
+      configuration.sceneClass = UIWindowScene.self
+      configuration.delegateClass = RejectedCarPlayWindowSceneDelegate.self
+      return configuration
     }
 
     if role == "${CARPLAY_TEMPLATE_ROLE}" {
@@ -104,6 +109,7 @@ function hasCompleteCarPlaySceneRouter(contents) {
     contents.includes(CARPLAY_TEMPLATE_ROLE) &&
     contents.includes("reject_invalid_pairing") &&
     contents.includes(CARPLAY_WINDOW_ROLE) &&
+    contents.includes("RejectedCarPlayWindowSceneDelegate.self") &&
     contents.includes("CarPlaySceneDelegate.self") &&
     contents.includes("PhoneSceneDelegate.self") &&
     contents.includes(".windowApplication") &&
