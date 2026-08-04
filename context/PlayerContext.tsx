@@ -8740,6 +8740,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             });
             break;
           }
+          case "toggle": {
+            if (isPlayingRef.current) {
+              markIntentionalPause("remote_toggle_pause");
+              isPlayingRef.current = false;
+              setIsPlayingState(false);
+            } else {
+              clearIntentionalPause("play");
+              isPlayingRef.current = true;
+              setIsPlaying(true);
+            }
+            logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
+              command: "toggle",
+              playing: isPlayingRef.current,
+            });
+            break;
+          }
           case "play_from_media_id": {
             const mediaId = String((data as Record<string, unknown>).mediaId || "");
             const transactionId = Number(
@@ -8752,6 +8768,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               logLockscreenPlaybackDiagnostic("remote_command_no_queue_available", {
                 ...data,
                 mediaId,
+              });
+              break;
+            }
+            if (Platform.OS === "ios") {
+              const { resolveCarPlayMediaId } = await import(
+                "../services/carPlayMediaResolver"
+              );
+              const resolved = resolveCarPlayMediaId(mediaId);
+              if (!resolved) {
+                logLockscreenPlaybackDiagnostic("carplay_media_resolution_failed", {
+                  ...data,
+                  mediaId,
+                  reason: "not_in_published_registry_or_missing_uri",
+                });
+                break;
+              }
+              await playSong(
+                resolved.song,
+                resolved.queue,
+                resolved.index,
+                resolved.queueContext,
+                resolved.queueMode
+              );
+              logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
+                command: "play_from_media_id",
+                mediaId,
+                source: "carplay",
+                queueIndex: resolved.index,
+                queueLength: resolved.queue.length,
+                contextId: resolved.queueContext.contextId,
               });
               break;
             }
@@ -8810,8 +8856,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 break;
               }
               await playSong(resolved.song, resolved.queue, 0, {
-                source: Platform.OS === "ios" ? "carplay" : "android_auto",
-                label: Platform.OS === "ios" ? "CarPlay" : "Android Auto",
+                source: "android_auto",
+                label: "Android Auto",
               });
             }
             logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
@@ -8819,7 +8865,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               mediaId,
               correlationId,
               transactionId,
-              source: Platform.OS === "ios" ? "carplay" : "android_auto",
+              source: "android_auto",
             });
             break;
           }

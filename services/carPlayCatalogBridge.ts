@@ -3,17 +3,25 @@ import { Platform } from "react-native";
 import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
 import {
   getCachedHiddenTunesCatalog,
-  type HiddenTunesDerivedCatalog,
-  type HiddenTunesSong,
 } from "./hiddenTunes";
 import {
-  buildAndroidAutoCatalogSnapshot,
-  buildAndroidAutoMinimalCatalogSnapshot,
   type AndroidAutoBrowseItem,
   type AndroidAutoCatalogSnapshot,
   type AndroidAutoTrackPayload,
 } from "./androidAutoCatalogSync";
+import {
+  buildCarPlayCatalogSnapshot as buildParentClosedCarPlaySnapshot,
+  buildCarPlayInitialCatalogSnapshot,
+  carPlayCatalogSignature,
+} from "./carPlayCatalogSnapshot";
+import { rememberCarPlayCatalogSnapshot } from "./carPlayMediaResolver";
+export {
+  buildCarPlayCatalogSnapshot,
+  buildCarPlayInitialCatalogSnapshot,
+  carPlayCatalogSignature,
+} from "./carPlayCatalogSnapshot";
 import { getFavorites } from "./favorites/unifiedFavorites";
+import { loadRecentlyPlayed } from "./recentlyPlayedEngine";
 import {
   ensureHiddenAudioNativeSetup,
   isHiddenAudioNativeEngineAvailable,
@@ -31,6 +39,7 @@ let bindingReuseLogged = false;
 let initialCatalogPublishPromise: Promise<void> | null = null;
 let inFlightCatalogPublishPromise: Promise<void> | null = null;
 let lastCarPlayStatus: Record<string, unknown> = {};
+let carPlaySnapshotGeneration = 0;
 
 type CarPlayBrowseNode = {
   mediaId: string;
@@ -45,56 +54,6 @@ function logCarPlayJs(message: string, extra?: Record<string, unknown>) {
   } else {
     console.log(`[HTCarPlayJS] ${message}`);
   }
-}
-
-function catalogSignature(snapshot: AndroidAutoCatalogSnapshot) {
-  return [
-    snapshot.tracks.length,
-    snapshot.sections.length,
-    snapshot.roots.length,
-    snapshot.tracks[0]?.mediaId || "",
-    snapshot.tracks[snapshot.tracks.length - 1]?.mediaId || "",
-  ].join(":");
-}
-
-function songMediaId(song: HiddenTunesSong) {
-  return `song:${String(song.id || "").trim()}`;
-}
-
-function playableSongItem(song: HiddenTunesSong): CarPlayBrowseNode | null {
-  const id = String(song.id || "").trim();
-  const title = String(song.title || "").trim();
-  const url = String(song.streamUrl || song.url || "").trim();
-  if (!id || !title || !url) return null;
-  if (id.startsWith("empty:")) return null;
-  return {
-    mediaId: songMediaId(song),
-    title,
-    subtitle: String(song.artist || "Hidden Tunes").trim() || "Hidden Tunes",
-    playable: true,
-  };
-}
-
-function trackPayload(song: HiddenTunesSong): AndroidAutoTrackPayload | null {
-  const url = String(song.streamUrl || song.url || "").trim();
-  const id = String(song.id || "").trim();
-  const title = String(song.title || "").trim();
-  if (!url || !id || !title) return null;
-  if (id.startsWith("empty:")) return null;
-
-  return {
-    mediaId: songMediaId(song),
-    id,
-    url,
-    title,
-    artist: String(song.artist || "Hidden Tunes").trim() || "Hidden Tunes",
-    album: String(song.album || ""),
-    artworkUrl: String(song.artwork || song.cover || song.thumbnail || ""),
-    durationSeconds:
-      typeof song.duration === "number" && song.duration > 0 ? song.duration : 0,
-    contentType: "music",
-    isLive: false,
-  };
 }
 
 /** Favorites sanitizer — mirrors native HiddenAudioCarPlayCatalog.sanitizedFavoritesNodes. */
@@ -302,130 +261,28 @@ function ensureCarPlayBindingMounted() {
   acquireCarPlayBinding();
 }
 
-function collectPlayableSongs(catalog: HiddenTunesDerivedCatalog | null | undefined, limit: number) {
-  const songs: HiddenTunesSong[] = [];
-  const seen = new Set<string>();
-  for (const song of catalog?.songs || []) {
-    const id = String(song.id || "").trim();
-    const url = String(song.streamUrl || song.url || "").trim();
-    const title = String(song.title || "").trim();
-    if (!id || !url || !title || seen.has(id)) continue;
-    seen.add(id);
-    songs.push(song);
-    if (songs.length >= limit) break;
-  }
-  return songs;
-}
-
-/**
- * CarPlay-shaped snapshot for native Listen / Radio / Library tabs.
- * Uses only known-playable cached catalog audio — no fake stream URLs.
- */
-export function buildCarPlayCatalogSnapshot(
-  catalog: HiddenTunesDerivedCatalog | null | undefined
-): AndroidAutoCatalogSnapshot {
-  const listenSongs = collectPlayableSongs(catalog, 12);
-  const librarySongs = collectPlayableSongs(catalog, 24);
+async function collectCarPlayRecentlyPlayedEntries(): Promise<{
+  items: AndroidAutoBrowseItem[];
+  tracks: AndroidAutoTrackPayload[];
+}> {
+  const items: AndroidAutoBrowseItem[] = [];
   const tracks: AndroidAutoTrackPayload[] = [];
-  const sections: AndroidAutoCatalogSnapshot["sections"] = [];
-
-  const pushTracks = (songs: HiddenTunesSong[]) => {
-    for (const song of songs) {
-      const payload = trackPayload(song);
-      if (payload) tracks.push(payload);
-    }
-  };
-
-  pushTracks(listenSongs);
-  pushTracks(librarySongs);
-
-  const listenItems = listenSongs
-    .map(playableSongItem)
-    .filter((item): item is CarPlayBrowseNode => !!item);
-
-  const favoritesBundle = collectCarPlayFavoriteEntries();
-  const favorites = favoritesBundle.items;
-  for (const track of favoritesBundle.tracks) {
-    tracks.push(track);
-  }
-  // Empty favorites is valid — native supplies "No favorites yet".
-
-  sections.push({ parentId: "recently_played", items: listenItems.slice(0, 8) });
-  sections.push({ parentId: "favorites", items: favorites as AndroidAutoBrowseItem[] });
-  sections.push({
-    parentId: "made_for_you",
-    items: listenItems.slice(0, 8) as AndroidAutoBrowseItem[],
-  });
-
-  // Radio: only include live-stream songs already in catalog (verified playable urls).
-  // Radio: prefer radio-prefixed catalog entries with real stream URLs.
-  const radioSongs = (catalog?.songs || []).filter((song) => {
-    const id = String(song.id || "");
-    const url = String(song.streamUrl || song.url || "").trim();
-    return !!url && id.startsWith("radio-");
-  }).slice(0, 12);
-  pushTracks(radioSongs);
-  const radioItems = radioSongs
-    .map(playableSongItem)
-    .filter((item): item is CarPlayBrowseNode => !!item);
-  sections.push({
-    parentId: "radio",
-    items: (radioItems.length
-      ? radioItems
-      : listenItems.slice(0, 1).map((item) => ({
-          ...item,
-          subtitle: item.subtitle || "Playable audio",
-        }))) as AndroidAutoBrowseItem[],
-  });
-
-  const libraryItems = librarySongs
-    .map(playableSongItem)
-    .filter((item): item is CarPlayBrowseNode => !!item);
-  sections.push({ parentId: "playlists", items: libraryItems.slice(0, 8) as AndroidAutoBrowseItem[] });
-  sections.push({ parentId: "music", items: libraryItems.slice(0, 12) as AndroidAutoBrowseItem[] });
-  sections.push({ parentId: "podcasts", items: [] as AndroidAutoBrowseItem[] });
-  sections.push({ parentId: "audiobooks", items: [] as AndroidAutoBrowseItem[] });
-
-  const roots: AndroidAutoBrowseItem[] = [
-    {
-      mediaId: "recently_played",
-      title: "Recently Played",
-      subtitle: "Pick up where you left off",
-      playable: false,
-    },
-    {
-      mediaId: "made_for_you",
-      title: "Made for You",
-      subtitle: "Recommended listening",
-      playable: false,
-    },
-    {
-      mediaId: "playlists",
-      title: "Playlists",
-      subtitle: "Collections",
-      playable: false,
-    },
-    {
-      mediaId: "radio",
-      title: "Radio",
-      subtitle: "Live stations",
-      playable: false,
-    },
-  ];
-
-  // Dedupe tracks by mediaId.
   const seen = new Set<string>();
-  const dedupedTracks = tracks.filter((track) => {
-    if (!track.mediaId || seen.has(track.mediaId)) return false;
-    seen.add(track.mediaId);
-    return true;
-  });
-
-  return {
-    roots,
-    sections,
-    tracks: dedupedTracks.slice(0, 80),
-  };
+  for (const entry of (await loadRecentlyPlayed()).slice(0, 24)) {
+    const id = String(entry.id || "").trim();
+    const title = String(entry.title || "").trim();
+    const url = String(entry.streamUrl || "").trim();
+    if (!id || !title || !url) continue;
+    const mediaId = `recent:song:${id}`;
+    if (seen.has(mediaId)) continue;
+    seen.add(mediaId);
+    const artist = String(entry.artist || entry.channelTitle || "Hidden Tunes").trim() || "Hidden Tunes";
+    items.push({ mediaId, title, subtitle: artist, playable: true, contentType: "music" });
+    tracks.push({ mediaId, id, url, title, artist, album: "",
+      artworkUrl: String(entry.artwork || entry.thumbnail || entry.coverUrl || ""),
+      durationSeconds: 0, contentType: "music", isLive: false });
+  }
+  return { items, tracks };
 }
 
 function countSection(snapshot: AndroidAutoCatalogSnapshot, parentId: string) {
@@ -474,16 +331,24 @@ async function publishCarPlayCatalogSnapshot(): Promise<void> {
 
     let snapshot: AndroidAutoCatalogSnapshot;
     try {
+      const favorites = collectCarPlayFavoriteEntries();
+      const recentlyPlayed = await collectCarPlayRecentlyPlayedEntries();
       snapshot = catalog?.songs?.length
-        ? buildCarPlayCatalogSnapshot(catalog)
-        : buildAndroidAutoMinimalCatalogSnapshot();
-      // If CarPlay-shaped build somehow yields zero tracks, fall back to AA snapshot.
-      if (!snapshot.tracks.length && catalog?.songs?.length) {
-        snapshot = buildAndroidAutoCatalogSnapshot(catalog);
-      }
+        ? buildParentClosedCarPlaySnapshot(catalog, {
+            favoriteItems: favorites.items as AndroidAutoBrowseItem[],
+            favoriteTracks: favorites.tracks,
+            recentlyPlayedItems: recentlyPlayed.items,
+            recentlyPlayedTracks: recentlyPlayed.tracks,
+          })
+        : buildCarPlayInitialCatalogSnapshot({
+            favoriteItems: favorites.items as AndroidAutoBrowseItem[],
+            favoriteTracks: favorites.tracks,
+            recentlyPlayedItems: recentlyPlayed.items,
+            recentlyPlayedTracks: recentlyPlayed.tracks,
+          });
     } catch (buildError) {
       logCarPlayJs("catalog publish completed", { success: false, reason: "build_failed" });
-      snapshot = buildAndroidAutoMinimalCatalogSnapshot();
+      snapshot = buildCarPlayInitialCatalogSnapshot();
       if (typeof __DEV__ !== "undefined" && __DEV__) {
         console.log("[HTCarPlayJS] catalog build failed; using minimal snapshot", buildError);
       }
@@ -501,14 +366,32 @@ async function publishCarPlayCatalogSnapshot(): Promise<void> {
     logCarPlayJs(`radio count=${radioCount}`);
     logCarPlayJs(`library count=${libraryCount}`);
 
-    const signature = catalogSignature(snapshot);
+    const signature = carPlayCatalogSignature(snapshot);
     if (signature === lastSyncSignature) {
+      console.log("[HTCarPlayBrowse] snapshot_unchanged", {
+        generation: carPlaySnapshotGeneration,
+        publishTimestamp: Date.now(),
+      });
       logCarPlayJs("catalog publish completed", { success: true, skipped: "unchanged" });
       return;
     }
 
-    lastSyncSignature = signature;
+    const replacedPreviousSnapshot = lastSyncSignature.length > 0;
+    const nextGeneration = carPlaySnapshotGeneration + 1;
+    console.log("[HTCarPlayBrowse] snapshot_publish", {
+      generation: nextGeneration,
+      publishTimestamp: Date.now(),
+      sectionCount: snapshot.sections.length,
+      trackCount: snapshot.tracks.length,
+      rootNodeIds: snapshot.roots.map((node) => node.mediaId),
+      childCounts: snapshot.sections.map((entry) => `${entry.parentId}:${entry.items.length}`),
+      replacedPreviousSnapshot,
+    });
     await syncHiddenAudioCarPlayCatalog(snapshot as unknown as Record<string, unknown>);
+    // Accept selections only after native has accepted this exact bounded snapshot.
+    rememberCarPlayCatalogSnapshot(snapshot);
+    lastSyncSignature = signature;
+    carPlaySnapshotGeneration = nextGeneration;
     logCarPlayJs("catalog publish completed", {
       success: true,
       trackCount: snapshot.tracks.length,
@@ -521,8 +404,9 @@ async function publishCarPlayCatalogSnapshot(): Promise<void> {
     }
     // Last-resort minimal publish so native never depends on a thrown JS catalog.
     try {
-      const minimal = buildAndroidAutoMinimalCatalogSnapshot();
+      const minimal = buildCarPlayInitialCatalogSnapshot();
       await syncHiddenAudioCarPlayCatalog(minimal as unknown as Record<string, unknown>);
+      rememberCarPlayCatalogSnapshot(minimal);
       logCarPlayJs("catalog publish completed", { success: true, fallback: "minimal" });
     } catch {
       // Native safe root already installed — do not throw into app runtime.
