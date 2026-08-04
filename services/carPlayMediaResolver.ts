@@ -43,7 +43,18 @@ function toAppSong(track: AndroidAutoTrackPayload): AppSong | null {
   } as AppSong;
 }
 
-function preferredParentId(snapshot: AndroidAutoCatalogSnapshot, mediaId: string) {
+function preferredParentId(
+  snapshot: AndroidAutoCatalogSnapshot,
+  mediaId: string,
+  requestedParentId?: string
+) {
+  const requested = String(requestedParentId || "").trim();
+  if (requested && requested !== "search_results") {
+    const exactSection = snapshot.sections.find((entry) => entry.parentId === requested);
+    if (exactSection?.items.some((item) => item.playable && item.mediaId === mediaId)) {
+      return requested;
+    }
+  }
   if (mediaId.startsWith("recent:")) return "recently_played";
   if (mediaId.startsWith("fav:")) return "favorites";
   const track = snapshot.tracks.find((entry) => entry.mediaId === mediaId);
@@ -75,7 +86,10 @@ function queueContext(parentId: string): PlaybackQueueContext {
 }
 
 /** Resolve only IDs present in the last snapshot actually handed to native CarPlay. */
-export function resolveCarPlayMediaId(mediaId: string): ResolvedCarPlayMedia | null {
+export function resolveCarPlayMediaId(
+  mediaId: string,
+  requestedParentId?: string
+): ResolvedCarPlayMedia | null {
   const snapshot = currentSnapshot;
   const cleanId = String(mediaId || "").trim();
   if (!snapshot || !cleanId) return null;
@@ -83,7 +97,7 @@ export function resolveCarPlayMediaId(mediaId: string): ResolvedCarPlayMedia | n
   const selectedTrack = snapshot.tracks.find((track) => track.mediaId === cleanId);
   if (!selectedTrack || !playableUri(selectedTrack)) return null;
 
-  const parentId = preferredParentId(snapshot, cleanId);
+  const parentId = preferredParentId(snapshot, cleanId, requestedParentId);
   const section = snapshot.sections.find((entry) => entry.parentId === parentId);
   const queueIds = (section?.items || [])
     .filter((item) => item.playable)

@@ -35,10 +35,37 @@ assert.equal(resolved.song.streamUrl, second.url, "playable URI preserved");
 assert.equal(resolved.queue.length, 2, "selected section becomes bounded queue");
 assert.equal(resolved.index, 1, "selected item receives correct queue index");
 assert.equal(resolved.queueContext.contextId, "recently_played");
+
+rememberCarPlayCatalogSnapshot({
+  roots: [],
+  sections: [
+    { parentId: "recently_added", items: [
+      { mediaId: first.mediaId, title: first.title, playable: true },
+      { mediaId: second.mediaId, title: second.title, playable: true },
+    ] },
+    { parentId: "album:album", items: [
+      { mediaId: second.mediaId, title: second.title, playable: true },
+      { mediaId: first.mediaId, title: first.title, playable: true },
+    ] },
+  ],
+  tracks: [first, second],
+});
+const albumResolved = resolveCarPlayMediaId(first.mediaId, "album:album");
+assert.ok(albumResolved, "shared media ID resolves in selected parent context");
+assert.equal(albumResolved.queueContext.contextId, "album:album");
+assert.equal(albumResolved.index, 1, "folder order and selected index are preserved");
 assert.equal(resolveCarPlayMediaId("recent:song:missing"), null, "unknown ID fails closed");
 assert.equal(resolveCarPlayMediaId("recent:song:bad"), null, "missing URI fails closed");
 
 const playerContext = fs.readFileSync(new URL("../context/PlayerContext.tsx", import.meta.url), "utf8");
+const nativeManager = fs.readFileSync(new URL(
+  "../plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioCarPlayManager.swift",
+  import.meta.url
+), "utf8");
+const nativeModule = fs.readFileSync(new URL(
+  "../plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioModule.swift",
+  import.meta.url
+), "utf8");
 const iosBranch = playerContext.slice(
   playerContext.indexOf('if (Platform.OS === "ios")', playerContext.indexOf('case "play_from_media_id"')),
   playerContext.indexOf("const { acceptAndroidAutoTransaction", playerContext.indexOf('case "play_from_media_id"'))
@@ -46,5 +73,10 @@ const iosBranch = playerContext.slice(
 assert.match(iosBranch, /resolveCarPlayMediaId/, "iOS selection uses CarPlay resolver");
 assert.doesNotMatch(iosBranch, /playAndroidAutoMediaId/, "iOS selection never invokes Android Auto resolver");
 assert.match(iosBranch, /if \(!resolved\)/, "missing registry/URI fails before playSong");
+assert.match(iosBranch, /\.parentId/, "PlayerContext passes selected CarPlay parent context");
+assert.match(nativeManager, /emitCarPlayMediaSelection\(mediaId, parentId: parentId\)/,
+  "native selection preserves its existing parent ID");
+assert.match(nativeModule, /"parentId": parentId/g,
+  "functional CarPlay command carries parent ID through native diagnostics bridge");
 
 console.log("CarPlay media resolution tests passed.");

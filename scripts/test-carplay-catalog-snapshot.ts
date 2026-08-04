@@ -115,6 +115,8 @@ assert.notEqual(carPlayCatalogSignature(populated), carPlayCatalogSignature(stru
 
 const bridgeSource = fs.readFileSync("services/carPlayCatalogBridge.ts", "utf8");
 assert.ok(bridgeSource.includes("[HTCarPlayBrowse] snapshot_publish"), "focused publish diagnostics");
+assert.ok(bridgeSource.includes("hydrateCachedHiddenTunesCatalog"), "cold launch hydrates persisted catalog");
+assert.ok(!bridgeSource.includes("fetchHiddenTunesCatalog("), "CarPlay startup does not fetch full catalog");
 assert.ok(!bridgeSource.includes("buildAndroidAutoMinimalCatalogSnapshot"), "CarPlay never publishes AA minimal snapshot");
 assert.ok(!fs.readFileSync("services/carPlayCatalogSnapshot.ts", "utf8").includes("fetch("), "no catalog fetch");
 

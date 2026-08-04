@@ -4,7 +4,7 @@ import UIKit
 
 protocol HiddenAudioCarPlayPlaybackHandling: AnyObject {
   func playCarPlayTrack(_ track: [String: Any], completion: @escaping (Error?) -> Void)
-  func emitCarPlayMediaSelection(_ mediaId: String)
+  func emitCarPlayMediaSelection(_ mediaId: String, parentId: String)
 }
 
 /// Single native CarPlay UI owner.
@@ -1015,7 +1015,7 @@ final class HiddenAudioCarPlayManager: NSObject {
     }
 
     if node.playable {
-      selectPlayable(mediaId: node.mediaId)
+      selectPlayable(mediaId: node.mediaId, parentId: parentId)
       scheduleNowPlayingAfterSelectionCompletion()
       return
     }
@@ -1126,7 +1126,7 @@ final class HiddenAudioCarPlayManager: NSObject {
     }
   }
 
-  private func selectPlayable(mediaId: String) {
+  private func selectPlayable(mediaId: String, parentId: String) {
     NSLog("[HTCarPlay] item_selected id=%@", mediaId)
     if supportsVideoPlaybackCached && mediaId.hasPrefix("video:") {
       // Audio-safe transition: still route through shared HiddenAudio, never render video in CarPlay.
@@ -1137,9 +1137,10 @@ final class HiddenAudioCarPlayManager: NSObject {
     emitDiagnostic([
       "event": "carplay_item_selected",
       "mediaId": mediaId,
+      "parentId": parentId,
       "supportsVideoPlayback": supportsVideoPlaybackCached,
     ])
-    playbackHandler?.emitCarPlayMediaSelection(mediaId)
+    playbackHandler?.emitCarPlayMediaSelection(mediaId, parentId: parentId)
   }
 
   /// Selection completion runs on return from the list/search delegate. Defer
@@ -1213,7 +1214,7 @@ extension HiddenAudioCarPlayManager: CPSearchTemplateDelegate {
     if let info = item.userInfo as? [String: Any],
        let mediaId = info["mediaId"] as? String,
        !mediaId.isEmpty {
-      selectPlayable(mediaId: mediaId)
+      selectPlayable(mediaId: mediaId, parentId: "search_results")
       scheduleNowPlayingAfterSelectionCompletion()
     }
   }

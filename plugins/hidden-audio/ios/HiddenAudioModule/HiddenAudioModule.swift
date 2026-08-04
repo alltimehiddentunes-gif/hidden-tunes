@@ -1944,14 +1944,16 @@ extension HiddenAudioModule: HiddenAudioCarPlayPlaybackHandling {
     }
   }
 
-  func emitCarPlayMediaSelection(_ mediaId: String) {
+  func emitCarPlayMediaSelection(_ mediaId: String, parentId: String) {
     emitDiagnostic("ios_carplay_play_from_media_id", [
       "mediaId": mediaId,
+      "parentId": parentId,
       "source": "carplay",
     ])
     emitDiagnostic("ios_remote_command_received", [
       "command": "play_from_media_id",
       "mediaId": mediaId,
+      "parentId": parentId,
       "source": "carplay",
     ])
   }

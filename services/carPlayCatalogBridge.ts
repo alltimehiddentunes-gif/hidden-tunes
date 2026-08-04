@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import { isHiddenAudioEnabledOnIOS } from "../constants/playbackConfig";
 import {
   getCachedHiddenTunesCatalog,
+  hydrateCachedHiddenTunesCatalog,
 } from "./hiddenTunes";
 import {
   type AndroidAutoBrowseItem,
@@ -40,6 +41,7 @@ let initialCatalogPublishPromise: Promise<void> | null = null;
 let inFlightCatalogPublishPromise: Promise<void> | null = null;
 let lastCarPlayStatus: Record<string, unknown> = {};
 let carPlaySnapshotGeneration = 0;
+let carPlayCacheHydrationAttempted = false;
 
 type CarPlayBrowseNode = {
   mediaId: string;
@@ -318,6 +320,29 @@ export async function syncCarPlayCatalogFromDerived(): Promise<void> {
   inFlightCatalogPublishPromise = publishPromise;
   if (!initialCatalogPublishPromise) {
     initialCatalogPublishPromise = publishPromise;
+  }
+
+  // Cold CarPlay launch: install the native/minimal root immediately, then
+  // hydrate the existing persisted bounded catalog without waiting for Home
+  // hydration or starting a network/full-catalog request.
+  if (!getCachedHiddenTunesCatalog() && !carPlayCacheHydrationAttempted) {
+    carPlayCacheHydrationAttempted = true;
+    void publishPromise.then(async () => {
+      const hydrated = await hydrateCachedHiddenTunesCatalog();
+      if (!hydrated?.songs?.length) {
+        logCarPlayJs("persisted catalog hydration completed", { playable: false });
+        return;
+      }
+      logCarPlayJs("persisted catalog hydration completed", {
+        playable: true,
+        songCount: hydrated.songs.length,
+      });
+      await publishCarPlayCatalogSnapshot();
+    }).catch((error) => {
+      logCarPlayJs("persisted catalog hydration failed", {
+        message: String((error as Error)?.message || error),
+      });
+    });
   }
 
   return publishPromise;

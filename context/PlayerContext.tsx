@@ -8775,7 +8775,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               const { resolveCarPlayMediaId } = await import(
                 "../services/carPlayMediaResolver"
               );
-              const resolved = resolveCarPlayMediaId(mediaId);
+              const resolved = resolveCarPlayMediaId(
+                mediaId,
+                String((data as Record<string, unknown>).parentId || "")
+              );
               if (!resolved) {
                 logLockscreenPlaybackDiagnostic("carplay_media_resolution_failed", {
                   ...data,
