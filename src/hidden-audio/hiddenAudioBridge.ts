@@ -218,12 +218,13 @@ export async function getHiddenAudioNativeSnapshot(): Promise<HiddenAudioNativeS
   const nativeStatus = String(stateMap.status || "idle");
   const activeTrack = parseNativeActiveTrack(stateMap.activeTrack);
   const activeIndex = safeNumber(queueMap.activeIndex, 0);
-  const positionSeconds = Number(
-    progressMap.positionSeconds ?? progressMap.currentTime ?? 0
-  );
-  const durationSeconds = Number(
-    progressMap.durationSeconds ?? progressMap.duration ?? 0
-  );
+  const rawPosition = progressMap.positionSeconds ?? progressMap.currentTime;
+  if (rawPosition == null) return null;
+  const positionSeconds = Number(rawPosition);
+  if (!Number.isFinite(positionSeconds) || positionSeconds < 0) return null;
+  const rawDuration = progressMap.durationSeconds ?? progressMap.duration ?? 0;
+  const durationSeconds = Number(rawDuration);
+  if (!Number.isFinite(durationSeconds) || durationSeconds < 0) return null;
   const isPlayingValue = progressMap.isPlaying;
   const playbackState = nativeStatus || String(progressMap.status || "idle");
   const hasLoadedTrack = Boolean(activeTrack?.url);
@@ -386,12 +387,13 @@ function parseHiddenAudioProgressEvent(
   const progressMap = (event?.progress || {}) as Record<string, unknown>;
   if (!Object.keys(progressMap).length) return null;
 
-  const positionSeconds = Number(
-    progressMap.positionSeconds ?? progressMap.currentTime ?? 0
-  );
-  const durationSeconds = Number(
-    progressMap.durationSeconds ?? progressMap.duration ?? 0
-  );
+  const rawPosition = progressMap.positionSeconds ?? progressMap.currentTime;
+  if (rawPosition == null) return null;
+  const positionSeconds = Number(rawPosition);
+  if (!Number.isFinite(positionSeconds) || positionSeconds < 0) return null;
+  const rawDuration = progressMap.durationSeconds ?? progressMap.duration ?? 0;
+  const durationSeconds = Number(rawDuration);
+  if (!Number.isFinite(durationSeconds) || durationSeconds < 0) return null;
   const isPlayingValue = progressMap.isPlaying;
   const status = String(progressMap.status || "");
 
@@ -633,24 +635,25 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
 
     const progressMap = (progress || {}) as Record<string, unknown>;
     const stateMap = (state || {}) as Record<string, unknown>;
-    const positionSeconds = Number(
-      progressMap.positionSeconds ?? progressMap.currentTime ?? 0
-    );
-    const durationSeconds = Number(
-      progressMap.durationSeconds ?? progressMap.duration ?? 0
-    );
+    const rawPosition = progressMap.positionSeconds ?? progressMap.currentTime;
+    const rawDuration = progressMap.durationSeconds ?? progressMap.duration ?? 0;
+    const positionSeconds = Number(rawPosition);
+    const durationSeconds = Number(rawDuration);
+    if (
+      rawPosition == null ||
+      !Number.isFinite(positionSeconds) ||
+      positionSeconds < 0 ||
+      !Number.isFinite(durationSeconds) ||
+      durationSeconds < 0
+    ) {
+      throw new Error("HiddenAudio returned malformed progress");
+    }
     const isPlayingValue = progressMap.isPlaying;
     const status = String(stateMap.status || progressMap.status || "");
 
     return {
-      positionMillis: Math.max(
-        0,
-        Math.floor((Number.isFinite(positionSeconds) ? positionSeconds : 0) * 1000)
-      ),
-      durationMillis: Math.max(
-        0,
-        Math.floor((Number.isFinite(durationSeconds) ? durationSeconds : 0) * 1000)
-      ),
+      positionMillis: Math.floor(positionSeconds * 1000),
+      durationMillis: Math.floor(durationSeconds * 1000),
       isPlaying:
         isPlayingValue === true ||
         isPlayingValue === 1 ||

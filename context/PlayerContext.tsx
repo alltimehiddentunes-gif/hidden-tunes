@@ -540,6 +540,10 @@ const PLAYBACK_UPDATE_INTERVAL_BACKGROUND_MS = 5000;
 const POSITION_STATE_UPDATE_MIN_MS = 1000;
 const PODCAST_POSITION_STATE_UPDATE_MIN_MS = 1000;
 const POSITION_STATE_UPDATE_BACKGROUND_MS = 5000;
+// Native one-second callbacks can arrive slightly early. Keep the time AND delta
+// gates, but tolerate normal scheduler jitter so alternating events are not lost.
+const POSITION_STATE_UPDATE_JITTER_TOLERANCE_MS = 100;
+const NATIVE_PROGRESS_EVENT_STALE_MS = 2500;
 const POSITION_SAVE_INTERVAL_MS = 12000;
 const POSITION_SAVE_INTERVAL_BACKGROUND_MS = 30000;
 const POSITION_SAVE_DISTANCE_MS = 5000;
@@ -1019,6 +1023,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /** When true, Android HiddenAudio progress events own UI updates — skip duplicate poll. */
   /** Native HiddenAudioProgressChanged subscription active (Android + iOS). */
   const nativeProgressEventsActiveRef = useRef(false);
+  const lastNativeProgressEventAtRef = useRef(0);
   const lastLockscreenProgressDiagnosticRef = useRef(0);
   const lastNativePlaybackStateRef = useRef("");
   const lastUnexpectedPlaybackStopRef = useRef({ songId: "", at: 0 });
@@ -1390,7 +1395,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (progress.positionMillis > 0 || progress.isPlaying) {
+      // Paused callbacks may confirm state but must never advance the visible
+      // timeline. Explicit seeks already publish their optimistic target.
+      if ((progress.positionMillis > 0 || progress.isPlaying) && progress.isPlaying) {
         positionMillisRef.current = progress.positionMillis;
         const isPodcast = isPodcastPlaybackDomain(
           activeQueueContextRef.current,
@@ -1409,7 +1416,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // (native ticks ~500ms with ~500ms position advance → setState every tick).
         const positionDeltaMinMs = isLiveRadio ? 5_000 : 400;
         if (
-          now - lastPositionStateUpdateRef.current >= positionStateMinMs &&
+          now - lastPositionStateUpdateRef.current >=
+            Math.max(0, positionStateMinMs - POSITION_STATE_UPDATE_JITTER_TOLERANCE_MS) &&
           Math.abs(progress.positionMillis - previousPosition) >= positionDeltaMinMs
         ) {
           lastPositionStateUpdateRef.current = now;
@@ -8349,7 +8357,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // fallback when the event subscription is not active.
       if (
         nativeProgressEventsActiveRef.current &&
-        hiddenAudioActiveRef.current
+        hiddenAudioActiveRef.current &&
+        Date.now() - lastNativeProgressEventAtRef.current <= NATIVE_PROGRESS_EVENT_STALE_MS
       ) {
         return;
       }
@@ -8516,7 +8525,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         // Same contract as applyHiddenAudioProgressToUi: time AND meaningful delta.
         if (
-          now - lastPositionStateUpdateRef.current >= positionStateMinMs &&
+          progress.isPlaying &&
+          now - lastPositionStateUpdateRef.current >=
+            Math.max(0, positionStateMinMs - POSITION_STATE_UPDATE_JITTER_TOLERANCE_MS) &&
           Math.abs(progress.positionMillis - previousPosition) >= 400
         ) {
           lastPositionStateUpdateRef.current = now;
@@ -8967,10 +8978,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         ? "ios_hidden_audio_progress_event"
         : "android_hidden_audio_progress_event";
     const unsubscribe = subscribeHiddenAudioProgress((progress) => {
+      lastNativeProgressEventAtRef.current = Date.now();
       applyHiddenAudioProgressToUi(progress, source);
     });
     return () => {
       nativeProgressEventsActiveRef.current = false;
+      lastNativeProgressEventAtRef.current = 0;
       unsubscribe();
     };
   }, [applyHiddenAudioProgressToUi]);

@@ -285,7 +285,7 @@ export function subscribeHiddenAudioProgress(
   handler: (progress: PlaybackProgress) => void
 ): () => void {
   if (!isHiddenAudioNativePlaybackEnabled()) return () => {};
-  if (Platform.OS !== "android") return () => {};
+  if (Platform.OS !== "android" && Platform.OS !== "ios") return () => {};
   return subscribeHiddenAudioProgressChanged((status) => {
     handler({
       positionMillis: status.positionMillis,
