@@ -6,6 +6,7 @@ import {
   buildCarPlayCatalogSnapshot,
   buildCarPlayInitialCatalogSnapshot,
   carPlayCatalogSignature,
+  configureCarPlayMatureVisibility,
 } from "../services/carPlayCatalogSnapshot.ts";
 
 const song = (id: string, extra: Record<string, unknown> = {}) => ({
@@ -71,10 +72,10 @@ const populated = buildCarPlayCatalogSnapshot(catalog, {
 assertParentClosed(initial);
 assertParentClosed(populated);
 
-const stableIds = ["recently_added", "artists", "albums", "genres", "playlists"];
-assert.deepEqual(section(initial, "music").items.map((item: any) => item.mediaId), stableIds);
-assert.deepEqual(section(populated, "music").items.map((item: any) => item.mediaId), stableIds);
-assert.ok(section(populated, "recently_added").items.every((item: any) => item.playable));
+const stableIds = ["artists", "albums", "genres", "playlists", "podcasts", "audiobooks", "music"];
+assert.deepEqual(section(initial, "library").items.map((item: any) => item.mediaId), stableIds);
+assert.deepEqual(section(populated, "library").items.map((item: any) => item.mediaId), stableIds);
+assert.ok(section(populated, "music").items.every((item: any) => item.playable));
 assert.ok(section(populated, "artists").items.every((item: any) => !item.playable && item.mediaId.startsWith("artist:")));
 assert.ok(section(populated, "albums").items.every((item: any) => !item.playable && item.mediaId.startsWith("album:")));
 assert.ok(section(populated, "genres").items.every((item: any) => !item.playable && item.mediaId.startsWith("genre:")));
@@ -85,13 +86,22 @@ for (const root of ["artists", "albums", "genres", "playlists"]) {
     assert.ok(children.every((item: any) => item.playable || item.mediaId === `empty:${folder.mediaId}`));
   }
 }
-assert.ok(section(populated, "radio").items.some((item: any) => item.mediaId === "song:radio-live"));
+assert.ok(section(populated, "radio_popular").items.some((item: any) => item.mediaId === "song:radio-live"));
 assert.ok(section(populated, "favorites").items.some((item: any) => item.mediaId === "fav:song:good"));
 assert.equal(section(populated, "recently_played").items[0].mediaId, "recent:song:second", "phone history preferred");
 assert.ok(section(populated, "made_for_you").items.length > 0);
 
 const serialized = JSON.stringify(populated);
 for (const id of rejected.map((entry) => entry.id)) assert.ok(!serialized.includes(`song:${id}`), `${id} excluded`);
+
+configureCarPlayMatureVisibility(() => true);
+const matureEnabled = buildCarPlayCatalogSnapshot({ ...catalog, songs: rejected.slice(0, 2) } as any);
+assert.ok(matureEnabled.tracks.some((track) => track.mediaId === "song:mature"), "phone-enabled mature item included");
+assert.ok(matureEnabled.tracks.some((track) => track.mediaId === "song:explicit"), "phone-enabled explicit item included");
+configureCarPlayMatureVisibility(() => false);
+const matureDisabled = buildCarPlayCatalogSnapshot({ ...catalog, songs: rejected.slice(0, 2) } as any);
+assert.ok(!JSON.stringify(matureDisabled).includes("song:mature"), "phone-disabled mature item excluded");
+assert.ok(!JSON.stringify(matureDisabled).includes("song:explicit"), "phone-disabled explicit item excluded");
 assert.equal(populated.tracks.filter((track) => track.mediaId === "song:good").length, 1, "tracks deduplicated");
 assert.ok(populated.tracks.length <= CARPLAY_LIMITS.tracks, "track cap");
 assert.ok(section(populated, "artists").items.length <= CARPLAY_LIMITS.artists, "artist cap");

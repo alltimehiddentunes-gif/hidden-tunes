@@ -36,8 +36,8 @@ struct HiddenAudioCarPlayBrowseNode {
 
 enum HiddenAudioCarPlayCatalog {
   static let rootId = "hidden_tunes_root"
-  static let emptyMessageTitle = "Nothing here yet"
-  static let emptyMessageSubtitle = "Hidden Tunes"
+  static let emptyMessageTitle = "No matching audio found."
+  static let emptyMessageSubtitle = ""
 
   static let limits = (
     recentlyPlayed: 25,
@@ -78,7 +78,7 @@ enum HiddenAudioCarPlayCatalog {
     }
 
     if let tracks = snapshot["tracks"] as? [[String: Any]] {
-      for trackMap in tracks {
+      for trackMap in tracks.prefix(80) {
         guard
           let mediaId = trackMap["mediaId"] as? String,
           let url = trackMap["url"] as? String,
@@ -240,8 +240,7 @@ enum HiddenAudioCarPlayCatalog {
     var matches: [HiddenAudioCarPlayBrowseNode] = []
     for mediaId in orderedPlayableMediaIds {
       guard let track = tracksByMediaId[mediaId] else { continue }
-      if track.isLiveStream { continue }
-      let haystack = "\(track.title) \(track.artist) \(track.album)".lowercased()
+      let haystack = "\(track.title) \(track.artist) \(track.album) \(track.collection)".lowercased()
       if haystack.contains(trimmed) {
         matches.append(
           HiddenAudioCarPlayBrowseNode(
@@ -264,21 +263,9 @@ enum HiddenAudioCarPlayCatalog {
   static func defaultRootNodes() -> [HiddenAudioCarPlayBrowseNode] {
     [
       HiddenAudioCarPlayBrowseNode(
-        mediaId: "recently_played",
-        title: "Recently Played",
-        subtitle: "Pick up where you left off",
-        playable: false
-      ),
-      HiddenAudioCarPlayBrowseNode(
-        mediaId: "made_for_you",
-        title: "Made for You",
-        subtitle: "Recommended listening",
-        playable: false
-      ),
-      HiddenAudioCarPlayBrowseNode(
-        mediaId: "playlists",
-        title: "Playlists",
-        subtitle: "Collections",
+        mediaId: "listen",
+        title: "Listen",
+        subtitle: "Your listening",
         playable: false
       ),
       HiddenAudioCarPlayBrowseNode(
@@ -288,27 +275,9 @@ enum HiddenAudioCarPlayCatalog {
         playable: false
       ),
       HiddenAudioCarPlayBrowseNode(
-        mediaId: "podcasts",
-        title: "Podcasts",
-        subtitle: "Shows and episodes",
-        playable: false
-      ),
-      HiddenAudioCarPlayBrowseNode(
-        mediaId: "audiobooks",
-        title: "Audiobooks",
-        subtitle: "Continue listening",
-        playable: false
-      ),
-      HiddenAudioCarPlayBrowseNode(
-        mediaId: "motivationals",
-        title: "Motivationals",
-        subtitle: "Programs and talks",
-        playable: false
-      ),
-      HiddenAudioCarPlayBrowseNode(
-        mediaId: "lectures",
-        title: "Lectures",
-        subtitle: "Education and talks",
+        mediaId: "library",
+        title: "Library",
+        subtitle: "Music, podcasts, and books",
         playable: false
       ),
     ]
@@ -374,12 +343,24 @@ enum HiddenAudioCarPlayCatalog {
   private static func ensureSectionFallbacks() {
     let sectionIds = [
       "recently_played",
+      "continue_listening",
       "favorites",
       "made_for_you",
+      "recommended_podcasts",
       "playlists",
       "music",
       "radio",
+      "radio_favorites",
+      "radio_recent",
+      "radio_recommended",
+      "radio_browse",
+      "radio_country",
+      "radio_genre",
+      "radio_popular",
+      "radio_recently_added",
       "podcasts",
+      "podcast_saved",
+      "podcast_recent",
       "audiobooks",
       "motivationals",
       "lectures",
@@ -431,10 +412,28 @@ enum HiddenAudioCarPlayCatalog {
   }
 
   private static func emptyNode(for parentId: String) -> HiddenAudioCarPlayBrowseNode {
-    HiddenAudioCarPlayBrowseNode(
+    let messages: [String: String] = [
+      "continue_listening": "Your unfinished listening will appear here.",
+      "recently_played": "Your recent listening will appear here.",
+      "favorites": "Favorite music will appear here.",
+      "made_for_you": "Recommendations will appear as you listen.",
+      "recommended_podcasts": "Podcast recommendations will appear as you listen.",
+      "radio_favorites": "Favorite stations will appear here.",
+      "radio_recent": "Your recent stations will appear here.",
+      "radio_recommended": "Station recommendations will appear as you listen.",
+      "radio_browse": "Stations will appear here.",
+      "radio_country": "Stations by country will appear here.",
+      "radio_genre": "Stations by genre will appear here.",
+      "radio_popular": "Popular stations will appear here.",
+      "radio_recently_added": "Recently added stations will appear here.",
+      "podcasts": "Your podcast shows will appear here.",
+      "podcast_saved": "Saved episodes will appear here.",
+      "audiobooks": "Your audiobooks will appear here.",
+    ]
+    return HiddenAudioCarPlayBrowseNode(
       mediaId: "empty:\(parentId)",
-      title: emptyMessageTitle,
-      subtitle: emptyMessageSubtitle,
+      title: messages[parentId] ?? "Audio will appear here.",
+      subtitle: "",
       playable: false
     )
   }
