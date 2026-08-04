@@ -32,6 +32,7 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var hasInstalledRoot = false
   private var isInstallingRoot = false
   private var isNavigationTransitionInProgress = false
+  private var hasPendingCatalogRefresh = false
   private var hasUpgradedToTabs = false
   /// Increments on each connect; stale async callbacks must ignore older generations.
   private var connectionGeneration: UInt64 = 0
@@ -101,6 +102,7 @@ final class HiddenAudioCarPlayManager: NSObject {
       let generation = self.connectionGeneration
       self.activeConnectionGeneration = generation
       self.interfaceController = interfaceController
+      interfaceController.delegate = self
       self.carWindow = window
       self.isConnected = true
       self.isInstallingRoot = false
@@ -188,6 +190,7 @@ final class HiddenAudioCarPlayManager: NSObject {
         let generation = self.connectionGeneration
         self.activeConnectionGeneration = generation
         self.interfaceController = interfaceController
+        interfaceController.delegate = self
         self.carWindow = window
         self.isConnected = true
         self.hasInstalledRoot = true
@@ -205,11 +208,13 @@ final class HiddenAudioCarPlayManager: NSObject {
       let generation = self.connectionGeneration
       self.activeConnectionGeneration = generation
       self.interfaceController = interfaceController
+      interfaceController.delegate = self
       self.carWindow = window
       self.isConnected = true
       self.hasInstalledRoot = false
       self.isInstallingRoot = false
       self.isNavigationTransitionInProgress = false
+      self.hasPendingCatalogRefresh = false
       self.hasUpgradedToTabs = false
       self.rootListTemplate = nil
       self.tabBarTemplate = nil
@@ -283,12 +288,36 @@ final class HiddenAudioCarPlayManager: NSObject {
   func reloadTemplates() {
     performOnMain { [weak self] in
       guard let self else { return }
-      if self.hasUpgradedToTabs {
-        self.updateTabSectionsFromCatalog()
-      } else {
-        self.updateExistingRootListFromCatalog()
+      guard self.canApplyCatalogRefreshNow() else {
+        self.hasPendingCatalogRefresh = self.isConnected
+        self.emitLifecycleDiagnostic("carplay_catalog_refresh_queued")
+        return
       }
+      self.applyCatalogRefreshNow()
     }
+  }
+
+  private func canApplyCatalogRefreshNow() -> Bool {
+    guard isConnected, let interfaceController else { return false }
+    return !isInstallingRoot && !isNavigationTransitionInProgress
+      && interfaceController.presentedTemplate == nil
+      && interfaceController.templates.count == 1
+  }
+
+  private func applyCatalogRefreshNow() {
+    guard canApplyCatalogRefreshNow() else { return }
+    hasPendingCatalogRefresh = false
+    if hasUpgradedToTabs {
+      updateTabSectionsFromCatalog()
+    } else {
+      updateExistingRootListFromCatalog()
+    }
+    emitLifecycleDiagnostic("carplay_catalog_refresh_applied")
+  }
+
+  private func applyPendingCatalogRefreshIfSafe() {
+    guard hasPendingCatalogRefresh, canApplyCatalogRefreshNow() else { return }
+    applyCatalogRefreshNow()
   }
 
   func presentNowPlayingIfConnected() {
@@ -518,27 +547,21 @@ final class HiddenAudioCarPlayManager: NSObject {
   private func makeStableRootItems() -> [CPListItem] {
     let nodes: [HiddenAudioCarPlayBrowseNode] = [
       HiddenAudioCarPlayBrowseNode(
-        mediaId: "ready",
-        title: "Hidden Tunes is ready",
-        subtitle: "Native CarPlay interface",
+        mediaId: "listen",
+        title: "Listen",
+        subtitle: "Your recent listening will appear here.",
         playable: false
       ),
       HiddenAudioCarPlayBrowseNode(
-        mediaId: "browse_home",
-        title: "Browse Library",
-        subtitle: "Music, radio, and more",
+        mediaId: "radio",
+        title: "Radio",
+        subtitle: "Stations will appear here.",
         playable: false
       ),
       HiddenAudioCarPlayBrowseNode(
-        mediaId: "now_playing",
-        title: "Now Playing",
-        subtitle: "Current session",
-        playable: false
-      ),
-      HiddenAudioCarPlayBrowseNode(
-        mediaId: "search",
-        title: "Search",
-        subtitle: "Find tracks",
+        mediaId: "library",
+        title: "Library",
+        subtitle: "Your saved audio will appear here.",
         playable: false
       ),
     ]
@@ -688,52 +711,30 @@ final class HiddenAudioCarPlayManager: NSObject {
   }
 
   private func makeListenSections() -> [CPListSection] {
-    var sections: [CPListSection] = []
-
-    let recent = nodesForSection("recently_played")
-    sections.append(
-      CPListSection(
-        items: recent.map { makeListItem(for: $0, parentId: "recently_played") },
-        header: "Recently Played",
-        sectionIndexTitle: nil
-      )
-    )
-
-    // Favorites helper: always a non-empty safe section (never blanks Listen).
-    sections.append(makeFavoritesSection())
-
-    let recommended = nodesForSection("made_for_you")
-    sections.append(
-      CPListSection(
-        items: recommended.map { makeListItem(for: $0, parentId: "made_for_you") },
-        header: "Recommended",
-        sectionIndexTitle: nil
-      )
-    )
-
-    // Always expose Search + Now Playing actions without using invalid tab classes.
-    let actions: [HiddenAudioCarPlayBrowseNode] = [
-      HiddenAudioCarPlayBrowseNode(
-        mediaId: "now_playing",
-        title: "Now Playing",
-        subtitle: "Current session",
-        playable: false
-      ),
-      HiddenAudioCarPlayBrowseNode(
-        mediaId: "search",
-        title: "Search",
-        subtitle: "Find tracks",
-        playable: false
-      ),
+    let ordered: [(String, String)] = [
+      ("continue_listening", "Continue Listening"),
+      ("recently_played", "Recently Played"),
+      ("favorites", "Favorites"),
+      ("made_for_you", "Recommended"),
+      ("recommended_podcasts", "Recommended Podcasts"),
     ]
-    sections.append(
+    var sections = ordered.map { parentId, header in
       CPListSection(
-        items: actions.map { makeListItem(for: $0, parentId: "listen_actions") },
-        header: "Controls",
+        items: nodesForSection(parentId).map { makeListItem(for: $0, parentId: parentId) },
+        header: header,
         sectionIndexTitle: nil
       )
-    )
-
+    }
+    let actions: [(HiddenAudioCarPlayBrowseNode, String)] = [
+      (HiddenAudioCarPlayBrowseNode(mediaId: "now_playing", title: "Now Playing",
+        subtitle: "Current session", playable: false), "Now Playing"),
+      (HiddenAudioCarPlayBrowseNode(mediaId: "search", title: "Search",
+        subtitle: "Find your audio", playable: false), "Search"),
+    ]
+    sections.append(contentsOf: actions.map { node, header in
+      CPListSection(items: [makeListItem(for: node, parentId: "listen_actions")],
+        header: header, sectionIndexTitle: nil)
+    })
     return ensureNonEmptySections(sections, header: "Listen")
   }
 
@@ -754,21 +755,28 @@ final class HiddenAudioCarPlayManager: NSObject {
   }
 
   private func makeRadioSections() -> [CPListSection] {
-    let nodes = nodesForSection("radio")
-    let section = CPListSection(
-      items: nodes.map { makeListItem(for: $0, parentId: "radio") },
-      header: "Stations",
-      sectionIndexTitle: nil
-    )
-    return ensureNonEmptySections([section], header: "Radio")
+    let ordered: [(String, String)] = [
+      ("radio_favorites", "Favorite Stations"),
+      ("radio_recent", "Recent Stations"),
+      ("radio_recommended", "Recommended Stations"),
+      ("radio_browse", "Browse Stations"),
+    ]
+    return ensureNonEmptySections(ordered.map { parentId, header in
+      CPListSection(items: nodesForSection(parentId).map {
+        makeListItem(for: $0, parentId: parentId)
+      }, header: header, sectionIndexTitle: nil)
+    }, header: "Radio")
   }
 
   private func makeLibrarySections() -> [CPListSection] {
     let groups: [(String, String)] = [
+      ("artists", "Artists"),
+      ("albums", "Albums"),
+      ("genres", "Genres"),
       ("playlists", "Playlists"),
-      ("music", "Saved Music"),
       ("podcasts", "Podcasts"),
       ("audiobooks", "Audiobooks"),
+      ("music", "Saved Music"),
     ]
     var sections: [CPListSection] = []
     for (parentId, header) in groups {
@@ -1127,6 +1135,13 @@ final class HiddenAudioCarPlayManager: NSObject {
   }
 
   private func selectPlayable(mediaId: String, parentId: String) {
+    guard HiddenAudioCarPlayCatalog.track(for: mediaId) != nil else {
+      emitDiagnostic([
+        "event": "carplay_selection_rejected",
+        "reason": "not_in_current_catalog",
+      ])
+      return
+    }
     NSLog("[HTCarPlay] item_selected id=%@", mediaId)
     if supportsVideoPlaybackCached && mediaId.hasPrefix("video:") {
       // Audio-safe transition: still route through shared HiddenAudio, never render video in CarPlay.
@@ -1237,5 +1252,13 @@ extension HiddenAudioCarPlayManager: CPSessionConfigurationDelegate {
     contentStyleChanged contentStyle: CPContentStyle
   ) {
     NSLog("[HTCarPlay] content_style_changed")
+  }
+}
+
+extension HiddenAudioCarPlayManager: CPInterfaceControllerDelegate {
+  func templateDidAppear(_ aTemplate: CPTemplate, animated: Bool) {
+    performOnMain { [weak self] in
+      self?.applyPendingCatalogRefreshIfSafe()
+    }
   }
 }
