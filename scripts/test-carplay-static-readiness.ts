@@ -146,7 +146,7 @@ function main() {
   assertOk(manager.includes("CPListTemplate"), "CPListTemplate root");
   assertOk(manager.includes("CPNowPlayingTemplate"), "now playing");
   assertOk(manager.includes("CPSearchTemplate"), "search template type");
-  assertOk(manager.includes("pushTemplate(search, animated: true)"), "search uses navigation stack");
+  assertOk(manager.includes('pushTemplateSafely(search, operation: "search")'), "search uses guarded navigation stack");
   assertOk(!manager.includes("presentTemplate(search"), "search never uses modal presentation");
   assertOk(manager.includes("presentSearchTemplate"), "presentSearchTemplate helper");
   assertOk(manager.includes("makeFavoritesSection"), "favorites section helper");

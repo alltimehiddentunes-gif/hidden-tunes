@@ -31,6 +31,7 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var isConnected = false
   private var hasInstalledRoot = false
   private var isInstallingRoot = false
+  private var isNavigationTransitionInProgress = false
   private var hasUpgradedToTabs = false
   /// Increments on each connect; stale async callbacks must ignore older generations.
   private var connectionGeneration: UInt64 = 0
@@ -103,6 +104,7 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.carWindow = window
       self.isConnected = true
       self.isInstallingRoot = false
+      self.isNavigationTransitionInProgress = false
       // Only treat the root as installed when the scene (or manager) confirmed setRoot success.
       self.hasInstalledRoot = rootInstallConfirmed
       self.hasUpgradedToTabs = false
@@ -207,6 +209,7 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.isConnected = true
       self.hasInstalledRoot = false
       self.isInstallingRoot = false
+      self.isNavigationTransitionInProgress = false
       self.hasUpgradedToTabs = false
       self.rootListTemplate = nil
       self.tabBarTemplate = nil
@@ -244,6 +247,7 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.isConnected = false
       self.hasInstalledRoot = false
       self.isInstallingRoot = false
+      self.isNavigationTransitionInProgress = false
       self.hasUpgradedToTabs = false
       self.activeConnectionGeneration = 0
       self.interfaceController = nil
@@ -291,22 +295,12 @@ final class HiddenAudioCarPlayManager: NSObject {
     performOnMain { [weak self] in
       guard let self, self.isConnected, let interfaceController = self.interfaceController else { return }
       let nowPlaying = CPNowPlayingTemplate.shared
-      if interfaceController.topTemplate !== nowPlaying {
-        interfaceController.pushTemplate(nowPlaying, animated: true) { [weak self] success, error in
-          if success {
-            NSLog("[HTCarPlay] now_playing_opened")
-          }
-          if let error {
-            NSLog("[HTCarPlay] now_playing_push_failed success=%d", success ? 1 : 0)
-            self?.emitDiagnostic([
-              "event": "carplay_now_playing_push_failed",
-              "message": error.localizedDescription,
-              "success": success,
-            ])
-          }
-        }
-      } else {
+      if interfaceController.topTemplate === nowPlaying {
         NSLog("[HTCarPlay] now_playing_opened")
+      } else if interfaceController.templates.contains(where: { $0 === nowPlaying }) {
+        self.popToTemplateSafely(nowPlaying, operation: "now_playing")
+      } else {
+        self.pushTemplateSafely(nowPlaying, operation: "now_playing")
       }
     }
   }
@@ -563,6 +557,16 @@ final class HiddenAudioCarPlayManager: NSObject {
     }
     guard !hasUpgradedToTabs, !isInstallingRoot else {
       NSLog("[HTCarPlay] tab_upgrade_skipped already_tabs_or_installing")
+      return
+    }
+    guard !isNavigationTransitionInProgress,
+          interfaceController.presentedTemplate == nil,
+          interfaceController.templates.count == 1 else {
+      NSLog("[HTCarPlay] tab_upgrade_skipped navigation_active")
+      emitDiagnostic([
+        "event": "carplay_tab_upgrade_skipped",
+        "reason": "navigation_active",
+      ])
       return
     }
 
@@ -899,19 +903,25 @@ final class HiddenAudioCarPlayManager: NSObject {
 
   private func presentSearchTemplate() {
     performOnMain { [weak self] in
-      guard let self, let interfaceController = self.interfaceController else { return }
+      guard let self, self.isConnected, let interfaceController = self.interfaceController else {
+        self?.emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "disconnected", "operation": "search"])
+        return
+      }
+      if interfaceController.topTemplate is CPSearchTemplate {
+        self.emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "already_visible", "operation": "search"])
+        return
+      }
       let search = CPSearchTemplate()
       search.delegate = self
-      self.presentedSearchTemplate = search
-      NSLog("[HTCarPlay] search_pushed")
-      interfaceController.pushTemplate(search, animated: true) { success, error in
-        if let error {
-          self.emitDiagnostic([
-            "event": "carplay_search_push_failed",
-            "success": success,
-            "message": error.localizedDescription,
-          ])
+      let accepted = self.pushTemplateSafely(search, operation: "search") { [weak self, weak search] success in
+        guard let self else { return }
+        if !success, let search, self.presentedSearchTemplate === search {
+          self.presentedSearchTemplate = nil
         }
+      }
+      if accepted {
+        self.presentedSearchTemplate = search
+        NSLog("[HTCarPlay] search_pushed")
       }
     }
   }
@@ -1006,6 +1016,7 @@ final class HiddenAudioCarPlayManager: NSObject {
 
     if node.playable {
       selectPlayable(mediaId: node.mediaId)
+      scheduleNowPlayingAfterSelectionCompletion()
       return
     }
 
@@ -1014,7 +1025,10 @@ final class HiddenAudioCarPlayManager: NSObject {
 
   private func pushChildList(for node: HiddenAudioCarPlayBrowseNode) {
     performOnMain { [weak self] in
-      guard let self, let interfaceController = self.interfaceController else { return }
+      guard let self, self.isConnected, self.interfaceController != nil else {
+        self?.emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "disconnected", "operation": "child_list"])
+        return
+      }
       var children = HiddenAudioCarPlayCatalog.children(for: node.mediaId)
       if children.isEmpty {
         children = [
@@ -1031,16 +1045,83 @@ final class HiddenAudioCarPlayManager: NSObject {
         title: node.title,
         sections: [CPListSection(items: items)]
       )
-      interfaceController.pushTemplate(template, animated: true) { [weak self] success, error in
-        if let error {
-          NSLog("[HTCarPlay] push_failed mediaId=%@ success=%d", node.mediaId, success ? 1 : 0)
-          self?.emitDiagnostic([
-            "event": "carplay_push_failed",
-            "mediaId": node.mediaId,
-            "message": error.localizedDescription,
-            "success": success,
-          ])
-        }
+      self.pushTemplateSafely(template, operation: "child_list", mediaId: node.mediaId)
+    }
+  }
+
+  @discardableResult
+  private func pushTemplateSafely(
+    _ template: CPTemplate,
+    operation: String,
+    mediaId: String? = nil,
+    completion: ((Bool) -> Void)? = nil
+  ) -> Bool {
+    dispatchPrecondition(condition: .onQueue(.main))
+    guard isConnected, let interfaceController else {
+      emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "disconnected", "operation": operation])
+      completion?(false)
+      return false
+    }
+    guard !isNavigationTransitionInProgress else {
+      emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "transition_in_progress", "operation": operation])
+      completion?(false)
+      return false
+    }
+    guard interfaceController.presentedTemplate == nil else {
+      emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "modal_active", "operation": operation])
+      completion?(false)
+      return false
+    }
+    guard !interfaceController.templates.contains(where: { $0 === template }) else {
+      emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "template_already_in_stack", "operation": operation])
+      completion?(false)
+      return false
+    }
+    let generation = activeConnectionGeneration
+    isNavigationTransitionInProgress = true
+    interfaceController.pushTemplate(template, animated: true) { [weak self] success, error in
+      guard let self else { return }
+      if generation == self.activeConnectionGeneration {
+        self.isNavigationTransitionInProgress = false
+      }
+      if success, operation == "now_playing" {
+        NSLog("[HTCarPlay] now_playing_opened")
+      }
+      if let error {
+        NSLog("[HTCarPlay] navigation_push_failed operation=%@ success=%d", operation, success ? 1 : 0)
+        self.emitDiagnostic([
+          "event": "carplay_navigation_push_failed",
+          "operation": operation,
+          "mediaId": mediaId ?? "",
+          "message": error.localizedDescription,
+          "success": success,
+        ])
+      }
+      completion?(success)
+    }
+    return true
+  }
+
+  private func popToTemplateSafely(_ template: CPTemplate, operation: String) {
+    dispatchPrecondition(condition: .onQueue(.main))
+    guard isConnected, let interfaceController,
+          !isNavigationTransitionInProgress,
+          interfaceController.presentedTemplate == nil,
+          interfaceController.templates.contains(where: { $0 === template }) else {
+      emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "invalid_pop_target_or_transition", "operation": operation])
+      return
+    }
+    let generation = activeConnectionGeneration
+    isNavigationTransitionInProgress = true
+    interfaceController.pop(to: template, animated: true) { [weak self] success, error in
+      guard let self else { return }
+      if generation == self.activeConnectionGeneration {
+        self.isNavigationTransitionInProgress = false
+      }
+      if success {
+        NSLog("[HTCarPlay] now_playing_opened")
+      } else if let error {
+        self.emitDiagnostic(["event": "carplay_navigation_pop_failed", "operation": operation, "message": error.localizedDescription])
       }
     }
   }
@@ -1059,7 +1140,15 @@ final class HiddenAudioCarPlayManager: NSObject {
       "supportsVideoPlayback": supportsVideoPlaybackCached,
     ])
     playbackHandler?.emitCarPlayMediaSelection(mediaId)
-    presentNowPlayingIfConnected()
+  }
+
+  /// Selection completion runs on return from the list/search delegate. Defer
+  /// navigation one main-queue turn so CarPlay never receives a push while it
+  /// is still completing the selection callback.
+  private func scheduleNowPlayingAfterSelectionCompletion() {
+    DispatchQueue.main.async { [weak self] in
+      self?.presentNowPlayingIfConnected()
+    }
   }
 
   private func performOnMain(_ work: @escaping () -> Void) {
@@ -1081,6 +1170,12 @@ extension HiddenAudioCarPlayManager: CPSearchTemplateDelegate {
     updatedSearchText searchText: String,
     completionHandler: @escaping ([CPListItem]) -> Void
   ) {
+    guard isConnected,
+          presentedSearchTemplate === searchTemplate,
+          interfaceController?.templates.contains(where: { $0 === searchTemplate }) == true else {
+      completionHandler([])
+      return
+    }
     let matches = HiddenAudioCarPlayCatalog.updateSearchResults(query: searchText)
     if matches.isEmpty {
       if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -1109,10 +1204,17 @@ extension HiddenAudioCarPlayManager: CPSearchTemplateDelegate {
     completionHandler: @escaping () -> Void
   ) {
     defer { completionHandler() }
+    guard isConnected,
+          presentedSearchTemplate === searchTemplate,
+          interfaceController?.templates.contains(where: { $0 === searchTemplate }) == true else {
+      emitDiagnostic(["event": "carplay_search_selection_rejected", "reason": "stale_or_disconnected"])
+      return
+    }
     if let info = item.userInfo as? [String: Any],
        let mediaId = info["mediaId"] as? String,
        !mediaId.isEmpty {
       selectPlayable(mediaId: mediaId)
+      scheduleNowPlayingAfterSelectionCompletion()
     }
   }
 
