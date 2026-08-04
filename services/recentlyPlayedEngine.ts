@@ -27,6 +27,8 @@ export type RecentlyPlayedTrack = {
   isOnline?: boolean;
   playedAt: number;
   playCount: number;
+  is_mature?: boolean;
+  content_rating?: "clean" | "explicit" | "adult";
 };
 
 export async function loadRecentlyPlayed(): Promise<RecentlyPlayedTrack[]> {
@@ -112,6 +114,12 @@ export async function addToRecentlyPlayed(song: any) {
     playCount: existing
       ? existing.playCount + 1
       : 1,
+
+    is_mature: Boolean(song.is_mature || song.isMature || song.mature
+      || song.explicit || song.content_rating === "explicit" || song.content_rating === "adult"),
+
+    content_rating: song.content_rating === "explicit" || song.content_rating === "adult"
+      ? song.content_rating : "clean",
   };
 
   const updated = [

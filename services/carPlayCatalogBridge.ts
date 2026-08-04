@@ -15,7 +15,15 @@ import {
   buildCarPlayInitialCatalogSnapshot,
   carPlayCatalogSignature,
 } from "./carPlayCatalogSnapshot";
-import { rememberCarPlayCatalogSnapshot } from "./carPlayMediaResolver";
+import {
+  configureCarPlayMediaVisibility,
+  rememberCarPlayCatalogSnapshot,
+} from "./carPlayMediaResolver";
+import {
+  configureCarPlayMatureVisibility,
+  isCarPlayContentVisible,
+  isCarPlayMatureContent,
+} from "./carPlayCatalogSnapshot";
 export {
   buildCarPlayCatalogSnapshot,
   buildCarPlayInitialCatalogSnapshot,
@@ -23,6 +31,11 @@ export {
 } from "./carPlayCatalogSnapshot";
 import { getFavorites } from "./favorites/unifiedFavorites";
 import { loadRecentlyPlayed } from "./recentlyPlayedEngine";
+import { collectCarPlayPremiumCatalog } from "./carPlayPremiumCatalog";
+import {
+  shouldIncludeMatureInApi,
+  subscribeMatureContentSettings,
+} from "../utils/matureContentSettings";
 import {
   ensureHiddenAudioNativeSetup,
   isHiddenAudioNativeEngineAvailable,
@@ -39,9 +52,14 @@ let bindingCleanup: (() => void) | null = null;
 let bindingReuseLogged = false;
 let initialCatalogPublishPromise: Promise<void> | null = null;
 let inFlightCatalogPublishPromise: Promise<void> | null = null;
+let pendingCatalogPublishRequested = false;
 let lastCarPlayStatus: Record<string, unknown> = {};
 let carPlaySnapshotGeneration = 0;
 let carPlayCacheHydrationAttempted = false;
+let carPlayPremiumEnrichmentAttempted = false;
+
+configureCarPlayMatureVisibility(shouldIncludeMatureInApi);
+configureCarPlayMediaVisibility(isCarPlayContentVisible);
 
 type CarPlayBrowseNode = {
   mediaId: string;
@@ -97,11 +115,12 @@ function collectCarPlayFavoriteEntries(): {
     for (const fav of getFavorites().slice(0, 48)) {
       if (items.length >= 25) break;
       if (fav.type === "song") {
+        if (!isCarPlayContentVisible(fav.metadata)) continue;
         const id = String(fav.id || "").trim();
         const title = String(fav.title || "").trim();
         const url = String(fav.metadata?.streamUrl || "").trim();
         if (!id || !title || !url) continue;
-        const mediaId = `fav:song:${id}`;
+        const mediaId = `song:${id}`;
         if (seen.has(mediaId)) continue;
         seen.add(mediaId);
         items.push({
@@ -121,33 +140,8 @@ function collectCarPlayFavoriteEntries(): {
           durationSeconds: 0,
           contentType: "music",
           isLive: false,
-        });
-      } else if (fav.type === "radio_station") {
-        const id = String(fav.id || "").trim();
-        const title = String(fav.title || "").trim();
-        const url = String(fav.metadata?.streamUrl || "").trim();
-        if (!id || !title || !url) continue;
-        const mediaId = `fav:radio:${id}`;
-        if (seen.has(mediaId)) continue;
-        seen.add(mediaId);
-        items.push({
-          mediaId,
-          title,
-          subtitle: String(fav.subtitle || "Live radio").trim() || "Live radio",
-          playable: true,
-        });
-        tracks.push({
-          mediaId,
-          id,
-          url,
-          title,
-          artist: String(fav.subtitle || "Live radio").trim() || "Live radio",
-          album: "Radio",
-          artworkUrl: String(fav.artwork || ""),
-          durationSeconds: 0,
-          contentType: "radio",
-          isLive: true,
-        });
+          isMature: isCarPlayMatureContent(fav.metadata),
+        } as AndroidAutoTrackPayload);
       }
     }
   } catch {
@@ -263,6 +257,16 @@ function ensureCarPlayBindingMounted() {
   acquireCarPlayBinding();
 }
 
+let matureVisibilityCleanup: (() => void) | null = null;
+
+function ensureCarPlayMatureVisibilityBinding() {
+  if (matureVisibilityCleanup) return;
+  matureVisibilityCleanup = subscribeMatureContentSettings(() => {
+    lastSyncSignature = "";
+    void syncCarPlayCatalogFromDerived();
+  });
+}
+
 async function collectCarPlayRecentlyPlayedEntries(): Promise<{
   items: AndroidAutoBrowseItem[];
   tracks: AndroidAutoTrackPayload[];
@@ -271,18 +275,25 @@ async function collectCarPlayRecentlyPlayedEntries(): Promise<{
   const tracks: AndroidAutoTrackPayload[] = [];
   const seen = new Set<string>();
   for (const entry of (await loadRecentlyPlayed()).slice(0, 24)) {
+    if (String(entry.id || "").startsWith("radio-")
+      || String(entry.id || "").startsWith("podcast-")
+      || String(entry.id || "").startsWith("audiobook-chapter-")) continue;
+    if (typeof entry.is_mature !== "boolean" || !entry.content_rating) continue;
+    if (!isCarPlayContentVisible(entry as unknown as Record<string, unknown>)) continue;
     const id = String(entry.id || "").trim();
     const title = String(entry.title || "").trim();
     const url = String(entry.streamUrl || "").trim();
     if (!id || !title || !url) continue;
-    const mediaId = `recent:song:${id}`;
+    const mediaId = `song:${id}`;
     if (seen.has(mediaId)) continue;
     seen.add(mediaId);
     const artist = String(entry.artist || entry.channelTitle || "Hidden Tunes").trim() || "Hidden Tunes";
     items.push({ mediaId, title, subtitle: artist, playable: true, contentType: "music" });
     tracks.push({ mediaId, id, url, title, artist, album: "",
       artworkUrl: String(entry.artwork || entry.thumbnail || entry.coverUrl || ""),
-      durationSeconds: 0, contentType: "music", isLive: false });
+      durationSeconds: 0, contentType: "music", isLive: false,
+      isMature: isCarPlayMatureContent(entry as unknown as Record<string, unknown>),
+    } as AndroidAutoTrackPayload);
   }
   return { items, tracks };
 }
@@ -306,14 +317,20 @@ export async function syncCarPlayCatalogFromDerived(): Promise<void> {
   if (!isCarPlayCatalogSyncEnabled()) return;
 
   ensureCarPlayBindingMounted();
+  ensureCarPlayMatureVisibilityBinding();
 
   if (inFlightCatalogPublishPromise) {
+    pendingCatalogPublishRequested = true;
     return inFlightCatalogPublishPromise;
   }
 
   const publishPromise = publishCarPlayCatalogSnapshot().finally(() => {
     if (inFlightCatalogPublishPromise === publishPromise) {
       inFlightCatalogPublishPromise = null;
+    }
+    if (pendingCatalogPublishRequested) {
+      pendingCatalogPublishRequested = false;
+      void syncCarPlayCatalogFromDerived();
     }
   });
 
@@ -345,10 +362,19 @@ export async function syncCarPlayCatalogFromDerived(): Promise<void> {
     });
   }
 
+  if (!carPlayPremiumEnrichmentAttempted) {
+    carPlayPremiumEnrichmentAttempted = true;
+    void publishPromise.then(() => publishCarPlayCatalogSnapshot(true)).catch((error) => {
+      logCarPlayJs("premium catalog enrichment failed", {
+        message: String((error as Error)?.message || error),
+      });
+    });
+  }
+
   return publishPromise;
 }
 
-async function publishCarPlayCatalogSnapshot(): Promise<void> {
+async function publishCarPlayCatalogSnapshot(allowNetwork = false): Promise<void> {
   logCarPlayJs("catalog publish started");
 
   try {
@@ -358,18 +384,23 @@ async function publishCarPlayCatalogSnapshot(): Promise<void> {
     try {
       const favorites = collectCarPlayFavoriteEntries();
       const recentlyPlayed = await collectCarPlayRecentlyPlayedEntries();
+      const premium = await collectCarPlayPremiumCatalog({ allowNetwork });
       snapshot = catalog?.songs?.length
         ? buildParentClosedCarPlaySnapshot(catalog, {
             favoriteItems: favorites.items as AndroidAutoBrowseItem[],
             favoriteTracks: favorites.tracks,
             recentlyPlayedItems: recentlyPlayed.items,
             recentlyPlayedTracks: recentlyPlayed.tracks,
+            premiumTracks: premium.premiumTracks,
+            premiumSections: premium.premiumSections,
           })
         : buildCarPlayInitialCatalogSnapshot({
             favoriteItems: favorites.items as AndroidAutoBrowseItem[],
             favoriteTracks: favorites.tracks,
             recentlyPlayedItems: recentlyPlayed.items,
             recentlyPlayedTracks: recentlyPlayed.tracks,
+            premiumTracks: premium.premiumTracks,
+            premiumSections: premium.premiumSections,
           });
     } catch (buildError) {
       logCarPlayJs("catalog publish completed", { success: false, reason: "build_failed" });

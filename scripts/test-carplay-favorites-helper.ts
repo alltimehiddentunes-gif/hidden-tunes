@@ -198,7 +198,7 @@ function main() {
   const bridge = read("services/carPlayCatalogBridge.ts");
   assertOk(bridge.includes("getFavorites"), "CarPlay bridge reads phone favorites");
   assertOk(bridge.includes("collectCarPlayFavoriteEntries"), "CarPlay favorites collector present");
-  assertOk(bridge.includes("fav:song:"), "CarPlay favorites use playable media ids");
+  assertOk(bridge.includes("const mediaId = `song:${id}`"), "CarPlay favorites use canonical playable media ids");
   assertOk(!bridge.includes("runVisibleRootProbeOnce"), "no visible-root probe overwrite");
   assertOk(!bridge.includes("SoundHelix"), "no SoundHelix probe track");
   assertOk(!bridge.includes("carplay-probe-1"), "no probe media id");
