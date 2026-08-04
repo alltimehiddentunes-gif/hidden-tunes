@@ -37,6 +37,16 @@ export async function loadAudiobookProgress(
   return store[cleanBookId] || null;
 }
 
+export async function listAudiobookProgress(limit = 8) {
+  const store = await readStore();
+  return Object.values(store)
+    .filter((entry) => Boolean(String(entry.bookId || "").trim())
+      && Boolean(String(entry.chapterId || "").trim())
+      && Number(entry.positionMillis) > 0)
+    .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))
+    .slice(0, Math.max(0, Math.min(8, Math.floor(limit || 0))));
+}
+
 export async function saveAudiobookProgress(entry: AudiobookProgressEntry) {
   const cleanBookId = String(entry.bookId || "").trim();
   const cleanChapterId = String(entry.chapterId || "").trim();

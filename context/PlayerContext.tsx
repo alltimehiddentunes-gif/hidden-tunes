@@ -8787,6 +8787,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 });
                 break;
               }
+              if (resolved.radioStation) {
+                const { routeRadioPlayback } = await import(
+                  "../services/playback/playbackRouter"
+                );
+                const result = await routeRadioPlayback(
+                  resolved.radioStation,
+                  { playSong, playQueue },
+                  { origin: "lockscreen" }
+                );
+                if (!result.ok) {
+                  logLockscreenPlaybackDiagnostic("carplay_media_resolution_failed", {
+                    ...data,
+                    mediaId,
+                    reason: result.aborted
+                      ? "radio_switch_aborted"
+                      : result.error || "radio_playback_failed",
+                  });
+                  break;
+                }
+                logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
+                  command: "play_from_media_id",
+                  mediaId,
+                  source: "carplay",
+                  queueIndex: 0,
+                  queueLength: 1,
+                  contextId: resolved.queueContext.contextId,
+                });
+                break;
+              }
               await playSong(
                 resolved.song,
                 resolved.queue,
@@ -8794,6 +8823,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 resolved.queueContext,
                 resolved.queueMode
               );
+              if (resolved.resumePositionMillis > 0) {
+                await seekTo(resolved.resumePositionMillis);
+              }
               logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
                 command: "play_from_media_id",
                 mediaId,
