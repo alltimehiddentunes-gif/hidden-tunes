@@ -10,6 +10,10 @@ import {
   rankAlbumsForListener,
   rankArtistsForListener,
   rankSongsForListener,
+  diversifyRankedSongs,
+  rankRelevantNewReleases,
+  filterEligibleHomeSongs,
+  selectPersonalizedHomeOrdering,
 } from "./listenerRanking";
 import {
   buildBecauseYouListened,
@@ -34,6 +38,8 @@ export type SharedDiscoverySnapshot = {
   rankedAlbums: HiddenTunesAlbum[];
   rankedArtists: HiddenTunesArtist[];
   recentlyDiscovered: HiddenTunesNormalizedSong[];
+  personalizedHomeSongs: HiddenTunesNormalizedSong[];
+  relevantNewReleases: HiddenTunesNormalizedSong[];
   becauseYouListenedRaw: HiddenTunesNormalizedSong[];
   becauseYouListenedRanked: HiddenTunesNormalizedSong[];
   curatedSections: SmartDiscoverySection<HiddenTunesNormalizedSong>[];
@@ -47,6 +53,10 @@ export type SharedDiscoveryInput = {
   favorites?: DiscoverySong[];
   albums?: HiddenTunesAlbum[];
   artists?: HiddenTunesArtist[];
+  onboardingGenres?: string[];
+  onboardingMoods?: string[];
+  discoveryStyle?: string;
+  personalizedHomeEnabled?: boolean;
 };
 
 let cachedKey: string | null = null;
@@ -115,6 +125,8 @@ export function buildDiscoveryCacheKey(input: SharedDiscoveryInput) {
     buildCatalogFingerprint(input.songs),
     buildListenerFingerprint(input.recentlyPlayed, input.favorites),
     buildCollectionsFingerprint(input.songs, input.albums, input.artists),
+    `onboarding:${(input.onboardingGenres || []).join("|")}:${(input.onboardingMoods || []).join("|")}:${input.discoveryStyle || "balanced"}`,
+    `personalized:${input.personalizedHomeEnabled === true}`,
   ].join("::");
 }
 
@@ -125,10 +137,34 @@ function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscov
 
   const preferenceMaps = buildListenerPreferenceMaps(
     recentlyPlayed as HiddenTunesNormalizedSong[],
-    favorites as HiddenTunesNormalizedSong[]
+    favorites as HiddenTunesNormalizedSong[],
+    { genres: input.onboardingGenres, moods: input.onboardingMoods }
   );
 
-  const rankedSongs = rankSongsForListener(songs, preferenceMaps);
+  const eligibleHomeSongs = filterEligibleHomeSongs(songs);
+  const rankedSongs = rankSongsForListener(eligibleHomeSongs, preferenceMaps);
+  const recentlyDiscovered = buildRecentlyDiscovered(songs, MAX_RECENTLY_DISCOVERED);
+  const discoveryRatio =
+    input.discoveryStyle === "adventurous"
+      ? 0.15
+      : input.discoveryStyle === "familiar"
+        ? 0.05
+        : 0.1;
+  let personalizedHomeSongs = songs;
+  let relevantNewReleases = recentlyDiscovered;
+  if (input.personalizedHomeEnabled) {
+    try {
+      personalizedHomeSongs = diversifyRankedSongs(rankedSongs, rankedSongs.length);
+      relevantNewReleases = rankRelevantNewReleases(
+        songs,
+        preferenceMaps,
+        MAX_RECENTLY_DISCOVERED,
+        discoveryRatio
+      );
+    } catch {
+      // Deterministic fail-closed behavior: retain the existing catalog and latest lanes.
+    }
+  }
 
   const albumSource = input.albums?.length ? input.albums : extractHiddenTunesAlbums(songs);
   const artistSource = input.artists?.length ? input.artists : extractHiddenTunesArtists(songs);
@@ -136,7 +172,6 @@ function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscov
   const rankedAlbums = rankAlbumsForListener(albumSource, preferenceMaps);
   const rankedArtists = rankArtistsForListener(artistSource, preferenceMaps);
 
-  const recentlyDiscovered = buildRecentlyDiscovered(songs, MAX_RECENTLY_DISCOVERED);
   const becauseYouListenedRaw = buildBecauseYouListened(
     songs,
     recentlyPlayed,
@@ -160,6 +195,8 @@ function buildSharedDiscoverySnapshot(input: SharedDiscoveryInput): SharedDiscov
     rankedAlbums,
     rankedArtists,
     recentlyDiscovered,
+    personalizedHomeSongs,
+    relevantNewReleases,
     becauseYouListenedRaw,
     becauseYouListenedRanked,
     curatedSections,
@@ -188,3 +225,5 @@ export function resetSharedDiscoveryCache() {
   cachedKey = null;
   cachedSnapshot = null;
 }
+
+export { selectPersonalizedHomeOrdering };

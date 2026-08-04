@@ -92,10 +92,12 @@ import { useLocalization } from "@/localization";
 import type { TranslationKey } from "@/localization";
 import {
   getSharedDiscoverySnapshot,
+  selectPersonalizedHomeOrdering,
   MAX_DISCOVERY_INPUT_SONGS,
 } from "@/services/discoveryCache";
 import {
   getDiscoveryPreferredGenres,
+  getDiscoveryPreferenceSnapshot,
   hydrateDiscoveryPreferredGenres,
 } from "@/utils/discoveryPreferences";
 import {
@@ -119,6 +121,8 @@ const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
 const HOME_SECTION_PREVIEW_LIMIT = 8;
 const HOME_FIRST_PAGE_LIMIT = 100;
+const PERSONALIZED_HOME_RANKING_ENABLED =
+  process.env.EXPO_PUBLIC_ENABLE_PERSONALIZED_HOME === "true";
 
 function logHomeLoad(event: string, extra?: Record<string, unknown>) {
   if (!__DEV__) return;
@@ -886,6 +890,9 @@ export default function MusicFeedScreen() {
   const [loading, setLoading] = useState(() => !initialCatalogStateRef.current);
   const [refreshing, setRefreshing] = useState(false);
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
+  const [homePreferences, setHomePreferences] = useState(() =>
+    getDiscoveryPreferenceSnapshot()
+  );
   const [showDeferredHomeSections, setShowDeferredHomeSections] = useState(false);
   const [genreSpotlightSignals, setGenreSpotlightSignals] = useState<GenreSpotlightSignals>(
     emptyGenreSpotlightSignals
@@ -951,7 +958,9 @@ export default function MusicFeedScreen() {
       return catalogRequestRef.current;
     }
 
-    void hydrateDiscoveryPreferredGenres();
+    void hydrateDiscoveryPreferredGenres().then(() => {
+      if (mountedRef.current) setHomePreferences(getDiscoveryPreferenceSnapshot());
+    });
 
     const request = (async () => {
       const startedAt = Date.now();
@@ -1076,7 +1085,6 @@ export default function MusicFeedScreen() {
   const activeQueueSignature = playerFeed.activeQueueSignature;
 
   const visiblePlaylists = useMemo(() => playlists.slice(0, 6), [playlists]);
-  const featuredSongs = useMemo(() => songs.slice(0, 8), [songs]);
   const discoveryInputSongs = useMemo(
     () => songs.slice(0, MAX_DISCOVERY_INPUT_SONGS) as HiddenTunesNormalizedSong[],
     [songsSignature]
@@ -1087,17 +1095,40 @@ export default function MusicFeedScreen() {
         songs: discoveryInputSongs,
         recentlyPlayed: (playerFeed.recentlyPlayed || []) as HiddenTunesNormalizedSong[],
         favorites: (playerFeed.favorites || []) as HiddenTunesNormalizedSong[],
+        onboardingGenres: homePreferences.genres,
+        onboardingMoods: homePreferences.moods,
+        discoveryStyle: homePreferences.discoveryStyle,
+        personalizedHomeEnabled: PERSONALIZED_HOME_RANKING_ENABLED,
       }),
     [
       discoveryInputSongs,
       playerFeed.favorites,
       playerFeed.recentlyPlayed,
+      homePreferences,
       songsSignature,
     ]
   );
+  const personalizedHomeSongs = useMemo(
+    () =>
+      selectPersonalizedHomeOrdering(
+        PERSONALIZED_HOME_RANKING_ENABLED,
+        songs as HiddenTunesNormalizedSong[],
+        sharedDiscovery.personalizedHomeSongs
+      ) as HiddenTunesSong[],
+    [sharedDiscovery.personalizedHomeSongs, songsSignature]
+  );
+  const homeFeaturedSongs = useMemo(
+    () => personalizedHomeSongs.slice(0, 8),
+    [personalizedHomeSongs]
+  );
   const recentlyAddedSongs = useMemo(
-    () => (showDeferredHomeSections ? sharedDiscovery.recentlyDiscovered : []),
-    [sharedDiscovery.recentlyDiscovered, showDeferredHomeSections]
+    () =>
+      showDeferredHomeSections
+        ? PERSONALIZED_HOME_RANKING_ENABLED
+          ? sharedDiscovery.relevantNewReleases
+          : sharedDiscovery.recentlyDiscovered
+        : [],
+    [sharedDiscovery.recentlyDiscovered, sharedDiscovery.relevantNewReleases, showDeferredHomeSections]
   );
   const moodRooms = useMemo(
     () => (showDeferredHomeSections ? buildMoodRooms(songs) : []),
@@ -1208,7 +1239,10 @@ export default function MusicFeedScreen() {
     () => hasPersonalGenreSpotlightSignals(genreSpotlightSignals),
     [genreSpotlightSignals]
   );
-  const visibleCatalogSongs = useMemo(() => songs.slice(0, visibleCatalogCount), [songs, visibleCatalogCount]);
+  const visibleCatalogSongs = useMemo(
+    () => personalizedHomeSongs.slice(0, visibleCatalogCount),
+    [personalizedHomeSongs, visibleCatalogCount]
+  );
   const canLoadMore = visibleCatalogCount < songs.length;
   const catalogListPerf = useMemo(
     () => getListPerformanceSettings(visibleCatalogSongs.length),
@@ -1311,12 +1345,12 @@ export default function MusicFeedScreen() {
     () =>
       buildHeroCards(
         songs,
-        featuredSongs,
+        homeFeaturedSongs,
         playerFeed.currentSongMeta,
         playerFeed.recentHead,
         homeUi.heroLabels
       ),
-    [featuredSongs, homeUi.heroLabels, playerFeed.currentSongMeta, playerFeed.recentHead, songs]
+    [homeFeaturedSongs, homeUi.heroLabels, playerFeed.currentSongMeta, playerFeed.recentHead, songs]
   );
 
   const playCatalogSong = useCallback(

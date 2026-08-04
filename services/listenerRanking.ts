@@ -15,7 +15,7 @@ type ListenerTrack = Partial<HiddenTunesNormalizedSong> & {
   lastPlayedAt?: number;
 };
 
-type PreferenceMaps = {
+export type PreferenceMaps = {
   songs: Map<string, number>;
   artists: Map<string, number>;
   albums: Map<string, number>;
@@ -50,13 +50,15 @@ function addGenrePreferenceScore(
 
 function recencyScore(item: ListenerTrack, index: number) {
   const playCount = Number(item.playCount || 1);
-  const recency = Math.max(1, 20 - index);
-  return playCount * 10 + recency;
+  const recency = Math.max(1, 8 - index);
+  // One accidental play is deliberately weaker than an onboarding choice.
+  return Math.min(60, playCount * 6 + recency);
 }
 
 export function buildListenerPreferenceMaps(
   recentlyPlayed: ListenerTrack[] = [],
-  favorites: ListenerTrack[] = []
+  favorites: ListenerTrack[] = [],
+  onboarding: { genres?: string[]; moods?: string[] } = {}
 ): PreferenceMaps {
   const maps: PreferenceMaps = {
     songs: new Map(),
@@ -82,7 +84,19 @@ export function buildListenerPreferenceMaps(
     addGenrePreferenceScore(maps.genres, item.mood, 35);
   });
 
+  onboarding.genres?.forEach((genre) => addGenrePreferenceScore(maps.genres, genre, 22));
+  onboarding.moods?.forEach((mood) => addGenrePreferenceScore(maps.genres, mood, 18));
+
   return maps;
+}
+
+export function hasListenerPreferences(maps: PreferenceMaps) {
+  return (
+    maps.songs.size > 0 ||
+    maps.artists.size > 0 ||
+    maps.albums.size > 0 ||
+    maps.genres.size > 0
+  );
 }
 
 function getGenrePreferenceBoost(
@@ -111,10 +125,14 @@ function getGenrePreferenceBoost(
 export function scoreSong(
   song: Partial<HiddenTunesNormalizedSong>,
   maps: PreferenceMaps,
-  index = 0
+  index = 0,
+  referenceTime?: number
 ) {
   const uploadedAt = new Date(song.createdAt || song.updatedAt || 0).getTime();
-  const recencyBoost = Number.isFinite(uploadedAt) && uploadedAt > 0 ? 8 : 0;
+  const ageDays = Number.isFinite(uploadedAt) && uploadedAt > 0
+    ? Math.max(0, ((referenceTime || uploadedAt) - uploadedAt) / 86_400_000)
+    : Number.POSITIVE_INFINITY;
+  const recencyBoost = ageDays <= 7 ? 8 : ageDays <= 30 ? 4 : ageDays <= 90 ? 1 : 0;
 
   return (
     (maps.songs.get(clean(song.id || song.title)) || 0) +
@@ -130,7 +148,132 @@ export function rankSongsForListener(
   songs: HiddenTunesNormalizedSong[],
   maps: PreferenceMaps
 ) {
-  return [...songs].sort((a, b) => scoreSong(b, maps) - scoreSong(a, maps));
+  const referenceTime = songs.reduce((latest, song) => {
+    const timestamp = new Date(song.createdAt || song.updatedAt || 0).getTime();
+    return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest;
+  }, 0);
+  return songs
+    .map((song, index) => ({
+      song,
+      index,
+      score: scoreSong(song, maps, index, referenceTime),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map(({ song }) => song);
+}
+
+function rawFlag(song: HiddenTunesNormalizedSong, key: string) {
+  return (song.raw as Record<string, unknown> | undefined)?.[key];
+}
+
+/** Defensive final gate for normal Home, independent of upstream API filtering. */
+export function filterEligibleHomeSongs(songs: HiddenTunesNormalizedSong[]) {
+  const ids = new Set<string>();
+  const streams = new Set<string>();
+  return songs.filter((song) => {
+    const id = clean(song.id);
+    const stream = clean(song.streamUrl || song.url);
+    const status = clean(rawFlag(song, "status"));
+    const rating = clean(rawFlag(song, "content_rating"));
+    const mature =
+      rawFlag(song, "is_mature") === true ||
+      rawFlag(song, "explicit") === true ||
+      rating === "explicit" ||
+      rating === "adult";
+    const quarantined =
+      rawFlag(song, "quarantined") === true ||
+      rawFlag(song, "is_quarantined") === true ||
+      status === "quarantined" ||
+      status === "invalid";
+    const publicFlag = rawFlag(song, "is_public");
+    if (
+      !id ||
+      !stream ||
+      !/^https?:\/\//i.test(stream) ||
+      mature ||
+      quarantined ||
+      song.isPublic === false ||
+      publicFlag === false
+    ) {
+      return false;
+    }
+    if (ids.has(id) || streams.has(stream)) return false;
+    ids.add(id);
+    streams.add(stream);
+    return true;
+  });
+}
+
+export function selectPersonalizedHomeOrdering<T>(
+  enabled: boolean,
+  existingOrdering: T[],
+  personalizedOrdering: T[]
+) {
+  return enabled && personalizedOrdering.length ? personalizedOrdering : existingOrdering;
+}
+
+function songFacet(song: Partial<HiddenTunesNormalizedSong>, facet: "artist" | "genre") {
+  return clean(song[facet]);
+}
+
+/** Stable caps prevent a single artist or genre from consuming the personalized Home. */
+export function diversifyRankedSongs(
+  songs: HiddenTunesNormalizedSong[],
+  limit = songs.length,
+  artistCap = 4,
+  genreCap = 10
+) {
+  const artists = new Map<string, number>();
+  const genres = new Map<string, number>();
+  const selected: HiddenTunesNormalizedSong[] = [];
+
+  for (const song of songs) {
+    const artist = songFacet(song, "artist");
+    const genre = songFacet(song, "genre");
+    const artistCount = artist ? artists.get(artist) || 0 : 0;
+    const genreCount = genre ? genres.get(genre) || 0 : 0;
+    if ((artist && artistCount >= artistCap) || (genre && genreCount >= genreCap)) {
+      continue;
+    }
+    selected.push(song);
+    if (artist) artists.set(artist, artistCount + 1);
+    if (genre) genres.set(genre, genreCount + 1);
+    if (selected.length >= limit) return selected;
+  }
+
+  return selected;
+}
+
+export function rankRelevantNewReleases(
+  songs: HiddenTunesNormalizedSong[],
+  maps: PreferenceMaps,
+  limit = 12,
+  discoveryRatio = 0.1
+) {
+  const safeSongs = filterEligibleHomeSongs(songs);
+  const newest = safeSongs.map((song, index) => ({ song, index })).sort((a, b) => {
+    const aSong = a.song;
+    const bSong = b.song;
+    const aTime = new Date(aSong.createdAt || aSong.updatedAt || 0).getTime() || 0;
+    const bTime = new Date(bSong.createdAt || bSong.updatedAt || 0).getTime() || 0;
+    return bTime - aTime || a.index - b.index;
+  }).map(({ song }) => song);
+  if (!hasListenerPreferences(maps)) return diversifyRankedSongs(newest, limit, 2, 4);
+
+  const referenceTime = newest.reduce((latest, song) => {
+    const timestamp = new Date(song.createdAt || song.updatedAt || 0).getTime();
+    return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest;
+  }, 0);
+  const relevant = newest.filter(
+    (song, index) => scoreSong(song, maps, index, referenceTime) >= 18
+  );
+  const relevantIds = new Set(relevant.map((song) => clean(song.id || song.title)));
+  const boundedDiscoveryRatio = Math.min(0.15, Math.max(0.05, discoveryRatio));
+  const discoveryCount = Math.max(1, Math.floor(limit * boundedDiscoveryRatio));
+  const discovery = newest
+    .filter((song) => !relevantIds.has(clean(song.id || song.title)))
+    .slice(0, discoveryCount);
+  return diversifyRankedSongs([...relevant, ...discovery], limit, 2, 5);
 }
 
 export function rankArtistsForListener(
