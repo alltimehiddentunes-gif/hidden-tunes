@@ -75,7 +75,7 @@ function main() {
     "injected router source does not treat window role as template"
   );
 
-  assertOk(appJson.expo?.ios?.buildNumber === "1.0.210", "diagnostic build number bumped");
+  assertOk(appJson.expo?.ios?.buildNumber === "1.0.211", "diagnostic build number bumped");
   const manifestValidator = read("plugins/hidden-audio/ios/validate-carplay-scene-manifest.sh");
   assertOk(manifestValidator.includes("${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"), "validates processed plist");
   assertOk(manifestValidator.includes("processed plist must not contain $WINDOW_CARPLAY_ROLE"), "rejects processed window-CarPlay role");
@@ -146,7 +146,8 @@ function main() {
   assertOk(manager.includes("CPListTemplate"), "CPListTemplate root");
   assertOk(manager.includes("CPNowPlayingTemplate"), "now playing");
   assertOk(manager.includes("CPSearchTemplate"), "search template type");
-  assertOk(manager.includes("presentTemplate"), "search uses presentTemplate");
+  assertOk(manager.includes("pushTemplate(search, animated: true)"), "search uses navigation stack");
+  assertOk(!manager.includes("presentTemplate(search"), "search never uses modal presentation");
   assertOk(manager.includes("presentSearchTemplate"), "presentSearchTemplate helper");
   assertOk(manager.includes("makeFavoritesSection"), "favorites section helper");
   assertOk(manager.includes("sanitizedFavoritesNodes"), "uses sanitized favorites");

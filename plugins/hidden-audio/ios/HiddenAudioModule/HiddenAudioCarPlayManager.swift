@@ -903,11 +903,11 @@ final class HiddenAudioCarPlayManager: NSObject {
       let search = CPSearchTemplate()
       search.delegate = self
       self.presentedSearchTemplate = search
-      NSLog("[HTCarPlay] search_presented")
-      interfaceController.presentTemplate(search, animated: true) { success, error in
+      NSLog("[HTCarPlay] search_pushed")
+      interfaceController.pushTemplate(search, animated: true) { success, error in
         if let error {
           self.emitDiagnostic([
-            "event": "carplay_search_present_failed",
+            "event": "carplay_search_push_failed",
             "success": success,
             "message": error.localizedDescription,
           ])
