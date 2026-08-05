@@ -16,6 +16,11 @@ import {
   requireAdminCatalogRole,
   requireAdminCatalogUploadEnabled,
 } from "../services/adminCatalogSecurity.js";
+import {
+  appendCleanupRecord,
+  cleanupManifestPath,
+  compensateFailedUpload,
+} from "../services/adminUploadCompensation.js";
 
 const router = express.Router();
 const jsonBody = express.json({ limit: "1mb" });
@@ -87,10 +92,16 @@ function safeFailure(req, res, status, error) {
 }
 
 function audit(req, action, result, details = {}) {
-  auditAdminSecurityEvent(req, action, result, {
-    actorRole: req.adminActor?.role || null,
-    ...details,
-  });
+  try {
+    auditAdminSecurityEvent(req, action, result, {
+      actorRole: req.adminActor?.role || null,
+      ...details,
+    });
+    return true;
+  } catch {
+    console.error("Administrative audit event write failed", { requestId: req.adminRequestId, action });
+    return false;
+  }
 }
 
 function requestedPublication(body) {
@@ -130,6 +141,28 @@ function remember(key, payload) {
   for (const [candidate, value] of recentResults) {
     if (value.expiresAt <= now) recentResults.delete(candidate);
   }
+}
+
+function resetRecentResultsForTests() {
+  recentResults.clear();
+}
+
+async function resolveDuplicateCompletion({ db, key, audioKey, now = Date.now() }) {
+  const cached = recentResults.get(key);
+  if (cached && cached.expiresAt > now) {
+    return { payload: cached.payload, source: "memory" };
+  }
+  const existing = await db.from("songs").select("*").eq("r2_audio_key", audioKey).maybeSingle();
+  if (existing.error) throw existing.error;
+  if (!existing.data) return null;
+  const payload = {
+    success: true,
+    staged: existing.data.is_public === false,
+    published: existing.data.is_public === true,
+    track: existing.data,
+  };
+  remember(key, payload);
+  return { payload, source: "persistent" };
 }
 
 async function ensureR2ObjectExists(client, key) {
@@ -190,36 +223,56 @@ async function completeTrack(req, res) {
   }
 
   const key = idempotencyKey(req, item);
-  const cached = recentResults.get(key);
-  if (cached && cached.expiresAt > Date.now()) {
-    audit(req, "duplicate_detected", "reused", { songId: cached.payload.track.id });
-    return res.json({ ...cached.payload, idempotent: true, requestId: req.adminRequestId });
-  }
-
   const db = database();
   const objectStore = r2Client();
+  let duplicate;
+  try {
+    duplicate = await resolveDuplicateCompletion({ db, key, audioKey: item.audioKey });
+  } catch {
+    audit(req, "upload_failed", "error", { failureStage: "existing_song_lookup" });
+    return safeFailure(req, res, 500, "Catalogue upload failed.");
+  }
+  if (duplicate) {
+    audit(req, "duplicate_detected", "reused", {
+      songId: duplicate.payload.track.id,
+      source: duplicate.source,
+    });
+    return res.json({ ...duplicate.payload, idempotent: true, requestId: req.adminRequestId });
+  }
+  const attempt = {
+    correlationId: req.adminRequestId,
+    actorId: req.adminActor.id,
+    actorRole: req.adminActor.role,
+    idempotencyKey: key,
+    audioKey: item.audioKey,
+    artworkKey: item.artworkKey,
+    audioObjectNew: true,
+    artworkObjectNew: Boolean(item.artworkKey),
+    artistId: null,
+    artistState: null,
+    albumId: null,
+    albumState: null,
+    songId: null,
+    failureStage: null,
+    cleanupEligibility: "pending_verification",
+    cleanupStatus: "not_started",
+  };
+  let failureStage = "object_validation";
   audit(req, "upload_started", "accepted", { fileCount: 1 });
 
   try {
+    appendCleanupRecord({ ...attempt, event: "completion_started" });
     await ensureR2ObjectExists(objectStore, item.audioKey);
     if (item.artworkKey) await ensureR2ObjectExists(objectStore, item.artworkKey);
 
-    const existing = await db.from("songs").select("*").eq("r2_audio_key", item.audioKey).maybeSingle();
-    if (existing.error) throw existing.error;
-    if (existing.data) {
-      const payload = {
-        success: true,
-        staged: existing.data.is_public === false,
-        published: existing.data.is_public === true,
-        track: existing.data,
-      };
-      remember(key, payload);
-      audit(req, "duplicate_detected", "reused", { songId: existing.data.id });
-      return res.json({ ...payload, idempotent: true, requestId: req.adminRequestId });
-    }
-
+    failureStage = "artist_resolution";
     const artist = await findOrCreateArtist(db, item.artist, item.artworkUrl);
+    attempt.artistId = artist.row.id;
+    attempt.artistState = artist.state;
+    failureStage = "album_resolution";
     const album = await findOrCreateAlbum(db, item.album, artist.row.id, item.artworkUrl);
+    attempt.albumId = album.row.id;
+    attempt.albumState = album.state;
     const songId = crypto.randomUUID();
     const songInsert = {
       id: songId,
@@ -251,8 +304,10 @@ async function completeTrack(req, res) {
       lyrics: item.lyrics,
       synced_lyrics: item.syncedLyrics,
     };
+    failureStage = "song_insert";
     const inserted = await insertStagedSong(db, songInsert);
     if (inserted.error) throw inserted.error;
+    attempt.songId = inserted.data.id;
 
     const track = {
       ...inserted.data,
@@ -269,6 +324,16 @@ async function completeTrack(req, res) {
       track,
     };
     remember(key, payload);
+    try {
+      appendCleanupRecord({
+        ...attempt,
+        event: "completion_succeeded",
+        cleanupEligibility: "none_song_persisted",
+        cleanupStatus: "not_required",
+      });
+    } catch {
+      console.error("Upload completion manifest write failed", { requestId: req.adminRequestId });
+    }
     audit(req, item.isPublic ? "item_published" : "item_staged", "success", {
       songId: track.id,
       artistId: artist.row.id,
@@ -284,8 +349,26 @@ async function completeTrack(req, res) {
     });
     return res.json({ ...payload, requestId: req.adminRequestId });
   } catch (error) {
+    attempt.failureStage = failureStage;
     audit(req, "upload_failed", "error");
     console.error("Catalogue compatibility upload failed", { requestId: req.adminRequestId, error });
+    try {
+      await compensateFailedUpload({
+        db,
+        objectStore,
+        bucket: process.env.R2_BUCKET_NAME,
+        manifestPath: cleanupManifestPath(),
+        attempt,
+      });
+      audit(req, "cleanup_completed", "success", { failureStage });
+    } catch {
+      appendCleanupRecord({
+        ...attempt,
+        event: "cleanup_failed",
+        cleanupStatus: "review_required",
+      });
+      audit(req, "cleanup_completed", "error", { failureStage });
+    }
     return safeFailure(req, res, 500, "Catalogue upload failed.");
   }
 }
@@ -304,6 +387,18 @@ router.post("/api/upload-url", ...secureChain(), jsonBody, async (req, res) => {
       new PutObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key, ContentType: fileType }),
       { expiresIn: 600 }
     );
+    appendCleanupRecord({
+      event: "signed_object_authorized",
+      correlationId: req.adminRequestId,
+      actorId: req.adminActor.id,
+      actorRole: req.adminActor.role,
+      idempotencyKey: String(req.headers["idempotency-key"] || "") || null,
+      objectKey: key,
+      objectKind: folder === "songs" ? "audio" : "artwork",
+      objectNew: true,
+      cleanupEligibility: "verify_on_failure",
+      cleanupStatus: "not_started",
+    });
     audit(req, "signed_upload_created", "success", { objectKey: key });
     return res.json({
       success: true,
@@ -336,5 +431,7 @@ export {
   isMissingOptionalExplicitColumn,
   normalizedBody,
   requestedPublication,
+  resetRecentResultsForTests,
+  resolveDuplicateCompletion,
 };
 export default router;
