@@ -55,7 +55,8 @@ function jsonError(error: string, status: number, details?: unknown) {
 }
 
 export async function requireUploadPermission(
-  request: NextRequest
+  request: NextRequest,
+  options: { requireCatalogueUploadEnabled?: boolean } = {}
 ): Promise<UploadPermissionSuccess | UploadPermissionFailure> {
   const adminConfig = getSupabaseAdminConfig();
 
@@ -149,6 +150,22 @@ export async function requireUploadPermission(
       user: null,
       profile: null,
       errorResponse: jsonError("This role cannot upload music.", 403),
+    };
+  }
+
+  // Fail closed after authentication/active-role checks, but before callers
+  // parse bodies or initialize any catalogue mutation/storage work.
+  if (
+    options.requireCatalogueUploadEnabled &&
+    process.env.ADMIN_LEGACY_UPLOAD_ENABLED !== "true"
+  ) {
+    return {
+      user: null,
+      profile: null,
+      errorResponse: jsonError(
+        "Catalogue uploads are temporarily unavailable.",
+        503
+      ),
     };
   }
 

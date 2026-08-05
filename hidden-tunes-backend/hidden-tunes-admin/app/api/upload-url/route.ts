@@ -25,7 +25,9 @@ function cleanFolder(folder: string) {
 
 export async function POST(req: NextRequest) {
   try {
-    const permission = await requireUploadPermission(req);
+    const permission = await requireUploadPermission(req, {
+      requireCatalogueUploadEnabled: true,
+    });
 
     if (permission.errorResponse) {
       return permission.errorResponse;

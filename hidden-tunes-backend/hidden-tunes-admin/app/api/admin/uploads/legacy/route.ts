@@ -303,7 +303,9 @@ function isMissingColumnError(error: unknown, columnName: string) {
 }
 
 async function requireOwnershipManager(request: NextRequest) {
-  const permission = await requireUploadPermission(request);
+  const permission = await requireUploadPermission(request, {
+    requireCatalogueUploadEnabled: true,
+  });
 
   if (permission.errorResponse) {
     return {
