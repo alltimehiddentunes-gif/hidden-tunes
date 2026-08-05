@@ -19,7 +19,7 @@ assert.match(premium, /readCachedRadioStations/);
 assert.match(premium, /isCarPlayContentVisible/);
 assert.doesNotMatch(premium, /setInterval|setTimeout/);
 assert.doesNotMatch(premium, /fetchAudiobooksBrowse|fetchPodcastShows\(/);
-assert.match(bridge, /collectCarPlayPremiumCatalog\(\{ allowNetwork \}\)/);
+assert.match(bridge, /collectCarPlayPremiumCatalog\(\{ allowNetwork, preferences \}\)/);
 assert.match(bridge, /publishCarPlayCatalogSnapshot\(true\)/);
 assert.match(resolver, /const domainQueue = isRadio \? \[song\] : queue/);
 assert.match(resolver, /queueType: "podcast"/);

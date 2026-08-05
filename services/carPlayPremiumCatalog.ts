@@ -37,6 +37,7 @@ import {
   isCarPlayContentVisible,
   isCarPlayMatureContent,
 } from "./carPlayCatalogSnapshot";
+import type { CarPlayPreferenceSnapshot } from "./carPlayPersonalization";
 
 const CAPS = {
   podcastShows: 8,
@@ -184,7 +185,7 @@ function section(
   return { parentId, items: items.length ? items : [empty(parentId, emptyTitle)] };
 }
 
-async function collectPodcasts(allowNetwork: boolean) {
+async function collectPodcasts(allowNetwork: boolean, preferences?: CarPlayPreferenceSnapshot) {
   const [recent, matureRecent, saved, followed] = await Promise.all([
     loadPodcastRecentlyPlayed(16),
     loadMaturePodcastRecentlyPlayed(16),
@@ -231,6 +232,7 @@ async function collectPodcasts(allowNetwork: boolean) {
     ...recent, ...matureRecent, ...saved, ...cachedPodcastEnrichment,
   ], (item) => item.id)
     .filter(isCarPlayContentVisible);
+  const podcastTokens = new Set(preferences?.podcastTokens || []);
   const shows = uniqueById([
     ...followed,
     ...episodes.map((episode): PodcastShow => ({
@@ -239,7 +241,11 @@ async function collectPodcasts(allowNetwork: boolean) {
       categories: episode.categories, isExplicit: episode.isExplicit,
       matureLevel: episode.matureLevel, source: "rss",
     })),
-  ], (item) => item.id).filter(isCarPlayContentVisible).slice(0, CAPS.podcastShows);
+  ], (item) => item.id).filter(isCarPlayContentVisible).sort((a, b) => {
+    const score = (show: PodcastShow) => (podcastTokens.has(clean(show.id).toLowerCase()) ? 20 : 0)
+      + show.categories.filter((category) => podcastTokens.has(clean(category).toLowerCase())).length * 5;
+    return score(b) - score(a);
+  }).slice(0, CAPS.podcastShows);
 
   const tracks = episodes.map(podcastTrack).filter((item): item is ExtendedTrack => Boolean(item));
   const continueNodes: AndroidAutoBrowseItem[] = [];
@@ -252,9 +258,11 @@ async function collectPodcasts(allowNetwork: boolean) {
     const isPodcast = clean(context.queueType) === "podcast"
       || clean(context.contextType) === "podcast-show"
       || currentSongId.startsWith("podcast-");
-    if (isPodcast && positionMillis > 3000) {
+    const savedAt = Math.max(0, Number(session?.savedAt) || 0);
+    if (isPodcast && positionMillis > 3000 && savedAt > Date.now() - 90 * 86_400_000) {
       const active = tracks.find((track) => track.id === currentSongId);
-      if (active) {
+      const durationMillis = Math.max(0, Number(active?.durationSeconds) || 0) * 1000;
+      if (active && (!durationMillis || positionMillis < durationMillis - 5000)) {
         active.resumePositionMillis = positionMillis;
         continueNodes.push(node(active));
       }
@@ -285,7 +293,10 @@ async function collectPodcasts(allowNetwork: boolean) {
   ], "Your podcast shows will appear here."));
   sections.push(section("podcast_recent", recentNodes, "Your recent podcast listening will appear here."));
   sections.push(section("podcast_saved", savedNodes, "Saved episodes will appear here."));
-  sections.push(section("recommended_podcasts", [], "Podcast recommendations will appear as you listen."));
+  const recommendedShows = showNodes.filter((show) => sections.some((entry) =>
+    entry.parentId === show.mediaId && entry.items.some((item) => item.playable))).slice(0, 8);
+  sections.push(section("recommended_podcasts", recommendedShows,
+    "Podcast recommendations will appear as you listen."));
   return { tracks, sections, recentNodes, continueNodes };
 }
 
@@ -317,7 +328,9 @@ async function collectAudiobooks(allowNetwork: boolean) {
         playable: false, artworkUrl: clean(response.audiobook.cover_url), contentType: "audiobook" });
       sections.push(section(parentId, bookTracks.map(node), "Chapters will appear here."));
       const active = bookTracks.find((track) => track.chapterId === entry.chapterId);
-      if (active && entry.positionMillis > 3000) continueNodes.push(node(active));
+      const durationMillis = Math.max(0, Number(active?.durationSeconds) || 0) * 1000;
+      if (active && entry.updatedAt > Date.now() - 90 * 86_400_000 && entry.positionMillis > 3000
+        && (!durationMillis || entry.positionMillis < durationMillis - 5000)) continueNodes.push(node(active));
     } catch {
       // A failed bounded enrichment never blocks the immediate CarPlay snapshot.
     }
@@ -327,7 +340,7 @@ async function collectAudiobooks(allowNetwork: boolean) {
   return cachedAudiobookCatalog;
 }
 
-async function collectRadio() {
+async function collectRadio(preferences?: CarPlayPreferenceSnapshot) {
   await Promise.all(["featured", "trending", "popular", "recommended"].map((key) =>
     hydrateCachedRadioStations(key).catch(() => [])));
   const recent = (await loadRecentlyPlayedRadioItems(16)).stations;
@@ -342,8 +355,12 @@ async function collectRadio() {
   ], (station) => station.id);
   const favorite = cached.filter((station) => favoriteIds.has(clean(station.id)));
   const recentIds = new Set(recent.map((station) => clean(station.id)));
+  const preferenceTokens = new Set([...(preferences?.genres || []), ...(preferences?.radioIds || [])]);
   const recommended = (readCachedRadioStations("recommended") || [])
-    .filter((station) => !favoriteIds.has(clean(station.id)) && !recentIds.has(clean(station.id)));
+    .filter((station) => !favoriteIds.has(clean(station.id)) && !recentIds.has(clean(station.id)))
+    .map((station, index) => ({ station, index, score: (preferenceTokens.has(clean(station.id).toLowerCase()) ? 20 : 0)
+      + (station.tags || []).filter((tag) => preferenceTokens.has(clean(tag).toLowerCase())).length * 5 }))
+    .sort((a, b) => b.score - a.score || a.index - b.index).map(({ station }) => station);
   const country = cached.filter((station) => Boolean(clean(station.country)));
   const genre = cached.filter((station) => Array.isArray(station.tags) && station.tags.some((tag) => clean(tag)));
   const popular = readCachedRadioStations("popular") || [];
@@ -380,12 +397,14 @@ async function collectRadio() {
   return { tracks, sections };
 }
 
-export async function collectCarPlayPremiumCatalog(options?: { allowNetwork?: boolean }) {
+export async function collectCarPlayPremiumCatalog(options?: {
+  allowNetwork?: boolean; preferences?: CarPlayPreferenceSnapshot;
+}) {
   const [podcasts, audiobooks, radio] = await Promise.all([
-    collectPodcasts(Boolean(options?.allowNetwork)),
-    collectAudiobooks(Boolean(options?.allowNetwork)), collectRadio(),
+    collectPodcasts(Boolean(options?.allowNetwork), options?.preferences),
+    collectAudiobooks(Boolean(options?.allowNetwork)), collectRadio(options?.preferences),
   ]);
-  const continueListening = [...podcasts.continueNodes, ...audiobooks.continueNodes].slice(0, 8);
+  const continueListening = [...podcasts.continueNodes, ...audiobooks.continueNodes].slice(0, 6);
   return {
     premiumTracks: [...continueListening.map((item) =>
       [...podcasts.tracks, ...audiobooks.tracks].find((track) => track.mediaId === item.mediaId)!),

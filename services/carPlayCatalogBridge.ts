@@ -33,6 +33,17 @@ import { getFavorites } from "./favorites/unifiedFavorites";
 import { loadRecentlyPlayed } from "./recentlyPlayedEngine";
 import { collectCarPlayPremiumCatalog } from "./carPlayPremiumCatalog";
 import {
+  buildCarPlayPreferenceSnapshot,
+  hydrateCarPlayPreferenceSnapshot,
+  persistCarPlayPreferenceSnapshot,
+  rankCarPlayMusic,
+  selectDiverseCarPlayMusic,
+} from "./carPlayPersonalization";
+import { hydrateDiscoveryPreferredGenres, getDiscoveryPreferenceSnapshot } from "../utils/discoveryPreferences";
+import { getFollowedPodcastShows, getSavedPodcastEpisodes } from "./podcastLibrary";
+import { loadMaturePodcastRecentlyPlayed, loadPodcastRecentlyPlayed } from "./podcastRecentlyPlayed";
+import { loadRecentlyPlayedRadioItems } from "./radio/recentlyPlayedRadio";
+import {
   shouldIncludeMatureInApi,
   subscribeMatureContentSettings,
 } from "../utils/matureContentSettings";
@@ -57,6 +68,7 @@ let lastCarPlayStatus: Record<string, unknown> = {};
 let carPlaySnapshotGeneration = 0;
 let carPlayCacheHydrationAttempted = false;
 let carPlayPremiumEnrichmentAttempted = false;
+let lastPublishedCarPlaySnapshot: AndroidAutoCatalogSnapshot | null = null;
 
 configureCarPlayMatureVisibility(shouldIncludeMatureInApi);
 configureCarPlayMediaVisibility(isCarPlayContentVisible);
@@ -69,6 +81,9 @@ type CarPlayBrowseNode = {
 };
 
 function logCarPlayJs(message: string, extra?: Record<string, unknown>) {
+  const keepInProduction = /fail|error|reject|stale|missing|disconnect|unavailable/i.test(message)
+    || extra?.success === false;
+  if ((typeof __DEV__ === "undefined" || !__DEV__) && !keepInProduction) return;
   if (extra && Object.keys(extra).length) {
     console.log(`[HTCarPlayJS] ${message}`, extra);
   } else {
@@ -188,10 +203,13 @@ function handleCarPlayNativeDiagnostic(event: {
     logCarPlayJs(`playback command received=${command}`);
   }
 
-  // Log the full native CarPlay diagnostic surface — catalog_synced alone is not UI success.
+  // Never emit URLs, history, preferences, artwork payloads, or full snapshots.
   logCarPlayJs(`native diagnostic=${name || nestedEvent || "unknown"}`, {
-    ...data,
     event: nestedEvent || name,
+    success: data.success,
+    connected: data.connected,
+    generation: data.generation,
+    message: String(data.message || "").slice(0, 160),
   });
 }
 
@@ -298,6 +316,51 @@ async function collectCarPlayRecentlyPlayedEntries(): Promise<{
   return { items, tracks };
 }
 
+async function buildBoundedCarPlayPreferences() {
+  await Promise.all([hydrateDiscoveryPreferredGenres(), hydrateCarPlayPreferenceSnapshot()]);
+  const [recent, podcastRecent, maturePodcastRecent, followed, saved, radioRecent] = await Promise.all([
+    loadRecentlyPlayed(), loadPodcastRecentlyPlayed(16), loadMaturePodcastRecentlyPlayed(16),
+    getFollowedPodcastShows(), getSavedPodcastEpisodes(), loadRecentlyPlayedRadioItems(16),
+  ]);
+  const visibleMusicRecent = recent.filter((item) =>
+    !String(item.id || "").startsWith("radio-")
+      && !String(item.id || "").startsWith("podcast-")
+      && !String(item.id || "").startsWith("audiobook-chapter-")
+      && typeof item.is_mature === "boolean" && Boolean(item.content_rating)
+      && isCarPlayContentVisible(item as unknown as Record<string, unknown>));
+  const visiblePodcast = [...podcastRecent, ...maturePodcastRecent].filter(isCarPlayContentVisible);
+  const favorites = getFavorites().filter((item) => isCarPlayContentVisible(item.metadata));
+  const visibleRadioRecent = radioRecent.stations.filter((station) =>
+    (typeof station.is_mature === "boolean" || Boolean(station.content_rating))
+      && isCarPlayContentVisible(station));
+  const radioPlayCounts = new Map(recent.filter((item) => String(item.id).startsWith("radio-"))
+    .map((item) => [String(item.id).replace(/^radio-/, ""), item.playCount]));
+  const rankedRadioRecent = [...visibleRadioRecent].sort((a, b) =>
+    (radioPlayCounts.get(b.id) || 0) - (radioPlayCounts.get(a.id) || 0));
+  const onboarding = getDiscoveryPreferenceSnapshot();
+  const snapshot = buildCarPlayPreferenceSnapshot({
+    genres: [...onboarding.genres, ...visibleMusicRecent.map((item) =>
+      (item as unknown as Record<string, unknown>).genre),
+      ...rankedRadioRecent.flatMap((station) => station.tags || [])],
+    moods: [...onboarding.moods, ...visibleMusicRecent.map((item) =>
+      (item as unknown as Record<string, unknown>).mood)],
+    artists: [...visibleMusicRecent.map((item) => item.artist),
+      ...favorites.map((item) => item.metadata?.artistName)],
+    recents: visibleMusicRecent.slice(0, 30).map((item) => ({ id: item.id, playCount: item.playCount })),
+    favorites: favorites.map((item) => item.id),
+    podcastTokens: [...followed.filter(isCarPlayContentVisible).flatMap((show) => show.categories),
+      ...saved.filter(isCarPlayContentVisible).flatMap((episode) => episode.categories),
+      ...visiblePodcast.flatMap((episode) => [episode.showId, ...episode.categories])],
+    radioIds: visibleRadioRecent.map((station) => station.id),
+    // Audiobook IDs are admitted only after the existing API returns a classified playable book.
+    unfinishedIds: [],
+    discoveryStyle: onboarding.discoveryStyle,
+    updatedAt: Date.now(),
+  });
+  await persistCarPlayPreferenceSnapshot(snapshot).catch(() => undefined);
+  return snapshot;
+}
+
 function countSection(snapshot: AndroidAutoCatalogSnapshot, parentId: string) {
   const section = snapshot.sections.find((entry) => entry.parentId === parentId);
   return section?.items?.length || 0;
@@ -384,7 +447,19 @@ async function publishCarPlayCatalogSnapshot(allowNetwork = false): Promise<void
     try {
       const favorites = collectCarPlayFavoriteEntries();
       const recentlyPlayed = await collectCarPlayRecentlyPlayedEntries();
-      const premium = await collectCarPlayPremiumCatalog({ allowNetwork });
+      const preferences = await buildBoundedCarPlayPreferences();
+      const premium = await collectCarPlayPremiumCatalog({ allowNetwork, preferences });
+      let recommendedSongIds: string[] = [];
+      if (catalog?.songs?.length) {
+        try {
+          recommendedSongIds = rankCarPlayMusic(catalog.songs, preferences, 12)
+            .map((song) => String(song.id));
+        } catch {
+          recommendedSongIds = selectDiverseCarPlayMusic(catalog.songs, 12)
+            .map((song) => String(song.id));
+          logCarPlayJs("personalization ranking failed; deterministic fallback retained", { success: false });
+        }
+      }
       snapshot = catalog?.songs?.length
         ? buildParentClosedCarPlaySnapshot(catalog, {
             favoriteItems: favorites.items as AndroidAutoBrowseItem[],
@@ -393,6 +468,7 @@ async function publishCarPlayCatalogSnapshot(allowNetwork = false): Promise<void
             recentlyPlayedTracks: recentlyPlayed.tracks,
             premiumTracks: premium.premiumTracks,
             premiumSections: premium.premiumSections,
+            recommendedSongIds,
           })
         : buildCarPlayInitialCatalogSnapshot({
             favoriteItems: favorites.items as AndroidAutoBrowseItem[],
@@ -401,10 +477,11 @@ async function publishCarPlayCatalogSnapshot(allowNetwork = false): Promise<void
             recentlyPlayedTracks: recentlyPlayed.tracks,
             premiumTracks: premium.premiumTracks,
             premiumSections: premium.premiumSections,
+            recommendedSongIds,
           });
     } catch (buildError) {
       logCarPlayJs("catalog publish completed", { success: false, reason: "build_failed" });
-      snapshot = buildCarPlayInitialCatalogSnapshot();
+      snapshot = lastPublishedCarPlaySnapshot || buildCarPlayInitialCatalogSnapshot();
       if (typeof __DEV__ !== "undefined" && __DEV__) {
         console.log("[HTCarPlayJS] catalog build failed; using minimal snapshot", buildError);
       }
@@ -434,18 +511,17 @@ async function publishCarPlayCatalogSnapshot(allowNetwork = false): Promise<void
 
     const replacedPreviousSnapshot = lastSyncSignature.length > 0;
     const nextGeneration = carPlaySnapshotGeneration + 1;
-    console.log("[HTCarPlayBrowse] snapshot_publish", {
-      generation: nextGeneration,
-      publishTimestamp: Date.now(),
-      sectionCount: snapshot.sections.length,
-      trackCount: snapshot.tracks.length,
-      rootNodeIds: snapshot.roots.map((node) => node.mediaId),
-      childCounts: snapshot.sections.map((entry) => `${entry.parentId}:${entry.items.length}`),
-      replacedPreviousSnapshot,
-    });
+    if (typeof __DEV__ !== "undefined" && __DEV__) {
+      console.log("[HTCarPlayBrowse] snapshot_publish", {
+        generation: nextGeneration, publishTimestamp: Date.now(),
+        sectionCount: snapshot.sections.length, trackCount: snapshot.tracks.length,
+        replacedPreviousSnapshot,
+      });
+    }
     await syncHiddenAudioCarPlayCatalog(snapshot as unknown as Record<string, unknown>);
     // Accept selections only after native has accepted this exact bounded snapshot.
     rememberCarPlayCatalogSnapshot(snapshot);
+    lastPublishedCarPlaySnapshot = snapshot;
     lastSyncSignature = signature;
     carPlaySnapshotGeneration = nextGeneration;
     logCarPlayJs("catalog publish completed", {
@@ -460,9 +536,15 @@ async function publishCarPlayCatalogSnapshot(allowNetwork = false): Promise<void
     }
     // Last-resort minimal publish so native never depends on a thrown JS catalog.
     try {
+      if (lastPublishedCarPlaySnapshot) {
+        rememberCarPlayCatalogSnapshot(lastPublishedCarPlaySnapshot);
+        logCarPlayJs("catalog publish failed; preserved last bounded snapshot", { success: false });
+        return;
+      }
       const minimal = buildCarPlayInitialCatalogSnapshot();
       await syncHiddenAudioCarPlayCatalog(minimal as unknown as Record<string, unknown>);
       rememberCarPlayCatalogSnapshot(minimal);
+      lastPublishedCarPlaySnapshot = minimal;
       logCarPlayJs("catalog publish completed", { success: true, fallback: "minimal" });
     } catch {
       // Native safe root already installed — do not throw into app runtime.

@@ -1,5 +1,13 @@
 import type { AndroidAutoBrowseItem, AndroidAutoCatalogSnapshot, AndroidAutoTrackPayload } from "./androidAutoCatalogSync";
 import type { HiddenTunesDerivedCatalog, HiddenTunesSong } from "./hiddenTunes";
+import {
+  artworkDescriptor,
+  dedupeCarPlayRows,
+  formatCarPlaySubtitle,
+  sanitizeCarPlayText,
+  withCarPlayArtworkDescriptor,
+} from "./carPlayPresentation";
+import { allocateCarPlayRegistry } from "./carPlayPersonalization";
 
 type CarPlayVisibilityItem = {
   isMature?: unknown; is_mature?: unknown; mature?: unknown; explicit?: unknown;
@@ -44,6 +52,8 @@ export type CarPlaySnapshotExtras = {
   premiumTracks?: AndroidAutoTrackPayload[];
   /** Replaces same-parent legacy sections and may add premium child folders. */
   premiumSections?: AndroidAutoCatalogSnapshot["sections"];
+  /** Canonical bounded music ordering derived from persisted CarPlay-safe signals. */
+  recommendedSongIds?: string[];
 };
 
 const ROOTS: AndroidAutoBrowseItem[] = [
@@ -91,7 +101,7 @@ export function isSafePlayableCarPlaySong(song: HiddenTunesSong): boolean {
 }
 
 function trackPayload(song: HiddenTunesSong, collection = ""): AndroidAutoTrackPayload {
-  return {
+  return withCarPlayArtworkDescriptor({
     mediaId: `song:${String(song.id).trim()}`, id: String(song.id).trim(),
     url: String(song.streamUrl || song.url || "").trim(), title: String(song.title).trim(),
     artist: String(song.artist || "Hidden Tunes").trim() || "Hidden Tunes",
@@ -101,20 +111,32 @@ function trackPayload(song: HiddenTunesSong, collection = ""): AndroidAutoTrackP
     isLive: String(song.id).startsWith("radio-"),
     isLiveStream: String(song.id).startsWith("radio-"),
     isMature: isCarPlayMatureContent(song as unknown as Record<string, unknown>),
-    collection,
-  } as AndroidAutoTrackPayload;
+    collection: sanitizeCarPlayText(collection, 160),
+  } as AndroidAutoTrackPayload) as AndroidAutoTrackPayload;
 }
 
 function playableNode(song: HiddenTunesSong): AndroidAutoBrowseItem {
   return {
     mediaId: `song:${String(song.id).trim()}`, title: String(song.title).trim(),
-    subtitle: String(song.artist || "Hidden Tunes").trim() || "Hidden Tunes", playable: true,
+    subtitle: formatCarPlaySubtitle(song.title, [song.artist || "Hidden Tunes", song.album]), playable: true,
     artworkUrl: String(song.artwork || song.cover || song.thumbnail || ""), contentType: "music",
   };
 }
 
 function section(parentId: string, items: AndroidAutoBrowseItem[]) {
-  return { parentId, items: items.length ? items : [emptyItem(parentId)] };
+  const rows = dedupeCarPlayRows(items.map((item) => {
+    const raw = item as AndroidAutoBrowseItem & Record<string, unknown>;
+    const content = String(raw.contentType || "music").toLowerCase();
+    const fallback = content.includes("podcast") ? "podcast" : content.includes("audiobook") ? "audiobook"
+      : content.includes("radio") ? "radio" : content.includes("artist") ? "artist"
+        : content.includes("album") ? "album" : content.includes("playlist") ? "playlist" : "music";
+    return { ...item, title: sanitizeCarPlayText(item.title) || "Hidden Tunes",
+      subtitle: formatCarPlaySubtitle(item.title, [item.subtitle]),
+      artworkDescriptor: raw.artworkDescriptor || artworkDescriptor(item.artworkUrl, fallback,
+        item.playable ? "row" : "folder", "small"),
+    } as AndroidAutoBrowseItem;
+  }));
+  return { parentId, items: rows.length ? rows : [emptyItem(parentId)] };
 }
 
 export function buildCarPlayCatalogSnapshot(
@@ -149,14 +171,21 @@ export function buildCarPlayCatalogSnapshot(
     for (const song of genre.songs || []) addSearchTerm(song.id, genre.title);
   }
 
-  for (const track of [
-    ...(extras.favoriteTracks || []),
-    ...(extras.recentlyPlayedTracks || []),
-    ...(extras.premiumTracks || []),
-  ]) {
+  const premiumTracks = extras.premiumTracks || [];
+  const allocatedPriorityTracks = allocateCarPlayRegistry([
+    { priority: 1, quota: 6, items: premiumTracks.filter((track) =>
+      Number((track as AndroidAutoTrackPayload & Record<string, unknown>).resumePositionMillis) > 0) },
+    { priority: 2, quota: 12, items: extras.favoriteTracks || [] },
+    { priority: 3, quota: 10, items: extras.recentlyPlayedTracks || [] },
+    { priority: 4, quota: 16, items: premiumTracks.filter((track) => track.contentType === "podcast") },
+    { priority: 5, quota: 12, items: premiumTracks.filter((track) => track.contentType === "radio") },
+    { priority: 6, quota: 8, items: premiumTracks.filter((track) => track.contentType === "audiobook") },
+    { priority: 7, quota: 4, items: premiumTracks },
+  ], CARPLAY_LIMITS.tracks);
+  for (const track of allocatedPriorityTracks) {
     if (!track.mediaId || !track.url || !isCarPlayContentVisible(track)
       || trackIds.has(track.mediaId) || tracks.length >= CARPLAY_LIMITS.tracks) continue;
-    trackIds.add(track.mediaId); tracks.push(track);
+    trackIds.add(track.mediaId); tracks.push(withCarPlayArtworkDescriptor(track) as AndroidAutoTrackPayload);
   }
 
   const addSong = (song: HiddenTunesSong): AndroidAutoBrowseItem | null => {
@@ -182,7 +211,6 @@ export function buildCarPlayCatalogSnapshot(
   };
 
   const musicSongs = sourceSongs.filter((song) => !String(song.id).startsWith("radio-"));
-  const recent = songItems(musicSongs, CARPLAY_LIMITS.recentlyAdded);
 
   const addFolders = <T>(parentId: string, prefix: string, values: T[], limit: number,
     title: (v: T) => string, subtitle: (v: T) => string, songs: (v: T) => HiddenTunesSong[],
@@ -192,12 +220,31 @@ export function buildCarPlayCatalogSnapshot(
       const token = safeToken(identity(value)); if (!token) continue;
       const mediaId = `${prefix}:${token}`; if (ids.has(mediaId)) continue;
       ids.add(mediaId);
-      folders.push({ mediaId, title: title(value), subtitle: subtitle(value), playable: false });
+      const folderTitle = sanitizeCarPlayText(title(value)) || "Hidden Tunes";
+      folders.push({ mediaId, title: folderTitle,
+        subtitle: formatCarPlaySubtitle(folderTitle, [subtitle(value)]), playable: false,
+        artworkDescriptor: artworkDescriptor("", prefix === "artist" ? "artist"
+          : prefix === "album" ? "album" : prefix === "playlist" ? "playlist" : "music", "folder") } as AndroidAutoBrowseItem);
       sections.push(section(mediaId, songItems(songs(value), childLimit)));
       if (folders.length >= limit) break;
     }
     sections.push(section(parentId, folders));
   };
+
+  const recommendedIds = new Set((extras.recommendedSongIds || []).map(String));
+  const higherPriorityMusicIds = new Set([
+    ...(extras.favoriteTracks || []), ...(extras.recentlyPlayedTracks || []),
+    ...premiumTracks.filter((track) => Number(
+      (track as AndroidAutoTrackPayload & Record<string, unknown>).resumePositionMillis
+    ) > 0),
+  ].map((track) => String(track.id || "")));
+  const recommendedSongs = recommendedIds.size
+    ? sourceSongs.filter((song) => recommendedIds.has(String(song.id))
+      && !higherPriorityMusicIds.has(String(song.id))).sort((a, b) =>
+      (extras.recommendedSongIds || []).indexOf(String(a.id)) - (extras.recommendedSongIds || []).indexOf(String(b.id)))
+    : [];
+  const recommendedItems = songItems(recommendedSongs, CARPLAY_LIMITS.recommended);
+  const recent = songItems(musicSongs, CARPLAY_LIMITS.recentlyAdded);
 
   addFolders("artists", "artist", catalog?.artists || [], CARPLAY_LIMITS.artists,
     (v) => v.name, (v) => `${v.songs?.length || 0} songs`, (v) => v.songs || [],
@@ -217,7 +264,7 @@ export function buildCarPlayCatalogSnapshot(
     item.playable && trackIds.has(item.mediaId)
   ).slice(0, CARPLAY_LIMITS.recentlyPlayed);
   sections.push(section("recently_played", phoneRecent.length ? phoneRecent : recent.slice(0, CARPLAY_LIMITS.recentlyPlayed)));
-  sections.push(section("made_for_you", recent.slice(0, CARPLAY_LIMITS.recommended)));
+  sections.push(section("made_for_you", recommendedItems));
 
   const favorites: AndroidAutoBrowseItem[] = [];
   for (const item of extras.favoriteItems || []) {
@@ -311,9 +358,11 @@ export function buildCarPlayInitialCatalogSnapshot(extras: CarPlaySnapshotExtras
 
 export function carPlayCatalogSignature(snapshot: AndroidAutoCatalogSnapshot) {
   return JSON.stringify({
-    roots: snapshot.roots.map((node) => [node.mediaId, node.playable ? 1 : 0]),
+    roots: snapshot.roots.map((node) => [node.mediaId, node.title, node.subtitle, node.playable ? 1 : 0]),
     sections: snapshot.sections.map((entry) => [entry.parentId,
-      entry.items.map((node) => [node.mediaId, node.playable ? 1 : 0])]),
+      entry.items.map((node) => [node.mediaId, node.title, node.subtitle, node.playable ? 1 : 0,
+        ((node as AndroidAutoBrowseItem & Record<string, unknown>).artworkDescriptor as Record<string, unknown> | undefined)
+          ?.cacheIdentity || ""])]),
     tracks: snapshot.tracks.map((track) => [
       ...(() => {
         const raw = track as AndroidAutoTrackPayload & Record<string, unknown>;
