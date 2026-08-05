@@ -37,6 +37,7 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var templateMediaIds: [ObjectIdentifier: String] = [:]
   private var lastSelectionMediaId = ""
   private var lastSelectionAt: CFAbsoluteTime = 0
+  private var listItemMediaIds: [ObjectIdentifier: String] = [:]
   /// Increments on each connect; stale async callbacks must ignore older generations.
   private var connectionGeneration: UInt64 = 0
   private var activeConnectionGeneration: UInt64 = 0
@@ -261,6 +262,8 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.templateMediaIds.removeAll(keepingCapacity: false)
       self.lastSelectionMediaId = ""
       self.lastSelectionAt = 0
+      self.listItemMediaIds.removeAll(keepingCapacity: false)
+      HiddenAudioCarPlayArtworkLoader.shared.cancelOutstandingRequests()
       self.activeConnectionGeneration = 0
       self.interfaceController = nil
       self.carWindow = nil
@@ -893,6 +896,9 @@ final class HiddenAudioCarPlayManager: NSObject {
     }
 
     HiddenAudioCarPlayCatalog.ensureDefaultCatalog()
+    // Invalidate callbacks for rows replaced by this snapshot before creating
+    // the next bounded set of list items.
+    listItemMediaIds.removeAll(keepingCapacity: true)
     listenTabTemplate?.updateSections(makeListenSections())
     radioTabTemplate?.updateSections(makeRadioSections())
     libraryTabTemplate?.updateSections(makeLibrarySections())
@@ -989,11 +995,46 @@ final class HiddenAudioCarPlayManager: NSObject {
     for node: HiddenAudioCarPlayBrowseNode,
     parentId: String
   ) -> CPListItem {
-    let item = CPListItem(text: node.title, detailText: node.subtitle.isEmpty ? nil : node.subtitle)
+    let fallback = fallbackArtwork(for: node, parentId: parentId)
+    let item = CPListItem(text: node.title, detailText: node.subtitle.isEmpty ? nil : node.subtitle, image: fallback)
+    let identity = ObjectIdentifier(item)
+    listItemMediaIds[identity] = node.mediaId
+    let generation = activeConnectionGeneration
+    let source = node.artworkUrl.isEmpty
+      ? HiddenAudioCarPlayCatalog.track(for: node.mediaId)?.artworkUrl ?? ""
+      : node.artworkUrl
+    if !source.isEmpty, isConnected, let interfaceController {
+      let scale = max(1, interfaceController.carTraitCollection.displayScale)
+      HiddenAudioCarPlayArtworkLoader.shared.image(
+        source: source,
+        targetPointSize: CPListItem.maximumImageSize,
+        displayScale: scale
+      ) { [weak self, weak item] image in
+        guard let self, let item, let image, self.isConnected,
+          self.activeConnectionGeneration == generation,
+          self.listItemMediaIds[ObjectIdentifier(item)] == node.mediaId else { return }
+        item.setImage(image)
+      }
+    }
     item.handler = { [weak self] _, completion in
       self?.handleSelection(node: node, parentId: parentId, completion: completion)
     }
     return item
+  }
+
+  private func fallbackArtwork(for node: HiddenAudioCarPlayBrowseNode, parentId: String) -> UIImage? {
+    let key = "\(node.contentType) \(node.mediaId) \(parentId)".lowercased()
+    let symbol: String
+    if key.contains("artist") { symbol = "person.crop.square" }
+    else if key.contains("album") { symbol = "square.stack" }
+    else if key.contains("playlist") { symbol = "music.note.list" }
+    else if key.contains("radio") || key.contains("station") { symbol = "dot.radiowaves.left.and.right" }
+    else if key.contains("podcast") || key.contains("episode") { symbol = "mic" }
+    else if key.contains("audiobook") || key.contains("book") || key.contains("chapter") { symbol = "book" }
+    else if key.contains("empty:") { symbol = "sparkles" }
+    else { symbol = "music.note" }
+    return (UIImage(systemName: symbol) ?? UIImage(systemName: "music.note"))?
+      .withRenderingMode(.alwaysTemplate)
   }
 
   private func handleSelection(

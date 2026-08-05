@@ -131,6 +131,7 @@ const NATIVE_FILES = [
   "HiddenAudioModule.m",
   "HiddenAudioCarPlayManager.swift",
   "HiddenAudioCarPlayCatalog.swift",
+  "HiddenAudioCarPlayArtworkLoader.swift",
   "HiddenAudioCarPlayTabValidation.swift",
   "CarPlaySceneDelegate.swift",
   "PhoneSceneDelegate.swift",

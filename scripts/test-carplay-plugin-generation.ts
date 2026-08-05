@@ -125,6 +125,7 @@ function main() {
   const listed = [...nativeFilesMatch[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   assertOk(listed.includes("HiddenAudioCarPlayManager.swift"), "manager in NATIVE_FILES");
   assertOk(listed.includes("HiddenAudioCarPlayCatalog.swift"), "catalog in NATIVE_FILES");
+  assertOk(listed.includes("HiddenAudioCarPlayArtworkLoader.swift"), "artwork loader in NATIVE_FILES");
   assertOk(listed.includes("HiddenAudioCarPlayTabValidation.swift"), "validation in NATIVE_FILES");
   assertOk(listed.includes("CarPlaySceneDelegate.swift"), "scene in NATIVE_FILES");
 
@@ -146,6 +147,7 @@ function main() {
 
   const generatedCatalog = fs.readFileSync(path.join(outDir, "HiddenAudioCarPlayCatalog.swift"), "utf8");
   const generatedManager = fs.readFileSync(path.join(outDir, "HiddenAudioCarPlayManager.swift"), "utf8");
+  const generatedArtwork = fs.readFileSync(path.join(outDir, "HiddenAudioCarPlayArtworkLoader.swift"), "utf8");
   const generatedValidation = fs.readFileSync(
     path.join(outDir, "HiddenAudioCarPlayTabValidation.swift"),
     "utf8"
@@ -158,7 +160,8 @@ function main() {
   );
 
   assertOk(generatedCatalog.includes("sanitizedFavoritesNodes"), "generated catalog sanitizer");
-  assertOk(generatedCatalog.includes("No favorites yet"), "generated empty favorites copy");
+  assertOk(generatedCatalog.includes("Favorite music will appear here."), "generated empty favorites copy");
+  assertOk(generatedArtwork.includes("maximumEntryCount = 48"), "generated bounded artwork loader");
   assertOk(generatedManager.includes("makeFavoritesSection"), "generated favorites section");
   assertOk(generatedManager.includes("validateCarPlayTabs"), "generated validates tabs");
   assertOk(generatedManager.includes("emitLifecycleDiagnostic"), "generated lifecycle diagnostic helper");

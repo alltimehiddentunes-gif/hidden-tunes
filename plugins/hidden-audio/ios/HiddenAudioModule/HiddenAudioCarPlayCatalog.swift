@@ -32,6 +32,8 @@ struct HiddenAudioCarPlayBrowseNode {
   let title: String
   let subtitle: String
   let playable: Bool
+  var artworkUrl: String = ""
+  var contentType: String = ""
 }
 
 enum HiddenAudioCarPlayCatalog {
@@ -211,8 +213,8 @@ enum HiddenAudioCarPlayCatalog {
   static func emptyFavoritesNode() -> HiddenAudioCarPlayBrowseNode {
     HiddenAudioCarPlayBrowseNode(
       mediaId: "empty:favorites",
-      title: "No favorites yet",
-      subtitle: "Save audio on your phone",
+      title: "Favorite music will appear here.",
+      subtitle: "",
       playable: false
     )
   }
@@ -310,7 +312,9 @@ enum HiddenAudioCarPlayCatalog {
           mediaId: mediaId,
           title: (item["title"] as? String) ?? mediaId,
           subtitle: (item["subtitle"] as? String) ?? "",
-          playable: (item["playable"] as? Bool) ?? false
+          playable: (item["playable"] as? Bool) ?? false,
+          artworkUrl: (item["artworkUrl"] as? String) ?? "",
+          contentType: (item["contentType"] as? String) ?? ""
         )
       )
     }
@@ -328,7 +332,9 @@ enum HiddenAudioCarPlayCatalog {
         mediaId: track.mediaId,
         title: track.title,
         subtitle: track.artist,
-        playable: true
+        playable: true,
+        artworkUrl: track.artworkUrl,
+        contentType: track.isLiveStream ? "radio" : "music"
       )
     }
     .prefix(limit)
