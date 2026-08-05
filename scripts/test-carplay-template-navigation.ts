@@ -11,16 +11,18 @@ const searchEnd = manager.indexOf("private func ensureSessionConfiguration()", s
 assert.ok(searchStart >= 0 && searchEnd > searchStart, "search presentation method exists");
 const searchMethod = manager.slice(searchStart, searchEnd);
 
-assert.ok(searchMethod.includes("let search = CPSearchTemplate()"), "constructs CPSearchTemplate");
-assert.ok(searchMethod.includes("search.delegate = self"), "assigns search delegate");
+assert.equal(manager.includes("CPSearchTemplate("), false, "navigation-only CPSearchTemplate is absent");
+assert.ok(searchMethod.includes('let search = CPListTemplate('), "constructs audio-safe Search list");
+assert.ok(searchMethod.includes("boundedAudioSearchBrowseNodes()"), "uses bounded audio search browse nodes");
+assert.ok(searchMethod.includes("prefix(HiddenAudioCarPlayCatalog.limits.search)"), "caps Search at 30");
 assert.ok(
-  searchMethod.includes('pushTemplateSafely(search, operation: "search")'),
-  "CPSearchTemplate is pushed onto navigation hierarchy"
+  searchMethod.includes('pushTemplateSafely(search, operation: "search", mediaId: "search")'),
+  "Search CPListTemplate uses guarded navigation"
 );
 assert.equal(
   /presentTemplate\s*\(\s*search/.test(searchMethod),
   false,
-  "CPSearchTemplate must never use modal presentTemplate"
+  "Search must never use modal presentTemplate"
 );
 
 assert.ok(
@@ -50,9 +52,13 @@ assert.match(manager, /dispatchPrecondition\(condition: \.onQueue\(\.main\)\)/, 
 assert.match(manager, /reason": "transition_in_progress"/, "rapid transitions fail closed");
 assert.match(manager, /reason": "modal_active"/, "navigation is blocked while a modal is active");
 assert.match(manager, /reason": "template_already_in_stack"/, "same template cannot be pushed twice");
+assert.match(manager, /logical_template_already_in_stack/, "logical Search destination cannot be pushed twice");
 assert.match(manager, /activeConnectionGeneration/, "async navigation is connection-generation guarded");
-assert.match(manager, /presentedSearchTemplate === searchTemplate/, "search callbacks reject stale instances");
-assert.match(manager, /completionHandler\(\[\]\)/, "stale/empty search always completes");
+assert.match(manager, /controllerIdentity = ObjectIdentifier\(interfaceController\)/, "push binds controller identity");
+assert.match(manager, /reason": "stale_push_completion"/, "stale push completion fails closed");
+assert.match(manager, /isNavigationTransitionInProgress = false/, "push completion clears transition lock");
+assert.match(searchMethod, /empty:search/, "empty Search remains safe");
+assert.match(manager, /parentId: "search_results"/, "Search result uses authoritative selection path");
 assert.match(manager, /scheduleNowPlayingAfterSelectionCompletion/, "selection completes before Now Playing navigation");
 assert.match(manager, /interfaceController\.templates\.count == 1/, "root upgrade cannot replace an active child stack");
 
@@ -62,6 +68,6 @@ assert.ok(rootCalls.every((value) => value === "list" || value === "tabBar"),
   `only CPListTemplate/CPTabBarTemplate roots are installed: ${rootCalls.join(", ")}`);
 
 console.log("carplay-template-navigation: PASS");
-console.log("pushable: CPListTemplate, CPGridTemplate, CPSearchTemplate");
+console.log("pushable: CPListTemplate, CPGridTemplate");
 console.log("modal: CPAlertTemplate, CPActionSheetTemplate, CPVoiceControlTemplate");
 console.log("singleton/special: CPNowPlayingTemplate.shared (pushed by existing path)");

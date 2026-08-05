@@ -145,8 +145,9 @@ function main() {
   assertOk(!manager.includes("private weak var interfaceController"), "IC not weak");
   assertOk(manager.includes("CPListTemplate"), "CPListTemplate root");
   assertOk(manager.includes("CPNowPlayingTemplate"), "now playing");
-  assertOk(manager.includes("CPSearchTemplate"), "search template type");
-  assertOk(manager.includes('pushTemplateSafely(search, operation: "search")'), "search uses guarded navigation stack");
+  assertOk(!manager.includes("CPSearchTemplate("), "navigation-only search template absent");
+  assertOk(manager.includes('let search = CPListTemplate('), "audio-safe Search list type");
+  assertOk(manager.includes('pushTemplateSafely(search, operation: "search", mediaId: "search")'), "search uses guarded navigation stack");
   assertOk(!manager.includes("presentTemplate(search"), "search never uses modal presentation");
   assertOk(manager.includes("presentSearchTemplate"), "presentSearchTemplate helper");
   assertOk(manager.includes("makeFavoritesSection"), "favorites section helper");
@@ -171,7 +172,7 @@ function main() {
   assertOk(!manager.includes("AVPlayer("), "no second AVPlayer");
   assertOk(!manager.includes("AVAudioPlayer("), "no AVAudioPlayer");
   // Search must never be a tab child (historical crash cause).
-  assertOk(!/CPSearchTemplate\(\)[\s\S]{0,200}tabTitle/.test(manager), "search is not a tab");
+  assertOk(!/CPListTemplate\([\s\S]{0,200}tabTitle\s*=\s*"Search"/.test(manager), "search is not a tab");
   assertOk(!manager.includes('tabTitle = "Search"'), "search not a tab title");
   assertOk(!manager.includes('tabTitle = "Videos"'), "videos not a tab title");
   // Tab upgrade must be scheduled, not invoked synchronously inside attachConnectedSession body

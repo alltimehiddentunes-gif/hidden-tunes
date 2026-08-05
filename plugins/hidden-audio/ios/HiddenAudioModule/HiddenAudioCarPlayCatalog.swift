@@ -257,6 +257,13 @@ enum HiddenAudioCarPlayCatalog {
     return matches
   }
 
+  /// Audio-entitled CarPlay apps cannot use the navigation-only
+  /// CPSearchTemplate. Keep the Search destination useful and bounded by
+  /// exposing the first eligible catalogue results as a standard list.
+  static func boundedAudioSearchBrowseNodes() -> [HiddenAudioCarPlayBrowseNode] {
+    playableBrowseNodes(limit: limits.search, excludingLive: false)
+  }
+
   static func defaultRootNodes() -> [HiddenAudioCarPlayBrowseNode] {
     [
       HiddenAudioCarPlayBrowseNode(
