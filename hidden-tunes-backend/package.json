@@ -7,7 +7,12 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "test:admin-security": "node scripts/test-admin-catalog-security.mjs && node scripts/test-admin-upload-compatibility.mjs && node scripts/test-admin-server-integration.mjs"
+    "test:admin-security": "node scripts/test-admin-catalog-security.mjs && node scripts/test-admin-upload-compatibility.mjs && node scripts/test-admin-server-integration.mjs",
+    "test:admin-upload-compatibility": "node scripts/test-admin-upload-compatibility.mjs",
+    "test:admin-upload-compensation": "node scripts/test-admin-upload-compensation.mjs",
+    "test:admin-upload-freeze": "node scripts/test-admin-upload-freeze.mjs",
+    "check:syntax": "node --check server.js && node --check routes/adminUploadCompatibility.js && node --check services/adminCatalogSecurity.js && node --check services/adminUploadCompensation.js",
+    "validate:admin-upload": "npm run test:admin-security && npm run test:admin-upload-compensation && npm run test:admin-upload-freeze && npm run check:syntax"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",
