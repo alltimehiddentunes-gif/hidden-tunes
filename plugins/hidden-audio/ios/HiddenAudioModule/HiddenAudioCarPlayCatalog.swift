@@ -42,14 +42,22 @@ enum HiddenAudioCarPlayCatalog {
   static let emptyMessageSubtitle = ""
 
   static let limits = (
-    recentlyPlayed: 25,
-    favorites: 25,
-    playlists: 20,
-    playlistTracks: 50,
-    music: 50,
-    radio: 25,
+    continueListening: 6,
+    recentlyPlayed: 8,
+    favorites: 12,
+    recommended: 12,
+    recommendedPodcasts: 8,
+    radio: 8,
+    artists: 24,
+    albums: 24,
+    genres: 16,
+    playlists: 12,
+    playlistTracks: 24,
+    music: 24,
+    podcasts: 24,
+    audiobooks: 24,
     search: 30,
-    browseNodes: 48
+    browseNodes: 30
   )
 
   private static var childrenByParent: [String: [HiddenAudioCarPlayBrowseNode]] = [:]
@@ -129,7 +137,7 @@ enum HiddenAudioCarPlayCatalog {
     }
 
     if parentId == "search_results" {
-      return searchResults.isEmpty ? [emptyNode(for: parentId)] : searchResults
+      return searchResults.isEmpty ? [emptyNode(for: parentId)] : Array(searchResults.prefix(limits.search))
     }
 
     // Favorites always go through sanitization so empty/malformed catalog
@@ -140,20 +148,39 @@ enum HiddenAudioCarPlayCatalog {
 
     if parentId == "recently_played" {
       if let cached = childrenByParent["recently_played"], !cached.isEmpty {
-        return cached
+        return Array(cached.prefix(limits.recentlyPlayed))
       }
       return [emptyNode(for: parentId)]
     }
 
     if parentId == "made_for_you" {
       if let cached = childrenByParent["made_for_you"], !cached.isEmpty {
-        return cached
+        return Array(cached.prefix(limits.recommended))
       }
       return [emptyNode(for: parentId)]
     }
 
     let nodes = childrenByParent[parentId] ?? []
-    return nodes.isEmpty ? [emptyNode(for: parentId)] : nodes
+    return nodes.isEmpty ? [emptyNode(for: parentId)] : Array(nodes.prefix(itemLimit(for: parentId)))
+  }
+
+  private static func itemLimit(for parentId: String) -> Int {
+    let id = parentId.lowercased()
+    if id == rootId { return 3 }
+    if id == "continue_listening" { return limits.continueListening }
+    if id == "recently_played" { return limits.recentlyPlayed }
+    if id == "favorites" { return limits.favorites }
+    if id == "made_for_you" { return limits.recommended }
+    if id == "recommended_podcasts" { return limits.recommendedPodcasts }
+    if id == "artists" || id.contains("artist") { return limits.artists }
+    if id == "albums" || id.contains("album") { return limits.albums }
+    if id == "genres" || id.contains("genre") { return limits.genres }
+    if id == "playlists" { return limits.playlists }
+    if id.contains("playlist") { return limits.playlistTracks }
+    if id.contains("radio") { return limits.radio }
+    if id.contains("podcast") { return limits.podcasts }
+    if id.contains("audiobook") || id.contains("book") { return limits.audiobooks }
+    return limits.music
   }
 
   /// Favorites helper used by CarPlay Listen tab sections.

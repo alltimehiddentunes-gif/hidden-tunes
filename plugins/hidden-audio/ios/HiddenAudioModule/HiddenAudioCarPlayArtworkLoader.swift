@@ -45,7 +45,7 @@ final class HiddenAudioCarPlayArtworkLoader {
     }
     let width = max(1, Int(ceil(targetPointSize.width * displayScale)))
     let height = max(1, Int(ceil(targetPointSize.height * displayScale)))
-    let key = "\(source)|\(width)x\(height)"
+    let key = cacheKey(source: source, targetPointSize: targetPointSize, displayScale: displayScale)
     if let cached = cache.object(forKey: key as NSString) {
       completion(cached)
       return
@@ -62,6 +62,31 @@ final class HiddenAudioCarPlayArtworkLoader {
     let starting = startPendingRequestsLocked()
     lock.unlock()
     starting.forEach { $0.resume() }
+  }
+
+  /// A cache hit is installed as the row's initial image, avoiding a main-queue
+  /// callback and `setImage` while the user is scrolling.
+  func cachedImage(
+    source: String,
+    targetPointSize: CGSize,
+    displayScale: CGFloat
+  ) -> UIImage? {
+    guard source.hasPrefix("https://") else { return nil }
+    return cache.object(forKey: cacheKey(
+      source: source,
+      targetPointSize: targetPointSize,
+      displayScale: displayScale
+    ) as NSString)
+  }
+
+  private func cacheKey(
+    source: String,
+    targetPointSize: CGSize,
+    displayScale: CGFloat
+  ) -> String {
+    let width = max(1, Int(ceil(targetPointSize.width * displayScale)))
+    let height = max(1, Int(ceil(targetPointSize.height * displayScale)))
+    return "\(source)|\(width)x\(height)"
   }
 
   func cancelOutstandingRequests() {

@@ -17,7 +17,8 @@ const phone = fs.readFileSync(new URL("../plugins/hidden-audio/ios/HiddenAudioMo
 assert.match(manager, /CPListItem\.maximumImageSize/);
 assert.match(manager, /carTraitCollection\.displayScale/);
 assert.match(manager, /item\.setImage\(image\)/);
-assert.match(manager, /CPListItem\(text: node\.title,[\s\S]*image: fallback\)/);
+assert.match(manager, /cachedArtwork \?\? fallbackArtwork/);
+assert.match(manager, /CPListItem\([\s\S]*text: node\.title,[\s\S]*image: immediateArtwork/);
 assert.match(manager, /activeConnectionGeneration == generation/);
 assert.match(manager, /listItemMediaIds\[ObjectIdentifier\(item\)\] == node\.mediaId/);
 assert.match(manager, /cancelOutstandingRequests\(\)/);

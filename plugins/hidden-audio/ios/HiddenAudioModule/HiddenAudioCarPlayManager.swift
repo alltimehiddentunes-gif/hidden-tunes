@@ -37,6 +37,8 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var lastSelectionMediaId = ""
   private var lastSelectionAt: CFAbsoluteTime = 0
   private var listItemMediaIds: [ObjectIdentifier: String] = [:]
+  private var lastCatalogSnapshotData: Data?
+  private var fallbackArtworkCache: [String: UIImage] = [:]
   /// Increments on each connect; stale async callbacks must ignore older generations.
   private var connectionGeneration: UInt64 = 0
   private var activeConnectionGeneration: UInt64 = 0
@@ -341,7 +343,12 @@ final class HiddenAudioCarPlayManager: NSObject {
   }
 
   func applyCatalogSnapshot(_ snapshot: [String: Any]) {
+    let snapshotData = canonicalCatalogSnapshotData(snapshot)
+    if let snapshotData, snapshotData == lastCatalogSnapshotData {
+      return
+    }
     HiddenAudioCarPlayCatalog.applySnapshot(snapshot)
+    lastCatalogSnapshotData = snapshotData
     let trackCount = (snapshot["tracks"] as? [Any])?.count ?? 0
     let sectionCount = (snapshot["sections"] as? [Any])?.count ?? 0
     let itemCount = HiddenAudioCarPlayCatalog.children(for: HiddenAudioCarPlayCatalog.rootId).count
@@ -367,6 +374,11 @@ final class HiddenAudioCarPlayManager: NSObject {
         ["trackCount": trackCount, "sectionCount": sectionCount]
       )
     }
+  }
+
+  private func canonicalCatalogSnapshotData(_ snapshot: [String: Any]) -> Data? {
+    guard JSONSerialization.isValidJSONObject(snapshot) else { return nil }
+    return try? JSONSerialization.data(withJSONObject: snapshot, options: [.sortedKeys])
   }
 
   // MARK: - Safe fallback root
@@ -1000,16 +1012,25 @@ final class HiddenAudioCarPlayManager: NSObject {
     for node: HiddenAudioCarPlayBrowseNode,
     parentId: String
   ) -> CPListItem {
-    let fallback = fallbackArtwork(for: node, parentId: parentId)
-    let item = CPListItem(text: node.title, detailText: node.subtitle.isEmpty ? nil : node.subtitle, image: fallback)
-    let identity = ObjectIdentifier(item)
-    listItemMediaIds[identity] = node.mediaId
-    let generation = activeConnectionGeneration
     let source = node.artworkUrl.isEmpty
       ? HiddenAudioCarPlayCatalog.track(for: node.mediaId)?.artworkUrl ?? ""
       : node.artworkUrl
-    if !source.isEmpty, isConnected, let interfaceController {
-      let scale = max(1, interfaceController.carTraitCollection.displayScale)
+    let scale = max(1, interfaceController?.carTraitCollection.displayScale ?? 1)
+    let cachedArtwork = HiddenAudioCarPlayArtworkLoader.shared.cachedImage(
+      source: source,
+      targetPointSize: CPListItem.maximumImageSize,
+      displayScale: scale
+    )
+    let immediateArtwork = cachedArtwork ?? fallbackArtwork(for: node, parentId: parentId)
+    let item = CPListItem(
+      text: node.title,
+      detailText: node.subtitle.isEmpty ? nil : node.subtitle,
+      image: immediateArtwork
+    )
+    let identity = ObjectIdentifier(item)
+    listItemMediaIds[identity] = node.mediaId
+    let generation = activeConnectionGeneration
+    if cachedArtwork == nil, !source.isEmpty, isConnected, interfaceController != nil {
       HiddenAudioCarPlayArtworkLoader.shared.image(
         source: source,
         targetPointSize: CPListItem.maximumImageSize,
@@ -1038,8 +1059,15 @@ final class HiddenAudioCarPlayManager: NSObject {
     else if key.contains("audiobook") || key.contains("book") || key.contains("chapter") { symbol = "book" }
     else if key.contains("empty:") { symbol = "sparkles" }
     else { symbol = "music.note" }
-    return (UIImage(systemName: symbol) ?? UIImage(systemName: "music.note"))?
+    if let cached = fallbackArtworkCache[symbol] {
+      return cached
+    }
+    let image = (UIImage(systemName: symbol) ?? UIImage(systemName: "music.note"))?
       .withRenderingMode(.alwaysTemplate)
+    if let image {
+      fallbackArtworkCache[symbol] = image
+    }
+    return image
   }
 
   private func handleSelection(
@@ -1089,7 +1117,9 @@ final class HiddenAudioCarPlayManager: NSObject {
           ),
         ]
       }
-      let items = children.map { self.makeListItem(for: $0, parentId: node.mediaId) }
+      let items = children.prefix(HiddenAudioCarPlayCatalog.limits.browseNodes).map {
+        self.makeListItem(for: $0, parentId: node.mediaId)
+      }
       let template = CPListTemplate(
         title: node.title,
         sections: [CPListSection(items: items)]
