@@ -93,6 +93,12 @@ function audit(req, action, result, details = {}) {
   });
 }
 
+function requestedPublication(body) {
+  if (typeof body.isPublic === "boolean") return body.isPublic;
+  if (typeof body.is_public === "boolean") return body.is_public;
+  return true;
+}
+
 function normalizedBody(body) {
   return {
     title: String(body.title || body.titleOverride || "").trim(),
@@ -108,6 +114,7 @@ function normalizedBody(body) {
     lyrics: String(body.plainLyricsText || "").trim() || null,
     syncedLyrics: String(body.syncedLrcText || body.lyricsText || "").trim() || null,
     explicit: typeof body.explicit === "boolean" ? body.explicit : null,
+    isPublic: requestedPublication(body),
   };
 }
 
@@ -200,7 +207,12 @@ async function completeTrack(req, res) {
     const existing = await db.from("songs").select("*").eq("r2_audio_key", item.audioKey).maybeSingle();
     if (existing.error) throw existing.error;
     if (existing.data) {
-      const payload = { success: true, warning: "This uploaded object was already staged.", track: existing.data };
+      const payload = {
+        success: true,
+        staged: existing.data.is_public === false,
+        published: existing.data.is_public === true,
+        track: existing.data,
+      };
       remember(key, payload);
       audit(req, "duplicate_detected", "reused", { songId: existing.data.id });
       return res.json({ ...payload, idempotent: true, requestId: req.adminRequestId });
@@ -234,7 +246,7 @@ async function completeTrack(req, res) {
       source_type: "r2",
       type: "r2",
       is_online: true,
-      is_public: false,
+      is_public: item.isPublic,
       explicit: item.explicit,
       lyrics: item.lyrics,
       synced_lyrics: item.syncedLyrics,
@@ -252,19 +264,24 @@ async function completeTrack(req, res) {
     };
     const payload = {
       success: true,
-      warning: "Upload staged successfully. Classification review is required before publication.",
-      staged: true,
+      staged: !item.isPublic,
+      published: item.isPublic,
       track,
     };
     remember(key, payload);
-    audit(req, "item_staged", "success", {
+    audit(req, item.isPublic ? "item_published" : "item_staged", "success", {
       songId: track.id,
       artistId: artist.row.id,
       albumId: album.row.id,
       artistState: artist.state,
       albumState: album.state,
+      isPublic: item.isPublic,
     });
-    audit(req, "upload_completed", "success", { songId: track.id, fileCount: 1 });
+    audit(req, "upload_completed", "success", {
+      songId: track.id,
+      fileCount: 1,
+      isPublic: item.isPublic,
+    });
     return res.json({ ...payload, requestId: req.adminRequestId });
   } catch (error) {
     audit(req, "upload_failed", "error");
@@ -318,5 +335,6 @@ export {
   insertStagedSong,
   isMissingOptionalExplicitColumn,
   normalizedBody,
+  requestedPublication,
 };
 export default router;

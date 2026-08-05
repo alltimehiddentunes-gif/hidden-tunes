@@ -190,7 +190,8 @@ const compatibility = fs.readFileSync(path.resolve("routes/adminUploadCompatibil
 for (const route of ["/api/upload-url", "/api/complete-song", "/api/admin/upload-file", "/api/admin/upload-track"]) {
   assert.ok(compatibility.includes(route), `${route} compatibility contract exists`);
 }
-assert.match(compatibility, /is_public:\s*false/);
+assert.match(compatibility, /is_public:\s*item\.isPublic/);
+assert.match(compatibility, /requireAdminCatalogRole/);
 assert.match(compatibility, /r2_audio_key/);
 assert.match(compatibility, /idempotency-key/);
 assert.doesNotMatch(compatibility, /multer|memoryStorage|req\.formData/);
