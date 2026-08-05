@@ -291,6 +291,21 @@ enum HiddenAudioCarPlayCatalog {
     playableBrowseNodes(limit: limits.search, excludingLive: false)
   }
 
+  /// Shared bounded resolver for a future INPlayMediaIntent handler. The
+  /// current audio-safe CarPlay surface uses categorized discovery because an
+  /// assistant cell is not functional without an intent handler target.
+  static func boundedVoiceSearchResults(query: String) -> [HiddenAudioCarPlayBrowseNode] {
+    let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let emotionalTerms = ["calm", "focus", "late night", "late-night", "happy", "sad", "energy", "relax"]
+    if emotionalTerms.contains(where: { normalized.contains($0) }) {
+      let emotional = children(for: "made_for_you").filter(\.playable)
+      if !emotional.isEmpty {
+        return Array(emotional.prefix(limits.search))
+      }
+    }
+    return updateSearchResults(query: normalized)
+  }
+
   static func defaultRootNodes() -> [HiddenAudioCarPlayBrowseNode] {
     [
       HiddenAudioCarPlayBrowseNode(

@@ -943,21 +943,10 @@ final class HiddenAudioCarPlayManager: NSObject {
         return
       }
 
-      var nodes = HiddenAudioCarPlayCatalog.boundedAudioSearchBrowseNodes()
-      if nodes.isEmpty {
-        nodes = [HiddenAudioCarPlayBrowseNode(
-          mediaId: "empty:search",
-          title: HiddenAudioCarPlayCatalog.emptyMessageTitle,
-          subtitle: HiddenAudioCarPlayCatalog.emptyMessageSubtitle,
-          playable: false
-        )]
-      }
-      let items = nodes.prefix(HiddenAudioCarPlayCatalog.limits.search).map {
-        self.makeListItem(for: $0, parentId: "search_results")
-      }
+      let sections = self.makeSearchDiscoverySections()
       let search = CPListTemplate(
         title: "Search",
-        sections: [CPListSection(items: items)]
+        sections: sections
       )
       self.templateMediaIds[ObjectIdentifier(search)] = "search"
       self.pushTemplateSafely(search, operation: "search", mediaId: "search")
@@ -1127,6 +1116,49 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.templateMediaIds[ObjectIdentifier(template)] = node.mediaId
       self.pushTemplateSafely(template, operation: "child_list", mediaId: node.mediaId)
     }
+  }
+
+  private func makeSearchDiscoverySections() -> [CPListSection] {
+    var remaining = HiddenAudioCarPlayCatalog.limits.search
+    var sections: [CPListSection] = []
+
+    let recent = HiddenAudioCarPlayCatalog.children(for: "recently_played")
+      .filter(\.playable)
+      .prefix(min(6, remaining))
+    if !recent.isEmpty {
+      let items = recent.map { makeListItem(for: $0, parentId: "recently_played") }
+      sections.append(CPListSection(items: items, header: "Recently Played", sectionIndexTitle: nil))
+      remaining -= items.count
+    }
+
+    let destinations: [HiddenAudioCarPlayBrowseNode] = [
+      HiddenAudioCarPlayBrowseNode(mediaId: "artists", title: "Artists", subtitle: "Browse artists", playable: false, contentType: "artist"),
+      HiddenAudioCarPlayBrowseNode(mediaId: "albums", title: "Albums", subtitle: "Browse albums", playable: false, contentType: "album"),
+      HiddenAudioCarPlayBrowseNode(mediaId: "music", title: "Songs", subtitle: "Browse songs", playable: false, contentType: "music"),
+      HiddenAudioCarPlayBrowseNode(mediaId: "podcasts", title: "Podcasts", subtitle: "Browse podcasts", playable: false, contentType: "podcast"),
+      HiddenAudioCarPlayBrowseNode(mediaId: "audiobooks", title: "Audiobooks", subtitle: "Browse audiobooks", playable: false, contentType: "audiobook"),
+      HiddenAudioCarPlayBrowseNode(mediaId: "radio_browse", title: "Radio", subtitle: "Browse stations", playable: false, contentType: "radio"),
+      HiddenAudioCarPlayBrowseNode(mediaId: "playlists", title: "Playlists", subtitle: "Browse playlists", playable: false, contentType: "playlist"),
+      HiddenAudioCarPlayBrowseNode(mediaId: "genres", title: "Genres", subtitle: "Browse genres", playable: false, contentType: "genre"),
+      HiddenAudioCarPlayBrowseNode(mediaId: "made_for_you", title: "Moods & Emotional Worlds", subtitle: "Find music for this moment", playable: false, contentType: "mood"),
+    ]
+    let browseItems = destinations.prefix(max(0, remaining)).map {
+      makeListItem(for: $0, parentId: "search_discovery")
+    }
+    if !browseItems.isEmpty {
+      sections.append(CPListSection(items: browseItems, header: "Discover", sectionIndexTitle: nil))
+    }
+
+    if sections.isEmpty {
+      let empty = HiddenAudioCarPlayBrowseNode(
+        mediaId: "empty:search",
+        title: HiddenAudioCarPlayCatalog.emptyMessageTitle,
+        subtitle: HiddenAudioCarPlayCatalog.emptyMessageSubtitle,
+        playable: false
+      )
+      sections = [CPListSection(items: [makeListItem(for: empty, parentId: "search_results")])]
+    }
+    return sections
   }
 
   @discardableResult

@@ -13,8 +13,8 @@ const searchMethod = manager.slice(searchStart, searchEnd);
 
 assert.equal(manager.includes("CPSearchTemplate("), false, "navigation-only CPSearchTemplate is absent");
 assert.ok(searchMethod.includes('let search = CPListTemplate('), "constructs audio-safe Search list");
-assert.ok(searchMethod.includes("boundedAudioSearchBrowseNodes()"), "uses bounded audio search browse nodes");
-assert.ok(searchMethod.includes("prefix(HiddenAudioCarPlayCatalog.limits.search)"), "caps Search at 30");
+assert.ok(searchMethod.includes("makeSearchDiscoverySections()"), "uses functional categorized discovery");
+assert.ok(manager.includes("remaining = HiddenAudioCarPlayCatalog.limits.search"), "caps Search at 30");
 assert.ok(
   searchMethod.includes('pushTemplateSafely(search, operation: "search", mediaId: "search")'),
   "Search CPListTemplate uses guarded navigation"
@@ -57,7 +57,7 @@ assert.match(manager, /activeConnectionGeneration/, "async navigation is connect
 assert.match(manager, /controllerIdentity = ObjectIdentifier\(interfaceController\)/, "push binds controller identity");
 assert.match(manager, /reason": "stale_push_completion"/, "stale push completion fails closed");
 assert.match(manager, /isNavigationTransitionInProgress = false/, "push completion clears transition lock");
-assert.match(searchMethod, /empty:search/, "empty Search remains safe");
+assert.match(manager, /empty:search/, "empty Search remains safe");
 assert.match(manager, /parentId: "search_results"/, "Search result uses authoritative selection path");
 assert.match(manager, /scheduleNowPlayingAfterSelectionCompletion/, "selection completes before Now Playing navigation");
 assert.match(manager, /interfaceController\.templates\.count == 1/, "root upgrade cannot replace an active child stack");
