@@ -10,6 +10,12 @@ import lyricsRouter from "./routes/lyrics.js";
 import podcastsRouter from "./routes/podcasts.js";
 import audioVersionHealthRouter from "./routes/audioVersionHealth.js";
 import audioVersionWorkerRouter from "./routes/audioVersionWorker.js";
+import {
+  adminCors,
+  adminRateLimit,
+  requireAdminCatalogRole,
+  requireAdminCatalogUploadEnabled,
+} from "./services/adminCatalogSecurity.js";
 
 dotenv.config();
 
@@ -17,9 +23,20 @@ const app = express();
 
 const PORT = process.env.PORT || 4000;
 
+// Security controls must run before any body or multipart parser.
+app.use(
+  "/api/admin",
+  adminCors,
+  adminRateLimit,
+  requireAdminCatalogRole,
+  requireAdminCatalogUploadEnabled,
+  adminUploadRouter
+);
+
+// Public and secret-protected worker routes retain their existing body handling.
 app.use(cors());
-app.use(express.json({ limit: "100mb" }));
-app.use(express.urlencoded({ extended: true, limit: "100mb" }));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 app.get("/", (req, res) => {
   res.json({
@@ -44,7 +61,6 @@ app.use("/api/artists", artistsRouter);
 app.use("/api/albums", albumsRouter);
 app.use("/api/lyrics", lyricsRouter);
 app.use("/api/podcasts", podcastsRouter);
-app.use("/api/admin", adminUploadRouter);
 
 app.use((req, res) => {
   res.status(404).json({

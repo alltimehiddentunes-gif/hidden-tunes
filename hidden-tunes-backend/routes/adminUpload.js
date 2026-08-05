@@ -323,16 +323,28 @@ router.post(
         throw new Error("Song uploaded but database row was not returned.");
       }
 
+      console.info(JSON.stringify({
+        event: "admin_catalog_security",
+        timestamp: new Date().toISOString(),
+        requestId: req.adminRequestId,
+        actorId: req.adminActor?.id || null,
+        route: req.originalUrl,
+        action: "upload_completed",
+        result: "success",
+        songId: song.id,
+      }));
+
       return res.json({
         success: true,
         song,
+        requestId: req.adminRequestId,
       });
     } catch (error) {
       console.error("Admin upload error:", error);
 
       return res.status(500).json({
         error: "Upload failed",
-        details: error.message,
+        requestId: req.adminRequestId,
       });
     }
   }
