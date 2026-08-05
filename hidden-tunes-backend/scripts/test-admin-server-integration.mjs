@@ -42,13 +42,27 @@ try {
 
   const anonymous = await fetch(`http://127.0.0.1:${port}/api/admin/song`, {
     method: "POST",
-    headers: { "content-type": "multipart/form-data; boundary=never-parsed" },
+    headers: {
+      origin: "https://admin.hiddentunes.com",
+      "content-type": "multipart/form-data; boundary=never-parsed",
+    },
     body: "--never-parsed\r\ninvalid multipart",
   });
   const anonymousBody = await anonymous.json();
   assert.equal(anonymous.status, 401);
   assert.equal(anonymousBody.error, "Authentication required.");
   assert.equal(JSON.stringify(anonymousBody).includes("MP3 song file"), false);
+
+  for (const path of ["/api/upload-url", "/api/complete-song", "/api/admin/upload-file", "/api/admin/upload-track"]) {
+    const denied = await fetch(`http://127.0.0.1:${port}${path}`, {
+      method: "POST",
+      headers: { origin: "https://admin.hiddentunes.com", "content-type": "application/json" },
+      body: "{}",
+    });
+    const body = await denied.json();
+    assert.equal(denied.status, 401, `${path}: anonymous denied`);
+    assert.ok(body.requestId, `${path}: correlation ID returned`);
+  }
 
   const badOrigin = await fetch(`http://127.0.0.1:${port}/api/admin/song`, {
     method: "OPTIONS",

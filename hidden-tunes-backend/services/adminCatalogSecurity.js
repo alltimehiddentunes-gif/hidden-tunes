@@ -4,9 +4,11 @@ import { createClient } from "@supabase/supabase-js";
 const ALLOWED_ROLES = new Set(["owner", "admin", "upload_manager"]);
 const attempts = new Map();
 const RATE_WINDOW_MS = 60_000;
-const RATE_MAX = 10;
+// One intentional UI batch performs multiple signed-URL and completion calls.
+// Keep a bounded emergency ceiling without breaking the supported 8-item flow.
+const RATE_MAX = 60;
 
-function requestId(req) {
+export function requestId(req) {
   if (!req.adminRequestId) req.adminRequestId = crypto.randomUUID();
   return req.adminRequestId;
 }
@@ -47,17 +49,15 @@ export function adminCors(req, res, next) {
       .filter(Boolean)
   );
 
-  if (origin && !allowed.has(origin)) {
+  if (!origin || !allowed.has(origin)) {
     auditAdminSecurityEvent(req, "cors", "denied");
     return genericError(req, res, 403, "Origin not allowed.");
   }
 
-  if (origin) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Vary", "Origin");
-    res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type");
-  }
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type,Idempotency-Key");
   if (req.method === "OPTIONS") return res.sendStatus(204);
   return next();
 }
@@ -77,6 +77,12 @@ export function adminRateLimit(req, res, next) {
     res.setHeader("Retry-After", "60");
     return genericError(req, res, 429, "Too many requests.");
   }
+  return next();
+}
+
+export function attachAdminRequestId(req, res, next) {
+  const id = requestId(req);
+  res.setHeader("X-Request-ID", id);
   return next();
 }
 
@@ -138,6 +144,17 @@ export function requireAdminCatalogUploadEnabled(req, res, next) {
   if (String(process.env.ADMIN_CATALOG_UPLOAD_ENABLED || "").toLowerCase() !== "true") {
     auditAdminSecurityEvent(req, "feature_gate", "disabled");
     return genericError(req, res, 503, "Administrative uploads are disabled.");
+  }
+  return next();
+}
+
+export function requireLegacyMultipartUploadEnabled(req, res, next) {
+  if (
+    String(process.env.ADMIN_LEGACY_MULTIPART_UPLOAD_ENABLED || "").toLowerCase() !==
+    "true"
+  ) {
+    auditAdminSecurityEvent(req, "legacy_multipart_gate", "disabled");
+    return genericError(req, res, 503, "Legacy multipart uploads are disabled.");
   }
   return next();
 }

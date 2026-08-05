@@ -8,6 +8,7 @@ import {
   createRequireAdminCatalogRole,
   requireAdminCatalogRole,
   requireAdminCatalogUploadEnabled,
+  requireLegacyMultipartUploadEnabled,
   resetAdminRateLimitsForTests,
 } from "../services/adminCatalogSecurity.js";
 
@@ -21,6 +22,18 @@ function response() {
     json(payload) { this.payload = payload; return this; },
     sendStatus(code) { this.statusCode = code; return this; },
   };
+}
+
+{
+  const previous = process.env.ADMIN_LEGACY_MULTIPART_UPLOAD_ENABLED;
+  delete process.env.ADMIN_LEGACY_MULTIPART_UPLOAD_ENABLED;
+  const res = response();
+  let nextCalled = false;
+  requireLegacyMultipartUploadEnabled(request(), res, () => { nextCalled = true; });
+  assert.equal(res.statusCode, 503);
+  assert.equal(nextCalled, false);
+  if (previous === undefined) delete process.env.ADMIN_LEGACY_MULTIPART_UPLOAD_ENABLED;
+  else process.env.ADMIN_LEGACY_MULTIPART_UPLOAD_ENABLED = previous;
 }
 
 function clientDouble({ user = { id: "user-1" }, authError = null, profile = null, profileError = null } = {}) {
@@ -55,7 +68,7 @@ function request(overrides = {}) {
   return {
     method: "POST",
     originalUrl: "/api/admin/song",
-    headers: {},
+    headers: { origin: "https://admin.hiddentunes.com" },
     ip: "127.0.0.1",
     ...overrides,
   };
@@ -65,11 +78,12 @@ for (const scenario of [
   { name: "invalid token", double: clientDouble({ user: null, authError: new Error("expired") }), status: 401 },
   { name: "ordinary user", double: clientDouble({ profile: { id: "user-1", role: "artist", status: "active" } }), status: 403 },
   { name: "wrong admin role", double: clientDouble({ profile: { id: "user-1", role: "moderator", status: "active" } }), status: 403 },
+  { name: "inactive owner", double: clientDouble({ profile: { id: "user-1", role: "owner", status: "inactive" } }), status: 403 },
 ]) {
   const guard = createRequireAdminCatalogRole({ getClient: () => scenario.double.client });
   const res = response();
   let parserOrHandlerCalled = false;
-  await guard(request({ headers: { authorization: "Bearer test-token" } }), res, () => {
+  await guard(request({ headers: { origin: "https://admin.hiddentunes.com", authorization: "Bearer test-token" } }), res, () => {
     parserOrHandlerCalled = true;
   });
   assert.equal(res.statusCode, scenario.status, scenario.name);
@@ -83,7 +97,7 @@ for (const role of ["owner", "admin", "upload_manager"]) {
   const guard = createRequireAdminCatalogRole({ getClient: () => double.client });
   const res = response();
   let nextCalled = false;
-  const req = request({ headers: { authorization: "Bearer valid-token" } });
+  const req = request({ headers: { origin: "https://admin.hiddentunes.com", authorization: "Bearer valid-token" } });
   await guard(req, res, () => { nextCalled = true; });
   assert.equal(nextCalled, true, `${role} passes authorization`);
   assert.equal(req.adminActor.role, role);
@@ -97,7 +111,7 @@ for (const role of ["owner", "admin", "upload_manager"]) {
   const originalError = console.error;
   console.error = () => {};
   try {
-    await guard(request({ headers: { authorization: "Bearer valid-token" } }), res, () => {});
+    await guard(request({ headers: { origin: "https://admin.hiddentunes.com", authorization: "Bearer valid-token" } }), res, () => {});
   } finally {
     console.error = originalError;
   }
@@ -147,7 +161,7 @@ for (const role of ["owner", "admin", "upload_manager"]) {
 {
   resetAdminRateLimitsForTests();
   let last;
-  for (let index = 0; index < 11; index += 1) {
+  for (let index = 0; index < 61; index += 1) {
     last = response();
     adminRateLimit(request(), last, () => {});
   }
@@ -155,16 +169,30 @@ for (const role of ["owner", "admin", "upload_manager"]) {
 }
 
 const server = fs.readFileSync(path.resolve("server.js"), "utf8");
+assert.ok(
+  server.indexOf("app.use(adminUploadCompatibilityRouter)") < server.indexOf('app.use(\n  "/api/admin"'),
+  "compatibility routes must precede the legacy multipart router"
+);
 const mount = server.slice(server.indexOf('app.use(\n  "/api/admin"'));
 const guardIndex = mount.indexOf("requireAdminCatalogRole");
 const gateIndex = mount.indexOf("requireAdminCatalogUploadEnabled");
+const legacyGateIndex = mount.indexOf("requireLegacyMultipartUploadEnabled");
 const routerIndex = mount.indexOf("adminUploadRouter");
-assert.ok(guardIndex >= 0 && gateIndex > guardIndex && routerIndex > gateIndex,
+assert.ok(guardIndex >= 0 && gateIndex > guardIndex && legacyGateIndex > gateIndex && routerIndex > legacyGateIndex,
   "auth and disabled gate must precede multipart router");
 assert.match(server, /ADMIN_CATALOG_UPLOAD_ENABLED|requireAdminCatalogUploadEnabled/);
 assert.doesNotMatch(server, /express\.json\(\{ limit: ["']100mb["']/);
 
 const upload = fs.readFileSync(path.resolve("routes/adminUpload.js"), "utf8");
 assert.doesNotMatch(upload, /details:\s*error\.message/);
+
+const compatibility = fs.readFileSync(path.resolve("routes/adminUploadCompatibility.js"), "utf8");
+for (const route of ["/api/upload-url", "/api/complete-song", "/api/admin/upload-file", "/api/admin/upload-track"]) {
+  assert.ok(compatibility.includes(route), `${route} compatibility contract exists`);
+}
+assert.match(compatibility, /is_public:\s*false/);
+assert.match(compatibility, /r2_audio_key/);
+assert.match(compatibility, /idempotency-key/);
+assert.doesNotMatch(compatibility, /multer|memoryStorage|req\.formData/);
 
 console.log("admin-catalog-security: PASS");
