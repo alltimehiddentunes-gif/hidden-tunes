@@ -27,6 +27,34 @@ const jsonBody = express.json({ limit: "1mb" });
 const ALLOWED_FOLDERS = new Set(["songs", "covers"]);
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const recentResults = new Map();
+const defaultDependencies = {
+  database,
+  r2Client,
+  appendCleanupRecord,
+  compensateFailedUpload,
+  cleanupManifestPath,
+};
+let dependencyOverrides = {};
+
+function dependencies() {
+  return { ...defaultDependencies, ...dependencyOverrides };
+}
+
+function setAdminUploadTestDependencies(overrides = {}) {
+  dependencyOverrides = overrides;
+}
+
+function resetAdminUploadTestDependencies() {
+  dependencyOverrides = {};
+}
+
+function assertRequestActive(req) {
+  if (req.aborted || req.destroyed) {
+    const error = new Error("Administrative upload request ended.");
+    error.code = "UPLOAD_REQUEST_ABORTED";
+    throw error;
+  }
+}
 
 function r2Client() {
   return new S3Client({
@@ -223,8 +251,9 @@ async function completeTrack(req, res) {
   }
 
   const key = idempotencyKey(req, item);
-  const db = database();
-  const objectStore = r2Client();
+  const runtime = dependencies();
+  const db = runtime.database();
+  const objectStore = runtime.r2Client();
   let duplicate;
   try {
     duplicate = await resolveDuplicateCompletion({ db, key, audioKey: item.audioKey });
@@ -261,18 +290,24 @@ async function completeTrack(req, res) {
   audit(req, "upload_started", "accepted", { fileCount: 1 });
 
   try {
-    appendCleanupRecord({ ...attempt, event: "completion_started" });
+    runtime.appendCleanupRecord({ ...attempt, event: "completion_started" });
+    assertRequestActive(req);
     await ensureR2ObjectExists(objectStore, item.audioKey);
+    assertRequestActive(req);
     if (item.artworkKey) await ensureR2ObjectExists(objectStore, item.artworkKey);
 
+    assertRequestActive(req);
     failureStage = "artist_resolution";
     const artist = await findOrCreateArtist(db, item.artist, item.artworkUrl);
     attempt.artistId = artist.row.id;
     attempt.artistState = artist.state;
     failureStage = "album_resolution";
+    assertRequestActive(req);
     const album = await findOrCreateAlbum(db, item.album, artist.row.id, item.artworkUrl);
     attempt.albumId = album.row.id;
     attempt.albumState = album.state;
+    failureStage = "song_insert";
+    assertRequestActive(req);
     const songId = crypto.randomUUID();
     const songInsert = {
       id: songId,
@@ -304,7 +339,6 @@ async function completeTrack(req, res) {
       lyrics: item.lyrics,
       synced_lyrics: item.syncedLyrics,
     };
-    failureStage = "song_insert";
     const inserted = await insertStagedSong(db, songInsert);
     if (inserted.error) throw inserted.error;
     attempt.songId = inserted.data.id;
@@ -325,7 +359,7 @@ async function completeTrack(req, res) {
     };
     remember(key, payload);
     try {
-      appendCleanupRecord({
+      runtime.appendCleanupRecord({
         ...attempt,
         event: "completion_succeeded",
         cleanupEligibility: "none_song_persisted",
@@ -353,21 +387,25 @@ async function completeTrack(req, res) {
     audit(req, "upload_failed", "error");
     console.error("Catalogue compatibility upload failed", { requestId: req.adminRequestId, error });
     try {
-      await compensateFailedUpload({
+      await runtime.compensateFailedUpload({
         db,
         objectStore,
         bucket: process.env.R2_BUCKET_NAME,
-        manifestPath: cleanupManifestPath(),
+        manifestPath: runtime.cleanupManifestPath(),
         attempt,
       });
       audit(req, "cleanup_completed", "success", { failureStage });
     } catch {
-      appendCleanupRecord({
+      runtime.appendCleanupRecord({
         ...attempt,
         event: "cleanup_failed",
         cleanupStatus: "review_required",
       });
       audit(req, "cleanup_completed", "error", { failureStage });
+    }
+    if (error?.code === "UPLOAD_REQUEST_ABORTED" || req.aborted || req.destroyed) {
+      audit(req, "upload_aborted", "closed", { failureStage });
+      return res.end();
     }
     return safeFailure(req, res, 500, "Catalogue upload failed.");
   }
@@ -433,5 +471,8 @@ export {
   requestedPublication,
   resetRecentResultsForTests,
   resolveDuplicateCompletion,
+  resetAdminUploadTestDependencies,
+  setAdminUploadTestDependencies,
+  completeTrack,
 };
 export default router;
