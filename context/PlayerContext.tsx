@@ -6005,6 +6005,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               durationSeconds,
               positionSeconds: startPositionSeconds,
               artworkUrl,
+              isLiveStream: isLiveRadioPlaybackDomain(
+                activeQueueContextRef.current,
+                normalizedSong,
+                activeQueueModeRef.current
+              ),
             });
             logTapLatencyDiagnostic("native_load_ready", audioLoadStartedAt, {
               songId: normalizedSong.id,

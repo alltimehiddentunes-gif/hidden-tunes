@@ -38,6 +38,7 @@ export interface HiddenAudioNowPlayingMetadata {
   duration: number;
   position: number;
   artworkUrl?: string;
+  isLiveStream?: boolean;
 }
 
 export type HiddenAudioStatus = {
@@ -100,6 +101,7 @@ type HiddenAudioNativeTrack = {
   album: string;
   artworkUrl: string;
   durationSeconds: number;
+  isLiveStream: boolean;
 };
 
 type HiddenAudioNativeModule = {
@@ -178,6 +180,7 @@ function buildNativeTrack(url: string): HiddenAudioNativeTrack {
     album: safeString(metadata?.album, ""),
     artworkUrl: safeString(metadata?.artworkUrl, ""),
     durationSeconds: safeNumber(metadata?.duration, 0),
+    isLiveStream: metadata?.isLiveStream === true,
   };
 }
 

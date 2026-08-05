@@ -588,6 +588,7 @@ export async function activateHiddenAudioPlayback(options: {
   durationSeconds?: number;
   positionSeconds?: number;
   artworkUrl?: string;
+  isLiveStream?: boolean;
 }): Promise<void> {
   logAndRememberLockscreenDiagnostic(
     "hidden_audio_load_track_start",
@@ -602,6 +603,7 @@ export async function activateHiddenAudioPlayback(options: {
     duration: options.durationSeconds ?? 0,
     position: options.positionSeconds ?? 0,
     artworkUrl: options.artworkUrl || "",
+    isLiveStream: options.isLiveStream === true,
   });
   await hiddenAudioBridge.load(options.url);
   logAndRememberLockscreenDiagnostic(

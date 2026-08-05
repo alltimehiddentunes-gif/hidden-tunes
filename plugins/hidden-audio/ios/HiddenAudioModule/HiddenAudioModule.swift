@@ -429,7 +429,8 @@ class HiddenAudioModule: RCTEventEmitter {
       "artist": track["artist"] as? String ?? "Hidden Tunes",
       "album": track["album"] as? String ?? "",
       "artworkUrl": track["artworkUrl"] as? String ?? "",
-      "durationSeconds": track["durationSeconds"] as? NSNumber ?? 0
+      "durationSeconds": track["durationSeconds"] as? NSNumber ?? 0,
+      "isLiveStream": (track["isLiveStream"] as? Bool) ?? false
     ]
   }
 
@@ -737,6 +738,8 @@ class HiddenAudioModule: RCTEventEmitter {
     commandCenter.nextTrackCommand.isEnabled = true
     commandCenter.previousTrackCommand.isEnabled = true
     commandCenter.changePlaybackPositionCommand.isEnabled = true
+    commandCenter.skipForwardCommand.isEnabled = false
+    commandCenter.skipBackwardCommand.isEnabled = false
     updateRemoteCommandAvailability()
 
     commandCenter.playCommand.addTarget { [weak self] _ in
@@ -975,14 +978,31 @@ class HiddenAudioModule: RCTEventEmitter {
         self.emitRemoteCommandResult("seek", success: false, reason: "invalid_event")
         return .commandFailed
       }
+      guard self.player != nil, !self.activeTrackIsLiveStream() else {
+        self.emitRemoteCommandResult("seek", success: false, reason: "live_stream_no_seek")
+        return .commandFailed
+      }
+      let requestedPosition = positionEvent.positionTime
+      guard requestedPosition.isFinite, requestedPosition >= 0 else {
+        self.emitRemoteCommandResult("seek", success: false, reason: "invalid_position")
+        return .commandFailed
+      }
+      let itemDuration = self.currentItem.map { self.safeDurationSeconds(for: $0) } ?? 0
+      let declaredDuration = (self.activeTrack?["durationSeconds"] as? NSNumber)?.doubleValue ?? 0
+      let duration = itemDuration > 0 ? itemDuration : declaredDuration
+      guard duration.isFinite, duration > 0 else {
+        self.emitRemoteCommandResult("seek", success: false, reason: "unknown_duration")
+        return .commandFailed
+      }
+      let clampedPosition = min(requestedPosition, duration)
       self.emitDiagnostic("ios_remote_command_received", [
         "command": "seek"
       ])
       self.emitDiagnostic("hidden_audio_remote_seek_received", [
-        "positionSeconds": positionEvent.positionTime
+        "positionSeconds": clampedPosition
       ])
       self.player?.seek(
-        to: CMTime(seconds: positionEvent.positionTime, preferredTimescale: 600)
+        to: CMTime(seconds: clampedPosition, preferredTimescale: 600)
       )
       self.emitProgress()
       self.updateNowPlayingInfo()
@@ -1011,7 +1031,9 @@ class HiddenAudioModule: RCTEventEmitter {
     let hasPrevious = effectiveIndex > 0 || player != nil
     commandCenter.nextTrackCommand.isEnabled = hasNext
     commandCenter.previousTrackCommand.isEnabled = hasPrevious
-    commandCenter.changePlaybackPositionCommand.isEnabled = player != nil
+    commandCenter.changePlaybackPositionCommand.isEnabled = player != nil && !activeTrackIsLiveStream()
+    commandCenter.skipForwardCommand.isEnabled = false
+    commandCenter.skipBackwardCommand.isEnabled = false
     commandCenter.playCommand.isEnabled = player != nil
     commandCenter.pauseCommand.isEnabled = player != nil
     commandCenter.togglePlayPauseCommand.isEnabled = player != nil
@@ -1053,6 +1075,10 @@ class HiddenAudioModule: RCTEventEmitter {
     )
   }
 
+  private func activeTrackIsLiveStream() -> Bool {
+    return (activeTrack?["isLiveStream"] as? Bool) ?? false
+  }
+
   private func updateNowPlayingInfo() {
     // External owner (TV) presents metadata without an AVPlayer track.
     if activeTrack == nil, let presented = presentedNowPlaying {
@@ -1077,8 +1103,13 @@ class HiddenAudioModule: RCTEventEmitter {
     var info: [String: Any] = [:]
     info[MPMediaItemPropertyTitle] = track["title"] as? String ?? "Hidden Tunes"
     info[MPMediaItemPropertyArtist] = track["artist"] as? String ?? "Hidden Tunes"
-    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = progressPayload()["positionSeconds"]
-    info[MPMediaItemPropertyPlaybackDuration] = progressPayload()["durationSeconds"]
+    if activeTrackIsLiveStream() {
+      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = 0
+      info[MPNowPlayingInfoPropertyIsLiveStream] = true
+    } else {
+      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = progressPayload()["positionSeconds"]
+      info[MPMediaItemPropertyPlaybackDuration] = progressPayload()["durationSeconds"]
+    }
     info[MPNowPlayingInfoPropertyPlaybackRate] = playerStatus == "playing" ? 1 : 0
     if let artwork = nowPlayingArtwork {
       info[MPMediaItemPropertyArtwork] = artwork
