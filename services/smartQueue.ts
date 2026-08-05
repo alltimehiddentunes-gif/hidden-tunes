@@ -142,4 +142,4 @@ export async function getRelatedTracks(
     return [];
   }
 }
-// Smart continuation scoring lives in PlayerContext scoreSmartContinuationCandidate.
+// Endless continuation scoring is centralized in services/endlessMusicContinuation.
