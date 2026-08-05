@@ -390,7 +390,15 @@ class HiddenAudioModule: RCTEventEmitter {
     let item = AVPlayerItem(url: url)
     currentItem = item
     currentItemEndedHandled = false
-    player = AVPlayer(playerItem: item)
+    if let existingPlayer = player {
+      existingPlayer.replaceCurrentItem(with: item)
+      emitDiagnostic("hidden_audio_native_player_reused", [
+        "trackId": activeTrack?["id"] as? String ?? "",
+        "activeIndex": activeIndex
+      ])
+    } else {
+      player = AVPlayer(playerItem: item)
+    }
     playerStatus = autoplay ? "buffering" : "ready"
     shouldResumeAfterItemLoad = autoplay
     observePlayerItem(item)

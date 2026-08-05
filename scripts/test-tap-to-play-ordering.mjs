@@ -286,6 +286,24 @@ function testPlayerContextOrderingGuardsPresent() {
   assert.ok(src.includes("native_load_ready"));
   assert.ok(src.includes("native_play_called"));
   assert.ok(src.includes("beginPlaybackCriticalSection"));
+  assert.ok(
+    src.includes('interruptCurrentPlaybackForUserTap(normalizedSong.id, true)'),
+    "direct tap defers native replacement to the load operation"
+  );
+  assert.ok(
+    src.includes('"post_load_queue_sync"'),
+    "queue normalization/persistence is scheduled after native load"
+  );
+  const playQueueStart = src.indexOf("const playQueue = useCallback(");
+  const loadCall = src.indexOf("await loadAndPlay(selectedSong", playQueueStart);
+  const postLoadSync = src.indexOf('"post_load_queue_sync"', loadCall);
+  assert.ok(loadCall > playQueueStart && postLoadSync > loadCall, "native load precedes queue sync");
+  const preLoadQueueSlice = src.slice(playQueueStart, loadCall);
+  assert.equal(
+    preLoadQueueSlice.includes("void syncActiveQueue(nativeQueue"),
+    false,
+    "critical path does not synchronously enter full queue sync"
+  );
   // Emotional refresh must not be scheduled before native load in the pre-load block.
   const preLoadSlice = src.slice(
     src.indexOf("openPlayerForPlayableTap(normalizedSong, \"load_and_play\")"),
@@ -294,6 +312,46 @@ function testPlayerContextOrderingGuardsPresent() {
   assert.equal(preLoadSlice.includes("emotional_queue_refresh"), false);
   assert.ok(src.includes("first_audio_playing"));
   assert.ok(/first_audio_playing[\s\S]{0,1200}emotional_queue_refresh/.test(src));
+
+  const bridge = fs.readFileSync(path.join(root, "services", "playbackBridge.ts"), "utf8");
+  const activationStart = bridge.indexOf("export async function activateHiddenAudioPlayback");
+  const activationEnd = bridge.indexOf("export async function deactivateHiddenAudioPlayback", activationStart);
+  const activation = bridge.slice(activationStart, activationEnd);
+  assert.equal(
+    activation.includes("await hiddenAudioBridge.updateNowPlaying"),
+    false,
+    "artwork/Now Playing bridge work is absent before native load"
+  );
+  assert.ok(
+    activation.includes("await hiddenAudioBridge.load(options.url, metadata)"),
+    "validated URI and metadata reach one native load request directly"
+  );
+  assert.ok(
+    /hiddenAudioBridge\.load\(options\.url, metadata\)[\s\S]*options\.shouldPlay[\s\S]*hiddenAudioBridge\.play\(\)/.test(activation),
+    "latest-intent guard runs after native load and before play"
+  );
+  assert.ok(
+    src.includes("phase: \"after_native_load_before_play\""),
+    "stale loaded item exits without publishing active playback"
+  );
+
+  const hiddenBridge = fs.readFileSync(
+    path.join(root, "src", "hidden-audio", "hiddenAudioBridge.ts"),
+    "utf8"
+  );
+  assert.ok(hiddenBridge.includes("HiddenAudioNative.loadTrack(track)"), "one native load call");
+  assert.equal(hiddenBridge.includes("fetch("), false, "native load bridge performs no network fetch");
+
+  const native = fs.readFileSync(
+    path.join(root, "plugins", "hidden-audio", "ios", "HiddenAudioModule", "HiddenAudioModule.swift"),
+    "utf8"
+  );
+  assert.ok(native.includes("existingPlayer.replaceCurrentItem(with: item)"), "AVPlayer is reused");
+  assert.equal(
+    (native.match(/currentPlayer\.play\(\)/g) || []).length >= 1,
+    true,
+    "native play remains authoritative"
+  );
 }
 
 async function main() {

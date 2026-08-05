@@ -83,7 +83,7 @@ export type HiddenAudioPlaybackEndedEvent = {
 };
 
 export interface HiddenAudioEngine {
-  load(url: string): Promise<void>;
+  load(url: string, metadata?: HiddenAudioNowPlayingMetadata): Promise<void>;
   play(): Promise<void>;
   reassertBackgroundPlayback?(): Promise<void>;
   pause(reason?: string): Promise<void>;
@@ -162,8 +162,11 @@ function safeNumber(value: unknown, fallback = 0): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
-function buildNativeTrack(url: string): HiddenAudioNativeTrack {
-  const metadata = pendingNowPlayingMetadata;
+function buildNativeTrack(
+  url: string,
+  metadataOverride?: HiddenAudioNowPlayingMetadata
+): HiddenAudioNativeTrack {
+  const metadata = metadataOverride || pendingNowPlayingMetadata;
   const cleanUrl = safeString(url, "");
   const idSource = cleanUrl || metadata?.title || "hidden-audio-track";
   const safeId = idSource
@@ -490,13 +493,16 @@ export async function notifyHiddenAudioAppBackgrounded(): Promise<void> {
 }
 
 export const hiddenAudioBridge: HiddenAudioEngine = {
-  async load(url: string): Promise<void> {
+  async load(url: string, metadata?: HiddenAudioNowPlayingMetadata): Promise<void> {
     if (!HiddenAudioNative?.loadTrack) {
       warnStub("loadTrack");
       return;
     }
 
-    const track = buildNativeTrack(url);
+    if (metadata) {
+      pendingNowPlayingMetadata = metadata;
+    }
+    const track = buildNativeTrack(url, metadata);
     lastLoadedUrl = track.url;
     logAndRememberLockscreenDiagnostic(
       "hidden_audio_load_track_start",

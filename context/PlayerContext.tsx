@@ -4001,7 +4001,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const interruptCurrentPlaybackForUserTap = useCallback(
-    async (targetSongId?: string) => {
+    async (targetSongId?: string, replaceDirectlyInNative = false) => {
       const interruptStartedAt = Date.now();
       if (__DEV__) {
         logTapLatencyDiagnostic("interrupt_start", interruptStartedAt, {
@@ -4027,11 +4027,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (targetSongId) {
             const targetSong = currentSongRef.current;
             const targetUrl = targetSong ? getPlayableUri(targetSong) : "";
-            await bridgeSilenceNativePlaybackForManualReplace({
-              targetUrl: targetUrl || undefined,
-              songId: targetSongId,
-              source: "user_tap_interrupt",
-            });
+            if (!replaceDirectlyInNative) {
+              await bridgeSilenceNativePlaybackForManualReplace({
+                targetUrl: targetUrl || undefined,
+                songId: targetSongId,
+                source: "user_tap_interrupt",
+              });
+            } else {
+              logTapLatencyDiagnostic("native_replace_deferred_to_load", interruptStartedAt, {
+                songId: targetSongId,
+                requestId: loadRequestIdRef.current,
+                hasPlayableUri: Boolean(targetUrl),
+              });
+            }
             hiddenAudioActiveRef.current = false;
             markHiddenAudioBridgeActive(false);
             resetHiddenAudioLoadedUrl();
@@ -5835,7 +5843,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               });
             }
 
-            await activateHiddenAudioPlayback({
+            const nativePlaybackStarted = await activateHiddenAudioPlayback({
               url: playableUri,
               title: normalizedSong.title || "Unknown Song",
               artist: normalizedSong.artist || "Unknown Artist",
@@ -5848,7 +5856,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 normalizedSong,
                 activeQueueModeRef.current
               ),
+              shouldPlay: () =>
+                loadRequestIdRef.current === requestId && isMountedRef.current,
             });
+            if (!nativePlaybackStarted) {
+              logPlayerContextDebug("playback_recovery_stale_request_ignored", {
+                songId: normalizedSong.id,
+                requestId,
+                latestRequestId: loadRequestIdRef.current,
+                phase: "after_native_load_before_play",
+              });
+              return;
+            }
             logTapLatencyDiagnostic("native_load_ready", audioLoadStartedAt, {
               songId: normalizedSong.id,
               requestId,
@@ -6589,19 +6608,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         continuationRefillInFlightRef.current = false;
       }
 
-      const handoff = await claimExclusivePlayback({
-        owner: "shared-audio",
-        contentKind: inferSharedAudioContentKind({
-          queueContextSource: queueContext.source,
-          queueMode: queueMode || activeQueueModeRef.current,
-          songSource: (seedSong as { source?: string }).source,
-          songType: (seedSong as { type?: string }).type,
-          songId: seedSong.id,
-        }),
-        mediaKey: seedSong.id,
-      });
-      if (!handoff.isCurrent()) {
-        return;
+      if (!priorInterruptDone) {
+        const handoff = await claimExclusivePlayback({
+          owner: "shared-audio",
+          contentKind: inferSharedAudioContentKind({
+            queueContextSource: queueContext.source,
+            queueMode: queueMode || activeQueueModeRef.current,
+            songSource: (seedSong as { source?: string }).source,
+            songType: (seedSong as { type?: string }).type,
+            songId: seedSong.id,
+          }),
+          mediaKey: seedSong.id,
+        });
+        if (!handoff.isCurrent()) {
+          return;
+        }
       }
 
       logLockscreenPlaybackDiagnostic("playable_tap_received", {
@@ -6735,14 +6756,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       radioModeRef.current = false;
       void setStoredValueIfChanged(RADIO_MODE_KEY, "false");
 
-      // Persist only after play for large/full_catalog queues (deferred expand).
-      // Small queues still sync immediately so Next/Previous + AA stay available.
-      if (!deferredFullQueue) {
-        void syncActiveQueue(nativeQueue, safeIndex, resolvedMode, normalizedContext);
-      } else {
-        updateActiveQueueLength(nativeQueue.length);
-        void syncNativeRemoteQueueAvailability();
-      }
+      // Refs above make Next/Previous authoritative immediately. Normalization,
+      // persistence and native queue availability are deferred until after load.
+      updateActiveQueueLength(nativeQueue.length);
       void removeStoredValues([POSITION_KEY]);
 
       let interruptDone = priorInterruptDone;
@@ -6811,6 +6827,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         userInitiated: true,
         userInterruptDone: interruptDone,
       });
+
+      deferPlaybackStartWork(
+        "post_load_queue_sync",
+        () => syncActiveQueue(nativeQueue, safeIndex, resolvedMode, normalizedContext),
+        { loadRequestId: loadRequestIdRef.current }
+      );
 
       if (deferredFullQueue?.length) {
         const fullQueueSnapshot = deferredFullQueue;
@@ -7027,7 +7049,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           tapRequestId,
         });
         void reconcileHiddenAudioBridgeWithNative();
-        await interruptCurrentPlaybackForUserTap(normalizedSong.id);
+        await interruptCurrentPlaybackForUserTap(normalizedSong.id, true);
         if (!isLatestTap()) {
           logTapLatencyDiagnostic("stale_tap_ignored_after_interrupt", tapStartedAt, {
             songId: normalizedSong.id,

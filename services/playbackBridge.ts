@@ -589,14 +589,15 @@ export async function activateHiddenAudioPlayback(options: {
   positionSeconds?: number;
   artworkUrl?: string;
   isLiveStream?: boolean;
-}): Promise<void> {
+  shouldPlay?: () => boolean;
+}): Promise<boolean> {
   logAndRememberLockscreenDiagnostic(
     "hidden_audio_load_track_start",
     { title: options.title, artist: options.artist, hasArtwork: Boolean(options.artworkUrl) },
     { lastBridgeEvent: "activate_hidden_audio_playback" }
   );
 
-  await hiddenAudioBridge.updateNowPlaying({
+  const metadata = {
     title: options.title,
     artist: options.artist,
     album: options.album || "",
@@ -604,13 +605,23 @@ export async function activateHiddenAudioPlayback(options: {
     position: options.positionSeconds ?? 0,
     artworkUrl: options.artworkUrl || "",
     isLiveStream: options.isLiveStream === true,
-  });
-  await hiddenAudioBridge.load(options.url);
+  };
+  // Carry metadata in the first native load request. Native publishes text
+  // immediately and defers artwork, avoiding a separate awaited bridge call
+  // before AVPlayerItem creation.
+  await hiddenAudioBridge.load(options.url, metadata);
   logAndRememberLockscreenDiagnostic(
     "hidden_audio_load_track_success",
     { title: options.title, artist: options.artist },
     { lastBridgeEvent: "activate_hidden_audio_loaded" }
   );
+
+  if (options.shouldPlay && !options.shouldPlay()) {
+    logPlaybackCritical("tap_to_play_stale_after_native_load", {
+      title: options.title,
+    });
+    return false;
+  }
 
   const startPositionMs = Math.max(0, Math.round((options.positionSeconds ?? 0) * 1000));
   if (startPositionMs > 0) {
@@ -649,6 +660,7 @@ export async function activateHiddenAudioPlayback(options: {
     { title: options.title, artist: options.artist },
     { lastBridgeEvent: "activate_hidden_audio_play_confirmed" }
   );
+  return true;
 }
 
 export async function deactivateHiddenAudioPlayback(
