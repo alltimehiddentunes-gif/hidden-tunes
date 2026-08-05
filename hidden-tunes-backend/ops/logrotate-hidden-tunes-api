@@ -1,0 +1,13 @@
+/root/.pm2/logs/hidden-tunes-api-out.log /root/.pm2/logs/hidden-tunes-api-error.log /var/lib/hidden-tunes/admin-upload-cleanup.jsonl {
+    daily
+    size 20M
+    rotate 14
+    maxage 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    create 0600 root root
+    su root root
+}
