@@ -49,5 +49,8 @@ export function trackToAppSong(track: Track): AppSong {
     type: "r2",
     isOnline: track.isOnline,
     album: track.album,
+    emotionalMetadataRaw: track.emotionalMetadataRaw as Record<string, unknown> | null | undefined,
+    emotionalVector: track.emotionalVector as Record<string, number> | null | undefined,
+    emotionalTags: track.emotionalTags,
   };
 }

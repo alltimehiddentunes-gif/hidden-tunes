@@ -24,6 +24,11 @@ import {
   SEARCH_COLD_START_RETRY_DELAY_MS,
   searchAttemptTimeoutMs,
 } from "../utils/searchColdStartPolicy";
+import type { PersistedEmotionalMetadata } from "../utils/emotionalMetadataPersistence";
+import {
+  restoreEmotionalMetadata,
+  snapshotEmotionalMetadata,
+} from "../utils/emotionalMetadataPersistence";
 
 const HIDDEN_TUNES_API_BASE_URL = "https://api.hiddentunes.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
@@ -173,6 +178,7 @@ type PersistedCatalogSongV5 = {
   createdAt?: string;
   sourceName?: "Hidden Tunes";
   type?: "r2";
+  emotionalMetadata?: PersistedEmotionalMetadata;
 };
 
 export type HiddenTunesAlbum = {
@@ -554,6 +560,7 @@ function toPersistedCatalogSongV5(
     createdAt: song.createdAt,
     sourceName: "Hidden Tunes",
     type: "r2",
+    emotionalMetadata: snapshotEmotionalMetadata(song),
   };
 }
 
@@ -589,6 +596,7 @@ function fromPersistedCatalogSongV5(
     isOnline: true,
     isPublic: true,
     createdAt: song.createdAt,
+    raw: restoreEmotionalMetadata(song.emotionalMetadata),
   };
 }
 

@@ -10,6 +10,8 @@ import {
   buildAlbumsFromSongs,
   slugifyCatalogToken,
 } from "../utils/hiddenTunesAlbumIdentity";
+import { normalizeEmotionalMetadata } from "../utils/normalizeEmotionalMetadata";
+import type { EmotionalMetadataRaw, EmotionalVector } from "../types/music";
 
 export { assignUniqueAlbumCatalogId } from "../utils/hiddenTunesAlbumIdentity";
 
@@ -30,6 +32,9 @@ export interface HiddenTunesSong {
   isOnline: boolean;
   sourceName?: "Hidden Tunes";
   type?: "r2";
+  emotionalMetadataRaw?: EmotionalMetadataRaw | null;
+  emotionalVector?: EmotionalVector | null;
+  emotionalTags?: string[];
 }
 
 export interface HiddenTunesArtistCatalogItem {
@@ -131,6 +136,7 @@ function normalizeSong(song: any, index: number): HiddenTunesSong {
     song?.audio_url,
     song?.url
   );
+  const emotional = normalizeEmotionalMetadata(song);
 
   return {
     id: cleanString(song?.id || song?.slug, slugify(`${artist}-${title}-${index}`)),
@@ -149,6 +155,9 @@ function normalizeSong(song: any, index: number): HiddenTunesSong {
     isOnline: true,
     sourceName: "Hidden Tunes",
     type: "r2",
+    emotionalMetadataRaw: emotional.emotionalMetadataRaw,
+    emotionalVector: emotional.emotionalVector,
+    emotionalTags: emotional.emotionalTags,
   };
 }
 
