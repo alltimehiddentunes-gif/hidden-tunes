@@ -152,6 +152,27 @@ async function findOrCreateAlbum(db, title, artistId, artworkUrl) {
   return { row: created.data, state: "created" };
 }
 
+function isMissingOptionalExplicitColumn(error) {
+  return (
+    error?.code === "PGRST204" &&
+    String(error?.message || "").includes("'explicit'")
+  );
+}
+
+async function insertStagedSong(db, payload) {
+  let result = await db.from("songs").insert(payload).select("*").single();
+  if (
+    result.error &&
+    payload.explicit == null &&
+    isMissingOptionalExplicitColumn(result.error)
+  ) {
+    const compatiblePayload = { ...payload };
+    delete compatiblePayload.explicit;
+    result = await db.from("songs").insert(compatiblePayload).select("*").single();
+  }
+  return result;
+}
+
 async function completeTrack(req, res) {
   const item = normalizedBody(req.body || {});
   if (!item.title || !item.audioUrl || !item.audioKey) {
@@ -218,7 +239,7 @@ async function completeTrack(req, res) {
       lyrics: item.lyrics,
       synced_lyrics: item.syncedLyrics,
     };
-    const inserted = await db.from("songs").insert(songInsert).select("*").single();
+    const inserted = await insertStagedSong(db, songInsert);
     if (inserted.error) throw inserted.error;
 
     const track = {
@@ -292,5 +313,10 @@ router.post("/api/admin/upload-file", ...secureChain(), (req, res) =>
 router.post("/api/admin/upload-track", ...secureChain(), jsonBody, completeTrack);
 router.post("/api/complete-song", ...secureChain(), jsonBody, completeTrack);
 
-export { normalizedBody, idempotencyKey };
+export {
+  idempotencyKey,
+  insertStagedSong,
+  isMissingOptionalExplicitColumn,
+  normalizedBody,
+};
 export default router;

@@ -4,6 +4,8 @@ import path from "node:path";
 
 import {
   idempotencyKey,
+  insertStagedSong,
+  isMissingOptionalExplicitColumn,
   normalizedBody,
 } from "../routes/adminUploadCompatibility.js";
 
@@ -51,6 +53,74 @@ const eight = Array.from({ length: 8 }, (_, index) =>
   idempotencyKey(actor, { ...body, audioKey: `songs/item-${index}.mp3` })
 );
 assert.equal(new Set(eight).size, 8, "eight intended items retain eight identities");
+
+function databaseFixture(results) {
+  const inserts = [];
+  return {
+    inserts,
+    from(table) {
+      assert.equal(table, "songs");
+      return {
+        insert(payload) {
+          inserts.push(payload);
+          return {
+            select() { return this; },
+            async single() { return results.shift(); },
+          };
+        },
+      };
+    },
+  };
+}
+
+assert.equal(
+  isMissingOptionalExplicitColumn({
+    code: "PGRST204",
+    message: "Could not find the 'explicit' column of 'songs' in the schema cache",
+  }),
+  true
+);
+
+const productionSchema = databaseFixture([
+  {
+    data: null,
+    error: {
+      code: "PGRST204",
+      message: "Could not find the 'explicit' column of 'songs' in the schema cache",
+    },
+  },
+  { data: { id: "staged-1", is_public: false }, error: null },
+]);
+const compatibleInsert = await insertStagedSong(productionSchema, {
+  id: "staged-1",
+  title: "Compatibility Track",
+  audio_url: body.audioUrl,
+  r2_audio_key: body.audioKey,
+  is_public: false,
+  explicit: null,
+});
+assert.equal(compatibleInsert.error, null);
+assert.equal(productionSchema.inserts.length, 2);
+assert.equal(productionSchema.inserts[0].explicit, null);
+assert.equal(Object.hasOwn(productionSchema.inserts[1], "explicit"), false);
+assert.equal(productionSchema.inserts[1].is_public, false);
+
+const classifiedSchema = databaseFixture([
+  {
+    data: null,
+    error: {
+      code: "PGRST204",
+      message: "Could not find the 'explicit' column of 'songs' in the schema cache",
+    },
+  },
+]);
+const classifiedInsert = await insertStagedSong(classifiedSchema, {
+  id: "classified-1",
+  is_public: false,
+  explicit: true,
+});
+assert.equal(classifiedInsert.error.code, "PGRST204");
+assert.equal(classifiedSchema.inserts.length, 1, "known classification is never silently dropped");
 
 const panel = fs.readFileSync(
   path.resolve("hidden-tunes-admin/components/BulkUploadPanel.tsx"),
