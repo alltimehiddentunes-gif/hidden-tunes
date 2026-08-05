@@ -34,6 +34,9 @@ final class HiddenAudioCarPlayManager: NSObject {
   private var isNavigationTransitionInProgress = false
   private var hasPendingCatalogRefresh = false
   private var hasUpgradedToTabs = false
+  private var templateMediaIds: [ObjectIdentifier: String] = [:]
+  private var lastSelectionMediaId = ""
+  private var lastSelectionAt: CFAbsoluteTime = 0
   /// Increments on each connect; stale async callbacks must ignore older generations.
   private var connectionGeneration: UInt64 = 0
   private var activeConnectionGeneration: UInt64 = 0
@@ -253,7 +256,11 @@ final class HiddenAudioCarPlayManager: NSObject {
       self.hasInstalledRoot = false
       self.isInstallingRoot = false
       self.isNavigationTransitionInProgress = false
+      self.hasPendingCatalogRefresh = false
       self.hasUpgradedToTabs = false
+      self.templateMediaIds.removeAll(keepingCapacity: false)
+      self.lastSelectionMediaId = ""
+      self.lastSelectionAt = 0
       self.activeConnectionGeneration = 0
       self.interfaceController = nil
       self.carWindow = nil
@@ -996,24 +1003,12 @@ final class HiddenAudioCarPlayManager: NSObject {
   ) {
     defer { completion() }
 
-    if node.mediaId.hasPrefix("empty:") || node.mediaId == "ready" {
+    if node.mediaId.hasPrefix("empty:") {
       return
     }
 
     if node.mediaId == "now_playing" || parentId == "now_playing" {
       presentNowPlayingIfConnected()
-      return
-    }
-
-    if node.mediaId == "browse_home" {
-      pushChildList(
-        for: HiddenAudioCarPlayBrowseNode(
-          mediaId: HiddenAudioCarPlayCatalog.rootId,
-          title: "Browse Library",
-          subtitle: "Music, radio, and more",
-          playable: false
-        )
-      )
       return
     }
 
@@ -1053,6 +1048,7 @@ final class HiddenAudioCarPlayManager: NSObject {
         title: node.title,
         sections: [CPListSection(items: items)]
       )
+      self.templateMediaIds[ObjectIdentifier(template)] = node.mediaId
       self.pushTemplateSafely(template, operation: "child_list", mediaId: node.mediaId)
     }
   }
@@ -1075,6 +1071,13 @@ final class HiddenAudioCarPlayManager: NSObject {
       completion?(false)
       return false
     }
+    if let mediaId, interfaceController.templates.contains(where: {
+      templateMediaIds[ObjectIdentifier($0)] == mediaId
+    }) {
+      emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "logical_template_already_in_stack", "operation": operation])
+      completion?(false)
+      return false
+    }
     guard interfaceController.presentedTemplate == nil else {
       emitDiagnostic(["event": "carplay_navigation_rejected", "reason": "modal_active", "operation": operation])
       completion?(false)
@@ -1086,6 +1089,7 @@ final class HiddenAudioCarPlayManager: NSObject {
       return false
     }
     let generation = activeConnectionGeneration
+    let navigationStartedAt = CFAbsoluteTimeGetCurrent()
     isNavigationTransitionInProgress = true
     interfaceController.pushTemplate(template, animated: true) { [weak self] success, error in
       guard let self else { return }
@@ -1105,6 +1109,13 @@ final class HiddenAudioCarPlayManager: NSObject {
           "success": success,
         ])
       }
+      #if DEBUG
+      self.emitLifecycleDiagnostic("carplay_navigation_latency", [
+        "operation": operation,
+        "elapsedMs": Int((CFAbsoluteTimeGetCurrent() - navigationStartedAt) * 1000),
+        "stackDepth": interfaceController.templates.count,
+      ])
+      #endif
       completion?(success)
     }
     return true
@@ -1142,6 +1153,13 @@ final class HiddenAudioCarPlayManager: NSObject {
       ])
       return
     }
+    let now = CFAbsoluteTimeGetCurrent()
+    guard mediaId != lastSelectionMediaId || now - lastSelectionAt >= 0.75 else {
+      emitDiagnostic(["event": "carplay_selection_rejected", "reason": "duplicate_tap"])
+      return
+    }
+    lastSelectionMediaId = mediaId
+    lastSelectionAt = now
     NSLog("[HTCarPlay] item_selected id=%@", mediaId)
     if supportsVideoPlaybackCached && mediaId.hasPrefix("video:") {
       // Audio-safe transition: still route through shared HiddenAudio, never render video in CarPlay.

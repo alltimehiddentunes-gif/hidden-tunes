@@ -140,19 +140,14 @@ enum HiddenAudioCarPlayCatalog {
       if let cached = childrenByParent["recently_played"], !cached.isEmpty {
         return cached
       }
-      let fallback = playableBrowseNodes(limit: limits.recentlyPlayed, excludingLive: true)
-      return fallback.isEmpty ? [emptyNode(for: parentId)] : fallback
+      return [emptyNode(for: parentId)]
     }
 
     if parentId == "made_for_you" {
       if let cached = childrenByParent["made_for_you"], !cached.isEmpty {
         return cached
       }
-      if let music = childrenByParent["music"], !music.isEmpty {
-        return music
-      }
-      let fallback = playableBrowseNodes(limit: limits.music, excludingLive: true)
-      return fallback.isEmpty ? [emptyNode(for: parentId)] : fallback
+      return [emptyNode(for: parentId)]
     }
 
     let nodes = childrenByParent[parentId] ?? []
