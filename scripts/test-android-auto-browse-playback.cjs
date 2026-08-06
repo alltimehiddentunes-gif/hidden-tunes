@@ -61,7 +61,7 @@ function testRootSynchronous() {
   assert.ok(mbs.includes("result.sendResult"));
 }
 
-function testUnsupportedRootsHidden() {
+function testOnlyUnresolvedRootsHidden() {
   const catalog = read("plugins/hidden-audio/android/HiddenAudioAutoCatalog.kt");
   mustInclude(
     "plugins/hidden-audio/android/HiddenAudioAutoCatalog.kt",
@@ -69,6 +69,7 @@ function testUnsupportedRootsHidden() {
     "unsupported set"
   );
   assert.ok(catalog.includes("SECTION_AUDIOBOOKS"));
+  assert.equal(/UNSUPPORTED_OPTIONAL_SECTIONS\s*=\s*setOf\([\s\S]*SECTION_AUDIOBOOKS/.test(catalog), false);
   assert.ok(catalog.includes("buildVisibleRootNodes"));
 
   const sync = read("services/androidAutoCatalogSync.ts");
@@ -166,7 +167,7 @@ async function testTapAuthorityBehaviour() {
 
 async function testCatalogVisibleRootsBehaviour() {
   // Inline mirror of buildVisibleRoots policy
-  const HIDDEN = new Set(["audiobooks", "motivationals", "lectures"]);
+  const HIDDEN = new Set(["motivationals", "lectures"]);
   function visible(sections) {
     const byParent = new Map(sections.map((s) => [s.parentId, s.items]));
     const order = [
@@ -175,6 +176,7 @@ async function testCatalogVisibleRootsBehaviour() {
       { id: "music", always: true },
       { id: "radio", always: false },
       { id: "podcasts", always: false },
+      { id: "audiobooks", always: false },
     ];
     return order
       .filter((e) => !HIDDEN.has(e.id))
@@ -188,7 +190,7 @@ async function testCatalogVisibleRootsBehaviour() {
       { parentId: "podcasts", items: [{ playable: true }] },
       { parentId: "audiobooks", items: [{ playable: true }] },
     ]),
-    ["music", "podcasts"]
+    ["music", "podcasts", "audiobooks"]
   );
   assert.deepEqual(
     visible([
@@ -203,7 +205,7 @@ function main() {
   console.log("test-android-auto-browse-playback: start");
   testNotifyChildrenChangedWired();
   testRootSynchronous();
-  testUnsupportedRootsHidden();
+  testOnlyUnresolvedRootsHidden();
   testTvExcluded();
   testTaskRemovalAlwaysStops();
   testSingleOwners();
