@@ -8493,6 +8493,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const normalizedCommand = String(command || "").toLowerCase();
       if (!normalizedCommand) return;
 
+      const incomingAndroidTransactionId = Number(data.transactionId || 0);
+      if (Platform.OS === "android" && incomingAndroidTransactionId > 0) {
+        const { acceptAndroidAutoTransaction, isAndroidAutoTransactionCurrent } =
+          await import("../services/androidAutoTapAuthority");
+        acceptAndroidAutoTransaction(incomingAndroidTransactionId);
+        if (!isAndroidAutoTransactionCurrent(incomingAndroidTransactionId)) {
+          logLockscreenPlaybackDiagnostic("remote_command_stale_transaction", {
+            command: normalizedCommand,
+            transactionId: incomingAndroidTransactionId,
+            phase: "before_dispatch",
+          });
+          return;
+        }
+      }
+
       // TV owns transport — never route car/lock-screen commands into the music queue.
       if (getActivePlaybackOwner() === "tv") {
         const mapped =
@@ -8712,6 +8727,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               stopPlayback: async () => undefined,
               correlationId,
               transactionId,
+              seekTo,
             });
             if (!result.ok) {
               if (result.reason === "stale_transaction") {
@@ -8747,6 +8763,37 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               correlationId,
               transactionId,
               source: "android_auto",
+            });
+            break;
+          }
+          case "reconcile_media_id": {
+            if (Platform.OS !== "android") break;
+            const mediaId = String((data as Record<string, unknown>).mediaId || "");
+            if (!mediaId) break;
+            const { resolveAndroidAutoQueueContext } = await import(
+              "../services/androidAutoMediaResolver"
+            );
+            const resolved = resolveAndroidAutoQueueContext(mediaId);
+            if (!resolved) {
+              logLockscreenPlaybackDiagnostic("android_auto_queue_reconcile_skipped", {
+                mediaId,
+                reason: "canonical_queue_unavailable",
+              });
+              break;
+            }
+            activeQueueRef.current = resolved.queue;
+            activeQueueIndexRef.current = resolved.index;
+            activeQueueModeRef.current = resolved.mode;
+            activeQueueContextRef.current = resolved.context as PlaybackQueueContext;
+            setActiveQueue(resolved.queue);
+            setActiveQueueIndex(resolved.index);
+            setActiveQueueMode(resolved.mode);
+            setActiveQueueContext(resolved.context as PlaybackQueueContext);
+            await syncNativeRemoteQueueAvailability();
+            logLockscreenPlaybackDiagnostic("android_auto_queue_reconciled_without_reload", {
+              mediaId,
+              queueIndex: resolved.index,
+              queueLength: resolved.queue.length,
             });
             break;
           }

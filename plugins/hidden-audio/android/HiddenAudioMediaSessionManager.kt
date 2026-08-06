@@ -17,6 +17,8 @@ object HiddenAudioMediaSessionManager {
   private var presentedIsPlaying = false
   private var presentedHasNext = false
   private var presentedHasPrevious = false
+  private var canonicalQueueIndex = 0
+  private var canonicalQueueSize = 0
   private var presentedIsLive = false
   private var lastPublishedMediaId: String = ""
   private var lastSessionActiveDiagnosticKey: String = ""
@@ -261,6 +263,10 @@ object HiddenAudioMediaSessionManager {
         if (contentType.isNotBlank()) {
           putString(MediaMetadataCompat.METADATA_KEY_GENRE, contentType)
         }
+        if (canonicalQueueSize > 0) {
+          putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, (canonicalQueueIndex + 1).toLong())
+          putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, canonicalQueueSize.toLong())
+        }
         // Prefer URI string only — never decode bitmaps repeatedly for radio.
         if (artworkUrl.isNotBlank()) {
           putString(MediaMetadataCompat.METADATA_KEY_ART_URI, artworkUrl)
@@ -320,15 +326,39 @@ object HiddenAudioMediaSessionManager {
       PlaybackStateCompat.ACTION_PLAY or
         PlaybackStateCompat.ACTION_PAUSE or
         PlaybackStateCompat.ACTION_PLAY_PAUSE or
-        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
         PlaybackStateCompat.ACTION_STOP or
         PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
         PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH
+    if (canonicalQueueIndex + 1 < canonicalQueueSize) {
+      actions = actions or PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+    }
+    if (canonicalQueueIndex > 0 && canonicalQueueSize > 0) {
+      actions = actions or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+    }
     if (!isLive) {
       actions = actions or PlaybackStateCompat.ACTION_SEEK_TO
     }
     return actions
+  }
+
+  fun updateRemoteQueueAvailability(activeIndex: Int, queueLength: Int) {
+    canonicalQueueSize = queueLength.coerceIn(0, 420)
+    canonicalQueueIndex = if (canonicalQueueSize == 0) 0
+      else activeIndex.coerceIn(0, canonicalQueueSize - 1)
+    val session = mediaSession ?: return
+    session.controller.metadata?.let { currentMetadata ->
+      val metadataBuilder = MediaMetadataCompat.Builder(currentMetadata)
+      if (canonicalQueueSize > 0) {
+        metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER,
+          (canonicalQueueIndex + 1).toLong())
+        metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS,
+          canonicalQueueSize.toLong())
+      }
+      session.setMetadata(metadataBuilder.build())
+    }
+    val current = session.controller.playbackState ?: return
+    session.setPlaybackState(PlaybackStateCompat.Builder(current)
+      .setActions(transportActions(presentedIsLive)).build())
   }
 
   private fun presentedTransportActions(): Long {
@@ -353,11 +383,12 @@ object HiddenAudioMediaSessionManager {
 
   private val sessionCallback = object : MediaSessionCompat.Callback() {
     override fun onPlay() {
+      val handle = HiddenAudioPlaybackTransaction.begin("", "remote_play")
       HiddenAudioCore.emitAutoDiagnostic("remote_command_received", Arguments.createMap().apply {
         putString("command", "play")
       })
       if (presentedExternalOwner) {
-        HiddenAudioCore.emitRemoteCommand("play")
+        HiddenAudioCore.emitRemoteCommand("play", handle = handle)
         return
       }
       HiddenAudioCore.emitAutoDiagnostic("android_auto_play_forced")
@@ -365,44 +396,50 @@ object HiddenAudioMediaSessionManager {
     }
 
     override fun onPause() {
+      val handle = HiddenAudioPlaybackTransaction.begin("", "remote_pause")
       HiddenAudioCore.emitAutoDiagnostic("remote_command_received", Arguments.createMap().apply {
         putString("command", "pause")
       })
       if (presentedExternalOwner) {
-        HiddenAudioCore.emitRemoteCommand("pause")
+        HiddenAudioCore.emitRemoteCommand("pause", handle = handle)
         return
       }
       HiddenAudioCore.pauseForcedFromSession()
     }
 
     override fun onStop() {
+      val handle = HiddenAudioPlaybackTransaction.begin("", "remote_stop")
       HiddenAudioCore.emitAutoDiagnostic("remote_command_received", Arguments.createMap().apply {
         putString("command", "stop")
       })
       if (presentedExternalOwner) {
-        HiddenAudioCore.emitRemoteCommand("stop")
+        HiddenAudioCore.emitRemoteCommand("stop", handle = handle)
         return
       }
       HiddenAudioCore.stopForcedFromSession()
     }
 
     override fun onSkipToNext() {
+      if (canonicalQueueIndex + 1 >= canonicalQueueSize) return
+      val handle = HiddenAudioPlaybackTransaction.begin("", "remote_next")
       HiddenAudioCore.emitAutoDiagnostic("remote_command_received", Arguments.createMap().apply {
         putString("command", "next")
       })
       if (presentedExternalOwner) {
-        HiddenAudioCore.emitRemoteCommand("next")
+        HiddenAudioCore.emitRemoteCommand("next", handle = handle)
         return
       }
       HiddenAudioCore.skipToNextFromSession()
     }
 
     override fun onSkipToPrevious() {
+      if (canonicalQueueSize <= 0 || canonicalQueueIndex <= 0) return
+      val handle = HiddenAudioPlaybackTransaction.begin("", "remote_previous")
       HiddenAudioCore.emitAutoDiagnostic("remote_command_received", Arguments.createMap().apply {
         putString("command", "previous")
       })
       if (presentedExternalOwner) {
-        HiddenAudioCore.emitRemoteCommand("previous")
+        HiddenAudioCore.emitRemoteCommand("previous", handle = handle)
         return
       }
       HiddenAudioCore.skipToPreviousFromSession()
@@ -441,9 +478,14 @@ object HiddenAudioMediaSessionManager {
         HiddenAudioCore.playForcedFromSession()
         return
       }
-      val first = HiddenAudioAutoCatalog.search(safeQuery, limit = 1).firstOrNull()
-      if (first != null && first.playable) {
-        HiddenAudioCore.playFromAutoMediaId(first.mediaId)
+      val first = HiddenAudioAutoCatalog.search(safeQuery, limit = 24).firstOrNull()
+      val playableMediaId = when {
+        first == null -> null
+        first.playable -> first.mediaId
+        else -> HiddenAudioAutoCatalog.firstPlayableDescendant(first.mediaId)
+      }
+      if (playableMediaId != null) {
+        HiddenAudioCore.playFromAutoMediaId(playableMediaId)
       } else {
         HiddenAudioCore.emitRemoteCommand("search_play", safeQuery)
       }

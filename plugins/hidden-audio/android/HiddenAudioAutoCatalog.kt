@@ -3,6 +3,7 @@ package com.hiddentunes.app.audio
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.SystemClock
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
 import com.facebook.react.bridge.Arguments
@@ -20,6 +21,9 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object HiddenAudioAutoCatalog {
   const val ROOT_ID = "hidden_tunes_root"
+  const val ROOT_LISTEN = "listen"
+  const val ROOT_RADIO = "radio"
+  const val ROOT_LIBRARY = "library"
 
   const val SECTION_RECENT = "recently_played"
   const val SECTION_FAVORITES = "favorites"
@@ -31,19 +35,18 @@ object HiddenAudioAutoCatalog {
   const val SECTION_LECTURES = "lectures"
 
   private val UNSUPPORTED_OPTIONAL_SECTIONS = setOf(
-    SECTION_AUDIOBOOKS,
     SECTION_MOTIVATION,
     SECTION_LECTURES
   )
   private val OPTIONAL_SECTION_IDS = listOf(
-    SECTION_RECENT,
-    SECTION_FAVORITES,
-    SECTION_RADIO,
-    SECTION_PODCASTS
+    ROOT_LISTEN,
+    ROOT_RADIO,
+    ROOT_LIBRARY
   )
 
   private const val PREFS_NAME = "hidden_audio_auto_catalog"
-  private const val PREFS_KEY = "snapshot_json_v2"
+  private const val PREFS_KEY = "snapshot_json_v3"
+  private const val SNAPSHOT_SCHEMA_VERSION = 3
   private const val MAX_CHILDREN = 48
   private const val MAX_TRACKS = 420
   private const val MAX_SEARCH = 24
@@ -58,7 +61,16 @@ object HiddenAudioAutoCatalog {
     val artworkUrl: String,
     val durationSeconds: Double,
     val contentType: String,
-    val isLive: Boolean
+    val isLive: Boolean,
+    val parentId: String = "",
+    val canonicalId: String = "",
+    val isMature: Boolean = false,
+    val showId: String = "",
+    val episodeId: String = "",
+    val bookId: String = "",
+    val chapterId: String = "",
+    val resumePositionMillis: Double = 0.0,
+    val collection: String = ""
   )
 
   data class BrowseNode(
@@ -75,6 +87,11 @@ object HiddenAudioAutoCatalog {
   private val orderedPlayableMediaIds = mutableListOf<String>()
   private var prefs: SharedPreferences? = null
   private var hydratedFromDisk = false
+  private var activeProfileNamespace = "anonymous"
+  private var snapshotSignature = ""
+  private var snapshotGeneratedAt = 0L
+  private var matureAllowed = false
+  private var maturePodcastAllowed = false
 
   fun attachContext(context: Context) {
     if (prefs == null) {
@@ -91,8 +108,21 @@ object HiddenAudioAutoCatalog {
   }
 
   fun applySnapshot(snapshot: ReadableMap): List<String> {
+    val parseStartedAt = SystemClock.elapsedRealtime()
     val before = parentContentSignatures()
+    val schemaVersion = snapshot.getDoubleSafe("schemaVersion", 0.0).toInt()
+    val profileNamespace = snapshot.getStringSafe("profileNamespace", "")
+    if (schemaVersion != SNAPSHOT_SCHEMA_VERSION || profileNamespace.isBlank()) {
+      clear()
+      prefs?.edit()?.remove(PREFS_KEY)?.apply()
+      return (before.keys + ROOT_ID).distinct()
+    }
     clear()
+    activeProfileNamespace = profileNamespace
+    snapshotSignature = snapshot.getStringSafe("signature", "")
+    snapshotGeneratedAt = snapshot.getDoubleSafe("generatedAt", 0.0).toLong()
+    matureAllowed = snapshot.getBooleanSafe("matureAllowed", false)
+    maturePodcastAllowed = snapshot.getBooleanSafe("maturePodcastAllowed", false)
 
     val roots = snapshot.getArraySafe("roots")
     if (roots != null) {
@@ -128,11 +158,13 @@ object HiddenAudioAutoCatalog {
             inferContentType(mediaId)
           ).lowercase()
           if (contentType == "tv" || contentType == "video" || contentType == "sports") continue
-          if (contentType in listOf("audiobook", "motivation", "lecture")) continue
+          if (contentType in listOf("motivation", "lecture")) continue
           // URL optional — radio/podcast/etc may resolve via JS canonical path.
           val url = trackMap.getStringSafe("url", "")
           val isLive =
             trackMap.getBooleanSafe("isLive", contentType.equals("radio", ignoreCase = true))
+          val isMature = trackMap.getBooleanSafe("isMature", false)
+          if (isMature && !isMatureDomainAllowed(contentType)) continue
           tracksByMediaId[mediaId] = AutoTrack(
             mediaId = mediaId,
             id = trackMap.getStringSafe("id", mediaId),
@@ -143,7 +175,16 @@ object HiddenAudioAutoCatalog {
             artworkUrl = trackMap.getStringSafe("artworkUrl", ""),
             durationSeconds = if (isLive) 0.0 else trackMap.getDoubleSafe("durationSeconds", 0.0),
             contentType = contentType,
-            isLive = isLive
+            isLive = isLive,
+            parentId = trackMap.getStringSafe("parentId", ""),
+            canonicalId = trackMap.getStringSafe("canonicalId", trackMap.getStringSafe("id", mediaId)),
+            isMature = isMature,
+            showId = trackMap.getStringSafe("showId", ""),
+            episodeId = trackMap.getStringSafe("episodeId", ""),
+            bookId = trackMap.getStringSafe("bookId", ""),
+            chapterId = trackMap.getStringSafe("chapterId", ""),
+            resumePositionMillis = trackMap.getDoubleSafe("resumePositionMillis", 0.0),
+            collection = trackMap.getStringSafe("collection", "")
           )
           if (!orderedPlayableMediaIds.contains(mediaId)) {
             orderedPlayableMediaIds.add(mediaId)
@@ -153,11 +194,22 @@ object HiddenAudioAutoCatalog {
       }
     }
 
+    // Browse nodes are never trusted independently of the bounded, policy-
+    // checked registry. This removes mature stale leaves and any item trimmed
+    // by the registry cap before the host can select it.
+    filterUnregisteredPlayableNodes()
+
     ensureSectionFallbacks()
     childrenByParent[ROOT_ID] = buildVisibleRootNodes(
       childrenByParent[ROOT_ID] ?: emptyList()
     )
     persistToDisk()
+    HiddenAudioCore.emitAutoPerformanceDiagnostic("android_auto_snapshot_metrics", Arguments.createMap().apply {
+      putInt("registryItemCount", tracksByMediaId.size)
+      putInt("folderCount", childrenByParent.size)
+      putInt("artworkUriCount", tracksByMediaId.values.count { it.artworkUrl.isNotBlank() })
+      putDouble("parseElapsedMs", (SystemClock.elapsedRealtime() - parseStartedAt).toDouble())
+    })
 
     val after = parentContentSignatures()
     val changed = linkedSetOf<String>()
@@ -168,7 +220,7 @@ object HiddenAudioAutoCatalog {
       if (!after.containsKey(parentId)) changed.add(parentId)
     }
     // Root always notified when any top-level membership changed.
-    if (changed.any { it != ROOT_ID && it in OPTIONAL_SECTION_IDS + listOf(SECTION_MUSIC) }) {
+    if (changed.any { it != ROOT_ID && it in OPTIONAL_SECTION_IDS }) {
       changed.add(ROOT_ID)
     }
     return changed.toList()
@@ -224,11 +276,28 @@ object HiddenAudioAutoCatalog {
     val needle = query.trim().lowercase()
     if (needle.isEmpty()) return emptyList()
     val matches = mutableListOf<BrowseNode>()
-    for (track in tracksByMediaId.values) {
-      val hay = listOf(track.title, track.artist, track.album, track.contentType)
+    val seenMediaIds = linkedSetOf<String>()
+    val seenCanonicalIds = linkedSetOf<String>()
+    // Exact collection/show/book folders lead so Play From Search preserves
+    // the requested domain queue instead of falling back to a generic song.
+    for (parentId in childrenByParent.keys.sorted()) {
+      val nodes = childrenByParent[parentId] ?: continue
+      for (node in nodes) {
+        if (node.playable || node.mediaId.startsWith("empty:")) continue
+        val hay = "${node.title} ${node.subtitle}".lowercase()
+        if (!hay.contains(needle) || !seenMediaIds.add(node.mediaId)) continue
+        matches.add(node)
+        if (matches.size >= limit) return matches
+      }
+    }
+    for (mediaId in orderedPlayableMediaIdsSnapshot()) {
+      val track = tracksByMediaId[mediaId] ?: continue
+      val hay = listOf(track.title, track.artist, track.album, track.contentType, track.collection)
         .joinToString(" ")
         .lowercase()
       if (!hay.contains(needle)) continue
+      val canonicalId = track.canonicalId.ifBlank { track.id }
+      if (!seenCanonicalIds.add("${track.contentType}:$canonicalId")) continue
       matches.add(
         BrowseNode(
           mediaId = track.mediaId,
@@ -239,21 +308,28 @@ object HiddenAudioAutoCatalog {
           contentType = track.contentType
         )
       )
+      seenMediaIds.add(track.mediaId)
       if (matches.size >= limit) break
     }
-    if (matches.isNotEmpty()) return matches
-
-    // Fall back to browse node titles (folders / favorites without track payloads).
-    for (nodes in childrenByParent.values) {
-      for (node in nodes) {
-        if (!node.playable) continue
-        val hay = "${node.title} ${node.subtitle}".lowercase()
-        if (!hay.contains(needle)) continue
-        matches.add(node)
-        if (matches.size >= limit) return matches
-      }
-    }
     return matches
+  }
+
+  fun firstPlayableDescendant(parentId: String, maxDepth: Int = 4): String? {
+    var frontier = listOf(parentId)
+    val visited = linkedSetOf<String>()
+    repeat(maxDepth.coerceIn(1, 4)) {
+      val next = mutableListOf<String>()
+      for (current in frontier) {
+        if (!visited.add(current)) continue
+        for (node in childrenByParent[current] ?: emptyList()) {
+          if (node.playable && tracksByMediaId.containsKey(node.mediaId)) return node.mediaId
+          if (!node.playable && !node.mediaId.startsWith("empty:")) next.add(node.mediaId)
+        }
+      }
+      frontier = next
+      if (frontier.isEmpty()) return null
+    }
+    return null
   }
 
   fun firstPlayableMediaId(): String? = orderedPlayableMediaIdsSnapshot().firstOrNull()
@@ -282,7 +358,12 @@ object HiddenAudioAutoCatalog {
     return tracksByMediaId.values.firstOrNull { it.url == cleanUrl }?.mediaId
   }
 
-  fun getTrack(mediaId: String): AutoTrack? = tracksByMediaId[mediaId]
+  fun getTrack(mediaId: String): AutoTrack? = tracksByMediaId[mediaId]?.takeIf {
+    !it.isMature || isMatureDomainAllowed(it.contentType)
+  }
+
+  private fun isMatureDomainAllowed(contentType: String): Boolean =
+    if (contentType.equals("podcast", ignoreCase = true)) maturePodcastAllowed else matureAllowed
 
   fun trackToWritableMap(track: AutoTrack): WritableMap {
     val map = Arguments.createMap()
@@ -296,6 +377,15 @@ object HiddenAudioAutoCatalog {
     map.putString("contentType", track.contentType)
     map.putBoolean("isLive", track.isLive)
     map.putString("mediaId", track.mediaId)
+    map.putString("parentId", track.parentId)
+    map.putString("canonicalId", track.canonicalId)
+    map.putBoolean("isMature", track.isMature)
+    map.putString("showId", track.showId)
+    map.putString("episodeId", track.episodeId)
+    map.putString("bookId", track.bookId)
+    map.putString("chapterId", track.chapterId)
+    map.putDouble("resumePositionMillis", track.resumePositionMillis)
+    map.putString("collection", track.collection)
     return map
   }
 
@@ -320,7 +410,9 @@ object HiddenAudioAutoCatalog {
       }
     }
     val flags =
-      if (node.playable) {
+      if (node.mediaId.startsWith("empty:")) {
+        0
+      } else if (node.playable) {
         MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
       } else {
         MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
@@ -330,6 +422,25 @@ object HiddenAudioAutoCatalog {
 
   private fun orderedPlayableMediaIdsSnapshot(): List<String> =
     synchronized(orderedPlayableMediaIds) { orderedPlayableMediaIds.toList() }
+
+  private fun filterUnregisteredPlayableNodes() {
+    for ((parentId, nodes) in childrenByParent.entries.toList()) {
+      if (parentId == ROOT_ID) continue
+      childrenByParent[parentId] = nodes.filter { node ->
+        !node.playable || tracksByMediaId.containsKey(node.mediaId)
+      }
+    }
+    val knownParents = childrenByParent.keys.toSet()
+    for ((parentId, nodes) in childrenByParent.entries.toList()) {
+      if (parentId == ROOT_ID) continue
+      val closed = nodes.filter { node ->
+        node.playable || node.mediaId.startsWith("empty:") || node.mediaId in knownParents
+      }
+      childrenByParent[parentId] = if (closed.isEmpty()) {
+        listOf(disabledEmptyNode(parentId, "No matching audio is available."))
+      } else closed
+    }
+  }
 
   private fun ensureSectionFallbacks() {
     if (!childrenByParent.containsKey(SECTION_MUSIC) ||
@@ -341,19 +452,33 @@ object HiddenAudioAutoCatalog {
     for (unsupported in UNSUPPORTED_OPTIONAL_SECTIONS) {
       childrenByParent[unsupported] = emptyList()
     }
+    if (!childrenByParent.containsKey(ROOT_LISTEN)) {
+      childrenByParent[ROOT_LISTEN] = listOf(disabledEmptyNode(
+        ROOT_LISTEN, "Continue listening on your phone to see unfinished audio here."
+      ))
+    }
+    if (!childrenByParent.containsKey(ROOT_RADIO)) {
+      childrenByParent[ROOT_RADIO] = listOf(disabledEmptyNode(
+        ROOT_RADIO, "Favorite stations will appear here."
+      ))
+    }
+    if (!childrenByParent.containsKey(ROOT_LIBRARY)) {
+      childrenByParent[ROOT_LIBRARY] = listOf(
+        BrowseNode(SECTION_MUSIC, "Saved Music", "Songs and collections", false, contentType = "music")
+      )
+    }
   }
 
-  /** Always-available Music root. Optional domains only when they have playable children. */
-  private fun defaultRootNodes(): List<BrowseNode> = listOf(
-    BrowseNode(SECTION_MUSIC, "Music", "Songs and collections", false, contentType = "music")
-  )
+  private fun disabledEmptyNode(parentId: String, title: String) =
+    BrowseNode("empty:$parentId", title, "", false)
+
+  /** The premium Android Auto hierarchy always has exactly three roots. */
+  private fun defaultRootNodes(): List<BrowseNode> = candidateRootNodes()
 
   private fun candidateRootNodes(): List<BrowseNode> = listOf(
-    BrowseNode(SECTION_RECENT, "Recently Played", "Continue listening", false, contentType = "recent"),
-    BrowseNode(SECTION_FAVORITES, "Favorites", "Saved audio", false, contentType = "favorites"),
-    BrowseNode(SECTION_MUSIC, "Music", "Songs and collections", false, contentType = "music"),
-    BrowseNode(SECTION_RADIO, "Radio", "Live stations", false, contentType = "radio"),
-    BrowseNode(SECTION_PODCASTS, "Podcasts", "Episodes", false, contentType = "podcast")
+    BrowseNode(ROOT_LISTEN, "Listen", "Your listening", false, contentType = "audio"),
+    BrowseNode(ROOT_RADIO, "Radio", "Live stations", false, contentType = "radio"),
+    BrowseNode(ROOT_LIBRARY, "Library", "Music, podcasts, and books", false, contentType = "audio")
   )
 
   private fun musicHomeNodes(): List<BrowseNode> = listOf(
@@ -383,30 +508,9 @@ object HiddenAudioAutoCatalog {
     val visible = mutableListOf<BrowseNode>()
     for (candidate in candidateRootNodes()) {
       val node = byId[candidate.mediaId] ?: continue
-      if (node.mediaId in UNSUPPORTED_OPTIONAL_SECTIONS) continue
-      if (node.mediaId == SECTION_MUSIC) {
-        visible.add(node)
-        continue
-      }
-      if (sectionHasPlayableOrBrowseChildren(node.mediaId)) {
-        visible.add(node)
-      }
-    }
-    if (visible.none { it.mediaId == SECTION_MUSIC }) {
-      visible.add(
-        0,
-        BrowseNode(SECTION_MUSIC, "Music", "Songs and collections", false, contentType = "music")
-      )
+      visible.add(node)
     }
     return visible
-  }
-
-  private fun sectionHasPlayableOrBrowseChildren(sectionId: String): Boolean {
-    val children = childrenByParent[sectionId] ?: return false
-    if (children.isEmpty()) return false
-    // Prefer at least one playable leaf; otherwise allow non-empty browsable folder only for music.
-    return children.any { it.playable } ||
-      (sectionId == SECTION_MUSIC && children.isNotEmpty())
   }
 
   private fun parentContentSignatures(): Map<String, String> {
@@ -460,8 +564,15 @@ object HiddenAudioAutoCatalog {
 
   private fun persistToDisk() {
     val store = prefs ?: return
+    val startedAt = SystemClock.elapsedRealtime()
     try {
       val root = JSONObject()
+      root.put("schemaVersion", SNAPSHOT_SCHEMA_VERSION)
+      root.put("profileNamespace", activeProfileNamespace)
+      root.put("signature", snapshotSignature)
+      root.put("generatedAt", snapshotGeneratedAt)
+      root.put("matureAllowed", matureAllowed)
+      root.put("maturePodcastAllowed", maturePodcastAllowed)
       val roots = JSONArray()
       for (node in childrenByParent[ROOT_ID] ?: defaultRootNodes()) {
         roots.put(nodeToJson(node))
@@ -495,10 +606,24 @@ object HiddenAudioAutoCatalog {
             .put("durationSeconds", track.durationSeconds)
             .put("contentType", track.contentType)
             .put("isLive", track.isLive)
+            .put("parentId", track.parentId)
+            .put("canonicalId", track.canonicalId)
+            .put("isMature", track.isMature)
+            .put("showId", track.showId)
+            .put("episodeId", track.episodeId)
+            .put("bookId", track.bookId)
+            .put("chapterId", track.chapterId)
+            .put("resumePositionMillis", track.resumePositionMillis)
+            .put("collection", track.collection)
         )
       }
       root.put("tracks", tracks)
-      store.edit().putString(PREFS_KEY, root.toString()).apply()
+      val serialized = root.toString()
+      store.edit().putString(PREFS_KEY, serialized).apply()
+      HiddenAudioCore.emitAutoPerformanceDiagnostic("android_auto_snapshot_persist_timing", Arguments.createMap().apply {
+        putInt("serializedBytes", serialized.toByteArray(Charsets.UTF_8).size)
+        putDouble("elapsedMs", (SystemClock.elapsedRealtime() - startedAt).toDouble())
+      })
     } catch (_: Throwable) {
       // Persistence is best-effort; never crash browse.
     }
@@ -512,6 +637,20 @@ object HiddenAudioAutoCatalog {
     if (childrenByParent.containsKey(ROOT_ID) && tracksByMediaId.isNotEmpty()) return
     try {
       val root = JSONObject(raw)
+      if (root.optInt("schemaVersion", 0) != SNAPSHOT_SCHEMA_VERSION) {
+        prefs?.edit()?.remove(PREFS_KEY)?.apply()
+        return
+      }
+      val profileNamespace = root.optString("profileNamespace", "")
+      if (profileNamespace.isBlank()) {
+        prefs?.edit()?.remove(PREFS_KEY)?.apply()
+        return
+      }
+      activeProfileNamespace = profileNamespace
+      snapshotSignature = root.optString("signature", "")
+      snapshotGeneratedAt = root.optLong("generatedAt", 0L)
+      matureAllowed = root.optBoolean("matureAllowed", false)
+      maturePodcastAllowed = root.optBoolean("maturePodcastAllowed", false)
       val rootsArr = root.optJSONArray("roots")
       if (rootsArr != null) {
         childrenByParent[ROOT_ID] = filterVisibleRoots(jsonNodes(rootsArr))
@@ -535,6 +674,8 @@ object HiddenAudioAutoCatalog {
             if (mediaId.isBlank()) continue
             val contentType = t.optString("contentType", inferContentType(mediaId))
             val isLive = t.optBoolean("isLive", contentType.equals("radio", ignoreCase = true))
+            val isMature = t.optBoolean("isMature", false)
+            if (isMature && !isMatureDomainAllowed(contentType)) continue
             tracksByMediaId[mediaId] = AutoTrack(
               mediaId = mediaId,
               id = t.optString("id", mediaId),
@@ -545,14 +686,27 @@ object HiddenAudioAutoCatalog {
               artworkUrl = t.optString("artworkUrl", ""),
               durationSeconds = if (isLive) 0.0 else t.optDouble("durationSeconds", 0.0),
               contentType = contentType,
-              isLive = isLive
+              isLive = isLive,
+              parentId = t.optString("parentId", ""),
+              canonicalId = t.optString("canonicalId", t.optString("id", mediaId)),
+              isMature = isMature,
+              showId = t.optString("showId", ""),
+              episodeId = t.optString("episodeId", ""),
+              bookId = t.optString("bookId", ""),
+              chapterId = t.optString("chapterId", ""),
+              resumePositionMillis = t.optDouble("resumePositionMillis", 0.0),
+              collection = t.optString("collection", "")
             )
             orderedPlayableMediaIds.add(mediaId)
           }
         }
       }
+      filterUnregisteredPlayableNodes()
     } catch (_: Throwable) {
-      // Corrupt cache — fall back to defaults.
+      // Corrupt cache fails closed and is removed so it cannot leave partial
+      // profile data in memory or create a restore loop.
+      clear()
+      prefs?.edit()?.remove(PREFS_KEY)?.apply()
     }
     ensureSectionFallbacks()
     childrenByParent[ROOT_ID] = buildVisibleRootNodes(

@@ -154,6 +154,16 @@ object HiddenAudioCore {
   fun notifyReactHostReady() {
     HiddenAudioPendingCommandQueue.markReactReady(true)
     flushPendingRemoteCommands()
+    // A cold-start item may already be playing natively. Ask JS to attach its
+    // canonical queue without issuing another load or changing position.
+    val activeMediaId = activeTrack?.mediaId.orEmpty()
+    if (activeMediaId.isNotBlank()) {
+      emitRemoteCommand(
+        "reconcile_media_id",
+        activeMediaId,
+        HiddenAudioPlaybackTransaction.current()
+      )
+    }
   }
 
 
@@ -1706,6 +1716,10 @@ object HiddenAudioCore {
 
   fun emitAutoDiagnostic(eventName: String, data: WritableMap = Arguments.createMap()) {
     emitDiagnostic(eventName, data)
+  }
+
+  fun emitAutoPerformanceDiagnostic(eventName: String, data: WritableMap = Arguments.createMap()) {
+    emitJsDiagnosticThrottled(eventName, data)
   }
 
   fun emitAudioRouteDiagnosticForAuto(source: String) {

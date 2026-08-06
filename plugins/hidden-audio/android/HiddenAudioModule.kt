@@ -253,6 +253,13 @@ class HiddenAudioModule(
   }
 
   @ReactMethod
+  fun updateRemoteQueueAvailability(activeIndex: Int, queueLength: Int, promise: Promise) {
+    runOnMain(promise, "HIDDEN_AUDIO_QUEUE_AVAILABILITY_FAILED", "hidden_audio_queue_availability_failed") {
+      HiddenAudioMediaSessionManager.updateRemoteQueueAvailability(activeIndex, queueLength)
+    }
+  }
+
+  @ReactMethod
   fun setPresentedNowPlaying(info: ReadableMap, promise: Promise) {
     runOnMain(promise, "HIDDEN_AUDIO_SET_PRESENTED_FAILED", "hidden_audio_set_presented_failed") {
       HiddenAudioCore.attachReactContext(reactContext)

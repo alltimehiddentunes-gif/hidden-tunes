@@ -6,6 +6,7 @@
 import { getCachedHiddenTunesCatalog } from "./hiddenTunes";
 import {
   getAndroidAutoPlayableTrack,
+  getCurrentAndroidAutoCatalogSnapshot,
   parseAndroidAutoMediaId,
   resolveAndroidAutoMediaId,
 } from "./androidAutoCatalogSync";
@@ -26,10 +27,12 @@ import {
 } from "../utils/podcastPlaybackAdapter";
 import type { RadioStation } from "../types/radio";
 import type { AppSong } from "../context/PlayerContext";
+import { isAndroidAutoContentVisible } from "./androidAutoVisibility";
 
 export type AndroidAutoResolveDeps = PlaybackRouterDeps & {
   correlationId?: string;
   transactionId?: number;
+  seekTo?: (positionMillis: number) => Promise<void>;
 };
 
 function logAndroidAutoPlayback(
@@ -64,7 +67,7 @@ function radioStationFromFavoriteOrCatalog(id: string): RadioStation | null {
       normalizeRadioFavoriteStationId(item.id) === clean
   );
   if (favorite) {
-    return {
+    const station: RadioStation = {
       id: clean,
       title: favorite.title,
       streamUrl: String(favorite.metadata?.streamUrl || ""),
@@ -80,6 +83,7 @@ function radioStationFromFavoriteOrCatalog(id: string): RadioStation | null {
         : [],
       source: "radio",
     };
+    return isAndroidAutoContentVisible(station, "radio") ? station : null;
   }
 
   return {
@@ -97,7 +101,8 @@ function songFromFavorite(id: string): AppSong | null {
   );
   if (!favorite) return null;
   try {
-    return songFavoriteToAppSong(favorite) as AppSong;
+    const song = songFavoriteToAppSong(favorite) as AppSong;
+    return isAndroidAutoContentVisible(song, "music") ? song : null;
   } catch {
     return null;
   }
@@ -106,6 +111,7 @@ function songFromFavorite(id: string): AppSong | null {
 function songFromAndroidAutoTrack(mediaId: string): AppSong | null {
   const track = getAndroidAutoPlayableTrack(mediaId);
   if (!track?.url) return null;
+  const raw = track as typeof track & Record<string, unknown>;
   return {
     id: track.id || mediaId,
     title: track.title || "Untitled",
@@ -117,7 +123,89 @@ function songFromAndroidAutoTrack(mediaId: string): AppSong | null {
     streamUrl: track.url,
     url: track.url,
     duration: track.durationSeconds || 0,
+    contentType: track.contentType,
+    type: track.contentType === "podcast" ? "podcast"
+      : track.contentType === "radio" ? "live_stream" : undefined,
+    episodeId: String(raw.episodeId || "") || undefined,
+    showId: String(raw.showId || "") || undefined,
+    showTitle: track.contentType === "podcast" ? track.artist : undefined,
+    albumId: String(raw.bookId || "") || undefined,
   } as AppSong;
+}
+
+function radioStationFromSnapshot(mediaId: string): RadioStation | null {
+  const track = getAndroidAutoPlayableTrack(mediaId);
+  if (!track || track.contentType !== "radio" || !track.url) return null;
+  return {
+    id: String(track.canonicalId || track.id),
+    title: track.title || "Radio",
+    streamUrl: track.url,
+    artworkUrl: track.artworkUrl || undefined,
+    tags: [],
+    source: "radio",
+  };
+}
+
+function resolveSnapshotMusicQueue(mediaId: string) {
+  const snapshot = getCurrentAndroidAutoCatalogSnapshot();
+  const selectedTrack = getAndroidAutoPlayableTrack(mediaId);
+  if (!snapshot || !selectedTrack) return null;
+  const parentId = String(selectedTrack.parentId || "recently_added");
+  const section = snapshot.sections.find((entry) => entry.parentId === parentId);
+  const queue = (section?.items || [])
+    .filter((item) => item.playable)
+    .map((item) => songFromAndroidAutoTrack(item.mediaId))
+    .filter((song): song is AppSong => Boolean(song));
+  const song = songFromAndroidAutoTrack(mediaId);
+  if (!song) return null;
+  const selectedCanonicalId = String(selectedTrack.canonicalId || selectedTrack.id);
+  const index = queue.findIndex((entry) => String(entry.id) === selectedCanonicalId);
+  return {
+    song,
+    queue: index >= 0 ? queue : [song],
+    index: index >= 0 ? index : 0,
+    parentId,
+  };
+}
+
+function resolveSnapshotDomainQueue(mediaId: string, expectedDomain: "podcast" | "audiobook") {
+  const snapshot = getCurrentAndroidAutoCatalogSnapshot();
+  const selectedTrack = getAndroidAutoPlayableTrack(mediaId);
+  if (!snapshot || !selectedTrack || selectedTrack.contentType !== expectedDomain) return null;
+  const parentId = String(selectedTrack.parentId || "");
+  const section = snapshot.sections.find((entry) => entry.parentId === parentId);
+  const queue = (section?.items || []).filter((item) => item.playable)
+    .map((item) => songFromAndroidAutoTrack(item.mediaId))
+    .filter((song): song is AppSong => Boolean(song));
+  const song = songFromAndroidAutoTrack(mediaId);
+  if (!song) return null;
+  const index = queue.findIndex((item) => item.id === song.id);
+  return { song, queue: index >= 0 ? queue : [song], index: index >= 0 ? index : 0,
+    parentId, track: selectedTrack };
+}
+
+/** Resolve the canonical JS queue for native cold-start reconciliation.
+ * This function never starts, seeks, pauses, or reloads playback. */
+export function resolveAndroidAutoQueueContext(mediaId: string) {
+  const parsed = parseAndroidAutoMediaId(mediaId);
+  if (parsed.kind === "song") {
+    const resolved = resolveSnapshotMusicQueue(mediaId);
+    if (!resolved) return null;
+    return { queue: resolved.queue, index: resolved.index, mode: "standard" as const,
+      context: { source: "android_auto", label: "Android Auto",
+        contextType: "android-auto-section", contextId: resolved.parentId } };
+  }
+  if (parsed.kind === "podcast" || parsed.kind === "audiobook") {
+    const resolved = resolveSnapshotDomainQueue(mediaId, parsed.kind);
+    if (!resolved) return null;
+    return { queue: resolved.queue, index: resolved.index, mode: "standard" as const,
+      context: parsed.kind === "podcast"
+        ? buildPodcastQueueContext({ showId: resolved.track.showId, showTitle: resolved.track.artist })
+        : { source: "playlist", label: resolved.track.album || "Audiobook",
+          queueType: "audiobook", contextType: "audiobook",
+          contextId: resolved.track.bookId || "", albumId: resolved.track.bookId || "" } };
+  }
+  return null;
 }
 
 /**
@@ -145,11 +233,34 @@ export async function playAndroidAutoMediaId(
   }
 
   if (parsed.kind === "song") {
+    const snapshotResolved = resolveSnapshotMusicQueue(mediaId);
+    if (snapshotResolved) {
+      if (!assertTapCurrent(transactionId, "before_music_snapshot_play")) {
+        return { ok: false, reason: "stale_transaction" };
+      }
+      await deps.playSong(
+        snapshotResolved.song,
+        snapshotResolved.queue,
+        snapshotResolved.index,
+        {
+          source: snapshotResolved.parentId.startsWith("album:") ? "album"
+            : snapshotResolved.parentId.startsWith("artist:") ? "artist"
+              : snapshotResolved.parentId.startsWith("genre:") ? "genre"
+                : snapshotResolved.parentId.startsWith("playlist:") ? "playlist"
+                  : snapshotResolved.parentId === "recently_added" ? "recently_added"
+                    : "android_auto",
+          label: `Android Auto · ${snapshotResolved.parentId.replace(/[:_-]+/g, " ")}`,
+          contextType: "android-auto-section",
+          contextId: snapshotResolved.parentId,
+        } as any
+      );
+      return { ok: true };
+    }
     const catalog = getCachedHiddenTunesCatalog();
     const resolved = catalog
       ? resolveAndroidAutoMediaId(catalog, mediaId)
       : null;
-    if (resolved) {
+    if (resolved && isAndroidAutoContentVisible(resolved.song, "music")) {
       if (!assertTapCurrent(transactionId, "before_music_catalog_play")) {
         return { ok: false, reason: "stale_transaction" };
       }
@@ -200,7 +311,7 @@ export async function playAndroidAutoMediaId(
     if (!assertTapCurrent(transactionId, "before_radio_route")) {
       return { ok: false, reason: "stale_transaction" };
     }
-    const station = radioStationFromFavoriteOrCatalog(parsed.id);
+    const station = radioStationFromSnapshot(mediaId) || radioStationFromFavoriteOrCatalog(parsed.id);
     if (!station) return { ok: false, reason: "radio_not_found" };
     logAndroidAutoPlayback("canonical_player_invoked", {
       path: "radio_route",
@@ -216,6 +327,19 @@ export async function playAndroidAutoMediaId(
   }
 
   if (parsed.kind === "podcast") {
+    const snapshotQueue = resolveSnapshotDomainQueue(mediaId, "podcast");
+    if (snapshotQueue) {
+      if (!assertTapCurrent(transactionId, "before_podcast_snapshot_play")) {
+        return { ok: false, reason: "stale_transaction" };
+      }
+      await deps.playSong(snapshotQueue.song, snapshotQueue.queue, snapshotQueue.index,
+        buildPodcastQueueContext({ showId: snapshotQueue.track.showId,
+          showTitle: snapshotQueue.track.artist }) as any, "standard");
+      if (snapshotQueue.track.resumePositionMillis && deps.seekTo) {
+        await deps.seekTo(snapshotQueue.track.resumePositionMillis);
+      }
+      return { ok: true };
+    }
     // Prefer canonical AA catalog registry (synced snapshot) — not recently-played-only.
     const registrySong = songFromAndroidAutoTrack(mediaId);
     if (registrySong) {
@@ -247,7 +371,10 @@ export async function playAndroidAutoMediaId(
       const episode = (recent || []).find(
         (entry) => String(entry.id) === String(parsed.id)
       );
-      if (episode) {
+      if (episode && isAndroidAutoContentVisible(
+        { ...episode, url: episode.audioUrl },
+        "podcast"
+      )) {
         const song = podcastEpisodeToAppSong(episode);
         const context = buildPodcastQueueContext({
           showId: episode.showId,
@@ -268,8 +395,24 @@ export async function playAndroidAutoMediaId(
     return { ok: false, reason: "podcast_not_in_android_auto_catalog" };
   }
 
+  if (parsed.kind === "audiobook") {
+    const snapshotQueue = resolveSnapshotDomainQueue(mediaId, "audiobook");
+    if (!snapshotQueue) return { ok: false, reason: "audiobook_not_in_android_auto_catalog" };
+    if (!assertTapCurrent(transactionId, "before_audiobook_snapshot_play")) {
+      return { ok: false, reason: "stale_transaction" };
+    }
+    await deps.playSong(snapshotQueue.song, snapshotQueue.queue, snapshotQueue.index, {
+      source: "playlist", label: snapshotQueue.track.album || "Audiobook",
+      queueType: "audiobook", contextType: "audiobook",
+      contextId: snapshotQueue.track.bookId || "", albumId: snapshotQueue.track.bookId || "",
+    } as any, "standard");
+    if (snapshotQueue.track.resumePositionMillis && deps.seekTo) {
+      await deps.seekTo(snapshotQueue.track.resumePositionMillis);
+    }
+    return { ok: true };
+  }
+
   if (
-    parsed.kind === "audiobook" ||
     parsed.kind === "motivation" ||
     parsed.kind === "lecture"
   ) {

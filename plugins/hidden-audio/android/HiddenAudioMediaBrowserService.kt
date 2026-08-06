@@ -1,6 +1,7 @@
 package com.hiddentunes.app.audio
 
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import android.support.v4.media.MediaBrowserCompat
 import androidx.media.MediaBrowserServiceCompat
@@ -12,6 +13,7 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
   private var connectedClients = 0
 
   override fun onCreate() {
+    val startedAt = SystemClock.elapsedRealtime()
     super.onCreate()
     activeInstance = this
     Log.i(TAG, "HiddenAudioMediaBrowserService onCreate")
@@ -23,6 +25,9 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     sessionToken = HiddenAudioMediaSessionManager.sessionToken()
     HiddenAudioCore.emitAutoDiagnostic("android_auto_service_created")
     HiddenAudioCore.emitAutoDiagnostic("android_auto_mbs_on_create")
+    HiddenAudioCore.emitAutoPerformanceDiagnostic("android_auto_service_start_timing", Arguments.createMap().apply {
+      putDouble("elapsedMs", (SystemClock.elapsedRealtime() - startedAt).toDouble())
+    })
     Log.i(TAG, "HiddenAudioMediaBrowserService ready for Android Auto binding")
   }
 
@@ -78,6 +83,7 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     parentId: String,
     result: Result<MutableList<MediaBrowserCompat.MediaItem>>
   ) {
+    val startedAt = SystemClock.elapsedRealtime()
     val data = Arguments.createMap()
     data.putString("parentId", parentId)
     HiddenAudioCore.emitAutoDiagnostic("android_auto_children_requested", data)
@@ -94,6 +100,11 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
         }
       val items = children.map { node -> HiddenAudioAutoCatalog.toMediaItem(node) }
       result.sendResult(items.toMutableList())
+      HiddenAudioCore.emitAutoPerformanceDiagnostic("android_auto_folder_open_timing", Arguments.createMap().apply {
+        putString("parentId", parentId)
+        putInt("itemCount", items.size)
+        putDouble("elapsedMs", (SystemClock.elapsedRealtime() - startedAt).toDouble())
+      })
     } catch (error: Throwable) {
       HiddenAudioMediaSessionManager.reportError(error.message ?: "children_load_failed")
       HiddenAudioAutoCatalog.ensureDefaultCatalog()
@@ -118,12 +129,17 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     extras: Bundle?,
     result: Result<MutableList<MediaBrowserCompat.MediaItem>>
   ) {
+    val startedAt = SystemClock.elapsedRealtime()
     val data = Arguments.createMap()
-    data.putString("query", query)
+    data.putInt("queryLength", query.length.coerceAtMost(128))
     HiddenAudioCore.emitAutoDiagnostic("android_auto_search_requested", data)
     try {
       val matches = HiddenAudioAutoCatalog.search(query, limit = 24)
       result.sendResult(matches.map { HiddenAudioAutoCatalog.toMediaItem(it) }.toMutableList())
+      HiddenAudioCore.emitAutoPerformanceDiagnostic("android_auto_search_timing", Arguments.createMap().apply {
+        putInt("resultCount", matches.size)
+        putDouble("elapsedMs", (SystemClock.elapsedRealtime() - startedAt).toDouble())
+      })
     } catch (error: Throwable) {
       HiddenAudioMediaSessionManager.reportError(error.message ?: "search_failed")
       // Never cache timeouts as empty permanently — return empty for this request only.

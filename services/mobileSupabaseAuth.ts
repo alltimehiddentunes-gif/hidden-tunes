@@ -17,6 +17,18 @@ export type MobileSupabaseSessionSummary = {
   error: string | null;
 };
 
+export async function getCurrentSupabaseProfileNamespace(): Promise<string> {
+  const supabase = getMobileSupabaseClient();
+  if (!supabase) return "anonymous";
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data.session?.user?.id) return "anonymous";
+    return `profile:${data.session.user.id}`;
+  } catch {
+    return "anonymous";
+  }
+}
+
 function getMobileSupabaseClient() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     return null;
@@ -127,6 +139,20 @@ export async function signInArtistWithPassword(email: string, password: string) 
     };
   }
 
+  // Signing in can replace an existing profile. Remove that profile's native
+  // Android Auto snapshot before publishing the newly authenticated one.
+  // Native bridge availability must never change authentication semantics.
+  try {
+    const {
+      invalidateAndroidAutoProfileSnapshot,
+      syncAndroidAutoCatalogFromDerived,
+    } = await import("./androidAutoCatalogBridge");
+    await invalidateAndroidAutoProfileSnapshot();
+    await syncAndroidAutoCatalogFromDerived();
+  } catch {
+    // Optional Android-only cache maintenance.
+  }
+
   return {
     email: data.user?.email || email.trim(),
     error: null,
@@ -144,6 +170,20 @@ export async function signOutArtistSession() {
   }
 
   const { error } = await supabase.auth.signOut();
+
+  try {
+    const { invalidateAndroidAutoProfileSnapshot } = await import("./androidAutoCatalogBridge");
+    await invalidateAndroidAutoProfileSnapshot();
+  } catch {
+    // Sign-out must not fail merely because the native Android bridge is unavailable.
+  }
+
+  try {
+    const { syncAndroidAutoCatalogFromDerived } = await import("./androidAutoCatalogBridge");
+    await syncAndroidAutoCatalogFromDerived();
+  } catch {
+    // Authentication succeeds even when the native Android bridge is absent.
+  }
 
   return {
     error: error?.message || null,
