@@ -525,11 +525,13 @@ export const MusicHomePage = memo(function MusicHomePage({
                 {mixIsCurrent ? (isPlaying ? 'Pause' : 'Resume') : 'Play'}
               </button>
             </div>
-            <HomeArt
-              src={featuredMix?.tracks[0]?.artwork ?? heroSong.artwork}
-              seed={featuredMix?.tracks[0]?.id ?? heroSong.id}
-              label={featuredMix?.title ?? heroCard.title}
-              size="rail"
+            <img
+              className="music-home-mix-vinyl"
+              src={homeReferenceAsset('my-music-mix-vinyl.webp')}
+              alt=""
+              aria-hidden="true"
+              loading="eager"
+              decoding="async"
             />
           </section>
           <div className="music-home-quick-grid" aria-label="Quick access">

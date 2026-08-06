@@ -8569,6 +8569,10 @@ function AppShell() {
   // stop/clear explicitly null it in DesktopPlaybackProvider.
   const hasActiveMediaSession = Boolean(currentTrack?.id)
   const hasQueueRail = hasActiveMediaSession
+  const [playerRailMounted, setPlayerRailMounted] = useState(hasActiveMediaSession)
+  const [playerRailPresence, setPlayerRailPresence] = useState<'hidden' | 'entering' | 'visible' | 'exiting'>(
+    hasActiveMediaSession ? 'visible' : 'hidden',
+  )
   const { songs } = useCatalog()
   const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
   const [activePage, setActivePage] = usePersistedPreference(
@@ -8649,6 +8653,32 @@ function AppShell() {
   const activePlayerSurface = resolveActivePlayerSurface(activeSessionTrack)
   const videoSurfaceLayout = resolveVideoSurfaceLayout(activeSessionTrack)
   const useMotivationalVideoStage = videoSurfaceLayout === 'motivational-contained'
+  const [mountedPlayerSurface, setMountedPlayerSurface] = useState(activePlayerSurface)
+  const [mountedVideoSurfaceLayout, setMountedVideoSurfaceLayout] = useState(videoSurfaceLayout)
+
+  useEffect(() => {
+    let completionTimer: ReturnType<typeof setTimeout> | null = null
+
+    if (hasActiveMediaSession) {
+      // Presence is an external visual lifecycle: retain the last valid surface while its exit animation runs.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMountedPlayerSurface(activePlayerSurface)
+      setMountedVideoSurfaceLayout(videoSurfaceLayout)
+      setPlayerRailMounted(true)
+      setPlayerRailPresence((current) => (current === 'visible' ? 'visible' : 'entering'))
+      completionTimer = setTimeout(() => setPlayerRailPresence('visible'), 220)
+    } else if (playerRailMounted) {
+      setPlayerRailPresence('exiting')
+      completionTimer = setTimeout(() => {
+        setPlayerRailMounted(false)
+        setPlayerRailPresence('hidden')
+      }, 220)
+    }
+
+    return () => {
+      if (completionTimer) clearTimeout(completionTimer)
+    }
+  }, [activePlayerSurface, hasActiveMediaSession, playerRailMounted, videoSurfaceLayout])
 
   const {
     cancelAutoOpenPlayer,
@@ -9041,8 +9071,9 @@ function AppShell() {
   return (
     <>
       <div
-        className={`app-shell${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}
+        className={`app-shell${activeNavKey === 'home' && activeView === 'page' ? ' app-shell--home' : ''}${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}
         data-has-active-media={hasActiveMediaSession ? 'true' : 'false'}
+        data-player-rail-mounted={playerRailMounted ? 'true' : 'false'}
         data-video-layout={videoSurfaceLayout}
       >
         <HiddenTunesGlobalBackground />
@@ -9255,11 +9286,16 @@ function AppShell() {
                 />
               </div>
             </main>
-            {hasActiveMediaSession && !useMotivationalVideoStage ? (
-              <div className="conditional-player-rail" data-player-surface={activePlayerSurface}>
-                {activePlayerSurface === 'tv' ? (
+            {playerRailMounted && !useMotivationalVideoStage ? (
+              <div
+                className="conditional-player-rail"
+                data-player-surface={mountedPlayerSurface}
+                data-presence={playerRailPresence}
+                aria-hidden={playerRailPresence === 'exiting' ? 'true' : undefined}
+              >
+                {(hasActiveMediaSession ? activePlayerSurface === 'tv' : mountedPlayerSurface === 'tv') ? (
                   <TvNowPlayingPanel
-                    videoLayout={videoSurfaceLayout === 'sports-wide' ? 'sports-wide' : 'tv-cinema'}
+                    videoLayout={mountedVideoSurfaceLayout === 'sports-wide' ? 'sports-wide' : 'tv-cinema'}
                     onBrowseAll={() => navigateNav('tv')}
                     onBrowseFeatured={() => navigateNav('tv')}
                   />
