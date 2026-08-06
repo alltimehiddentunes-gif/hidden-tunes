@@ -339,6 +339,19 @@ export function buildAndroidAutoFallbackQueue(
   return queue;
 }
 
+function takeVisibleMusicSongs(
+  songs: HiddenTunesSong[] | null | undefined,
+  limit: number
+): HiddenTunesSong[] {
+  const visible: HiddenTunesSong[] = [];
+  for (const song of songs || []) {
+    if (!isAndroidAutoContentVisible(song, "music")) continue;
+    visible.push(song);
+    if (visible.length >= limit) break;
+  }
+  return visible;
+}
+
 export function buildAndroidAutoCatalogSnapshot(
   catalog: HiddenTunesDerivedCatalog,
   extras: AndroidAutoCatalogExtras = {}
@@ -486,9 +499,7 @@ export function buildAndroidAutoCatalogSnapshot(
   ];
   sections.push({ parentId: "music", items: musicHome });
 
-  const recentSongs = (catalog.songs || []).filter((song) =>
-    isAndroidAutoContentVisible(song, "music")
-  ).slice(0, LIMITS.recent);
+  const recentSongs = takeVisibleMusicSongs(catalog.songs, LIMITS.recent);
   const recentMusicItems = recentSongs.map((song) => playableSongItem(song, "recently_added"));
   for (const song of recentSongs) {
     const payload = trackPayload(song, "recently_added");
@@ -507,9 +518,10 @@ export function buildAndroidAutoCatalogSnapshot(
       contentType: "music",
     });
 
-    const artistSongs = (artist.songs || []).filter((song) =>
-      isAndroidAutoContentVisible(song, "music")
-    ).slice(0, LIMITS.songsPerBucket);
+    const artistSongs = takeVisibleMusicSongs(
+      artist.songs,
+      LIMITS.songsPerBucket
+    );
     const artistSongItems = artistSongs.map((song) => playableSongItem(song, mediaId));
     for (const song of artistSongs) {
       const payload = trackPayload(song, mediaId);
@@ -532,9 +544,10 @@ export function buildAndroidAutoCatalogSnapshot(
       contentType: "music",
     });
 
-    const albumSongs = (album.songs || []).filter((song) =>
-      isAndroidAutoContentVisible(song, "music")
-    ).slice(0, LIMITS.songsPerBucket);
+    const albumSongs = takeVisibleMusicSongs(
+      album.songs,
+      LIMITS.songsPerBucket
+    );
     const albumSongItems = albumSongs.map((song) => playableSongItem(song, mediaId));
     for (const song of albumSongs) {
       const payload = trackPayload(song, mediaId);
@@ -557,9 +570,10 @@ export function buildAndroidAutoCatalogSnapshot(
       contentType: "music",
     });
 
-    const genreSongs = (genre.songs || []).filter((song) =>
-      isAndroidAutoContentVisible(song, "music")
-    ).slice(0, LIMITS.songsPerBucket);
+    const genreSongs = takeVisibleMusicSongs(
+      genre.songs,
+      LIMITS.songsPerBucket
+    );
     const genreSongItems = genreSongs.map((song) => playableSongItem(song, mediaId));
     for (const song of genreSongs) {
       const payload = trackPayload(song, mediaId);
@@ -582,9 +596,10 @@ export function buildAndroidAutoCatalogSnapshot(
       contentType: "music",
     });
 
-    const playlistSongs = (playlist.songs || []).filter((song) =>
-      isAndroidAutoContentVisible(song, "music")
-    ).slice(0, LIMITS.songsPerBucket);
+    const playlistSongs = takeVisibleMusicSongs(
+      playlist.songs,
+      LIMITS.songsPerBucket
+    );
     const playlistSongItems = playlistSongs.map((song) => playableSongItem(song, mediaId));
     for (const song of playlistSongs) {
       const payload = trackPayload(song, mediaId);

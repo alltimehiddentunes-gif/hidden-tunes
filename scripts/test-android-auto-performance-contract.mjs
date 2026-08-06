@@ -12,6 +12,7 @@ const core = read("plugins/hidden-audio/android/HiddenAudioCore.kt");
 assert.match(bridge, /getCachedHiddenTunesCatalog\(\)/);
 assert.doesNotMatch(bridge, /fetchHiddenTunesCatalog|setInterval|poll/i);
 assert.match(bridge, /signature === lastSyncSignature/);
+assert.match(read("services/androidAutoCatalogSync.ts"), /function takeVisibleMusicSongs[\s\S]*?if \(visible\.length >= limit\) break/);
 assert.match(premium, /MAX_TRACKS = 420/);
 assert.match(premium, /MAX_FOLDER_ITEMS = 24/);
 assert.match(catalog, /MAX_SEARCH = 24/);
