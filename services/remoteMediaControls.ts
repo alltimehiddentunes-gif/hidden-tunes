@@ -26,8 +26,10 @@ function isNativePlatform() {
 }
 
 function isRemoteMediaControlsPlatformEnabled() {
-  // iOS preview builds can lack the ExpoMediaControl native module; disable entirely on iOS.
-  return Platform.OS === "android";
+  // HiddenAudio is the canonical Android MediaSession/notification/command
+  // owner. Activating expo-media-control would start a competing foreground
+  // service and MediaSession. iOS was already disabled here and remains so.
+  return false;
 }
 
 function logRemoteMedia(message: string, details?: Record<string, unknown>) {

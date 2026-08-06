@@ -221,6 +221,23 @@ async function main() {
     "7. TV stop requested on podcast claim"
   );
 
+  // 7b. Radio -> TV uses the same explicit cross-domain shutdown path.
+  stops.length = 0;
+  await claimExclusivePlayback({
+    owner: "shared-audio",
+    contentKind: "radio",
+    mediaKey: "radio-before-tv",
+  });
+  await claimExclusivePlayback({
+    owner: "tv",
+    contentKind: "tv",
+    mediaKey: "tv-after-radio",
+  });
+  assert(
+    stops.some((entry) => entry.owner === "shared-audio"),
+    "7b. shared-audio stop requested before TV takes radio ownership"
+  );
+
   // 8. Failed new media — old does not restart
   stops.length = 0;
   await claimExclusivePlayback({

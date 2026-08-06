@@ -8,6 +8,7 @@ const {
   withAndroidManifest,
   withDangerousMod,
   withEntitlementsPlist,
+  withFinalizedMod,
   withInfoPlist,
   withXcodeProject,
 } = require("@expo/config-plugins");
@@ -88,6 +89,69 @@ const ANDROID_AUTO_MEDIA_BROWSER_SERVICE =
 const ANDROID_AUTO_CAR_APPLICATION_META =
   "com.google.android.gms.car.application";
 const ANDROID_AUTO_DESCRIPTOR_RESOURCE = "@xml/automotive_app_desc";
+const LEGACY_MEDIA_CONTROL_SERVICE =
+  "expo.modules.mediacontrol.MediaPlaybackService";
+
+function dedupeAndroidManifestPermissions(manifest) {
+  const permissions = Array.isArray(manifest.manifest["uses-permission"])
+    ? manifest.manifest["uses-permission"]
+    : [];
+  const seen = new Set();
+  manifest.manifest["uses-permission"] = permissions.filter((entry) => {
+    const name = entry?.$?.["android:name"];
+    if (!name || !seen.has(name)) {
+      if (name) seen.add(name);
+      return true;
+    }
+    return false;
+  });
+}
+
+function removeLegacyMediaControlService(mainApplication) {
+  const services = Array.isArray(mainApplication.service)
+    ? mainApplication.service
+    : mainApplication.service
+      ? [mainApplication.service]
+      : [];
+  const removal = {
+    $: {
+      "android:name": LEGACY_MEDIA_CONTROL_SERVICE,
+      "tools:node": "remove",
+    },
+  };
+  const existingIndex = services.findIndex(
+    (entry) => entry?.$?.["android:name"] === LEGACY_MEDIA_CONTROL_SERVICE
+  );
+  if (existingIndex >= 0) {
+    services[existingIndex] = removal;
+  } else {
+    services.push(removal);
+  }
+  mainApplication.service = services;
+}
+
+const withHiddenAudioFinalAndroidManifest = (config) =>
+  withFinalizedMod(config, [
+    "android",
+    async (config) => {
+      const manifestPath = path.join(
+        config.modRequest.platformProjectRoot,
+        "app",
+        "src",
+        "main",
+        "AndroidManifest.xml"
+      );
+      const manifest = await AndroidConfig.Manifest.readAndroidManifestAsync(
+        manifestPath
+      );
+      dedupeAndroidManifestPermissions(manifest);
+      await AndroidConfig.Manifest.writeAndroidManifestAsync(
+        manifestPath,
+        manifest
+      );
+      return config;
+    },
+  ]);
 
 function verifyAndroidAutoManifest(mainApplication) {
   const services = Array.isArray(mainApplication.service)
@@ -484,7 +548,17 @@ const withHiddenAudioAndroidManifest = (config) => {
     const manifest = config.modResults;
     const mainApplication = getMainApplicationOrThrow(manifest);
 
+    // app.json and expo-media-control both request the same Android permissions.
+    // Keep a single declaration of each before the library-manifest merge.
+    dedupeAndroidManifestPermissions(manifest);
+
     ensureAndroidAutoApplicationCategory(mainApplication);
+
+    // HiddenAudio is the canonical Android audio MediaSession/service. The
+    // legacy expo-media-control service would create a competing MediaSession,
+    // foreground notification, and Android Auto browser endpoint. Keep the
+    // package for frozen iOS configuration, but remove only its Android service.
+    removeLegacyMediaControlService(mainApplication);
 
     ensureAndroidManifestService(mainApplication, {
       name: "com.hiddentunes.app.audio.HiddenAudioPlaybackService",
@@ -777,6 +851,7 @@ const withHiddenAudio = (config) => {
   config = withHiddenAudioAndroidAutoResources(config);
   config = withHiddenAudioAndroidMediaDep(config);
   config = withHiddenAudioAndroidProguard(config);
+  config = withHiddenAudioFinalAndroidManifest(config);
 
   console.log(
     "[hidden-audio] HiddenAudio native sources will be copied for iOS and Android during prebuild."
