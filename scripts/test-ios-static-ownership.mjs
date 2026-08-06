@@ -37,7 +37,10 @@ function testIosHiddenAudioEnabled() {
 
 function testExpoMediaControlJsDisabledOnIos() {
   const remote = read("services/remoteMediaControls.ts");
-  assert.ok(remote.includes("return Platform.OS === \"android\""));
+  assert.match(
+    remote,
+    /function isRemoteMediaControlsPlatformEnabled\(\)[\s\S]*?return false;/
+  );
   // Plugin may still be listed in app.json — document residual binary risk.
   const appJson = read("app.json");
   assert.ok(appJson.includes("expo-media-control"));
@@ -185,7 +188,7 @@ function testBundleIdentity() {
   const appJson = JSON.parse(read("app.json"));
   assert.equal(appJson.expo.ios.bundleIdentifier, "com.hiddentunes.app");
   assert.equal(appJson.expo.version, "1.0.2");
-  assert.equal(appJson.expo.ios.buildNumber, "1.0.211");
+  assert.equal(appJson.expo.ios.buildNumber, "1.0.212");
 }
 
 console.log("test-ios-static-ownership: start");

@@ -75,7 +75,7 @@ function main() {
     "injected router source does not treat window role as template"
   );
 
-  assertOk(appJson.expo?.ios?.buildNumber === "1.0.211", "diagnostic build number bumped");
+  assertOk(appJson.expo?.ios?.buildNumber === "1.0.212", "frozen build number retained");
   const manifestValidator = read("plugins/hidden-audio/ios/validate-carplay-scene-manifest.sh");
   assertOk(manifestValidator.includes("${TARGET_BUILD_DIR}/${INFOPLIST_PATH}"), "validates processed plist");
   assertOk(manifestValidator.includes("processed plist must not contain $WINDOW_CARPLAY_ROLE"), "rejects processed window-CarPlay role");

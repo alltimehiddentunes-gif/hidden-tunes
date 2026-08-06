@@ -138,8 +138,9 @@ function main() {
     fs.copyFileSync(src, path.join(outDir, fileName));
   }
 
-  // Also mirror into the local ios project copy (same as prebuild destination shape).
-  const iosDest = path.join(root, "ios/HiddenTunes/HiddenAudioModule");
+  // Mirror the prebuild destination shape in a disposable directory. Regression
+  // tests must never rewrite the frozen authoritative iOS native tree.
+  const iosDest = path.join(outDir, "ios/HiddenTunes/HiddenAudioModule");
   fs.mkdirSync(iosDest, { recursive: true });
   for (const fileName of listed) {
     fs.copyFileSync(path.join(sourceDir, fileName), path.join(iosDest, fileName));
@@ -217,7 +218,7 @@ function main() {
 
   console.log("carplay-plugin-generation: ok");
   console.log(`temp generated dir: ${outDir}`);
-  console.log(`ios synced: ${iosDest}`);
+  console.log(`disposable ios output verified: ${iosDest}`);
   console.log(`files copied: ${listed.join(", ")}`);
   console.log("appdelegate-router: injected + idempotent + repair-verified");
 }
