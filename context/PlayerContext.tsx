@@ -857,6 +857,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const isMountedRef = useRef(true);
   const loadRequestIdRef = useRef(0);
   const latestPlaySongTapIdRef = useRef(0);
+  const manualQueueCommandGenerationRef = useRef(0);
   const inFlightPlaySongIdRef = useRef<string | null>(null);
   const queueControlTapGuardRef = useRef(createKeyedTapGuard(420));
   const loadingRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -878,6 +879,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     autoAdvance?: boolean;
     /** Live Radio station change — on failure, skip to the next eligible station. */
     liveRadioSkipOnFailure?: boolean;
+    /** Validated in-memory Next/Previous target; native load replaces directly. */
+    queueTransition?: boolean;
   };
 
   const liveRadioSkipCycleRef = useRef<LiveRadioSkipCycle | null>(null);
@@ -3212,6 +3215,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             if (__DEV__) {
+              logTapLatencyDiagnostic("deferred_work_start", deferredStartedAt, {
+                label,
+                requestId: expectedLoadRequestId ?? loadRequestIdRef.current,
+                songId: currentSongRef.current?.id || null,
+              });
               logTapLatencyDiagnostic(`${label}_start`, deferredStartedAt, {
                 label,
                 requestId: expectedLoadRequestId ?? loadRequestIdRef.current,
@@ -3247,6 +3255,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   songId: currentSongRef.current?.id || null,
                 });
                 if (__DEV__) {
+                  logTapLatencyDiagnostic("deferred_work_end", deferredStartedAt, {
+                    label,
+                    requestId: expectedLoadRequestId ?? loadRequestIdRef.current,
+                    songId: currentSongRef.current?.id || null,
+                  });
                   logTapLatencyDiagnostic(`${label}_end`, deferredStartedAt, {
                     label,
                     requestId: expectedLoadRequestId ?? loadRequestIdRef.current,
@@ -4455,16 +4468,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const nextSong = useCallback(async (options?: { source?: "remote" | "app" | "auto" }) => {
     const isAutoAdvance = options?.source === "auto";
+    const commandStartedAt = Date.now();
+    const manualGeneration = isAutoAdvance
+      ? 0
+      : manualQueueCommandGenerationRef.current + 1;
+    if (!isAutoAdvance) {
+      manualQueueCommandGenerationRef.current = manualGeneration;
+      logTapLatencyDiagnostic("control_press", commandStartedAt, {
+        direction: "next",
+        requestId: manualGeneration,
+      });
+    }
     // Stale queue auto-next must not reclaim ownership after TV/video/sports wins.
     if (isAutoAdvance && !isPlaybackOwnerActive("shared-audio")) {
       logAutoNextSkipped("handoff_owner_inactive", { source: "nextSong_auto" });
-      return;
-    }
-    if (
-      options?.source !== "remote" &&
-      options?.source !== "auto" &&
-      !queueControlTapGuardRef.current("next_song")
-    ) {
       return;
     }
     if (!isAutoAdvance) {
@@ -4509,7 +4526,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queueLength: queue.length,
     });
 
-    await runQueueTransition(async () => {
+    const transition = async () => {
+      if (!isAutoAdvance) {
+        logTapLatencyDiagnostic("shared_handler_enter", commandStartedAt, {
+          direction: "next",
+          requestId: manualGeneration,
+        });
+      }
       const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
       if (!queue.length) {
@@ -4525,6 +4548,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         currentIndex,
         queue.length
       );
+      if (!isAutoAdvance) {
+        logTapLatencyDiagnostic("queue_resolved", commandStartedAt, {
+          direction: "next",
+          requestId: manualGeneration,
+          queueIndex: nextIndex,
+        });
+      }
 
       if (nextIndex === -1) {
         logQueuePlaybackEvent("queue_end_reached", {
@@ -4599,6 +4629,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
       }
+      if (
+        !isAutoAdvance &&
+        manualQueueCommandGenerationRef.current !== manualGeneration
+      ) {
+        return;
+      }
       const queueForPlayback =
         song === targetSong
           ? queue
@@ -4624,14 +4660,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         );
       }
 
-      await removeStoredValues([POSITION_KEY]);
+      void removeStoredValues([POSITION_KEY]);
       logLockscreenPlaybackDiagnostic("auto_next_position_cleared_before_load", {
         nextSongId: song.id,
         nextIndex: safeIndex,
         queueLength: queue.length,
       });
 
-      await loadAndPlayRef.current?.(song, { autoAdvance: isAutoAdvance });
+      if (!isAutoAdvance) {
+        logTapLatencyDiagnostic("native_transition_called", commandStartedAt, {
+          direction: "next",
+          requestId: manualGeneration,
+          songId: song.id,
+        });
+      }
+      await loadAndPlayRef.current?.(song, {
+        autoAdvance: isAutoAdvance,
+        queueTransition: !isAutoAdvance,
+      });
       logAutoNextSuccess({
         nextSongId: song.id,
         nextIndex: safeIndex,
@@ -4659,7 +4705,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         activeQueueContextRef.current,
         "queue_index_persist"
       );
-    }, { dropIfLocked: !isAutoAdvance });
+    };
+
+    if (isAutoAdvance) {
+      await runQueueTransition(transition);
+    } else {
+      await transition();
+    }
   }, [
     runQueueTransition,
     getActiveQueuePlaybackState,
@@ -5458,6 +5510,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const recoveryDurationSnapshot = durationMillisRef.current;
 
         const restorePreviousPlaybackState = (reason: string) => {
+          if (requestId > 0 && loadRequestIdRef.current !== requestId) {
+            logPlayerContextDebug("playback_recovery_stale_restore_skipped", {
+              reason,
+              failedSongId: normalizedSong.id,
+              requestId,
+              latestRequestId: loadRequestIdRef.current,
+            });
+            return;
+          }
           logPlayerContextDebug("playback_recovery_restore_previous", {
             reason,
             failedSongId: normalizedSong.id,
@@ -5545,6 +5606,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         setCurrentSong(normalizedSong);
         currentSongRef.current = normalizedSong;
+        if (__DEV__ && options?.queueTransition) {
+          logTapLatencyDiagnostic("visible_track_updated", Date.now(), {
+            songId: normalizedSong.id,
+            requestId,
+          });
+        }
         logLockscreenPlaybackDiagnostic("current_song_state_set", {
           songId: normalizedSong.id,
           title: normalizedSong.title,
@@ -5627,7 +5694,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             let preserveNativePlayback = false;
             let nativeActiveUrlForReplace = "";
             const shouldProbeNativePlayback =
-              !options?.userInitiated || !options?.userInterruptDone;
+              !options?.queueTransition &&
+              (!options?.userInitiated || !options?.userInterruptDone);
             if (
               shouldProbeNativePlayback &&
               !isAutoAdvanceLoad &&
@@ -5740,7 +5808,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               void clearPreloadedSound();
             }
 
-            if (!preserveNativePlayback) {
+            if (!preserveNativePlayback && !options?.queueTransition) {
               await unloadCurrentSound("load_and_play_replace_track");
             }
 
@@ -5819,6 +5887,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               songId: normalizedSong.id,
               requestId,
             });
+            if (__DEV__ && options?.queueTransition) {
+              logTapLatencyDiagnostic("native_load_start", audioLoadStartedAt, {
+                songId: normalizedSong.id,
+                requestId,
+              });
+            }
             logTapToLoadTrackRequired({
               songId: normalizedSong.id,
               source: "load_and_play",
@@ -5872,6 +5946,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               songId: normalizedSong.id,
               requestId,
             });
+            if (__DEV__ && options?.queueTransition) {
+              logTapLatencyDiagnostic("native_ready", audioLoadStartedAt, {
+                songId: normalizedSong.id,
+                requestId,
+              });
+            }
             logTapLatencyDiagnostic("native_play_called", audioLoadStartedAt, {
               songId: normalizedSong.id,
               requestId,
@@ -5956,6 +6036,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   requestId,
                   playbackState: statusAfterPlay.playbackState || null,
                 });
+                if (__DEV__ && options?.queueTransition) {
+                  logTapLatencyDiagnostic("first_playing", audioLoadStartedAt, {
+                    songId: normalizedSong.id,
+                    requestId,
+                  });
+                }
                 logTapToPlayConfirmed({
                   songId: normalizedSong.id,
                   source: "load_and_play",
@@ -6164,7 +6250,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   );
 
   const playQueueAtIndex = useCallback(
-    async (index: number) => {
+    async (
+      index: number,
+      options?: { queueTransitionGeneration?: number; commandStartedAt?: number }
+    ) => {
       let queue = activeQueueRef.current.filter((song) => !isYouTubeSong(song));
       const currentSong = currentSongRef.current
         ? normalizeSong(currentSongRef.current)
@@ -6218,6 +6307,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
       }
+      if (
+        typeof options?.queueTransitionGeneration === "number" &&
+        manualQueueCommandGenerationRef.current !== options.queueTransitionGeneration
+      ) {
+        return;
+      }
       const queueForPlayback =
         song === targetSongAtIndex
           ? queue
@@ -6243,7 +6338,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       );
       void removeStoredValues([POSITION_KEY]);
 
-      await loadAndPlay(song, { userInitiated: true });
+      if (typeof options?.commandStartedAt === "number") {
+        logTapLatencyDiagnostic("native_transition_called", options.commandStartedAt, {
+          direction: "previous",
+          requestId: options.queueTransitionGeneration,
+          songId: song.id,
+        });
+      }
+      await loadAndPlay(song, { queueTransition: true });
     },
     [
       isYouTubeSong,
@@ -6438,7 +6540,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   extendQueueWithSmartTracksRef.current = extendQueueWithSmartTracks;
 
   const previousSong = useCallback(async (options?: { source?: "remote" | "app" }) => {
-    if (options?.source !== "remote" && !queueControlTapGuardRef.current("previous_song")) return;
+    const commandStartedAt = Date.now();
+    const manualGeneration = manualQueueCommandGenerationRef.current + 1;
+    manualQueueCommandGenerationRef.current = manualGeneration;
+    logTapLatencyDiagnostic("control_press", commandStartedAt, {
+      direction: "previous",
+      requestId: manualGeneration,
+    });
 
     const liveRadioActive = isLiveRadioSessionQueue(
       activeQueueRef.current,
@@ -6470,7 +6578,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     logManualQueueSkip("previous", { queueLength: previousQueue.length });
 
-    await runQueueTransition(async () => {
+    const transition = async () => {
+      logTapLatencyDiagnostic("shared_handler_enter", commandStartedAt, {
+        direction: "previous",
+        requestId: manualGeneration,
+      });
       const { queue, safeIndex: currentIndex } = getActiveQueuePlaybackState();
 
       if (!queue.length) return;
@@ -6479,6 +6591,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         currentIndex,
         queue.length
       );
+      logTapLatencyDiagnostic("queue_resolved", commandStartedAt, {
+        direction: "previous",
+        requestId: manualGeneration,
+        queueIndex: previousIndex,
+      });
 
       if (previousIndex === -1) return;
 
@@ -6519,14 +6636,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      await playQueueAtIndex(previousIndex);
+      await playQueueAtIndex(previousIndex, {
+        queueTransitionGeneration: manualGeneration,
+        commandStartedAt,
+      });
 
       logQueuePlaybackEvent("queue_previous_success", {
         action: "play_index",
         previousIndex,
         songId: queue[previousIndex]?.id,
       });
-    }, { dropIfLocked: true });
+    };
+
+    await transition();
   }, [
     runQueueTransition,
     getActiveQueuePlaybackState,
@@ -6916,6 +7038,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const tapStartedAt = Date.now();
       const tapRequestId = latestPlaySongTapIdRef.current + 1;
       latestPlaySongTapIdRef.current = tapRequestId;
+      manualQueueCommandGenerationRef.current += 1;
       loadRequestIdRef.current += 1;
       if (isIosAudioInterruptionActive()) {
         markIosInterruptionMediaReplaced();
@@ -7448,6 +7571,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const stopPlayback = useCallback(async () => {
     try {
       continuationGenerationRef.current += 1;
+      manualQueueCommandGenerationRef.current += 1;
       continuationUserIntentRef.current = "stopped";
       continuationSessionRef.current = null;
       continuationRefillInFlightRef.current = false;
@@ -7531,6 +7655,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return registerPlaybackOwnerAdapter({
       id: "shared-audio",
       cancelPendingStart: () => {
+        manualQueueCommandGenerationRef.current += 1;
         loadRequestIdRef.current += 1;
         latestPlaySongTapIdRef.current += 1;
         invalidateRadioStationSwitch("peer_cancel_pending");
@@ -7583,10 +7708,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const togglePlayPause = useCallback(async () => {
     if (!queueControlTapGuardRef.current("toggle_play_pause")) return;
     logPauseResumeStart({ source: "toggle_play_pause" });
+    manualQueueCommandGenerationRef.current += 1;
+
+    if (isChangingTrackRef.current) {
+      continuationUserIntentRef.current = "paused";
+      loadRequestIdRef.current += 1;
+      inFlightPlaySongIdRef.current = null;
+      clearFinishWatchdog("pause_during_transition");
+      markIntentionalPause("pause_during_transition");
+      try {
+        await bridgeHiddenAudioPause();
+      } catch {
+        // The replacement may not be loaded yet; request invalidation blocks play.
+      }
+      setIsPlaying(false);
+      setIsLoading(false);
+      return;
+    }
 
     if (hiddenAudioActiveRef.current) {
-      if (isChangingTrackRef.current) return;
-
       try {
         if (isPlayingRef.current) {
           continuationUserIntentRef.current = "paused";
