@@ -112,7 +112,7 @@ export function toSportsMatchCard(input: MatchCardInput): SportsMatchCard {
     startingSoonWindowMs: input.startingSoonWindowMs,
   });
   const status = describeSportsPublicEventStatus(code);
-  const watchability = watchabilityFromPublicStatus(code, {
+  const watchability: SportsMatchCard["watchability"] = watchabilityFromPublicStatus(code, {
     hasPlayableBroadcast: input.hasPlayableBroadcast,
     hasReplay: input.hasReplay,
     hasHighlights: input.hasHighlights,
