@@ -187,9 +187,33 @@ const upload = fs.readFileSync(path.resolve("routes/adminUpload.js"), "utf8");
 assert.doesNotMatch(upload, /details:\s*error\.message/);
 
 const compatibility = fs.readFileSync(path.resolve("routes/adminUploadCompatibility.js"), "utf8");
-for (const route of ["/api/upload-url", "/api/complete-song", "/api/admin/upload-file", "/api/admin/upload-track"]) {
+for (const route of ["/api/upload-url", "/api/complete-song", "/api/admin/upload-file"]) {
   assert.ok(compatibility.includes(route), `${route} compatibility contract exists`);
 }
+assert.doesNotMatch(
+  compatibility,
+  /router\.post\("\/api\/admin\/upload-track"/,
+  "protected upload-track route must not be owned by the compatibility router"
+);
+assert.doesNotMatch(
+  compatibility,
+  /return res\.end\(\)/,
+  "compatibility failures must never return an unexplained empty 200"
+);
+const protectedUploadRoute = fs.readFileSync(
+  path.resolve("hidden-tunes-admin/app/api/admin/upload-track/route.ts"),
+  "utf8"
+);
+assert.match(
+  protectedUploadRoute,
+  /requireUploadPermission\(req\)/,
+  "protected upload route retains its original authenticated permission helper"
+);
+assert.doesNotMatch(
+  protectedUploadRoute,
+  /requireCatalogueUploadEnabled/,
+  "protected upload route must not be feature-flag rejected"
+);
 assert.match(compatibility, /is_public:\s*item\.isPublic/);
 assert.match(compatibility, /requireAdminCatalogRole/);
 assert.match(compatibility, /r2_audio_key/);

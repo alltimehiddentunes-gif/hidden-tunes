@@ -405,7 +405,7 @@ async function completeTrack(req, res) {
     }
     if (error?.code === "UPLOAD_REQUEST_ABORTED" || req.aborted || req.destroyed) {
       audit(req, "upload_aborted", "closed", { failureStage });
-      return res.end();
+      return safeFailure(req, res, 499, "Upload request was aborted.");
     }
     return safeFailure(req, res, 500, "Catalogue upload failed.");
   }
@@ -460,7 +460,6 @@ router.post("/api/admin/upload-file", ...secureChain(), (req, res) =>
     requestId: req.adminRequestId,
   })
 );
-router.post("/api/admin/upload-track", ...secureChain(), jsonBody, completeTrack);
 router.post("/api/complete-song", ...secureChain(), jsonBody, completeTrack);
 
 export {

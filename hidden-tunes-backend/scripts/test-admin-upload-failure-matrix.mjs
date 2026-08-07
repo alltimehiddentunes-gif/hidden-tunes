@@ -147,8 +147,8 @@ console.info = originalInfo;
 resetAdminUploadTestDependencies();
 
 matrix.push(await run("12 audit fails after persistence", { auditFailsAfterSong: true, manifestFailsAfterSong: true, repeatAfterSuccess: true }, { counts: { artistCreate: 1, albumCreate: 1, songInsert: 1, r2Delete: 0 }, status: 200, success: true, operational: "manifest write failed" }));
-matrix.push(await run("13 timeout boundary", { abortAfter: "artist" }, { counts: { artistCreate: 1, albumCreate: 0, songInsert: 0, r2Delete: 2 }, ended: true, manifest: ["album_resolution", "cleanup_completed"] }));
-matrix.push(await run("14 abort boundary", { abortAfter: "album" }, { counts: { artistCreate: 1, albumCreate: 1, songInsert: 0, r2Delete: 2 }, ended: true, manifest: ["song_insert", "cleanup_completed"] }));
+matrix.push(await run("13 timeout boundary", { abortAfter: "artist" }, { counts: { artistCreate: 1, albumCreate: 0, songInsert: 0, r2Delete: 2 }, status: 499, success: false, manifest: ["album_resolution", "cleanup_completed"] }));
+matrix.push(await run("14 abort boundary", { abortAfter: "album" }, { counts: { artistCreate: 1, albumCreate: 1, songInsert: 0, r2Delete: 2 }, status: 499, success: false, manifest: ["song_insert", "cleanup_completed"] }));
 matrix.push(await run("15 unknown full-handler error", { unknownAt: "artists_lookup" }, { counts: { artistCreate: 0, albumCreate: 0, songInsert: 0, r2Delete: 2 }, status: 500, success: false, redacted: true, manifest: ["artist_resolution", "cleanup_completed"] }));
 
 console.log(JSON.stringify(matrix, null, 2));
