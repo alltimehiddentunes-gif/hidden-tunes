@@ -12,6 +12,7 @@ import { ActivityIndicator,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
+import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 
@@ -48,6 +49,8 @@ import {
 } from "../../utils/discoveryPreferences";
 
 type ExploreMoodRoom = MoodRoomGroup<HiddenTunesSong>;
+
+const LISTENING_ROOMS_ARTWORK = require("../../assets/images/listening-rooms-premium.webp");
 
 type DiscoveryRoom = {
   id: string;
@@ -629,16 +632,30 @@ export default function WorldsIndexScreen() {
                         style={[styles.carouselCard, { width: heroWidth }]}
                         onPress={() => openCarouselItem(item)}
                       >
-                        <HTImage
-                          source={item.artwork}
-                          style={styles.carouselImage}
-                          contentFit="cover"
-                          maxDecodeWidth={decodePixels(heroWidth)}
-                          maxDecodeHeight={decodePixels(356)}
-                        />
+                        {item.id === "room-listening-room" ? (
+                          <ExpoImage
+                            source={LISTENING_ROOMS_ARTWORK}
+                            style={styles.carouselImage}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            transition={0}
+                          />
+                        ) : (
+                          <HTImage
+                            source={item.artwork}
+                            style={styles.carouselImage}
+                            contentFit="cover"
+                            maxDecodeWidth={decodePixels(heroWidth)}
+                            maxDecodeHeight={decodePixels(356)}
+                          />
+                        )}
                         <LinearGradient
                           pointerEvents="none"
-                          colors={["rgba(0,0,0,0.04)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.86)"]}
+                          colors={
+                            item.id === "room-listening-room"
+                              ? ["rgba(0,0,0,0.02)", "rgba(3,0,10,0.2)", "rgba(2,0,8,0.94)"]
+                              : ["rgba(0,0,0,0.04)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.86)"]
+                          }
                           style={styles.carouselShade}
                         />
                         <View style={styles.carouselGlass} pointerEvents="none" />
