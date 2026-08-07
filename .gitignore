@@ -2,6 +2,10 @@ node_modules/
 .expo/
 dist/
 build/
+!hidden-tunes-desktop/build/
+hidden-tunes-desktop/build/*
+!hidden-tunes-desktop/build/entitlements.mac.plist
+!hidden-tunes-desktop/build/entitlements.mac.inherit.plist
 .env
 .env.local
 # Generated Expo prebuild output only (keep plugins/hidden-audio/{android,ios} tracked)
