@@ -15,6 +15,7 @@
 } from 'react'
 import {
     filterAlbumsByQuery,
+  fetchSongsPage,
   filterArtistsByQuery,
   sortAlbumsList,
   sortArtistsList,
@@ -42,6 +43,15 @@ import {
   searchMusicSongsPage,
 } from './lib/musicCatalog'
 import { parseMusicGenreIntent, type MusicGenreDefinition } from './lib/musicGenres'
+import {
+  qualifiesForTopMatch,
+  normalizeSearchText,
+  rankAlbums,
+  rankArtists,
+  rankSearchSongs,
+  resolveExactGenreIntent,
+  SEARCH_TOP_MATCH_CONFIDENCE,
+} from './lib/search/musicSearchRanking'
 import { getDesktopRuntimeConfig } from './lib/config/desktopRuntimeConfig'
 import {
   DESKTOP_INCLUDED_CAPABILITIES,
@@ -58,6 +68,7 @@ import {
   type CatalogMetadataIndex,
 } from './lib/songMetadata'
 import { excludeInternalDevCatalogSongs } from './lib/devAudioVersionTestHarness'
+import { selectInstantPlayableUrl } from './lib/audioVersions'
 import {
   artistReleaseTypeLabel,
   fetchArtistAbout,
@@ -71,12 +82,21 @@ import {
   unfollowArtistProfile,
   type ArtistProfileShell,
   type ArtistProfileSimilarArtist,
+  type ArtistProfileSong,
 } from './services/artistProfileApi'
 import {
   getDesktopSupabaseAccessToken,
   getDesktopSupabaseSessionSummary,
 } from './services/desktopSupabaseAuth'
 import { DesktopAuthProvider } from './context/DesktopAuthProvider'
+import {
+  LocalizationProvider,
+  PRODUCTION_LOCALES,
+  getLocaleNativeName,
+  useLocalization,
+  type SupportedLocale,
+  type TranslationKey,
+} from './localization'
 import { useDesktopAuth } from './context/useDesktopAuth'
 import { DesktopOfflineBanner } from './components/shell/DesktopOfflineBanner'
 import { DesktopSessionStatusBanner } from './components/shell/DesktopSessionStatusBanner'
@@ -94,6 +114,7 @@ import {
   resolveSongsForAlbum,
   resolveSongsForArtist,
   resolveSongsForMoodRoom,
+  songBelongsToArtist,
   type CatalogIndexes,
 } from './lib/catalogIndexes'
 import {
@@ -108,6 +129,7 @@ import {
   buildArtworkContext,
 } from './lib/artworkIntegrity'
 import { EntityAtmosphereBackdrop } from './components/EntityAtmosphereBackdrop'
+import { artistCreditMembers, normalizeArtistIdentityName } from './lib/artistIdentity'
 import {
   logCatalogCacheHit,
   logCatalogCacheMiss,
@@ -126,11 +148,13 @@ import {
   parseStoredAlbumSort,
   type AudioQualityMode,
   parseStoredPageId,
+  parseStoredPlayerSidebarVisibility,
   parseStoredSearchTerm,
   parseStoredSongSort,
   PreferencesResetProvider,
   usePersistedPreference,
   usePreferencesReset,
+  type PlayerSidebarVisibility,
   type StoredPageId,
 } from './lib/localPreferences'
 import { AtmosphereSettingsPanel } from './components/AtmosphereSettingsPanel'
@@ -138,6 +162,7 @@ import { PreferredPlayerStyleSelector } from './components/PreferredPlayerStyleS
 import { ArtworkImage } from './components/ArtworkImage'
 import { PremiumFullscreenShell } from './components/player/PremiumFullscreenShell'
 import { DesktopPersistentPlayer } from './components/player/DesktopPersistentPlayer'
+import { DesktopWindowControls } from './components/DesktopWindowControls'
 import { formatPlaybackTime } from './lib/player/formatPlaybackTime'
 import { resolvePlayerShellMetadata, resolvePlayerSubtitle } from './lib/playerDisplayMetadata'
 import { isAudiobookQueueSong } from './lib/audiobooks/audiobookPlaybackAdapter'
@@ -165,7 +190,6 @@ import {
 import {
   buildListeningScenes,
   type BuiltListeningScene,
-  filterSongsByListeningScene,
   findListeningScene,
 } from './lib/sceneListening'
 import {
@@ -175,8 +199,11 @@ import {
   type BuiltRadioStation,
 } from './lib/desktopRadio'
 import {
-  getListeningScenesForCatalog,
-} from './lib/listeningContext'
+  EMOTIONAL_WORLDS,
+  buildEmotionalWorldCatalog,
+  type EmotionalWorldId,
+} from './lib/emotionalWorlds'
+import { fetchEmotionalWorlds, type BackendWorldCatalog } from './lib/emotionalWorldApi'
 import {
   type NowPlayingStyle,
 } from './lib/nowPlayingStyle'
@@ -199,6 +226,7 @@ import { MusicHomePage } from './components/home/MusicHomePage'
 import { HiddenTunesGlobalBackground } from './components/HiddenTunesGlobalBackground'
 import { LaunchGate } from './components/LaunchGate'
 import { GlobalTopNav } from './components/music/GlobalTopNav'
+import { HiddenTunesBrandMark } from './components/HiddenTunesBrandMark'
 import { MusicWorkspace } from './components/music/MusicWorkspace'
 import { AccountRequiredDialog } from './components/account/AccountRequiredDialog'
 import { resolveAccountGate } from './lib/account/accountGate'
@@ -232,6 +260,8 @@ import { LectureSeriesPage } from './components/lectures/LectureSeriesPage'
 import { useDiscoverLectureSearch } from './lib/lectures/useDiscoverLectureSearch'
 import { useGlobalDesktopSearch } from './lib/search/useGlobalDesktopSearch'
 import { GlobalSearchSections } from './components/search/GlobalSearchSections'
+import { PlaylistPickerProvider } from './components/playlists/PlaylistPickerProvider'
+import { apiSongToPlaylistItem, usePlaylistPicker, type PlaylistPickerSource } from './components/playlists/playlistPicker'
 import { formatLectureSeriesSubtitle } from './lib/lectures/lectureFormatters'
 import { buildRadioQueueSongs, isRadioQueueSong } from './lib/radio/radioPlaybackAdapter'
 import { buildTvQueueSongs, isTvQueueSong } from './lib/tv/tvPlaybackAdapter'
@@ -270,6 +300,8 @@ import type {
 import type { RadioStationMeta } from './lib/radio/types'
 import type { TvChannelMeta } from './lib/tv/types'
 import './App.css'
+import './player-premium.css'
+import './components/home/MusicHomePage.css'
 
 function formatPlaylistDurationLabel(songs: ApiSong[]) {
   const totalSeconds = songs.reduce((sum, song) => sum + (song.durationSeconds ?? 0), 0)
@@ -696,7 +728,7 @@ function PsdIconEqualizer({ className = '' }: { className?: string }) {
 }
 
 const APP_NAME = 'Hidden Tunes Desktop'
-const APP_VERSION = '0.0.1'
+const APP_VERSION = '1.0.0'
 const GRID_INITIAL_LIMIT = 24
 const GRID_SHOW_MORE_STEP = 24
 const SEARCH_DEBOUNCE_MS = 250
@@ -1703,42 +1735,17 @@ const SIDEBAR_NAV_GROUPS = [
   { label: 'Listen and Learn', items: SIDEBAR_LEARN_NAV },
   { label: 'Account', items: SIDEBAR_ACCOUNT_NAV },
 ] as const
-function referenceSidebarItem(
-  source: SidebarNavItem,
-  key: string,
-  label: string,
-  navKey: NavKey,
-): SidebarNavItem {
-  return { ...source, key, label, navKey }
-}
 
-const HOME_REFERENCE_SIDEBAR_GROUPS = [
-  {
-    label: 'Music',
-    items: [
-      referenceSidebarItem(SIDEBAR_DISCOVER_NAV[1]!, 'discover', 'Discover', 'search'),
-      referenceSidebarItem(SIDEBAR_PRIMARY_NAV[1]!, 'new-releases', 'New Releases', 'music'),
-      referenceSidebarItem(SIDEBAR_DISCOVER_NAV[1]!, 'top-charts', 'Top Charts', 'search'),
-      referenceSidebarItem(SIDEBAR_DISCOVER_NAV[0]!, 'genres-moods', 'Genres & Moods', 'worlds'),
-      SIDEBAR_DISCOVER_NAV[2]!,
-      SIDEBAR_DISCOVER_NAV[3]!,
-      referenceSidebarItem(SIDEBAR_PRIMARY_NAV[1]!, 'songs', 'Songs', 'music'),
-      referenceSidebarItem(SIDEBAR_PRIMARY_NAV[4]!, 'music-videos', 'Music Videos', 'tv'),
-      referenceSidebarItem(SIDEBAR_PRIMARY_NAV[2]!, 'live-performances', 'Live Performances', 'radio'),
-      referenceSidebarItem(SIDEBAR_LIBRARY_NAV[1]!, 'liked-songs', 'Liked Songs', 'liked'),
-    ],
-  },
-  {
-    label: 'Your Library',
-    items: [
-      SIDEBAR_LIBRARY_NAV[2]!,
-      referenceSidebarItem(SIDEBAR_LIBRARY_NAV[4]!, 'recently-played', 'Recently Played', 'recent'),
-      SIDEBAR_LIBRARY_NAV[1]!,
-      SIDEBAR_LIBRARY_NAV[3]!,
-    ],
-  },
-  { label: '', items: SIDEBAR_ACCOUNT_NAV },
-] as const
+const SIDEBAR_TRANSLATION_KEYS: Partial<Record<NavKey, TranslationKey>> = {
+  home: 'navigation.home',
+  search: 'navigation.search',
+  radio: 'navigation.radio',
+  library: 'navigation.library',
+  playlists: 'navigation.playlists',
+  downloads: 'navigation.downloads',
+  tv: 'navigation.tv',
+  settings: 'settings.title',
+}
 if (import.meta.env.DEV) {
   const sidebarPrimaryKeys = SIDEBAR_PRIMARY_NAV.map((item) => item.navKey).join(',')
   const expectedPrimaryKeys = 'home,music,radio,podcasts,tv,sports'
@@ -1759,40 +1766,6 @@ type MoodRoom = {
   listeners: string
   mood: Mood
   sceneId: VisualSceneId
-}
-
-function BrandWaveformMark({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className ?? 'brand-waveform'}
-      viewBox="0 0 36 36"
-      fill="none"
-      aria-hidden="true"
-    >
-      <rect x="3" y="14" width="3" height="10" rx="1.5" fill="url(#brandWaveGold)" />
-      <rect x="9" y="8" width="3" height="22" rx="1.5" fill="url(#brandWaveGold)" />
-      <rect x="15" y="12" width="3" height="14" rx="1.5" fill="url(#brandWaveGold)" />
-      <rect x="21" y="5" width="3" height="28" rx="1.5" fill="url(#brandWaveGold)" />
-      <rect x="27" y="10" width="3" height="18" rx="1.5" fill="url(#brandWaveGold)" />
-      <path
-        d="M2 18c4-6 8-9 16-9s12 3 16 9"
-        stroke="url(#brandWaveStroke)"
-        strokeWidth="1.25"
-        strokeLinecap="round"
-        opacity="0.55"
-      />
-      <defs>
-        <linearGradient id="brandWaveGold" x1="18" y1="4" x2="18" y2="34" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FFBA3D" />
-          <stop offset="1" stopColor="#E8B923" />
-        </linearGradient>
-        <linearGradient id="brandWaveStroke" x1="2" y1="9" x2="34" y2="27" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#F5C542" />
-          <stop offset="1" stopColor="#BF7F72" />
-        </linearGradient>
-      </defs>
-    </svg>
-  )
 }
 
 function moodRoomScene(room: Pick<MoodRoom, 'title' | 'mood' | 'sceneId'>): VisualSceneId {
@@ -1854,6 +1827,7 @@ function ShowMoreRow({
   hasMore?: boolean
   loading?: boolean
 }) {
+  const { t } = useLocalization()
   if (total <= GRID_INITIAL_LIMIT && !hasMore) return null
 
   return (
@@ -1868,7 +1842,7 @@ function ShowMoreRow({
           onClick={onShowMore}
           disabled={loading}
         >
-          {loading ? 'Loading…' : 'Show more'}
+          {loading ? t('common.loading') : t('home.loadMore')}
         </button>
       ) : null}
     </div>
@@ -1902,14 +1876,15 @@ function CatalogError({
   message: string
   onRetry: () => void
 }) {
+  const { t } = useLocalization()
   return (
     <div className="catalog-error" role="alert">
-      <p className="catalog-error-title">Catalog unavailable</p>
+      <p className="catalog-error-title">{t('errors.somethingWentWrong')}</p>
       <p className="catalog-error-detail">
         {message || 'Could not reach Hidden Tunes. Wait a moment, then try again.'}
       </p>
       <button type="button" className="btn-secondary btn-sm" onClick={onRetry}>
-        Retry catalog load
+        {t('common.retry')}
       </button>
     </div>
   )
@@ -1986,6 +1961,7 @@ const ApiSongGrid = memo(function ApiSongGrid({
   hasServerMore = false,
   serverLoading = false,
   onNeedServerMore,
+  playlistSource = 'home',
 }: {
   songs: ApiSong[]
   onSelect: SongSelectHandler
@@ -1995,7 +1971,9 @@ const ApiSongGrid = memo(function ApiSongGrid({
   hasServerMore?: boolean
   serverLoading?: boolean
   onNeedServerMore?: () => void
+  playlistSource?: PlaylistPickerSource
 }) {
+  const { openPlaylistPicker } = usePlaylistPicker()
   const { visible, showMore, total, shown, hasMore } = useVisibleSlice(
     songs,
     paginate ? listKey : `${listKey}:all`,
@@ -2018,8 +1996,8 @@ const ApiSongGrid = memo(function ApiSongGrid({
     <>
       <div className="card-row card-row--compact">
         {renderSongs.map((song) => (
+          <div key={song.id} className="discovery-card-wrap">
           <button
-            key={song.id}
             type="button"
             className="discovery-card discovery-card--api"
             onClick={() => onSelect(song, songs.findIndex((entry) => entry.id === song.id))}
@@ -2033,6 +2011,8 @@ const ApiSongGrid = memo(function ApiSongGrid({
               <p className="card-meta-secondary">{song.album}</p>
             </div>
           </button>
+          <button type="button" className="discovery-card-playlist-action" aria-label={`Add ${song.title} to playlist`} onClick={() => openPlaylistPicker({ items: [apiSongToPlaylistItem(song)], source: playlistSource })}>+</button>
+          </div>
         ))}
       </div>
       {paginate ? (
@@ -2285,7 +2265,7 @@ function PageFrame({
 const SEARCH_INPUT_COMMIT_MS = 200
 
 const HomeTopBar = memo(function HomeTopBar({
-  placeholder = 'Search songs, artists, moods…',
+  placeholder,
   onOpenDiscover,
   onSearchSubmit,
   variant = 'default',
@@ -2302,6 +2282,8 @@ const HomeTopBar = memo(function HomeTopBar({
   /** Keep clear visible when parent owns a hidden intent (e.g. genre:hip-hop). */
   showClear?: boolean
 }) {
+  const { t } = useLocalization()
+  const resolvedPlaceholder = placeholder ?? t('search.placeholder')
   const [localQuery, setLocalQuery] = useState('')
   const isSearchShell = variant === 'search' && onSearchChange != null
   const controlledSearchValue = searchValue ?? ''
@@ -2378,7 +2360,7 @@ const HomeTopBar = memo(function HomeTopBar({
   )
 
   return (
-    <header className={`home-top-bar${isSearchShell ? ' home-top-bar--search' : ''}`} aria-label="Home navigation">
+    <header className={`home-top-bar${isSearchShell ? ' home-top-bar--search' : ''}`} aria-label={t('profile.homeTitle')}>
       <form className="home-top-search" role="search" onSubmit={handleSubmit}>
         <span className="search-icon" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -2390,8 +2372,8 @@ const HomeTopBar = memo(function HomeTopBar({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={placeholder}
-          aria-label={placeholder}
+          placeholder={resolvedPlaceholder}
+          aria-label={resolvedPlaceholder}
           autoComplete="off"
           spellCheck={false}
         />
@@ -2399,7 +2381,7 @@ const HomeTopBar = memo(function HomeTopBar({
           <button
             type="button"
             className="home-top-search-clear"
-            aria-label="Clear search"
+            aria-label={t('search.clearRecent')}
             onClick={() => setQuery('', true)}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -2893,9 +2875,8 @@ const Sidebar = memo(function Sidebar({
   onNavigateNav: (navKey: NavKey) => void
 }) {
   const { configured, session, openSignIn, signOut } = useDesktopAuth()
-  const groups = activeNavKey === 'home'
-    ? HOME_REFERENCE_SIDEBAR_GROUPS
-    : SIDEBAR_NAV_GROUPS
+  const { t } = useLocalization()
+  const groups = SIDEBAR_NAV_GROUPS
 
   const accountLabel = session.isSignedIn
     ? (session.email ?? 'Signed in')
@@ -2911,19 +2892,21 @@ const Sidebar = memo(function Sidebar({
   return (
     <aside className="sidebar sidebar--psd">
       <div className="sidebar-brand">
-        <BrandWaveformMark />
+        <HiddenTunesBrandMark className="brand-logo-mark" />
         <div className="brand-text">
-          <span className="brand-wordmark">Hidden Tunes</span>
-          <span className="brand-tagline">Feel Every Sound</span>
+          <span className="brand-wordmark brand-wordmark--current">
+            Hidden<span>Tunes</span>
+          </span>
         </div>
       </div>
 
-      <nav className="sidebar-nav" aria-label="Main navigation">
+      <nav className="sidebar-nav" aria-label={t('navigation.media')}>
         {groups.map((group) => (
           <div className="sidebar-nav-group" key={group.label}>
             {group.label ? <span className="sidebar-nav-group-label">{group.label}</span> : null}
             {group.items.map((item) => {
               const isActive = isSidebarNavActive(item, activeNavKey)
+              const translationKey = item.navKey ? SIDEBAR_TRANSLATION_KEYS[item.navKey] : undefined
               return (
                 <button
                   key={item.key}
@@ -2939,7 +2922,7 @@ const Sidebar = memo(function Sidebar({
                   }}
                 >
                   {item.icon}
-                  <span>{item.label}</span>
+                  <span>{translationKey ? t(translationKey) : item.label}</span>
                 </button>
               )
             })}
@@ -3469,6 +3452,8 @@ function DiscoverPage({
   query?: string
   setQuery?: (value: string) => void
 }) {
+  const { t } = useLocalization()
+  const { openPlaylistPicker } = usePlaylistPicker()
   const {
     artists,
     albums,
@@ -3488,7 +3473,10 @@ function DiscoverPage({
   )
   const query = externalQuery ?? internalQuery
   const setQuery = externalSetQuery ?? setInternalQuery
-  const genreDefinition = useMemo(() => parseMusicGenreIntent(query), [query])
+  const genreDefinition = useMemo(
+    () => parseMusicGenreIntent(query) ?? resolveExactGenreIntent(query),
+    [query],
+  )
   const genreId = genreDefinition?.id ?? null
   const textQuery = genreDefinition ? '' : query
   const debouncedQuery = useDebouncedValue(textQuery, SEARCH_DEBOUNCE_MS)
@@ -3530,6 +3518,8 @@ function DiscoverPage({
       if (gen !== remoteSearchGen.current) return
       setRemoteSearchLoading(true)
       setRemoteSearchError(null)
+      setRemoteSongs([])
+      setRemoteHasMore(false)
 
       try {
         const result = await (genreDefinition
@@ -3553,7 +3543,8 @@ function DiscoverPage({
         setRemoteSearchError(
           err instanceof Error ? err.message : 'Search failed.',
         )
-        // Do not wipe prior successful remote results on a transient failure.
+        setRemoteSongs([])
+        setRemoteHasMore(false)
       } finally {
         if (gen === remoteSearchGen.current) setRemoteSearchLoading(false)
       }
@@ -3610,7 +3601,10 @@ function DiscoverPage({
 
   const visibleSongs = useMemo(() => {
     if (trimmedQuery || genreDefinition) {
-      return sortSongsList(remoteSongs, sort)
+      if (!genreDefinition && !normalizeSearchText(trimmedQuery)) return []
+      return genreDefinition
+        ? sortSongsList(remoteSongs, sort)
+        : rankSearchSongs(remoteSongs, trimmedQuery).map((result) => result.item)
     }
     return metadataRecordsToApiSongs(
       sortMetadataRecords(localSearchResult.records, sort),
@@ -3647,10 +3641,10 @@ function DiscoverPage({
         playableSong,
         queueSongs,
         safeIndex,
-        'discover',
+        genreDefinition ? 'genre' : 'search',
         genreDefinition ? `${genreDefinition.label} catalogue` : trimmedQuery ? `Search · ${trimmedQuery}` : 'Search',
         {
-          seedType: 'discover',
+          seedType: genreDefinition ? 'genre' : 'search',
           seedTracks: buildQueueSeedPool('discover', queueSongs, indexes, playableSong),
           candidatePools: queuePools,
         },
@@ -3661,18 +3655,52 @@ function DiscoverPage({
 
   const [searchTab, setSearchTab] = useState<'all' | 'songs' | 'artists' | 'albums'>('all')
 
-  const matchedArtists = useMemo(
-    () => genreDefinition ? [] : sortArtistsList(filterArtistsByQuery(artists, debouncedQuery), 'az'),
+  const localMatchedArtists = useMemo(
+    () => genreDefinition ? [] : rankArtists(sortArtistsList(filterArtistsByQuery(artists, debouncedQuery), 'az'), debouncedQuery),
     [artists, debouncedQuery, genreDefinition],
   )
+  const matchedArtists = useMemo(() => {
+    if (genreDefinition || !trimmedQuery) return localMatchedArtists
+    const queryKey = normalizeArtistIdentityName(trimmedQuery)
+    const derived = new Map<string, ApiArtist>()
+    for (const song of visibleSongs) {
+      const fullKey = normalizeArtistIdentityName(song.artist)
+      const members = artistCreditMembers(song.artist)
+      if (fullKey !== queryKey && !members.includes(queryKey)) continue
+      const existing = derived.get(queryKey)
+      const tracks = existing ? [...existing.tracks, song] : [song]
+      derived.set(queryKey, {
+        id: fullKey === queryKey && song.artistId ? song.artistId : `artist-name:${queryKey}`,
+        name: fullKey === queryKey ? song.artist : trimmedQuery.trim(),
+        artwork: existing?.artwork || song.artwork,
+        songCount: tracks.length,
+        tracks,
+      })
+    }
+    const merged = [...localMatchedArtists]
+    for (const candidate of derived.values()) {
+      const existingIndex = merged.findIndex((artist) => normalizeArtistIdentityName(artist.name) === normalizeArtistIdentityName(candidate.name))
+      if (existingIndex >= 0) {
+        const existing = merged[existingIndex]!
+        const seen = new Set(existing.tracks.map((song) => song.id))
+        const tracks = [...existing.tracks, ...candidate.tracks.filter((song) => !seen.has(song.id))]
+        merged[existingIndex] = { ...existing, tracks, songCount: Math.max(existing.songCount, tracks.length) }
+      } else {
+        merged.push(candidate)
+      }
+    }
+    return rankArtists(merged, trimmedQuery)
+  }, [genreDefinition, localMatchedArtists, trimmedQuery, visibleSongs])
   const matchedAlbums = useMemo(
-    () => genreDefinition ? [] : sortAlbumsList(filterAlbumsByQuery(albums, debouncedQuery, artistNames), 'latest'),
+    () => genreDefinition ? [] : rankAlbums(sortAlbumsList(filterAlbumsByQuery(albums, debouncedQuery, artistNames), 'latest'), debouncedQuery),
     [albums, artistNames, debouncedQuery, genreDefinition],
   )
 
-  const topResult = visibleSongs[0] ?? null
-  const topResultRecord = visibleRecords[0] ?? null
-
+  const rankedTopSong = useMemo(
+    () => genreDefinition ? null : rankSearchSongs(visibleSongs, trimmedQuery)[0] ?? null,
+    [genreDefinition, trimmedQuery, visibleSongs],
+  )
+  const topResult = qualifiesForTopMatch(rankedTopSong) ? rankedTopSong?.item ?? null : null
   const songLimit = genreDefinition
     ? Math.max(visibleSongs.length, SEARCH_SONG_EXPANDED_LIMIT)
     : searchTab === 'songs'
@@ -3699,10 +3727,10 @@ function DiscoverPage({
   )
 
   const searchTabs = [
-    { id: 'all', label: 'All' },
-    { id: 'songs', label: 'Songs' },
-    { id: 'artists', label: 'Artists' },
-    { id: 'albums', label: 'Albums' },
+    { id: 'all', label: `All (${visibleSongs.length + matchedArtists.length + matchedAlbums.length})` },
+    { id: 'songs', label: `${t('music.common.songs')} (${visibleSongs.length})` },
+    { id: 'artists', label: `${t('library.artists')} (${matchedArtists.length})` },
+    { id: 'albums', label: `${t('library.albums')} (${matchedAlbums.length})` },
   ] as const
 
   const showMainResults = searchTab === 'all' || searchTab === 'songs'
@@ -3784,9 +3812,9 @@ function DiscoverPage({
       data-music-genre-catalogue={genreDefinition ? genreDefinition.slug : undefined}
     >
       <PageFrame cinematic>
-        <header className="psd-search-page-header" aria-labelledby="search-results-heading">
+        <header className="psd-search-page-header" aria-labelledby="search-results-heading" data-search-confidence-threshold={SEARCH_TOP_MATCH_CONFIDENCE}>
           <h1 id="search-results-heading" className="psd-search-page-title">
-            {genreDefinition ? genreDefinition.label : 'Search Results'}
+            {genreDefinition ? genreDefinition.label : t('search.searchResultsLabel')}
           </h1>
           <p className="psd-search-page-subtitle">
             {genreDefinition ? (
@@ -3801,7 +3829,7 @@ function DiscoverPage({
           </p>
         </header>
 
-        <div className="psd-search-tab-row" role="tablist" aria-label="Search categories">
+        <div className="psd-search-tab-row" role="tablist" aria-label={t('navigation.search')}>
           {searchTabs.map((tab) => (
             <button
               key={tab.id}
@@ -3816,7 +3844,7 @@ function DiscoverPage({
           ))}
         </div>
 
-        {showCatalogSkeleton ? (
+        {showCatalogSkeleton || remoteSearchLoading || isSearchPending ? (
           <CatalogSkeleton count={8} variant="card" />
         ) : showCatalogError ? (
           <CatalogError message={error || ''} onRetry={retry} />
@@ -3831,7 +3859,7 @@ function DiscoverPage({
               <section className="psd-search-error" role="alert" data-search-error="music">
                 <p>{remoteSearchError}</p>
                 <button type="button" className="btn-secondary btn-sm" onClick={retryRemoteSearch}>
-                  Retry music search
+                  {t('common.retry')}
                 </button>
               </section>
             ) : null}
@@ -3840,14 +3868,25 @@ function DiscoverPage({
                 <p>{lectureSearchError}</p>
               </section>
             ) : null}
-            {showMainResults && topResult ? (
+            {genreDefinition && searchTab === 'all' ? (
+              <section className="psd-search-intent-card" aria-label="Exact genre match" data-search-top-match="genre">
+                <div>
+                  <span className="psd-search-intent-eyebrow">Exact genre match</span>
+                  <h2>{genreDefinition.label}</h2>
+                  <p>{visibleSongs.length} currently loaded {visibleSongs.length === 1 ? 'song' : 'songs'} · total catalog count unavailable</p>
+                </div>
+                <button type="button" className="btn-primary" onClick={() => visibleSongs[0] && playDiscoverSong(visibleSongs[0], 0)} disabled={visibleSongs.length === 0}>
+                  {t('common.play')}
+                </button>
+              </section>
+            ) : showMainResults && topResult ? (
               <section className="psd-search-top-result" aria-label="Top result">
                 <span className="psd-search-top-result-label">Top Result</span>
                 <div className="psd-search-top-result-card">
                   <button
                     type="button"
                     className="psd-search-top-result-art-btn"
-                    aria-label={`Play ${topResult.title}`}
+                    aria-label={t('music.accessibility.playSong', { title: topResult.title })}
                     onClick={() => playDiscoverSong(topResult, 0)}
                   >
                     <div className="psd-search-top-result-art">
@@ -3869,19 +3908,10 @@ function DiscoverPage({
                   <div className="psd-search-top-result-meta">
                     <h2>{topResult.title}</h2>
                     <p className="psd-search-top-result-artist">{topResult.artist}</p>
-                    <div className="psd-search-top-result-badges">
-                      {resolveSearchSongBadges(topResultRecord ?? topResult).map((badge) => (
-                        <span key={badge} className="psd-search-quality-badge">{badge}</span>
-                      ))}
-                    </div>
+                    <p className="psd-search-top-result-reason">Strong match for &ldquo;{trimmedQuery}&rdquo;</p>
                   </div>
 
-                  <div className="psd-search-top-result-wave">
-                    <PsdWaveformStrip className="psd-search-top-result-waveform" />
-                    <span className="psd-search-top-result-duration">
-                      {formatSongDurationLabel(topResult)}
-                    </span>
-                  </div>
+                  <span className="psd-search-top-result-duration">{formatSongDurationLabel(topResult)}</span>
                 </div>
               </section>
             ) : null}
@@ -3889,7 +3919,7 @@ function DiscoverPage({
             {showMainResults && songRows.length > 0 ? (
               <section className="psd-search-songs-panel" aria-labelledby="search-songs-heading">
                 <header className="psd-search-section-header">
-                  <h2 id="search-songs-heading">Songs</h2>
+                  <h2 id="search-songs-heading">{t('music.common.songs')}</h2>
                   {searchTab === 'all' && visibleSongs.length > SEARCH_SONG_PREVIEW_LIMIT ? (
                     <button
                       type="button"
@@ -3905,8 +3935,8 @@ function DiscoverPage({
                   {songRows.map((song, index) => {
                     const active = isSongActive(song.id)
                     return (
+                      <div key={song.id} className="psd-search-song-row-wrap">
                       <button
-                        key={song.id}
                         type="button"
                         className={`psd-search-song-row${active ? ' is-active' : ''}`}
                         onClick={() => playDiscoverSong(song, index)}
@@ -3933,6 +3963,8 @@ function DiscoverPage({
                           {formatSongDurationLabel(song)}
                         </span>
                       </button>
+                      <button type="button" className="psd-search-add-playlist" aria-label={t('music.accessibility.addSongToPlaylist', { title: song.title })} onClick={() => openPlaylistPicker({ items: [apiSongToPlaylistItem(song)], source: 'search' })}>+ {t('navigation.playlists')}</button>
+                      </div>
                     )
                   })}
                 </div>
@@ -3959,7 +3991,7 @@ function DiscoverPage({
                 {showArtistPanel && artistRows.length > 0 ? (
                   <section className="psd-search-side-panel" aria-labelledby="search-artists-heading">
                     <header className="psd-search-section-header">
-                      <h2 id="search-artists-heading">Artists</h2>
+                      <h2 id="search-artists-heading">{t('library.artists')}</h2>
                       {searchTab === 'all' && matchedArtists.length > SEARCH_ARTIST_PREVIEW_LIMIT ? (
                         <button
                           type="button"
@@ -3976,7 +4008,14 @@ function DiscoverPage({
                           key={artist.id}
                           type="button"
                           className="psd-search-side-row"
-                          onClick={() => onOpenArtist(artist)}
+                          onClick={() => {
+                            const searchTracks = visibleSongs.filter((song) => songBelongsToArtist(song, artist))
+                            onOpenArtist({
+                              ...artist,
+                              tracks: searchTracks.length > 0 ? searchTracks : artist.tracks,
+                              songCount: searchTracks.length > 0 ? searchTracks.length : artist.songCount,
+                            })
+                          }}
                         >
                           <span className="psd-search-side-avatar">
                             <ArtistAvatar artist={artist} />
@@ -3994,7 +4033,7 @@ function DiscoverPage({
                 {showAlbumPanel && albumRows.length > 0 ? (
                   <section className="psd-search-side-panel" aria-labelledby="search-albums-heading">
                     <header className="psd-search-section-header">
-                      <h2 id="search-albums-heading">Albums</h2>
+                      <h2 id="search-albums-heading">{t('library.albums')}</h2>
                       {searchTab === 'all' && matchedAlbums.length > SEARCH_ALBUM_PREVIEW_LIMIT ? (
                         <button
                           type="button"
@@ -4037,7 +4076,7 @@ function DiscoverPage({
             {searchTab === 'all' && hasEvaluatedQuery && lectureCourses.length > 0 ? (
               <section className="psd-search-songs-panel" aria-labelledby="search-lectures-heading">
                 <header className="psd-search-section-header">
-                  <h2 id="search-lectures-heading">Courses</h2>
+                  <h2 id="search-lectures-heading">{t('library.hub.lectures')}</h2>
                   <button
                     type="button"
                     className="psd-search-view-all"
@@ -4137,15 +4176,7 @@ function DiscoverPage({
 
 
 
-type EmotionalWorldChipId =
-  | 'all'
-  | 'calm'
-  | 'chill'
-  | 'happy'
-  | 'romantic'
-  | 'motivational'
-  | 'melancholy'
-  | 'energetic'
+type EmotionalWorldChipId = 'all' | EmotionalWorldId
 
 type EmotionalWorldCardSpec = {
   cardId: string
@@ -4153,127 +4184,73 @@ type EmotionalWorldCardSpec = {
   title: string
   tags: string
   chips: EmotionalWorldChipId[]
+  descriptor: string
+  artwork: string
 }
 
 const EMOTIONAL_WORLDS_CHIPS: { id: EmotionalWorldChipId; label: string }[] = [
   { id: 'all', label: 'All Worlds' },
-  { id: 'calm', label: 'Calm' },
-  { id: 'chill', label: 'Chill' },
-  { id: 'happy', label: 'Happy' },
-  { id: 'romantic', label: 'Romantic' },
-  { id: 'motivational', label: 'Motivational' },
-  { id: 'melancholy', label: 'Melancholy' },
-  { id: 'energetic', label: 'Energetic' },
+  ...EMOTIONAL_WORLDS.map((world) => ({ id: world.id, label: world.title })),
 ]
 
-const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = [
-  {
-    cardId: 'ew-midnight-reflection',
-    sceneId: 'rainy-window',
-    title: 'Midnight Reflection',
-    tags: 'Deep • Calm • Soul',
-    chips: ['calm', 'chill', 'melancholy'],
-  },
-  {
-    cardId: 'ew-afro-sunset',
-    sceneId: 'sunday-morning',
-    title: 'Afro Sunset',
-    tags: 'Warm • Groove • Soul',
-    chips: ['happy', 'romantic'],
-  },
-  {
-    cardId: 'ew-healing-slowly',
-    sceneId: 'heartbreak-recovery',
-    title: 'Healing Slowly',
-    tags: 'Soft • Reflective • Calm',
-    chips: ['calm', 'melancholy'],
-  },
-  {
-    cardId: 'ew-night-drive',
-    sceneId: 'midnight-drive',
-    title: 'Night Drive',
-    tags: 'Urban • Late Night • Electronic',
-    chips: ['energetic', 'chill'],
-  },
-  {
-    cardId: 'ew-sunset-glow',
-    sceneId: 'city-lights',
-    title: 'Sunset Glow',
-    tags: 'Golden • Warm • R&B',
-    chips: ['happy', 'romantic'],
-  },
-  {
-    cardId: 'ew-velvet-emotions',
-    sceneId: 'focus-room',
-    title: 'Velvet Emotions',
-    tags: 'Intimate • Warm • Soul',
-    chips: ['romantic', 'calm'],
-  },
-  {
-    cardId: 'ew-ocean-dreams',
-    sceneId: 'city-lights',
-    title: 'Ocean Dreams',
-    tags: 'Dreamy • Deep • Calm',
-    chips: ['calm', 'chill'],
-  },
-  {
-    cardId: 'ew-city-rain',
-    sceneId: 'rainy-window',
-    title: 'City Rain',
-    tags: 'Melancholy • Urban • Jazz',
-    chips: ['melancholy', 'chill'],
-  },
-  {
-    cardId: 'ew-uplift-boost',
-    sceneId: 'focus-room',
-    title: 'Uplift Boost',
-    tags: 'Motivational • Bright • Pop',
-    chips: ['motivational', 'energetic', 'happy'],
-  },
-  {
-    cardId: 'ew-melancholy-bloom',
-    sceneId: 'heartbreak-recovery',
-    title: 'Melancholy Bloom',
-    tags: 'Tender • Slow • Reflective',
-    chips: ['melancholy', 'calm'],
-  },
-]
+const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = EMOTIONAL_WORLDS.map((world) => ({
+  cardId: `emotional-world-${world.id}`,
+  sceneId: world.id,
+  title: world.title,
+  descriptor: world.descriptor,
+  tags: world.primary.slice(0, 3).map((tag) => tag.replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' • '),
+  chips: [world.id],
+  artwork: world.artwork,
+}))
 
 function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   const { songs, indexes, showCatalogSkeleton } = useCatalog()
   const { setActiveAtmosphereId } = useAtmosphere()
   const [selectedChip, setSelectedChip] = useState<EmotionalWorldChipId>('all')
+  const [backendCatalogs, setBackendCatalogs] = useState<Map<EmotionalWorldId, BackendWorldCatalog> | null>(null)
+  const [backendFailed, setBackendFailed] = useState(false)
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+  useEffect(() => {
+    if (songs.length === 0) return
+    const controller = new AbortController()
+    fetchEmotionalWorlds(songs, controller.signal)
+      .then(({ catalogs }) => {
+        setBackendCatalogs(catalogs)
+        setBackendFailed(false)
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return
+        console.warn('[emotional-worlds] backend unavailable; approved compatibility fallback active', error)
+        setBackendFailed(true)
+      })
+    return () => controller.abort()
+  }, [songs])
+  const fallbackCatalogs = useMemo(() => new Map(
+    EMOTIONAL_WORLDS.map((world) => [world.id, buildEmotionalWorldCatalog(songs, world)]),
+  ), [songs])
+  const worldCatalogs = useMemo(() => {
+    if (backendCatalogs) return new Map([...backendCatalogs].map(([id, catalog]) => [id, { tracks: catalog.songs, counts: catalog.counts }]))
+    if (backendFailed) return new Map([...fallbackCatalogs].map(([id, catalog]) => [id, { tracks: catalog.tracks, counts: null }]))
+    return new Map<EmotionalWorldId, { tracks: ApiSong[]; counts: BackendWorldCatalog['counts'] | null }>()
+  }, [backendCatalogs, backendFailed, fallbackCatalogs])
 
-  const playableCards = useMemo(
-    () => EMOTIONAL_WORLDS_CARDS.filter(
-      (card) => filterSongsByListeningScene(songs, card.sceneId).length > 0,
-    ),
-    [songs],
-  )
+  const playableCards = useMemo(() => EMOTIONAL_WORLDS_CARDS.filter(
+    (card) => (worldCatalogs.get(card.sceneId as EmotionalWorldId)?.tracks.length ?? 0) > 0,
+  ), [worldCatalogs])
 
   const visibleCards = useMemo(() => {
-    const pool = showCatalogSkeleton ? EMOTIONAL_WORLDS_CARDS : playableCards
+    const pool = EMOTIONAL_WORLDS_CARDS
     if (selectedChip === 'all') return pool
     return pool.filter((card) => card.chips.includes(selectedChip))
-  }, [playableCards, selectedChip, showCatalogSkeleton])
+  }, [selectedChip])
 
   const activeChips = useMemo(() => {
-    if (showCatalogSkeleton) return EMOTIONAL_WORLDS_CHIPS
-    return EMOTIONAL_WORLDS_CHIPS.filter((chip) => {
-      if (chip.id === 'all') return playableCards.length > 0
-      return playableCards.some((card) => card.chips.includes(chip.id))
-    })
-  }, [playableCards, showCatalogSkeleton])
-
-  const listeningScenesById = useMemo(() => {
-    const scenes = getListeningScenesForCatalog(songs)
-    return new Map(scenes.map((scene) => [scene.id, scene]))
-  }, [songs])
+    return EMOTIONAL_WORLDS_CHIPS
+  }, [])
 
   const playWorld = useCallback(
     (card: EmotionalWorldCardSpec) => {
-      const tracks = filterSongsByListeningScene(songs, card.sceneId)
+      const tracks = worldCatalogs.get(card.sceneId as EmotionalWorldId)?.tracks ?? []
       if (tracks.length === 0) return
       const atmosphere = resolveAtmosphereForWorld({
         cardId: card.cardId,
@@ -4285,25 +4262,25 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         tracks[0],
         tracks,
         0,
-        'mood',
+        'emotional-world',
         card.title,
         {
-          seedType: 'mood',
+          seedType: 'emotional-world',
           seedTracks: buildQueueSeedPool('mood', tracks, indexes, tracks[0]),
           candidatePools: queuePools,
         },
       )
     },
-    [indexes, onOpenSong, queuePools, setActiveAtmosphereId, songs],
+    [indexes, onOpenSong, queuePools, setActiveAtmosphereId, worldCatalogs],
   )
 
   const playHero = useCallback(() => {
     const card = visibleCards.find(
-      (entry) => filterSongsByListeningScene(songs, entry.sceneId).length > 0,
+      (entry) => (worldCatalogs.get(entry.sceneId as EmotionalWorldId)?.tracks.length ?? 0) > 0,
     ) ?? playableCards[0]
     if (!card) return
     playWorld(card)
-  }, [playWorld, playableCards, songs, visibleCards])
+  }, [playWorld, playableCards, visibleCards, worldCatalogs])
 
   const heroWorldArt = useMemo(() => getArtworkForHero('emotional-worlds'), [])
   const canPlayHero = playableCards.length > 0
@@ -4361,7 +4338,11 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
           </div>
         ) : null}
 
-        {showCatalogSkeleton ? (
+        {backendFailed && import.meta.env.DEV ? (
+          <p className="emotional-worlds-intelligence-notice" role="status">Offline compatibility intelligence is active. Counts may differ from the canonical backend.</p>
+        ) : null}
+
+        {showCatalogSkeleton || (!backendCatalogs && !backendFailed && songs.length > 0) ? (
           <div className="emotional-worlds-grid emotional-worlds-grid--loading" aria-hidden="true">
             {Array.from({ length: 10 }, (_, index) => (
               <div key={index} className="emotional-world-card emotional-world-card--skeleton">
@@ -4378,16 +4359,12 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
         ) : (
           <div className="emotional-worlds-grid" role="list" aria-label="Emotional worlds">
             {visibleCards.map((card) => {
-              const tracks = filterSongsByListeningScene(songs, card.sceneId)
-              const worldArt = getArtworkForWorld({
-                id: card.cardId,
-                title: card.title,
-                sceneId: card.sceneId,
-              })
-              const scene = listeningScenesById.get(card.sceneId)
-              const visualSceneId = scene?.visualSceneId ?? resolveVisualScene({
+              const catalog = worldCatalogs.get(card.sceneId as EmotionalWorldId)
+              const tracks = catalog?.tracks ?? []
+              const worldArt = card.artwork
+              const visualSceneId = resolveVisualScene({
                 seed: card.title,
-                mood: scene?.mood ?? 'violet',
+                mood: card.sceneId === 'calm' || card.sceneId === 'chill' ? 'cyan' : card.sceneId === 'romantic' || card.sceneId === 'melancholy' ? 'rose' : 'violet',
               })
 
               return (
@@ -4409,6 +4386,7 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                       type="button"
                       className="emotional-world-play-btn"
                       aria-label={`Play ${card.title}`}
+                      disabled={tracks.length === 0}
                       onClick={() => playWorld(card)}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -4423,9 +4401,12 @@ function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                   >
                     <div className="emotional-world-card-copy">
                       <h3>{card.title}</h3>
+                      <p className="emotional-world-card-descriptor">{card.descriptor}</p>
                       <p className="emotional-world-card-tags">{card.tags}</p>
                       <p className="emotional-world-card-count">
-                        {tracks.length} {tracks.length === 1 ? 'song' : 'songs'}
+                        {tracks.length > 0
+                          ? `${catalog?.counts?.totalPlayable ?? tracks.length} ${(catalog?.counts?.totalPlayable ?? tracks.length) === 1 ? 'song' : 'songs'}`
+                          : 'Curating this world • Explore nearby moods'}
                       </p>
                     </div>
                   </button>
@@ -4453,6 +4434,7 @@ function ArtistsPage({
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenSong: QueueSongHandler
 }) {
+  const { t } = useLocalization()
   const { artists, indexes } = useCatalog()
   const { currentTrack, isPlaying } = useDesktopPlayback()
   const [tab, setTab] = useState<'overview' | 'songs' | 'albums'>('overview')
@@ -4573,7 +4555,7 @@ function ArtistsPage({
                 <h1 id="artist-profile-heading" className="psd-artist-hero-name">
                   {featuredArtist.name}
                 </h1>
-                <p className="psd-artist-hero-label">Artist</p>
+                <p className="psd-artist-hero-label">{t('music.artist.kicker')}</p>
                 <p className="psd-artist-hero-stats">
                   {formatArtistStatLine(
                     featuredArtist.songCount || popularSongs.length,
@@ -4699,7 +4681,7 @@ function ArtistsPage({
               {showAlbums && visibleAlbums.length > 0 ? (
                 <section className="psd-artist-albums-panel" aria-labelledby="artist-albums-heading">
                   <header className="psd-artist-section-header">
-                    <h2 id="artist-albums-heading">Albums</h2>
+                    <h2 id="artist-albums-heading">{t('library.albums')}</h2>
                     {tab === 'overview' && artistAlbums.length > ARTIST_ALBUM_PREVIEW ? (
                       <button
                         type="button"
@@ -4773,6 +4755,7 @@ function AlbumsPage({
   query?: string
   setQuery?: (value: string) => void
 }) {
+  const { t } = useLocalization()
   const { albums, artistNames, indexes } = useCatalog()
   const [internalQuery, setInternalQuery] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.albumsSearch,
@@ -4822,7 +4805,7 @@ function AlbumsPage({
       <div className="psd-albums-atmosphere" aria-hidden="true" />
       <PageFrame cinematic>
         <header className="psd-albums-page-header" aria-labelledby="albums-heading">
-          <h1 id="albums-heading" className="psd-albums-page-title">Albums</h1>
+          <h1 id="albums-heading" className="psd-albums-page-title">{t('library.albums')}</h1>
           <p className="psd-albums-page-subtitle">{albumsSubtitle}</p>
         </header>
 
@@ -4942,6 +4925,7 @@ export function PlaylistsPage({
   query?: string
   setQuery?: (value: string) => void
 }) {
+  const { t } = useLocalization()
   const { songs, indexes, artworkContext } = useCatalog()
   const { currentTrack, isPlaying } = useDesktopPlayback()
   const [trackSearch, setTrackSearch] = useState('')
@@ -4980,8 +4964,8 @@ export function PlaylistsPage({
   const playPlaylistTrack = useCallback(
     (song: ApiSong, index: number) => {
       if (playlistTracks.length === 0) return
-      onOpenSong(song, playlistTracks, index, 'manual', activeSpec.title, {
-        seedType: 'manual',
+      onOpenSong(song, playlistTracks, index, 'playlist', activeSpec.title, {
+        seedType: 'playlist',
         seedTracks: buildQueueSeedPool('manual', playlistTracks, indexes, song),
         candidatePools: queuePools,
       })
@@ -5065,7 +5049,7 @@ export function PlaylistsPage({
           </div>
         </section>
 
-        <div className="psd-playlist-actions" role="toolbar" aria-label="Playlist actions">
+        <div className="psd-playlist-actions" role="toolbar" aria-label={t('navigation.playlists')}>
           <button
             type="button"
             className="psd-playlist-btn psd-playlist-btn--play"
@@ -5075,11 +5059,11 @@ export function PlaylistsPage({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M8 5v14l11-7z" />
             </svg>
-            Play
+            {t('common.play')}
           </button>
         </div>
 
-        <section className="psd-playlist-table-section" aria-label="Playlist tracks">
+        <section className="psd-playlist-table-section" aria-label={t('music.album.tracks')}>
           {!hasPlayableTracks ? (
             <CatalogEmpty
               title="No tracks available"
@@ -5213,7 +5197,12 @@ export function PlaylistsPage({
 
 function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
   const { indexes } = useCatalog()
+  const { t } = useLocalization()
   const { likedSongIds, likedAtById, toggleLiked } = useMusicLikes()
+  const { openPlaylistPicker } = usePlaylistPicker()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortOrder, setSortOrder] = useState<'recent' | 'alphabetical'>('recent')
+  const [selectedFavoriteIds, setSelectedFavoriteIds] = useState<Set<string>>(new Set())
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
 
   const likedSongs = useMemo(
@@ -5223,19 +5212,54 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
     [indexes.songsById, likedSongIds],
   )
 
+  const visibleSongs = useMemo(() => {
+    const query = searchTerm.trim().toLocaleLowerCase()
+    const filtered = query
+      ? likedSongs.filter((song) => [song.title, song.artist, song.album]
+          .some((value) => value?.toLocaleLowerCase().includes(query)))
+      : likedSongs
+    return [...filtered].sort((a, b) => {
+      const titleOrder = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })
+      if (sortOrder === 'alphabetical') return titleOrder || a.id.localeCompare(b.id)
+      const dateOrder = (Date.parse(likedAtById[b.id] ?? '') || 0) - (Date.parse(likedAtById[a.id] ?? '') || 0)
+      return dateOrder || titleOrder || a.id.localeCompare(b.id)
+    })
+  }, [likedAtById, likedSongs, searchTerm, sortOrder])
+
+  const visiblePlayableSongs = useMemo(
+    () => visibleSongs.filter((song) => Boolean(selectInstantPlayableUrl(song))),
+    [visibleSongs],
+  )
+
+  const collageSongs = useMemo(
+    () => likedSongs.filter((song) => Boolean(song.artwork)).slice(0, 4),
+    [likedSongs],
+  )
+  const selectedFavoriteSongs = useMemo(
+    () => visibleSongs.filter((song) => selectedFavoriteIds.has(song.id)),
+    [selectedFavoriteIds, visibleSongs],
+  )
+  const allVisibleSelected = visibleSongs.length > 0 && visibleSongs.every((song) => selectedFavoriteIds.has(song.id))
+  const toggleFavoriteSelection = (songId: string) => setSelectedFavoriteIds((current) => {
+    const next = new Set(current)
+    if (next.has(songId)) next.delete(songId)
+    else next.add(songId)
+    return next
+  })
+
   const playLikedQueue = useCallback(
     (song: ApiSong | null, shuffle: boolean) => {
-      if (likedSongs.length === 0) return
-      const queue = shuffle ? shuffleSongQueue(likedSongs) : likedSongs
+      if (visiblePlayableSongs.length === 0) return
+      const queue = shuffle ? shuffleSongQueue(visiblePlayableSongs) : visiblePlayableSongs
       const startSong = shuffle ? queue[0]! : (song ?? queue[0]!)
       const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === startSong.id))
-      onOpenSong(startSong, queue, queueIndex, 'manual', 'Liked Songs', {
-        seedType: 'manual',
+      onOpenSong(startSong, queue, queueIndex, 'favorites', 'Liked Songs', {
+        seedType: 'favorites',
         seedTracks: buildQueueSeedPool('manual', queue, indexes, startSong),
         candidatePools: queuePools,
       })
     },
-    [indexes, likedSongs, onOpenSong, queuePools],
+    [indexes, onOpenSong, queuePools, visiblePlayableSongs],
   )
 
   const likedMeta = useMemo(() => {
@@ -5254,58 +5278,94 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
       <PageFrame cinematic>
         <section className="psd-liked-hero" aria-labelledby="liked-heading">
           <div className="psd-liked-hero-art-wrap">
-            <div className="psd-liked-hero-heart-art" aria-hidden="true">
-              <span className="psd-liked-hero-heart-glow" />
-              <svg className="psd-liked-hero-heart-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M12 20.8l-1.1-1C6.4 15.36 3 12.28 3 8.5 3 6 5 4 7.5 4c1.74 0 3.41 1.01 4.5 2.36C13.09 5.01 14.76 4 16.5 4 19 4 21 6 21 8.5c0 3.78-3.4 6.86-7.9 11.3L12 20.8z" />
-              </svg>
+            <div className="psd-liked-art-collage" aria-hidden="true">
+              {collageSongs.length > 0 ? collageSongs.map((song, index) => (
+                <span className={`psd-liked-collage-cover psd-liked-collage-cover--${index + 1}`} key={song.id}>
+                  <ArtworkImage src={song.artwork ?? null} alt="" seed={song.id} label={song.title} />
+                </span>
+              )) : (
+                <span className="psd-liked-collage-fallback"><PsdIconHeart /></span>
+              )}
             </div>
           </div>
 
           <div className="psd-liked-hero-copy">
-            <h1 id="liked-heading" className="psd-liked-page-title">Liked Songs</h1>
-            <p className="psd-liked-page-meta">{likedMeta}</p>
-            <p className="psd-liked-page-description">{PSD_LIKED_DESCRIPTION}</p>
+            <p className="psd-liked-eyebrow">{t('library.favoritesEyebrow')}</p>
+            <h1 id="liked-heading" className="psd-liked-page-title">{t('library.favoritesCollectionTitle')}</h1>
+            <p className="psd-liked-page-description">{t('library.favoritesCollectionDescription')}</p>
+            <p className="psd-liked-page-meta">{t('library.favoritesSavedSongs', { count: likedSongs.length })} · {likedMeta}</p>
             <div className="psd-liked-hero-toolbar">
               <div className="psd-liked-hero-actions">
                 <button
                   type="button"
                   className="psd-liked-btn psd-liked-btn--play"
-                  disabled={likedSongs.length === 0}
-                  onClick={() => playLikedQueue(likedSongs[0] ?? null, false)}
+                  disabled={visiblePlayableSongs.length === 0}
+                  onClick={() => playLikedQueue(visiblePlayableSongs[0] ?? null, false)}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                     <path d="M8 5v14l11-7z" />
                   </svg>
-                  Play
+                  {t('library.favoritesPlayAll')}
                 </button>
                 <button
                   type="button"
                   className="psd-liked-btn psd-liked-btn--shuffle"
-                  disabled={likedSongs.length === 0}
+                  disabled={visiblePlayableSongs.length === 0}
                   onClick={() => playLikedQueue(null, true)}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                     <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                   </svg>
-                  Shuffle
+                  {t('library.favoritesShuffle')}
+                </button>
+                <button type="button" className="psd-liked-add-playlist" disabled={!selectedFavoriteSongs.length} onClick={() => openPlaylistPicker({ items: selectedFavoriteSongs.map(apiSongToPlaylistItem), source: 'favorites' })}>
+                  + Add {selectedFavoriteSongs.length || 'Selected'} to Playlist
                 </button>
               </div>
             </div>
           </div>
         </section>
 
+        <div className="psd-liked-content-nav">
+          <div className="psd-liked-tabs" role="tablist" aria-label={t('library.favoritesCollectionTitle')}>
+            <button type="button" role="tab" aria-selected="true">
+              {t('library.favoritesSongsTab')} <span>{likedSongs.length}</span>
+            </button>
+          </div>
+          <div className="psd-liked-toolbar">
+            <label className="psd-liked-search">
+              <span className="sr-only">{t('library.favoritesSearch')}</span>
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder={t('library.favoritesSearch')}
+              />
+            </label>
+            <select
+              value={sortOrder}
+              onChange={(event) => setSortOrder(event.target.value as 'recent' | 'alphabetical')}
+              aria-label={t('library.favoritesRecentlyAdded')}
+            >
+              <option value="recent">{t('library.favoritesRecentlyAdded')}</option>
+              <option value="alphabetical">{t('library.favoritesAlphabetical')}</option>
+            </select>
+          </div>
+        </div>
+
         <section className="psd-liked-table-section" aria-label="Liked songs">
           {likedSongs.length === 0 ? (
             <CatalogEmpty
-              title="No liked songs yet"
-              detail="Tap the heart on the player bar while a music track is playing to save it here."
+              title={t('library.favoritesEmptyTitle')}
+              detail={t('library.favoritesEmptyDetail')}
             />
+          ) : visibleSongs.length === 0 ? (
+            <CatalogEmpty title={t('library.favoritesNoResults')} detail={t('library.favoritesSearch')} />
           ) : (
             <div className="psd-liked-table-wrap">
               <table className="psd-liked-table">
                 <thead>
                   <tr>
+                    <th scope="col" className="psd-liked-col-select"><input type="checkbox" aria-label="Select all visible favorites" checked={allVisibleSelected} onChange={(event) => setSelectedFavoriteIds(event.target.checked ? new Set(visibleSongs.map((song) => song.id)) : new Set())} /></th>
                     <th scope="col" className="psd-liked-col-index">#</th>
                     <th scope="col" className="psd-liked-col-title">TITLE</th>
                     <th scope="col" className="psd-liked-col-artist">ARTIST</th>
@@ -5321,8 +5381,9 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {likedSongs.map((song, index) => (
-                    <tr key={song.id} className="psd-liked-table-row">
+                  {visibleSongs.map((song, index) => (
+                    <tr key={song.id} className={`psd-liked-table-row${selectedFavoriteIds.has(song.id) ? ' is-selected' : ''}`}>
+                      <td className="psd-liked-col-select"><input type="checkbox" aria-label={`Select ${song.title}`} checked={selectedFavoriteIds.has(song.id)} onChange={() => toggleFavoriteSelection(song.id)} /></td>
                       <td className="psd-liked-col-index">{index + 1}</td>
                       <td className="psd-liked-col-title">
                         <button
@@ -5351,10 +5412,11 @@ function LikedPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
                       <td className="psd-liked-col-date">{formatLikedDateLabel(likedAtById[song.id])}</td>
                       <td className="psd-liked-col-duration">{formatSongDurationLabel(song)}</td>
                       <td className="psd-liked-col-menu">
+                        <button type="button" className="control-btn" aria-label={`Add ${song.title} to playlist`} onClick={() => openPlaylistPicker({ items: [apiSongToPlaylistItem(song)], source: 'favorites' })}>+</button>
                         <button
                           type="button"
                           className="control-btn"
-                          aria-label={`Remove ${song.title} from liked songs`}
+                          aria-label={t('library.favoritesRemove', { title: song.title })}
                           onClick={() => toggleLiked(song.id)}
                         >
                           <PsdIconHeart />
@@ -5380,6 +5442,7 @@ export function RecentPage({
   onOpenSong: QueueSongHandler
   query?: string
 }) {
+  const { t } = useLocalization()
   const { indexes } = useCatalog()
   const { recentlyPlayed } = useMusicLocalState()
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
@@ -5399,8 +5462,8 @@ export function RecentPage({
       const queue = recentRows.map((row) => row.song)
       if (queue.length === 0) return
       const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
-      onOpenSong(song, queue, queueIndex, 'manual', 'Recently Played', {
-        seedType: 'manual',
+      onOpenSong(song, queue, queueIndex, 'history', 'Recently Played', {
+        seedType: 'history',
         seedTracks: buildQueueSeedPool('manual', queue, indexes, song),
         candidatePools: queuePools,
       })
@@ -5421,7 +5484,7 @@ export function RecentPage({
     <div className="psd-recent-destination">
       <PageFrame cinematic>
         <header className="psd-recent-header" aria-labelledby="recent-heading">
-          <h1 id="recent-heading" className="psd-recent-page-title">Recently Played</h1>
+          <h1 id="recent-heading" className="psd-recent-page-title">{t('navigation.recentlyPlayed')}</h1>
           <p className="psd-recent-page-subtitle">Music you have listened to on this device</p>
         </header>
 
@@ -5759,11 +5822,14 @@ function SettingsPage({
   const {
     audioQualityMode,
     setAudioQualityMode,
+    autoNextEnabled,
+    setAutoNextEnabled,
     currentTrack,
     currentQueue,
     currentIndex,
   } = useDesktopPlayback()
   const { configured, session, openSignIn, signOut, refreshing } = useDesktopAuth()
+  const { locale, setLocale, isChangingLanguage, t } = useLocalization()
   const { offline } = useDesktopConnectivity()
   const { resetDesktopPreferencesState } = usePreferencesReset()
   const { clearCatalogCache, catalogStatus, error: catalogError } = useCatalog()
@@ -6017,6 +6083,20 @@ function SettingsPage({
                 </div>
                 <div className="settings-row">
                   <div className="settings-label">
+                    <span>Music Auto-Next</span>
+                    <small>Generate related music after the current source queue finishes</small>
+                  </div>
+                  <button
+                    type="button"
+                    className={`settings-badge${autoNextEnabled ? '' : ' settings-badge--muted'}`}
+                    aria-pressed={autoNextEnabled}
+                    onClick={() => setAutoNextEnabled(!autoNextEnabled)}
+                  >
+                    {autoNextEnabled ? 'On' : 'Off'}
+                  </button>
+                </div>
+                <div className="settings-row">
+                  <div className="settings-label">
                     <span>Shuffle &amp; repeat</span>
                     <small>Controlled from the player for the current session only</small>
                   </div>
@@ -6033,10 +6113,9 @@ function SettingsPage({
 
           {activeSection === 'appearance' ? (
             <section className="settings-panel" id="settings-appearance">
-              <h2>Appearance &amp; language</h2>
+              <h2>{t('settings.language')}</h2>
               <p className="settings-panel-desc">
-                This desktop preview uses a fixed cinematic dark theme. Theme switching and language
-                packs are not available in this build.
+                {t('language.subtitle')}
               </p>
               <div className="settings-row">
                 <div className="settings-label">
@@ -6047,11 +6126,22 @@ function SettingsPage({
               </div>
               <div className="settings-row">
                 <div className="settings-label">
-                  <span>Language</span>
-                  <small>English (United States) — localization not shipping yet</small>
+                  <span>{t('settings.selectLanguage')}</span>
+                  <small>{t('settings.currentLanguage')}: {getLocaleNativeName(locale)}</small>
                 </div>
-                <span className="settings-badge settings-badge--muted">English only</span>
+                <select
+                  className="settings-language-select"
+                  value={locale}
+                  aria-label={t('settings.selectLanguage')}
+                  disabled={isChangingLanguage}
+                  onChange={(event) => void setLocale(event.target.value as SupportedLocale)}
+                >
+                  {PRODUCTION_LOCALES.map((item) => (
+                    <option key={item.code} value={item.code}>{item.nativeName}</option>
+                  ))}
+                </select>
               </div>
+              {isChangingLanguage ? <p className="settings-language-status" role="status">{t('settings.changingLanguage')}</p> : null}
               <div className="settings-row">
                 <div className="settings-label">
                   <span>Updates</span>
@@ -6958,8 +7048,26 @@ function AlbumDetailView({
   onOpenArtist?: (artist: ApiArtist) => void
   selectedTrackId: string | null
 }) {
+  const { openPlaylistPicker } = usePlaylistPicker()
   const { artists, artistNames, indexes } = useCatalog()
   const created = formatDateLabel(album.createdAt)
+  const [relationshipSongs, setRelationshipSongs] = useState<ApiSong[]>([])
+  const [relationshipsLoading, setRelationshipsLoading] = useState(true)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetchSongsPage({ albumId: album.id, page: 1, limit: 100 }, controller.signal)
+      .then((page) => setRelationshipSongs(page.items))
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) {
+          setRelationshipSongs([])
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRelationshipsLoading(false)
+      })
+    return () => controller.abort()
+  }, [album.id])
 
   const albumSongs = useMemo(() => {
     const byAlbum = resolveSongsForAlbum(
@@ -6968,8 +7076,10 @@ function AlbumDetailView({
       indexes.songsByAlbumName,
       indexes.artistNames,
     )
-    return sortSongsList(byAlbum, 'az')
-  }, [album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames])
+    const seen = new Set(byAlbum.map((song) => song.id))
+    const canonicalRemote = relationshipSongs.filter((song) => song.albumId === album.id && !seen.has(song.id))
+    return [...byAlbum, ...canonicalRemote].filter((song) => Boolean(selectInstantPlayableUrl(song)))
+  }, [album, indexes.songsByAlbumId, indexes.songsByAlbumName, indexes.artistNames, relationshipSongs])
 
   const artistName = useMemo(
     () => resolveAlbumDisplayArtist(album, albumSongs, artistNames),
@@ -7045,15 +7155,16 @@ function AlbumDetailView({
             <button
               type="button"
               className="btn-primary btn-sm"
-              disabled={albumSongs.length === 0}
+              disabled={relationshipsLoading || albumSongs.length === 0}
               onClick={() => playAlbum(false)}
             >
               Play
             </button>
+            <button type="button" className="btn-secondary btn-sm" disabled={relationshipsLoading || !albumSongs.length} onClick={() => openPlaylistPicker({ items: albumSongs.map(apiSongToPlaylistItem), source: 'album' })}>Add Album to Playlist</button>
             <button
               type="button"
               className="btn-secondary btn-sm"
-              disabled={albumSongs.length === 0}
+              disabled={relationshipsLoading || albumSongs.length === 0}
               onClick={() => playAlbum(true)}
             >
               Shuffle
@@ -7076,11 +7187,11 @@ function AlbumDetailView({
           ) : null}
         </div>
         {tracks.length === 0 ? (
-          <CatalogEmpty title="No verified tracks" detail="Only identity-matched album tracks are shown here." />
+          <CatalogEmpty title={relationshipsLoading ? 'Loading verified tracks' : 'No verified playable tracks'} detail={relationshipsLoading ? 'Resolving canonical album relationships…' : 'No verified playable tracks are available for this album.'} />
         ) : (
           <ol className="detail-tracklist">
             {tracks.map((track, index) => (
-              <li key={track.id}>
+              <li key={track.id} className="detail-track-with-action">
                 <button
                   type="button"
                   className="detail-track detail-track-button"
@@ -7095,6 +7206,7 @@ function AlbumDetailView({
                   <span className="detail-track-title">{track.title}</span>
                   <span className="detail-track-meta">{track.artist}</span>
                 </button>
+                <button type="button" className="btn-ghost btn-sm" aria-label={`Add ${track.title} to playlist`} onClick={() => openPlaylistPicker({ items: [apiSongToPlaylistItem(track)], source: 'album' })}>+ Playlist</button>
               </li>
             ))}
           </ol>
@@ -7107,6 +7219,7 @@ function AlbumDetailView({
 function ArtistDetailView({
   artist,
   onBack,
+  onOpenSong,
   onOpenAlbum,
   onOpenArtist,
 }: {
@@ -7116,11 +7229,15 @@ function ArtistDetailView({
   onOpenAlbum: (album: ApiAlbum) => void
   onOpenArtist: (artist: ApiArtist) => void
 }) {
-  const { playQueue } = useDesktopPlayback()
+  const { openPlaylistPicker } = usePlaylistPicker()
   const { artistNames, indexes } = useCatalog()
   const [profileShell, setProfileShell] = useState<ArtistProfileShell | null>(null)
   const [profileBio, setProfileBio] = useState<string | null>(null)
   const [profileAlbums, setProfileAlbums] = useState<ApiAlbum[] | null>(null)
+  const [profileSongs, setProfileSongs] = useState<ApiSong[]>([])
+  const [relationshipSongs, setRelationshipSongs] = useState<ApiSong[]>([])
+  const [relationshipsLoading, setRelationshipsLoading] = useState(true)
+  const [profileCoreResolved, setProfileCoreResolved] = useState(false)
   const [releasesHasMore, setReleasesHasMore] = useState(false)
   const [releasesCursor, setReleasesCursor] = useState<string | null>(null)
   const [loadingMoreReleases, setLoadingMoreReleases] = useState(false)
@@ -7148,8 +7265,12 @@ function ArtistDetailView({
       indexes.songsByArtistId,
       indexes.songsByArtistName,
     )
-    return sortSongsList(byArtist, 'latest')
-  }, [artist, indexes.songsByArtistId, indexes.songsByArtistName])
+    const seen = new Set(byArtist.map((song) => song.id))
+    const canonicalRemote = relationshipSongs.filter((song) => song.artistId === artist.id && !seen.has(song.id))
+    canonicalRemote.forEach((song) => seen.add(song.id))
+    return sortSongsList([...byArtist, ...canonicalRemote, ...profileSongs.filter((song) => !seen.has(song.id))], 'latest')
+      .filter((song) => Boolean(selectInstantPlayableUrl(song)))
+  }, [artist, indexes.songsByArtistId, indexes.songsByArtistName, profileSongs, relationshipSongs])
   const [showAllSongs, setShowAllSongs] = useState(false)
   const topSongs = useMemo(
     () => (showAllSongs ? artistSongs.slice(0, 40) : artistSongs.slice(0, 12)),
@@ -7163,6 +7284,10 @@ function ArtistDetailView({
     setProfileShell(null)
     setProfileBio(null)
     setProfileAlbums(null)
+    setProfileSongs([])
+    setRelationshipSongs([])
+    setRelationshipsLoading(true)
+    setProfileCoreResolved(false)
     setReleasesHasMore(false)
     setReleasesCursor(null)
     setTrackSectionLabel('Essential tracks')
@@ -7180,6 +7305,19 @@ function ArtistDetailView({
   }
 
   useEffect(() => {
+    const controller = new AbortController()
+    void fetchSongsPage({ artistId: artist.id, page: 1, limit: 100 }, controller.signal)
+      .then((page) => setRelationshipSongs(page.items.filter((song) => song.artistId === artist.id)))
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setRelationshipSongs([])
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRelationshipsLoading(false)
+      })
+    return () => controller.abort()
+  }, [artist.id])
+
+  useEffect(() => {
     followInFlightRef.current = false
     const abortController = new AbortController()
 
@@ -7188,10 +7326,22 @@ function ArtistDetailView({
         const tokenResult = await getDesktopSupabaseAccessToken()
         const token = tokenResult.accessToken
 
-        const shell = await fetchArtistProfileShell(artist.id, {
-          signal: abortController.signal,
-          token,
-        })
+        let shell: ArtistProfileShell
+        try {
+          shell = await fetchArtistProfileShell(artist.id, {
+            signal: abortController.signal,
+            token,
+          })
+        } catch (identityError) {
+          if (abortController.signal.aborted) return
+          // Catalog and profile services can carry different IDs. The only safe
+          // fallback is the exact primary display name; the API owns alias/slug resolution.
+          shell = await fetchArtistProfileShell(artist.name, {
+            signal: abortController.signal,
+            token,
+          })
+          void identityError
+        }
         if (abortController.signal.aborted) return
         setProfileShell(shell)
 
@@ -7242,6 +7392,8 @@ function ArtistDetailView({
           )
           setReleasesHasMore(releasesPage.pagination.hasMore)
           setReleasesCursor(releasesPage.pagination.nextCursor)
+        } else if (releasesPage) {
+          setProfileAlbums([])
         }
 
         const bio = String(about?.bio || shell.artist.bio || '').trim()
@@ -7249,6 +7401,29 @@ function ArtistDetailView({
         if (topSongsPage?.ranking?.label) {
           setTrackSectionLabel(topSongsPage.ranking.label)
         }
+        if (topSongsPage?.items?.length) {
+          setProfileSongs(
+            topSongsPage.items.map((song: ArtistProfileSong) => ({
+              id: song.id,
+              title: song.title,
+              artist: shell.artist.name,
+              artistId: song.artist_id || shell.artist.id,
+              album: song.album_title || 'Single',
+              albumId: song.album_id,
+              genre: song.genre,
+              mood: song.mood,
+              tags: [],
+              description: null,
+              artwork: song.artwork || shell.artist.artwork,
+              previewUrl: null,
+              audioUrl: null,
+              highQualityUrl: null,
+              durationSeconds: song.duration_seconds,
+              createdAt: song.created_at,
+            })),
+          )
+        }
+        setProfileCoreResolved(true)
 
         // Similar Artists is optional and deferred until core profile is ready.
         window.setTimeout(() => {
@@ -7275,12 +7450,13 @@ function ArtistDetailView({
             })
         }, 120)
       } catch {
+        if (!abortController.signal.aborted) setProfileCoreResolved(true)
         // Keep catalog-backed artist page when profile API is unavailable.
       }
     })()
 
     return () => abortController.abort()
-  }, [artist.id])
+  }, [artist.id, artist.name])
 
   const toggleFollow = useCallback(async () => {
     const artistUuid = profileShell?.artist.id || artist.id
@@ -7467,14 +7643,14 @@ function ArtistDetailView({
   const playArtistSong = useCallback(
     (_song: ApiSong, index: number, queue = artistSongs) => {
       const safeIndex = Math.max(0, Math.min(index, queue.length - 1))
-      playQueue(queue, safeIndex, 'artist', artist.name, {
+      onOpenSong(queue[safeIndex]!, queue, safeIndex, 'artist', artist.name, {
         seedType: 'artist',
         seedId: artist.id,
         seedTracks: capSongPool(artistSongs),
         candidatePools: queuePools,
       })
     },
-    [artist.id, artist.name, artistSongs, playQueue, queuePools],
+    [artist.id, artist.name, artistSongs, onOpenSong, queuePools],
   )
   const playArtist = useCallback(
     (shuffle: boolean) => {
@@ -7489,7 +7665,29 @@ function ArtistDetailView({
     () => resolveAlbumsForArtist(artist, indexes.albumsByArtistId).slice(0, 12),
     [artist, indexes.albumsByArtistId],
   )
-  const artistAlbums = profileAlbums && profileAlbums.length > 0 ? profileAlbums : catalogAlbums
+  const relationshipAlbums = useMemo(() => {
+    const byId = new Map<string, ApiAlbum>()
+    for (const song of relationshipSongs) {
+      const title = song.album.trim()
+      if (!song.albumId || !title || /^album$/i.test(title) || /^singles?$/i.test(title)) continue
+      if (!byId.has(song.albumId)) {
+        byId.set(song.albumId, {
+          id: song.albumId,
+          title,
+          artwork: song.artwork,
+          releaseYear: null,
+          createdAt: song.createdAt,
+          artistId: artist.id,
+        })
+      }
+    }
+    return [...byId.values()]
+  }, [artist.id, relationshipSongs])
+  const artistAlbums = profileAlbums && profileAlbums.length > 0
+    ? profileAlbums
+    : catalogAlbums.length > 0
+      ? catalogAlbums
+      : relationshipAlbums
   const genreLabel = profileShell?.artist.genres?.slice(0, 3).join(' · ') || null
   const trackLabel = showAllSongs ? 'All songs' : trackSectionLabel
 
@@ -7508,10 +7706,8 @@ function ArtistDetailView({
             {profileShell?.artist.name || artist.name}
           </h1>
           <p className="detail-stats">
-            {artist.songCount || artistSongs.length}{' '}
-            {(artist.songCount || artistSongs.length) === 1 ? 'track' : 'tracks'} · {artistAlbums.length}
-            {releasesHasMore ? '+' : ''}{' '}
-            {artistAlbums.length === 1 ? 'release' : 'releases'}
+            {artistSongs.length} {artistSongs.length === 1 ? 'playable track' : 'playable tracks'}
+            {profileAlbums !== null ? ` · ${artistAlbums.length}${releasesHasMore ? '+' : ''} ${artistAlbums.length === 1 ? 'release' : 'releases'}` : profileCoreResolved ? ' · Releases unavailable' : ' · Loading releases…'}
             {followerCount > 0 ? ` · ${followerCount} follower${followerCount === 1 ? '' : 's'}` : ''}
             {genreLabel ? ` · ${genreLabel}` : ''}
           </p>
@@ -7535,15 +7731,16 @@ function ArtistDetailView({
             <button
               type="button"
               className="btn-primary btn-sm"
-              disabled={artistSongs.length === 0}
+              disabled={relationshipsLoading || artistSongs.length === 0}
               onClick={() => playArtist(false)}
             >
               Play
             </button>
+            <button type="button" className="btn-secondary btn-sm" disabled={relationshipsLoading || !topSongs.length} onClick={() => openPlaylistPicker({ items: topSongs.map(apiSongToPlaylistItem), source: 'artist' })}>Add Top Songs to Playlist</button>
             <button
               type="button"
               className="btn-secondary btn-sm"
-              disabled={artistSongs.length === 0}
+              disabled={relationshipsLoading || artistSongs.length === 0}
               onClick={() => playArtist(true)}
             >
               Shuffle
@@ -7603,7 +7800,7 @@ function ArtistDetailView({
           )}
         </div>
         {topSongs.length === 0 ? (
-          <CatalogEmpty title="No verified songs" detail="Only identity-matched artist tracks are shown here." />
+          <CatalogEmpty title={relationshipsLoading ? 'Loading verified songs' : 'No verified playable songs'} detail={relationshipsLoading ? 'Resolving canonical artist relationships…' : 'No verified playable songs are available for this artist.'} />
         ) : (
           <ApiSongGrid
             songs={topSongs}
@@ -7614,6 +7811,7 @@ function ArtistDetailView({
             listKey={`artist-songs-${artist.id}`}
             paginate={false}
             showEmpty={false}
+            playlistSource="artist"
           />
         )}
       </section>
@@ -8209,9 +8407,9 @@ function PageContent({
           if (item.type === 'song') {
             const song = indexes.songsById.get(item.id)
             if (song) {
-              onOpenSong(song, [song], 0, 'manual', 'History', {
-                seedType: 'manual',
-                seedTracks: [song],
+              onOpenSong(song, [song], 0, 'history', 'History', {
+                seedType: 'history',
+                seedTracks: buildQueueSeedPool('manual', songs, indexes, song),
               })
             }
             return
@@ -8400,9 +8598,9 @@ function PageContent({
           songsById={indexes.songsById}
           ArtworkImage={ArtworkImage}
           onPlaySong={(song) => {
-            onOpenSong(song, [song], 0, 'manual', 'Library', {
-              seedType: 'manual',
-              seedTracks: [song],
+            onOpenSong(song, [song], 0, 'library', 'Library', {
+              seedType: 'library',
+              seedTracks: buildQueueSeedPool('manual', songs, indexes, song),
             })
           }}
           onPlayRadio={(stationId, title, artwork, meta) => {
@@ -8494,8 +8692,8 @@ function PageContent({
           onPlayQueue={(queue, startIndex, queueTitle) => {
             const start = queue[startIndex] ?? queue[0]
             if (!start) return
-            onOpenSong(start, queue, startIndex, 'manual', queueTitle, {
-              seedType: 'manual',
+            onOpenSong(start, queue, startIndex, 'playlist', queueTitle, {
+              seedType: 'playlist',
               seedTracks: queue,
             })
           }}
@@ -8547,34 +8745,42 @@ function AppBootShell() {
 
 function App() {
   return (
-    <PreferencesResetProvider>
-      <DesktopAuthProvider>
-        <DesktopPlaybackProvider>
-          <AtmosphereProvider>
-            <PremiumAudioVisualizerProvider>
-              <CatalogProvider>
-                <AppBootShell />
-              </CatalogProvider>
-            </PremiumAudioVisualizerProvider>
-          </AtmosphereProvider>
-        </DesktopPlaybackProvider>
-      </DesktopAuthProvider>
-    </PreferencesResetProvider>
+    <LocalizationProvider>
+      <PreferencesResetProvider>
+        <DesktopAuthProvider>
+          <DesktopPlaybackProvider>
+            <AtmosphereProvider>
+              <PremiumAudioVisualizerProvider>
+                <CatalogProvider>
+                  <PlaylistPickerProvider>
+                    <AppBootShell />
+                  </PlaylistPickerProvider>
+                </CatalogProvider>
+              </PremiumAudioVisualizerProvider>
+            </AtmosphereProvider>
+          </DesktopPlaybackProvider>
+        </DesktopAuthProvider>
+      </PreferencesResetProvider>
+    </LocalizationProvider>
   )
 }
 
 function AppShell() {
-  const { currentTrack, currentQueue, currentIndex, playQueue, isPlaying, isLoading } = useDesktopPlayback()
+  const { currentTrack, currentQueue, currentIndex, startMediaSession: beginMediaSession, isPlaying, isLoading, error } = useDesktopPlayback()
   // currentTrack is the authoritative session sentinel. Pause keeps it populated;
   // stop/clear explicitly null it in DesktopPlaybackProvider.
   const hasActiveMediaSession = Boolean(currentTrack?.id)
-  const hasQueueRail = hasActiveMediaSession
   const [playerRailMounted, setPlayerRailMounted] = useState(hasActiveMediaSession)
   const [playerRailPresence, setPlayerRailPresence] = useState<'hidden' | 'entering' | 'visible' | 'exiting'>(
     hasActiveMediaSession ? 'visible' : 'hidden',
   )
   const { songs } = useCatalog()
   const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
+  const [playerSidebarVisibility, setPlayerSidebarVisibility] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.playerSidebarVisibility,
+    'visible' as PlayerSidebarVisibility,
+    parseStoredPlayerSidebarVisibility,
+  )
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
     'home' as PageId,
@@ -8653,6 +8859,11 @@ function AppShell() {
   const activePlayerSurface = resolveActivePlayerSurface(activeSessionTrack)
   const videoSurfaceLayout = resolveVideoSurfaceLayout(activeSessionTrack)
   const useMotivationalVideoStage = videoSurfaceLayout === 'motivational-contained'
+  const isPlayerSidebarVisible = playerSidebarVisibility === 'visible'
+  const canPresentPlayerSidebar = hasActiveMediaSession
+    && !useMotivationalVideoStage
+    && !anyPlayerShellVisible
+  const hasQueueRail = canPresentPlayerSidebar && isPlayerSidebarVisible
   const [mountedPlayerSurface, setMountedPlayerSurface] = useState(activePlayerSurface)
   const [mountedVideoSurfaceLayout, setMountedVideoSurfaceLayout] = useState(videoSurfaceLayout)
 
@@ -8683,9 +8894,12 @@ function AppShell() {
   const {
     cancelAutoOpenPlayer,
     openPreferredNowPlayingPage,
+    markPlayerManuallyDismissed,
   } = useAutoOpenPreferredPlayer({
     isPlaying,
     isLoading,
+    hasPlaybackError: Boolean(error),
+    isMusicTrack: Boolean(currentTrack && isMusicCatalogSong(currentTrack)),
     currentTrackId: currentTrack?.id ?? null,
     activePage,
     activeNavKey,
@@ -8702,17 +8916,6 @@ function AppShell() {
   const openCinemaPlayer = useCallback(() => {
     openPreferredNowPlayingPage()
   }, [openPreferredNowPlayingPage])
-
-  const openSong = useCallback((song: ApiSong) => {
-    setDesktopSelectedTrack(song)
-    setSelectedSong(song)
-    setSelectedAlbum(null)
-    setSelectedArtist(null)
-    setSelectedMood(null)
-    setSelectedPodcastShowId(null)
-    setSelectedAudiobookId(null)
-    setActiveView('song')
-  }, [])
 
   useEffect(() => {
     ensureLibraryMigrated()
@@ -8738,6 +8941,26 @@ function AppShell() {
     ))
   }
 
+  const startMediaSession = useCallback((input: {
+    queue: ApiSong[]
+    startIndex: number
+    context: QueueContext
+    queueTitle?: string
+    seedMetadata?: QueueSeedMetadata
+  }) => {
+    if (input.queue.length === 0) return
+    const safeIndex = Math.max(0, Math.min(input.startIndex, input.queue.length - 1))
+    const track = input.queue[safeIndex]
+    setDesktopSelectedTrack(track)
+    beginMediaSession({
+      queue: input.queue,
+      startIndex: safeIndex,
+      context: input.context,
+      queueTitle: input.queueTitle,
+      seedMetadata: input.seedMetadata,
+    })
+  }, [beginMediaSession])
+
   const selectAndPlay = useCallback(
     (
       song: ApiSong,
@@ -8755,23 +8978,19 @@ function AppShell() {
         const playableQueue = await applyLocalDownloadUrls(baseQueue)
         const selectedIndex = playableQueue.findIndex((entry) => entry.id === resolved.id)
         const safeIndex = selectedIndex >= 0 ? selectedIndex : Math.max(0, Math.min(startIndex, playableQueue.length - 1))
-        const track = playableQueue[safeIndex] ?? resolved
-
-        playQueue(playableQueue, safeIndex, context, queueTitle, seedMetadata)
-        // Home and Music Discover plays stay on the catalogue page — persistent/compact
-        // players own the now-playing UI. Do not replace the centre with PlayerWorkspace.
-        if (context === 'home' || context === 'discover') {
-          setDesktopSelectedTrack(track)
-          return
-        }
-        startTransition(() => {
-          openSong(track)
+        startMediaSession({
+          queue: playableQueue,
+          startIndex: safeIndex,
+          context,
+          queueTitle,
+          seedMetadata,
+          // Every music source starts the shared compact session. Expansion is
+          // an explicit presentation action and never restarts playback.
         })
       })()
     },
-    [openSong, playQueue, songsById],
+    [songsById, startMediaSession],
   )
-
   const playRadioStation = useCallback(
     (
       _station: RadioStationMeta,
@@ -8783,14 +9002,15 @@ function AppShell() {
       if (apiQueue.length === 0) return
 
       const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-      const track = apiQueue[safeIndex]
-      setDesktopSelectedTrack(track)
-      playQueue(apiQueue, safeIndex, 'radio', queueTitle, {
-        seedType: 'manual',
-        seedTracks: apiQueue,
+      startMediaSession({
+        queue: apiQueue,
+        startIndex: safeIndex,
+        context: 'radio',
+        queueTitle,
+        seedMetadata: { seedType: 'manual', seedTracks: apiQueue },
       })
     },
-    [playQueue],
+    [startMediaSession],
   )
 
   const playPodcastEpisode = useCallback(
@@ -8818,16 +9038,17 @@ function AppShell() {
         const apiQueue = await applyLocalDownloadUrls(baseQueue)
 
         const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-        const track = apiQueue[safeIndex]
-        setDesktopSelectedTrack(track)
         setPendingPodcastResumeSeconds(options?.resumePositionSeconds ?? null)
-        playQueue(apiQueue, safeIndex, 'podcast', queueTitle, {
-          seedType: 'manual',
-          seedTracks: apiQueue,
+        startMediaSession({
+          queue: apiQueue,
+          startIndex: safeIndex,
+          context: 'podcast',
+          queueTitle,
+          seedMetadata: { seedType: 'manual', seedTracks: apiQueue },
         })
       })()
     },
-    [playQueue],
+    [startMediaSession],
   )
 
   const playAudiobookChapter = useCallback<PlayAudiobookChapterHandler>(
@@ -8847,16 +9068,17 @@ function AppShell() {
         const apiQueue = await applyLocalDownloadUrls(baseQueue)
 
         const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-        const track = apiQueue[safeIndex]
-        setDesktopSelectedTrack(track)
         setPendingAudiobookResumeSeconds(options?.resumePositionSeconds ?? null)
-        playQueue(apiQueue, safeIndex, 'audiobook', queueTitle, {
-          seedType: 'manual',
-          seedTracks: apiQueue,
+        startMediaSession({
+          queue: apiQueue,
+          startIndex: safeIndex,
+          context: 'audiobook',
+          queueTitle,
+          seedMetadata: { seedType: 'manual', seedTracks: apiQueue },
         })
       })()
     },
-    [playQueue],
+    [startMediaSession],
   )
 
   const playMotivationalSession = useCallback<PlayMotivationalSessionHandler>(
@@ -8876,16 +9098,17 @@ function AppShell() {
         const apiQueue = await applyLocalDownloadUrls(baseQueue)
 
         const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-        const track = apiQueue[safeIndex]
-        setDesktopSelectedTrack(track)
         setPendingMotivationalResumeSeconds(options?.resumePositionSeconds ?? null)
-        playQueue(apiQueue, safeIndex, 'motivational', queueTitle, {
-          seedType: 'manual',
-          seedTracks: apiQueue,
+        startMediaSession({
+          queue: apiQueue,
+          startIndex: safeIndex,
+          context: 'motivational',
+          queueTitle,
+          seedMetadata: { seedType: 'manual', seedTracks: apiQueue },
         })
       })()
     },
-    [playQueue],
+    [startMediaSession],
   )
 
   const playLectureSession = useCallback<PlayLectureSessionHandler>(
@@ -8905,16 +9128,17 @@ function AppShell() {
         const apiQueue = await applyLocalDownloadUrls(baseQueue)
 
         const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-        const track = apiQueue[safeIndex]
-        setDesktopSelectedTrack(track)
         setPendingLectureResumeSeconds(options?.resumePositionSeconds ?? null)
-        playQueue(apiQueue, safeIndex, 'lecture', queueTitle, {
-          seedType: 'manual',
-          seedTracks: apiQueue,
+        startMediaSession({
+          queue: apiQueue,
+          startIndex: safeIndex,
+          context: 'lecture',
+          queueTitle,
+          seedMetadata: { seedType: 'manual', seedTracks: apiQueue },
         })
       })()
     },
-    [playQueue],
+    [startMediaSession],
   )
 
   const playTvChannel = useCallback(
@@ -8927,15 +9151,17 @@ function AppShell() {
       const apiQueue = buildTvQueueSongs(queue)
       if (apiQueue.length === 0) return
 
+      closePlayerOverlay()
       const safeIndex = Math.max(0, Math.min(startIndex, apiQueue.length - 1))
-      const track = apiQueue[safeIndex]
-      setDesktopSelectedTrack(track)
-      playQueue(apiQueue, safeIndex, 'tv', queueTitle, {
-        seedType: 'manual',
-        seedTracks: apiQueue,
+      startMediaSession({
+        queue: apiQueue,
+        startIndex: safeIndex,
+        context: 'tv',
+        queueTitle,
+        seedMetadata: { seedType: 'manual', seedTracks: apiQueue },
       })
     },
-    [playQueue],
+    [closePlayerOverlay, startMediaSession],
   )
 
   const openAlbum = useCallback((album: ApiAlbum) => {
@@ -9070,10 +9296,12 @@ function AppShell() {
 
   return (
     <>
+      <DesktopWindowControls />
       <div
         className={`app-shell${activeNavKey === 'home' && activeView === 'page' ? ' app-shell--home' : ''}${activeNavKey === 'music' && activeView === 'page' ? ' app-shell--music' : ''}`}
         data-has-active-media={hasActiveMediaSession ? 'true' : 'false'}
         data-player-rail-mounted={playerRailMounted ? 'true' : 'false'}
+        data-player-sidebar={hasQueueRail ? 'visible' : 'hidden'}
         data-video-layout={videoSurfaceLayout}
       >
         <HiddenTunesGlobalBackground />
@@ -9288,10 +9516,14 @@ function AppShell() {
             </main>
             {playerRailMounted && !useMotivationalVideoStage ? (
               <div
+                id="now-playing-sidebar"
                 className="conditional-player-rail"
                 data-player-surface={mountedPlayerSurface}
                 data-presence={playerRailPresence}
-                aria-hidden={playerRailPresence === 'exiting' ? 'true' : undefined}
+                data-sidebar-visibility={isPlayerSidebarVisible ? 'visible' : 'hidden'}
+                data-overlay-hidden={anyPlayerShellVisible ? 'true' : 'false'}
+                inert={!isPlayerSidebarVisible || anyPlayerShellVisible ? true : undefined}
+                aria-hidden={playerRailPresence === 'exiting' || !isPlayerSidebarVisible || anyPlayerShellVisible ? 'true' : undefined}
               >
                 {(hasActiveMediaSession ? activePlayerSurface === 'tv' : mountedPlayerSurface === 'tv') ? (
                   <TvNowPlayingPanel
@@ -9307,13 +9539,28 @@ function AppShell() {
                 )}
               </div>
             ) : null}
+            {canPresentPlayerSidebar ? (
+              <button
+                type="button"
+                className={`player-sidebar-toggle player-sidebar-toggle--${isPlayerSidebarVisible ? 'hide' : 'show'}`}
+                aria-label={isPlayerSidebarVisible ? 'Hide Now Playing sidebar' : 'Show Now Playing sidebar'}
+                aria-controls="now-playing-sidebar"
+                aria-expanded={isPlayerSidebarVisible}
+                onClick={() => setPlayerSidebarVisibility(isPlayerSidebarVisible ? 'hidden' : 'visible')}
+              >
+                <span aria-hidden="true">{isPlayerSidebarVisible ? '›' : '‹'}</span>
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
       {hasActiveMediaSession && !lyricsOpen && !anyPlayerShellVisible && activeNavKey !== 'recent' ? (
         <PlayerBar
           track={playerPreferredTrack}
-          onOpenPlayerByStyle={openPlayerByStyleNow}
+          onOpenPlayerByStyle={(style) => {
+            if (isTvQueueSong(activeSessionTrack)) return
+            openPlayerByStyleNow(style)
+          }}
         />
       ) : null}
       {(anyPlayerShellVisible || lyricsOpen) ? (
@@ -9322,8 +9569,13 @@ function AppShell() {
           activePlayerMode={renderedPlayerStyle ?? getPreferredNowPlayingStyle()}
           overlayPhase={overlayPhase}
           onSwitchPlayerMode={openPlayerByStyleNow}
+          onNavigateDestination={(destination) => {
+            closePlayerOverlay()
+            navigateNav(destination)
+          }}
           onClose={() => {
             if (lyricsOpen) setLyricsOpen(false)
+            markPlayerManuallyDismissed()
             closePlayerOverlay()
           }}
           initialTab={lyricsOpen ? 'lyrics' : 'queue'}

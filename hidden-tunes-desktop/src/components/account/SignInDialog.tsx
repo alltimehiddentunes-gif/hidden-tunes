@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useDesktopAuth } from '../../context/useDesktopAuth'
+import { useLocalization } from '../../localization'
 
 type AuthMode = 'sign-in' | 'sign-up' | 'reset'
 
@@ -20,6 +21,7 @@ export function SignInDialog({
   initialMode = 'sign-in',
 }: SignInDialogProps) {
   const { configured, signIn, signUp, requestPasswordReset } = useDesktopAuth()
+  const { t } = useLocalization()
   const titleId = useId()
   const emailRef = useRef<HTMLInputElement>(null)
   const [mode, setMode] = useState<AuthMode>(initialMode)
@@ -62,8 +64,7 @@ export function SignInDialog({
 
   if (!open) return null
 
-  const title =
-    mode === 'sign-up' ? 'Create account' : mode === 'reset' ? 'Reset password' : 'Sign in'
+  const title = mode === 'sign-up' ? t('auth.createAccount') : mode === 'reset' ? 'Reset password' : t('auth.signIn')
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -147,7 +148,7 @@ export function SignInDialog({
         </p>
         <form className="account-auth-form" onSubmit={(event) => void handleSubmit(event)}>
           <label className="account-auth-field">
-            <span>Email</span>
+            <span>{t('auth.emailPlaceholder')}</span>
             <input
               ref={emailRef}
               type="email"
@@ -161,7 +162,7 @@ export function SignInDialog({
           </label>
           {mode !== 'reset' ? (
             <label className="account-auth-field">
-              <span>Password</span>
+            <span>{t('auth.passwordPlaceholder')}</span>
               <div className="account-auth-password-row">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -211,7 +212,7 @@ export function SignInDialog({
           ) : null}
           <div className="account-gate-actions">
             <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button type="submit" className="btn-primary btn-sm" disabled={busy}>
               {busy
@@ -219,8 +220,8 @@ export function SignInDialog({
                 : mode === 'reset'
                   ? 'Send reset email'
                   : mode === 'sign-up'
-                    ? 'Create account'
-                    : 'Sign in'}
+                    ? t('auth.createAccountButton')
+                    : t('auth.signIn')}
             </button>
           </div>
         </form>
@@ -228,7 +229,7 @@ export function SignInDialog({
           {mode === 'sign-in' ? (
             <>
               <button type="button" disabled={busy} onClick={() => setMode('sign-up')}>
-                Create an account
+                {t('auth.switchToSignup')}
               </button>
               <button type="button" disabled={busy} onClick={() => setMode('reset')}>
                 Forgot password?
@@ -244,7 +245,7 @@ export function SignInDialog({
                 setInfo(null)
               }}
             >
-              Back to sign in
+              {t('auth.switchToLogin')}
             </button>
           )}
         </div>

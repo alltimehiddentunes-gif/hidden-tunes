@@ -37,12 +37,22 @@ export const LECTURE_REQUEST_TIMEOUT_MS = 20_000
 
 export class LectureCatalogError extends Error {
   readonly status?: number
+  readonly kind: 'cancelled' | 'timeout' | 'network' | 'response'
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, kind: LectureCatalogError['kind'] = 'response') {
     super(message)
     this.name = 'LectureCatalogError'
     this.status = status
+    this.kind = kind
   }
+}
+
+export function isLectureRequestCancellation(error: unknown, signal?: AbortSignal) {
+  return Boolean(
+    signal?.aborted
+    || (error instanceof DOMException && error.name === 'AbortError')
+    || (error instanceof LectureCatalogError && error.kind === 'cancelled'),
+  )
 }
 
 function clampPage(page?: number) {
@@ -63,17 +73,17 @@ function buildQuery(params: Record<string, string | number | boolean | null | un
 }
 
 function readRequestError(error: unknown, signal?: AbortSignal): LectureCatalogError {
-  if (signal?.aborted) return new LectureCatalogError('Lectures request was cancelled.')
+  if (signal?.aborted) return new LectureCatalogError('Lectures request was cancelled.', undefined, 'cancelled')
   if (error instanceof LectureCatalogError) return error
   if (error instanceof DOMException && error.name === 'AbortError') {
-    return new LectureCatalogError('Lectures request timed out. Try again.')
+    return new LectureCatalogError('Lectures request timed out. Try again.', undefined, 'timeout')
   }
   if (error instanceof Error) return new LectureCatalogError(error.message)
   return new LectureCatalogError('Unexpected lectures network error')
 }
 
 async function lectureRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
-  if (signal?.aborted) throw new LectureCatalogError('Lectures request was cancelled.')
+  if (signal?.aborted) throw new LectureCatalogError('Lectures request was cancelled.', undefined, 'cancelled')
 
   try {
     const { payload, status } = await requestCatalogJsonWithFallback(
@@ -81,7 +91,7 @@ async function lectureRequest<T>(path: string, signal?: AbortSignal): Promise<T>
       path,
       LECTURE_REQUEST_TIMEOUT_MS,
     )
-    if (signal?.aborted) throw new LectureCatalogError('Lectures request was cancelled.')
+    if (signal?.aborted) throw new LectureCatalogError('Lectures request was cancelled.', undefined, 'cancelled')
     if (status < 200 || status >= 300) {
       const message =
         (payload && typeof payload === 'object' && 'error' in payload

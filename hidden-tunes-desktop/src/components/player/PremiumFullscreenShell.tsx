@@ -1,6 +1,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,6 +10,7 @@ import {
 } from 'react'
 import type { ApiSong } from '../../lib/api'
 import { ArtworkImage } from '../ArtworkImage'
+import { HiddenTunesBrandMark } from '../HiddenTunesBrandMark'
 import { PlayerLyricsPanel } from '../PlayerLyricsPanel'
 import { PlayerModeLauncher } from '../PlayerModeLauncher'
 import { PlayerModeSwitcher } from '../PlayerModeSwitcher'
@@ -30,6 +32,8 @@ import {
 import { FullPlayerTransportControls } from './FullPlayerTransportControls'
 import { PlayerDetailsPanel, PlayerQueuePanel } from './PlayerShellPanels'
 import { usePlayerShellChrome, usePlayerShellState } from './usePlayerShellHooks'
+import { useMusicLikes } from '../../lib/home/useMusicLikes'
+import { isMusicCatalogSong } from '../../lib/home/isMusicCatalogSong'
 
 const SHELL_TABS: Record<PlayerShellTab, string> = {
   queue: 'Queue',
@@ -67,6 +71,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
   onSwitchPlayerMode,
   overlayPhase = 'idle',
   initialTab = 'queue',
+  onNavigateDestination,
 }: {
   onClose: () => void
   preferredTrack?: ApiSong | null
@@ -74,6 +79,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
   onSwitchPlayerMode: (style: NowPlayingStyle) => void
   overlayPhase?: PlayerOverlayPhase
   initialTab?: PlayerShellTab
+  onNavigateDestination: (destination: 'home' | 'library' | 'search' | 'radio' | 'playlists' | 'albums' | 'artists' | 'liked') => void
 }) {
   const shell = usePlayerShellState(preferredTrack)
   const {
@@ -100,14 +106,46 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
     setAudioQualityMode,
     audiobookPlaybackRate,
     setAudiobookPlaybackRate,
+    getUpcomingTracks,
   } = shell
+
+  const { isLiked, toggleLiked } = useMusicLikes()
 
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const progressTrackRef = useRef<HTMLDivElement>(null)
   const isAdjustingVolumeRef = useRef(false)
   const isSeekingRef = useRef(false)
   const [playerTab, setPlayerTab] = useState<PlayerShellTab>(initialTab)
+  const [panelOpen, setPanelOpen] = useState(true)
   const [scrubSeconds, setScrubSeconds] = useState<number | null>(null)
+  const [isOsFullScreen, setIsOsFullScreen] = useState(false)
+  const nextTrack = getUpcomingTracks()[0] ?? null
+  const canLike = Boolean(displayTrack && isMusicCatalogSong(displayTrack))
+  const liked = canLike && displayTrack ? isLiked(displayTrack.id) : false
+
+  useEffect(() => {
+    let active = true
+    const bridge = window.hiddenTunesDesktop?.window
+    void bridge?.isFullScreen?.().then((enabled) => {
+      if (active) setIsOsFullScreen(enabled)
+    })
+    const unsubscribe = bridge?.subscribeFullScreen?.((enabled) => setIsOsFullScreen(enabled))
+    return () => {
+      active = false
+      unsubscribe?.()
+    }
+  }, [])
+
+  const toggleOsFullScreen = useCallback(async () => {
+    const bridge = window.hiddenTunesDesktop?.window
+    if (bridge?.setFullScreen) {
+      const result = await bridge.setFullScreen(!isOsFullScreen)
+      if (result.ok) setIsOsFullScreen(result.isFullScreen ?? !isOsFullScreen)
+      return
+    }
+    if (document.fullscreenElement) await document.exitFullscreen()
+    else await document.documentElement.requestFullscreen()
+  }, [isOsFullScreen])
 
   const adapter = useMemo(
     () => resolvePlayerMediaAdapter({
@@ -224,6 +262,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
       data-playing={isPlaying && isActive ? 'true' : 'false'}
       data-loading={isLoading && isActive ? 'true' : 'false'}
       data-active={isActive ? 'true' : 'false'}
+      data-panel-open={panelOpen ? 'true' : 'false'}
     >
       <div
         className={`premium-shell-bg entity-atmosphere${displayArtwork ? '' : ' entity-atmosphere--placeholder'}`}
@@ -239,6 +278,17 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
         }
       />
       <div className="premium-shell-veil" aria-hidden="true" />
+
+      {adapter.kind === 'music' ? <nav className="premium-shell-nav" aria-label="Now Playing navigation">
+        <HiddenTunesBrandMark className="premium-shell-brand" decorative={false} />
+        <button type="button" className="is-active" aria-current="page">Now Playing</button>
+        {([
+          ['home', 'Home'], ['library', 'Library'], ['search', 'Explore'], ['radio', 'Radio'],
+          ['playlists', 'Playlists'], ['albums', 'Albums'], ['artists', 'Artists'], ['liked', 'Liked Songs'],
+        ] as const).map(([destination, label]) => (
+          <button key={destination} type="button" onClick={() => onNavigateDestination(destination)}>{label}</button>
+        ))}
+      </nav> : null}
 
       <header className="premium-shell-topbar">
         <button
@@ -259,12 +309,29 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
             </p>
           ) : null}
         </div>
-        <PlayerModeSwitcher
+        {adapter.kind === 'music' ? <PlayerModeSwitcher
           activeMode={activePlayerMode}
           onSwitchMode={onSwitchPlayerMode}
           hasPlayback={isActive}
           align="right"
-        />
+        /> : <span className="premium-shell-media-status">{adapter.centerEyebrow}</span>}
+        <button
+          type="button"
+          className="premium-shell-panel-toggle"
+          aria-controls="premium-shell-shared-panel"
+          aria-expanded={panelOpen}
+          onClick={() => setPanelOpen((value) => !value)}
+        >
+          {panelOpen ? 'Hide panel' : adapter.showLyrics ? 'Queue · Lyrics · Details' : `${adapter.queueTabLabel} · Details`}
+        </button>
+        <button
+          type="button"
+          className="premium-shell-os-fullscreen"
+          onClick={() => void toggleOsFullScreen()}
+          aria-pressed={isOsFullScreen}
+        >
+          {isOsFullScreen ? 'Exit Full Screen' : 'Full Screen'}
+        </button>
       </header>
 
       <div className="premium-shell-body">
@@ -279,6 +346,17 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
             />
             {isLoading && isActive ? (
               <span className="premium-shell-art-spinner player-spinner" aria-hidden="true" />
+            ) : null}
+            {canLike && displayTrack ? (
+              <button
+                type="button"
+                className={`premium-shell-art-like${liked ? ' is-liked' : ''}`}
+                aria-label={liked ? `Remove ${displayTitle} from liked songs` : `Like ${displayTitle}`}
+                aria-pressed={liked}
+                onClick={() => toggleLiked(displayTrack.id, displayTrack)}
+              >
+                {liked ? '♥' : '♡'}
+              </button>
             ) : null}
           </div>
 
@@ -315,7 +393,15 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
           ) : null}
         </section>
 
-        <aside className="premium-shell-right" aria-label="Player panels">
+        <aside id="premium-shell-shared-panel" className="premium-shell-right" aria-label="Player panels" aria-hidden={!panelOpen}>
+          <button
+            type="button"
+            className="premium-shell-panel-close"
+            aria-label="Close Queue, Lyrics and Details panel"
+            onClick={() => setPanelOpen(false)}
+          >
+            ×
+          </button>
           <div className="premium-shell-tabs" role="tablist" aria-label="Player panels">
             {adapter.tabs.map((tab) => (
               <button
@@ -347,10 +433,22 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
               <PlayerDetailsPanel fields={adapter.detailFields} />
             ) : null}
           </div>
+          <section className="premium-shell-next" aria-label="Next Up">
+            <span>Next Up</span>
+            {nextTrack ? (
+              <div>
+                <ArtworkImage src={nextTrack.artwork ?? null} alt="" seed={nextTrack.id} label={nextTrack.title} />
+                <p><strong>{nextTrack.title}</strong><small>{nextTrack.artist}</small></p>
+              </div>
+            ) : <p className="premium-shell-next-empty">Nothing else is queued.</p>}
+          </section>
         </aside>
       </div>
 
       <footer className="premium-shell-dock">
+        <div className="premium-shell-visualizer" aria-hidden="true">
+          {Array.from({ length: 48 }, (_, index) => <i key={index} style={{ ['--bar' as string]: index }} />)}
+        </div>
         <div className="premium-shell-timeline-row">
           {adapter.liveIndicator ? (
             <span className="premium-shell-live-badge" aria-live="polite">LIVE</span>
@@ -424,7 +522,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
           />
 
           <div className="premium-shell-utilities" role="toolbar" aria-label="Player utilities">
-            {adapter.kind === 'audiobook' ? (
+            {adapter.kind === 'audiobook' || adapter.kind === 'podcast' ? (
               <>
                 <button
                   type="button"
@@ -476,7 +574,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
               type="button"
               className="premium-shell-utility"
               aria-label="Show queue"
-              onClick={() => setPlayerTab('queue')}
+              onClick={() => { setPlayerTab('queue'); setPanelOpen(true) }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                 <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />
@@ -487,7 +585,7 @@ export const PremiumFullscreenShell = memo(function PremiumFullscreenShell({
                 type="button"
                 className="premium-shell-utility"
                 aria-label="Show lyrics"
-                onClick={() => setPlayerTab('lyrics')}
+                onClick={() => { setPlayerTab('lyrics'); setPanelOpen(true) }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                   <path d="M4 6h16M4 12h10M4 18h14" />

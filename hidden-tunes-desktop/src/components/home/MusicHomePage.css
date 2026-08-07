@@ -1,0 +1,27 @@
+/* Grow with the tallest column so the first rail remains in document flow. */
+.music-home--premium {
+  width: 100%;
+  max-width: none;
+}
+
+.music-home-reference-top {
+  height: auto;
+  min-height: 250px;
+  align-items: stretch;
+}
+
+/* Active TV/audio sessions remove Personal Mix, so quick access must become a
+   document-flow row instead of floating over the listening hero. */
+.music-home-reference-top.is-active-session .music-home-active-quick-access {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  width: 100%;
+  gap: 8px;
+}
+
+.music-home-reference-top.is-active-session .music-home-active-quick-button {
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+}

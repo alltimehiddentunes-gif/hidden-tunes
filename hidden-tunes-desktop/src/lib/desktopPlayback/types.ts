@@ -7,6 +7,16 @@ export type QueueContext =
   | 'album'
   | 'artist'
   | 'mood'
+  | 'genre'
+  | 'emotional-world'
+  | 'playlist'
+  | 'search'
+  | 'library'
+  | 'favorites'
+  | 'history'
+  | 'downloads'
+  | 'recommendation'
+  | 'manual-queue'
   | 'manual'
   | 'radio'
   | 'podcast'
@@ -22,6 +32,15 @@ export type QueueSeedType =
   | 'artist'
   | 'album'
   | 'mood'
+  | 'genre'
+  | 'emotional-world'
+  | 'playlist'
+  | 'search'
+  | 'library'
+  | 'favorites'
+  | 'history'
+  | 'downloads'
+  | 'recommendation'
   | 'discover'
   | 'home'
   | 'manual'
@@ -66,12 +85,20 @@ export type DesktopPlaybackState = {
   error: string | null
   volume: number
   audioQualityMode: AudioQualityMode
+  autoNextEnabled: boolean
   shuffleEnabled: boolean
   repeatMode: RepeatMode
   audiobookPlaybackRate: AudiobookPlaybackRate
 }
 
 export type DesktopPlaybackActions = {
+  startMediaSession: (input: {
+    queue: ApiSong[]
+    startIndex: number
+    context: QueueContext
+    queueTitle?: string
+    seedMetadata?: QueueSeedMetadata
+  }) => void
   playTrack: (song: ApiSong) => void
   playQueue: (
     queue: ApiSong[],
@@ -103,6 +130,7 @@ export type DesktopPlaybackActions = {
   skipRelative: (deltaSeconds: number) => void
   setVolume: (volume: number) => void
   setAudioQualityMode: (mode: AudioQualityMode) => void
+  setAutoNextEnabled: (enabled: boolean) => void
   setAudiobookPlaybackRate: (rate: AudiobookPlaybackRate) => void
   stopPlayback: () => void
   mountTvVideo: (container: HTMLElement | null) => void

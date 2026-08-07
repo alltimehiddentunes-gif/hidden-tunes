@@ -18,6 +18,7 @@ export type AudiobookPlaybackRate = (typeof AUDIOBOOK_PLAYBACK_RATES)[number]
 export const DESKTOP_PREFERENCE_KEYS = {
   activePage: 'active-page',
   audioQualityMode: 'audio-quality-mode',
+  musicAutoNextEnabled: 'music-auto-next-enabled',
   audiobookPlaybackRate: 'audiobook-playback-rate',
   atmosphereEnabled: 'atmosphere-enabled',
   atmosphereId: 'atmosphere-id',
@@ -28,6 +29,7 @@ export const DESKTOP_PREFERENCE_KEYS = {
   artistsSort: 'artists-sort',
   albumsSearch: 'albums-search',
   albumsSort: 'albums-sort',
+  playerSidebarVisibility: 'player-sidebar-visibility',
 } as const
 
 const ALL_PREFERENCE_KEYS = Object.values(DESKTOP_PREFERENCE_KEYS)
@@ -61,6 +63,7 @@ export const AUDIO_QUALITY_MODES = [
 ] as const
 
 export type AudioQualityMode = (typeof AUDIO_QUALITY_MODES)[number]
+export type PlayerSidebarVisibility = 'visible' | 'hidden'
 
 export const AUDIO_QUALITY_MODE_LABELS: Record<AudioQualityMode, string> = {
   auto: 'Auto',
@@ -127,6 +130,12 @@ export function parseStoredAlbumSort(value: unknown): AlbumSort | null {
   return value === 'latest' || value === 'az' ? value : null
 }
 
+export function parseStoredPlayerSidebarVisibility(
+  value: unknown,
+): PlayerSidebarVisibility | null {
+  return value === 'visible' || value === 'hidden' ? value : null
+}
+
 export function parseStoredAudioQualityMode(
   value: unknown,
 ): AudioQualityMode | null {
@@ -134,6 +143,10 @@ export function parseStoredAudioQualityMode(
     AUDIO_QUALITY_MODES.includes(value as AudioQualityMode)
     ? (value as AudioQualityMode)
     : null
+}
+
+export function parseStoredBoolean(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null
 }
 
 export function parseStoredAudiobookPlaybackRate(

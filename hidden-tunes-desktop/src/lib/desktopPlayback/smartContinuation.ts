@@ -21,6 +21,10 @@ import type { QueueCandidatePools, QueueContext, QueueSeedType } from './types'
 
 /** Mobile `extendQueueWithSmartTracks` batch size. */
 export const SMART_CONTINUATION_LIMIT = 12
+export const SMART_QUEUE_TARGET_UPCOMING = 10
+export const SMART_QUEUE_REFILL_THRESHOLD = 3
+export const SMART_QUEUE_MAX_ACTIVE = 25
+export const SMART_QUEUE_SESSION_DEDUPE_WINDOW = 50
 
 /** Mobile `FINISH_DEBOUNCE_MS` — prevent double ended → next. */
 export const ENDED_ADVANCE_DEBOUNCE_MS = 1500
@@ -67,7 +71,7 @@ function songHasPlayableUrl(song: ApiSong): boolean {
  */
 export function isBoundedPlaybackContext(
   context: QueueContext,
-  seedType: QueueSeedType,
+  _seedType: QueueSeedType,
   bounded?: boolean,
 ): boolean {
   if (typeof bounded === 'boolean') return bounded
@@ -83,20 +87,13 @@ export function isBoundedPlaybackContext(
     || context === 'tv'
     || context === 'sports'
     || context === 'scene'
-    || context === 'manual'
-    || context === 'smart'
-    || context === 'album'
-    || context === 'artist'
-    || context === 'mood'
-    || context === 'discover'
+    || context === 'manual-queue'
   ) {
     return true
   }
 
-  if (seedType === 'manual') return true
-
   // home / discover without explicit unbounded flag → bounded (section rails).
-  return true
+  return false
 }
 
 export function canSmartContinueMusicContext(context: QueueContext): boolean {
@@ -104,6 +101,19 @@ export function canSmartContinueMusicContext(context: QueueContext): boolean {
     context === 'home'
     || context === 'discover'
     || context === 'smart'
+    || context === 'album'
+    || context === 'artist'
+    || context === 'mood'
+    || context === 'genre'
+    || context === 'emotional-world'
+    || context === 'playlist'
+    || context === 'search'
+    || context === 'library'
+    || context === 'favorites'
+    || context === 'history'
+    || context === 'downloads'
+    || context === 'recommendation'
+    || context === 'manual'
   )
 }
 
@@ -187,41 +197,22 @@ function resolveCandidatePool(input: SmartContinuationInput): {
   } = input
   const reference = currentTrack ?? currentQueue[currentQueue.length - 1]
   if (!reference) return { pool: [], inspectedCount: 0 }
-
-  if (seedType === 'home' || seedType === 'discover') {
-    const genre = inferSongGenre(reference)
-    const genrePool = pools?.songsByGenre?.get(genre)
-    if (genrePool?.length) {
-      return {
-        pool: genrePool.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
-        inspectedCount: Math.min(genrePool.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
-      }
-    }
-  }
-
-  if (seedType === 'artist') {
-    const artistId = seedId ?? reference.artistId ?? undefined
-    const artistPool = artistId ? pools?.songsByArtistId?.get(artistId) : undefined
-    if (artistPool?.length) {
-      return {
-        pool: artistPool.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
-        inspectedCount: Math.min(artistPool.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
-      }
-    }
-  }
-
-  if (seedType === 'album') {
-    const albumKey = normalizeLookupKey(reference.album)
-    const albumPool = albumKey ? pools?.songsByAlbumName?.get(albumKey) : undefined
-    if (albumPool?.length) {
-      return {
-        pool: albumPool.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
-        inspectedCount: Math.min(albumPool.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
-      }
-    }
-  }
-
-  const fallback = seedTracks.length > 0 ? seedTracks : currentQueue
+  const artistId = seedType === 'artist' ? seedId : reference.artistId ?? undefined
+  const albumKey = normalizeLookupKey(reference.album)
+  const genre = inferSongGenre(reference)
+  const preferred = [
+    ...(seedTracks.length > 0 ? seedTracks : currentQueue),
+    ...(albumKey ? pools?.songsByAlbumName?.get(albumKey) ?? [] : []),
+    ...(artistId ? pools?.songsByArtistId?.get(artistId) ?? [] : []),
+    ...(genre ? pools?.songsByGenre?.get(genre) ?? [] : []),
+    ...Array.from(pools?.songsByGenre?.values() ?? []).flat(),
+  ]
+  const seen = new Set<string>()
+  const fallback = preferred.filter((song) => {
+    if (seen.has(song.id)) return false
+    seen.add(song.id)
+    return true
+  })
   return {
     pool: fallback.slice(0, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
     inspectedCount: Math.min(fallback.length, CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT),
@@ -246,7 +237,7 @@ export function buildSmartContinuation(input: SmartContinuationInput): SmartCont
     return { relatedTracks: [], inspectedCount: 0, reason: 'empty_queue' }
   }
 
-  if (seedType === 'manual') {
+  if (seedType === 'manual' && context === 'manual-queue') {
     return { relatedTracks: [], inspectedCount: 0, reason: 'manual_seed' }
   }
 

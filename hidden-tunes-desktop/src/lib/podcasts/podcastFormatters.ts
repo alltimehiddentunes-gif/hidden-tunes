@@ -48,7 +48,17 @@ export function formatPodcastEpisodeMetaLine(episode: {
     formatPodcastDuration(episode.durationSeconds),
     formatPodcastPublishedDate(episode.publishedAt),
   ].filter(Boolean)
-  return parts.length > 0 ? parts.join(' · ') : '—'
+  return parts.length > 0 ? parts.join(' · ') : null
+}
+
+function decodePodcastEntities(value: string) {
+  const named: Record<string, string> = { amp: '&', apos: "'", gt: '>', lt: '<', nbsp: ' ', quot: '"' }
+  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity: string) => {
+    const key = entity.toLowerCase()
+    if (key.startsWith('#x')) return String.fromCodePoint(Number.parseInt(key.slice(2), 16))
+    if (key.startsWith('#')) return String.fromCodePoint(Number.parseInt(key.slice(1), 10))
+    return named[key] ?? match
+  })
 }
 
 export function formatPodcastDescriptionExcerpt(
@@ -56,7 +66,12 @@ export function formatPodcastDescriptionExcerpt(
   maxLength = 160,
 ) {
   if (!value) return null
-  const cleaned = value.replace(/\s+/g, ' ').trim()
+  const cleaned = decodePodcastEntities(value)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
   if (!cleaned) return null
   if (cleaned.length <= maxLength) return cleaned
   return `${cleaned.slice(0, maxLength - 1).trimEnd()}…`

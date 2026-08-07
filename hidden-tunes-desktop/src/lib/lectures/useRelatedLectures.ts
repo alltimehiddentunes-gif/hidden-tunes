@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { fetchLectureCategory, searchLectures } from './lectureCatalogApi'
+import { fetchLectureCategory, isLectureRequestCancellation, searchLectures } from './lectureCatalogApi'
 import type { LectureSeries } from './types'
 
 const RELATED_LIMIT = 8
@@ -77,7 +77,7 @@ export function useRelatedLectures(series: LectureSeries | null) {
         setRelated(collected.slice(0, RELATED_LIMIT))
       } catch (reason) {
         if (requestId !== requestRef.current) return
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (isLectureRequestCancellation(reason, controller.signal)) return
         setRelated([])
       } finally {
         if (requestId === requestRef.current) setLoading(false)

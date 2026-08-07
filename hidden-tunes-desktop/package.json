@@ -4,9 +4,16 @@
   "description": "Hidden Tunes Desktop — a cinematic catalog browsing experience for Windows.",
   "author": "Hidden Tunes",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "main": "electron/main.js",
   "scripts": {
+    "verify:emotional-worlds": "node scripts/verify-emotional-worlds-contract.mjs",
+    "verify:playlist-picker": "node scripts/verify-playlist-picker-contract.mjs",
+    "verify:player-sidebar": "node scripts/verify-player-sidebar-visibility.mjs",
+    "verify:player-viewport": "node scripts/verify-player-viewport-contract.mjs",
+    "verify:window-controls": "node scripts/verify-window-controls-contract.mjs",
+    "verify:localization": "node scripts/verify-localization-contract.mjs",
+    "audit:hardcoded-copy": "node scripts/audit-hardcoded-copy.mjs",
     "verify:tv-country-search": "node scripts/verify-tv-country-search.mjs",
     "verify:tv-country-search": "node scripts/verify-tv-country-search.mjs",
     "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
@@ -14,12 +21,14 @@
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build": "tsc -b && vite build",
     "dist": "npm run build && electron-builder",
+    "dist:win-release": "node scripts/build-windows-release.mjs",
     "lint": "eslint .",
     "verify:tv-hls": "electron scripts/verify-tv-hls-playback.mjs",
     "verify:tv-dash": "electron scripts/verify-tv-dash-playback.mjs",
     "verify:tv-formats": "node scripts/verify-tv-format-compatibility.mjs",
     "verify:lecture-play": "node scripts/verify-lecture-playback.mjs",
     "verify:playback-mutex": "node scripts/verify-playback-mutex.mjs",
+    "verify:audio-output": "node scripts/verify-audio-output-contract.mjs",
     "verify:video-surface": "node scripts/verify-video-surface.mjs",
     "verify:recently-added": "node scripts/verify-recently-added-truthfulness.mjs",
     "verify:route-media": "node scripts/test-route-independent-media.mjs",
@@ -27,6 +36,8 @@
     "verify:premium-honesty": "node scripts/verify-premium-honesty.mjs",
     "verify:motivational-video-layout": "node scripts/verify-motivational-video-layout.mjs",
     "verify:music-home": "node scripts/verify-music-home-interactions.mjs",
+    "verify:now-playing": "node scripts/verify-now-playing-contract.mjs",
+    "verify:branding": "node scripts/verify-branding-contract.mjs",
     "verify:phase9-honesty": "node scripts/verify-phase9-product-honesty.mjs",
     "verify:phase10-home": "node scripts/verify-phase10-home.mjs",
     "verify:phase11-music": "node scripts/verify-phase11-music.mjs",
@@ -38,7 +49,12 @@
     "verify:phase16-sports": "node scripts/verify-sports-contract.mjs",
     "verify:global-search": "node scripts/verify-global-search-contract.mjs",
     "verify:search-routing": "node scripts/verify-search-routing-repair.mjs",
+    "verify:search-relevance": "node scripts/verify-search-relevance-contract.mjs",
+    "verify:catalog-identity": "node scripts/verify-catalog-identity-contract.mjs",
     "verify:tv-browse": "node scripts/verify-tv-browse-routing.mjs",
+    "verify:cross-platform": "node scripts/verify-cross-platform-contract.mjs",
+    "verify:runtime-harness": "node scripts/verify-runtime-harness-contract.mjs",
+    "verify:fullscreen-unified": "node scripts/verify-unified-fullscreen-contract.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -78,15 +94,37 @@
       "electron/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "brand/icon.png"
+      }
+    ],
     "win": {
-      "target": "nsis",
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
-    "artifactName": "Hidden Tunes Desktop Setup ${version}.${ext}",
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
+      "icon": "build/icon.png",
+      "category": "public.app-category.music",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
+    },
+    "linux": {
+      "target": [{ "target": "AppImage", "arch": ["x64"] }, { "target": "deb", "arch": ["x64"] }],
+      "icon": "build/icon.png",
+      "category": "AudioVideo;Audio;Video",
+      "executableName": "hidden-tunes-desktop"
+    },
+    "artifactName": "Hidden-Tunes-Desktop-${version}-${os}-${arch}.${ext}",
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "Hidden Tunes Desktop"
+      "shortcutName": "Hidden Tunes Desktop",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
     }
   }
 }

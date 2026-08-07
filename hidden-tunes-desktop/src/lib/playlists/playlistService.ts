@@ -215,6 +215,35 @@ export function createPlaylist(title: string, description?: string | null): Desk
   return playlist
 }
 
+export function createPlaylistWithItems(
+  title: string,
+  description: string | null | undefined,
+  items: DesktopPlaylistItem[],
+): { playlist: DesktopPlaylist; added: number; invalid: number; duplicates: number } | null {
+  const trimmed = title.trim()
+  if (!trimmed) return null
+  const normalized: DesktopPlaylistItem[] = []
+  const seen = new Set<string>()
+  let invalid = 0
+  let duplicates = 0
+  for (const raw of items) {
+    const item = normalizePlaylistItem(raw)
+    if (!item) { invalid += 1; continue }
+    const key = playlistItemKey(item)
+    if (seen.has(key)) { duplicates += 1; continue }
+    seen.add(key)
+    normalized.push(item)
+  }
+  if (normalized.length === 0) return null
+  const store = readStore()
+  const playlist: DesktopPlaylist = {
+    id: newId('pl'), title: trimmed, description: description?.trim() || null,
+    createdAt: nowIso(), updatedAt: nowIso(), items: normalized,
+  }
+  persist({ ...store, playlists: [playlist, ...store.playlists] })
+  return { playlist, added: normalized.length, invalid, duplicates }
+}
+
 export function renamePlaylist(playlistId: string, title: string): DesktopPlaylist | null {
   const store = readStore()
   const trimmed = title.trim()
@@ -261,6 +290,55 @@ export function addItemToPlaylist(
   playlists[index] = updated
   persist({ ...store, playlists })
   return { ok: true, playlist: updated }
+}
+
+export type AddPlaylistItemsResult = {
+  ok: boolean
+  added: number
+  duplicates: number
+  invalid: number
+  playlist?: DesktopPlaylist
+}
+
+/** Add a selection in one canonical write while preserving input order. */
+export function addItemsToPlaylist(
+  playlistId: string,
+  items: DesktopPlaylistItem[],
+): AddPlaylistItemsResult {
+  const store = readStore()
+  const index = store.playlists.findIndex((entry) => entry.id === playlistId)
+  if (index < 0) return { ok: false, added: 0, duplicates: 0, invalid: items.length }
+  const playlist = store.playlists[index]
+  const seen = new Set(playlist.items.map(playlistItemKey))
+  const additions: DesktopPlaylistItem[] = []
+  let duplicates = 0
+  let invalid = 0
+  for (const raw of items) {
+    const item = normalizePlaylistItem(raw)
+    if (!item) {
+      invalid += 1
+      continue
+    }
+    const key = playlistItemKey(item)
+    if (seen.has(key)) {
+      duplicates += 1
+      continue
+    }
+    seen.add(key)
+    additions.push(item)
+  }
+  if (additions.length === 0) {
+    return { ok: true, added: 0, duplicates, invalid, playlist }
+  }
+  const updated: DesktopPlaylist = {
+    ...playlist,
+    updatedAt: nowIso(),
+    items: [...playlist.items, ...additions],
+  }
+  const playlists = store.playlists.slice()
+  playlists[index] = updated
+  persist({ ...store, playlists })
+  return { ok: true, added: additions.length, duplicates, invalid, playlist: updated }
 }
 
 export function removeItemFromPlaylist(

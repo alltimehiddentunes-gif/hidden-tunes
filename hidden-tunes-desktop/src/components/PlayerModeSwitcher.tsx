@@ -6,7 +6,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react'
+import { createPortal } from 'react-dom'
 import {
   NOW_PLAYING_STYLE_OPTIONS,
   usePreferredNowPlayingStyle,
@@ -29,6 +32,9 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
   const [open, setOpen] = useState(false)
   const [preferredStyle, setPreferredStyle] = usePreferredNowPlayingStyle()
   const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({})
   const menuId = useId()
 
   const activeOption = useMemo(
@@ -42,7 +48,7 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
     if (!open) return undefined
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
+      if (!rootRef.current?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) {
         closeMenu()
       }
     }
@@ -51,6 +57,7 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
       if (event.key !== 'Escape') return
       event.stopPropagation()
       closeMenu()
+      triggerRef.current?.focus()
     }
 
     window.addEventListener('pointerdown', handlePointerDown)
@@ -60,6 +67,33 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
       window.removeEventListener('keydown', handleKeyDown, true)
     }
   }, [closeMenu, open])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const positionMenu = () => {
+      const trigger = triggerRef.current
+      if (!trigger) return
+      const rect = trigger.getBoundingClientRect()
+      const width = Math.min(360, window.innerWidth - 24)
+      const estimatedHeight = Math.min(460, window.innerHeight - 24)
+      let left = Math.max(12, Math.min(window.innerWidth - width - 12, align === 'right' ? rect.right - width : rect.left))
+      const below = window.innerHeight - rect.bottom
+      const top = below >= estimatedHeight || below >= rect.top
+        ? Math.min(window.innerHeight - estimatedHeight - 12, rect.bottom + 8)
+        : Math.max(12, rect.top - estimatedHeight - 8)
+      const panel = document.getElementById('premium-shell-shared-panel')?.getBoundingClientRect()
+      if (panel && panel.width > 0) {
+        const overlapsPanel = left + width > panel.left && left < panel.right
+        if (overlapsPanel && panel.left - width - 12 >= 12) {
+          left = panel.left - width - 12
+        }
+      }
+      setMenuStyle({ left, top, width, maxHeight: estimatedHeight })
+    }
+    positionMenu()
+    window.addEventListener('resize', positionMenu)
+    return () => window.removeEventListener('resize', positionMenu)
+  }, [align, open])
 
   const handleToggle = () => {
     if (!hasPlayback) return
@@ -71,12 +105,27 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
     if (style !== activeMode) {
       onSwitchMode(style)
     }
+    setPreferredStyle(style)
     closeMenu()
+    triggerRef.current?.focus()
   }
 
   const handleSetDefault = () => {
     setPreferredStyle(activeMode)
     closeMenu()
+  }
+
+  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+    const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])
+    if (items.length === 0) return
+    event.preventDefault()
+    const current = items.indexOf(document.activeElement as HTMLButtonElement)
+    const next = event.key === 'Home' ? 0
+      : event.key === 'End' ? items.length - 1
+        : event.key === 'ArrowDown' ? (current + 1 + items.length) % items.length
+          : (current - 1 + items.length) % items.length
+    items[next]?.focus()
   }
 
   const triggerLabel = hasPlayback
@@ -90,6 +139,7 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
       data-open={open ? 'true' : 'false'}
     >
       <button
+        ref={triggerRef}
         type="button"
         className="player-mode-switcher-trigger"
         aria-haspopup="menu"
@@ -115,12 +165,15 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
         </svg>
       </button>
 
-      {open && hasPlayback ? (
+      {open && hasPlayback ? createPortal(
         <div
+          ref={menuRef}
           id={menuId}
           className="player-mode-switcher-menu"
+          style={menuStyle}
           role="menu"
           aria-label="Switch player mode"
+          onKeyDown={handleMenuKeyDown}
         >
           <p className="player-mode-switcher-menu-eyebrow">Listening view</p>
           <ul className="player-mode-switcher-list">
@@ -171,7 +224,8 @@ export const PlayerModeSwitcher = memo(function PlayerModeSwitcher({
               </button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   )

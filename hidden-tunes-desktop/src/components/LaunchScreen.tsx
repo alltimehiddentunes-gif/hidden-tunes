@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react'
 import { VisualSceneBackdrop } from './VisualSceneBackdrop'
 import { getTimeAwareHomeScene } from '../lib/visualScenes'
+import { HiddenTunesBrandMark } from './HiddenTunesBrandMark'
 
 export type LaunchScreenProps = {
   exiting?: boolean
@@ -20,9 +21,7 @@ export const LaunchScreen = memo(function LaunchScreen({ exiting = false }: Laun
       <VisualSceneBackdrop sceneId={sceneId} seed="launch-screen" variant="ambient" timeAware />
       <div className="launch-screen__scrim" aria-hidden="true" />
       <div className="launch-screen__content">
-        <div className="launch-screen__brand-mark" aria-hidden="true">
-          HT
-        </div>
+        <HiddenTunesBrandMark className="launch-screen__brand-mark" />
         <h1 className="launch-screen__title">Hidden Tunes</h1>
         <p className="launch-screen__subtitle">Desktop</p>
         <p className="launch-screen__message">Preparing your listening atmosphere</p>

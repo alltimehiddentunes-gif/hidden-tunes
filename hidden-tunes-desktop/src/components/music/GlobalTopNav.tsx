@@ -17,24 +17,6 @@ type GlobalTopNavProps = {
   pageTitle?: string
 }
 
-function BrandWaveformMark() {
-  return (
-    <svg className="brand-waveform global-top-nav-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-      <rect x="3" y="14" width="3" height="10" rx="1.5" fill="url(#globalNavWaveGold)" />
-      <rect x="9" y="8" width="3" height="22" rx="1.5" fill="url(#globalNavWaveGold)" />
-      <rect x="15" y="12" width="3" height="14" rx="1.5" fill="url(#globalNavWaveGold)" />
-      <rect x="21" y="5" width="3" height="28" rx="1.5" fill="url(#globalNavWaveGold)" />
-      <rect x="27" y="10" width="3" height="18" rx="1.5" fill="url(#globalNavWaveGold)" />
-      <defs>
-        <linearGradient id="globalNavWaveGold" x1="18" y1="4" x2="18" y2="34" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FFBA3D" />
-          <stop offset="1" stopColor="#E8B923" />
-        </linearGradient>
-      </defs>
-    </svg>
-  )
-}
-
 /**
  * Compact page chrome for the centre column.
  * Route navigation lives only in the left sidebar — no duplicate section strip.
@@ -57,10 +39,6 @@ export const GlobalTopNav = memo(function GlobalTopNav({
 
   return (
     <header className="global-top-nav global-top-nav--reference" aria-label="Page header">
-      <div className="global-top-nav-brand">
-        <BrandWaveformMark />
-        <span className="global-top-nav-wordmark">Hidden<span>Tunes</span></span>
-      </div>
       <nav className="global-top-nav-links" aria-label="Primary sections">
         {links.map(([key, label]) => (
           <button

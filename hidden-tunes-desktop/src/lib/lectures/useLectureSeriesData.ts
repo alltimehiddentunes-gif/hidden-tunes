@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchLectureSeriesDetails, fetchLectureSeriesSessions } from './lectureCatalogApi'
+import { fetchLectureSeriesDetails, fetchLectureSeriesSessions, isLectureRequestCancellation } from './lectureCatalogApi'
 import type { LectureItem, LecturePagination, LectureSeries } from './types'
 import { sortSessions } from './normalization'
 
@@ -72,7 +72,7 @@ export function useLectureSeriesData(seriesId: string) {
         setPagination(detail.pagination)
       } catch (reason) {
         if (requestId !== bootstrapRef.current) return
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (isLectureRequestCancellation(reason, controller.signal)) return
         setError(reason instanceof Error ? reason.message : 'Unable to load this course.')
       } finally {
         if (requestId === bootstrapRef.current) setLoading(false)
@@ -105,7 +105,7 @@ export function useLectureSeriesData(seriesId: string) {
         setPagination(detail.pagination)
       } catch (reason) {
         if (requestId !== loadMoreRef.current) return
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (isLectureRequestCancellation(reason, controller.signal)) return
         setError(reason instanceof Error ? reason.message : 'Unable to load more sessions.')
       } finally {
         if (requestId === loadMoreRef.current) setLoadingMore(false)

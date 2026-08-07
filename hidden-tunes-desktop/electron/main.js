@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, screen, session, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { fetchApprovedCatalog, fetchApprovedCatalogRequest } = require('./catalogBridge');
@@ -24,6 +24,88 @@ registerDownloadProtocol(() => app.getPath('userData'));
 let mainWindow = null;
 let downloadManager = null;
 let sessionSecurityAttached = false;
+let saveWindowStateTimer = null;
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+  app.quit();
+}
+
+function getWindowStatePath() {
+  return path.join(app.getPath('userData'), 'window-state.json');
+}
+
+function readWindowState() {
+  try {
+    const value = JSON.parse(fs.readFileSync(getWindowStatePath(), 'utf8'));
+    return value && typeof value === 'object' ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+function getVisibleBounds(savedState) {
+  const fallback = { width: 1680, height: 1024 };
+  const width = Math.max(1280, Number(savedState.width) || fallback.width);
+  const height = Math.max(720, Number(savedState.height) || fallback.height);
+  const proposed = {
+    x: Number.isFinite(savedState.x) ? savedState.x : undefined,
+    y: Number.isFinite(savedState.y) ? savedState.y : undefined,
+    width,
+    height,
+  };
+  if (proposed.x === undefined || proposed.y === undefined) return { width, height };
+  const display = screen.getDisplayMatching(proposed);
+  const area = display.workArea;
+  return {
+    width: Math.min(width, area.width),
+    height: Math.min(height, area.height),
+    x: Math.min(Math.max(proposed.x, area.x), area.x + area.width - Math.min(width, area.width)),
+    y: Math.min(Math.max(proposed.y, area.y), area.y + area.height - Math.min(height, area.height)),
+  };
+}
+
+function persistWindowState(win) {
+  if (!win || win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return;
+  const bounds = win.isMaximized() ? win.getNormalBounds() : win.getBounds();
+  const value = { ...bounds, isMaximized: win.isMaximized() };
+  try {
+    fs.writeFileSync(getWindowStatePath(), JSON.stringify(value));
+  } catch (error) {
+    logProduction('window state persistence failed', error);
+  }
+}
+
+function scheduleWindowStateSave(win) {
+  clearTimeout(saveWindowStateTimer);
+  saveWindowStateTimer = setTimeout(() => persistWindowState(win), 180);
+}
+
+function getWindowState(win) {
+  return {
+    isMaximized: Boolean(win && !win.isDestroyed() && win.isMaximized()),
+    isMinimized: Boolean(win && !win.isDestroyed() && win.isMinimized()),
+    isFullScreen: Boolean(win && !win.isDestroyed() && win.isFullScreen()),
+  };
+}
+
+function publishWindowState(win) {
+  if (win && !win.isDestroyed() && !win.webContents.isDestroyed()) {
+    win.webContents.send('ht-window-state-changed', getWindowState(win));
+  }
+}
+
+function getValidatedSenderWindow(event) {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return win && win === mainWindow && !win.isDestroyed() ? win : null;
+}
+
+function restoreAndFocusMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
 
 function getAppFileRoots() {
   return [
@@ -80,6 +162,13 @@ function getProductionIndexPath() {
 
 function getFallbackHtmlPath() {
   return path.join(__dirname, 'fallback.html');
+}
+
+function getBrandIconPath() {
+  const iconPath = isDev
+    ? path.join(__dirname, '..', 'build', 'icon.png')
+    : path.join(process.resourcesPath, 'brand', 'icon.png');
+  return fs.existsSync(iconPath) ? iconPath : undefined;
 }
 
 function showFallbackPage(win) {
@@ -195,12 +284,15 @@ function attachWindowDiagnostics(win) {
 }
 
 function createWindow() {
+  const savedState = readWindowState();
   const win = new BrowserWindow({
     title: WINDOW_TITLE,
-    width: 1680,
-    height: 1024,
+    icon: getBrandIconPath(),
+    ...getVisibleBounds(savedState),
     minWidth: 1280,
-    minHeight: 800,
+    minHeight: 720,
+    frame: process.platform === 'darwin',
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset' } : {}),
     backgroundColor: WINDOW_BG,
     autoHideMenuBar: true,
     show: false,
@@ -215,6 +307,19 @@ function createWindow() {
   });
 
   mainWindow = win;
+  const publishFullScreenState = () => {
+    publishWindowState(win);
+    if (!win.isDestroyed()) win.webContents.send('ht-window-full-screen-changed', win.isFullScreen());
+  };
+  win.on('enter-full-screen', publishFullScreenState);
+  win.on('leave-full-screen', publishFullScreenState);
+  for (const eventName of ['maximize', 'unmaximize', 'minimize', 'restore']) {
+    win.on(eventName, () => publishWindowState(win));
+  }
+  win.on('move', () => scheduleWindowStateSave(win));
+  win.on('resize', () => scheduleWindowStateSave(win));
+  win.on('close', () => persistWindowState(win));
+  win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
   win.setTitle(WINDOW_TITLE);
   attachWindowSecurity(win);
   attachWindowDiagnostics(win);
@@ -237,13 +342,38 @@ function createWindow() {
   }
 
   win.once('ready-to-show', () => {
+    if (savedState.isMaximized) win.maximize();
     win.show();
+    publishWindowState(win);
   });
 }
 
+app.on('second-instance', () => {
+  restoreAndFocusMainWindow();
+});
+
+function installApplicationMenu() {
+  const isMac = process.platform === 'darwin';
+  const template = [
+    ...(isMac ? [{ label: app.name, submenu: [
+      { role: 'about' }, { type: 'separator' },
+      { role: 'services' }, { type: 'separator' },
+      { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+      { type: 'separator' }, { role: 'quit' },
+    ] }] : []),
+    { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
+    { label: 'View', submenu: [{ role: 'reload' }, { role: 'togglefullscreen' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }] },
+    { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'zoom' }, ...(isMac ? [{ type: 'separator' }, { role: 'front' }] : [{ role: 'close' }])] },
+    { label: 'Help', submenu: [{ role: 'about' }] },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   attachSessionSecurity();
   attachDownloadProtocolHandler(() => app.getPath('userData'));
+  installApplicationMenu();
 
   ipcMain.on('ht-runtime-info', (event) => {
     event.returnValue = getRuntimeDiagnostics(app.isPackaged);
@@ -254,6 +384,38 @@ app.whenReady().then(() => {
       return { ok: false, reason: 'invalid-argument' };
     }
     return openValidatedExternalUrl(rawUrl);
+  });
+
+  ipcMain.handle('ht-window-is-full-screen', (event) => {
+    const win = getValidatedSenderWindow(event);
+    return Boolean(win && !win.isDestroyed() && win.isFullScreen());
+  });
+
+  ipcMain.handle('ht-window-set-full-screen', (event, enabled) => {
+    const win = getValidatedSenderWindow(event);
+    if (!win || win.isDestroyed()) return { ok: false };
+    win.setFullScreen(Boolean(enabled));
+    return { ok: true, isFullScreen: win.isFullScreen() };
+  });
+
+  ipcMain.handle('ht-window-get-state', (event) => getWindowState(getValidatedSenderWindow(event)));
+  ipcMain.handle('ht-window-minimize', (event) => {
+    const win = getValidatedSenderWindow(event);
+    if (!win) return { ok: false };
+    win.minimize();
+    return { ok: true };
+  });
+  ipcMain.handle('ht-window-toggle-maximize', (event) => {
+    const win = getValidatedSenderWindow(event);
+    if (!win) return { ok: false };
+    if (win.isMaximized()) win.unmaximize(); else win.maximize();
+    return { ok: true, isMaximized: win.isMaximized() };
+  });
+  ipcMain.handle('ht-window-close', (event) => {
+    const win = getValidatedSenderWindow(event);
+    if (!win) return { ok: false };
+    win.close();
+    return { ok: true };
   });
 
   ipcMain.handle('ht-catalog-get', async (_event, catalogPath) => {

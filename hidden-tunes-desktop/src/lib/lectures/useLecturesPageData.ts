@@ -3,6 +3,7 @@ import {
   fetchLectureCategories,
   fetchLectureCategory,
   fetchLectureItems,
+  isLectureRequestCancellation,
   searchLectures,
 } from './lectureCatalogApi'
 import type { LectureCategory, LecturePagination, LectureSeries } from './types'
@@ -108,7 +109,7 @@ export function useLecturesPageData(
         })
       } catch (reason) {
         if (requestId !== bootstrapRef.current) return
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (isLectureRequestCancellation(reason, controller.signal)) return
         setError(readError(reason, 'We couldn\u2019t load Lectures right now.'))
       } finally {
         if (requestId === bootstrapRef.current) setLoading(false)
@@ -176,7 +177,7 @@ export function useLecturesPageData(
           setPagination(nextPagination)
         } catch (reason) {
           if (requestId !== browseRef.current) return
-          if (reason instanceof DOMException && reason.name === 'AbortError') return
+          if (isLectureRequestCancellation(reason, controller.signal)) return
           setContentError(readError(reason, 'Unable to load lecture results.'))
           setFilteredSeries([])
         } finally {
@@ -236,7 +237,7 @@ export function useLecturesPageData(
         setPagination(nextPagination)
       } catch (reason) {
         if (requestId !== loadMoreRef.current) return
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (isLectureRequestCancellation(reason, controller.signal)) return
         setContentError(readError(reason, 'Unable to load more lectures.'))
       } finally {
         if (requestId === loadMoreRef.current) setLoadingMore(false)

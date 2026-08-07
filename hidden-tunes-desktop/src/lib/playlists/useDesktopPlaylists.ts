@@ -1,6 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import {
   addItemToPlaylist,
+  addItemsToPlaylist,
   createPlaylist,
   deletePlaylist,
   getPlaylist,
@@ -30,6 +31,7 @@ export function useDesktopPlaylists() {
       rename: (playlistId: string, title: string) => renamePlaylist(playlistId, title),
       remove: (playlistId: string) => deletePlaylist(playlistId),
       addItem: (playlistId: string, item: DesktopPlaylistItem) => addItemToPlaylist(playlistId, item),
+      addItems: (playlistId: string, items: DesktopPlaylistItem[]) => addItemsToPlaylist(playlistId, items),
       removeItem: (playlistId: string, type: PlaylistItemType, id: string) =>
         removeItemFromPlaylist(playlistId, type, id),
       reorder: (playlistId: string, fromIndex: number, toIndex: number) =>

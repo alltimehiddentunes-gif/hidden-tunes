@@ -32,7 +32,7 @@ export function buildRelatedQueue(
   pools?: QueueCandidatePools,
   options?: BuildRelatedQueueOptions,
 ) {
-  if (queueSeedType === 'manual' || currentQueue.length === 0) {
+  if (currentQueue.length === 0 || options?.context === 'manual-queue') {
     return { relatedTracks: [] as ApiSong[], inspectedCount: 0, reason: 'manual_or_empty' }
   }
 

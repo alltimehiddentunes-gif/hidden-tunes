@@ -13,6 +13,7 @@ import {
   DESKTOP_PREFERENCE_KEYS,
   parseStoredAudioQualityMode,
   parseStoredAudiobookPlaybackRate,
+  parseStoredBoolean,
   usePersistedPreference,
   type AudioQualityMode,
   type AudiobookPlaybackRate,
@@ -34,6 +35,9 @@ import { buildRelatedQueue } from '../lib/desktopPlayback/queueIntelligence'
 import {
   AUTO_NEXT_INVALID_SKIP_LIMIT,
   ENDED_ADVANCE_DEBOUNCE_MS,
+  SMART_QUEUE_MAX_ACTIVE,
+  SMART_QUEUE_REFILL_THRESHOLD,
+  SMART_QUEUE_TARGET_UPCOMING,
   isMusicItemMissingPlayableUrl,
 } from '../lib/desktopPlayback/smartContinuation'
 import { resolveRadioPlayUrl } from '../lib/radio/radioCatalogApi'
@@ -215,7 +219,16 @@ function contextToSeedType(context: QueueContext): QueueSeedType {
     context === 'discover' ||
     context === 'album' ||
     context === 'artist' ||
-    context === 'mood'
+    context === 'mood' ||
+    context === 'genre' ||
+    context === 'emotional-world' ||
+    context === 'playlist' ||
+    context === 'search' ||
+    context === 'library' ||
+    context === 'favorites' ||
+    context === 'history' ||
+    context === 'downloads' ||
+    context === 'recommendation'
   ) {
     return context
   }
@@ -333,7 +346,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const queueSeedTracksRef = useRef<ApiSong[]>([])
   const queueCandidatePoolsRef = useRef<QueueCandidatePools | undefined>(undefined)
   /** Mobile parity: bounded contexts stop at end; only unbounded may smart-append. */
-  const queueSeedBoundedRef = useRef(true)
+  const queueSeedBoundedRef = useRef(false)
   /**
    * Index where smart-continuation items begin in the live queue, or -1.
    * Manual enqueue must insert before this region so user choices outrank smart tracks.
@@ -422,6 +435,12 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     'auto',
     parseStoredAudioQualityMode,
   )
+  const [autoNextEnabled, setAutoNextEnabled] = usePersistedPreference(
+    DESKTOP_PREFERENCE_KEYS.musicAutoNextEnabled,
+    true,
+    parseStoredBoolean,
+  )
+  const autoNextEnabledRef = useRef(autoNextEnabled)
   const [audiobookPlaybackRate, setAudiobookPlaybackRate] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.audiobookPlaybackRate,
     1 as AudiobookPlaybackRate,
@@ -444,6 +463,10 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     audioQualityModeRef.current = audioQualityMode
   }, [audioQualityMode])
+
+  useEffect(() => {
+    autoNextEnabledRef.current = autoNextEnabled
+  }, [autoNextEnabled])
 
   const emitPositionSeconds = useCallback((seconds: number, force = false) => {
     if (!Number.isFinite(seconds)) return
@@ -922,6 +945,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       || ctx === 'album'
       || ctx === 'artist'
       || ctx === 'mood'
+      || ctx === 'genre'
+      || ctx === 'emotional-world'
+      || ctx === 'playlist'
+      || ctx === 'search'
+      || ctx === 'library'
+      || ctx === 'favorites'
+      || ctx === 'history'
+      || ctx === 'downloads'
+      || ctx === 'recommendation'
+      || ctx === 'manual-queue'
       || ctx === 'manual'
       || ctx === 'radio'
       || ctx === 'podcast'
@@ -950,18 +983,22 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     index: number,
     options?: { reason?: 'exhaustion' | 'prefetch' },
   ) => {
+    void options
     // Mobile parity: smart continuation only at true queue exhaustion.
     // Never pre-append on play start or when merely landing on the last item —
     // that would let smart tracks sit ahead of later manual enqueue() calls.
-    if (options?.reason !== 'exhaustion') {
+    if (
+      queue.length === 0
+      || index < 0
+      || queue.length - index - 1 > SMART_QUEUE_REFILL_THRESHOLD
+      || queue.length >= SMART_QUEUE_MAX_ACTIVE
+    ) {
       return queue
     }
 
-    if (
-      queue.length === 0
-      || index !== queue.length - 1
-      || queueSeedTypeRef.current === 'manual'
-    ) {
+    // This preference controls only generated music continuation. The source
+    // queue and manual Next remain available when it is disabled.
+    if (isMusicCatalogSong(currentTrackRef.current) && !autoNextEnabledRef.current) {
       return queue
     }
 
@@ -988,7 +1025,21 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       reason,
     })
 
-    const extendedQueue = [...queue, ...relatedTracks]
+    const room = Math.min(
+      SMART_QUEUE_MAX_ACTIVE - queue.length,
+      Math.max(0, SMART_QUEUE_TARGET_UPCOMING - (queue.length - index - 1)),
+    )
+    const additions = relatedTracks.slice(0, room)
+    if (additions.length === 0) return queue
+    // Guard insertion as well as generation so disabling cannot admit stale
+    // smart tracks if candidate selection later becomes asynchronous.
+    if (isMusicCatalogSong(currentTrackRef.current) && !autoNextEnabledRef.current) {
+      return queue
+    }
+    const extendedQueue = [...queue, ...additions]
+    if (smartContinuationStartRef.current < 0) {
+      smartContinuationStartRef.current = queue.length
+    }
     queueRef.current = extendedQueue
     setCurrentQueue(extendedQueue)
     return extendedQueue
@@ -1175,7 +1226,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
                 ? consumePendingMusicResumeSeconds()
                 : null
 
-      if (isAudiobookQueueSong(song)) {
+      if (isAudiobookQueueSong(song) || isPodcastQueueSong(song)) {
         service.setPlaybackRate(audiobookPlaybackRateRef.current)
       } else {
         service.setPlaybackRate(1)
@@ -2042,10 +2093,13 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       autoAdvanceInFlightRef.current = true
 
       try {
-        const queue = queueRef.current
+        const queue = extendQueueIfNeeded(queueRef.current, queueIndexRef.current, {
+          reason: 'prefetch',
+        })
         const currentIndexValue = queueIndexRef.current
 
         if (repeatModeRef.current === 'one' && currentIndexValue >= 0 && queue[currentIndexValue]) {
+          commitActiveQueueTrack(queue, currentIndexValue)
           playSongRef.current(queue[currentIndexValue])
           return
         }
@@ -2060,8 +2114,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
             return
           }
-          queueIndexRef.current = playableIndex
-          setCurrentIndex(playableIndex)
+          commitActiveQueueTrack(queue, playableIndex)
           // Do not smart-extend when merely advancing onto a later source item.
           playSongRef.current(queue[playableIndex])
           return
@@ -2079,8 +2132,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
             return
           }
-          queueIndexRef.current = playableIndex
-          setCurrentIndex(playableIndex)
+          commitActiveQueueTrack(extendedQueue, playableIndex)
           playSongRef.current(extendedQueue[playableIndex])
           return
         }
@@ -2093,8 +2145,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
             setError(MATURE_CONTENT_RESTRICTED_MESSAGE)
             return
           }
-          queueIndexRef.current = playableIndex
-          setCurrentIndex(playableIndex)
+          commitActiveQueueTrack(queue, playableIndex)
           playSongRef.current(queue[playableIndex])
           return
         }
@@ -2148,10 +2199,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
 
               const appended = buildLectureQueueSongs(continuationSeries, sessions)
               const merged = [...queue, ...appended]
-              queueRef.current = merged
-              setCurrentQueue(merged)
-              queueIndexRef.current = queue.length
-              setCurrentIndex(queue.length)
+              commitActiveQueueTrack(merged, queue.length)
               playSongRef.current(appended[0])
             } catch {
               // Continue learning fallback is best-effort only.
@@ -2246,6 +2294,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     }
   }, [
     cancelUpgradeSession,
+    commitActiveQueueTrack,
     emitPositionSeconds,
     extendQueueIfNeeded,
     getService,
@@ -2454,19 +2503,20 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       queueSeedTracksRef.current = seedMetadata?.seedTracks ?? resolvedQueue
       queueCandidatePoolsRef.current = seedMetadata?.candidatePools
       // Default bounded (mobile): only explicit unbounded full-catalog-style plays continue.
-      queueSeedBoundedRef.current = seedMetadata?.bounded ?? true
+      queueSeedBoundedRef.current = seedMetadata?.bounded ?? false
       smartContinuationStartRef.current = -1
 
-      applyQueueState(resolvedQueue, resolvedIndex)
       setQueueContextState(context)
+      applyQueueState(resolvedQueue, resolvedIndex)
       setQueueSeedType(nextSeedType)
       setQueueSeedId(seedMetadata?.seedId)
       setQueueTitle(nextQueueTitle)
 
       playSong(targetTrack)
+      extendQueueIfNeeded(resolvedQueue, resolvedIndex, { reason: 'prefetch' })
       // Do not pre-extend here — smart continuation runs only at exhaustion on ended/next.
     },
-    [applyQueueState, clearTvChannelSwitchState, flushAudiobookProgress, flushPodcastProgress, playSong, setQueueContextState],
+    [applyQueueState, clearTvChannelSwitchState, extendQueueIfNeeded, flushAudiobookProgress, flushPodcastProgress, playSong, setQueueContextState],
   )
 
   const playTrack = useCallback(
@@ -2475,6 +2525,16 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
     },
     [playQueue],
   )
+
+  const startMediaSession = useCallback((input: {
+    queue: ApiSong[]
+    startIndex: number
+    context: QueueContext
+    queueTitle?: string
+    seedMetadata?: QueueSeedMetadata
+  }) => {
+    playQueue(input.queue, input.startIndex, input.context, input.queueTitle, input.seedMetadata)
+  }, [playQueue])
 
   const playNow = useCallback(
     (song: ApiSong) => {
@@ -2936,7 +2996,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
   const handleAudiobookPlaybackRate = useCallback(
     (rate: AudiobookPlaybackRate) => {
       setAudiobookPlaybackRate(rate)
-      if (isAudiobookQueueSong(currentTrackRef.current)) {
+      if (isAudiobookQueueSong(currentTrackRef.current) || isPodcastQueueSong(currentTrackRef.current)) {
         getService().setPlaybackRate(rate)
       }
     },
@@ -3106,9 +3166,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       error,
       volume,
       audioQualityMode,
+      autoNextEnabled,
       shuffleEnabled,
       repeatMode,
       audiobookPlaybackRate,
+      startMediaSession,
       playTrack,
       playQueue,
       playNow,
@@ -3130,6 +3192,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       skipRelative,
       setVolume,
       setAudioQualityMode,
+      setAutoNextEnabled,
       setAudiobookPlaybackRate: handleAudiobookPlaybackRate,
       stopPlayback,
       mountTvVideo,
@@ -3147,9 +3210,11 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       error,
       volume,
       audioQualityMode,
+      autoNextEnabled,
       shuffleEnabled,
       repeatMode,
       audiobookPlaybackRate,
+      startMediaSession,
       playTrack,
       playQueue,
       playNow,
@@ -3171,6 +3236,7 @@ export function DesktopPlaybackProvider({ children }: { children: ReactNode }) {
       skipRelative,
       setVolume,
       setAudioQualityMode,
+      setAutoNextEnabled,
       handleAudiobookPlaybackRate,
       stopPlayback,
       mountTvVideo,

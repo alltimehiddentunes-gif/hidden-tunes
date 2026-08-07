@@ -64,10 +64,28 @@ export type DesktopShellBridgeApi = {
   openExternalUrl: (url: string) => Promise<{ ok: boolean; reason?: string }>
 }
 
+export type DesktopWindowBridgeApi = {
+  minimize: () => Promise<{ ok: boolean }>
+  toggleMaximize: () => Promise<{ ok: boolean; isMaximized?: boolean }>
+  close: () => Promise<{ ok: boolean }>
+  getState: () => Promise<DesktopWindowState>
+  isFullScreen: () => Promise<boolean>
+  setFullScreen: (enabled: boolean) => Promise<{ ok: boolean; isFullScreen?: boolean }>
+  subscribeState: (listener: (state: DesktopWindowState) => void) => () => void
+  subscribeFullScreen: (listener: (enabled: boolean) => void) => () => void
+}
+
+export type DesktopWindowState = {
+  isMaximized: boolean
+  isMinimized: boolean
+  isFullScreen: boolean
+}
+
 export type HiddenTunesDesktopBridge = {
   catalog?: DesktopCatalogBridgeApi
   downloads?: DesktopDownloadsBridgeApi
   shell?: DesktopShellBridgeApi
+  window?: DesktopWindowBridgeApi
   runtime?: {
     getInfo?: () => DesktopRuntimeBridgeInfo
   }

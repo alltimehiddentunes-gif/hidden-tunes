@@ -73,6 +73,13 @@ export const playlistCovers: Record<string, string> = {
 
 /** Emotional world scene/title → standalone world art */
 export const worldArtwork: Record<string, string> = {
+  'emotional-world-calm': '/artwork/worlds/emotional-world-calm.png',
+  'emotional-world-chill': '/artwork/worlds/emotional-world-chill.png',
+  'emotional-world-happy': '/artwork/worlds/emotional-world-happy.png',
+  'emotional-world-romantic': '/artwork/worlds/emotional-world-romantic.png',
+  'emotional-world-motivational': '/artwork/worlds/emotional-world-motivational.png',
+  'emotional-world-melancholy': '/artwork/worlds/emotional-world-melancholy.png',
+  'emotional-world-energetic': '/artwork/worlds/emotional-world-energetic.png',
   'ew-midnight-reflection': '/artwork/worlds/world-midnight-lake.jpg',
   'ew-afro-sunset': '/artwork/worlds/world-afro-sunset-savanna.jpg',
   'ew-healing-slowly': '/artwork/worlds/world-serene-waterfall.jpg',

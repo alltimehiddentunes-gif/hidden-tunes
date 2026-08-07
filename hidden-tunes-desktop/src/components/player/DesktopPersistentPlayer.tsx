@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { ArtworkImage } from '../ArtworkImage'
+import { HiddenTunesBrandMark } from '../HiddenTunesBrandMark'
 import { FullPlayerTransportControls } from './FullPlayerTransportControls'
 import { PlayerQueuePanel } from './PlayerShellPanels'
 import { PlayerModeLauncher } from '../PlayerModeLauncher'
@@ -26,30 +27,12 @@ import { familyLabelForSong, resolvePlaybackCapabilities } from '../../lib/queue
 import { isMusicCatalogSong } from '../../lib/home/isMusicCatalogSong'
 import { useMusicLikes } from '../../lib/home/useMusicLikes'
 import type { NowPlayingStyle } from '../../lib/nowPlayingStyle'
+import { apiSongToPlaylistItem, usePlaylistPicker } from '../playlists/playlistPicker'
 
 type DesktopPersistentPlayerProps = {
   onOpenPlayerByStyle: (style: NowPlayingStyle) => void
   onNavigateHome?: () => void
   onOpenQueuePage?: () => void
-}
-
-function BrandWaveformMark() {
-  return (
-    <svg className="brand-waveform ht-persistent-player-brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-      <rect x="3" y="14" width="3" height="10" rx="1.5" fill="url(#htPersistWaveGold)" />
-      <rect x="9" y="8" width="3" height="22" rx="1.5" fill="url(#htPersistWaveGold)" />
-      <rect x="15" y="12" width="3" height="14" rx="1.5" fill="url(#htPersistWaveGold)" />
-      <rect x="21" y="5" width="3" height="28" rx="1.5" fill="url(#htPersistWaveGold)" />
-      <rect x="27" y="10" width="3" height="18" rx="1.5" fill="url(#htPersistWaveGold)" />
-      <defs>
-        <linearGradient id="htPersistWaveGold" x1="18" y1="4" x2="18" y2="34" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#C084FC" />
-          <stop offset="0.55" stopColor="#EC4899" />
-          <stop offset="1" stopColor="#22D3EE" />
-        </linearGradient>
-      </defs>
-    </svg>
-  )
 }
 
 function NeonEqBadge({ isPlaying }: { isPlaying: boolean }) {
@@ -88,6 +71,8 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
     error,
     volume,
     audioQualityMode,
+    autoNextEnabled,
+    setAutoNextEnabled,
     seekTo,
     setVolume,
     clearUpcomingQueue,
@@ -95,14 +80,26 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
   } = useDesktopPlayback()
   const { positionSeconds, durationSeconds } = useDesktopPlaybackProgress()
   const { isLiked, toggleLiked } = useMusicLikes()
+  const { openPlaylistPicker } = usePlaylistPicker()
 
   const progressTrackRef = useRef<HTMLDivElement>(null)
   const volumeTrackRef = useRef<HTMLDivElement>(null)
   const volumeBeforeMuteRef = useRef(1)
+  const scrollFrameRef = useRef<number | null>(null)
   const isSeekingRef = useRef(false)
   const isAdjustingVolumeRef = useRef(false)
   const [scrubSeconds, setScrubSeconds] = useState<number | null>(null)
   const [queueOpen, setQueueOpen] = useState(true)
+  const [compactHero, setCompactHero] = useState(false)
+
+  const handleRailScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = event.currentTarget.scrollTop
+    if (scrollFrameRef.current != null) return
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      setCompactHero(scrollTop > 96)
+      scrollFrameRef.current = null
+    })
+  }, [])
 
   const activeTrack =
     currentIndex >= 0 ? (currentTrack ?? currentQueue[currentIndex] ?? null) : null
@@ -266,7 +263,13 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
         <span className="ht-player-orb ht-player-orb--cyan" />
       </div>
 
-      <div className="now-playing-rail-inner ht-persistent-player-inner ht-player-page-inner">
+      <div
+        className="now-playing-rail-inner ht-persistent-player-inner ht-player-page-inner"
+        data-compact-hero={compactHero ? 'true' : 'false'}
+        onScroll={handleRailScroll}
+        tabIndex={0}
+        aria-label="Now playing and queue"
+      >
         <header className="ht-player-header">
           <div className="ht-player-header-copy">
             <p className="ht-player-session-label">Now Playing</p>
@@ -288,7 +291,7 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
         {!hasPlayback ? (
           <section className="ht-persistent-player-empty ht-player-empty" aria-label="Nothing playing">
             <div className="ht-persistent-player-empty-art" aria-hidden="true">
-              <BrandWaveformMark />
+              <HiddenTunesBrandMark className="ht-persistent-player-brand-mark" />
             </div>
             <h3 className="ht-persistent-player-empty-title">Nothing Playing</h3>
             <p className="ht-persistent-player-empty-copy">
@@ -458,7 +461,18 @@ export const DesktopPersistentPlayer = memo(function DesktopPersistentPlayer({
             {queueOpen ? (
               <section className="ht-player-queue-section ht-persistent-player-queue" aria-label="Queue">
                 <div className="ht-player-queue-toolbar">
-                  <p className="ht-player-card-eyebrow">Up Next</p>
+                  <p className="ht-player-card-eyebrow">Up Next <span>{getUpcomingTracks().length} items</span></p>
+                  {isMusicCatalogSong(activeTrack) ? (
+                    <button
+                      type="button"
+                      className="ht-player-clear-upcoming"
+                      aria-pressed={autoNextEnabled}
+                      onClick={() => setAutoNextEnabled(!autoNextEnabled)}
+                    >
+                      Auto-Next {autoNextEnabled ? 'On' : 'Off'}
+                    </button>
+                  ) : null}
+                  {activeTrack && isMusicCatalogSong(activeTrack) ? <button type="button" className="ht-player-favorite" aria-label={`Add ${displayTitle} to playlist`} onClick={() => openPlaylistPicker({ items: [apiSongToPlaylistItem(activeTrack)], source: 'now-playing' })}><span>+ Playlist</span></button> : null}
                   {canClearQueue ? (
                     <button
                       type="button"

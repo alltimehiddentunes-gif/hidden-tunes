@@ -193,7 +193,7 @@ export function resolveDesktopRuntimeConfig(
     } else {
       expressCatalogBaseUrl = expressParsed.url
       if (!expressRaw) {
-        warnings.push('Development Express catalog default in use (Render).')
+        warnings.push('Development Express catalog production default in use.')
       }
     }
 

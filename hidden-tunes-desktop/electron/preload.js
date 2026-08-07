@@ -14,6 +14,30 @@ contextBridge.exposeInMainWorld('hiddenTunesDesktop', {
      */
     openExternalUrl: (url) => ipcRenderer.invoke('ht-shell-open-external', url),
   },
+  window: {
+    minimize: () => ipcRenderer.invoke('ht-window-minimize'),
+    toggleMaximize: () => ipcRenderer.invoke('ht-window-toggle-maximize'),
+    close: () => ipcRenderer.invoke('ht-window-close'),
+    getState: () => ipcRenderer.invoke('ht-window-get-state'),
+    isFullScreen: () => ipcRenderer.invoke('ht-window-is-full-screen'),
+    setFullScreen: (enabled) => ipcRenderer.invoke('ht-window-set-full-screen', Boolean(enabled)),
+    subscribeFullScreen: (listener) => {
+      if (typeof listener !== 'function') return () => {}
+      const handler = (_event, enabled) => listener(Boolean(enabled))
+      ipcRenderer.on('ht-window-full-screen-changed', handler)
+      return () => ipcRenderer.removeListener('ht-window-full-screen-changed', handler)
+    },
+    subscribeState: (listener) => {
+      if (typeof listener !== 'function') return () => {}
+      const handler = (_event, state) => listener({
+        isMaximized: Boolean(state?.isMaximized),
+        isMinimized: Boolean(state?.isMinimized),
+        isFullScreen: Boolean(state?.isFullScreen),
+      })
+      ipcRenderer.on('ht-window-state-changed', handler)
+      return () => ipcRenderer.removeListener('ht-window-state-changed', handler)
+    },
+  },
   catalog: {
     getJson: (path) => ipcRenderer.invoke('ht-catalog-get', path),
     requestJson: (options) => ipcRenderer.invoke('ht-catalog-request', options),

@@ -10,6 +10,7 @@ export type MusicGenreDefinition = {
 
 export const MUSIC_GENRES: readonly MusicGenreDefinition[] = [
   { id: 'afrobeats', label: 'Afrobeats', slug: 'afrobeats', requestValue: 'afrobeat', backendValues: ['Afrobeats', 'Afrobeat', 'Afrobeat ,Afro fusion', 'Afrobeat, Afro Soul'], aliases: ['afrobeat', 'afro-beats', 'afro beats'] },
+  { id: 'afro-soul', label: 'Afro Soul', slug: 'afro-soul', requestValue: 'afro soul', backendValues: ['Afro Soul', 'Afrosoul', 'Afro-Soul'], aliases: ['afrosoul', 'afro-soul', 'AFRO_SOUL'] },
   { id: 'hip-hop', label: 'Hip-Hop', slug: 'hip-hop', requestValue: 'hip-hop', backendValues: ['Hip-Hop / Rap'], aliases: ['hip hop', 'hiphop', 'rap'] },
   { id: 'r-and-b', label: 'R&B', slug: 'r-and-b', requestValue: 'soul', backendValues: ['R&B', 'R&B / Soul'], aliases: ['r&b', 'rnb', 'rhythm and blues', 'r and b'] },
   { id: 'pop', label: 'Pop', slug: 'pop', requestValue: 'pop', backendValues: ['Pop', 'Pop , country', 'Pop, Country'], aliases: ['popular'] },
@@ -35,6 +36,11 @@ export function getMusicGenreByLabelOrAlias(value: string): MusicGenreDefinition
   return MUSIC_GENRES.find((genre) =>
     [genre.label, genre.slug, ...genre.aliases].some((candidate) => normalize(candidate) === key),
   ) ?? null
+}
+
+export function canonicalizeMusicGenreKey(value: string | null | undefined) {
+  if (!value) return ''
+  return getMusicGenreByLabelOrAlias(value)?.id ?? normalize(value)
 }
 
 export const createMusicGenreIntent = (slug: string) => `genre:${slug}`

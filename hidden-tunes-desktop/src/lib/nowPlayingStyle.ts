@@ -52,6 +52,10 @@ export function parseNowPlayingStyle(value: unknown): NowPlayingStyle | null {
     : null
 }
 
+export function normalizeNowPlayingStyle(value: unknown): NowPlayingStyle {
+  return parseNowPlayingStyle(value) ?? DEFAULT_NOW_PLAYING_STYLE
+}
+
 export function getPreferredNowPlayingStyle(): NowPlayingStyle {
   try {
     if (typeof localStorage === 'undefined') return DEFAULT_NOW_PLAYING_STYLE
@@ -72,7 +76,7 @@ export function getPreferredNowPlayingStyle(): NowPlayingStyle {
 export function setPreferredNowPlayingStyle(style: NowPlayingStyle): void {
   try {
     if (typeof localStorage === 'undefined') return
-    localStorage.setItem(NOW_PLAYING_STYLE_STORAGE_KEY, style)
+    localStorage.setItem(NOW_PLAYING_STYLE_STORAGE_KEY, normalizeNowPlayingStyle(style))
   } catch {
     // Storage may be unavailable or full — ignore safely.
   }

@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo } from 'react'
 import type { ApiAlbum, ApiArtist, ApiSong } from '../../lib/api'
 import { sortAlbumsList, sortArtistsList, sortSongsList } from '../../lib/api'
 import type { CatalogIndexes } from '../../lib/catalogIndexes'
-import { buildQueueCandidatePools, buildQueueSeedPool, resolveAlbumDisplayArtist, resolveSongsForAlbum } from '../../lib/catalogIndexes'
+import { buildQueueCandidatePools, buildQueueSeedPool, resolveAlbumDisplayArtist, resolveSongsForAlbum, resolveSongsForArtist } from '../../lib/catalogIndexes'
 import {
   formatSongCardSecondary,
   normalizeCatalogArtistLabel,
@@ -349,28 +349,29 @@ export const MusicSectionContent = memo(function MusicSectionContent({
 
     case 'artists':
       return (
-        <div className="music-section-page">
+        <div className="music-section-page" data-premium-catalog="artists">
           <header className="music-section-page-header">
-            <h1>Artists</h1>
-            <p>Artists in your catalog, ranked by track count.</p>
+            <div>
+              <span className="music-section-eyebrow">Artists</span>
+              <h1>Artists</h1>
+              <p>{sortedArtists.length} verified catalog {sortedArtists.length === 1 ? 'artist' : 'artists'}, ranked by playable-song count.</p>
+            </div>
           </header>
           <div className="music-discover-artist-rail music-discover-artist-rail--wide">
-            {artistWindow.visible.map((artist) => (
-              <button
-                key={artist.id}
-                type="button"
-                className="music-discover-artist-chip"
-                onClick={() => onOpenArtist(artist)}
-                aria-label={`Open ${artist.name}`}
-              >
-                <MusicArt src={artist.artwork} seed={artist.id} label={artist.name} variant="circle" size="rail" />
-                <strong>
-                  {normalizeCatalogArtistLabel(artist.name, {
-                    allowUnknownFallback: true,
-                  })}
-                </strong>
-              </button>
-            ))}
+            {artistWindow.visible.map((artist) => {
+              const artistSongs = resolveSongsForArtist(artist, indexes.songsByArtistId, indexes.songsByArtistName)
+              const artistAlbums = indexes.albumsByArtistId.get(artist.id) ?? []
+              return (
+                <article key={artist.id} className="music-discover-artist-chip">
+                  <button type="button" className="music-catalog-entity-hit" onClick={() => onOpenArtist(artist)} aria-label={`Open ${artist.name}`}>
+                    <MusicArt src={artist.artwork} seed={artist.id} label={artist.name} variant="circle" size="rail" />
+                    <strong>{normalizeCatalogArtistLabel(artist.name, { allowUnknownFallback: true })}</strong>
+                    <span>{artistSongs.length} {artistSongs.length === 1 ? 'song' : 'songs'} · {artistAlbums.length} {artistAlbums.length === 1 ? 'album' : 'albums'}</span>
+                  </button>
+                  <button type="button" className="music-catalog-play" disabled={artistSongs.length === 0} title={artistSongs.length === 0 ? 'No verified playable songs are currently available for this artist.' : undefined} onClick={() => artistSongs[0] && onOpenSong(artistSongs[0], artistSongs, 0, 'artist', artist.name, { seedType: 'artist', seedId: artist.id, seedTracks: buildQueueSeedPool('artist', artistSongs, indexes, artistSongs[0]), candidatePools: queuePools })} aria-label={`Play ${artist.name}`}>▶ Play</button>
+                </article>
+              )
+            })}
           </div>
           <CatalogLoadMore
             shown={artistWindow.shown}
@@ -384,10 +385,13 @@ export const MusicSectionContent = memo(function MusicSectionContent({
 
     case 'albums':
       return (
-        <div className="music-section-page">
+        <div className="music-section-page" data-premium-catalog="albums">
           <header className="music-section-page-header">
-            <h1>Albums</h1>
-            <p>Albums in your catalog, sorted by recently added.</p>
+            <div>
+              <span className="music-section-eyebrow">Releases</span>
+              <h1>Albums</h1>
+              <p>{sortedAlbums.length} canonical {sortedAlbums.length === 1 ? 'album' : 'albums'}, sorted by recently added.</p>
+            </div>
           </header>
           <div className="music-discover-album-grid">
             {albumWindow.visible.map((album) => {
@@ -405,20 +409,18 @@ export const MusicSectionContent = memo(function MusicSectionContent({
                   indexes.artistNames.get(album.artistId ?? '') ?? null,
                 )
               return (
-                <button
-                  key={album.id}
-                  type="button"
-                  className="music-discover-album-chip"
-                  onClick={() => onOpenAlbum(album)}
-                  aria-label={`Open album ${album.title}`}
-                >
+                <article key={album.id} className="music-discover-album-chip">
+                  <button type="button" className="music-catalog-entity-hit" onClick={() => onOpenAlbum(album)} aria-label={`Open album ${album.title}`}>
                   <MusicArt src={album.artwork} seed={album.id} label={album.title} size="rail" />
                   <strong>{normalizeCatalogDisplayText(album.title) ?? album.title}</strong>
                   <span>
                     {artistName ?? 'Unknown artist'}
                     {album.releaseYear ? ` · ${album.releaseYear}` : ''}
                   </span>
-                </button>
+                  <span>{albumSongs.length} playable {albumSongs.length === 1 ? 'track' : 'tracks'}</span>
+                  </button>
+                  <button type="button" className="music-catalog-play" disabled={albumSongs.length === 0} title={albumSongs.length === 0 ? 'This album has no verified playable tracks.' : undefined} onClick={() => albumSongs[0] && onOpenSong(albumSongs[0], albumSongs, 0, 'album', album.title, { seedType: 'album', seedId: album.id, seedTracks: buildQueueSeedPool('album', albumSongs, indexes, albumSongs[0]), candidatePools: queuePools })} aria-label={`Play album ${album.title}`}>▶ Play</button>
+                </article>
               )
             })}
           </div>

@@ -8,12 +8,15 @@ import {
 } from '../../lib/playerQueueDisplay'
 import { familyLabelForSong, resolvePlaybackCapabilities, songHasLocalDownloadMarker } from '../../lib/queue'
 import { ArtworkImage } from '../ArtworkImage'
+import { apiSongToPlaylistItem, usePlaylistPicker } from '../playlists/playlistPicker'
+import { isMusicCatalogSong } from '../../lib/home/isMusicCatalogSong'
 
 export const PlayerQueuePanel = memo(function PlayerQueuePanel({
   showHeader = false,
 }: {
   showHeader?: boolean
 }) {
+  const { openPlaylistPicker } = usePlaylistPicker()
   const {
     currentQueue,
     currentIndex,
@@ -102,6 +105,7 @@ export const PlayerQueuePanel = memo(function PlayerQueuePanel({
                 <span className="player-queue-duration">{live ? 'LIVE' : row.duration}</span>
               </button>
               <div className="player-queue-row-actions">
+                {isMusicCatalogSong(row.track) ? <button type="button" className="player-queue-move" aria-label={`Add ${row.title} to playlist`} onClick={() => openPlaylistPicker({ items: [apiSongToPlaylistItem(row.track)], source: 'queue' })}>+</button> : null}
                 <button
                   type="button"
                   className="player-queue-move"

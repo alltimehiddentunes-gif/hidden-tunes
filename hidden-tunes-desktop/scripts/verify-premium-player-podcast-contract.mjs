@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+
+const player = readFileSync(new URL('../src/components/player/DesktopPersistentPlayer.tsx', import.meta.url), 'utf8')
+const podcast = readFileSync(new URL('../src/components/podcasts/PodcastShowPage.tsx', import.meta.url), 'utf8')
+const formatters = readFileSync(new URL('../src/lib/podcasts/podcastFormatters.ts', import.meta.url), 'utf8')
+const fullPlayer = readFileSync(new URL('../src/components/player/PremiumFullscreenShell.tsx', import.meta.url), 'utf8')
+const provider = readFileSync(new URL('../src/context/DesktopPlaybackProvider.tsx', import.meta.url), 'utf8')
+const css = readFileSync(new URL('../src/App.css', import.meta.url), 'utf8')
+
+assert.match(player, /onScroll=\{handleRailScroll\}/)
+assert.match(player, /requestAnimationFrame/)
+assert.match(player, /data-compact-hero/)
+assert.equal((player.match(/<ArtworkImage/g) || []).length, 1)
+assert.match(css, /\.main-composition > \.conditional-player-rail \{ height: 100%; min-height: 0;/)
+assert.match(css, /\.ht-persistent-player \.ht-persistent-player-inner[^{]*\{[^}]*overflow-y: auto/s)
+assert.match(css, /data-compact-hero='true'[^}]+position: sticky/s)
+assert.match(css, /\.ht-persistent-player \.ht-player-queue-section \.player-queue-panel \{ overflow: visible;/)
+assert.match(player, /getUpcomingTracks\(\)\.length} items/)
+
+assert.doesNotMatch(podcast, /No saved progress for this show yet/)
+assert.match(podcast, /showContinueEntries\.length > 0 \? <section/)
+assert.match(podcast, /placeholder="Search episodes"/)
+assert.match(podcast, /value="newest"/)
+assert.equal((podcast.match(/formatPodcastEpisodeMetaLine\(episode\)/g) || []).length, 1)
+assert.match(podcast, /episode\.artworkUrl \?\? showArtworkUrl/)
+assert.match(podcast, /onPlayPodcastEpisode\(episode, episodes, startIndex/)
+assert.match(fullPlayer, /adapter\.kind === 'audiobook' \|\| adapter\.kind === 'podcast'/)
+assert.match(fullPlayer, /aria-label="Playback speed"/)
+assert.match(provider, /isAudiobookQueueSong\(song\) \|\| isPodcastQueueSong\(song\)/)
+assert.ok(formatters.includes(".replace(/<[^>]+>/g, ' ')"))
+assert.match(formatters, /nbsp: ' '/)
+assert.equal((provider.match(/new HtmlAudioPlaybackService\b/g) || []).length, 1)
+
+console.log('Premium player and podcast contracts passed')

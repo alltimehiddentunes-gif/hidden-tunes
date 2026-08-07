@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { NowPlayingStyle } from './nowPlayingStyle'
+import { normalizeNowPlayingStyle, type NowPlayingStyle } from './nowPlayingStyle'
 import {
   PLAYER_OVERLAY_ENTER_MS,
   PLAYER_OVERLAY_EXIT_MS,
@@ -53,11 +53,12 @@ export function usePlayerOverlayController(): PlayerOverlayController {
   }, [clearPhaseTimer])
 
   const openPlayerByStyle = useCallback((style: NowPlayingStyle) => {
+    const normalizedStyle = normalizeNowPlayingStyle(style)
     const previousStyle = openPlayerStyleRef.current
-    const isSwitch = previousStyle != null && previousStyle !== style
+    const isSwitch = previousStyle != null && previousStyle !== normalizedStyle
 
-    setOpenPlayerStyle(style)
-    setRenderedPlayerStyle(style)
+    setOpenPlayerStyle(normalizedStyle)
+    setRenderedPlayerStyle(normalizedStyle)
 
     if (isSwitch) {
       setOverlayPhase('switch')

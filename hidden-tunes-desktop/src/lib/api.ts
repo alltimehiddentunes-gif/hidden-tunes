@@ -114,6 +114,8 @@ type PaginationOptions = {
   page?: number
   query?: string
   genre?: string
+  artistId?: string
+  albumId?: string
 }
 
 export type CatalogPagePayload<T> = {
@@ -134,6 +136,10 @@ function buildQuery(options?: PaginationOptions) {
   if (q) params.set('q', q)
   const genre = options?.genre?.trim()
   if (genre) params.set('genre', genre)
+  const artistId = options?.artistId?.trim()
+  if (artistId) params.set('artistId', artistId)
+  const albumId = options?.albumId?.trim()
+  if (albumId) params.set('albumId', albumId)
   return params
 }
 

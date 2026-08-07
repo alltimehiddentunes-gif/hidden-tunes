@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { searchLectures } from './lectureCatalogApi'
+import { isLectureRequestCancellation, searchLectures } from './lectureCatalogApi'
 import type { LectureSeries } from './types'
 
 export const DISCOVER_LECTURE_COURSE_LIMIT = 6
@@ -60,7 +60,7 @@ export function useDiscoverLectureSearch(debouncedQuery: string) {
         setCourses(response.series.slice(0, DISCOVER_LECTURE_COURSE_LIMIT))
       } catch (reason) {
         if (requestId !== requestRef.current) return
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (isLectureRequestCancellation(reason, controller.signal)) return
         // Keep prior courses on failure — abort/error must not look like an empty success.
         setError(readError(reason))
       } finally {

@@ -452,12 +452,12 @@ export function buildAlbumsWorthStayingWith(
     })
   }
 
-  const ranked = cards.sort((a, b) => scoreAlbumWorthCard(b) - scoreAlbumWorthCard(a))
-  const playable = ranked.filter((card) => card.playableTrackCount > 0)
-  if (playable.length >= limit) return playable.slice(0, limit)
-  const seen = new Set(playable.map((card) => card.album.id))
-  const fillers = ranked.filter((card) => !seen.has(card.album.id))
-  return [...playable, ...fillers].slice(0, limit)
+  // This is a playable rail, not an inventory rail. Never backfill it with
+  // artwork-only or unresolved album records just to reach the visual limit.
+  return cards
+    .filter((card) => card.playableTrackCount > 0)
+    .sort((a, b) => scoreAlbumWorthCard(b) - scoreAlbumWorthCard(a))
+    .slice(0, limit)
 }
 
 export function songsReadyLabel(count: number) {

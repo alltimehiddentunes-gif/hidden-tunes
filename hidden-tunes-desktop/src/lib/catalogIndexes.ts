@@ -1,5 +1,7 @@
 import type { ApiAlbum, ApiArtist, ApiSong } from './api'
 import { logAlbumResolve, logArtistResolve, logCatalogIndexBuild } from './catalogDiagnostics'
+import { artistIdentityMatches, createCanonicalArtistIdentity, normalizeArtistIdentityName } from './artistIdentity'
+import { canonicalizeMusicGenreKey } from './musicGenres'
 
 export const CATALOG_QUEUE_CANDIDATE_POOL_LIMIT = 250
 export const CATALOG_QUEUE_CANDIDATE_INSPECT_LIMIT = 120
@@ -18,7 +20,7 @@ export type CatalogIndexes = {
 }
 
 export function normalizeArtistKey(value: string) {
-  return value.trim().toLowerCase()
+  return normalizeArtistIdentityName(value)
 }
 
 export function normalizeAlbumKey(value: string) {
@@ -36,7 +38,7 @@ function albumArtistFallbackKey(albumTitle: string, artistId: string) {
 export function inferSongGenre(song?: ApiSong) {
   if (!song) return 'hidden-tunes'
 
-  const explicitGenre = normalizeLookupKey(song.genre)
+  const explicitGenre = canonicalizeMusicGenreKey(song.genre)
   if (explicitGenre) return explicitGenre
 
   const text = normalizeLookupKey(`${song.title} ${song.album} ${song.artist}`)
@@ -80,10 +82,10 @@ function dedupeSongsById(songs: ApiSong[]): ApiSong[] {
 }
 
 export function songBelongsToArtist(song: ApiSong, artist: ApiArtist): boolean {
-  if (artist.id && song.artistId) {
-    return song.artistId === artist.id
-  }
-  return normalizeArtistKey(song.artist) === normalizeArtistKey(artist.name)
+  return artistIdentityMatches(
+    createCanonicalArtistIdentity({ id: artist.id, name: artist.name }),
+    { id: song.artistId, name: song.artist },
+  )
 }
 
 export function songBelongsToAlbum(

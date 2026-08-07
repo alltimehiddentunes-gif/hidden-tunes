@@ -31,6 +31,7 @@ import { useMusicLocalState } from '../../lib/home/useMusicLocalState'
 import { ArtworkImage } from '../ArtworkImage'
 import { formatSongCountLabel, isGenericAlbumTitle } from '../../lib/catalogDisplayText'
 import { createMusicGenreIntent, MUSIC_GENRES } from '../../lib/musicGenres'
+import { useLocalization } from '../../localization'
 
 type QueueSongHandler = (
   song: ApiSong,
@@ -184,6 +185,7 @@ const MusicHomeSection = memo(function MusicHomeSection({
   onRetry?: () => void
   children: ReactNode
 }) {
+  const { t } = useLocalization()
   const headingId = `music-home-${title.replace(/\s+/g, '-').toLowerCase()}`
   return (
     <section className="music-home-section music-home-section--parity" aria-labelledby={headingId}>
@@ -209,10 +211,10 @@ const MusicHomeSection = memo(function MusicHomeSection({
         </div>
       ) : error ? (
         <div className="music-home-section-error" role="alert">
-          <p>This section could not be loaded.</p>
+          <p>{t('errors.somethingWentWrong')}</p>
           {onRetry ? (
             <button type="button" className="btn-secondary btn-sm" onClick={onRetry}>
-              Retry
+              {t('common.retry')}
             </button>
           ) : null}
         </div>
@@ -239,6 +241,7 @@ export const MusicHomePage = memo(function MusicHomePage({
   onNavigateNav,
   onBrowseSearch,
 }: MusicHomePageProps) {
+  const { t } = useLocalization()
   const { recentlyPlayed } = useMusicLocalState()
   const { currentTrack, currentQueue, isPlaying, pause, resume } = useDesktopPlayback()
   const hasActiveMediaSession = Boolean(currentTrack?.id)
@@ -258,8 +261,8 @@ export const MusicHomePage = memo(function MusicHomePage({
       options?: { bounded?: boolean },
     ) => {
       const queueIndex = Math.max(0, queue.findIndex((entry) => entry.id === song.id))
-      // Mobile: home_rail sections are bounded; full_catalog / hero-style are not.
-      const bounded = options?.bounded ?? true
+      // All music rails preserve their source and broaden when exhausted.
+      const bounded = options?.bounded ?? false
       onOpenSong(song, queue.length > 0 ? queue : [song], queueIndex, 'home', queueTitle, {
         seedType: 'home',
         seedTracks: buildQueueSeedPool('home', queue, indexes, song),
@@ -301,7 +304,7 @@ export const MusicHomePage = memo(function MusicHomePage({
         seedId: card.album.id,
         seedTracks: capSongPool(tracks),
         candidatePools: queuePools,
-        bounded: true,
+        bounded: false,
       })
 
       window.setTimeout(() => {
@@ -416,7 +419,7 @@ export const MusicHomePage = memo(function MusicHomePage({
         else resume()
         return
       }
-      playFromQueue(start, featuredMix.tracks, featuredMix.title, { bounded: true })
+      playFromQueue(start, featuredMix.tracks, featuredMix.title, { bounded: false })
       return
     }
     playHero()
@@ -440,7 +443,7 @@ export const MusicHomePage = memo(function MusicHomePage({
       style={{
         '--music-home-hero-background': `url("${homeReferenceAsset('home-hero-headphones.webp')}")`,
       } as CSSProperties}
-      aria-label="Home"
+      aria-label={t('navigation.home')}
       data-home-parity="mobile"
       data-home-layout="content-first"
       data-home-polish="premium"
@@ -450,7 +453,7 @@ export const MusicHomePage = memo(function MusicHomePage({
           className={`music-home-reference-top${hasActiveMediaSession && !showEditorialMix ? ' is-active-session' : ' is-idle'}`}
           data-home-media-session={hasActiveMediaSession ? 'active' : 'idle'}
         >
-        <section className="music-home-product-hero music-home-listening-hero" aria-label="Listening">
+        <section className="music-home-product-hero music-home-listening-hero" aria-label={t('home.listening.nowPlaying')}>
           <button
             type="button"
             className="music-home-product-hero-art"
@@ -485,7 +488,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                 onClick={playHero}
               >
                 <span aria-hidden="true">{heroIsCurrent && isPlaying ? '❚❚' : '▶'}</span>
-                {heroIsCurrent ? (isPlaying ? 'Pause' : 'Resume') : 'Play'}
+                {heroIsCurrent ? (isPlaying ? t('common.pause') : t('common.continue')) : t('common.play')}
               </button>
               {heroAlbum ? (
                 <button
@@ -493,7 +496,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                   className="music-home-product-hero-secondary"
                   onClick={() => onOpenAlbum(heroAlbum)}
                 >
-                  Open album
+                  {t('music.album.albumExperience')}
                 </button>
               ) : (
                 <button
@@ -501,7 +504,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                   className="music-home-product-hero-secondary"
                   onClick={() => onNavigateNav('search')}
                 >
-                  Search
+                  {t('navigation.search')}
                 </button>
               )}
             </div>
@@ -522,7 +525,7 @@ export const MusicHomePage = memo(function MusicHomePage({
               </p>
               <button type="button" onClick={playFeaturedMix}>
                 <span aria-hidden="true">{mixIsCurrent && isPlaying ? '❚❚' : '▶'}</span>{' '}
-                {mixIsCurrent ? (isPlaying ? 'Pause' : 'Resume') : 'Play'}
+                {mixIsCurrent ? (isPlaying ? t('common.pause') : t('common.continue')) : t('common.play')}
               </button>
             </div>
             <img
@@ -604,8 +607,8 @@ export const MusicHomePage = memo(function MusicHomePage({
                     priority={index === 0}
                     size="rail"
                   />
-                  {index === 0 ? <span className="music-home-new-badge">NEW</span> : null}
-                  {playing ? <span className="music-home-now-playing-badge">Now playing</span> : null}
+                  {index === 0 ? <span className="music-home-new-badge">{t('home.sections.new')}</span> : null}
+                  {playing ? <span className="music-home-now-playing-badge">{t('home.listening.nowPlaying')}</span> : null}
                   <span className="music-home-release-copy">
                     <strong title={title}>{title}</strong>
                     <small title={artist}>{artist}</small>
@@ -622,7 +625,7 @@ export const MusicHomePage = memo(function MusicHomePage({
       {recentlyPlayedSongs.length > 0 ? (
         <MusicHomeSection
           eyebrow="HISTORY"
-          title="Recently Played"
+          title={t('navigation.recentlyPlayed')}
           onSeeAll={() => onNavigateNav('recent')}
         >
           <div className="music-home-song-rail">
@@ -707,6 +710,14 @@ export const MusicHomePage = memo(function MusicHomePage({
               const isLoading = loadingAlbumId === card.album.id
               const locked = Boolean(loadingAlbumId)
               const canPlay = card.playableTracks.length > 0
+              const entityLabel =
+                card.contentType === 'playlist'
+                  ? 'playlist'
+                  : card.contentType === 'single' || card.contentType === 'singles'
+                    ? 'single'
+                    : card.contentType === 'collection'
+                      ? 'collection'
+                      : 'album'
               return (
                 <div
                   key={card.album.id}
@@ -719,7 +730,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                     type="button"
                     className="music-home-album-card"
                     onClick={() => onOpenAlbum(card.album)}
-                    aria-label={`Open album ${card.displayTitle}`}
+                    aria-label={`Open ${entityLabel} ${card.displayTitle}`}
                   >
                     <HomeArt
                       src={card.artwork}
@@ -740,7 +751,7 @@ export const MusicHomePage = memo(function MusicHomePage({
                     onClick={() => playAlbumCollection(card)}
                     disabled={!canPlay || (locked && !isLoading)}
                     aria-busy={isLoading}
-                    aria-label={`Play album ${card.displayTitle}`}
+                    aria-label={`Play ${entityLabel} ${card.displayTitle}`}
                   >
                     <span aria-hidden="true">{isLoading ? '…' : '▶'}</span>
                     Play

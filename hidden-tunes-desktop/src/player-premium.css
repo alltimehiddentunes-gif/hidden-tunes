@@ -1,0 +1,94 @@
+/* Loaded after App.css so the persistent player owns its final, scoped presentation. */
+.ht-player-page { --now-playing-art-size: clamp(168px, 11vw, 212px); }
+.ht-player-page .ht-player-art-stage { padding: 8px 0 10px; }
+.ht-player-page .ht-player-art-halo {
+  width: calc(var(--now-playing-art-size) + 52px);
+  height: calc(var(--now-playing-art-size) + 52px);
+  opacity: .68;
+  filter: blur(13px);
+}
+.ht-player-page .ht-player-art-ring {
+  padding: 3px;
+  background: linear-gradient(145deg, rgba(255,255,255,.86), #b86cff 24%, #ef6da8 58%, #54d7e8 100%);
+  box-shadow: 0 24px 52px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.12), 0 0 34px rgba(168,85,247,.25);
+}
+.ht-player-page .ht-player-art-frame { border: 3px solid rgba(7,3,14,.88); }
+.ht-player-page .ht-player-track-title { font-size: clamp(1.05rem, 1.15vw, 1.28rem); letter-spacing: -.025em; }
+.ht-player-page .ht-player-transport-dock {
+  padding: 9px 10px;
+  border-color: rgba(192,132,252,.16);
+  background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.035));
+  box-shadow: 0 14px 28px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.04);
+}
+.ht-player-page .psd-player-transport-btn--play { width: 58px; height: 58px; transition: transform 160ms ease, box-shadow 160ms ease; }
+.ht-player-page .psd-player-transport-btn--play:hover {
+  transform: translateY(-1px) scale(1.035);
+  box-shadow: 0 0 0 7px rgba(168,85,247,.2), 0 12px 26px rgba(168,85,247,.42);
+}
+.ht-player-page .ht-player-queue-section {
+  gap: 9px;
+  min-height: 132px;
+  padding: 11px;
+  border: 1px solid rgba(192,132,252,.13);
+  border-radius: 18px;
+  background: linear-gradient(155deg, rgba(38,18,58,.56), rgba(10,8,18,.8)), rgba(8,6,14,.74);
+  box-shadow: inset 0 1px rgba(255,255,255,.045), 0 16px 34px rgba(0,0,0,.2);
+}
+.ht-player-page .ht-player-queue-section .player-queue-panel {
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(192,132,252,.35) transparent;
+}
+.ht-player-page .ht-player-queue-section .player-queue-panel-header { display: none; }
+.ht-player-page .player-queue-list { gap: 4px; }
+.ht-player-page .player-queue-list > li { position: relative; grid-template-columns: minmax(0,1fr); }
+.ht-player-page .player-queue-row {
+  grid-template-columns: 20px 42px minmax(0,1fr) auto;
+  gap: 9px;
+  min-height: 52px;
+  padding: 5px 7px;
+  border-radius: 11px;
+  transition: background 150ms ease, transform 150ms ease;
+}
+.ht-player-page .player-queue-row:hover { transform: translateX(2px); background: rgba(255,255,255,.065); }
+.ht-player-page .player-queue-row .art-frame {
+  position: relative;
+  inset: auto;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 9px;
+  box-shadow: 0 6px 14px rgba(0,0,0,.32);
+}
+.ht-player-page .player-queue-row .card-art-img,
+.ht-player-page .player-queue-row .art-empty-state { width: 100%; height: 100%; object-fit: cover; }
+.ht-player-page .player-queue-copy strong { font-size: 12px; color: rgba(255,255,255,.94); }
+.ht-player-page .player-queue-copy span { font-size: 9px; letter-spacing: .055em; color: rgba(230,222,241,.52); }
+.ht-player-page .player-queue-duration,
+.ht-player-page .player-queue-index { font-size: 10px; color: rgba(230,222,241,.52); }
+.ht-player-page .player-queue-row-actions {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(-50%);
+  padding-left: 24px;
+  background: linear-gradient(90deg, transparent, rgba(14,8,24,.96) 28%);
+  transition: opacity 140ms ease;
+}
+.ht-player-page .player-queue-list > li:hover .player-queue-row-actions,
+.ht-player-page .player-queue-list > li:focus-within .player-queue-row-actions { opacity: 1; }
+.ht-player-page .player-queue-list li.is-current .player-queue-row {
+  background: linear-gradient(90deg, rgba(168,85,247,.24), rgba(34,211,238,.075));
+  box-shadow: inset 3px 0 #c084fc, inset 0 0 0 1px rgba(192,132,252,.14);
+}
+@media (max-height: 820px) {
+  .ht-player-page { --now-playing-art-size: 158px; }
+  .ht-player-page .ht-player-art-stage { padding-block: 2px 4px; }
+  .ht-player-page .ht-player-queue-section { min-height: 112px; padding: 8px; }
+  .ht-player-page .player-queue-row { min-height: 46px; grid-template-columns: 18px 36px minmax(0,1fr) auto; }
+  .ht-player-page .player-queue-row .art-frame { width: 36px; height: 36px; }
+}

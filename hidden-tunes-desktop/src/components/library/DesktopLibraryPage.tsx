@@ -14,6 +14,7 @@ import { buildPodcastQueueSongs } from '../../lib/podcasts/podcastPlaybackAdapte
 import type { PodcastEpisodeMeta } from '../../lib/podcasts/types'
 import { buildRadioQueueSongs } from '../../lib/radio/radioPlaybackAdapter'
 import type { RadioStationMeta } from '../../lib/radio/types'
+import { apiSongToPlaylistItem, usePlaylistPicker } from '../playlists/playlistPicker'
 
 type ArtworkImageProps = {
   src: string | null
@@ -77,16 +78,23 @@ function LibraryRow({
   onOpen,
   onEnqueue,
   onRemove,
+  onAddToPlaylist,
+  selected,
+  onToggleSelected,
   ArtworkImage,
 }: {
   item: DesktopLibraryItem
   onOpen: () => void
   onEnqueue?: () => void
   onRemove: () => void
+  onAddToPlaylist?: () => void
+  selected?: boolean
+  onToggleSelected?: () => void
   ArtworkImage: ComponentType<ArtworkImageProps>
 }) {
   return (
     <article className="ht-library-row" data-library-type={item.type}>
+      {onToggleSelected ? <input type="checkbox" className="ht-library-row-select" checked={selected} onChange={onToggleSelected} aria-label={`Select ${item.title}`} /> : null}
       <button type="button" className="ht-library-row-hit" onClick={onOpen}>
         <div className="ht-library-row-art">
           <ArtworkImage src={item.artwork ?? null} alt="" seed={item.id} label={item.title} />
@@ -107,6 +115,7 @@ function LibraryRow({
           Queue
         </button>
       ) : null}
+      {onAddToPlaylist ? <button type="button" className="ht-library-row-enqueue" aria-label={`Add ${item.title} to playlist`} onClick={onAddToPlaylist}>Playlist</button> : null}
       <button
         type="button"
         className="ht-library-row-remove"
@@ -135,8 +144,12 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
   ArtworkImage,
 }: DesktopLibraryPageProps) {
   const library = useDesktopLibrary()
+  const { openPlaylistPicker } = usePlaylistPicker()
   const { enqueue } = useDesktopPlayback()
   const [filter, setFilter] = useState<DesktopLibraryFilterId>('all')
+  const [localQuery, setLocalQuery] = useState('')
+  const [sortOrder, setSortOrder] = useState<'recent' | 'alphabetical'>('recent')
+  const [selectedSongIds, setSelectedSongIds] = useState<Set<string>>(new Set())
   const [actionError, setActionError] = useState<string | null>(null)
   const [queueFeedback, setQueueFeedback] = useState<string | null>(null)
 
@@ -148,14 +161,24 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
   }, [library.countByType])
 
   const visibleItems = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = `${query} ${localQuery}`.trim().toLowerCase()
     const base = library.filterItems(filter)
     const enriched = base.map((item) => {
       if (item.type !== 'song') return item
       return enrichSongLibraryItem(item, songsById.get(item.id))
     })
-    return enriched.filter((item) => matchesQuery(item, q)).slice(0, MAX_VISIBLE)
-  }, [filter, library, query, songsById])
+    return enriched.filter((item) => matchesQuery(item, q)).sort((a, b) => sortOrder === 'alphabetical' ? a.title.localeCompare(b.title) : b.addedAt.localeCompare(a.addedAt)).slice(0, MAX_VISIBLE)
+  }, [filter, library, localQuery, query, songsById, sortOrder])
+
+  const visibleMusic = useMemo(() => visibleItems.filter((item) => item.type === 'song' && songsById.has(item.id)), [songsById, visibleItems])
+  const selectedSongs = useMemo(() => visibleMusic.map((item) => songsById.get(item.id)!).filter((song) => selectedSongIds.has(song.id)), [selectedSongIds, songsById, visibleMusic])
+  const allVisibleMusicSelected = visibleMusic.length > 0 && visibleMusic.every((item) => selectedSongIds.has(item.id))
+  const toggleSelected = (id: string) => setSelectedSongIds((current) => {
+    const next = new Set(current)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
 
   const handleOpen = useCallback(
     (item: DesktopLibraryItem) => {
@@ -303,11 +326,17 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
   return (
     <div className="ht-library-destination">
       <header className="ht-library-header" aria-labelledby="ht-library-heading">
-        <h1 id="ht-library-heading" className="ht-library-title">Library</h1>
+        <p className="ht-playlists-eyebrow">YOUR COLLECTION</p>
+        <h1 id="ht-library-heading" className="ht-library-title">Your Library</h1>
         <p className="ht-library-subtitle">
           Your saved music, radio, podcasts, and more — kept by type on this device.
         </p>
       </header>
+
+      <div className="ht-library-premium-toolbar">
+        <input type="search" value={localQuery} onChange={(event) => setLocalQuery(event.target.value)} placeholder="Search your Library" aria-label="Search your Library" />
+        <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as 'recent' | 'alphabetical')} aria-label="Sort Library"><option value="recent">Recently added</option><option value="alphabetical">Alphabetical</option></select>
+      </div>
 
       <div className="ht-library-tabs" role="tablist" aria-label="Library filters">
         {availableFilters.map((entry) => (
@@ -328,6 +357,8 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
           </button>
         ))}
       </div>
+
+      {visibleMusic.length ? <div className="ht-library-selection-bar"><label><input type="checkbox" checked={allVisibleMusicSelected} onChange={(event) => setSelectedSongIds(event.target.checked ? new Set(visibleMusic.map((item) => item.id)) : new Set())} /> Select all visible music</label><span>{selectedSongs.length} selected</span><button type="button" className="btn-primary btn-sm" disabled={!selectedSongs.length} onClick={() => openPlaylistPicker({ items: selectedSongs.map(apiSongToPlaylistItem), source: 'favorites' })}>Add Selected to Playlist</button></div> : null}
 
       {actionError ? (
         <div className="ht-library-error" role="alert">{actionError}</div>
@@ -359,6 +390,9 @@ export const DesktopLibraryPage = memo(function DesktopLibraryPage({
                 onOpen={() => handleOpen(item)}
                 onEnqueue={canEnqueue ? () => handleEnqueue(item) : undefined}
                 onRemove={() => handleRemove(item)}
+                onAddToPlaylist={item.type === 'song' && songsById.has(item.id) ? () => openPlaylistPicker({ items: [apiSongToPlaylistItem(songsById.get(item.id)!)], source: 'favorites' }) : undefined}
+                selected={item.type === 'song' ? selectedSongIds.has(item.id) : undefined}
+                onToggleSelected={item.type === 'song' && songsById.has(item.id) ? () => toggleSelected(item.id) : undefined}
                 ArtworkImage={ArtworkImage}
               />
             )

@@ -293,6 +293,14 @@ export class PremiumAudioVisualizerEngine {
   }
 
   private ensureAudioGraph(): void {
+    // Do not intercept the sole production media element. Electron may leave a
+    // Web Audio context created from a React effect suspended; after
+    // createMediaElementSource(), that produces an advancing but silent element.
+    // The existing progress fallback provides the visual treatment safely.
+    if (document.documentElement.dataset.htVisualizerAudioGraph !== 'enabled') {
+      this.connectFailed = true
+      return
+    }
     if (this.connectFailed || this.sourceNode) return
 
     const audio = findPlaybackAudio()

@@ -15,7 +15,9 @@ export {
 } from './types'
 export {
   addItemToPlaylist,
+  addItemsToPlaylist,
   createPlaylist,
+  createPlaylistWithItems,
   deletePlaylist,
   getPlaylist,
   getPlaylistsStore,
