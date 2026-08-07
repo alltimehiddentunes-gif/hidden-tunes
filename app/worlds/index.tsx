@@ -50,7 +50,24 @@ import {
 
 type ExploreMoodRoom = MoodRoomGroup<HiddenTunesSong>;
 
-const LISTENING_ROOMS_ARTWORK = require("../../assets/images/listening-rooms-premium.webp");
+const EXPLORE_TOP_PICK_FALLBACK = require("../../assets/images/explore-top-pick-10-hidden-tunes-creator.webp");
+
+const EXPLORE_TOP_PICK_ARTWORK: Record<string, number> = {
+  "room-listening-room": require("../../assets/images/explore-top-pick-01-listening-rooms.webp"),
+  "room-country-station": require("../../assets/images/explore-top-pick-02-country-station.webp"),
+  "room-calm-instrumentals": require("../../assets/images/explore-top-pick-03-calm-instrumentals.webp"),
+  "room-afrobeats": require("../../assets/images/explore-top-pick-04-afrobeats-room.webp"),
+  "room-jazz": require("../../assets/images/explore-top-pick-05-jazz-room.webp"),
+  "mood-mood-party-energy": require("../../assets/images/explore-top-pick-06-party-energy.webp"),
+  "genre-afrobeats": require("../../assets/images/explore-top-pick-07-afrobeats-genre.webp"),
+  "genre-amapiano": require("../../assets/images/explore-top-pick-08-amapiano-genre.webp"),
+  "album-hidden-tunes-singles": require("../../assets/images/explore-top-pick-09-singles.webp"),
+  "artist-hidden-tunes": require("../../assets/images/explore-top-pick-10-hidden-tunes-creator.webp"),
+};
+
+function getExploreTopPickArtwork(id: string) {
+  return EXPLORE_TOP_PICK_ARTWORK[id] ?? EXPLORE_TOP_PICK_FALLBACK;
+}
 
 type DiscoveryRoom = {
   id: string;
@@ -458,7 +475,7 @@ export default function WorldsIndexScreen() {
       if (seen.has(item.id)) return false;
       seen.add(item.id);
       return true;
-    }).slice(0, 18);
+    }).slice(0, 10);
   }, [deepAlbums, discoveryRooms, moodRooms, visibleArtists, visibleGenres]);
 
   const continueTracks = useMemo(() => {
@@ -632,30 +649,16 @@ export default function WorldsIndexScreen() {
                         style={[styles.carouselCard, { width: heroWidth }]}
                         onPress={() => openCarouselItem(item)}
                       >
-                        {item.id === "room-listening-room" ? (
-                          <ExpoImage
-                            source={LISTENING_ROOMS_ARTWORK}
-                            style={styles.carouselImage}
-                            contentFit="cover"
-                            cachePolicy="memory-disk"
-                            transition={0}
-                          />
-                        ) : (
-                          <HTImage
-                            source={item.artwork}
-                            style={styles.carouselImage}
-                            contentFit="cover"
-                            maxDecodeWidth={decodePixels(heroWidth)}
-                            maxDecodeHeight={decodePixels(356)}
-                          />
-                        )}
+                        <ExpoImage
+                          source={getExploreTopPickArtwork(item.id)}
+                          style={styles.carouselImage}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                          transition={0}
+                        />
                         <LinearGradient
                           pointerEvents="none"
-                          colors={
-                            item.id === "room-listening-room"
-                              ? ["rgba(0,0,0,0.02)", "rgba(3,0,10,0.2)", "rgba(2,0,8,0.94)"]
-                              : ["rgba(0,0,0,0.04)", "rgba(0,0,0,0.18)", "rgba(0,0,0,0.86)"]
-                          }
+                          colors={["rgba(0,0,0,0.02)", "rgba(3,0,10,0.2)", "rgba(2,0,8,0.94)"]}
                           style={styles.carouselShade}
                         />
                         <View style={styles.carouselGlass} pointerEvents="none" />

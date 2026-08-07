@@ -86,7 +86,6 @@ assert.doesNotMatch(androidAuto, /fetchHiddenTunesCatalog\s*\(/, "Android Auto m
 
 assert.match(explore, /const decodeScale = Math\.min\(PixelRatio\.get\(\), 3\)/, "decode sizing must preserve up to 3x Retina density");
 const expectedBounds = [
-  ["heroWidth", "356"],
   ["136", "116"],
   ["featureCardWidth", "214"],
   ["featureCardWidth - 20", "154"],
@@ -99,6 +98,13 @@ for (const [width, height] of expectedBounds) {
   const bound = new RegExp(`maxDecodeWidth=\\{decodePixels\\(${width.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\)\\}\\s*maxDecodeHeight=\\{decodePixels\\(${height}\\)\\}`);
   assert.match(explore, bound, `missing card-sized decode bounds ${width} x ${height}`);
 }
+
+assert.match(
+  explore,
+  /source=\{getExploreTopPickArtwork\(item\.id\)\}[\s\S]*?cachePolicy="memory-disk"/,
+  "top picks must use deterministic bundled artwork with a persistent image cache"
+);
+assert.match(explore, /initialNumToRender=\{3\}[\s\S]*?maxToRenderPerBatch=\{3\}[\s\S]*?windowSize=\{5\}/, "top-pick image decoding must remain virtualized and bounded");
 
 for (const contract of [
   "onPress={() => openCarouselItem(item)}",
