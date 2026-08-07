@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:emotional-worlds": "tsx scripts/test-emotional-world-intelligence.ts",
     "reset-admin-auth": "node scripts/reset-admin-auth.mjs",
     "tv:health": "tsx scripts/run-tv-health-checks.ts",
     "tv:growth": "tsx scripts/run-tv-growth-job.ts",
