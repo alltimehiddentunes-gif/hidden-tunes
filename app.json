@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.hiddentunes.app",
-      "versionCode": 3,
+      "versionCode": 100,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#000000"
