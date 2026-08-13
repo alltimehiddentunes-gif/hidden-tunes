@@ -46,7 +46,6 @@ class HiddenAudioMediaBrowserService : MediaBrowserServiceCompat() {
     HiddenAudioAutoCatalog.ensureDefaultCatalog()
     HiddenAudioMediaSessionManager.ensureSession(applicationContext)
     HiddenAudioMediaSessionManager.activateSessionForAuto(applicationContext, "media_browser_on_get_root")
-    sessionToken = HiddenAudioMediaSessionManager.sessionToken()
     HiddenAudioCore.emitAudioRouteDiagnosticForAuto("media_browser_on_get_root")
     connectedClients += 1
     HiddenAudioCore.noteAndroidAutoBrowserConnected(clientPackageName)
