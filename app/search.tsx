@@ -120,6 +120,10 @@ import {
   findDuplicateSearchReactKeys,
 } from "../utils/searchResultIdentity";
 import { resolveStationEntity } from "../utils/entityResolution";
+import {
+  buildAlbumSearchRoute,
+  buildArtistSearchRoute,
+} from "../utils/searchResultNavigation";
 import { resolveEntityArtwork } from "../utils/artwork";
 import {
   buildAlbumFavoriteItem,
@@ -1407,21 +1411,8 @@ export default function SearchScreen() {
       title: artist.name,
       query: cleanSubmittedSearchQuery,
     });
-    const artistId = String(artist.id || "").trim();
-    if (artistId && artistId !== "undefined" && artistId !== "null" && !/^\d+$/.test(artistId)) {
-      router.push({
-        pathname: "/artist/[id]",
-        params: { id: artistId },
-      } as any);
-      return;
-    }
-    router.push({
-      pathname: "/artist",
-      params: {
-        artist: artist.name,
-        id: artist.id,
-      },
-    } as any);
+    const route = buildArtistSearchRoute(artist);
+    if (route) router.push(route as any);
   }, [cleanSubmittedSearchQuery]);
 
   const openAlbum = useCallback((album: HiddenTunesAlbumCatalogItem | HiddenTunesAlbum) => {
@@ -1431,23 +1422,8 @@ export default function SearchScreen() {
       title: album.title,
       query: cleanSubmittedSearchQuery,
     });
-    const albumId = String(album.id || "").trim();
-    if (albumId) {
-      router.push({
-        pathname: "/album/[id]",
-        params: { id: albumId },
-      } as any);
-      return;
-    }
-
-    router.push({
-      pathname: "/album",
-      params: {
-        album: album.title,
-        artist: album.artist,
-        thumbnail: album.artwork,
-      },
-    } as any);
+    const route = buildAlbumSearchRoute(album);
+    if (route) router.push(route as any);
   }, [cleanSubmittedSearchQuery]);
 
   const openPlaylist = useCallback((playlist: HiddenTunesDerivedCatalog["playlists"][number]) => {
@@ -1508,117 +1484,6 @@ export default function SearchScreen() {
       },
     } as any);
   }, [cleanSubmittedSearchQuery]);
-
-  const playAlbumResult = useCallback(
-    (album: HiddenTunesAlbumCatalogItem | HiddenTunesAlbum) => {
-      const catalogAlbum =
-        "songs" in album
-          ? (album as HiddenTunesAlbumCatalogItem)
-          : albums.find((item) => item.id === album.id) || null;
-
-      const queue = buildPlayableQueue(
-        catalogAlbum?.songs?.length
-          ? catalogAlbum.songs
-          : reliableCatalogSongResults.filter((song) =>
-              songBelongsToAlbum(
-                song,
-                catalogAlbum || {
-                  id: album.id,
-                  title: album.title,
-                  artist: album.artist,
-                  artwork: album.artwork || "",
-                  songs: [],
-                }
-              )
-            )
-      );
-
-      logSearchDiagnostic("search_result_tapped", {
-        resultType: "album",
-        albumId: album.id,
-        title: album.title,
-        query: cleanSubmittedSearchQuery,
-      });
-
-      if (!queue.length) {
-        router.push({ pathname: '/album/[id]', params: { id: String(album.id || '') } } as any);
-        return;
-      }
-
-      void playSong(queue[0], queue, 0, {
-        source: "album",
-        label: album.title,
-        albumId: String(album.id || catalogAlbum?.id || ""),
-        albumTitle: album.title,
-        artistName: album.artist,
-      });
-    },
-    [
-      albums,
-      cleanSubmittedSearchQuery,
-      playSong,
-      reliableCatalogSongResults,
-      searchQuery,
-      submittedSearchQuery,
-    ]
-  );
-
-  const playArtistResult = useCallback(
-    (artist: HiddenTunesArtistCatalogItem | HiddenTunesArtist) => {
-      const catalogArtist =
-        "songs" in artist
-          ? (artist as HiddenTunesArtistCatalogItem)
-          : artists.find((item) => item.id === artist.id) ||
-            artists.find(
-              (item) => normalizeSearchText(item.name) === normalizeSearchText(artist.name)
-            ) ||
-            null;
-
-      const queue = buildPlayableQueue(
-        catalogArtist?.songs?.length
-          ? catalogArtist.songs
-          : reliableCatalogSongResults.filter((song) =>
-              songBelongsToArtist(
-                song,
-                catalogArtist || {
-                  id: artist.id,
-                  name: artist.name,
-                  artwork: artist.artwork || "",
-                  songs: [],
-                  albums: [],
-                }
-              )
-            )
-      );
-
-      logSearchDiagnostic("search_result_tapped", {
-        resultType: "artist",
-        artistId: artist.id,
-        title: artist.name,
-        query: cleanSubmittedSearchQuery,
-      });
-
-      if (!queue.length) {
-        router.push({ pathname: '/artist', params: { artist: artist.name, id: artist.id } } as any);
-        return;
-      }
-
-      void playSong(queue[0], queue, 0, {
-        source: "artist",
-        label: artist.name,
-        artistId: String(artist.id || catalogArtist?.id || ""),
-        artistName: artist.name,
-      });
-    },
-    [
-      artists,
-      cleanSubmittedSearchQuery,
-      playSong,
-      reliableCatalogSongResults,
-      searchQuery,
-      submittedSearchQuery,
-    ]
-  );
 
   const playGenreResult = useCallback(
     (genre: HiddenTunesGenreCatalogItem | HiddenTunesGenre) => {
@@ -2087,7 +1952,7 @@ export default function SearchScreen() {
                       removeClippedSubviews={Platform.OS === "android"}
                       renderItem={({ item: album }) => (
                         <View style={styles.albumCardWrap}>
-                          <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => playAlbumResult(album)}>
+                          <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => openAlbum(album)}>
                             <HTImage source={album} style={styles.albumImage} contentFit="cover" />
                             <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
                             <Text numberOfLines={1} style={styles.albumArtist}>
@@ -2126,7 +1991,7 @@ export default function SearchScreen() {
                       removeClippedSubviews={Platform.OS === "android"}
                       renderItem={({ item: artist }) => (
                         <View style={styles.albumCardWrap}>
-                          <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => playArtistResult(artist)}>
+                          <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => openArtist(artist)}>
                             <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
                             <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
                             <Text numberOfLines={1} style={styles.artistMeta}>
