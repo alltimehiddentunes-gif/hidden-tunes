@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hiddentunes.app",
-      "buildNumber": "1.0.212",
+      "buildNumber": "1.0.213",
       "icon": "./assets/images/icon.png",
       "entitlements": {
         "com.apple.developer.carplay-audio": true
@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.hiddentunes.app",
-      "versionCode": 100,
+      "versionCode": 12,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#000000"
