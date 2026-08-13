@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator,
+  Alert,
   FlatList,
-  ScrollView,
   StyleSheet,
   useWindowDimensions,
   Text,
@@ -39,6 +39,10 @@ import {
   type HiddenTunesSong,
 } from "../../services/hiddenTunes";
 import {
+  getHiddenTunesArtistsPage,
+  type HiddenTunesArtist,
+} from "../../services/hiddenTunesApi";
+import {
   buildMoodRoomGroups,
   type MoodRoomGroup,
 } from "../../utils/moodRooms";
@@ -47,6 +51,13 @@ import {
   hydrateDiscoveryPreferredGenres,
   sortItemsByPreferredGenres,
 } from "../../utils/discoveryPreferences";
+import {
+  appendCanonicalArtistPage,
+  canRequestArtistPage,
+  EXPLORE_ARTIST_PAGE_SIZE,
+} from "../../utils/exploreArtistPagination";
+import { isArtistUuid } from "../../utils/artistIdentity";
+import { createKeyedTapGuard } from "../../utils/tapGuard";
 
 type ExploreMoodRoom = MoodRoomGroup<HiddenTunesSong>;
 
@@ -260,7 +271,10 @@ export default function WorldsIndexScreen() {
   const heroWidth = Math.min(420, Math.max(300, viewportWidth - horizontalPadding * 2));
   const featureCardWidth = Math.min(250, Math.max(206, viewportWidth * 0.62));
   const albumCardWidth = Math.min(220, Math.max(176, viewportWidth * 0.52));
-  const creatorCardWidth = Math.min(184, Math.max(154, viewportWidth * 0.44));
+  const artistGridGap = compactLayout ? 10 : 12;
+  const artistCardWidth = Math.floor(
+    (viewportWidth - horizontalPadding * 2 - artistGridGap) / 2
+  );
   const railGap = compactLayout ? 10 : 12;
   const decodeScale = Math.min(PixelRatio.get(), 3);
   const decodePixels = (points: number) => Math.ceil(points * decodeScale);
@@ -287,6 +301,13 @@ export default function WorldsIndexScreen() {
   const mountedRef = useRef(true);
   const loadGenerationRef = useRef(0);
   const loadInFlightRef = useRef<Promise<void> | null>(null);
+  const [exploreArtists, setExploreArtists] = useState<HiddenTunesArtist[]>([]);
+  const [artistNextPage, setArtistNextPage] = useState(1);
+  const [artistHasMore, setArtistHasMore] = useState(true);
+  const [artistLoadingPage, setArtistLoadingPage] = useState<number | null>(null);
+  const [artistPageError, setArtistPageError] = useState<string | null>(null);
+  const artistInFlightPagesRef = useRef(new Set<number>());
+  const artistTapGuardRef = useRef(createKeyedTapGuard(700));
 
   const songs = catalog.songs;
   const artists = catalog.artists;
@@ -369,6 +390,49 @@ export default function WorldsIndexScreen() {
       loadInFlightRef.current = null;
     };
   }, [loadExplore]);
+
+  const loadArtistPage = useCallback(async (page: number) => {
+    if (!canRequestArtistPage({
+      page,
+      hasMore: artistHasMore,
+      inFlightPages: artistInFlightPagesRef.current,
+    })) return;
+
+    artistInFlightPagesRef.current.add(page);
+    setArtistLoadingPage(page);
+    setArtistPageError(null);
+
+    try {
+      const result = await getHiddenTunesArtistsPage({
+        page,
+        limit: EXPLORE_ARTIST_PAGE_SIZE,
+        throwOnError: true,
+      });
+      if (!mountedRef.current) return;
+
+      setExploreArtists((current) =>
+        appendCanonicalArtistPage(current, result.artists).artists
+      );
+      setArtistNextPage(result.nextPage);
+      setArtistHasMore(result.hasMore);
+    } catch (error) {
+      if (!mountedRef.current) return;
+      setArtistPageError(
+        error instanceof Error ? error.message : "Artists could not be loaded."
+      );
+    } finally {
+      artistInFlightPagesRef.current.delete(page);
+      if (mountedRef.current) setArtistLoadingPage(null);
+    }
+  }, [artistHasMore]);
+
+  useEffect(() => {
+    if (artistNextPage === 1 && exploreArtists.length === 0 && artistLoadingPage === null && !artistPageError) {
+      const timer = setTimeout(() => void loadArtistPage(1), 0);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [artistLoadingPage, artistNextPage, artistPageError, exploreArtists.length, loadArtistPage]);
 
   const discoveryRooms = useMemo(
     () => ROOM_DEFINITIONS.map((definition) => buildDiscoveryRoom(definition, songs)),
@@ -563,8 +627,14 @@ export default function WorldsIndexScreen() {
     } as any);
   }, []);
 
-  const openArtist = useCallback((artist: HiddenTunesArtistCatalogItem) => {
-    router.push({ pathname: "/artist", params: { artist: artist.name } } as any);
+  const openArtist = useCallback((artist: { id: string; name: string }) => {
+    const id = String(artist.id || "").trim().toLowerCase();
+    if (!isArtistUuid(id)) {
+      Alert.alert("Artist unavailable", "This artist profile could not be opened. Please refresh and try again.");
+      return;
+    }
+    if (!artistTapGuardRef.current(id)) return;
+    router.push({ pathname: "/artist/[id]", params: { id } });
   }, []);
 
   const openCarouselItem = useCallback(
@@ -597,11 +667,22 @@ export default function WorldsIndexScreen() {
         <View style={styles.glowCyan} />
         <View style={styles.glowCenter} />
 
-        <ScrollView
+        <FlatList
+          data={exploreArtists}
+          numColumns={2}
+          keyExtractor={(artist) => artist.id}
           showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
           contentContainerStyle={[styles.scrollContent, { paddingHorizontal: horizontalPadding }]}
-        >
+          columnWrapperStyle={{ gap: artistGridGap }}
+          initialNumToRender={EXPLORE_ARTIST_PAGE_SIZE}
+          maxToRenderPerBatch={EXPLORE_ARTIST_PAGE_SIZE}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === "android"}
+          onEndReachedThreshold={0.45}
+          onEndReached={() => {
+            if (!artistPageError) void loadArtistPage(artistNextPage);
+          }}
+          ListHeaderComponent={<>
           <View style={styles.topBar}>
             <View style={styles.heroCopy}>
               <Text style={styles.kicker}>EXPLORE</Text>
@@ -922,43 +1003,52 @@ export default function WorldsIndexScreen() {
                 </View>
               ) : null}
 
-              {visibleArtists.length > 0 ? (
-                <View style={styles.cinematicSection}>
-                  <Text style={styles.sectionEyebrow}>CREATORS TO FOLLOW</Text>
-                  <Text style={styles.sectionTitle}>Creators</Text>
-                  <FlatList
-                    horizontal
-                    data={visibleArtists}
-                    keyExtractor={(artist) => String(artist.id)}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={[styles.mediaRail, { gap: railGap, paddingRight: horizontalPadding }]}
-                    initialNumToRender={4}
-                    maxToRenderPerBatch={4}
-                    windowSize={5}
-                    removeClippedSubviews={Platform.OS === "android"}
-                    renderItem={({ item: artist }) => (
-                      <TouchableOpacity
-                        activeOpacity={0.88}
-                        style={[styles.creatorCard, { width: creatorCardWidth }]}
-                        onPress={() => openArtist(artist)}
-                      >
-                        <HTImage
-                          source={artist.artwork}
-                          style={styles.creatorArt}
-                          contentFit="cover"
-                          maxDecodeWidth={decodePixels(creatorCardWidth - 20)}
-                          maxDecodeHeight={decodePixels(134)}
-                        />
-                        <Text numberOfLines={1} style={styles.cardTitle}>{artist.name}</Text>
-                        <Text style={styles.cardSubtitle}>{artist.songs.length} song{artist.songs.length === 1 ? "" : "s"}</Text>
-                      </TouchableOpacity>
-                    )}
-                  />
-                </View>
-              ) : null}
+              <View style={styles.artistGridHeader}>
+                <Text style={styles.sectionEyebrow}>CREATORS TO FOLLOW</Text>
+                <Text style={styles.sectionTitle}>Artists</Text>
+              </View>
             </>
           )}
-        </ScrollView>
+          </>}
+          renderItem={({ item: artist }) => (
+            <TouchableOpacity
+              activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${artist.name} artist profile`}
+              style={[styles.artistGridCard, { width: artistCardWidth }]}
+              onPress={() => openArtist(artist)}
+            >
+              <HTImage
+                source={artist.artwork}
+                style={styles.artistGridArt}
+                contentFit="cover"
+                maxDecodeWidth={decodePixels(artistCardWidth - 20)}
+                maxDecodeHeight={decodePixels(artistCardWidth - 20)}
+              />
+              <Text numberOfLines={1} style={styles.cardTitle}>{artist.name}</Text>
+              <Text numberOfLines={1} style={styles.cardSubtitle}>Artist</Text>
+            </TouchableOpacity>
+          )}
+          ListFooterComponent={
+            <View style={styles.artistGridFooter}>
+              {artistLoadingPage !== null ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : artistPageError ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading artists"
+                  style={styles.artistRetryButton}
+                  onPress={() => void loadArtistPage(artistNextPage)}
+                >
+                  <Ionicons name="refresh" size={16} color={COLORS.cyan} />
+                  <Text style={styles.artistRetryText}>Couldn’t load more artists. Retry</Text>
+                </TouchableOpacity>
+              ) : exploreArtists.length === 0 ? (
+                <Text style={styles.artistEmptyText}>No artists are available right now.</Text>
+              ) : null}
+            </View>
+          }
+        />
       </LinearGradient>
     </AppShell>
   );
@@ -1289,18 +1379,46 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: COLORS.card,
   },
-  creatorCard: {
+  artistGridHeader: {
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  artistGridCard: {
     borderRadius: 24,
     padding: 10,
     backgroundColor: "rgba(255,255,255,0.055)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.09)",
+    marginBottom: 12,
   },
-  creatorArt: {
+  artistGridArt: {
     width: "100%",
-    height: 134,
-    borderRadius: 20,
+    aspectRatio: 1,
+    borderRadius: 999,
     backgroundColor: COLORS.card,
+  },
+  artistGridFooter: {
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  artistRetryButton: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+  artistRetryText: {
+    color: COLORS.cyan,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  artistEmptyText: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
   },
   continueTile: {
     width: 154,

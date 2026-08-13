@@ -1807,6 +1807,7 @@ export async function getHiddenTunesArtistsPage(options?: {
   page?: number;
   limit?: number;
   query?: string;
+  throwOnError?: boolean;
 }): Promise<HiddenTunesArtistPage> {
   const page = Math.max(Number(options?.page) || 1, 1);
   const limit = Math.min(
@@ -1861,6 +1862,8 @@ export async function getHiddenTunesArtistsPage(options?: {
       url,
       error: error instanceof Error ? error.message : String(error),
     });
+
+    if (options?.throwOnError) throw error;
 
     if (query) {
       return {
