@@ -482,6 +482,10 @@ export type ArtistFollowState = {
 
 const followStateSessionCache = new Map<string, ArtistFollowState>();
 
+export function clearCachedArtistFollowStates() {
+  followStateSessionCache.clear();
+}
+
 export function getCachedArtistFollowState(artistId: string) {
   return followStateSessionCache.get(String(artistId || "")) || null;
 }

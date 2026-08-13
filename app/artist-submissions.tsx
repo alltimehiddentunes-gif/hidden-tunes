@@ -20,8 +20,6 @@ import { COLORS, GRADIENTS } from "../constants/theme";
 import {
   getCurrentSupabaseAccessToken,
   getCurrentSupabaseSessionSummary,
-  signInArtistWithPassword,
-  signOutArtistSession,
 } from "../services/mobileSupabaseAuth";
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -247,12 +245,8 @@ export default function ArtistSubmissionsScreen() {
   const [mood, setMood] = useState("");
   const [releaseNotes, setReleaseNotes] = useState("");
   const [lyricsText, setLyricsText] = useState("");
-  const [creatorEmail, setCreatorEmail] = useState("");
-  const [creatorPassword, setCreatorPassword] = useState("");
   const [sessionEmail, setSessionEmail] = useState<string | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const [isSigningIn, setIsSigningIn] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
   const [authTone, setAuthTone] = useState<"neutral" | "success" | "error">(
     "neutral"
@@ -348,72 +342,6 @@ export default function ArtistSubmissionsScreen() {
       ignore = true;
     };
   }, [loadArtistSubmissions]);
-
-  async function handleCreatorSignIn() {
-    const cleanEmail = creatorEmail.trim();
-
-    if (!cleanEmail || !creatorPassword) {
-      setAuthTone("error");
-      setAuthMessage("Enter your creator email and password to continue.");
-      return;
-    }
-
-    setIsSigningIn(true);
-    setAuthTone("neutral");
-    setAuthMessage("Opening secure creator session...");
-
-    try {
-      const result = await signInArtistWithPassword(cleanEmail, creatorPassword);
-
-      if (result.error || !result.email) {
-        throw new Error(result.error || "Could not sign in.");
-      }
-
-      setSessionEmail(result.email);
-      setCreatorPassword("");
-      setAuthTone("success");
-      setAuthMessage(
-        "Signed in. You can now send submissions for review."
-      );
-      loadArtistSubmissions();
-    } catch (error) {
-      setSessionEmail(null);
-      setAuthTone("error");
-      setAuthMessage(
-        error instanceof Error ? error.message : "Could not sign in."
-      );
-    } finally {
-      setIsSigningIn(false);
-    }
-  }
-
-  async function handleCreatorSignOut() {
-    setIsSigningOut(true);
-    setAuthTone("neutral");
-    setAuthMessage("Signing out of Creator Access...");
-
-    try {
-      const result = await signOutArtistSession();
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      setSessionEmail(null);
-      setCreatorPassword("");
-      setSubmissions([]);
-      setSubmissionsError("");
-      setAuthTone("neutral");
-      setAuthMessage("Signed out.");
-    } catch (error) {
-      setAuthTone("error");
-      setAuthMessage(
-        error instanceof Error ? error.message : "Could not sign out."
-      );
-    } finally {
-      setIsSigningOut(false);
-    }
-  }
 
   async function handleSubmit() {
     const submissionDraft = buildSubmissionDetailsPayload({
@@ -802,10 +730,10 @@ export default function ArtistSubmissionsScreen() {
               <Ionicons name="key" size={22} color={COLORS.primary} />
             </View>
             <View style={styles.creatorHeaderText}>
-              <Text style={styles.creatorEyebrow}>Creator Access</Text>
+              <Text style={styles.creatorEyebrow}>Approved Creator Access</Text>
               <Text style={styles.creatorTitle}>
-                Sign in to manage submissions, review feedback, and prepare
-                releases for approval.
+                Creator capability is attached to your normal Hidden Tunes account.
+                It never uses a separate artist login.
               </Text>
             </View>
           </View>
@@ -831,63 +759,19 @@ export default function ArtistSubmissionsScreen() {
 
           {!sessionEmail ? (
             <View style={styles.creatorForm}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <TextInput
-                value={creatorEmail}
-                onChangeText={setCreatorEmail}
-                placeholder="artist@example.com"
-                placeholderTextColor="rgba(255,255,255,0.34)"
-                style={styles.input}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!isSigningIn && !isCheckingSession}
-              />
-
-              <Text style={styles.inputLabel}>Password</Text>
-              <TextInput
-                value={creatorPassword}
-                onChangeText={setCreatorPassword}
-                placeholder="Password"
-                placeholderTextColor="rgba(255,255,255,0.34)"
-                style={styles.input}
-                secureTextEntry
-                editable={!isSigningIn && !isCheckingSession}
-              />
-
               <TouchableOpacity
                 activeOpacity={0.88}
-                style={[
-                  styles.creatorButton,
-                  isSigningIn || isCheckingSession
-                    ? styles.submitButtonDisabled
-                    : null,
-                ]}
-                onPress={handleCreatorSignIn}
-                disabled={isSigningIn || isCheckingSession}
+                style={[styles.creatorButton, isCheckingSession ? styles.submitButtonDisabled : null]}
+                onPress={() => router.push({ pathname: "/auth", params: { returnTo: "/artist-submissions" } } as any)}
+                disabled={isCheckingSession}
               >
-                {isSigningIn ? (
-                  <ActivityIndicator color="#050508" />
-                ) : (
-                  <Text style={styles.submitButtonText}>Sign In</Text>
-                )}
+                <Text style={styles.submitButtonText}>Sign in to Hidden Tunes</Text>
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity
-              activeOpacity={0.88}
-              style={[
-                styles.signOutButton,
-                isSigningOut ? styles.submitButtonDisabled : null,
-              ]}
-              onPress={handleCreatorSignOut}
-              disabled={isSigningOut}
-            >
-              {isSigningOut ? (
-                <ActivityIndicator color={COLORS.text} />
-              ) : (
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
-              )}
-            </TouchableOpacity>
+            <Text style={styles.trustText}>
+              Account sign-out is managed from the Profile account screen.
+            </Text>
           )}
 
           {authMessage ? (
@@ -899,7 +783,7 @@ export default function ArtistSubmissionsScreen() {
           <View style={styles.trustRow}>
             <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
             <Text style={styles.trustText}>
-              Publishing still requires admin approval.
+              Artist claiming and publishing remain disabled without approved backend authorization.
             </Text>
           </View>
         </View>

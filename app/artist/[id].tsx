@@ -780,7 +780,13 @@ export default function ArtistScreen() {
         { text: "Not now", style: "cancel" },
         {
           text: "Sign in",
-          onPress: () => router.push("/artist-submissions" as any),
+          onPress: () => router.push({
+            pathname: "/auth",
+            params: {
+              returnTo: `/artist/${encodeURIComponent(artistUuid)}`,
+              reason: "follow",
+            },
+          } as any),
         },
       ]);
       return;
