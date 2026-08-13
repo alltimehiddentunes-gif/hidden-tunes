@@ -188,7 +188,7 @@ function testBundleIdentity() {
   const appJson = JSON.parse(read("app.json"));
   assert.equal(appJson.expo.ios.bundleIdentifier, "com.hiddentunes.app");
   assert.equal(appJson.expo.version, "1.0.2");
-  assert.equal(appJson.expo.ios.buildNumber, "1.0.212");
+  assert.equal(appJson.expo.ios.buildNumber, "1.0.213");
 }
 
 console.log("test-ios-static-ownership: start");
