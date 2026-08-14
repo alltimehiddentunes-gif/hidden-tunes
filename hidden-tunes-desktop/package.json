@@ -20,6 +20,7 @@
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build": "tsc -b && vite build",
+    "deploy": "node scripts/deploy-hidden-tunes-web.mjs",
     "dist": "npm run build && electron-builder",
     "dist:win-release": "node scripts/build-windows-release.mjs",
     "lint": "eslint .",
