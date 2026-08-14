@@ -178,6 +178,15 @@ import {
 import { AtmosphereProvider } from './context/AtmosphereContext'
 import { useAtmosphere } from './context/useAtmosphere'
 import { resolveAtmosphereForWorld } from './lib/atmosphereManager'
+import {
+  getWebNavigationInitialRoute,
+  isWebNavigationBridgeEnabled,
+  installWebNavigationBridge,
+  publishWebNavigationRoute,
+  WEB_NAVIGATION_PAGE_KEYS,
+  type WebNavigationPageKey,
+  type WebNavigationRoute,
+} from './lib/webNavigationBridge'
 import type { QueueContext, QueueSeedMetadata } from './lib/desktopPlayback/types'
 import {
   resolveVisualScene,
@@ -1299,50 +1308,9 @@ function CatalogProvider({ children }: { children: ReactNode }) {
 
 type PageId = StoredPageId
 
-type NavKey =
-  | 'home'
-  | 'music'
-  | 'radio'
-  | 'podcasts'
-  | 'audiobooks'
-  | 'motivationals'
-  | 'lectures'
-  | 'tv'
-  | 'sports'
-  | 'worlds'
-  | 'search'
-  | 'library'
-  | 'liked'
-  | 'recent'
-  | 'downloads'
-  | 'playlists'
-  | 'artists'
-  | 'albums'
-  | 'premium'
-  | 'settings'
+type NavKey = WebNavigationPageKey
 
-const ALL_NAV_KEYS: readonly NavKey[] = [
-  'home',
-  'music',
-  'radio',
-  'podcasts',
-  'audiobooks',
-  'motivationals',
-  'lectures',
-  'tv',
-  'sports',
-  'worlds',
-  'search',
-  'library',
-  'liked',
-  'recent',
-  'downloads',
-  'playlists',
-  'artists',
-  'albums',
-  'premium',
-  'settings',
-] as const
+const ALL_NAV_KEYS: readonly NavKey[] = WEB_NAVIGATION_PAGE_KEYS
 
 function isNavKey(value: string): value is NavKey {
   return (ALL_NAV_KEYS as readonly string[]).includes(value)
@@ -1424,6 +1392,14 @@ function resolvePageFromNavKey(navKey: NavKey): PageId {
       return 'tv'
     case 'sports':
       return 'sports'
+    case 'about':
+    case 'originals':
+    case 'support':
+    case 'contact':
+    case 'privacy':
+    case 'terms':
+    case 'account-deletion':
+      return 'home'
     default:
       return navKey as PageId
   }
@@ -6915,6 +6891,11 @@ void QueueUpNextPanel
 
 type ActiveView = 'page' | 'song' | 'album' | 'artist' | 'mood' | 'podcast-show' | 'audiobook-book' | 'motivational-program' | 'lecture-series' | 'lecture-item'
 
+type WebRouteStateOnly = Extract<
+  WebNavigationRoute,
+  { kind: 'radio-station' | 'podcast-episode' | 'audiobook-chapter' | 'tv-channel' | 'emotional-world' | 'playlist' }
+>
+
 function formatDateLabel(value: string | null) {
   if (!value) return null
   const time = Date.parse(value)
@@ -8465,10 +8446,29 @@ function PageContent({
   void onPlaylistBack
   void _playlistsQuery
   void _setPlaylistsQuery
+  const { songs, indexes } = useCatalog()
+  const webInformationTitles: Partial<Record<NavKey, string>> = {
+    about: 'About',
+    originals: 'Hidden Tunes Originals',
+    support: 'Support',
+    contact: 'Contact',
+    privacy: 'Privacy',
+    terms: 'Terms',
+    'account-deletion': 'Account deletion',
+  }
+  const webInformationTitle = webInformationTitles[activeNavKey]
   if (activeNavKey === 'about' && isWebNavigationBridgeEnabled()) {
     return <WebAboutPage onNavigate={onNavigateNav} />
   }
-  const { songs, indexes } = useCatalog()
+  if (webInformationTitle && isWebNavigationBridgeEnabled()) {
+    return (
+      <section className="content-page" data-web-information-route={activeNavKey}>
+        <header className="content-page-header">
+          <h1>{webInformationTitle}</h1>
+        </header>
+      </section>
+    )
+  }
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') {
     return (
@@ -8846,8 +8846,40 @@ function AppShell() {
   const [playerRailPresence, setPlayerRailPresence] = useState<'hidden' | 'entering' | 'visible' | 'exiting'>(
     hasActiveMediaSession ? 'visible' : 'hidden',
   )
-  const { songs } = useCatalog()
+  const webInitialRoute = useMemo(() => getWebNavigationInitialRoute(), [])
+  const initialNavKey: NavKey = webInitialRoute?.kind === 'page'
+    ? webInitialRoute.page
+    : webInitialRoute?.kind === 'artist'
+      ? 'artists'
+      : webInitialRoute?.kind === 'album'
+        ? 'albums'
+        : webInitialRoute?.kind === 'podcast-show'
+          ? 'podcasts'
+          : webInitialRoute?.kind === 'audiobook'
+            ? 'audiobooks'
+            : webInitialRoute?.kind === 'motivational-program'
+              ? 'motivationals'
+              : webInitialRoute?.kind === 'lecture-series'
+                ? 'lectures'
+                : webInitialRoute?.kind === 'track'
+                  ? 'music'
+                  : webInitialRoute?.kind === 'radio-station'
+                    ? 'radio'
+                    : webInitialRoute?.kind === 'podcast-episode'
+                      ? 'podcasts'
+                      : webInitialRoute?.kind === 'audiobook-chapter'
+                        ? 'audiobooks'
+                        : webInitialRoute?.kind === 'tv-channel'
+                          ? 'tv'
+                          : webInitialRoute?.kind === 'emotional-world'
+                            ? 'worlds'
+                            : webInitialRoute?.kind === 'playlist'
+                              ? 'playlists'
+                  : 'home'
+  const { songs, albums, artists } = useCatalog()
   const songsById = useMemo(() => new Map(songs.map((song) => [song.id, song])), [songs])
+  const albumsById = useMemo(() => new Map(albums.map((album) => [album.id, album])), [albums])
+  const artistsById = useMemo(() => new Map(artists.map((artist) => [artist.id, artist])), [artists])
   const [playerSidebarVisibility, setPlayerSidebarVisibility] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.playerSidebarVisibility,
     'visible' as PlayerSidebarVisibility,
@@ -8855,19 +8887,47 @@ function AppShell() {
   )
   const [activePage, setActivePage] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.activePage,
-    'home' as PageId,
+    resolvePageFromNavKey(initialNavKey),
     parseStoredPageId,
   )
-  const [activeNavKey, setActiveNavKey] = useState<NavKey>(() => resolveDefaultNavKey(activePage))
-  const [activeView, setActiveView] = useState<ActiveView>('page')
+  const [activeNavKey, setActiveNavKey] = useState<NavKey>(() => webInitialRoute ? initialNavKey : resolveDefaultNavKey(activePage))
+  const [webRouteStateOnly, setWebRouteStateOnly] = useState<WebRouteStateOnly | null>(() => {
+    if (!webInitialRoute) return null
+    switch (webInitialRoute.kind) {
+      case 'radio-station':
+      case 'podcast-episode':
+      case 'audiobook-chapter':
+      case 'tv-channel':
+      case 'emotional-world':
+      case 'playlist':
+        return webInitialRoute
+      default:
+        return null
+    }
+  })
+  const [activeView, setActiveView] = useState<ActiveView>(() => {
+    if (webInitialRoute?.kind === 'podcast-show') return 'podcast-show'
+    if (webInitialRoute?.kind === 'audiobook') return 'audiobook-book'
+    if (webInitialRoute?.kind === 'motivational-program') return 'motivational-program'
+    if (webInitialRoute?.kind === 'lecture-series') return 'lecture-series'
+    return 'page'
+  })
   const [selectedSong, setSelectedSong] = useState<ApiSong | null>(null)
   const [selectedAlbum, setSelectedAlbum] = useState<ApiAlbum | null>(null)
   const [selectedArtist, setSelectedArtist] = useState<ApiArtist | null>(null)
   const [selectedMood, setSelectedMood] = useState<MoodRoom | null>(null)
-  const [selectedPodcastShowId, setSelectedPodcastShowId] = useState<string | null>(null)
-  const [selectedAudiobookId, setSelectedAudiobookId] = useState<string | null>(null)
-  const [selectedMotivationalProgramId, setSelectedMotivationalProgramId] = useState<string | null>(null)
-  const [selectedLectureSeriesId, setSelectedLectureSeriesId] = useState<string | null>(null)
+  const [selectedPodcastShowId, setSelectedPodcastShowId] = useState<string | null>(
+    webInitialRoute?.kind === 'podcast-show' ? webInitialRoute.id : null,
+  )
+  const [selectedAudiobookId, setSelectedAudiobookId] = useState<string | null>(
+    webInitialRoute?.kind === 'audiobook' ? webInitialRoute.id : null,
+  )
+  const [selectedMotivationalProgramId, setSelectedMotivationalProgramId] = useState<string | null>(
+    webInitialRoute?.kind === 'motivational-program' ? webInitialRoute.id : null,
+  )
+  const [selectedLectureSeriesId, setSelectedLectureSeriesId] = useState<string | null>(
+    webInitialRoute?.kind === 'lecture-series' ? webInitialRoute.id : null,
+  )
   const [desktopSelectedTrack, setDesktopSelectedTrack] = useState<ApiSong | null>(null)
   const [lyricsOpen, setLyricsOpen] = useState(false)
   const {
@@ -9238,6 +9298,7 @@ function AppShell() {
 
   const openAlbum = useCallback((album: ApiAlbum) => {
     cancelAutoOpenPlayer()
+    setWebRouteStateOnly(null)
     setSelectedAlbum(album)
     setSelectedSong(null)
     setSelectedArtist(null)
@@ -9249,6 +9310,7 @@ function AppShell() {
 
   const openArtist = useCallback((artist: ApiArtist) => {
     cancelAutoOpenPlayer()
+    setWebRouteStateOnly(null)
     setSelectedArtist(artist)
     setSelectedSong(null)
     setSelectedAlbum(null)
@@ -9260,6 +9322,7 @@ function AppShell() {
 
   const openMood = useCallback((mood: MoodRoom) => {
     cancelAutoOpenPlayer()
+    setWebRouteStateOnly(null)
     setSelectedMood(mood)
     setSelectedSong(null)
     setSelectedAlbum(null)
@@ -9271,6 +9334,7 @@ function AppShell() {
 
   const openPodcastShow = useCallback((showId: string) => {
     cancelAutoOpenPlayer()
+    setWebRouteStateOnly(null)
     const cleanId = showId.trim()
     if (!cleanId) return
     setSelectedPodcastShowId(cleanId)
@@ -9284,6 +9348,7 @@ function AppShell() {
 
   const openAudiobookBook = useCallback((bookId: string) => {
     cancelAutoOpenPlayer()
+    setWebRouteStateOnly(null)
     const cleanId = bookId.trim()
     if (!cleanId) return
     setSelectedAudiobookId(cleanId)
@@ -9298,6 +9363,7 @@ function AppShell() {
 
   const openMotivationalProgram = useCallback((programId: string) => {
     cancelAutoOpenPlayer()
+    setWebRouteStateOnly(null)
     const cleanId = programId.trim()
     if (!cleanId) return
     setSelectedMotivationalProgramId(cleanId)
@@ -9312,6 +9378,7 @@ function AppShell() {
 
   const openLectureSeries = useCallback((seriesId: string) => {
     cancelAutoOpenPlayer()
+    setWebRouteStateOnly(null)
     const cleanId = seriesId.trim()
     if (!cleanId) return
     setSelectedLectureSeriesId(cleanId)
@@ -9326,6 +9393,7 @@ function AppShell() {
   }, [cancelAutoOpenPlayer])
 
   const backToPage = useCallback(() => {
+    setWebRouteStateOnly(null)
     setActiveView('page')
     setSelectedSong(null)
     setSelectedAlbum(null)
@@ -9360,6 +9428,157 @@ function AppShell() {
     setActiveNavKey(navKey ?? resolveDefaultNavKey(page))
     backToPage()
   }, [backToPage, cancelAutoOpenPlayer, setActivePage])
+
+  const requestWebNavigation = useCallback((target: WebNavigationRoute) => {
+    if (target.kind === 'page') {
+      navigateNav(target.page)
+      return true
+    }
+    if (target.kind === 'track') {
+      const song = songsById.get(target.id)
+      if (!song) return false
+      cancelAutoOpenPlayer()
+      setActivePage('music')
+      setActiveNavKey('music')
+      setSelectedSong(song)
+      setSelectedAlbum(null)
+      setSelectedArtist(null)
+      setSelectedMood(null)
+      setSelectedPodcastShowId(null)
+      setSelectedAudiobookId(null)
+      setSelectedMotivationalProgramId(null)
+      setSelectedLectureSeriesId(null)
+      setActiveView('song')
+      return true
+    }
+    if (target.kind === 'artist') {
+      const artist = artistsById.get(target.id)
+      if (!artist) return false
+      setActivePage('artists')
+      setActiveNavKey('artists')
+      openArtist(artist)
+      return true
+    }
+    if (target.kind === 'album') {
+      const album = albumsById.get(target.id)
+      if (!album) return false
+      setActivePage('albums')
+      setActiveNavKey('albums')
+      openAlbum(album)
+      return true
+    }
+    if (target.kind === 'podcast-show') {
+      setActivePage('podcasts')
+      setActiveNavKey('podcasts')
+      openPodcastShow(target.id)
+      return true
+    }
+    if (target.kind === 'audiobook') {
+      setActivePage('audiobooks')
+      setActiveNavKey('audiobooks')
+      openAudiobookBook(target.id)
+      return true
+    }
+    if (target.kind === 'motivational-program') {
+      setActivePage('motivationals')
+      setActiveNavKey('motivationals')
+      openMotivationalProgram(target.id)
+      return true
+    }
+    if (target.kind === 'lecture-series') {
+      setActivePage('lectures')
+      setActiveNavKey('lectures')
+      openLectureSeries(target.id)
+      return true
+    }
+    if (target.kind === 'radio-station') {
+      navigateNav('radio')
+      setWebRouteStateOnly(target)
+      return true
+    }
+    if (target.kind === 'podcast-episode') {
+      setActivePage('podcasts')
+      setActiveNavKey('podcasts')
+      openPodcastShow(target.showId)
+      setWebRouteStateOnly(target)
+      return true
+    }
+    if (target.kind === 'audiobook-chapter') {
+      setActivePage('audiobooks')
+      setActiveNavKey('audiobooks')
+      openAudiobookBook(target.bookId)
+      setWebRouteStateOnly(target)
+      return true
+    }
+    if (target.kind === 'tv-channel') {
+      navigateNav('tv')
+      setWebRouteStateOnly(target)
+      return true
+    }
+    if (target.kind === 'emotional-world') {
+      navigateNav('worlds')
+      setWebRouteStateOnly(target)
+      return true
+    }
+    if (target.kind === 'playlist') {
+      navigateNav('playlists')
+      setWebRouteStateOnly(target)
+      return true
+    }
+    return false
+  }, [
+    albumsById,
+    artistsById,
+    cancelAutoOpenPlayer,
+    navigateNav,
+    openAlbum,
+    openArtist,
+    openAudiobookBook,
+    openLectureSeries,
+    openMotivationalProgram,
+    openPodcastShow,
+    setActivePage,
+    songsById,
+  ])
+
+  const requestWebNavigationRef = useRef(requestWebNavigation)
+  useEffect(() => {
+    requestWebNavigationRef.current = requestWebNavigation
+  }, [requestWebNavigation])
+  useEffect(
+    () => installWebNavigationBridge((target) => requestWebNavigationRef.current(target)),
+    [],
+  )
+
+  const webInitialRouteAppliedRef = useRef(false)
+  useEffect(() => {
+    if (!webInitialRoute || webInitialRouteAppliedRef.current) return
+    if (requestWebNavigation(webInitialRoute)) webInitialRouteAppliedRef.current = true
+  }, [requestWebNavigation, webInitialRoute])
+
+  useEffect(() => {
+    let route: WebNavigationRoute = { kind: 'page', page: activeNavKey }
+    if (webRouteStateOnly) route = webRouteStateOnly
+    else if (activeView === 'song' && selectedSong) route = { kind: 'track', id: selectedSong.id }
+    else if (activeView === 'artist' && selectedArtist) route = { kind: 'artist', id: selectedArtist.id }
+    else if (activeView === 'album' && selectedAlbum) route = { kind: 'album', id: selectedAlbum.id }
+    else if (activeView === 'podcast-show' && selectedPodcastShowId) route = { kind: 'podcast-show', id: selectedPodcastShowId }
+    else if (activeView === 'audiobook-book' && selectedAudiobookId) route = { kind: 'audiobook', id: selectedAudiobookId }
+    else if (activeView === 'motivational-program' && selectedMotivationalProgramId) route = { kind: 'motivational-program', id: selectedMotivationalProgramId }
+    else if (activeView === 'lecture-series' && selectedLectureSeriesId) route = { kind: 'lecture-series', id: selectedLectureSeriesId }
+    publishWebNavigationRoute(route)
+  }, [
+    activeNavKey,
+    activeView,
+    selectedAlbum,
+    selectedArtist,
+    selectedAudiobookId,
+    selectedLectureSeriesId,
+    selectedMotivationalProgramId,
+    selectedPodcastShowId,
+    selectedSong,
+    webRouteStateOnly,
+  ])
 
   const backToPageWithCancel = useCallback(() => {
     cancelAutoOpenPlayer()
@@ -9533,7 +9752,13 @@ function AppShell() {
               <DesktopOfflineBanner onOpenDownloads={() => navigateNav('downloads')} />
               <DesktopSessionStatusBanner />
               <CatalogStaleBanner />
-              <div className="page-view" data-page={activePage} data-nav={activeNavKey} data-view={activeView}>
+              <div
+                className="page-view"
+                data-page={activePage}
+                data-nav={activeNavKey}
+                data-view={activeView}
+                data-web-route-state={webRouteStateOnly?.kind}
+              >
                 <CatalogDetailRouter
                   activeView={activeView}
                   selectedSong={selectedSong}
