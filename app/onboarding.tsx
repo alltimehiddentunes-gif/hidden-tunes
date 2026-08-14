@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
@@ -108,6 +109,7 @@ function toggleValue(current: string[], value: string) {
 }
 
 export default function OnboardingScreen() {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState<Step>("role");
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
@@ -167,7 +169,10 @@ export default function OnboardingScreen() {
   return (
     <LinearGradient colors={GRADIENTS.premium} style={styles.screen}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(34, insets.bottom + 24) },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.topBar}>
