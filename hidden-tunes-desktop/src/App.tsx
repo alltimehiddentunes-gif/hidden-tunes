@@ -77,7 +77,6 @@ import {
   fetchArtistSimilar,
   fetchArtistTopSongs,
   followArtistProfile,
-  getCachedArtistFollowState,
   setCachedArtistFollowState,
   unfollowArtistProfile,
   type ArtistProfileShell,
@@ -7237,7 +7236,7 @@ function ArtistDetailView({
   const [accountGateTitle, setAccountGateTitle] = useState('')
   const [accountGateBody, setAccountGateBody] = useState('')
   const [accountGateShowSignIn, setAccountGateShowSignIn] = useState(false)
-  const { configured: authConfigured, openSignIn } = useDesktopAuth()
+  const { configured: authConfigured, openSignIn, session: authSession } = useDesktopAuth()
   const [aboutExpanded, setAboutExpanded] = useState(false)
   const followInFlightRef = useRef(false)
 
@@ -7327,14 +7326,11 @@ function ArtistDetailView({
         if (abortController.signal.aborted) return
         setProfileShell(shell)
 
-        // Follow comes from shell + local cache — no duplicate GET.
-        const cachedFollow = getCachedArtistFollowState(shell.artist.id)
-        const initialFollowing =
-          cachedFollow?.is_following ?? shell.viewer.is_following === true
-        const initialAvailable =
-          cachedFollow?.available ?? shell.viewer.follow_available !== false
-        const initialFollowers =
-          cachedFollow?.follower_count ?? (Number(shell.statistics.follower_count) || 0)
+        // The authenticated API response is authoritative. Never hydrate one
+        // account's viewer state from another account's renderer cache.
+        const initialFollowing = shell.viewer.is_following === true
+        const initialAvailable = shell.viewer.follow_available !== false
+        const initialFollowers = Number(shell.statistics.follower_count) || 0
         setIsFollowing(initialFollowing)
         setFollowAvailable(initialAvailable)
         setFollowerCount(initialFollowers)
@@ -7438,7 +7434,7 @@ function ArtistDetailView({
     })()
 
     return () => abortController.abort()
-  }, [artist.id, artist.name])
+  }, [artist.id, artist.name, authSession.userId])
 
   const toggleFollow = useCallback(async () => {
     const artistUuid = profileShell?.artist.id || artist.id
@@ -7518,7 +7514,8 @@ function ArtistDetailView({
         setFollowAvailable(false)
         setFollowMessage('Follow is unavailable until artist infrastructure is applied.')
       } else if (status === 401) {
-        setFollowMessage('Sign in to follow artists.')
+        setFollowMessage('Your session ended. Sign in again to continue.')
+        openSignIn()
       } else {
         setFollowMessage(
           error instanceof Error ? error.message : 'Could not update follow. Try again.',
@@ -7535,6 +7532,7 @@ function ArtistDetailView({
     followBusy,
     followerCount,
     isFollowing,
+    openSignIn,
     profileShell?.artist.id,
   ])
 
