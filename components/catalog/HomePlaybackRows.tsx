@@ -166,51 +166,39 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
     >
       <FeaturedCardGlow active={isActive} />
 
-      <View style={styles.featuredArtFrame}>
+      <View
+        style={[
+          styles.featuredArtFrame,
+          fillWidth && styles.featuredArtFrameGrid,
+        ]}
+      >
         <HTImage source={item} style={styles.featuredCover} contentFit="cover" />
-      </View>
 
-      <LinearGradient
-        pointerEvents="none"
-        colors={["transparent", "rgba(0,0,0,0.22)", "rgba(0,0,0,0.72)"]}
-        style={styles.featuredOverlay}
-      />
-
-      <View style={styles.featuredRank}>
-        <Text style={styles.featuredRankText}>
-          {String(index + 1).padStart(2, "0")}
-        </Text>
+        <View style={styles.featuredRank}>
+          <Text style={styles.featuredRankText}>
+            {String(index + 1).padStart(2, "0")}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.featuredContent}>
-        <View style={styles.featuredBadge}>
-          {isActive ? (
-            <NeonEQ isPlaying={isPlaying} size="small" />
-          ) : (
-            <Ionicons name="sparkles" size={13} color={COLORS.primary} />
-          )}
-
-          <Text style={styles.featuredBadgeText}>
-            {isActive ? "NOW PLAYING" : "HIDDEN TUNES"}
-          </Text>
-        </View>
-
         <Text numberOfLines={2} ellipsizeMode="tail" style={styles.featuredTitle}>
           {item.title}
         </Text>
 
-        <Text numberOfLines={1} ellipsizeMode="tail" style={styles.featuredArtist}>
-          {getUserFacingArtist(item)}
-        </Text>
+        <View style={styles.featuredMetadataRow}>
+          {isActive ? <NeonEQ isPlaying={isPlaying} size="small" /> : null}
+          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.featuredArtist}>
+            {getUserFacingArtist(item)}
+          </Text>
+        </View>
 
-        <View style={styles.featuredBottom}>
-          <View style={styles.featuredPlay}>
-            <Ionicons
-              name={isActive && isPlaying ? "pause" : "play"}
-              size={18}
-              color="#000"
-            />
-          </View>
+        <View style={styles.featuredPlay}>
+          <Ionicons
+            name={isActive && isPlaying ? "pause" : "play"}
+            size={18}
+            color="#000"
+          />
         </View>
       </View>
     </TouchableOpacity>
@@ -230,7 +218,7 @@ const styles = StyleSheet.create({
   },
   featuredCard: {
     width: FEATURED_CARD_WIDTH,
-    height: 300,
+    height: 316,
     borderRadius: 34,
     marginRight: 16,
     overflow: "hidden",
@@ -241,7 +229,7 @@ const styles = StyleSheet.create({
   },
   featuredCardGrid: {
     width: "100%",
-    height: 240,
+    height: 250,
     marginRight: 0,
     borderRadius: 28,
   },
@@ -259,22 +247,23 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   featuredArtFrame: {
-    ...StyleSheet.flatten(StyleSheet.absoluteFill),
+    position: "relative",
+    width: "auto",
+    height: 190,
     margin: 8,
-    marginBottom: 8,
+    marginBottom: 0,
     borderRadius: 28,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
     zIndex: 1,
   },
+  featuredArtFrameGrid: {
+    height: 148,
+  },
   featuredCover: {
     width: "100%",
     height: "100%",
-  },
-  featuredOverlay: {
-    ...StyleSheet.flatten(StyleSheet.absoluteFill),
-    zIndex: 2,
   },
   featuredRank: {
     position: "absolute",
@@ -297,30 +286,19 @@ const styles = StyleSheet.create({
   },
   featuredContent: {
     flex: 1,
-    justifyContent: "flex-end",
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-    paddingTop: 6,
+    minHeight: 92,
+    justifyContent: "flex-start",
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    paddingTop: 10,
+    paddingRight: 62,
     zIndex: 3,
   },
-  featuredBadge: {
-    alignSelf: "flex-start",
-    minHeight: 30,
-    borderRadius: 15,
-    paddingHorizontal: 11,
-    backgroundColor: "rgba(0,0,0,0.58)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)",
+  featuredMetadataRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    marginBottom: 6,
-  },
-  featuredBadgeText: {
-    color: COLORS.text,
-    fontSize: 10,
-    fontWeight: "900",
-    letterSpacing: 1,
+    gap: 6,
+    minWidth: 0,
   },
   featuredTitle: {
     color: COLORS.text,
@@ -334,12 +312,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 4,
     lineHeight: TYPOGRAPHY.cardSubtitle + 3,
-  },
-  featuredBottom: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
+    flexShrink: 1,
   },
   autoNextPill: {
     flexDirection: "row",
@@ -356,6 +329,9 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   featuredPlay: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
     width: 44,
     height: 44,
     borderRadius: 22,
