@@ -33,7 +33,12 @@ if (!['--dry-run', '--production', '--rollback'].includes(mode)) {
 }
 
 function run(command, commandArgs, options = {}) {
-  const result = spawnSync(command, commandArgs, { cwd: options.cwd ?? desktopRoot, encoding: 'utf8', stdio: options.capture ? 'pipe' : 'inherit' })
+  const result = spawnSync(command, commandArgs, {
+    cwd: options.cwd ?? desktopRoot,
+    encoding: 'utf8',
+    stdio: options.capture ? 'pipe' : 'inherit',
+    shell: process.platform === 'win32' && command.endsWith('.cmd'),
+  })
   if (result.error || result.status !== 0) {
     const detail = options.capture ? `${result.stdout || ''}${result.stderr || ''}`.trim() : ''
     throw new Error(`${command} failed${detail ? `: ${detail}` : ''}`)
