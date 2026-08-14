@@ -107,7 +107,7 @@ async function buildManifest() {
 
 function remotePreflight() {
   const root = CONFIG.remoteDocumentRoot
-  return ssh(`set -eu; test "$(pwd)" = "/home/${CONFIG.sshUser}"; test -d "${root}"; test -f "${root}/.htaccess"; test -d "${root}/${CONFIG.liveDirectoryName}"; test -f "${root}/${CONFIG.liveDirectoryName}/index.html"; grep -q "^RewriteRule \\^catalog-api" "${root}/.htaccess"; grep -q "${CONFIG.liveDirectoryName}/\\$1" "${root}/.htaccess"; printf 'live_index_sha256='; sha256sum "${root}/${CONFIG.liveDirectoryName}/index.html" | cut -d' ' -f1; df -Pk "${root}" | tail -1`)
+  return ssh(`set -eu; test "$(pwd)" = "/home/${CONFIG.sshUser}"; test -d "${root}"; test -f "${root}/.htaccess"; test -d "${root}/${CONFIG.liveDirectoryName}"; test -f "${root}/${CONFIG.liveDirectoryName}/index.html"; test -f "${root}/${CONFIG.liveDirectoryName}/.htaccess"; test -d "${root}/${CONFIG.liveDirectoryName}/catalog-api"; grep -q "^RewriteRule \\^catalog-api" "${root}/.htaccess"; grep -q "${CONFIG.liveDirectoryName}/\\$1" "${root}/.htaccess"; printf 'live_index_sha256='; sha256sum "${root}/${CONFIG.liveDirectoryName}/index.html" | cut -d' ' -f1; df -Pk "${root}" | tail -1`)
 }
 
 async function prepare() {
@@ -133,10 +133,11 @@ async function dryRun() {
   const remoteFiles = ssh(`find "${CONFIG.remoteDocumentRoot}/${CONFIG.liveDirectoryName}" -type f -printf '%P\\n' | sort`).split(/\r?\n/).filter(Boolean)
   const local = new Set(manifest.files.map(file => file.path))
   const remoteSet = new Set(remoteFiles)
+  const preserved = remoteFiles.filter(file => file === '.htaccess' || file.startsWith('catalog-api/'))
   const upload = manifest.files.map(file => file.path)
   const replace = upload.filter(file => remoteSet.has(file))
-  const remain = remoteFiles.filter(file => !local.has(file))
-  console.log(JSON.stringify({ mode: 'dry-run', remoteTarget: `${sshTarget}:${CONFIG.remoteDocumentRoot}/${CONFIG.liveDirectoryName}`, totalUploadBytes: manifest.bytes, filesToUpload: upload, filesToReplace: replace, filesThatWouldRemain: remain, protectedPaths: CONFIG.protectedRemotePaths, backupPlan: 'rename current staging to staging-rollback-<release-id>; retain verified Hostinger and D: WordPress backups', validationUrls: ['https://hiddentunes.com/', 'https://hiddentunes.com/artists/invalid-test-id', 'https://hiddentunes.com/albums/invalid-test-id', 'https://hiddentunes.com/tracks/invalid-test-id', 'https://hiddentunes.com/radio/stations/invalid-test-id', 'https://hiddentunes.com/catalog-api/api/radio/stations?page=1&limit=1'], remotePreflight: remote }, null, 2))
+  const pruned = remoteFiles.filter(file => !local.has(file) && !preserved.includes(file))
+  console.log(JSON.stringify({ mode: 'dry-run', remoteTarget: `${sshTarget}:${CONFIG.remoteDocumentRoot}/${CONFIG.liveDirectoryName}`, totalUploadBytes: manifest.bytes, filesToUpload: upload, filesToReplace: replace, filesPreservedFromLive: preserved, staleFilesPruned: pruned, protectedPaths: CONFIG.protectedRemotePaths, backupPlan: 'rename current staging to staging-rollback-<release-id>; retain verified Hostinger and D: WordPress backups', validationUrls: ['https://hiddentunes.com/', 'https://hiddentunes.com/artists/invalid-test-id', 'https://hiddentunes.com/albums/invalid-test-id', 'https://hiddentunes.com/tracks/invalid-test-id', 'https://hiddentunes.com/radio/stations/invalid-test-id', 'https://hiddentunes.com/catalog-api/api/radio/stations?page=1&limit=1'], remotePreflight: remote }, null, 2))
 }
 
 async function production() {
@@ -153,7 +154,7 @@ async function production() {
   const root = CONFIG.remoteDocumentRoot
   const upload = `${root}/.ht-upload-${releaseId}`
   const rollback = `${root}/staging-rollback-${releaseId}`
-  ssh(`set -eu; test -d "${root}/staging"; test ! -e "${upload}"; test ! -e "${rollback}"; mkdir "${upload}"; tar -xzf "${remoteArchive}" -C "${upload}"; test -f "${upload}/index.html"; mv "${root}/staging" "${rollback}"; if mv "${upload}" "${root}/staging"; then rm -f "${remoteArchive}" "${CONFIG.remoteDomainRoot}/.${releaseId}.manifest.json"; else mv "${rollback}" "${root}/staging"; exit 1; fi`, false)
+  ssh(`set -eu; test -d "${root}/staging"; test -f "${root}/staging/.htaccess"; test -d "${root}/staging/catalog-api"; test ! -e "${upload}"; test ! -e "${rollback}"; mkdir "${upload}"; tar -xzf "${remoteArchive}" -C "${upload}"; test -f "${upload}/index.html"; cp -a "${root}/staging/.htaccess" "${upload}/.htaccess"; cp -a "${root}/staging/catalog-api" "${upload}/catalog-api"; test -f "${upload}/.htaccess"; test -d "${upload}/catalog-api"; mv "${root}/staging" "${rollback}"; if mv "${upload}" "${root}/staging"; then rm -f "${remoteArchive}" "${CONFIG.remoteDomainRoot}/.${releaseId}.manifest.json"; else mv "${rollback}" "${root}/staging"; exit 1; fi`, false)
   console.log(JSON.stringify({ mode: 'production', releaseId, previousRelease: basename(rollback), manifestPath, remoteTarget: `${root}/staging` }, null, 2))
 }
 

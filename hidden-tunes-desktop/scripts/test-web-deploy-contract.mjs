@@ -7,4 +7,6 @@ assert.match(source, /process\.platform === 'win32' && command\.endsWith\('\.cmd
 for (const forbidden of ['vercel', 'render.com', 'rm -rf', 'git clean', 'git reset', 'git stash', 'wp-config get']) assert.ok(!source.toLowerCase().includes(forbidden), `forbidden ${forbidden}`)
 assert.match(source, /grep -q .*catalog-api/)
 assert.match(source, /test ! -e .*rollback/)
+assert.match(source, /cp -a .*staging\/\.htaccess.*upload.*\.htaccess/)
+assert.match(source, /cp -a .*staging\/catalog-api.*upload.*catalog-api/)
 console.log('direct Website deploy contract: PASS')
