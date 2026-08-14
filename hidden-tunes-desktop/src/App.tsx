@@ -8298,6 +8298,75 @@ function CatalogDetailRouter({
   )
 }
 
+function WebAboutPage({ onNavigate }: { onNavigate: (navKey: NavKey) => void }) {
+  const pillars = [
+    ['One listening world', 'Music, live radio, podcasts, audiobooks and television belong together — without losing the character of each format.'],
+    ['Discovery without borders', 'Hidden Tunes connects global culture with African and diaspora voices, helping remarkable work travel further.'],
+    ['Creators at the centre', 'We build for artists and independent creators who deserve durable identity, meaningful discovery and a direct relationship with listeners.'],
+  ] as const
+
+  return (
+    <section className="web-about" data-web-information-route="about">
+      <div className="web-about-hero">
+        <HiddenTunesBrandMark className="web-about-mark" />
+        <p className="web-about-kicker">THE WORLD SOUNDS BETTER WHEN EVERY VOICE CAN BE FOUND</p>
+        <h1>Culture lives everywhere.<br />Hidden Tunes brings it closer.</h1>
+        <p className="web-about-lead">
+          Hidden Tunes is an independent entertainment platform built to make music and spoken stories feel global,
+          personal and beautifully connected.
+        </p>
+        <div className="web-about-actions" aria-label="About Hidden Tunes actions">
+          <button type="button" className="btn-primary" onClick={() => onNavigate('music')}>Listen now</button>
+          <button type="button" className="btn-secondary" onClick={() => onNavigate('downloads')}>Download Hidden Tunes</button>
+          <button type="button" className="btn-secondary" onClick={() => onNavigate('contact')}>Contact us</button>
+        </div>
+      </div>
+
+      <div className="web-about-pillar-grid">
+        {pillars.map(([title, copy], index) => (
+          <article key={title} className="web-about-pillar">
+            <span aria-hidden="true">0{index + 1}</span>
+            <h2>{title}</h2>
+            <p>{copy}</p>
+          </article>
+        ))}
+      </div>
+
+      <div className="web-about-story-grid">
+        <article>
+          <p className="web-about-kicker">MISSION</p>
+          <h2>Make meaningful listening easier to discover.</h2>
+          <p>We unite music, radio, podcasts, audiobooks and television in one calm, expressive experience that respects listeners and the people behind the work.</p>
+        </article>
+        <article>
+          <p className="web-about-kicker">VISION</p>
+          <h2>A truly global home for sound and story.</h2>
+          <p>Our direction spans Mobile, Desktop, the web, cars and Smart TV — one account, one library and a continuous relationship with what you love.</p>
+        </article>
+      </div>
+
+      <section className="web-about-formats" aria-labelledby="web-about-formats-title">
+        <p className="web-about-kicker">EXPLORE THE PLATFORM</p>
+        <h2 id="web-about-formats-title">Listen, watch, learn and wander.</h2>
+        <div>
+          {([
+            ['Music', 'music'], ['Radio', 'radio'], ['Podcasts', 'podcasts'], ['Audiobooks', 'audiobooks'], ['Television', 'tv'], ['Artists', 'artists'],
+          ] as const).map(([label, navKey]) => (
+            <button key={navKey} type="button" onClick={() => onNavigate(navKey)}>{label}<span aria-hidden="true">↗</span></button>
+          ))}
+        </div>
+      </section>
+
+      <section className="web-about-closing">
+        <p className="web-about-kicker">BUILT INDEPENDENTLY. LISTENED TO GLOBALLY.</p>
+        <h2>There is always more worth hearing.</h2>
+        <p>Come for the song you know. Stay for the voice you did not know you needed.</p>
+        <button type="button" className="btn-primary" onClick={() => onNavigate('search')}>Start discovering</button>
+      </section>
+    </section>
+  )
+}
+
 function PageContent({
   page,
   activeNavKey,
@@ -8396,6 +8465,9 @@ function PageContent({
   void onPlaylistBack
   void _playlistsQuery
   void _setPlaylistsQuery
+  if (activeNavKey === 'about' && isWebNavigationBridgeEnabled()) {
+    return <WebAboutPage onNavigate={onNavigateNav} />
+  }
   const { songs, indexes } = useCatalog()
   if (activeNavKey === 'liked') return <LikedPage onOpenSong={onOpenSong} />
   if (activeNavKey === 'recent') {
