@@ -12,6 +12,7 @@ import {
 } from '../../lib/tv/formatTvChannelDisplay'
 import tvArtwork from '../../assets/section-headers/tv-lakeside-cabin.png'
 import { SectionHero } from '../SectionHero'
+import ContentShareActions from '../sharing/ContentShareActions'
 
 type ArtworkImageProps = {
   src: string | null
@@ -116,6 +117,7 @@ const ChannelCard = memo(function ChannelCard({
           )}
         </div>
       </button>
+      <ContentShareActions compact content={{ type: 'tvChannel', id: channel.id, title: displayName }} />
       <button
         type="button"
         className={`tv-favorite-btn${isFavorite ? ' is-active' : ''}`}

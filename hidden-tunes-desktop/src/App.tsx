@@ -89,6 +89,7 @@ import {
   getDesktopSupabaseSessionSummary,
 } from './services/desktopSupabaseAuth'
 import { DesktopAuthProvider } from './context/DesktopAuthProvider'
+import ContentShareActions from './components/sharing/ContentShareActions'
 import {
   LocalizationProvider,
   PRODUCTION_LOCALES,
@@ -7000,6 +7001,7 @@ function PlayerWorkspace({
           <p className="player-workspace-eyebrow">Now Playing</p>
           <h1 className="player-workspace-title">{song.title}</h1>
           <p className="player-workspace-artist">{song.artist}</p>
+          <ContentShareActions content={{ type: 'track', id: song.id, title: song.title, artist: song.artist }} />
           {albumLabel ? (
             <p className="player-workspace-album">{albumLabel}</p>
           ) : null}
@@ -7133,6 +7135,7 @@ function AlbumDetailView({
             {albumSongs.length} {albumSongs.length === 1 ? 'track' : 'tracks'}
             {created ? ` · Added ${created}` : ''}
           </p>
+          <ContentShareActions content={{ type: 'album', id: album.id, title: album.title, artist: artistName }} />
           <div className="detail-hero-actions">
             <button
               type="button"
@@ -7700,6 +7703,7 @@ function ArtistDetailView({
           <h1 className="detail-h1" title={profileShell?.artist.name || artist.name}>
             {profileShell?.artist.name || artist.name}
           </h1>
+          <ContentShareActions content={{ type: 'artist', id: profileShell?.artist.id || artist.id, title: profileShell?.artist.name || artist.name }} />
           <p className="detail-stats">
             {artistSongs.length} {artistSongs.length === 1 ? 'playable track' : 'playable tracks'}
             {profileAlbums !== null ? ` · ${artistAlbums.length}${releasesHasMore ? '+' : ''} ${artistAlbums.length === 1 ? 'release' : 'releases'}` : profileCoreResolved ? ' · Releases unavailable' : ' · Loading releases…'}

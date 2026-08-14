@@ -6,6 +6,7 @@ import type { RadioStationMeta, RadioTabId } from '../../lib/radio/types'
 import { useRadioPageData } from '../../lib/radio/useRadioPageData'
 import radioArtwork from '../../assets/section-headers/radio-headphones.png'
 import { SectionHero } from '../SectionHero'
+import ContentShareActions from '../sharing/ContentShareActions'
 
 const RADIO_TABS: { id: RadioTabId; label: string }[] = [
   { id: 'all', label: 'All Stations' },
@@ -91,6 +92,7 @@ function StationCard({
           <p>{formatStationMeta(station)}</p>
         </div>
       </button>
+      {!station.isMature ? <ContentShareActions compact content={{ type: 'radioStation', id: station.id, title: station.name }} /> : null}
       <button
         type="button"
         className={`radio-favorite-btn${isFavorite ? ' is-active' : ''}`}

@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState, type ComponentType } from 'react'
+import ContentShareActions from '../sharing/ContentShareActions'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import {
   formatAudiobookBookSubtitle,
@@ -81,6 +82,7 @@ function ChapterRow({
           {downloadLabel}
         </button>
       ) : null}
+      <ContentShareActions compact content={{ type: 'audiobookChapter', bookId: chapter.bookId, chapterId: chapter.id, title: chapter.title }} />
       <button
         type="button"
         className="audiobook-chapter-row-play"
@@ -166,6 +168,8 @@ export const AudiobookBookPage = memo(function AudiobookBookPage({
       <button type="button" className="btn-ghost btn-sm audiobook-book-back" onClick={onBack}>
         Back to Audiobooks
       </button>
+
+      <ContentShareActions content={{ type: 'audiobook', id: book.id, title: book.title, author: book.authorName }} />
 
       <header className="audiobook-book-hero">
         <div className="audiobook-book-cover">

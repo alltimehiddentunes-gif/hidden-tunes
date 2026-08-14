@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState, type ComponentType } from 'react'
+import ContentShareActions from '../sharing/ContentShareActions'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import {
   formatMotivationalDuration,
@@ -205,6 +206,8 @@ export const MotivationalProgramPage = memo(function MotivationalProgramPage({
       <button type="button" className="btn-ghost btn-sm motivational-program-back" onClick={onBack}>
         Back to Motivationals
       </button>
+
+      <ContentShareActions content={{ type: 'motivational', id: program.id, title: program.title }} />
 
       <header className="motivational-program-hero">
         <div className="motivational-program-cover">

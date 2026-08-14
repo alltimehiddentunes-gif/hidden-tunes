@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState, type ComponentType } from 'react'
+import ContentShareActions from '../sharing/ContentShareActions'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import {
   formatPodcastDescriptionExcerpt,
@@ -89,6 +90,7 @@ function ShowEpisodeRow({
         {description ? <p className="podcast-show-episode-description">{description}</p> : null}
       </div>
       <div className="podcast-show-episode-actions">
+        <ContentShareActions compact content={{ type: 'podcastEpisode', showId: episode.showId, episodeId: episode.id, title: episode.title, podcastTitle: episode.showTitle }} />
         <button
           type="button"
           className="podcast-show-episode-play"
@@ -262,6 +264,8 @@ export const PodcastShowPage = memo(function PodcastShowPage({
           <p className="detail-subtitle">{formatPodcastShowSubtitle(show)}</p>
         </div>
       </div>
+
+      <ContentShareActions content={{ type: 'podcast', id: show.id, title: show.title }} />
 
       <section className="podcast-show-hero" aria-labelledby="podcast-show-heading">
         <div className="podcast-show-hero-backdrop" aria-hidden="true" />

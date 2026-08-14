@@ -9,6 +9,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
+import ContentShareActions from '../sharing/ContentShareActions'
 import {
   useDesktopPlayback,
   useDesktopPlaybackProgress,
@@ -528,6 +529,8 @@ export const LectureSeriesPage = memo(function LectureSeriesPage({
           <span className="lecture-detail-crumb is-current">{series.title}</span>
         </nav>
       </div>
+
+      <ContentShareActions content={{ type: 'lecture', id: series.id, title: series.title }} />
 
       <section className="lecture-detail-main" aria-labelledby="lecture-detail-title">
         <div className="lecture-detail-media">
