@@ -82,6 +82,18 @@ export type DesktopWindowState = {
 }
 
 export type HiddenTunesDesktopBridge = {
+  artistProfile?: {
+    request: (options: {
+      path: string
+      method: 'GET' | 'POST' | 'DELETE'
+      token?: string | null
+    }) => Promise<DesktopCatalogBridgeResponse>
+  }
+  authStorage?: {
+    getItem: () => Promise<string | null>
+    setItem: (value: string) => Promise<{ ok: boolean }>
+    removeItem: () => Promise<{ ok: boolean }>
+  }
   catalog?: DesktopCatalogBridgeApi
   downloads?: DesktopDownloadsBridgeApi
   shell?: DesktopShellBridgeApi
