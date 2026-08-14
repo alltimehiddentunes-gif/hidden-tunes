@@ -90,7 +90,6 @@ function ShowEpisodeRow({
         {description ? <p className="podcast-show-episode-description">{description}</p> : null}
       </div>
       <div className="podcast-show-episode-actions">
-        <ContentShareActions compact content={{ type: 'podcastEpisode', showId: episode.showId, episodeId: episode.id, title: episode.title, podcastTitle: episode.showTitle }} />
         <button
           type="button"
           className="podcast-show-episode-play"

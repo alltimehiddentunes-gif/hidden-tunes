@@ -82,7 +82,6 @@ function ChapterRow({
           {downloadLabel}
         </button>
       ) : null}
-      <ContentShareActions compact content={{ type: 'audiobookChapter', bookId: chapter.bookId, chapterId: chapter.id, title: chapter.title }} />
       <button
         type="button"
         className="audiobook-chapter-row-play"
