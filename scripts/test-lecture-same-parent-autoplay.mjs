@@ -61,8 +61,13 @@ assert.match(
 );
 assert.match(
   playerContext,
-  /smart_continuation_blocked_domain[\s\S]*educational_domain/,
+  /smart_continuation_blocked_domain/,
   "music smart continuation must not append into lectures"
+);
+assert.match(
+  playerContext,
+  /`\$\{domain\}_domain`/,
+  "non-music continuation blocks must report their playback domain"
 );
 
 const controller = fs.readFileSync(
