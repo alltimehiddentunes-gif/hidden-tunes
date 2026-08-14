@@ -7502,9 +7502,16 @@ function ArtistDetailView({
       const result = nextFollowing
         ? await followArtistProfile(artistUuid, { token: tokenResult.accessToken })
         : await unfollowArtistProfile(artistUuid, { token: tokenResult.accessToken })
-      setIsFollowing(result.is_following)
-      setFollowerCount(result.follower_count)
-      setFollowAvailable(result.available)
+      const verified = await fetchArtistFollowState(artistUuid, {
+        token: tokenResult.accessToken,
+      })
+      if (verified.is_following !== nextFollowing) {
+        throw new Error('The follow service did not preserve this change. Try again.')
+      }
+      setIsFollowing(verified.is_following)
+      setFollowerCount(verified.follower_count)
+      setFollowAvailable(verified.available)
+      void result
     } catch (error) {
       setIsFollowing(previousFollowing)
       setFollowerCount(previousCount)
