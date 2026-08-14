@@ -487,6 +487,34 @@ export async function isViewerFollowingArtist(artistId: string, viewerUserId: st
   return rows.length > 0;
 }
 
+async function loadPersistedArtistFollow(artistId: string, userId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("artist_followers")
+    .select("artist_id, user_id")
+    .eq("artist_id", artistId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingArtistSchemaError(error)) {
+      const unavailable = new Error(
+        "Artist follow is unavailable until profile infrastructure is applied.",
+      );
+      (unavailable as Error & { status?: number }).status = 503;
+      throw unavailable;
+    }
+    throw new Error(error.message);
+  }
+
+  return data as { artist_id: string; user_id: string } | null;
+}
+
+function followPersistenceError(message: string) {
+  const error = new Error(message);
+  (error as Error & { status?: number }).status = 502;
+  return error;
+}
+
 export async function countArtistFollowers(artistId: string) {
   return safeExactCount("artist_followers", [{ column: "artist_id", value: artistId }]);
 }
@@ -531,10 +559,14 @@ export async function followArtist(artistId: string, userId: string) {
   }
 
   const canonicalId = String(artist.id);
-  const { error } = await supabaseAdmin.from("artist_followers").upsert(
-    { artist_id: canonicalId, user_id: userId },
-    { onConflict: "artist_id,user_id", ignoreDuplicates: true },
-  );
+  const { data: persisted, error } = await supabaseAdmin
+    .from("artist_followers")
+    .upsert(
+      { artist_id: canonicalId, user_id: userId },
+      { onConflict: "artist_id,user_id" },
+    )
+    .select("artist_id, user_id")
+    .single();
 
   if (error) {
     if (isMissingArtistSchemaError(error)) {
@@ -544,18 +576,20 @@ export async function followArtist(artistId: string, userId: string) {
       (unavailable as Error & { status?: number }).status = 503;
       throw unavailable;
     }
-    // Unique/duplicate races still count as success (idempotent follow).
-    const message = String(error.message || "").toLowerCase();
-    const code = String((error as { code?: unknown }).code || "");
-    if (code === "23505" || message.includes("duplicate")) {
-      invalidateArtistCache(canonicalId);
-      return {
-        followed: true,
-        artist_id: canonicalId,
-        follower_count: await countArtistFollowers(canonicalId),
-      };
-    }
     throw new Error(error.message);
+  }
+
+  if (
+    !persisted ||
+    String(persisted.artist_id) !== canonicalId ||
+    String(persisted.user_id) !== userId
+  ) {
+    throw followPersistenceError("Artist follow write did not return the persisted row.");
+  }
+
+  const readback = await loadPersistedArtistFollow(canonicalId, userId);
+  if (!readback) {
+    throw followPersistenceError("Artist follow write was not durable on authoritative readback.");
   }
 
   invalidateArtistCache(canonicalId);
@@ -579,7 +613,8 @@ export async function unfollowArtist(artistId: string, userId: string) {
     .from("artist_followers")
     .delete()
     .eq("artist_id", canonicalId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .select("artist_id, user_id");
 
   if (error) {
     if (isMissingArtistSchemaError(error)) {
@@ -590,6 +625,11 @@ export async function unfollowArtist(artistId: string, userId: string) {
       throw unavailable;
     }
     throw new Error(error.message);
+  }
+
+  const readback = await loadPersistedArtistFollow(canonicalId, userId);
+  if (readback) {
+    throw followPersistenceError("Artist unfollow was not durable on authoritative readback.");
   }
 
   // Missing row is still success (idempotent unfollow).
