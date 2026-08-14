@@ -175,6 +175,25 @@ async function artistProfileRequest<T>(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const pathWithQuery = new URL(buildUrl(path, query));
+    const bridge = window.hiddenTunesDesktop?.artistProfile;
+    if (bridge) {
+      const result = await bridge.request({
+        path: `${pathWithQuery.pathname}${pathWithQuery.search}`,
+        method: options.method || "GET",
+        token: options.token,
+      });
+      const payload = asObject(result.payload) || {};
+      if (!result.ok || payload.success === false) {
+        throw new ArtistProfileApiError(
+          cleanText(payload.error, `Artist profile request failed (${result.status})`),
+          result.status,
+          payload.details ?? null,
+        );
+      }
+      return payload as T;
+    }
+
     const headers: Record<string, string> = {
       Accept: "application/json",
     };
