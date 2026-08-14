@@ -26,6 +26,7 @@ export const WEB_NAVIGATION_PAGE_KEYS = [
   'privacy',
   'terms',
   'account-deletion',
+  'not-found',
 ] as const
 
 export type WebNavigationPageKey = (typeof WEB_NAVIGATION_PAGE_KEYS)[number]

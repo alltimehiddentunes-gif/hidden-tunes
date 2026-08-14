@@ -1399,6 +1399,7 @@ function resolvePageFromNavKey(navKey: NavKey): PageId {
     case 'privacy':
     case 'terms':
     case 'account-deletion':
+    case 'not-found':
       return 'home'
     default:
       return navKey as PageId
@@ -8455,10 +8456,23 @@ function PageContent({
     privacy: 'Privacy',
     terms: 'Terms',
     'account-deletion': 'Account deletion',
+    'not-found': 'Page not found',
   }
   const webInformationTitle = webInformationTitles[activeNavKey]
   if (activeNavKey === 'about' && isWebNavigationBridgeEnabled()) {
     return <WebAboutPage onNavigate={onNavigateNav} />
+  }
+  if (activeNavKey === 'not-found' && isWebNavigationBridgeEnabled()) {
+    return (
+      <section className="content-page" data-web-information-route="not-found">
+        <header className="content-page-header">
+          <p className="eyebrow">404</p>
+          <h1>Page not found</h1>
+          <p>This Hidden Tunes link does not exist or is no longer available.</p>
+          <button type="button" className="btn-primary" onClick={() => onNavigateNav('home')}>Return home</button>
+        </header>
+      </section>
+    )
   }
   if (webInformationTitle && isWebNavigationBridgeEnabled()) {
     return (

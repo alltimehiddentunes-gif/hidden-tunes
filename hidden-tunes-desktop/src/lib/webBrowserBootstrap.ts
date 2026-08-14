@@ -95,11 +95,14 @@ export function routeFromBrowserLocation(pathname = window.location.pathname): W
     const id = decodePathId(normalized.match(pattern)?.[1])
     if (id) return { kind, id } as WebNavigationRoute
   }
-  return null
+  return { kind: 'page', page: 'not-found' }
 }
 
 export function pathForWebRoute(route: WebNavigationRoute) {
-  if (route.kind === 'page') return PATH_BY_PAGE.get(route.page) ?? '/'
+  if (route.kind === 'page') {
+    if (route.page === 'not-found') return normalizePath(window.location.pathname)
+    return PATH_BY_PAGE.get(route.page) ?? '/'
+  }
   if (route.kind === 'podcast-episode') {
     return `/podcasts/${encodeURIComponent(route.showId)}/episodes/${encodeURIComponent(route.episodeId)}`
   }
