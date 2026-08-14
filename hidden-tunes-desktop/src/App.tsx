@@ -72,6 +72,7 @@ import { selectInstantPlayableUrl } from './lib/audioVersions'
 import {
   artistReleaseTypeLabel,
   fetchArtistAbout,
+  fetchArtistFollowState,
   fetchArtistProfileShell,
   fetchArtistReleases,
   fetchArtistSimilar,
@@ -7328,9 +7329,16 @@ function ArtistDetailView({
 
         // The authenticated API response is authoritative. Never hydrate one
         // account's viewer state from another account's renderer cache.
-        const initialFollowing = shell.viewer.is_following === true
-        const initialAvailable = shell.viewer.follow_available !== false
-        const initialFollowers = Number(shell.statistics.follower_count) || 0
+        const liveFollow = token
+          ? await fetchArtistFollowState(shell.artist.id, {
+              signal: abortController.signal,
+              token,
+            }).catch(() => null)
+          : null
+        if (abortController.signal.aborted) return
+        const initialFollowing = liveFollow?.is_following ?? shell.viewer.is_following === true
+        const initialAvailable = liveFollow?.available ?? shell.viewer.follow_available !== false
+        const initialFollowers = liveFollow?.follower_count ?? (Number(shell.statistics.follower_count) || 0)
         setIsFollowing(initialFollowing)
         setFollowAvailable(initialAvailable)
         setFollowerCount(initialFollowers)
