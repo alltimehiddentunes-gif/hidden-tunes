@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import ArtistTrackRow from "../../components/catalog/ArtistTrackRow";
 import HTImage from "../../components/HTImage";
+import ContentShareActions from "../../components/sharing/ContentShareActions";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
@@ -989,6 +990,8 @@ export default function ArtistScreen() {
               followerLabel,
             ])}
           </Text>
+
+          <ContentShareActions content={{ type: "artist", id: artist.id, title: artist.name }} />
 
           {bioText ? (
             <View style={styles.aboutBlock}>

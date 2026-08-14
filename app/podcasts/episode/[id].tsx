@@ -16,6 +16,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import HTImage from "../../../components/HTImage";
 import MaturePodcastConsentModal from "../../../components/podcast/MaturePodcastConsentModal";
 import PodcastScreenHeader from "../../../components/podcast/PodcastScreenHeader";
+import ContentShareActions from "../../../components/sharing/ContentShareActions";
 import { COLORS } from "../../../constants/theme";
 import { useMaturePodcastGate } from "../../../hooks/useMaturePodcastGate";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
@@ -143,6 +144,8 @@ export default function PodcastEpisodeScreen() {
         </View>
 
         {episode.description ? <Text style={styles.description}>{episode.description}</Text> : null}
+
+        {!episode.isExplicit ? <ContentShareActions content={{ type: "podcastEpisode", showId: episode.showId, episodeId: episode.id, title: episode.title, podcastTitle: episode.showTitle }} /> : null}
 
         <TouchableOpacity style={styles.playButton} onPress={play}>
           <Ionicons name="play" size={18} color={COLORS.text} />

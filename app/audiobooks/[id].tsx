@@ -13,6 +13,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../../utils/safeNavigation";
+import ContentShareActions from "../../components/sharing/ContentShareActions";
 
 import { COLORS } from "../../constants/theme";
 import { claimExclusivePlayback } from "../../services/playback/PlaybackHandoffCoordinator";
@@ -48,12 +49,14 @@ const ChapterRow = memo(function ChapterRow({
   isPlaying,
   isLoading,
   hasResume,
+  shareEnabled,
   onPress,
 }: {
   chapter: AudiobookChapter;
   isPlaying: boolean;
   isLoading: boolean;
   hasResume?: boolean;
+  shareEnabled: boolean;
   onPress: () => void;
 }) {
   return (
@@ -83,6 +86,7 @@ const ChapterRow = memo(function ChapterRow({
           {hasResume ? " · Resume" : ""}
         </Text>
       </View>
+      {shareEnabled ? <ContentShareActions menu content={{ type: "audiobookChapter", bookId: chapter.audiobook_id, chapterId: chapter.id, title: chapter.title }} /> : null}
       <Ionicons
         name={isPlaying ? "pause-circle" : "play-circle"}
         size={24}
@@ -331,10 +335,11 @@ export default function AudiobookDetailScreen() {
         isPlaying={activeChapterId === item.id}
         isLoading={loadingChapterId === item.id}
         hasResume={savedProgress?.chapterId === item.id && savedProgress.positionMillis > 0}
+        shareEnabled={!audiobook?.is_mature}
         onPress={() => void playChapter(item.id, 0)}
       />
     ),
-    [activeChapterId, loadingChapterId, playChapter, savedProgress]
+    [activeChapterId, audiobook?.is_mature, loadingChapterId, playChapter, savedProgress]
   );
 
   const listHeader = useMemo(
@@ -376,6 +381,8 @@ export default function AudiobookDetailScreen() {
                 {meta ? <Text style={styles.meta}>{meta}</Text> : null}
               </View>
             </View>
+
+            {!audiobook.is_mature ? <ContentShareActions content={{ type: "audiobook", id: audiobook.id, title: audiobook.title, author: audiobook.author_name }} /> : null}
 
             <TouchableOpacity
               activeOpacity={0.86}

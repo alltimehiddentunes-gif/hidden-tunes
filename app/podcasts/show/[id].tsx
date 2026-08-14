@@ -19,6 +19,7 @@ import MaturePodcastConsentModal from "../../../components/podcast/MaturePodcast
 import { PodcastReadMoreText } from "../../../components/podcast/PodcastReadMoreText";
 import PodcastShowBackBar from "../../../components/podcast/PodcastShowBackBar";
 import { FadeInView, ScalePressable } from "../../../components/podcast/PodcastShowAnimations";
+import ContentShareActions from "../../../components/sharing/ContentShareActions";
 import { COLORS } from "../../../constants/theme";
 import { useMaturePodcastGate } from "../../../hooks/useMaturePodcastGate";
 import { usePlaybackRouter } from "../../../hooks/usePlaybackRouter";
@@ -624,6 +625,8 @@ export default function PodcastShowScreen() {
             <Text style={styles.playLatestText}>Play Latest</Text>
           </ScalePressable>
         </View>
+
+        {!show.isExplicit ? <ContentShareActions content={{ type: "podcast", id: show.id, title: show.title }} /> : null}
 
         {latestUnavailable ? (
           <Text style={styles.latestUnavailable}>Latest episode unavailable</Text>

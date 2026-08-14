@@ -15,6 +15,7 @@ import { isMatureContentItem } from "../../types/matureContent";
 import MatureContentBadge from "../mature/MatureContentBadge";
 import FavoriteButton from "../FavoriteButton";
 import { buildRadioStationFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
+import ContentShareActions from "../sharing/ContentShareActions";
 
 type RadioCategoryCardProps = {
   category: RadioCategory;
@@ -166,6 +167,7 @@ export const RadioStationCard = memo(function RadioStationCard({
       </View>
 
       <FavoriteButton item={buildRadioStationFavoriteItem(item)} size={18} />
+      {!isMatureContentItem(item) ? <ContentShareActions menu content={{ type: "radioStation", id: item.id, title: item.title }} /> : null}
       {pending ? (
         <ActivityIndicator size="small" color={COLORS.primary} />
       ) : (

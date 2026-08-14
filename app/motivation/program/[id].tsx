@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 
 import AppShell from "@/components/navigation/AppShell";
+import ContentShareActions from "@/components/sharing/ContentShareActions";
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { usePlayerState } from "@/context/PlayerContext";
 import {
@@ -412,6 +413,7 @@ export default function MotivationProgramScreen() {
                   .filter(Boolean)
                   .join(" · ")}
               </Text>
+              <ContentShareActions content={{ type: "motivational", id: program.id, title: program.title }} />
               {description ? (
                 <View style={styles.descriptionBlock}>
                   <Text style={styles.heroDescription}>{descriptionShown}</Text>

@@ -13,6 +13,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import ContentShareActions from "@/components/sharing/ContentShareActions";
 
 import { COLORS, GRADIENTS } from "@/constants/theme";
 import { usePlayerState } from "@/context/PlayerContext";
@@ -457,6 +458,8 @@ export default function EducationalProgramDetailScreen() {
             {program.rightsType ? (
               <Text style={styles.rights}>Rights: {program.rightsType}</Text>
             ) : null}
+
+            <ContentShareActions content={{ type: "lecture", id: program.id, title: program.title }} />
 
             {savedProgress && resumeSessionId ? (
               <TouchableOpacity

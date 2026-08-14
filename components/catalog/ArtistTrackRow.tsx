@@ -7,6 +7,7 @@ import AddToPlaylistButton from "../AddToPlaylistButton";
 import FavoriteButton from "../FavoriteButton";
 import HTImage from "../HTImage";
 import NeonEQ from "../NeonEQ";
+import ContentShareActions from "../sharing/ContentShareActions";
 import { COLORS } from "../../constants/theme";
 import { buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 
@@ -70,6 +71,7 @@ function ArtistTrackRow({
 
       <FavoriteButton item={buildSongFavoriteItem(track)} size={20} />
       <AddToPlaylistButton track={track as any} />
+      <ContentShareActions menu content={{ type: "track", id: track.id, title: track.title, artist: track.artist }} />
 
       <Ionicons
         name={active && isPlaying ? "pause-circle" : "play-circle"}

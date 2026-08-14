@@ -19,6 +19,7 @@ import AddToPlaylistButton from "../../components/AddToPlaylistButton";
 import FavoriteButton from "../../components/FavoriteButton";
 import HTImage from "../../components/HTImage";
 import PremiumBackground from "../../components/PremiumBackground";
+import ContentShareActions from "../../components/sharing/ContentShareActions";
 
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import { buildAlbumFavoriteItem, buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
@@ -716,6 +717,8 @@ export default function AlbumScreen() {
                   album.genre
                 )}
               </Text>
+
+              <ContentShareActions content={{ type: "album", id: album.id, title: album.title, artist: album.artist }} />
 
               <View style={styles.actionRow}>
                 <TouchableOpacity
