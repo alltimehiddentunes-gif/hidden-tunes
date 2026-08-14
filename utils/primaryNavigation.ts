@@ -31,14 +31,13 @@ export function navigatePrimaryDestination(
   }
 
   logNavigationAudit("bottom-nav", {
-    method: "dismissAll+replace",
+    method: "replace",
     from: options?.from ?? null,
     to: path,
     source: options?.source ?? "primaryNavigation",
     ts: Date.now(),
   });
 
-  if (router.canDismiss()) router.dismissAll();
   router.replace(path as any);
 }
 

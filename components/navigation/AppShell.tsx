@@ -1,7 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { usePathname } from "expo-router";
-import { ReactNode, useMemo, useRef, useSyncExternalStore } from "react";
+import {
+  memo,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import {
   Platform,
   Pressable,
@@ -24,12 +32,18 @@ import {
 import { createKeyedTapGuard } from "../../utils/tapGuard";
 import { getActivePlaybackOwner } from "../../services/playback/PlaybackHandoffCoordinator";
 import {
-  getNowPlayingSnapshot,
+  getNowPlayingSongIdSnapshot,
   subscribeNowPlaying,
 } from "../../utils/nowPlayingStore";
 import { navigatePrimaryDestination } from "../../utils/primaryNavigation";
 import { useLocalization } from "../../localization";
 import { getNavigationLabelKey } from "../../localization/navigationLabels";
+import {
+  markDestinationFirstFrame,
+  markTabNavigationDispatch,
+  markTabPressHandler,
+  markTabTouchDown,
+} from "../../utils/tapResponseDiagnostics";
 
 const MINI_PLAYER_ROUTES = [
   "/music-feed",
@@ -84,6 +98,50 @@ function isMiniPlayerRoute(pathname: string) {
   });
 }
 
+const BottomTabButton = memo(function BottomTabButton({
+  item,
+  onNavigate,
+}: {
+  item: AppNavigationItem & { label: string; active: boolean };
+  onNavigate: (item: AppNavigationItem & { label: string; active: boolean }) => void;
+}) {
+  const handlePressIn = useCallback(() => {
+    markTabTouchDown(item.route);
+  }, [item.route]);
+
+  const handlePress = useCallback(() => {
+    onNavigate(item);
+  }, [item, onNavigate]);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${item.label} tab`}
+      onPressIn={handlePressIn}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.navItem,
+        item.active && styles.navItemActive,
+        pressed && styles.navItemPressed,
+      ]}
+    >
+      <View style={[styles.iconWrap, item.active && styles.iconWrapActive]}>
+        <Ionicons
+          name={item.active ? item.activeIcon : item.icon}
+          size={21}
+          color={item.active ? COLORS.primaryGlow : COLORS.textMuted}
+        />
+      </View>
+      <Text
+        numberOfLines={1}
+        style={[styles.navText, item.active && styles.navTextActive]}
+      >
+        {item.label}
+      </Text>
+    </Pressable>
+  );
+});
+
 export default function AppShell({
   children,
   style,
@@ -95,15 +153,15 @@ export default function AppShell({
   const { t } = useLocalization();
   const insets = useSafeAreaInsets();
   const navTapGuardRef = useRef(createKeyedTapGuard(360));
-  const nowPlaying = useSyncExternalStore(
+  const currentSongId = useSyncExternalStore(
     subscribeNowPlaying,
-    getNowPlayingSnapshot,
-    getNowPlayingSnapshot
+    getNowPlayingSongIdSnapshot,
+    getNowPlayingSongIdSnapshot
   );
   const bottomOffset = Math.max(insets.bottom, 8);
   const showMiniPlayer =
     isMiniPlayerRoute(pathname) &&
-    Boolean(nowPlaying.currentSongId) &&
+    Boolean(currentSongId) &&
     // TV/video/sports own audible media — MiniPlayer must not imply audio owns it.
     getActivePlaybackOwner() === "shared-audio";
   const shellContentPaddingBottom = getMobileShellContentPaddingBottom(
@@ -121,6 +179,27 @@ export default function AppShell({
       })),
     [pathname, t]
   );
+
+  const handleNavigate = useCallback(
+    (item: AppNavigationItem & { label: string; active: boolean }) => {
+      markTabPressHandler(item.route);
+      if (item.active) return;
+      if (!navTapGuardRef.current(item.route)) return;
+      markTabNavigationDispatch(item.route);
+      navigatePrimaryDestination(item.route, {
+        from: pathname,
+        source: "AppShell.bottomNav",
+      });
+    },
+    [pathname]
+  );
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      markDestinationFirstFrame(pathname);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [pathname]);
 
   return (
     <View style={[styles.shell, Platform.OS === "web" ? styles.webShell : null, style]}>
@@ -147,38 +226,7 @@ export default function AppShell({
         <BlurView intensity={30} tint="dark" style={styles.navBlur}>
           <View style={styles.navBar}>
             {items.map((item) => (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${item.label} tab`}
-                onPress={() => {
-                  if (item.active) return;
-                  if (!navTapGuardRef.current(item.route)) return;
-                  navigatePrimaryDestination(item.route, {
-                    from: pathname,
-                    source: "AppShell.bottomNav",
-                  });
-                }}
-                style={({ pressed }) => [
-                  styles.navItem,
-                  item.active && styles.navItemActive,
-                  pressed && styles.navItemPressed,
-                ]}
-              >
-                <View style={[styles.iconWrap, item.active && styles.iconWrapActive]}>
-                  <Ionicons
-                    name={item.active ? item.activeIcon : item.icon}
-                    size={21}
-                    color={item.active ? COLORS.primaryGlow : COLORS.textMuted}
-                  />
-                </View>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.navText, item.active && styles.navTextActive]}
-                >
-                  {item.label}
-                </Text>
-              </Pressable>
+              <BottomTabButton key={item.id} item={item} onNavigate={handleNavigate} />
             ))}
           </View>
         </BlurView>

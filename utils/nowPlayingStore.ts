@@ -14,6 +14,11 @@ export function getNowPlayingSnapshot(): NowPlayingSnapshot {
   return snapshot;
 }
 
+/** Primitive selector for shell chrome that only cares whether a song exists. */
+export function getNowPlayingSongIdSnapshot(): string {
+  return snapshot.currentSongId;
+}
+
 export function setNowPlayingSnapshot(next: NowPlayingSnapshot) {
   const currentSongId = String(next.currentSongId || "");
   const isPlaying = Boolean(next.isPlaying);
