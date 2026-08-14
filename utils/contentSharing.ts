@@ -30,11 +30,16 @@ const singleSegmentRoutes = {
   lecture: '/lectures',
 } as const;
 
-const forbiddenIdCharacters = /[\\/\u0000-\u001f\u007f]/;
+function containsForbiddenIdCharacters(value: string): boolean {
+  return /[\\/]/.test(value) || Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code < 32 || code === 127;
+  });
+}
 
 export function requireStableContentId(value: string, label = 'content ID'): string {
   const id = value.trim();
-  if (!id || id.length > 200 || forbiddenIdCharacters.test(id)) {
+  if (!id || id.length > 200 || containsForbiddenIdCharacters(id)) {
     throw new Error(`Invalid ${label}`);
   }
 
@@ -49,7 +54,7 @@ export function requireStableContentId(value: string, label = 'content ID'): str
     if (next === decoded) break;
     decoded = next;
   }
-  if (!decoded || decoded === '.' || decoded === '..' || forbiddenIdCharacters.test(decoded)) {
+  if (!decoded || decoded === '.' || decoded === '..' || containsForbiddenIdCharacters(decoded)) {
     throw new Error(`Invalid ${label}`);
   }
   return id;
