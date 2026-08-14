@@ -1,5 +1,5 @@
 /**
- * Minimal desktop Supabase auth — same Hidden Tunes user identity as mobile.
+ * Minimal desktop Supabase auth â€” same Hidden Tunes user identity as mobile.
  * Uses public anon key only; never service-role.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
@@ -14,6 +14,35 @@ const SUPABASE_ANON_KEY =
   ''
 
 let cachedClient: SupabaseClient | null = null
+const AUTH_STORAGE_KEY = 'hidden-tunes-desktop-auth'
+
+function isElectronRenderer() {
+  return typeof window !== 'undefined' && Boolean(window.hiddenTunesDesktop?.authStorage)
+}
+
+const secureDesktopStorage = {
+  async getItem(key: string) {
+    const desktopStorage = window.hiddenTunesDesktop?.authStorage
+    if (desktopStorage) return desktopStorage.getItem()
+    return window.localStorage.getItem(key)
+  },
+  async setItem(key: string, value: string) {
+    const desktopStorage = window.hiddenTunesDesktop?.authStorage
+    if (desktopStorage) {
+      await desktopStorage.setItem(value)
+      return
+    }
+    window.localStorage.setItem(key, value)
+  },
+  async removeItem(key: string) {
+    const desktopStorage = window.hiddenTunesDesktop?.authStorage
+    if (desktopStorage) {
+      await desktopStorage.removeItem()
+      return
+    }
+    window.localStorage.removeItem(key)
+  },
+}
 
 export type DesktopSupabaseSessionSummary = {
   isConfigured: boolean
@@ -28,9 +57,11 @@ function getDesktopSupabaseClient() {
   if (!cachedClient) {
     cachedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
+        storage: secureDesktopStorage,
+        storageKey: AUTH_STORAGE_KEY,
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: !isElectronRenderer(),
       },
     })
   }
@@ -155,6 +186,26 @@ export async function signInDesktopWithPassword(email: string, password: string)
   }
 }
 
+export async function requestDesktopMagicLink(email: string) {
+  const supabase = getDesktopSupabaseClient()
+  if (!supabase) return { error: 'Magic-link sign-in is not configured in this build.' }
+  const trimmed = email.trim()
+  if (!trimmed) return { error: 'Enter the email for your account.' }
+  if (isElectronRenderer()) {
+    return { error: 'Magic-link sign-in is available on the Hidden Tunes website and mobile app.' }
+  }
+  const { error } = await supabase.auth.signInWithOtp({
+    email: trimmed,
+    options: {
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+      shouldCreateUser: false,
+    },
+  })
+  return {
+    error: error ? mapAuthError(error.message, 'Could not send a magic link.') : null,
+  }
+}
+
 export async function signUpDesktopWithPassword(email: string, password: string) {
   const supabase = getDesktopSupabaseClient()
   if (!supabase) {
@@ -203,11 +254,26 @@ export async function requestDesktopPasswordReset(email: string) {
     return { error: 'Enter the email for your account.' }
   }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(trimmed)
+  const redirectTo = isElectronRenderer()
+    ? undefined
+    : `${window.location.origin}/reset-password`
+  const { error } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo })
   if (error && /rate limit|too many/i.test(error.message)) {
     return { error: mapAuthError(error.message, 'Too many attempts. Try again later.') }
   }
   return { error: null as string | null }
+}
+
+export async function updateDesktopPassword(password: string) {
+  const supabase = getDesktopSupabaseClient()
+  if (!supabase) return { error: 'Password reset is not configured in this build.' }
+  if (password.length < 6) return { error: 'Password must be at least 6 characters.' }
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  if (sessionError || !session) {
+    return { error: 'This reset link is invalid or expired. Request a new password-reset email.' }
+  }
+  const { error } = await supabase.auth.updateUser({ password })
+  return { error: error ? mapAuthError(error.message, 'Could not update the password.') : null }
 }
 
 export async function signOutDesktopSession() {
@@ -219,11 +285,11 @@ export async function signOutDesktopSession() {
   return { error: error ? mapAuthError(error.message, 'Could not sign out.') : null }
 }
 
-export function subscribeDesktopAuth(onChange: () => void) {
+export function subscribeDesktopAuth(onChange: (event: string) => void) {
   const supabase = getDesktopSupabaseClient()
   if (!supabase) return () => {}
-  const { data } = supabase.auth.onAuthStateChange(() => {
-    onChange()
+  const { data } = supabase.auth.onAuthStateChange((event) => {
+    onChange(event)
   })
   return () => {
     data.subscription.unsubscribe()

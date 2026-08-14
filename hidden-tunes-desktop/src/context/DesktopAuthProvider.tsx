@@ -7,15 +7,17 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { SignInDialog } from '../components/account/SignInDialog'
+import { SignInDialog, type AuthMode } from '../components/account/SignInDialog'
 import {
   getDesktopSupabaseSessionSummary,
   isDesktopAuthConfigured,
+  requestDesktopMagicLink,
   requestDesktopPasswordReset,
   signInDesktopWithPassword,
   signOutDesktopSession,
   signUpDesktopWithPassword,
   subscribeDesktopAuth,
+  updateDesktopPassword,
   type DesktopSupabaseSessionSummary,
 } from '../services/desktopSupabaseAuth'
 import { DesktopAuthContext } from './desktopAuthContext'
@@ -35,10 +37,14 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
     isConfigured: configured,
   })
   const [refreshing, setRefreshing] = useState(false)
-  const [signInOpen, setSignInOpen] = useState(false)
+  const browserPasswordRecovery = typeof window !== 'undefined'
+    && window.location.pathname === '/reset-password'
+  const [signInOpen, setSignInOpen] = useState(browserPasswordRecovery)
+  const [authMode, setAuthMode] = useState<AuthMode>(browserPasswordRecovery ? 'update-password' : 'sign-in')
   const [sessionNotice, setSessionNotice] = useState<string | null>(null)
   const knownSignedInRef = useRef(false)
   const intentionalSignOutRef = useRef(false)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
 
   const refresh = useCallback(async () => {
     setRefreshing(true)
@@ -69,7 +75,11 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    const unsub = subscribeDesktopAuth(() => {
+    const unsub = subscribeDesktopAuth((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setAuthMode('update-password')
+        setSignInOpen(true)
+      }
       startTransition(() => {
         void refresh()
       })
@@ -109,6 +119,14 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
     return requestDesktopPasswordReset(email)
   }, [])
 
+  const requestMagicLink = useCallback(async (email: string) => {
+    return requestDesktopMagicLink(email)
+  }, [])
+
+  const updatePassword = useCallback(async (password: string) => {
+    return updateDesktopPassword(password)
+  }, [])
+
   const signOut = useCallback(async () => {
     intentionalSignOutRef.current = true
     const result = await signOutDesktopSession()
@@ -116,8 +134,15 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
     return { error: result.error }
   }, [refresh])
 
-  const openSignIn = useCallback(() => setSignInOpen(true), [])
-  const closeSignIn = useCallback(() => setSignInOpen(false), [])
+  const openSignIn = useCallback(() => {
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setAuthMode('sign-in')
+    setSignInOpen(true)
+  }, [])
+  const closeSignIn = useCallback(() => {
+    setSignInOpen(false)
+    window.setTimeout(() => returnFocusRef.current?.focus(), 0)
+  }, [])
   const clearSessionNotice = useCallback(() => setSessionNotice(null), [])
 
   const value = useMemo(
@@ -132,8 +157,10 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
       closeSignIn,
       refresh,
       signIn,
+      requestMagicLink,
       signUp,
       requestPasswordReset,
+      updatePassword,
       signOut,
     }),
     [
@@ -144,19 +171,21 @@ export function DesktopAuthProvider({ children }: { children: ReactNode }) {
       refresh,
       refreshing,
       requestPasswordReset,
+      requestMagicLink,
       session,
       sessionNotice,
       signIn,
       signInOpen,
       signOut,
       signUp,
+      updatePassword,
     ],
   )
 
   return (
     <DesktopAuthContext.Provider value={value}>
       {children}
-      <SignInDialog open={signInOpen} onClose={closeSignIn} />
+      <SignInDialog open={signInOpen} onClose={closeSignIn} initialMode={authMode} />
     </DesktopAuthContext.Provider>
   )
 }

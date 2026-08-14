@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { useDesktopAuth } from '../../context/useDesktopAuth'
 import { useLocalization } from '../../localization'
 
-type AuthMode = 'sign-in' | 'sign-up' | 'reset'
+export type AuthMode = 'sign-in' | 'sign-up' | 'magic-link' | 'reset' | 'update-password'
 
 type SignInDialogProps = {
   open: boolean
@@ -20,10 +20,11 @@ export function SignInDialog({
   onSignedIn,
   initialMode = 'sign-in',
 }: SignInDialogProps) {
-  const { configured, signIn, signUp, requestPasswordReset } = useDesktopAuth()
+  const { configured, signIn, signUp, requestMagicLink, requestPasswordReset, updatePassword } = useDesktopAuth()
   const { t } = useLocalization()
   const titleId = useId()
   const emailRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -53,6 +54,20 @@ export function SignInDialog({
       if (event.key === 'Escape' && !busy) {
         event.preventDefault()
         onClose()
+      } else if (event.key === 'Tab') {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )
+        if (!focusable?.length) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
     window.addEventListener('keydown', onKey)
@@ -64,7 +79,15 @@ export function SignInDialog({
 
   if (!open) return null
 
-  const title = mode === 'sign-up' ? t('auth.createAccount') : mode === 'reset' ? 'Reset password' : t('auth.signIn')
+  const title = mode === 'sign-up'
+    ? t('auth.createAccount')
+    : mode === 'magic-link'
+      ? 'Email me a magic link'
+      : mode === 'reset'
+        ? 'Reset password'
+        : mode === 'update-password'
+          ? 'Choose a new password'
+          : t('auth.signIn')
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -86,6 +109,31 @@ export function SignInDialog({
           return
         }
         setInfo('If an account exists for that email, a reset message has been sent.')
+        return
+      }
+
+      if (mode === 'magic-link') {
+        const result = await requestMagicLink(email)
+        if (result.error) {
+          setError(result.error)
+          return
+        }
+        setInfo('Check your email and open the secure sign-in link on this device.')
+        return
+      }
+
+      if (mode === 'update-password') {
+        if (password !== confirm) {
+          setError('Passwords do not match.')
+          return
+        }
+        const result = await updatePassword(password)
+        if (result.error) {
+          setError(result.error)
+          return
+        }
+        setInfo('Your password has been updated. You are signed in securely.')
+        window.history.replaceState({ hiddenTunesRoute: true }, '', '/settings')
         return
       }
 
@@ -135,6 +183,7 @@ export function SignInDialog({
         }}
       />
       <div
+        ref={dialogRef}
         className="account-gate-dialog account-auth-dialog"
         role="dialog"
         aria-modal="true"
@@ -144,10 +193,14 @@ export function SignInDialog({
         <p>
           {mode === 'reset'
             ? 'We will email reset instructions when the address matches an account.'
-            : 'Use your Hidden Tunes account. Playback continues while this dialog is open.'}
+            : mode === 'magic-link'
+              ? 'We will send a single-use sign-in link when the address matches an account.'
+              : mode === 'update-password'
+                ? 'Enter a strong new password for your Hidden Tunes account.'
+                : 'Use your Hidden Tunes account. Playback continues while this dialog is open.'}
         </p>
         <form className="account-auth-form" onSubmit={(event) => void handleSubmit(event)}>
-          <label className="account-auth-field">
+          {mode !== 'update-password' ? <label className="account-auth-field">
             <span>{t('auth.emailPlaceholder')}</span>
             <input
               ref={emailRef}
@@ -159,15 +212,15 @@ export function SignInDialog({
               required
               disabled={busy}
             />
-          </label>
-          {mode !== 'reset' ? (
+          </label> : null}
+          {mode !== 'reset' && mode !== 'magic-link' ? (
             <label className="account-auth-field">
             <span>{t('auth.passwordPlaceholder')}</span>
               <div className="account-auth-password-row">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   name="password"
-                  autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
+                  autoComplete={mode === 'sign-up' || mode === 'update-password' ? 'new-password' : 'current-password'}
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
@@ -185,7 +238,7 @@ export function SignInDialog({
               </div>
             </label>
           ) : null}
-          {mode === 'sign-up' ? (
+          {mode === 'sign-up' || mode === 'update-password' ? (
             <label className="account-auth-field">
               <span>Confirm password</span>
               <input
@@ -219,6 +272,10 @@ export function SignInDialog({
                 ? 'Please wait…'
                 : mode === 'reset'
                   ? 'Send reset email'
+                  : mode === 'magic-link'
+                    ? 'Send magic link'
+                  : mode === 'update-password'
+                    ? 'Update password'
                   : mode === 'sign-up'
                     ? t('auth.createAccountButton')
                     : t('auth.signIn')}
@@ -234,6 +291,11 @@ export function SignInDialog({
               <button type="button" disabled={busy} onClick={() => setMode('reset')}>
                 Forgot password?
               </button>
+              {!window.hiddenTunesDesktop ? (
+                <button type="button" disabled={busy} onClick={() => setMode('magic-link')}>
+                  Email me a magic link
+                </button>
+              ) : null}
             </>
           ) : (
             <button

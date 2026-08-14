@@ -22,18 +22,34 @@ export function AccountRequiredDialog({
 }: AccountRequiredDialogProps) {
   const titleId = useId()
   const primaryRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (!open) return
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     primaryRef.current?.focus()
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
         onClose()
+      } else if (event.key === 'Tab') {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLButtonElement>('button:not([disabled])')
+        if (!focusable?.length) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault(); last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault(); first.focus()
+        }
       }
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.setTimeout(() => returnFocusRef.current?.focus(), 0)
+    }
   }, [open, onClose])
 
   if (!open) return null
@@ -47,6 +63,7 @@ export function AccountRequiredDialog({
         onClick={onClose}
       />
       <div
+        ref={dialogRef}
         className="account-gate-dialog"
         role="dialog"
         aria-modal="true"
