@@ -2,8 +2,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { premiumAudioVisualizerEngine } from './lib/premiumAudioVisualizer'
+import { installWebBrowserBootstrap } from './lib/webBrowserBootstrap'
 import './index.css'
 import App from './App.tsx'
+
+installWebBrowserBootstrap()
 
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
