@@ -49,14 +49,12 @@ const ChapterRow = memo(function ChapterRow({
   isPlaying,
   isLoading,
   hasResume,
-  shareEnabled,
   onPress,
 }: {
   chapter: AudiobookChapter;
   isPlaying: boolean;
   isLoading: boolean;
   hasResume?: boolean;
-  shareEnabled: boolean;
   onPress: () => void;
 }) {
   return (
@@ -86,7 +84,6 @@ const ChapterRow = memo(function ChapterRow({
           {hasResume ? " · Resume" : ""}
         </Text>
       </View>
-      {shareEnabled ? <ContentShareActions menu content={{ type: "audiobookChapter", bookId: chapter.audiobook_id, chapterId: chapter.id, title: chapter.title }} /> : null}
       <Ionicons
         name={isPlaying ? "pause-circle" : "play-circle"}
         size={24}
@@ -335,11 +332,10 @@ export default function AudiobookDetailScreen() {
         isPlaying={activeChapterId === item.id}
         isLoading={loadingChapterId === item.id}
         hasResume={savedProgress?.chapterId === item.id && savedProgress.positionMillis > 0}
-        shareEnabled={!audiobook?.is_mature}
         onPress={() => void playChapter(item.id, 0)}
       />
     ),
-    [activeChapterId, audiobook?.is_mature, loadingChapterId, playChapter, savedProgress]
+    [activeChapterId, loadingChapterId, playChapter, savedProgress]
   );
 
   const listHeader = useMemo(

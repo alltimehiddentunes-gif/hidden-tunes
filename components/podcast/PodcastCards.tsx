@@ -4,7 +4,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
 import HTImage from "../HTImage";
-import ContentShareActions from "../sharing/ContentShareActions";
 import { COLORS } from "../../constants/theme";
 import type { PodcastCategoryDef } from "../../constants/podcastCategories";
 import type { PodcastEpisode, PodcastShow } from "../../types/podcast";
@@ -170,9 +169,6 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
         </View>
       </View>
       <View style={styles.episodeActions}>
-        {!episode.isExplicit ? (
-          <ContentShareActions menu content={{ type: "podcastEpisode", showId: episode.showId, episodeId: episode.id, title: episode.title, podcastTitle: episode.showTitle }} />
-        ) : null}
         {showDownloadPlaceholder ? (
           <View
             style={styles.downloadPlaceholder}

@@ -20,7 +20,6 @@ import {
 import type { TVChannel } from "@/types/tv";
 import { formatTvChannelTitle } from "@/utils/formatTvChannelDisplay";
 import { META_SEPARATOR } from "@/utils/normalizeDisplayText";
-import ContentShareActions from "@/components/sharing/ContentShareActions";
 
 type TvChannelCardProps = {
   channel: TVChannel;
@@ -192,7 +191,6 @@ function TvChannelCard({
           {channel.language}
         </Text>
       ) : null}
-      <ContentShareActions menu content={{ type: "tvChannel", id: channel.id, title: displayName }} />
     </TouchableOpacity>
   );
 }
