@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 
 const CONFIG = Object.freeze({
   domain: 'hiddentunes.com',
@@ -19,6 +20,9 @@ const desktopRoot = resolve(import.meta.dirname, '..')
 const repositoryRoot = resolve(desktopRoot, '..')
 const websiteRoot = resolve(desktopRoot, '..', '..', 'HiddenTunes-Web')
 const websiteDist = join(websiteRoot, 'dist')
+const committedDesktopDist = process.env.HT_COMMITTED_DESKTOP_DIST?.trim()
+  ? resolve(process.env.HT_COMMITTED_DESKTOP_DIST.trim())
+  : null
 const evidenceRoot = 'D:\\HiddenTunes\\Release\\website-deployments'
 const sshTarget = `${CONFIG.sshUser}@${CONFIG.sshHost}`
 const args = process.argv.slice(2)
@@ -53,6 +57,15 @@ function assertCommittedDesktopSource() {
     'hidden-tunes-desktop/src', 'hidden-tunes-desktop/public', 'hidden-tunes-desktop/index.html',
     'hidden-tunes-desktop/vite.config.ts', 'hidden-tunes-desktop/package-lock.json'], { cwd: repositoryRoot, capture: true })
   if (dirty) throw new Error(`Desktop Website source has unrelated working-tree changes; commit or isolate them before deploy:\n${dirty}`)
+}
+
+function assertCommittedDesktopDist() {
+  if (!committedDesktopDist) return false
+  const tempRoot = `${resolve(tmpdir())}${sep}`
+  if (!committedDesktopDist.startsWith(tempRoot) || !existsSync(join(committedDesktopDist, 'index.html'))) {
+    throw new Error('HT_COMMITTED_DESKTOP_DIST must be a built exact-commit artifact under the operating-system temp directory')
+  }
+  return true
 }
 
 async function walk(root, directory = root) {
@@ -94,8 +107,13 @@ function remotePreflight() {
 
 async function prepare() {
   assertConfiguration()
-  assertCommittedDesktopSource()
-  run('npm.cmd', ['run', 'build'], { cwd: desktopRoot })
+  if (assertCommittedDesktopDist()) {
+    await rm(join(desktopRoot, 'dist'), { recursive: true, force: true })
+    await cp(committedDesktopDist, join(desktopRoot, 'dist'), { recursive: true, force: true })
+  } else {
+    assertCommittedDesktopSource()
+    run('npm.cmd', ['run', 'build'], { cwd: desktopRoot })
+  }
   run('npm.cmd', ['run', 'build'], { cwd: websiteRoot })
   run('node', ['scripts/verify-desktop-parity.mjs'], { cwd: websiteRoot })
   run('node', ['scripts/verify-phase4.mjs'], { cwd: websiteRoot })
