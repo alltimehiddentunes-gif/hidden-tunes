@@ -154,13 +154,9 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
       }
       await surface.requestFullscreen()
     } catch {
-      const video = acquireTvVideoPlaybackService().getVideoElement()
-      try {
-        await video.requestFullscreen()
-      } catch {
-        setCssFullscreenActive(true)
-        // Fullscreen may be unavailable — ignore safely.
-      }
+      // Keep the common video-and-controls root intact when the platform API
+      // is unavailable. Fullscreening the video alone strands our overlays.
+      setCssFullscreenActive(true)
     }
   }, [cssFullscreenActive])
 

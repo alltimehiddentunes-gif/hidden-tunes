@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="../../src/App.css">
+    <title>TV fullscreen geometry fixture</title>
+  </head>
+  <body style="margin: 0; background: #000">
+    <div class="tv-video-surface is-css-fullscreen" data-fullscreen-root="true" data-fullscreen="true" data-controls-visible="true">
+      <div class="tv-video-surface-mount" data-video-layer="true">
+        <video class="ht-tv-video-element"></video>
+      </div>
+      <div class="tv-video-surface-overlay">LIVE <span>ON AIR</span></div>
+      <div class="tv-video-surface-toolbar" data-controls-overlay="true">
+        <button type="button">Play</button>
+      </div>
+    </div>
+    <pre id="geometry-result" hidden></pre>
+    <script>
+      const root = document.querySelector('[data-fullscreen-root]')
+      const layer = document.querySelector('[data-video-layer]')
+      const video = document.querySelector('video')
+      const controls = document.querySelector('[data-controls-overlay]')
+      const rect = (node) => {
+        const value = node.getBoundingClientRect()
+        return { x: value.x, y: value.y, width: value.width, height: value.height, top: value.top, right: value.right, bottom: value.bottom, left: value.left }
+      }
+      const visible = {
+        root: rect(root), layer: rect(layer), video: rect(video), controls: rect(controls),
+        rootScrollHeight: root.scrollHeight, rootClientHeight: root.clientHeight,
+        controlsPosition: getComputedStyle(controls).position,
+      }
+      controls.style.transition = 'none'
+      root.dataset.controlsVisible = 'false'
+      setTimeout(() => {
+        const hidden = {
+          root: rect(root), layer: rect(layer), video: rect(video), controls: rect(controls),
+          rootScrollHeight: root.scrollHeight, rootClientHeight: root.clientHeight,
+          opacity: getComputedStyle(controls).opacity,
+          visibility: getComputedStyle(controls).visibility,
+        }
+        const withinTwoPixels = (left, right) => Math.abs(left - right) <= 2
+        const checks = {
+          commonRoot: root.contains(video) && root.contains(controls),
+          layerBottom: withinTwoPixels(visible.root.bottom, visible.layer.bottom),
+          layerHeight: withinTwoPixels(visible.root.height, visible.layer.height),
+          videoBottom: withinTwoPixels(visible.root.bottom, visible.video.bottom),
+          controlsOverlap: visible.controls.top < visible.video.bottom,
+          controlsAbsolute: visible.controlsPosition === 'absolute',
+          noScrollGrowth: visible.rootScrollHeight === visible.rootClientHeight,
+          hiddenNoScrollGrowth: hidden.rootScrollHeight === visible.rootScrollHeight,
+          hiddenStableVideo: hidden.layer.height === visible.layer.height,
+          hiddenOpacity: hidden.opacity === '0',
+          hiddenVisibility: hidden.visibility === 'hidden',
+        }
+        document.documentElement.dataset.testStatus = Object.values(checks).every(Boolean) ? 'pass' : 'fail'
+        document.getElementById('geometry-result').textContent = JSON.stringify({ visible, hidden, checks })
+      }, 250)
+    </script>
+  </body>
+</html>

@@ -32088,19 +32088,25 @@ button.lecture-detail-crumb:focus-visible {
 }
 
 /* Genuine fullscreen only — expand beyond the bounded shell */
-  .tv-video-surface:fullscreen,
-  .tv-video-surface:-webkit-full-screen,
-  .tv-video-surface.is-css-fullscreen {
+.tv-video-surface:fullscreen,
+.tv-video-surface:-webkit-full-screen,
+.tv-video-surface.is-css-fullscreen {
     position: fixed;
     inset: 0;
-    z-index: 10000;
-    display: block;
-    border-radius: 0;
-    max-width: none;
-    width: 100vw;
-    height: 100vh;
-    background: #000;
-  }
+  z-index: 10000;
+  display: block;
+  box-sizing: border-box;
+  flex: none;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  max-width: none;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+}
 
   .tv-video-surface:fullscreen .tv-video-surface-mount,
   .tv-video-surface:-webkit-full-screen .tv-video-surface-mount,
@@ -32110,8 +32116,25 @@ button.lecture-detail-crumb:focus-visible {
     max-height: none;
     width: 100%;
     height: 100%;
-    aspect-ratio: auto;
-  }
+  aspect-ratio: auto;
+  margin: 0;
+  border-radius: 0;
+}
+
+.tv-video-surface:fullscreen .ht-tv-video-element,
+.tv-video-surface:-webkit-full-screen .ht-tv-video-element,
+.tv-video-surface.is-css-fullscreen .ht-tv-video-element {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  object-fit: contain;
+  background: #000;
+}
 
   .tv-video-surface:fullscreen .tv-video-surface-overlay,
   .tv-video-surface:-webkit-full-screen .tv-video-surface-overlay,

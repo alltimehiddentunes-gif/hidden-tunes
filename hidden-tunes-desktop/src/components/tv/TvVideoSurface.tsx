@@ -75,6 +75,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
   const mountRef = useRef<HTMLDivElement | null>(null)
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const controlsTimerRef = useRef<number | null>(null)
+  const lastInputWasPointerRef = useRef(false)
   const [hasVideoFrames, setHasVideoFrames] = useState(false)
   const [nativeFullscreenActive, setNativeFullscreenActive] = useState(false)
   const [controlsVisible, setControlsVisible] = useState(true)
@@ -93,7 +94,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
     if (!fullscreenActive || !isPlaying || isLoading || error) return
     controlsTimerRef.current = window.setTimeout(() => {
       const surface = surfaceRef.current
-      if (surface?.contains(document.activeElement)) return
+      if (!lastInputWasPointerRef.current && surface?.contains(document.activeElement)) return
       setControlsVisible(false)
       controlsTimerRef.current = null
     }, 3000)
@@ -141,6 +142,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      lastInputWasPointerRef.current = false
       showControls()
       const target = event.target as HTMLElement | null
       if (
@@ -183,6 +185,11 @@ export const TvVideoSurface = memo(function TvVideoSurface({
     [channelSwitchLocked, cssFullscreenActive, hasNext, hasPrevious, onFullscreen, onMuteToggle, onNext, onPlayPause, onPrevious, showControls],
   )
 
+  const handlePointerActivity = useCallback(() => {
+    lastInputWasPointerRef.current = true
+    showControls()
+  }, [showControls])
+
   const showArtwork = isLoading || !hasVideoFrames
   const previousDisabled = !hasPrevious || channelSwitchLocked
   const nextDisabled = !hasNext || channelSwitchLocked
@@ -192,6 +199,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
     <div
       ref={surfaceRef}
       className={`tv-video-surface${cssFullscreenActive ? ' is-css-fullscreen' : ''}`}
+      data-fullscreen-root="true"
       data-video-layout={videoLayout}
       data-fullscreen={fullscreenActive}
       data-controls-visible={!fullscreenActive || controlsVisible || !isPlaying || isLoading || Boolean(error)}
@@ -199,13 +207,13 @@ export const TvVideoSurface = memo(function TvVideoSurface({
       role="region"
       aria-label={ariaLabel ?? `Live video for ${title}`}
       onKeyDown={handleKeyDown}
-      onPointerMove={showControls}
-      onPointerDown={showControls}
-      onTouchStart={showControls}
+      onPointerMove={handlePointerActivity}
+      onPointerDown={handlePointerActivity}
+      onTouchStart={handlePointerActivity}
       onFocusCapture={showControls}
       onBlurCapture={showControls}
     >
-      <div ref={mountRef} className="tv-video-surface-mount" />
+      <div ref={mountRef} className="tv-video-surface-mount" data-video-layer="true" />
       {showArtwork ? (
         <div className="tv-video-surface-poster" aria-hidden={hasVideoFrames}>
           <ArtworkImage
@@ -229,7 +237,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
           {error ? 'Unavailable' : isLoading ? 'Connecting…' : isPlaying ? (showLiveBadge ? 'On air' : 'Playing') : 'Paused'}
         </span>
       </div>
-      <div className="tv-video-surface-toolbar" role="toolbar" aria-label="Video controls">
+      <div className="tv-video-surface-toolbar" data-controls-overlay="true" role="toolbar" aria-label="Video controls">
         <div className="tv-video-surface-transport" role="group" aria-label={transportGroupLabel}>
           <button
             type="button"
