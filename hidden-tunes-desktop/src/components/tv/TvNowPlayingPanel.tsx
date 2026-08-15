@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import { isMotivationalVideoSong } from '../../lib/motivationals/motivationalPlaybackAdapter'
 import { requiresVideoSurface } from '../../lib/player/resolveActivePlayerSurface'
@@ -70,6 +70,7 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
   const surfaceId = activeTrack?.id ?? ''
   const channelId = isTvActive ? activeTrack!.id.replace(/^tv-/, '') : surfaceId
   const pipSupported = useMemo(() => acquireTvVideoPlaybackService().supportsPictureInPicture(), [])
+  const [cssFullscreenActive, setCssFullscreenActive] = useState(false)
 
   const transport = useMemo(() => {
     if (isTvActive) {
@@ -147,16 +148,21 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
         await document.exitFullscreen()
         return
       }
+      if (cssFullscreenActive) {
+        setCssFullscreenActive(false)
+        return
+      }
       await surface.requestFullscreen()
     } catch {
       const video = acquireTvVideoPlaybackService().getVideoElement()
       try {
         await video.requestFullscreen()
       } catch {
+        setCssFullscreenActive(true)
         // Fullscreen may be unavailable — ignore safely.
       }
     }
-  }, [])
+  }, [cssFullscreenActive])
 
   const handlePictureInPicture = useCallback(async () => {
     if (!pipSupported) return
@@ -256,6 +262,7 @@ export const TvNowPlayingPanel = memo(function TvNowPlayingPanel({
         onPictureInPicture={() => void handlePictureInPicture()}
         pipSupported={pipSupported}
         volumeMuted={volume <= 0}
+        cssFullscreenActive={cssFullscreenActive}
         showLiveBadge={showLiveBadge}
         ariaLabel={`Video for ${activeTrack.title}`}
         transportGroupLabel={videoFamily === 'tv' ? 'Channel transport' : 'Session transport'}

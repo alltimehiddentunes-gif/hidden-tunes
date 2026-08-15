@@ -31,6 +31,7 @@ type TvVideoSurfaceProps = {
   onPictureInPicture: () => void
   pipSupported: boolean
   volumeMuted: boolean
+  cssFullscreenActive?: boolean
   /** TV live streams only — Sports/Motivational must not invent LIVE. */
   showLiveBadge?: boolean
   ariaLabel?: string
@@ -62,6 +63,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
   onPictureInPicture,
   pipSupported,
   volumeMuted,
+  cssFullscreenActive = false,
   showLiveBadge = true,
   ariaLabel,
   transportGroupLabel = 'Channel transport',
@@ -72,7 +74,44 @@ export const TvVideoSurface = memo(function TvVideoSurface({
 }: TvVideoSurfaceProps) {
   const mountRef = useRef<HTMLDivElement | null>(null)
   const surfaceRef = useRef<HTMLDivElement | null>(null)
+  const controlsTimerRef = useRef<number | null>(null)
   const [hasVideoFrames, setHasVideoFrames] = useState(false)
+  const [nativeFullscreenActive, setNativeFullscreenActive] = useState(false)
+  const [controlsVisible, setControlsVisible] = useState(true)
+
+  const fullscreenActive = nativeFullscreenActive || cssFullscreenActive
+
+  const clearControlsTimer = useCallback(() => {
+    if (controlsTimerRef.current == null) return
+    window.clearTimeout(controlsTimerRef.current)
+    controlsTimerRef.current = null
+  }, [])
+
+  const showControls = useCallback(() => {
+    clearControlsTimer()
+    setControlsVisible(true)
+    if (!fullscreenActive || !isPlaying || isLoading || error) return
+    controlsTimerRef.current = window.setTimeout(() => {
+      const surface = surfaceRef.current
+      if (surface?.contains(document.activeElement)) return
+      setControlsVisible(false)
+      controlsTimerRef.current = null
+    }, 3000)
+  }, [clearControlsTimer, error, fullscreenActive, isLoading, isPlaying])
+
+  useEffect(() => {
+    const syncFullscreen = () => {
+      setNativeFullscreenActive(document.fullscreenElement === surfaceRef.current)
+    }
+    document.addEventListener('fullscreenchange', syncFullscreen)
+    syncFullscreen()
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen)
+  }, [])
+
+  useEffect(() => {
+    showControls()
+    return clearControlsTimer
+  }, [clearControlsTimer, showControls])
 
   useEffect(() => {
     const mount = mountRef.current
@@ -102,6 +141,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
 
   const handleKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      showControls()
       const target = event.target as HTMLElement | null
       if (
         target
@@ -113,6 +153,11 @@ export const TvVideoSurface = memo(function TvVideoSurface({
       if (event.key === ' ' || event.key === 'Spacebar') {
         event.preventDefault()
         onPlayPause()
+        return
+      }
+      if (event.key === 'Escape' && cssFullscreenActive) {
+        event.preventDefault()
+        onFullscreen()
         return
       }
       if (event.key === 'ArrowLeft') {
@@ -135,7 +180,7 @@ export const TvVideoSurface = memo(function TvVideoSurface({
         onFullscreen()
       }
     },
-    [channelSwitchLocked, hasNext, hasPrevious, onFullscreen, onMuteToggle, onNext, onPlayPause, onPrevious],
+    [channelSwitchLocked, cssFullscreenActive, hasNext, hasPrevious, onFullscreen, onMuteToggle, onNext, onPlayPause, onPrevious, showControls],
   )
 
   const showArtwork = isLoading || !hasVideoFrames
@@ -146,12 +191,19 @@ export const TvVideoSurface = memo(function TvVideoSurface({
   return (
     <div
       ref={surfaceRef}
-      className="tv-video-surface"
+      className={`tv-video-surface${cssFullscreenActive ? ' is-css-fullscreen' : ''}`}
       data-video-layout={videoLayout}
+      data-fullscreen={fullscreenActive}
+      data-controls-visible={!fullscreenActive || controlsVisible || !isPlaying || isLoading || Boolean(error)}
       tabIndex={0}
       role="region"
       aria-label={ariaLabel ?? `Live video for ${title}`}
       onKeyDown={handleKeyDown}
+      onPointerMove={showControls}
+      onPointerDown={showControls}
+      onTouchStart={showControls}
+      onFocusCapture={showControls}
+      onBlurCapture={showControls}
     >
       <div ref={mountRef} className="tv-video-surface-mount" />
       {showArtwork ? (
