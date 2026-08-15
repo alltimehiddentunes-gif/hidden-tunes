@@ -130,12 +130,12 @@ export function PublicAboutPage({ onNavigate }: PublicAboutPageProps) {
 
         <section className="ht-about-section ht-about-originals">
           <div><h2>Hidden Tunes Originals</h2><p>Original music created with emotion, wisdom, and authenticity. Songs that speak to your soul and stay with you.</p><button type="button" onClick={() => go('originals')}>Explore Originals →</button></div>
-          <figure><img src="/about/about-originals.png" alt="Singer recording a Hidden Tunes Original" /><figcaption><strong>Real artists. Real stories.<br />Real emotion.</strong><span>Only on Hidden Tunes.</span></figcaption></figure>
+          <figure><img src="/about-assets/about-originals.png" alt="Singer recording a Hidden Tunes Original" /><figcaption><strong>Real artists. Real stories.<br />Real emotion.</strong><span>Only on Hidden Tunes.</span></figcaption></figure>
         </section>
 
         <section className="ht-about-section ht-about-global">
           <div><h2>Global by Design</h2><p>Discover the world through sound. Hidden Tunes connects you to music, radio, cultures, languages and hidden gems from every corner of the globe.</p><div className="ht-about-stats"><span><strong>Worldwide</strong>Reach</span><span><strong>Many</strong>Languages</span><span><strong>Live</strong>Radio</span><span><strong>Independent</strong>Creators</span></div></div>
-          <img src="/about/about-world-map.png" alt="A glowing map showing Hidden Tunes' worldwide connections" />
+          <img src="/about-assets/about-world-map.png" alt="A glowing map showing Hidden Tunes' worldwide connections" />
         </section>
 
         <section className="ht-about-section ht-about-screens" aria-labelledby="screens-title">
