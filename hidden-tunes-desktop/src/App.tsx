@@ -237,6 +237,7 @@ import { HiddenTunesGlobalBackground } from './components/HiddenTunesGlobalBackg
 import { LaunchGate } from './components/LaunchGate'
 import { GlobalTopNav } from './components/music/GlobalTopNav'
 import { HiddenTunesBrandMark } from './components/HiddenTunesBrandMark'
+import { PublicAboutPage } from './components/about/PublicAboutPage'
 import { MusicWorkspace } from './components/music/MusicWorkspace'
 import { AccountRequiredDialog } from './components/account/AccountRequiredDialog'
 import { resolveAccountGate } from './lib/account/accountGate'
@@ -9615,6 +9616,10 @@ function AppShell() {
     cancelAutoOpenPlayer()
     backToPage()
   }, [backToPage, cancelAutoOpenPlayer])
+
+  if (activeNavKey === 'about' && activeView === 'page' && isWebNavigationBridgeEnabled()) {
+    return <PublicAboutPage onNavigate={navigateNav} />
+  }
 
   return (
     <>
