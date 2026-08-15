@@ -64,6 +64,11 @@ import TvNativeVideoSurface, {
 import type { TvPlaybackSurface } from "@/services/tv/tvPlaybackSurface";
 import { canUseTvPiP } from "@/services/tv/tvPipEligibility";
 import {
+  shouldAutoHideTvFullscreenControls,
+  TV_FULLSCREEN_CONTROLS_FADE_MS,
+  TV_FULLSCREEN_CONTROLS_HIDE_MS,
+} from "@/services/tv/tvControlsAutoHideContract";
+import {
   requestTvFullscreenLandscape,
   restoreTvPortraitOrientation,
 } from "@/services/tv/tvFullscreenOrientation";
@@ -98,11 +103,6 @@ type TvPlayerHostProps = {
   onSelectSeedChannel: (channel: TVChannel) => void;
   onReportError: () => void;
 };
-
-/** Full-player overlay chrome: hide after idle while playing. */
-const TV_CONTROLS_HIDE_MS = 2800;
-/** Opacity-only fade for overlay chrome (no layout motion). */
-const TV_CONTROLS_FADE_MS = 220;
 
 function formatCategoryLabel(category: string) {
   const cleaned = String(category || "").trim();
@@ -239,6 +239,7 @@ function TvPlayerHost({
   const [relatedChannels, setRelatedChannels] = useState<TVChannel[]>([]);
   /** In-route UI fullscreen — same VideoView, distinct absoluteFill geometry. */
   const [isUiFullscreen, setIsUiFullscreen] = useState(false);
+  const [isFullscreenTransitioning, setIsFullscreenTransitioning] = useState(false);
   /**
    * Single controls-visibility owner for the active full TV surface.
    * Floating chrome stays always visible; only full/fullscreen overlays auto-hide.
@@ -488,17 +489,27 @@ function TvPlayerHost({
     navigateTvPlayerBack();
   }, [isUiFullscreen, onMinimize]);
 
-  const handleEnterFullscreen = useCallback(() => {
+  const handleEnterFullscreen = useCallback(async () => {
     // In-route true fullscreen owner (same VideoView). Native enterFullscreen is
     // not mixed in — it left portrait chrome/flex geometry active on device.
     setIsUiFullscreen(true);
-    void requestTvFullscreenLandscape();
-  }, []);
+    setIsFullscreenTransitioning(true);
+    try {
+      await requestTvFullscreenLandscape();
+    } finally {
+      if (mountedRef.current) setIsFullscreenTransitioning(false);
+    }
+  }, [mountedRef]);
 
-  const handleExitFullscreen = useCallback(() => {
+  const handleExitFullscreen = useCallback(async () => {
     setIsUiFullscreen(false);
-    void restoreTvPortraitOrientation();
-  }, []);
+    setIsFullscreenTransitioning(true);
+    try {
+      await restoreTvPortraitOrientation();
+    } finally {
+      if (mountedRef.current) setIsFullscreenTransitioning(false);
+    }
+  }, [mountedRef]);
 
   const clearControlsHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -512,7 +523,7 @@ function TvPlayerHost({
       fadeAnimRef.current?.stop();
       fadeAnimRef.current = Animated.timing(controlsOpacity, {
         toValue: visible ? 1 : 0,
-        duration: TV_CONTROLS_FADE_MS,
+        duration: TV_FULLSCREEN_CONTROLS_FADE_MS,
         useNativeDriver: true,
       });
       fadeAnimRef.current.start(({ finished }) => {
@@ -543,8 +554,13 @@ function TvPlayerHost({
     [animateControlsOpacity, controlsOpacity]
   );
 
-  const canAutoHideControls =
-    full && isPlaying && !isLoading && !hasError;
+  const canAutoHideControls = shouldAutoHideTvFullscreenControls({
+    isUiFullscreen,
+    isPlaying,
+    isLoading,
+    hasError,
+    isFullscreenTransitioning,
+  });
 
   const scheduleControlsHide = useCallback(() => {
     clearControlsHideTimer();
@@ -553,7 +569,7 @@ function TvPlayerHost({
       hideTimerRef.current = null;
       if (!mountedRef.current) return;
       applyControlsVisibility(false);
-    }, TV_CONTROLS_HIDE_MS);
+    }, TV_FULLSCREEN_CONTROLS_HIDE_MS);
   }, [
     applyControlsVisibility,
     canAutoHideControls,
@@ -596,8 +612,12 @@ function TvPlayerHost({
     hasError,
     isLoading,
     isPlaying,
+    isFullscreenTransitioning,
     isUiFullscreen,
+    playerGeneration,
     revealControls,
+    viewportHeight,
+    viewportWidth,
   ]);
 
   // Cancel timers/animations on background or unmount — no stale updates.
