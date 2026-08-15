@@ -75,7 +75,12 @@ assert.match(
   "unmounted Explore must invalidate pending responses and clear in-flight reuse"
 );
 assert.match(explore, /onPress=\{\(\) => void loadExplore\(true\)\}/, "explicit refresh must force a catalog refresh");
-assert.equal((explore.match(/setTimeout\(/g) || []).length, 1, "Explore must not introduce polling timers");
+assert.doesNotMatch(explore, /setInterval\(/, "Explore must not introduce polling timers");
+assert.equal(
+  (explore.match(/setTimeout\(/g) || []).length,
+  2,
+  "Explore must retain only the catalog and first artist-page deferrals"
+);
 assert.doesNotMatch(explore, /usePlayerProgress/, "Explore must not subscribe to playback progress");
 
 assert.doesNotMatch(home, /fetchHiddenTunesCatalog\s*\(/, "Home must never start a full catalog walk");
@@ -92,12 +97,16 @@ const expectedBounds = [
   ["albumCardWidth - 20", "136"],
   ["albumCardWidth - 20", "146"],
   ["albumCardWidth - 20", "146"],
-  ["creatorCardWidth - 20", "134"],
 ];
 for (const [width, height] of expectedBounds) {
   const bound = new RegExp(`maxDecodeWidth=\\{decodePixels\\(${width.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\)\\}\\s*maxDecodeHeight=\\{decodePixels\\(${height}\\)\\}`);
   assert.match(explore, bound, `missing card-sized decode bounds ${width} x ${height}`);
 }
+assert.match(
+  explore,
+  /maxDecodeWidth=\{decodePixels\(artistCardWidth - 20\)\}\s*maxDecodeHeight=\{decodePixels\(artistCardWidth - 20\)\}/,
+  "artist grid decode bounds must follow the responsive card geometry"
+);
 
 assert.match(
   explore,
