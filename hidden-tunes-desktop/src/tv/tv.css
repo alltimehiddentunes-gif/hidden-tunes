@@ -1,0 +1,62 @@
+:root { --tv-safe-x: max(48px, 4vw); --tv-safe-y: max(28px, 3vh); }
+html[data-hidden-tunes-tv] { font-size: clamp(16px, 1.25vw, 24px); background: #07050c; }
+html[data-hidden-tunes-tv] body { overscroll-behavior: none; }
+html[data-hidden-tunes-tv] #root { min-height: 100vh; padding: var(--tv-safe-y) var(--tv-safe-x); box-sizing: border-box; }
+html[data-hidden-tunes-tv] button, html[data-hidden-tunes-tv] a, html[data-hidden-tunes-tv] input,
+html[data-hidden-tunes-tv] [tabindex]:not([tabindex="-1"]) { min-height: 52px; }
+html[data-hidden-tunes-tv] :focus { outline: 5px solid #f7c948 !important; outline-offset: 5px !important; box-shadow: 0 0 0 3px #190c2f !important; }
+html[data-low-memory="true"] *, html[data-low-memory="true"] *::before, html[data-low-memory="true"] *::after {
+  animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; backdrop-filter: none !important;
+}
+@media (max-width: 1300px) { html[data-hidden-tunes-tv] { font-size: 16px; } }
+.tv-activation-notice { position: fixed; z-index: 10000; inset: var(--tv-safe-y) var(--tv-safe-x) auto; padding: 18px 24px; border: 2px solid #f7c948; border-radius: 12px; background: #190c2f; color: #fff; font-weight: 700; }
+html[data-hidden-tunes-tv], html[data-hidden-tunes-tv] body { width: 100%; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
+html[data-hidden-tunes-tv] .sidebar, html[data-hidden-tunes-tv] .main-scroll, html[data-hidden-tunes-tv] .page-view { overflow-y: auto !important; overflow-x: hidden !important; scroll-behavior: auto !important; }
+html[data-hidden-tunes-tv] [class*="rail"], html[data-hidden-tunes-tv] [class*="grid"] { scroll-behavior: auto !important; }
+html[data-hidden-tunes-tv] .queue-item, html[data-hidden-tunes-tv] .player-queue-row, html[data-hidden-tunes-tv] .up-next-item { min-height: 58px; }
+html[data-hidden-tunes-tv] .conditional-player-rail, html[data-hidden-tunes-tv] .now-playing-rail { overflow-y: auto !important; overflow-x: hidden !important; }
+html[data-hidden-tunes-tv] .queue-list-scroll, html[data-hidden-tunes-tv] .up-next-list { max-height: 300px !important; max-height: min(38vh, 300px) !important; overflow-y: auto !important; overscroll-behavior: contain; }
+html[data-hidden-tunes-tv] .premium-fullscreen-shell, html[data-hidden-tunes-tv] .cinema-player { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; inset: 0 !important; max-width: 100vw; max-height: 100vh; overflow: auto !important; padding: var(--tv-safe-y) var(--tv-safe-x) !important; box-sizing: border-box; }
+html[data-hidden-tunes-tv] .now-playing-art-glow, html[data-hidden-tunes-tv] .cinema-player-art-backdrop, html[data-hidden-tunes-tv] .cinema-player-aura, html[data-hidden-tunes-tv] canvas { display: none !important; }
+html[data-hidden-tunes-tv] .ht-player-art-halo, html[data-hidden-tunes-tv] .rail-psd-art-spinner, html[data-hidden-tunes-tv] .premium-shell-art-spinner, html[data-hidden-tunes-tv] .neon-eq-badge { display: none !important; }
+html[data-hidden-tunes-tv] .now-playing-art-frame, html[data-hidden-tunes-tv] .premium-shell-art-frame { box-shadow: none !important; filter: none !important; }
+html[data-hidden-tunes-tv] .ht-player-art-frame, html[data-hidden-tunes-tv] .premium-shell-art-frame, html[data-hidden-tunes-tv] .player-artwork, html[data-hidden-tunes-tv] .ht-player-queue-section .art-frame { position: relative; isolation: isolate; }
+html[data-hidden-tunes-tv] img.tv-primary-player-artwork { display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 100% !important; object-fit: cover !important; border-radius: inherit; position: relative !important; z-index: 4 !important; transform: none !important; transition: none !important; }
+html[data-hidden-tunes-tv] .premium-shell-left { display: flex !important; flex-direction: column; align-items: center !important; }
+html[data-hidden-tunes-tv] .premium-fullscreen-shell .premium-shell-art-frame { display: block !important; box-sizing: border-box !important; width: 420px !important; height: 420px !important; min-width: 420px !important; min-height: 420px !important; max-width: 420px !important; max-height: 420px !important; overflow: hidden !important; background: #0d0d14 !important; position: relative !important; z-index: 2 !important; }
+html[data-hidden-tunes-tv] img { max-width: 100%; max-height: 42vh; object-fit: cover; }
+html[data-tv-platform="vidaa"] { --now-playing-art-size: clamp(132px, 18vh, 190px); }
+html[data-tv-platform="vidaa"] *, html[data-tv-platform="vidaa"] *::before, html[data-tv-platform="vidaa"] *::after { backdrop-filter: none !important; text-shadow: none !important; }
+html[data-hidden-tunes-tv] .ht-player-art-ring,
+html[data-hidden-tunes-tv] .ht-player-art-ring.is-playing,
+html[data-hidden-tunes-tv] .ht-player-art-ring.is-playing .ht-player-art-frame,
+html[data-hidden-tunes-tv] .ht-player-art-frame,
+html[data-hidden-tunes-tv] .premium-fullscreen-shell[data-playing="true"] .premium-shell-art-frame,
+html[data-hidden-tunes-tv] .premium-fullscreen-shell[data-player-variant] .premium-shell-art-frame {
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition: none !important;
+  transform: none !important;
+  will-change: auto !important;
+}
+html[data-hidden-tunes-tv][data-tv-media-playing="true"] .ht-player-art-ring.is-playing .ht-player-art-frame {
+  animation: ht-player-art-spin 120s linear infinite !important;
+  animation-duration: 120s !important;
+  animation-iteration-count: infinite !important;
+  transform-origin: 50% 50%;
+}
+html[data-hidden-tunes-tv][data-tv-media-playing="true"] .premium-fullscreen-shell[data-player-variant="player-1"][data-playing="true"] .premium-shell-art-frame {
+  animation: ht-vinyl-spin 120s linear infinite !important;
+  animation-duration: 120s !important;
+  animation-iteration-count: infinite !important;
+  transform-origin: 50% 50%;
+}
+@media (prefers-reduced-motion: reduce) { html[data-hidden-tunes-tv] .premium-shell-art-frame, html[data-hidden-tunes-tv] .now-playing-art-frame { animation: none !important; } }
+@media (max-width: 1300px), (max-height: 740px) {
+  html[data-hidden-tunes-tv] #root { padding: 24px 38px; }
+  html[data-hidden-tunes-tv] .premium-fullscreen-shell, html[data-hidden-tunes-tv] .cinema-player { padding: 24px 38px !important; }
+  html[data-hidden-tunes-tv] .queue-list-scroll, html[data-hidden-tunes-tv] .up-next-list { max-height: 250px !important; }
+  html[data-hidden-tunes-tv] .now-playing-art-frame, html[data-hidden-tunes-tv] .premium-shell-art-frame { max-width: 180px; max-height: 180px; }
+  html[data-hidden-tunes-tv] .premium-fullscreen-shell .premium-shell-art-frame { width: 300px !important; height: 300px !important; min-width: 300px !important; min-height: 300px !important; max-width: 300px !important; max-height: 300px !important; }
+}

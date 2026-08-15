@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+
+const routes = readFileSync(new URL('../src/tv/routes.ts', import.meta.url), 'utf8')
+const remote = readFileSync(new URL('../src/tv/remote.ts', import.meta.url), 'utf8')
+for (const path of ['/', '/explore', '/search', '/player', '/library', '/music', '/tv', '/radio', '/podcasts', '/audiobooks', '/motivationals', '/lectures', '/about', '/activate']) assert.ok(routes.includes(`'${path}'`), `missing ${path}`)
+assert.ok(routes.includes("kind: 'artist'"), 'missing artist detail route')
+assert.ok(routes.includes("kind: 'album'"), 'missing album detail route')
+for (const code of ['10009', '461', '415', '413', '417', '412']) assert.ok(remote.includes(code), `missing remote code ${code}`)
+assert.ok(remote.includes('document.fullscreenElement'))
+assert.ok(remote.includes('hasClosableLayer()'))
+assert.ok(remote.includes("key: 'Escape'"))
+assert.ok(routes.includes('decodeId'), 'route IDs must fail closed')
+const capabilities = readFileSync(new URL('../src/tv/capabilities.ts', import.meta.url), 'utf8')
+assert.ok(capabilities.includes("get('lowMemory') === '1'"), 'missing low-memory recovery override')
+assert.ok(remote.includes('scrollIntoView'))
+assert.ok(remote.includes('parent.scrollTop'))
+assert.ok(remote.includes('scrollCurrentRegion'))
+assert.ok(remote.includes('queue-item'))
+console.log('Universal TV static contract: PASS')

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-hidden-tunes-tv>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#07050c" />
+    <title>Hidden Tunes TV</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      /* VIDAA U5 exposes remote keys reliably through legacy event properties. */
+      window.__HT_TV_LEGACY_KEYS__ = [];
+      window.__HT_TV_CAPTURE_KEY__ = function (event) {
+        event = event || window.event || {};
+        var code = Number(event.keyCode || event.which || event.charCode || 0);
+        if (code) window.__HT_TV_LEGACY_KEYS__.push({ code: code, at: Date.now() });
+      };
+      window.onkeydown = window.__HT_TV_CAPTURE_KEY__;
+      window.onkeyup = window.__HT_TV_CAPTURE_KEY__;
+      document.onkeydown = window.__HT_TV_CAPTURE_KEY__;
+      document.onkeyup = window.__HT_TV_CAPTURE_KEY__;
+    </script>
+    <script type="module" src="/src/tv/main.tsx"></script>
+  </body>
+</html>
