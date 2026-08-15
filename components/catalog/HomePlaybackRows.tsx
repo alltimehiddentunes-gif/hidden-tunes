@@ -179,6 +179,14 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
             {String(index + 1).padStart(2, "0")}
           </Text>
         </View>
+
+        <View pointerEvents="none" style={styles.featuredPlay}>
+          <Ionicons
+            name={isActive && isPlaying ? "pause" : "play"}
+            size={18}
+            color="#000"
+          />
+        </View>
       </View>
 
       <View style={styles.featuredContent}>
@@ -193,13 +201,6 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
           </Text>
         </View>
 
-        <View style={styles.featuredPlay}>
-          <Ionicons
-            name={isActive && isPlaying ? "pause" : "play"}
-            size={18}
-            color="#000"
-          />
-        </View>
       </View>
     </TouchableOpacity>
   );
@@ -291,7 +292,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingBottom: 12,
     paddingTop: 10,
-    paddingRight: 62,
+    paddingRight: 14,
     zIndex: 3,
   },
   featuredMetadataRow: {
