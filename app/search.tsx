@@ -150,6 +150,11 @@ const SEARCH_EXTERNAL_CACHE_LIMIT = 16;
 const SEARCH_EXTERNAL_AUDIO_LIMIT = 16;
 const SEARCH_PROVIDER_QUERY_LIMIT = 8;
 const SEARCH_TV_LIMIT = 8;
+const SEARCH_ROW_ARTWORK_DECODE_PX = 80;
+const SEARCH_ARTIST_ARTWORK_DECODE_PX = 128;
+const SEARCH_ALBUM_ARTWORK_DECODE_PX = 160;
+const SEARCH_ROOM_ARTWORK_DECODE_WIDTH_PX = 384;
+const SEARCH_ROOM_ARTWORK_DECODE_HEIGHT_PX = 300;
 
 const TRENDING_SEARCHES = [
   "Afrobeats",
@@ -1953,7 +1958,13 @@ export default function SearchScreen() {
                       renderItem={({ item: album }) => (
                         <View style={styles.albumCardWrap}>
                           <TouchableOpacity activeOpacity={0.88} style={styles.albumCard} onPress={() => openAlbum(album)}>
-                            <HTImage source={album} style={styles.albumImage} contentFit="cover" />
+                            <HTImage
+                              source={album}
+                              style={styles.albumImage}
+                              contentFit="cover"
+                              maxDecodeWidth={SEARCH_ALBUM_ARTWORK_DECODE_PX}
+                              maxDecodeHeight={SEARCH_ALBUM_ARTWORK_DECODE_PX}
+                            />
                             <Text numberOfLines={2} style={styles.albumTitle}>{album.title}</Text>
                             <Text numberOfLines={1} style={styles.albumArtist}>
                               {getUserFacingArtist(album)}
@@ -1992,7 +2003,13 @@ export default function SearchScreen() {
                       renderItem={({ item: artist }) => (
                         <View style={styles.albumCardWrap}>
                           <TouchableOpacity activeOpacity={0.88} style={styles.artistCard} onPress={() => openArtist(artist)}>
-                            <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
+                            <HTImage
+                              source={artist}
+                              style={styles.artistImage}
+                              contentFit="cover"
+                              maxDecodeWidth={SEARCH_ARTIST_ARTWORK_DECODE_PX}
+                              maxDecodeHeight={SEARCH_ARTIST_ARTWORK_DECODE_PX}
+                            />
                             <Text numberOfLines={2} style={styles.artistName}>{artist.name}</Text>
                             <Text numberOfLines={1} style={styles.artistMeta}>
                               {searchUi.formatSongCount(artist.songs.length)}
@@ -2023,7 +2040,13 @@ export default function SearchScreen() {
                           style={styles.roomCard}
                           onPress={() => playGenreResult(genre)}
                         >
-                          <HTImage source={genre} style={styles.roomImage} contentFit="cover" />
+                          <HTImage
+                            source={genre}
+                            style={styles.roomImage}
+                            contentFit="cover"
+                            maxDecodeWidth={SEARCH_ROOM_ARTWORK_DECODE_WIDTH_PX}
+                            maxDecodeHeight={SEARCH_ROOM_ARTWORK_DECODE_HEIGHT_PX}
+                          />
                           <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
                           <Text numberOfLines={1} style={styles.roomTitle}>{genre.title}</Text>
                           <Text style={styles.roomMeta}>
@@ -2048,7 +2071,13 @@ export default function SearchScreen() {
                         >
                           {station.tracks[0] ? (
                             <>
-                              <HTImage source={station.tracks[0]} style={styles.roomImage} contentFit="cover" />
+                              <HTImage
+                                source={station.tracks[0]}
+                                style={styles.roomImage}
+                                contentFit="cover"
+                                maxDecodeWidth={SEARCH_ROOM_ARTWORK_DECODE_WIDTH_PX}
+                                maxDecodeHeight={SEARCH_ROOM_ARTWORK_DECODE_HEIGHT_PX}
+                              />
                               <LinearGradient pointerEvents="none" colors={["transparent", "rgba(0,0,0,0.74)"]} style={styles.roomShade} />
                             </>
                           ) : (
@@ -2090,7 +2119,13 @@ export default function SearchScreen() {
                           style={styles.albumCard}
                           onPress={() => playPlaylistResult(playlist)}
                         >
-                          <HTImage source={playlist} style={styles.albumImage} contentFit="cover" />
+                          <HTImage
+                            source={playlist}
+                            style={styles.albumImage}
+                            contentFit="cover"
+                            maxDecodeWidth={SEARCH_ALBUM_ARTWORK_DECODE_PX}
+                            maxDecodeHeight={SEARCH_ALBUM_ARTWORK_DECODE_PX}
+                          />
                           <Text numberOfLines={2} style={styles.albumTitle}>{playlist.title}</Text>
                           <Text numberOfLines={1} style={styles.albumArtist}>
                             {playlist.description || searchUi.collection}
@@ -2112,7 +2147,13 @@ export default function SearchScreen() {
                         onPress={() => playSearchResultSong(song, "external")}
                       >
                         <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
-                          <HTImage source={song} style={styles.cover} contentFit="cover" />
+                          <HTImage
+                            source={song}
+                            style={styles.cover}
+                            contentFit="cover"
+                            maxDecodeWidth={SEARCH_ROW_ARTWORK_DECODE_PX}
+                            maxDecodeHeight={SEARCH_ROW_ARTWORK_DECODE_PX}
+                          />
                         </LinearGradient>
                         <View style={styles.songCopy}>
                           <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
@@ -2161,6 +2202,8 @@ export default function SearchScreen() {
                               source={{ artwork: item.thumbnailUrl || "" }}
                               style={styles.cover}
                               contentFit="cover"
+                              maxDecodeWidth={SEARCH_ROW_ARTWORK_DECODE_PX}
+                              maxDecodeHeight={SEARCH_ROW_ARTWORK_DECODE_PX}
                             />
                           </LinearGradient>
                           <View style={styles.songCopy}>
@@ -2354,7 +2397,13 @@ export default function SearchScreen() {
                         onPress={() => playDiscoverySong(song, searchUi.quickPicksSource)}
                       >
                         <LinearGradient colors={GRADIENTS.card} style={styles.coverBorder}>
-                          <HTImage source={song} style={styles.cover} contentFit="cover" />
+                          <HTImage
+                            source={song}
+                            style={styles.cover}
+                            contentFit="cover"
+                            maxDecodeWidth={SEARCH_ROW_ARTWORK_DECODE_PX}
+                            maxDecodeHeight={SEARCH_ROW_ARTWORK_DECODE_PX}
+                          />
                         </LinearGradient>
                         <View style={styles.songCopy}>
                           <Text numberOfLines={1} style={styles.songTitle}>{song.title}</Text>
@@ -2389,7 +2438,13 @@ export default function SearchScreen() {
                           style={styles.artistCard}
                           onPress={() => openArtist(artist)}
                         >
-                          <HTImage source={artist} style={styles.artistImage} contentFit="cover" />
+                          <HTImage
+                            source={artist}
+                            style={styles.artistImage}
+                            contentFit="cover"
+                            maxDecodeWidth={SEARCH_ARTIST_ARTWORK_DECODE_PX}
+                            maxDecodeHeight={SEARCH_ARTIST_ARTWORK_DECODE_PX}
+                          />
                           <Text numberOfLines={2} style={styles.artistName}>
                             {artist.name}
                           </Text>
@@ -2419,7 +2474,13 @@ export default function SearchScreen() {
                           style={styles.albumCard}
                           onPress={() => openAlbum(album)}
                         >
-                          <HTImage source={album} style={styles.albumImage} contentFit="cover" />
+                          <HTImage
+                            source={album}
+                            style={styles.albumImage}
+                            contentFit="cover"
+                            maxDecodeWidth={SEARCH_ALBUM_ARTWORK_DECODE_PX}
+                            maxDecodeHeight={SEARCH_ALBUM_ARTWORK_DECODE_PX}
+                          />
                           <Text numberOfLines={2} style={styles.albumTitle}>
                             {album.title}
                           </Text>
