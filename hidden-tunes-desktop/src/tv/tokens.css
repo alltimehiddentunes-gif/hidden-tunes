@@ -1,0 +1,43 @@
+:root[data-hidden-tunes-tv] {
+  --tv-bg: #05040a;
+  --tv-bg-elevated: #0b0914;
+  --tv-surface: rgba(17, 14, 28, 0.94);
+  --tv-surface-alt: rgba(26, 19, 43, 0.9);
+  --tv-border: rgba(255, 255, 255, 0.1);
+  --tv-border-focus: #b275ff;
+  --tv-purple: #8b3dff;
+  --tv-magenta: #e33cff;
+  --tv-cyan: #32d9ff;
+  --tv-gold: #f6bd42;
+  --tv-success: #4ade80;
+  --tv-warning: #f6bd42;
+  --tv-error: #fb7185;
+  --tv-text-primary: #fff;
+  --tv-text-secondary: #c5bfd1;
+  --tv-text-muted: #8d8799;
+  --tv-radius-sm: clamp(8px, 0.55vw, 14px);
+  --tv-radius-md: clamp(12px, 0.85vw, 22px);
+  --tv-radius-lg: clamp(18px, 1.25vw, 32px);
+  --tv-radius-hero: clamp(22px, 1.7vw, 44px);
+  --tv-space-xs: clamp(6px, 0.45vw, 12px);
+  --tv-space-sm: clamp(10px, 0.7vw, 18px);
+  --tv-space-md: clamp(16px, 1vw, 28px);
+  --tv-space-lg: clamp(24px, 1.6vw, 44px);
+  --tv-space-xl: clamp(34px, 2.4vw, 68px);
+  --tv-safe-x: clamp(32px, 3.4vw, 104px);
+  --tv-safe-y: clamp(24px, 2.6vh, 64px);
+  --tv-hero-title: clamp(44px, 4.2vw, 108px);
+  --tv-page-title: clamp(34px, 3vw, 76px);
+  --tv-section-title: clamp(22px, 1.7vw, 42px);
+  --tv-card-title: clamp(17px, 1.1vw, 28px);
+  --tv-body: clamp(16px, 1vw, 25px);
+  --tv-meta: clamp(14px, 0.82vw, 21px);
+  --tv-focus-ring: 0 0 0 3px var(--tv-border-focus), 0 0 28px rgba(139, 61, 255, 0.42);
+  --tv-transition-fast: 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-hidden-tunes-tv] {
+    --tv-transition-fast: 0ms linear;
+  }
+}
