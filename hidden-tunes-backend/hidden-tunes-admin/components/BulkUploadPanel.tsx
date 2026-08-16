@@ -23,6 +23,7 @@ import {
 } from "@/lib/uploadGenreTaxonomy";
 
 type UploadStatus = "idle" | "ready" | "uploading" | "success" | "error";
+type AlignmentStatus = "aligning" | "automatic-unverified" | "failed";
 
 type TrackUploadItem = {
   id: string;
@@ -45,9 +46,12 @@ type TrackUploadItem = {
   reviewSyncedLrcText?: string;
   manualPlainLyricsText?: string;
   manualSyncedLrcText?: string;
+  automaticSyncedLrcText?: string;
+  alignmentStatus?: AlignmentStatus;
+  alignmentConfidence?: number;
   metadataSource?: "embedded" | "filename" | "manual";
   artworkSource?: "embedded" | "companion" | "manual";
-  lyricsSource?: "embedded" | "companion" | "manual";
+  lyricsSource?: "embedded" | "companion" | "manual" | "automatic";
   extraction?: AudioUploadExtractionResult | null;
   status: UploadStatus;
   progress: number;
@@ -76,6 +80,13 @@ type ServerUploadResponse = {
 
 const FALLBACK_ARTIST = "Hidden Tunes";
 const FALLBACK_ALBUM = "Singles";
+
+function getLyricsSourceLabel(source?: TrackUploadItem["lyricsSource"]) {
+  if (source === "manual") return "Entered manually";
+  if (source === "companion") return "Companion file";
+  if (source === "automatic") return "Automatic · unverified";
+  return "Embedded in audio";
+}
 
 const emotionalFieldClass =
   "w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-sm outline-none transition placeholder:text-white/25 focus:border-violet-300/40";
@@ -240,8 +251,56 @@ function getUploadStep(error: unknown) {
 }
 
 const API_UPLOAD_URL = "/api/admin/upload-track";
+const API_ALIGN_LYRICS_URL = "/api/admin/align-lyrics";
 const API_SIGNED_UPLOAD_URL = "/api/upload-url";
 const API_SERVER_UPLOAD_URL = "/api/admin/upload-file";
+
+type AlignmentResponse = {
+  success?: boolean;
+  lrcText?: string;
+  confidence?: number;
+  error?: string;
+};
+
+async function alignCompanionLyrics(
+  audio: File,
+  plainLyrics: string,
+  accessToken: string
+) {
+  const body = new FormData();
+  body.set("audio", audio, audio.name);
+  body.set("plainLyrics", plainLyrics);
+  const response = await fetch(API_ALIGN_LYRICS_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body,
+  });
+  const data = (await response.json().catch(() => null)) as
+    | AlignmentResponse
+    | null;
+  if (!response.ok || !data?.success || !data.lrcText) {
+    throw new Error(data?.error || "Automatic alignment was unavailable.");
+  }
+  return data;
+}
+
+async function mapWithConcurrency<T>(
+  values: T[],
+  concurrency: number,
+  task: (value: T) => Promise<void>
+) {
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < values.length) {
+      const value = values[nextIndex];
+      nextIndex += 1;
+      await task(value);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, values.length) }, () => worker())
+  );
+}
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -837,32 +896,139 @@ export default function BulkUploadPanel() {
       });
     }
 
-    setItems((current) => {
-      const existingAudioKeys = new Set(
-        current.flatMap((item) => buildMatchKeys(item.file.name))
-      );
-      const newItems = prepared.filter((item) => {
-        const keys = buildMatchKeys(item.file.name);
-        if (keys.some((key) => existingAudioKeys.has(key))) return false;
-        keys.forEach((key) => existingAudioKeys.add(key));
-        return true;
-      });
-      const updated = current.map((item) => ({
-        ...item,
-        artworkFile:
-          item.artworkFile ||
-          findMatchingFile(item.file, nextArtworkMap) ||
-          globalArtwork,
-        lyricsFile:
-          item.lyricsFile ||
-          findMatchingFile(item.file, nextLyricsMap) ||
-          globalLyrics,
-        lrcFile:
-          item.lrcFile || findMatchingFile(item.file, nextLrcMap) || globalLrc,
-      }));
-
-      return [...newItems, ...updated];
+    const existingAudioKeys = new Set(
+      items.flatMap((item) => buildMatchKeys(item.file.name))
+    );
+    const newItems = prepared.filter((item) => {
+      const keys = buildMatchKeys(item.file.name);
+      if (keys.some((key) => existingAudioKeys.has(key))) return false;
+      keys.forEach((key) => existingAudioKeys.add(key));
+      return true;
     });
+    const updated = await Promise.all(
+      items.map(async (item) => {
+        const companionLyrics = findMatchingFile(item.file, nextLyricsMap);
+        const companionLrc = findMatchingFile(item.file, nextLrcMap);
+        const lyricsFile = item.lyricsFile || companionLyrics || globalLyrics;
+        const lrcFile = item.lrcFile || companionLrc || globalLrc;
+        const newlyMatchedPlainLyrics =
+          !item.lyricsFile && companionLyrics
+            ? await readTextFile(companionLyrics)
+            : undefined;
+        const newlyMatchedSyncedLrc =
+          !item.lrcFile && companionLrc
+            ? await readTextFile(companionLrc)
+            : undefined;
+
+        return {
+          ...item,
+          artworkFile:
+            item.artworkFile ||
+            findMatchingFile(item.file, nextArtworkMap) ||
+            globalArtwork,
+          lyricsFile,
+          lrcFile,
+          reviewPlainLyricsText:
+            item.reviewPlainLyricsText || newlyMatchedPlainLyrics,
+          reviewSyncedLrcText:
+            item.reviewSyncedLrcText || newlyMatchedSyncedLrc,
+          lyricsSource:
+            item.lyricsSource === "manual"
+              ? ("manual" as const)
+              : companionLrc || companionLyrics
+                ? ("companion" as const)
+                : item.lyricsSource,
+        };
+      })
+    );
+
+    const nextItems = [...newItems, ...updated];
+    const alignmentCandidates = nextItems.filter(
+      (item) =>
+        item.lyricsSource === "companion" &&
+        Boolean(item.lyricsFile && item.reviewPlainLyricsText) &&
+        item.manualSyncedLrcText === undefined &&
+        !item.lrcFile &&
+        !item.embeddedSyncedLrcText &&
+        !item.automaticSyncedLrcText
+    );
+
+    alignmentCandidates.forEach((item) => {
+      item.alignmentStatus = "aligning";
+    });
+    setItems(nextItems);
+
+    if (alignmentCandidates.length > 0) {
+      try {
+        const accessToken = await getUploadAccessToken();
+        await mapWithConcurrency(alignmentCandidates, 2, async (item) => {
+          try {
+            const alignment = await alignCompanionLyrics(
+              item.file,
+              item.reviewPlainLyricsText || "",
+              accessToken
+            );
+            setItems((current) =>
+              current.map((currentItem) => {
+                if (currentItem.id !== item.id) return currentItem;
+                if (
+                  currentItem.manualPlainLyricsText !== undefined ||
+                  currentItem.manualSyncedLrcText !== undefined ||
+                  currentItem.lrcFile ||
+                  currentItem.embeddedSyncedLrcText
+                ) {
+                  return { ...currentItem, alignmentStatus: undefined };
+                }
+                return {
+                  ...currentItem,
+                  automaticSyncedLrcText: alignment.lrcText,
+                  reviewSyncedLrcText: alignment.lrcText,
+                  alignmentStatus: "automatic-unverified",
+                  alignmentConfidence: alignment.confidence,
+                  lyricsSource: "automatic",
+                };
+              })
+            );
+          } catch (error: unknown) {
+            const message = getErrorMessage(
+              error,
+              "Automatic alignment failed; plain lyrics were retained."
+            );
+            setItems((current) =>
+              current.map((currentItem) =>
+                currentItem.id === item.id
+                  ? {
+                      ...currentItem,
+                      alignmentStatus: "failed",
+                      warning: [currentItem.warning, message]
+                        .filter(Boolean)
+                        .join(" "),
+                    }
+                  : currentItem
+              )
+            );
+          }
+        });
+      } catch (error: unknown) {
+        const message = getErrorMessage(
+          error,
+          "Automatic alignment was unavailable; plain lyrics were retained."
+        );
+        setItems((current) =>
+          current.map((currentItem) =>
+            alignmentCandidates.some((item) => item.id === currentItem.id)
+              ? {
+                  ...currentItem,
+                  alignmentStatus: "failed",
+                  warning: [currentItem.warning, message]
+                    .filter(Boolean)
+                    .join(" "),
+                }
+              : currentItem
+          )
+        );
+      }
+    }
   }
 
   function updateItem(id: string, patch: Partial<TrackUploadItem>) {
@@ -957,7 +1123,12 @@ export default function BulkUploadPanel() {
         syncedLrcText =
           item.manualSyncedLrcText ?? (await readTextFile(syncedLrcToRead));
         if (!plainLyricsText) plainLyricsText = item.embeddedPlainLyricsText || "";
-        if (!syncedLrcText) syncedLrcText = item.embeddedSyncedLrcText || "";
+        if (item.manualSyncedLrcText === undefined && !syncedLrcText) {
+          syncedLrcText = item.embeddedSyncedLrcText || "";
+        }
+        if (item.manualSyncedLrcText === undefined && !syncedLrcText) {
+          syncedLrcText = item.automaticSyncedLrcText || "";
+        }
       } catch (error: unknown) {
         throw new UploadStepError(
           "lyrics read",
@@ -1066,7 +1237,9 @@ export default function BulkUploadPanel() {
 
   async function uploadAll() {
     const pending = items.filter(
-      (item) => item.status === "ready" || item.status === "error"
+      (item) =>
+        (item.status === "ready" || item.status === "error") &&
+        item.alignmentStatus !== "aligning"
     );
 
     if (!pending.length) return;
@@ -1672,7 +1845,22 @@ export default function BulkUploadPanel() {
 
                         {item.lyricsSource && (
                           <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
-                            Lyrics source: {item.lyricsSource === "manual" ? "Entered manually" : item.lyricsSource === "companion" ? "Companion file" : "Embedded in audio"}
+                            Lyrics source: {getLyricsSourceLabel(item.lyricsSource)}
+                          </span>
+                        )}
+
+                        {item.alignmentStatus === "automatic-unverified" && (
+                          <span className="break-all rounded-full bg-yellow-300/10 px-3 py-1 text-yellow-100">
+                            Generated LRC: Automatic · unverified
+                            {typeof item.alignmentConfidence === "number"
+                              ? ` · ${Math.round(item.alignmentConfidence * 100)}% match`
+                              : ""}
+                          </span>
+                        )}
+
+                        {item.alignmentStatus === "aligning" && (
+                          <span className="break-all rounded-full bg-violet-300/10 px-3 py-1 text-violet-100">
+                            Generating synchronized lyrics…
                           </span>
                         )}
                       </div>
@@ -1680,7 +1868,7 @@ export default function BulkUploadPanel() {
                       {(item.reviewPlainLyricsText || item.reviewSyncedLrcText) && (
                         <details className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
                           <summary className="cursor-pointer text-sm font-bold text-white/70">
-                            Review detected lyrics · {item.lyricsSource === "manual" ? "Entered manually" : item.lyricsSource === "companion" ? "Companion file" : "Embedded in audio"}
+                            Review detected lyrics · {getLyricsSourceLabel(item.lyricsSource)}
                           </summary>
                           <div className="mt-3 grid gap-3 lg:grid-cols-2">
                             <label className="space-y-1 text-xs text-white/45">
@@ -1692,6 +1880,7 @@ export default function BulkUploadPanel() {
                                   updateItem(item.id, {
                                     manualPlainLyricsText: event.target.value,
                                     lyricsSource: "manual",
+                                    alignmentStatus: undefined,
                                   })
                                 }
                                 className={emotionalFieldClass}
@@ -1706,6 +1895,7 @@ export default function BulkUploadPanel() {
                                   updateItem(item.id, {
                                     manualSyncedLrcText: event.target.value,
                                     lyricsSource: "manual",
+                                    alignmentStatus: undefined,
                                   })
                                 }
                                 className={emotionalFieldClass}
@@ -1741,7 +1931,9 @@ export default function BulkUploadPanel() {
                       <button
                         onClick={() => uploadSingle(item)}
                         disabled={
-                          item.status === "uploading" || item.status === "success"
+                          item.status === "uploading" ||
+                          item.status === "success" ||
+                          item.alignmentStatus === "aligning"
                         }
                         className="flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-black text-black disabled:opacity-40"
                       >
