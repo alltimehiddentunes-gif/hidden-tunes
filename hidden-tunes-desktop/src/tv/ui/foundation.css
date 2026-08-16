@@ -1,4 +1,11 @@
 html[data-hidden-tunes-tv] body { background: radial-gradient(circle at 76% 8%, rgba(103, 47, 176, .18), transparent 34%), var(--tv-bg); color: var(--tv-text-primary); font-size: var(--tv-body); }
+html[data-hidden-tunes-tv] { --sidebar-width: clamp(202px, 16vw, 460px); }
+html[data-hidden-tunes-tv] .sidebar { padding: var(--tv-space-sm); }
+html[data-hidden-tunes-tv] .sidebar-brand { min-height: clamp(52px, 6vh, 116px); }
+html[data-hidden-tunes-tv] .brand-waveform { width: clamp(30px, 2.2vw, 62px); height: clamp(30px, 2.2vw, 62px); }
+html[data-hidden-tunes-tv] .brand-wordmark, html[data-hidden-tunes-tv] .brand-tagline { font-size: var(--tv-meta); }
+html[data-hidden-tunes-tv] .nav-item { min-height: clamp(52px, 5.2vh, 92px); gap: var(--tv-space-sm); padding: .7em .85em; font-size: var(--tv-body); border-radius: var(--tv-radius-sm); }
+html[data-hidden-tunes-tv] .nav-item svg { width: 1.35em; height: 1.35em; }
 .tv-premium-shell { display: grid; grid-template-columns: clamp(210px, 16vw, 360px) minmax(0, 1fr); min-height: 100vh; }
 .tv-premium-sidebar { position: sticky; top: 0; height: 100vh; padding: var(--tv-safe-y) var(--tv-space-md); display: flex; flex-direction: column; gap: var(--tv-space-md); border-right: 1px solid var(--tv-border); background: linear-gradient(180deg, rgba(7,5,13,.98), rgba(7,5,13,.9)); }
 .tv-sidebar-brand { min-height: clamp(54px, 6vh, 100px); display: flex; align-items: center; }

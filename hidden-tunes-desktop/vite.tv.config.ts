@@ -36,6 +36,31 @@ function boundTvCatalogPages() {
   }
 }
 
+function routeTvMusicCatalogThroughProxy() {
+  return {
+    name: 'hidden-tunes-tv-music-catalog-proxy',
+    enforce: 'pre' as const,
+    transform(code: string, id: string) {
+      const sourcePath = id.replace(/\\/g, '/')
+      if (sourcePath.endsWith('/src/lib/config/desktopRuntimeConfig.ts')) {
+        const replaced = code.replace(
+          "    return (import.meta as { env?: Record<string, string | undefined> }).env || {}",
+          "    return { ...(import.meta as { env?: Record<string, string | undefined> }).env, VITE_EXPRESS_CATALOG_API_URL: 'https://api.hiddentunes.com', VITE_CATALOG_ADMIN_API_URL: 'https://admin.hiddentunes.com' }",
+        )
+        if (replaced === code) throw new Error('Universal TV catalog config transform did not match desktopRuntimeConfig.ts')
+        return replaced
+      }
+      if (!sourcePath.endsWith('/src/lib/api.ts')) return null
+      const replaced = code.replace(
+        /export function getApiBaseUrl\(\): string \{\s*return getExpressCatalogBaseUrlOrThrow\(\)\s*\}/,
+        "export function getApiBaseUrl(): string {\n  return '/__tv_catalog'\n}",
+      )
+      if (replaced === code) throw new Error('Universal TV music catalog proxy transform did not match api.ts')
+      return replaced
+    },
+  }
+}
+
 function resolveTvArtworkBeforeReactMount() {
   return {
     name: 'hidden-tunes-tv-resolve-artwork-before-react-mount',
@@ -71,7 +96,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
     base: '/',
-    plugins: [lazyTvAdaptiveEngines(), boundTvCatalogPages(), resolveTvArtworkBeforeReactMount(), pinTvPrimaryPlayerArtwork(), react()],
+    plugins: [lazyTvAdaptiveEngines(), boundTvCatalogPages(), routeTvMusicCatalogThroughProxy(), resolveTvArtworkBeforeReactMount(), pinTvPrimaryPlayerArtwork(), react()],
     build: {
       outDir: 'dist-tv',
       emptyOutDir: true,

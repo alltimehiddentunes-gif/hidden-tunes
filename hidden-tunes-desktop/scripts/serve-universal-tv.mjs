@@ -90,12 +90,13 @@ createServer(async (request, response) => {
   if (pathname.startsWith('/__tv_catalog/api/')) {
     const method = request.method || 'GET'
     const upstreamPath = pathname.slice('/__tv_catalog'.length)
-    const allowed = /^\/api\/(radio|tv|podcasts|audiobooks|motivation|lectures)(\/|$)/.test(upstreamPath)
+    const musicCatalog = /^\/api\/(songs|albums|artists)(\/|$)/.test(upstreamPath)
+    const allowed = musicCatalog || /^\/api\/(radio|tv|podcasts|audiobooks|motivation|lectures)(\/|$)/.test(upstreamPath)
     if (method !== 'GET' || !allowed) {
       response.writeHead(method === 'GET' ? 404 : 405, { Allow: 'GET', 'Cache-Control': 'no-store' })
       response.end(); return
     }
-    const upstreamUrl = new URL(upstreamPath, 'https://admin.hiddentunes.com')
+    const upstreamUrl = new URL(upstreamPath, musicCatalog ? 'https://api.hiddentunes.com' : 'https://admin.hiddentunes.com')
     requestUrl.searchParams.forEach((value, key) => upstreamUrl.searchParams.set(key, key === 'limit' ? String(Math.min(6, Math.max(1, Number(value) || 6))) : value))
     if (!upstreamUrl.searchParams.has('limit') && /\/(stations|channels|shows|books|programs|series)$/.test(upstreamPath)) upstreamUrl.searchParams.set('limit', '6')
     const controller = new AbortController()
