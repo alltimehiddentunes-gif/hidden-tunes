@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import ControlledGenreFields from "@/components/ControlledGenreFields";
+import {
+  cleanAudioUploadFilename,
+  extractAudioUploadData,
+  type AudioUploadExtractionResult,
+} from "@/lib/audioUploadExtraction";
 import { supabase } from "@/lib/auth";
 import { resolveGenreFields } from "@/lib/controlledGenreState";
 import {
@@ -35,6 +39,16 @@ type TrackUploadItem = {
   artworkFile?: File | null;
   lyricsFile?: File | null;
   lrcFile?: File | null;
+  embeddedPlainLyricsText?: string;
+  embeddedSyncedLrcText?: string;
+  reviewPlainLyricsText?: string;
+  reviewSyncedLrcText?: string;
+  manualPlainLyricsText?: string;
+  manualSyncedLrcText?: string;
+  metadataSource?: "embedded" | "filename" | "manual";
+  artworkSource?: "embedded" | "companion" | "manual";
+  lyricsSource?: "embedded" | "companion" | "manual";
+  extraction?: AudioUploadExtractionResult | null;
   status: UploadStatus;
   progress: number;
   error?: string;
@@ -65,6 +79,18 @@ const FALLBACK_ALBUM = "Singles";
 
 const emotionalFieldClass =
   "w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2 text-sm outline-none transition placeholder:text-white/25 focus:border-violet-300/40";
+
+function LocalArtworkPreview({ file }: { file: File }) {
+  const url = useMemo(() => URL.createObjectURL(file), [file]);
+
+  useEffect(() => {
+    return () => URL.revokeObjectURL(url);
+  }, [url]);
+
+  // Blob previews are local and cannot be optimized by next/image.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt="Selected cover preview" className="h-20 w-20 rounded-xl object-cover" />;
+}
 
 function EmotionalUploadFields({
   draft,
@@ -222,12 +248,7 @@ function makeId() {
 }
 
 function cleanName(value: string) {
-  return value
-    .replace(/\.[^/.]+$/, "")
-    .replace(/^\d+\s*[.\-_ ]+\s*/, "")
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return cleanAudioUploadFilename(value);
 }
 
 function matchKey(value: string) {
@@ -732,17 +753,42 @@ export default function BulkUploadPanel() {
 
     for (const file of audioFiles) {
       const guessed = guessMetadata(file);
-      const duration = await getAudioDuration(file);
-      const matchedArtwork = findMatchingFile(file, nextArtworkMap) || globalArtwork;
-      const matchedLyrics = findMatchingFile(file, nextLyricsMap) || globalLyrics;
-      const matchedLrc = findMatchingFile(file, nextLrcMap) || globalLrc;
+      const warnings: string[] = [];
+      let extraction: AudioUploadExtractionResult | null = null;
+
+      try {
+        extraction = await extractAudioUploadData(file);
+        warnings.push(...extraction.warnings);
+      } catch {
+        warnings.push("Embedded metadata could not be read. Existing upload behavior remains available.");
+      }
+
+      const browserDuration = await getAudioDuration(file);
+      const duration = Math.round(extraction?.technical.durationSeconds || browserDuration || 0);
+      const companionArtwork = globalArtwork || findMatchingFile(file, nextArtworkMap);
+      const matchedArtwork = companionArtwork || extraction?.artwork?.file || null;
+      const matchedLyrics = globalLyrics || findMatchingFile(file, nextLyricsMap);
+      const matchedLrc = globalLrc || findMatchingFile(file, nextLrcMap);
+      const companionPlainLyricsText = await readTextFile(matchedLyrics);
+      const companionSyncedLrcText = await readTextFile(matchedLrc);
+      const hasExplicitDefaultArtist = Boolean(defaultArtist.trim());
+      const hasExplicitDefaultAlbum = Boolean(
+        defaultAlbum.trim() && defaultAlbum.trim() !== FALLBACK_ALBUM
+      );
+      const embeddedTitle = extraction?.metadata.title?.trim();
+      const embeddedArtist = extraction?.metadata.artist?.trim();
+      const embeddedAlbum = extraction?.metadata.album?.trim();
 
       prepared.push({
         id: makeId(),
         file,
-        title: guessed.title,
-        artist: guessed.artist || getFallbackArtist(),
-        album: defaultAlbum || FALLBACK_ALBUM,
+        title: embeddedTitle || guessed.title,
+        artist: hasExplicitDefaultArtist
+          ? defaultArtist.trim()
+          : embeddedArtist || guessed.artist || getFallbackArtist(),
+        album: hasExplicitDefaultAlbum
+          ? defaultAlbum.trim()
+          : embeddedAlbum || defaultAlbum || FALLBACK_ALBUM,
         ...resolveGenreFields(defaultMainGenreId, defaultSubgenreId),
         mood: defaultMood,
         emotional: hasEmotionalDraftValues(defaultEmotional)
@@ -752,11 +798,42 @@ export default function BulkUploadPanel() {
         artworkFile: matchedArtwork,
         lyricsFile: matchedLyrics,
         lrcFile: matchedLrc,
+        embeddedPlainLyricsText: extraction?.lyrics?.plainText,
+        embeddedSyncedLrcText: extraction?.lyrics?.syncedLrcText,
+        reviewPlainLyricsText:
+          companionPlainLyricsText || extraction?.lyrics?.plainText,
+        reviewSyncedLrcText:
+          companionSyncedLrcText || extraction?.lyrics?.syncedLrcText,
+        metadataSource:
+          hasExplicitDefaultArtist || hasExplicitDefaultAlbum
+            ? "manual"
+            : embeddedTitle || embeddedArtist || embeddedAlbum
+              ? "embedded"
+              : "filename",
+        artworkSource: companionArtwork
+          ? globalArtwork && companionArtwork === globalArtwork
+            ? "manual"
+            : "companion"
+          : extraction?.artwork
+            ? "embedded"
+            : undefined,
+        lyricsSource:
+          globalLrc || globalLyrics
+            ? "manual"
+            : matchedLrc || matchedLyrics
+              ? "companion"
+              : extraction?.lyrics
+                ? "embedded"
+                : undefined,
+        extraction,
         status: "ready",
         progress: 0,
-        warning: matchedArtwork
-          ? undefined
-          : "No matching artwork yet. Select matching artwork or apply album artwork before upload.",
+        warning: [
+          ...warnings,
+          ...(matchedArtwork
+            ? []
+            : ["No matching artwork yet. Select matching artwork or apply album artwork before upload."]),
+        ].join(" ") || undefined,
       });
     }
 
@@ -764,10 +841,12 @@ export default function BulkUploadPanel() {
       const existingAudioKeys = new Set(
         current.flatMap((item) => buildMatchKeys(item.file.name))
       );
-      const newItems = prepared.filter(
-        (item) =>
-          !buildMatchKeys(item.file.name).some((key) => existingAudioKeys.has(key))
-      );
+      const newItems = prepared.filter((item) => {
+        const keys = buildMatchKeys(item.file.name);
+        if (keys.some((key) => existingAudioKeys.has(key))) return false;
+        keys.forEach((key) => existingAudioKeys.add(key));
+        return true;
+      });
       const updated = current.map((item) => ({
         ...item,
         artworkFile:
@@ -873,8 +952,12 @@ export default function BulkUploadPanel() {
       let syncedLrcText = "";
 
       try {
-        plainLyricsText = await readTextFile(plainLyricsToRead);
-        syncedLrcText = await readTextFile(syncedLrcToRead);
+        plainLyricsText =
+          item.manualPlainLyricsText ?? (await readTextFile(plainLyricsToRead));
+        syncedLrcText =
+          item.manualSyncedLrcText ?? (await readTextFile(syncedLrcToRead));
+        if (!plainLyricsText) plainLyricsText = item.embeddedPlainLyricsText || "";
+        if (!syncedLrcText) syncedLrcText = item.embeddedSyncedLrcText || "";
       } catch (error: unknown) {
         throw new UploadStepError(
           "lyrics read",
@@ -1038,6 +1121,7 @@ export default function BulkUploadPanel() {
       current.map((item) => ({
         ...item,
         artworkFile: globalArtwork,
+        artworkSource: "manual",
         warning: undefined,
       }))
     );
@@ -1452,7 +1536,10 @@ export default function BulkUploadPanel() {
                         <input
                           value={item.title}
                           onChange={(event) =>
-                            updateItem(item.id, { title: event.target.value })
+                            updateItem(item.id, {
+                              title: event.target.value,
+                              metadataSource: "manual",
+                            })
                           }
                           placeholder="Title"
                           className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-yellow-400"
@@ -1461,7 +1548,10 @@ export default function BulkUploadPanel() {
                         <input
                           value={item.artist}
                           onChange={(event) =>
-                            updateItem(item.id, { artist: event.target.value })
+                            updateItem(item.id, {
+                              artist: event.target.value,
+                              metadataSource: "manual",
+                            })
                           }
                           placeholder="Artist"
                           className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-yellow-400"
@@ -1470,7 +1560,10 @@ export default function BulkUploadPanel() {
                         <input
                           value={item.album}
                           onChange={(event) =>
-                            updateItem(item.id, { album: event.target.value })
+                            updateItem(item.id, {
+                              album: event.target.value,
+                              metadataSource: "manual",
+                            })
                           }
                           placeholder="Album"
                           className="rounded-2xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-yellow-400"
@@ -1515,10 +1608,45 @@ export default function BulkUploadPanel() {
                         />
                       </details>
 
+                      {item.artworkFile && (
+                        <div className="mt-4 flex items-center gap-3 text-xs text-white/50">
+                          <LocalArtworkPreview file={item.artworkFile} />
+                          <span>{item.artworkSource === "embedded" ? "Embedded in audio" : item.artworkSource === "manual" ? "Entered manually" : "Companion file"}</span>
+                        </div>
+                      )}
+
                       <div className="mt-4 flex flex-wrap gap-2 text-xs text-white/50">
                         <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           Duration: {item.duration}s
                         </span>
+
+                        <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
+                          Metadata: {item.metadataSource === "embedded" ? "Embedded in audio" : item.metadataSource === "manual" ? "Entered manually" : "Filename fallback"}
+                        </span>
+
+                        {item.extraction?.technical.codec && (
+                          <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
+                            Codec: {item.extraction.technical.codec}
+                          </span>
+                        )}
+
+                        {item.extraction?.technical.bitrate && (
+                          <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
+                            Bitrate: {Math.round(item.extraction.technical.bitrate / 1000)} kbps
+                          </span>
+                        )}
+
+                        {item.extraction?.technical.sampleRate && (
+                          <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
+                            Sample rate: {item.extraction.technical.sampleRate} Hz
+                          </span>
+                        )}
+
+                        {item.extraction?.technical.channels && (
+                          <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
+                            Channels: {item.extraction.technical.channels}
+                          </span>
+                        )}
 
                         <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           Genre: {item.genre || "—"}
@@ -1541,7 +1669,51 @@ export default function BulkUploadPanel() {
                         <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           LRC: {item.lrcFile?.name || globalLrc?.name || "No"}
                         </span>
+
+                        {item.lyricsSource && (
+                          <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
+                            Lyrics source: {item.lyricsSource === "manual" ? "Entered manually" : item.lyricsSource === "companion" ? "Companion file" : "Embedded in audio"}
+                          </span>
+                        )}
                       </div>
+
+                      {(item.reviewPlainLyricsText || item.reviewSyncedLrcText) && (
+                        <details className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                          <summary className="cursor-pointer text-sm font-bold text-white/70">
+                            Review detected lyrics · {item.lyricsSource === "manual" ? "Entered manually" : item.lyricsSource === "companion" ? "Companion file" : "Embedded in audio"}
+                          </summary>
+                          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                            <label className="space-y-1 text-xs text-white/45">
+                              Plain lyrics
+                              <textarea
+                                rows={8}
+                                value={item.manualPlainLyricsText ?? item.reviewPlainLyricsText ?? ""}
+                                onChange={(event) =>
+                                  updateItem(item.id, {
+                                    manualPlainLyricsText: event.target.value,
+                                    lyricsSource: "manual",
+                                  })
+                                }
+                                className={emotionalFieldClass}
+                              />
+                            </label>
+                            <label className="space-y-1 text-xs text-white/45">
+                              Synchronized LRC
+                              <textarea
+                                rows={8}
+                                value={item.manualSyncedLrcText ?? item.reviewSyncedLrcText ?? ""}
+                                onChange={(event) =>
+                                  updateItem(item.id, {
+                                    manualSyncedLrcText: event.target.value,
+                                    lyricsSource: "manual",
+                                  })
+                                }
+                                className={emotionalFieldClass}
+                              />
+                            </label>
+                          </div>
+                        </details>
+                      )}
 
                       {item.status === "uploading" && (
                         <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
