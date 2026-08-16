@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { probeStreamUrl } from "@/lib/tvStreamProtocol";
 import {
   isPlayUrlAllowedForPlatform,
+  isTvMatureColumnEnabled,
   isTvStationEligibleForPlatform,
   parseIncludeMatureParam,
   parseTvClientPlatform,
@@ -13,6 +14,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const TV_PLAY_SELECT =
+  "id, source_type, source_id, source_url, embed_url, status, is_active, playback_status, reliability_score, consecutive_failures, disabled_at, quarantined_at, ios_playable, android_playable, stream_is_https, last_health_checked_at, last_validation_result, validated_stream_url";
+const TV_PLAY_MATURE_SELECT =
   "id, source_type, source_id, source_url, embed_url, status, is_active, playback_status, reliability_score, consecutive_failures, disabled_at, quarantined_at, ios_playable, android_playable, stream_is_https, last_health_checked_at, last_validation_result, validated_stream_url, is_mature, mature_source_approved";
 
 function jsonError(error: string, status: number, details?: unknown) {
@@ -33,16 +36,16 @@ export async function GET(
   const { id } = await context.params;
   const cleanId = String(id || "").trim();
   const platform = parseTvClientPlatform(request);
+  const maturityIsolationEnabled = isTvMatureColumnEnabled();
 
   if (!cleanId) {
     return jsonError("TV station id is required.", 400);
   }
 
-  const { data, error } = await supabaseAdmin
-    .from("tv_videos")
-    .select(TV_PLAY_SELECT)
-    .eq("id", cleanId)
-    .maybeSingle();
+  const query = supabaseAdmin.from("tv_videos");
+  const { data, error } = maturityIsolationEnabled
+    ? await query.select(TV_PLAY_MATURE_SELECT).eq("id", cleanId).maybeSingle()
+    : await query.select(TV_PLAY_SELECT).eq("id", cleanId).maybeSingle();
 
   if (error) {
     return jsonError("Failed to load TV play URL.", 500, error.message);
@@ -52,10 +55,15 @@ export async function GET(
     return jsonError("TV station not found or not currently playable.", 404);
   }
 
-  if (data.is_mature === true) {
-    const includeMature = parseIncludeMatureParam(request);
-    if (!includeMature || data.mature_source_approved !== true) {
-      return jsonError("Forbidden.", 403);
+  if (maturityIsolationEnabled) {
+    if (!("is_mature" in data) || !("mature_source_approved" in data)) {
+      return jsonError("Mature-content policy data unavailable.", 500);
+    }
+    if (data.is_mature === true) {
+      const includeMature = parseIncludeMatureParam(request);
+      if (!includeMature || data.mature_source_approved !== true) {
+        return jsonError("Forbidden.", 403);
+      }
     }
   }
 
