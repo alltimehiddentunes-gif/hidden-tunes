@@ -4,6 +4,7 @@ import { TV_RELIABILITY_THRESHOLD } from "@/lib/tvStationHealth";
 
 /** Single validation freshness window — 7 days. */
 export const TV_VALIDATION_FRESHNESS_MS = 7 * 24 * 60 * 60 * 1000;
+const TV_VALIDATION_EVIDENCE_FLOOR = "1970-01-01T00:00:00.000Z";
 
 export type TvClientPlatform = "ios" | "android" | "cross";
 
@@ -78,9 +79,12 @@ export function isTvStationEligibleForPlatform(
   platform: TvClientPlatform,
   now = new Date()
 ) {
+  // Freshness remains available to revalidation callers, not as a visibility gate.
+  void now;
   if (!isTvStationPublic(row)) return false;
   if (!isTvStationVerified(row)) return false;
-  if (!isValidationFresh(row.last_health_checked_at, now)) return false;
+  const lastCheckedAt = new Date(row.last_health_checked_at || "").getTime();
+  if (!Number.isFinite(lastCheckedAt)) return false;
 
   if (platform === "ios") {
     return row.ios_playable === true && row.stream_is_https === true;
@@ -119,8 +123,8 @@ export function applyTvPublicCatalogFilters(
   now = new Date(),
   options: TvPublicCatalogFilterOptions = {}
 ): void {
-  const cutoff = getValidationFreshnessCutoff(now);
-
+  // Keep the clock parameter for compatible revalidation-policy call sites.
+  void now;
   query
     .eq("status", "approved")
     .eq("is_active", true)
@@ -128,7 +132,7 @@ export function applyTvPublicCatalogFilters(
     .gte("reliability_score", TV_RELIABILITY_THRESHOLD)
     .is("disabled_at", null)
     .is("quarantined_at", null)
-    .gte("last_health_checked_at", cutoff);
+    .gte("last_health_checked_at", TV_VALIDATION_EVIDENCE_FLOOR);
 
   if (isTvMatureColumnEnabled()) {
     if (options.includeMature) {
