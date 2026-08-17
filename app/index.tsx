@@ -17,27 +17,27 @@ import {
 import { APP_BRAND_NAME, TESTER_COPY } from "../constants/testerExperience";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import { hasCompletedOnboarding } from "../services/onboardingPreferences";
-import { scheduleStartupTask } from "../utils/startupScheduler";
+import { resolveStartupDestination } from "../utils/startupDestination";
 
 export default function IndexScreen() {
-  const [target, setTarget] = useState<string | null>(null);
+  const [target, setTarget] = useState<string | null>(() =>
+    isHiddenAudioPocStartupEnabled() ? HIDDEN_AUDIO_POC_ROUTE : null
+  );
 
   useEffect(() => {
     if (isHiddenAudioPocStartupEnabled()) {
-      setTarget(HIDDEN_AUDIO_POC_ROUTE);
       return;
     }
 
-    const cancel = scheduleStartupTask("afterPaint", "onboarding_route_check", async () => {
-      try {
-        const completed = await hasCompletedOnboarding();
-        setTarget(completed ? "/music-feed" : "/onboarding");
-      } catch {
-        setTarget("/onboarding");
-      }
+    let cancelled = false;
+
+    void resolveStartupDestination(hasCompletedOnboarding).then((destination) => {
+      if (!cancelled) setTarget(destination);
     });
 
-    return cancel;
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (target) {
