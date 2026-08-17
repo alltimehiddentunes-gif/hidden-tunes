@@ -81,8 +81,7 @@ export function PublicPrivacyPage({ onNavigate }: PublicPrivacyPageProps) {
             </section>
           ))}
           <p className="ht-privacy-contact">
-            Privacy contact:{' '}
-            <a href={`mailto:${PRIVACY_POLICY_META.contactEmail}`}>{PRIVACY_POLICY_META.contactEmail}</a>
+            Privacy contact: {PRIVACY_POLICY_META.contactEmail}
           </p>
         </article>
       </main>

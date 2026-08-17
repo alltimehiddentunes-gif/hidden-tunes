@@ -65,7 +65,7 @@ const html = `<!doctype html>
       <h1>Privacy Policy</h1>
       <p class="meta">Hidden Tunes · Android package ${escape(meta.packageId)} · Effective ${escape(meta.effectiveDate)}</p>
       ${body}
-      <p>Privacy contact: <a href="mailto:${escape(meta.contactEmail)}">${escape(meta.contactEmail)}</a></p>
+      <p>Privacy contact: ${escape(meta.contactEmail)}</p>
     </article>
   </main>
 </body>

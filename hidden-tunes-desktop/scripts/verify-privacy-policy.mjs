@@ -11,7 +11,7 @@ const REQUIRED_PHRASES = [
   'Hidden Tunes',
   'com.hiddentunes.app',
   '17 August 2026',
-  'support@hiddentunes.com',
+  'support [at] hiddentunes.com',
   'Supabase Authentication',
   'Follow',
   'Cross Play',
@@ -25,7 +25,7 @@ const REQUIRED_PHRASES = [
   'Internet Archive',
   'HTTPS',
   'We do not sell personal information',
-  'email support@hiddentunes.com',
+  'email support [at] hiddentunes.com',
   'Children',
   'more than one country',
 ]

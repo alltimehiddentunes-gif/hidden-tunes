@@ -2,7 +2,7 @@ export const PRIVACY_POLICY_META = {
   productName: 'Hidden Tunes',
   packageId: 'com.hiddentunes.app',
   canonicalUrl: 'https://hiddentunes.com/privacy',
-  contactEmail: 'support@hiddentunes.com',
+  contactEmail: 'support [at] hiddentunes.com',
   effectiveDate: '17 August 2026',
 } as const
 
@@ -117,7 +117,7 @@ export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
     title: 'Account and data deletion',
     paragraphs: [
       'You can sign out in the app. You can remove local favorites, playlists, and downloads. Uninstalling removes local app storage on that device.',
-      'To request deletion of your Hidden Tunes account and the server-side account data we control (authentication data, follow records, and Cross Play progress associated with that account), email support@hiddentunes.com from the same email address used on the account. Tell us that you want the account deleted.',
+      'To request deletion of your Hidden Tunes account and the server-side account data we control (authentication data, follow records, and Cross Play progress associated with that account), email support [at] hiddentunes.com from the same email address used on the account. Tell us that you want the account deleted. The visible form avoids automated email obfuscation on the public website; it is the Hidden Tunes support mailbox.',
       'We will verify the request and delete account data we control. Data held only on your devices is removed by uninstalling or clearing storage. Third-party providers keep information according to their own policies.',
       'The current Android app does not include an automated in-app account-delete button. Email is the deletion request path.',
     ],
@@ -128,7 +128,7 @@ export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
     paragraphs: [
       'Hidden Tunes is a general-audience entertainment product. It is not directed at children and it is not intended for children to create accounts.',
       'The catalogs can include mature or adult-oriented audio and video. Do not use Hidden Tunes to collect information from children.',
-      'If you believe a child has provided personal information, contact support@hiddentunes.com so we can review and delete it.',
+      'If you believe a child has provided personal information, contact support [at] hiddentunes.com so we can review and delete it.',
     ],
   },
   {
@@ -150,7 +150,7 @@ export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
     id: 'contact',
     title: 'Contact',
     paragraphs: [
-      'Privacy contact: support@hiddentunes.com',
+      'Privacy contact: support [at] hiddentunes.com. You can also use https://hiddentunes.com/contact.',
       'Canonical policy URL: https://hiddentunes.com/privacy',
       'Android package: com.hiddentunes.app',
     ],
