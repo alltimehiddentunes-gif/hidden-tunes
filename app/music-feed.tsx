@@ -116,6 +116,7 @@ import {
   type GenreSpotlightSignals,
 } from "@/utils/genreSpotlights";
 import { listFreshCachedSearchQueries } from "@/utils/searchQueryCache";
+import { TESTER_COPY } from "@/constants/testerExperience";
 
 const CATALOG_PAGE_SIZE = 31;
 const HOME_SCROLL_SETTLE_MS = 520;
@@ -794,6 +795,8 @@ function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
   return songs.findIndex((candidate) => String(candidate.id) === id);
 }
 
+type HomeCatalogStatus = "loading" | "cached" | "fresh" | "empty" | "error";
+
 export default function MusicFeedScreen() {
   const { playSong } = usePlayerActions();
   const playerFeed = usePlayerFeedSnapshot();
@@ -888,6 +891,9 @@ export default function MusicFeedScreen() {
     () => initialCatalogStateRef.current || null
   );
   const [loading, setLoading] = useState(() => !initialCatalogStateRef.current);
+  const [catalogStatus, setCatalogStatus] = useState<HomeCatalogStatus>(() =>
+    catalog?.songs.length ? "cached" : "loading"
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [visibleCatalogCount, setVisibleCatalogCount] = useState(CATALOG_PAGE_SIZE);
   const [homePreferences, setHomePreferences] = useState(() =>
@@ -905,6 +911,7 @@ export default function MusicFeedScreen() {
   const focusedRef = useRef(true);
   const loadGenerationRef = useRef(0);
   const loadedHomeOnceRef = useRef(Boolean(initialCatalogStateRef.current));
+  const hasUsableCatalogRef = useRef(Boolean(catalog?.songs.length));
   const catalogRequestRef = useRef<Promise<void> | null>(null);
   const homeMountAtRef = useRef(Date.now());
   const homeShellLoggedRef = useRef(false);
@@ -950,6 +957,7 @@ export default function MusicFeedScreen() {
     setCatalog(data);
     setLoading(false);
     loadedHomeOnceRef.current = true;
+    hasUsableCatalogRef.current = true;
   }, []);
 
   const loadCatalog = useCallback(async () => {
@@ -979,6 +987,7 @@ export default function MusicFeedScreen() {
             HOME_BOUNDED_CATALOG_LIMIT
           );
           applyCatalog(boundedHydrated, generation);
+          setCatalogStatus("cached");
           logHomeLoad("cached_content", {
             ms: Date.now() - homeMountAtRef.current,
             songs: boundedHydrated?.songs.length || 0,
@@ -989,7 +998,7 @@ export default function MusicFeedScreen() {
         // never start a complete catalog walk.
         const networkStarted = Date.now();
         try {
-          await getHiddenTunesSongsPage({
+          const pageResult = await getHiddenTunesSongsPage({
             page: 1,
             limit: HOME_FIRST_PAGE_LIMIT,
           });
@@ -999,12 +1008,20 @@ export default function MusicFeedScreen() {
           );
           if (firstPageCatalog?.songs.length) {
             applyCatalog(firstPageCatalog, generation);
+            setCatalogStatus(
+              pageResult.source === "network" ? "fresh" : "cached"
+            );
             logHomeLoad("first_page", {
               ms: Date.now() - networkStarted,
               songs: firstPageCatalog.songs.length,
             });
           }
+          if (!hasUsableCatalogRef.current) {
+            if (pageResult.authoritativeEmpty) setCatalogStatus("empty");
+            else if (pageResult.errorCode) setCatalogStatus("error");
+          }
         } catch (error) {
+          if (!hasUsableCatalogRef.current) setCatalogStatus("error");
           logHomeLoad("first_page_error", {
             error: error instanceof Error ? error.message : String(error),
           });
@@ -1048,7 +1065,7 @@ export default function MusicFeedScreen() {
     const startedAt = Date.now();
     const generation = ++loadGenerationRef.current;
     try {
-      await getHiddenTunesSongsPage({
+      const pageResult = await getHiddenTunesSongsPage({
         page: 1,
         limit: HOME_FIRST_PAGE_LIMIT,
         forceRefresh: true,
@@ -1064,6 +1081,13 @@ export default function MusicFeedScreen() {
         generation === loadGenerationRef.current
       ) {
         setCatalog(data);
+        hasUsableCatalogRef.current = true;
+        setCatalogStatus(
+          pageResult.source === "network" ? "fresh" : "cached"
+        );
+      } else if (!hasUsableCatalogRef.current) {
+        if (pageResult.authoritativeEmpty) setCatalogStatus("empty");
+        else if (pageResult.errorCode) setCatalogStatus("error");
       }
       setVisibleCatalogCount(CATALOG_PAGE_SIZE);
       logHomeLoad("pull_refresh", {
@@ -1071,6 +1095,7 @@ export default function MusicFeedScreen() {
         songs: data?.songs.length || 0,
       });
     } catch (error) {
+      if (!hasUsableCatalogRef.current) setCatalogStatus("error");
       logHomeLoad("pull_refresh_error", {
         error: error instanceof Error ? error.message : String(error),
       });
@@ -1686,8 +1711,16 @@ export default function MusicFeedScreen() {
                   <View style={styles.catalogEmptyWrap}>
                     <PremiumEmptyState
                       icon="musical-notes-outline"
-                      title={homeUi.emptyTitle}
-                      message={homeUi.emptyCatalogMessage}
+                      title={
+                        catalogStatus === "error"
+                          ? "Couldn't refresh music"
+                          : homeUi.emptyTitle
+                      }
+                      message={
+                        catalogStatus === "error"
+                          ? TESTER_COPY.networkUnavailable
+                          : homeUi.emptyCatalogMessage
+                      }
                       actionLabel={homeUi.refreshCatalog}
                       onAction={() => void refreshCatalog()}
                     />

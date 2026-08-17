@@ -29,6 +29,10 @@ import {
   restoreEmotionalMetadata,
   snapshotEmotionalMetadata,
 } from "../utils/emotionalMetadataPersistence";
+import {
+  decideListeningRoomRefresh,
+  shouldPersistListeningRoomRefresh,
+} from "./listeningRoomRefreshPolicy";
 
 const HIDDEN_TUNES_API_BASE_URL = "https://api.hiddentunes.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
@@ -223,6 +227,9 @@ export type HiddenTunesSongPage = {
   limit: number;
   hasMore: boolean;
   nextPage: number;
+  source?: "network" | "cache-preserved" | "cache-fallback";
+  errorCode?: "request_failed" | "malformed_response" | "empty_response_cache_preserved";
+  authoritativeEmpty?: boolean;
 };
 
 export type HiddenTunesArtistPage = {
@@ -376,6 +383,19 @@ function normalizeRawSongArray(data: any): HiddenTunesCloudSong[] {
   if (Array.isArray(data?.tracks)) return data.tracks;
   if (Array.isArray(data?.items)) return data.items;
   return [];
+}
+
+function readRawSongArray(data: any): {
+  recognized: boolean;
+  songs: HiddenTunesCloudSong[];
+} {
+  if (Array.isArray(data)) return { recognized: true, songs: data };
+  for (const key of ["songs", "data", "tracks", "items"] as const) {
+    if (Array.isArray(data?.[key])) {
+      return { recognized: true, songs: data[key] };
+    }
+  }
+  return { recognized: false, songs: [] };
 }
 
 function normalizeRawArtistArray(data: any): any[] {
@@ -1336,7 +1356,8 @@ export async function getHiddenTunesSongsPage(options?: {
       }
 
       const data = await response.json();
-      const rawSongs = normalizeRawSongArray(data);
+      const parsedResponse = readRawSongArray(data);
+      const rawSongs = parsedResponse.songs;
       const normalized = rawSongs
         .map((song: HiddenTunesCloudSong, index: number) =>
           normalizeHiddenTunesSong(song, index + (page - 1) * networkLimit)
@@ -1344,7 +1365,43 @@ export async function getHiddenTunesSongsPage(options?: {
         .filter(Boolean) as HiddenTunesNormalizedSong[];
       const songs = applySmartArtworkFallbacks(dedupeSongs(normalized));
 
-      if (isGlobalCatalog && !deferGlobalCachePublish) {
+      const cachedBeforeRefresh =
+        isGlobalCatalog && page === 1 && songs.length === 0
+          ? await readCachedSongs()
+          : [];
+      const refreshDecision = decideListeningRoomRefresh({
+        requestFailed: false,
+        responseShapeRecognized: parsedResponse.recognized,
+        rawCount: rawSongs.length,
+        playableCount: songs.length,
+        cachedCount: cachedBeforeRefresh.length,
+      });
+
+      if (
+        refreshDecision === "error" ||
+        refreshDecision === "preserve-cache-error"
+      ) {
+        throw new Error("hidden_tunes_catalog_malformed_response");
+      }
+
+      if (refreshDecision === "preserve-cache-empty") {
+        return {
+          songs: cachedBeforeRefresh.slice(0, networkLimit),
+          page,
+          limit: networkLimit,
+          hasMore: cachedBeforeRefresh.length > networkLimit,
+          nextPage: page + 1,
+          source: "cache-preserved",
+          errorCode: "empty_response_cache_preserved",
+          authoritativeEmpty: false,
+        };
+      }
+
+      if (
+        isGlobalCatalog &&
+        !deferGlobalCachePublish &&
+        shouldPersistListeningRoomRefresh(refreshDecision)
+      ) {
         const existing =
           page === 1
             ? []
@@ -1371,6 +1428,8 @@ export async function getHiddenTunesSongsPage(options?: {
         limit: networkLimit,
         hasMore: songs.length >= networkLimit,
         nextPage: page + 1,
+        source: "network",
+        authoritativeEmpty: refreshDecision === "genuine-empty",
       };
     } catch (error) {
       console.log("Hidden Tunes songs page API error:", {
@@ -1387,6 +1446,8 @@ export async function getHiddenTunesSongsPage(options?: {
           limit: networkLimit,
           hasMore: false,
           nextPage: page + 1,
+          source: "cache-fallback",
+          errorCode: "request_failed",
         };
       }
 
@@ -1400,6 +1461,12 @@ export async function getHiddenTunesSongsPage(options?: {
         limit: networkLimit,
         hasMore: start + networkLimit < cached.length,
         nextPage: page + 1,
+        source: "cache-fallback",
+        errorCode:
+          error instanceof Error &&
+          error.message === "hidden_tunes_catalog_malformed_response"
+            ? "malformed_response"
+            : "request_failed",
       };
     }
   })().finally(() => {

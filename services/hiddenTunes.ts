@@ -488,8 +488,14 @@ export function syncDerivedCatalogFromSnapshot() {
   }
 
   const derivedCount = derivedCatalogCache?.songs.length || 0;
-  if (derivedCatalogCache && snapshotSongs.length <= derivedCount) {
-    return derivedCatalogCache;
+  if (derivedCatalogCache) {
+    if (snapshotSongs.length < derivedCount) return derivedCatalogCache;
+    if (
+      snapshotSongs.length === derivedCount &&
+      buildCatalogFingerprint(snapshotSongs) === derivedCatalogFingerprint
+    ) {
+      return derivedCatalogCache;
+    }
   }
 
   return rebuildDerivedCatalog(snapshotSongs);
