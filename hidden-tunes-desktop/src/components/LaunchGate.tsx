@@ -17,7 +17,14 @@ type LaunchGateProps = {
   hasCatalogData: boolean
 }
 
+function isPublicLegalRoute() {
+  if (typeof window === 'undefined') return false
+  const path = window.location.pathname.replace(/\/+$/, '') || '/'
+  return path === '/privacy' || path === '/terms' || path === '/account-deletion'
+}
+
 export function LaunchGate({ children, loading, hasCatalogData }: LaunchGateProps) {
+  const skipSplash = isPublicLegalRoute()
   const [phase, setPhase] = useState<LaunchPhase>('visible')
   const [minElapsed, setMinElapsed] = useState(false)
   const [forceReady, setForceReady] = useState(false)
@@ -39,7 +46,7 @@ export function LaunchGate({ children, loading, hasCatalogData }: LaunchGateProp
   const ready =
     forceReady || (minElapsed && (!loading || hasCatalogData))
 
-  if (ready && phase === 'visible') {
+  if (!skipSplash && ready && phase === 'visible') {
     setPhase('fading')
   }
 
@@ -52,7 +59,8 @@ export function LaunchGate({ children, loading, hasCatalogData }: LaunchGateProp
     return () => window.clearTimeout(id)
   }, [phase])
 
-  if (phase === 'hidden') {
+  if (skipSplash || phase === 'hidden') {
+    if (skipSplash) removeHtmlSplash()
     return children
   }
 

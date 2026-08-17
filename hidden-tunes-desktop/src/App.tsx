@@ -239,6 +239,7 @@ import { GlobalTopNav } from './components/music/GlobalTopNav'
 import { HiddenTunesBrandMark } from './components/HiddenTunesBrandMark'
 import { PublicAboutPage } from './components/about/PublicAboutPage'
 import { PublicDownloadPage } from './components/download/PublicDownloadPage'
+import { PublicPrivacyPage } from './components/legal/PublicPrivacyPage'
 import { MusicWorkspace } from './components/music/MusicWorkspace'
 import { AccountRequiredDialog } from './components/account/AccountRequiredDialog'
 import { resolveAccountGate } from './lib/account/accountGate'
@@ -6239,6 +6240,7 @@ function SettingsPage({
               <p className="settings-panel-desc">
                 This install stores playback history, likes, preferences, and downloads on the device.
                 Account Follow uses your signed-in Hidden Tunes session when available.
+                The public policy is at https://hiddentunes.com/privacy.
               </p>
               <div className="settings-row">
                 <div className="settings-label">
@@ -6250,9 +6252,9 @@ function SettingsPage({
               <div className="settings-row">
                 <div className="settings-label">
                   <span>Account deletion</span>
-                  <small>Not available from this desktop preview</small>
+                  <small>Email support@hiddentunes.com from your account address</small>
                 </div>
-                <span className="settings-badge settings-badge--muted">Not available</span>
+                <span className="settings-badge">Request by email</span>
               </div>
               <div className="settings-legal-links">
                 <button
@@ -9638,6 +9640,9 @@ function AppShell() {
   }
   if (activeNavKey === 'download' && activeView === 'page' && isWebNavigationBridgeEnabled()) {
     return <PublicDownloadPage onNavigate={navigateNav} />
+  }
+  if (activeNavKey === 'privacy' && activeView === 'page' && isWebNavigationBridgeEnabled()) {
+    return <PublicPrivacyPage onNavigate={navigateNav} />
   }
 
   return (
