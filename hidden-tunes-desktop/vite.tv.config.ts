@@ -50,6 +50,14 @@ function routeTvMusicCatalogThroughProxy() {
         if (replaced === code) throw new Error('Universal TV catalog config transform did not match desktopRuntimeConfig.ts')
         return replaced
       }
+      if (sourcePath.endsWith('/src/lib/emotionalWorldApi.ts')) {
+        const replaced = code.replace(
+          '  const base = getDesktopRuntimeConfig().adminCatalogBaseUrl',
+          "  const base = '/__tv_catalog'",
+        )
+        if (replaced === code) throw new Error('Universal TV Emotional Worlds proxy transform did not match emotionalWorldApi.ts')
+        return replaced
+      }
       if (!sourcePath.endsWith('/src/lib/api.ts')) return null
       const replaced = code.replace(
         /export function getApiBaseUrl\(\): string \{\s*return getExpressCatalogBaseUrlOrThrow\(\)\s*\}/,

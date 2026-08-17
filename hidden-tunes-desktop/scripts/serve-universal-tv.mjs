@@ -118,7 +118,7 @@ createServer(async (request, response) => {
     const method = request.method || 'GET'
     const upstreamPath = pathname.slice('/__tv_catalog'.length)
     const musicCatalog = /^\/api\/(songs|albums|artists)(\/|$)/.test(upstreamPath)
-    const allowed = musicCatalog || /^\/api\/(radio|tv|podcasts|audiobooks|motivation|lectures)(\/|$)/.test(upstreamPath)
+    const allowed = musicCatalog || /^\/api\/(music|radio|tv|podcasts|audiobooks|motivation|lectures)(\/|$)/.test(upstreamPath)
     if (method !== 'GET' || !allowed) {
       response.writeHead(method === 'GET' ? 404 : 405, { Allow: 'GET', 'Cache-Control': 'no-store' })
       response.end(); return
