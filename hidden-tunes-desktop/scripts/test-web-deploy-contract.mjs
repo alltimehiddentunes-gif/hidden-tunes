@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 const source = await readFile(new URL('./deploy-hidden-tunes-web.mjs', import.meta.url), 'utf8')
+const htaccess = await readFile(new URL('../deploy/hostinger-root.htaccess', import.meta.url), 'utf8')
 for (const required of ['--dry-run', '--production', '--rollback', '72.61.152.132', '65002', 'u489896272', '/home/u489896272/domains/hiddentunes.com/public_html', 'catalog-api', 'BatchMode=yes', 'staging-rollback-']) assert.ok(source.includes(required), `missing ${required}`)
 for (const required of ['HT_COMMITTED_DESKTOP_DIST', 'resolve(tmpdir())']) assert.ok(source.includes(required), `missing ${required}`)
 assert.match(source, /process\.platform === 'win32' && command\.endsWith\('\.cmd'\)/)
@@ -9,4 +10,9 @@ assert.match(source, /grep -q .*catalog-api/)
 assert.match(source, /test ! -e .*rollback/)
 assert.match(source, /cp -a .*staging\/\.htaccess.*upload.*\.htaccess/)
 assert.match(source, /cp -a .*staging\/catalog-api.*upload.*catalog-api/)
+for (const route of ['about', 'download', 'explore', 'music', 'radio', 'podcasts', 'audiobooks', 'tv', 'emotional-worlds', 'privacy', 'terms', 'contact']) assert.ok(htaccess.includes(route), `missing SPA route ${route}`)
+assert.match(htaccess, /\(\?:radio\/stations\|tv\/channels\|emotional-worlds\)\/\[\^\/.\]\+/)
+assert.match(htaccess, /RewriteRule \^\(\.\*\)\$ staging\/\$1 \[END\]/)
+assert.match(source, /\.htaccess-rollback-/)
+assert.match(source, /remoteRootHtaccess/)
 console.log('direct Website deploy contract: PASS')

@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
+import { EMOTIONAL_WORLDS } from '../../lib/emotionalWorlds'
+import type { WebNavigationRoute } from '../../lib/webNavigationBridge'
 import './PublicAboutPage.css'
 
 type AboutNavKey =
   | 'home' | 'about' | 'music' | 'radio' | 'podcasts' | 'audiobooks'
   | 'tv' | 'sports' | 'lectures' | 'motivationals' | 'worlds'
   | 'originals' | 'contact' | 'search'
+  | 'download'
 
-type PublicAboutPageProps = { onNavigate: (navKey: AboutNavKey) => void }
+type PublicAboutPageProps = {
+  onNavigate: (navKey: AboutNavKey) => void
+  onNavigateRoute: (route: WebNavigationRoute) => boolean
+}
 
 const mediaCards = [
   ['♫', 'Music', 'Millions of songs for every mood.', 'music'],
@@ -21,23 +27,13 @@ const mediaCards = [
   ['∿', 'Hidden Tunes Originals', 'Original music with meaning and soul.', 'originals'],
 ] as const
 
-const worlds = [
-  ['Healing', 'Rest. Recover. Restore.', '/artwork/worlds/emotional-world-calm.png', 'calm'],
-  ['Peace', 'Find stillness within.', '/artwork/worlds/emotional-world-chill.png', 'calm'],
-  ['Heartbreak', 'Feel it. Heal it. Let it go.', '/artwork/worlds/emotional-world-melancholy.png', 'melancholy'],
-  ['Focus', 'Deep work. No distractions.', '/artwork/worlds/emotional-world-energetic.png', 'energetic'],
-  ['Confidence', 'Rise. Believe. Own your power.', '/artwork/worlds/emotional-world-motivational.png', 'motivational'],
-  ['Nostalgia', 'Memories that never fade.', '/artwork/worlds/emotional-world-romantic.png', 'romantic'],
-  ['Renewal', 'New day. New you.', '/artwork/worlds/emotional-world-happy.png', 'happy'],
-] as const
-
 const devices = [
   ['▯', 'Mobile', 'iOS & Android'], ['▰', 'Web', 'Listen in your browser'],
   ['▱', 'Desktop', 'Windows & Mac'], ['▣', 'Smart TV', 'Big screen experience'],
   ['◫', 'CarPlay', 'Apple CarPlay'], ['▤', 'Android Auto', 'Stay connected'],
 ] as const
 
-export function PublicAboutPage({ onNavigate }: PublicAboutPageProps) {
+export function PublicAboutPage({ onNavigate, onNavigateRoute }: PublicAboutPageProps) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
@@ -78,6 +74,7 @@ export function PublicAboutPage({ onNavigate }: PublicAboutPageProps) {
           <button type="button" onClick={features}>Features</button>
           <button type="button" onClick={() => go('worlds')}>Worlds</button>
           <button type="button" onClick={() => go('originals')}>Originals</button>
+          <button type="button" onClick={() => go('download')}>Download</button>
           <button type="button" onClick={() => go('contact')}>Contact</button>
           <button className="ht-about-search" type="button" aria-label="Search" onClick={() => go('search')}>⌕</button>
           <button className="ht-about-start" type="button" onClick={() => go('music')}>Get Started</button>
@@ -122,8 +119,15 @@ export function PublicAboutPage({ onNavigate }: PublicAboutPageProps) {
         <section className="ht-about-section ht-about-worlds" aria-labelledby="worlds-title">
           <header><h2 id="worlds-title">Emotional Worlds</h2><p>Enter a world that matches how you feel.</p><button type="button" onClick={() => go('worlds')}>View All Worlds →</button></header>
           <div className="ht-about-world-strip">
-            {worlds.map(([title, copy, image, id]) => (
-              <a key={title} href={`/emotional-worlds/${id}`}><img src={image} alt="" /><span><strong>{title}</strong><small>{copy}</small></span></a>
+            {EMOTIONAL_WORLDS.map((world) => (
+              <button
+                key={world.id}
+                type="button"
+                onClick={() => onNavigateRoute({ kind: 'emotional-world', id: world.id })}
+              >
+                <img src={world.artwork} alt="" />
+                <span><strong>{world.title}</strong><small>{world.descriptor}</small></span>
+              </button>
             ))}
           </div>
         </section>

@@ -1,5 +1,7 @@
 import type { WebNavigationRoute } from './webNavigationBridge'
 
+const EMOTIONAL_WORLD_IDS = new Set(['calm', 'chill', 'happy', 'romantic', 'motivational', 'melancholy', 'energetic'])
+
 const PAGE_PATHS: ReadonlyArray<readonly [string, WebNavigationRoute]> = [
   ['/', { kind: 'page', page: 'home' }],
   ['/music', { kind: 'page', page: 'music' }],
@@ -22,6 +24,7 @@ const PAGE_PATHS: ReadonlyArray<readonly [string, WebNavigationRoute]> = [
   ['/premium', { kind: 'page', page: 'premium' }],
   ['/settings', { kind: 'page', page: 'settings' }],
   ['/about', { kind: 'page', page: 'about' }],
+  ['/download', { kind: 'page', page: 'download' }],
   ['/originals', { kind: 'page', page: 'originals' }],
   ['/support', { kind: 'page', page: 'support' }],
   ['/contact', { kind: 'page', page: 'contact' }],
@@ -78,6 +81,14 @@ export function routeFromBrowserLocation(pathname = window.location.pathname): W
     return bookId && chapterId ? { kind: 'audiobook-chapter', bookId, chapterId } : null
   }
 
+  const emotionalWorldMatch = normalized.match(/^\/emotional-worlds\/([^/]+)$/)
+  if (emotionalWorldMatch) {
+    const id = decodePathId(emotionalWorldMatch[1])
+    return id && EMOTIONAL_WORLD_IDS.has(id)
+      ? { kind: 'emotional-world', id }
+      : { kind: 'page', page: 'not-found' }
+  }
+
   const detailRoutes: ReadonlyArray<readonly [RegExp, WebNavigationRoute['kind']]> = [
     [/^\/tracks\/([^/]+)$/, 'track'],
     [/^\/artists?\/([^/]+)$/, 'artist'],
@@ -88,7 +99,6 @@ export function routeFromBrowserLocation(pathname = window.location.pathname): W
     [/^\/lectures\/([^/]+)$/, 'lecture-series'],
     [/^\/radio\/stations\/([^/]+)$/, 'radio-station'],
     [/^\/tv\/channels\/([^/]+)$/, 'tv-channel'],
-    [/^\/emotional-worlds\/([^/]+)$/, 'emotional-world'],
     [/^\/playlists\/([^/]+)$/, 'playlist'],
   ]
   for (const [pattern, kind] of detailRoutes) {

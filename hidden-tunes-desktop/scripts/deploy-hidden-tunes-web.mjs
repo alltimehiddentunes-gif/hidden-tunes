@@ -24,6 +24,7 @@ const committedDesktopDist = process.env.HT_COMMITTED_DESKTOP_DIST?.trim()
   ? resolve(process.env.HT_COMMITTED_DESKTOP_DIST.trim())
   : null
 const evidenceRoot = 'D:\\HiddenTunes\\Release\\website-deployments'
+const hostingerRootHtaccess = join(desktopRoot, 'deploy', 'hostinger-root.htaccess')
 const sshTarget = `${CONFIG.sshUser}@${CONFIG.sshHost}`
 const args = process.argv.slice(2)
 const mode = args[0]
@@ -112,6 +113,7 @@ function remotePreflight() {
 
 async function prepare() {
   assertConfiguration()
+  if (!existsSync(hostingerRootHtaccess)) throw new Error('Committed Hostinger root .htaccess template is missing')
   if (assertCommittedDesktopDist()) {
     await rm(join(desktopRoot, 'dist'), { recursive: true, force: true })
     await cp(committedDesktopDist, join(desktopRoot, 'dist'), { recursive: true, force: true })
@@ -149,12 +151,15 @@ async function production() {
   const archivePath = join(evidenceRoot, `${releaseId}.tar.gz`)
   run('tar.exe', ['-czf', archivePath, '-C', websiteDist, '.'], { cwd: websiteDist })
   const remoteArchive = `${CONFIG.remoteDomainRoot}/.${releaseId}.tar.gz`
+  const remoteRootHtaccess = `${CONFIG.remoteDomainRoot}/.${releaseId}.root.htaccess`
   run('scp', ['-P', CONFIG.sshPort, '-o', 'BatchMode=yes', archivePath, `${sshTarget}:${remoteArchive}`])
   run('scp', ['-P', CONFIG.sshPort, '-o', 'BatchMode=yes', manifestPath, `${sshTarget}:${CONFIG.remoteDomainRoot}/.${releaseId}.manifest.json`])
+  run('scp', ['-P', CONFIG.sshPort, '-o', 'BatchMode=yes', hostingerRootHtaccess, `${sshTarget}:${remoteRootHtaccess}`])
   const root = CONFIG.remoteDocumentRoot
   const upload = `${root}/.ht-upload-${releaseId}`
   const rollback = `${root}/staging-rollback-${releaseId}`
-  ssh(`set -eu; test -d "${root}/staging"; test -f "${root}/staging/.htaccess"; test -d "${root}/staging/catalog-api"; test ! -e "${upload}"; test ! -e "${rollback}"; mkdir "${upload}"; tar -xzf "${remoteArchive}" -C "${upload}"; test -f "${upload}/index.html"; cp -a "${root}/staging/.htaccess" "${upload}/.htaccess"; cp -a "${root}/staging/catalog-api" "${upload}/catalog-api"; test -f "${upload}/.htaccess"; test -d "${upload}/catalog-api"; mv "${root}/staging" "${rollback}"; if mv "${upload}" "${root}/staging"; then rm -f "${remoteArchive}" "${CONFIG.remoteDomainRoot}/.${releaseId}.manifest.json"; else mv "${rollback}" "${root}/staging"; exit 1; fi`, false)
+  const htaccessRollback = `${root}/.htaccess-rollback-${releaseId}`
+  ssh(`set -eu; test -d "${root}/staging"; test -f "${root}/staging/.htaccess"; test -d "${root}/staging/catalog-api"; test -f "${root}/.htaccess"; test -f "${remoteRootHtaccess}"; test ! -e "${upload}"; test ! -e "${rollback}"; test ! -e "${htaccessRollback}"; mkdir "${upload}"; tar -xzf "${remoteArchive}" -C "${upload}"; test -f "${upload}/index.html"; cp -a "${root}/staging/.htaccess" "${upload}/.htaccess"; cp -a "${root}/staging/catalog-api" "${upload}/catalog-api"; test -f "${upload}/.htaccess"; test -d "${upload}/catalog-api"; cp -a "${root}/.htaccess" "${htaccessRollback}"; mv "${root}/staging" "${rollback}"; if mv "${upload}" "${root}/staging" && mv "${remoteRootHtaccess}" "${root}/.htaccess"; then rm -f "${remoteArchive}" "${CONFIG.remoteDomainRoot}/.${releaseId}.manifest.json"; else test ! -d "${root}/staging" || mv "${root}/staging" "${root}/staging-failed-${releaseId}"; mv "${rollback}" "${root}/staging"; cp -a "${htaccessRollback}" "${root}/.htaccess"; exit 1; fi`, false)
   console.log(JSON.stringify({ mode: 'production', releaseId, previousRelease: basename(rollback), manifestPath, remoteTarget: `${root}/staging` }, null, 2))
 }
 
@@ -164,8 +169,10 @@ function rollback() {
   assertConfiguration()
   const root = CONFIG.remoteDocumentRoot
   const previous = `${root}/staging-rollback-${releaseId}`
+  const previousHtaccess = `${root}/.htaccess-rollback-${releaseId}`
   const failed = `${root}/staging-failed-${new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15)}Z`
-  ssh(`set -eu; test -d "${root}/staging"; test -d "${previous}"; test -f "${previous}/index.html"; mv "${root}/staging" "${failed}"; if mv "${previous}" "${root}/staging"; then :; else mv "${failed}" "${root}/staging"; exit 1; fi`, false)
+  const failedHtaccess = `${root}/.htaccess-failed-${new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15)}Z`
+  ssh(`set -eu; test -d "${root}/staging"; test -d "${previous}"; test -f "${previous}/index.html"; test -f "${previousHtaccess}"; mv "${root}/staging" "${failed}"; mv "${root}/.htaccess" "${failedHtaccess}"; if mv "${previous}" "${root}/staging" && mv "${previousHtaccess}" "${root}/.htaccess"; then :; else test ! -d "${root}/staging" || mv "${root}/staging" "${previous}"; mv "${failed}" "${root}/staging"; test ! -f "${failedHtaccess}" || mv "${failedHtaccess}" "${root}/.htaccess"; exit 1; fi`, false)
   console.log(JSON.stringify({ mode: 'rollback', restoredRelease: releaseId, displacedRelease: basename(failed) }, null, 2))
 }
 

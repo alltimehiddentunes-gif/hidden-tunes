@@ -20,6 +20,7 @@ export const WEB_NAVIGATION_PAGE_KEYS = [
   'premium',
   'settings',
   'about',
+  'download',
   'originals',
   'support',
   'contact',

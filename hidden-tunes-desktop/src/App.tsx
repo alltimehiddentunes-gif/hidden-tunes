@@ -238,6 +238,7 @@ import { LaunchGate } from './components/LaunchGate'
 import { GlobalTopNav } from './components/music/GlobalTopNav'
 import { HiddenTunesBrandMark } from './components/HiddenTunesBrandMark'
 import { PublicAboutPage } from './components/about/PublicAboutPage'
+import { PublicDownloadPage } from './components/download/PublicDownloadPage'
 import { MusicWorkspace } from './components/music/MusicWorkspace'
 import { AccountRequiredDialog } from './components/account/AccountRequiredDialog'
 import { resolveAccountGate } from './lib/account/accountGate'
@@ -1394,8 +1395,9 @@ function resolvePageFromNavKey(navKey: NavKey): PageId {
       return 'tv'
     case 'sports':
       return 'sports'
-    case 'about':
-    case 'originals':
+      case 'about':
+      case 'download':
+      case 'originals':
     case 'support':
     case 'contact':
     case 'privacy':
@@ -4182,13 +4184,22 @@ const EMOTIONAL_WORLDS_CARDS: EmotionalWorldCardSpec[] = EMOTIONAL_WORLDS.map((w
   artwork: world.artwork,
 }))
 
-function EmotionalWorldsPage({ onOpenSong }: { onOpenSong: QueueSongHandler }) {
+function EmotionalWorldsPage({
+  onOpenSong,
+  selectedWorldId = null,
+}: {
+  onOpenSong: QueueSongHandler
+  selectedWorldId?: EmotionalWorldId | null
+}) {
   const { songs, indexes, showCatalogSkeleton } = useCatalog()
   const { setActiveAtmosphereId } = useAtmosphere()
-  const [selectedChip, setSelectedChip] = useState<EmotionalWorldChipId>('all')
+  const [selectedChip, setSelectedChip] = useState<EmotionalWorldChipId>(selectedWorldId ?? 'all')
   const [backendCatalogs, setBackendCatalogs] = useState<Map<EmotionalWorldId, BackendWorldCatalog> | null>(null)
   const [backendFailed, setBackendFailed] = useState(false)
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
+  useEffect(() => {
+    setSelectedChip(selectedWorldId ?? 'all')
+  }, [selectedWorldId])
   useEffect(() => {
     if (songs.length === 0) return
     const controller = new AbortController()
@@ -8088,6 +8099,7 @@ function CatalogDetailRouter({
   selectedAudiobookId = null,
   selectedMotivationalProgramId = null,
   selectedLectureSeriesId = null,
+  selectedEmotionalWorldId = null,
   onOpenPodcastShow,
   onOpenAudiobookBook,
   onOpenMotivationalProgram,
@@ -8108,6 +8120,7 @@ function CatalogDetailRouter({
   selectedAudiobookId?: string | null
   selectedMotivationalProgramId?: string | null
   selectedLectureSeriesId?: string | null
+  selectedEmotionalWorldId?: EmotionalWorldId | null
   desktopSelectedTrack: ApiSong | null
   onBack: () => void
   activePage: PageId
@@ -8294,6 +8307,7 @@ function CatalogDetailRouter({
       onMusicSectionChange={onMusicSectionChange}
       onPlayMotivationalSession={onPlayMotivationalSession}
       onPlayLectureSession={onPlayLectureSession}
+      selectedEmotionalWorldId={selectedEmotionalWorldId}
     />
   )
 }
@@ -8404,6 +8418,7 @@ function PageContent({
   onMusicSectionChange,
   onPlayMotivationalSession,
   onPlayLectureSession,
+  selectedEmotionalWorldId = null,
 }: {
   page: PageId
   activeNavKey: NavKey
@@ -8428,6 +8443,7 @@ function PageContent({
   onPlayAudiobookChapter?: PlayAudiobookChapterHandler
   onPlayMotivationalSession?: PlayMotivationalSessionHandler
   onPlayLectureSession?: PlayLectureSessionHandler
+  selectedEmotionalWorldId?: EmotionalWorldId | null
   discoverQuery: string
   setDiscoverQuery: (value: string) => void
   albumsQuery: string
@@ -8694,7 +8710,7 @@ function PageContent({
         />
       )
     case 'mood':
-      return <EmotionalWorldsPage onOpenSong={onOpenSong} />
+      return <EmotionalWorldsPage onOpenSong={onOpenSong} selectedWorldId={selectedEmotionalWorldId} />
     case 'library': {
       return (
         <DesktopLibraryPage
@@ -9618,7 +9634,10 @@ function AppShell() {
   }, [backToPage, cancelAutoOpenPlayer])
 
   if (activeNavKey === 'about' && activeView === 'page' && isWebNavigationBridgeEnabled()) {
-    return <PublicAboutPage onNavigate={navigateNav} />
+    return <PublicAboutPage onNavigate={navigateNav} onNavigateRoute={requestWebNavigation} />
+  }
+  if (activeNavKey === 'download' && activeView === 'page' && isWebNavigationBridgeEnabled()) {
+    return <PublicDownloadPage onNavigate={navigateNav} />
   }
 
   return (
@@ -9805,6 +9824,11 @@ function AppShell() {
                   selectedAudiobookId={selectedAudiobookId}
                   selectedMotivationalProgramId={selectedMotivationalProgramId}
                   selectedLectureSeriesId={selectedLectureSeriesId}
+                  selectedEmotionalWorldId={
+                    webRouteStateOnly?.kind === 'emotional-world'
+                      ? webRouteStateOnly.id as EmotionalWorldId
+                      : null
+                  }
                   desktopSelectedTrack={desktopSelectedTrack}
                   onBack={backToPageWithCancel}
                   activePage={activePage}

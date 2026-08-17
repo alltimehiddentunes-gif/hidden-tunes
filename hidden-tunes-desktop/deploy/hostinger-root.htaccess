@@ -1,0 +1,69 @@
+# BEGIN LSCACHE
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+<IfModule mod_rewrite.c>
+RewriteEngine on
+RewriteRule litespeed/debug/.*\.log$ - [F,L]
+RewriteRule \.litespeed_conf\.dat - [F,L]
+</IfModule>
+<IfModule LiteSpeed>
+CacheLookup on
+RewriteRule .* - [E=Cache-Control:no-autoflush]
+
+### marker ASYNC start ###
+RewriteCond %{REQUEST_URI} /wp-admin/admin-ajax\.php
+RewriteCond %{QUERY_STRING} action=async_litespeed
+RewriteRule .* - [E=noabort:1]
+### marker ASYNC end ###
+
+### marker DROPQS start ###
+CacheKeyModify -qs:fbclid
+CacheKeyModify -qs:gclid
+CacheKeyModify -qs:utm*
+CacheKeyModify -qs:_ga
+### marker DROPQS end ###
+
+</IfModule>
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+# END LSCACHE
+# BEGIN NON_LSCACHE
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+# END NON_LSCACHE
+DirectoryIndex index.html index.php
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Do not route backend/admin subdomains through the public Website frontend.
+RewriteCond %{HTTP_HOST} !^(www\.)?hiddentunes\.com$ [NC]
+RewriteRule ^ - [END]
+
+# Canonical public Website origin.
+RewriteCond %{HTTPS} !=on [OR]
+RewriteCond %{HTTP_HOST} ^www\.hiddentunes\.com$ [NC]
+RewriteRule ^ https://hiddentunes.com%{REQUEST_URI} [R=301,END]
+
+# Root-safe catalog proxy. This must precede every frontend/SPA rewrite.
+RewriteRule ^catalog-api(?:/(.*))?$ proxy-preview/catalog-api/index.php?path=$1 [QSA,END]
+
+# Canonical SPA page routes. Exact matching keeps unknown static requests as 404s.
+RewriteRule ^(?:about|download|explore|music|radio|podcasts|audiobooks|motivationals|lectures|tv|emotional-worlds|search|library|favorites|history|downloads|playlists|artists|albums|premium|settings|originals|support|contact|privacy|terms|account-deletion|auth|reset-password)/?$ staging/index.html [END,NC]
+RewriteRule ^auth/callback/?$ staging/index.html [END,NC]
+
+# Canonical SPA detail routes. Dots and extra path segments remain real static 404s.
+RewriteRule ^(?:artist|artists|album|albums|tracks|podcasts|audiobooks|motivationals|lectures|playlists)/[^/.]+/?$ staging/index.html [END,NC]
+RewriteRule ^(?:radio/stations|tv/channels|emotional-worlds)/[^/.]+/?$ staging/index.html [END,NC]
+RewriteRule ^(?:podcasts/[^/.]+/episodes|audiobooks/[^/.]+/chapters)/[^/.]+/?$ staging/index.html [END,NC]
+
+# Promote the approved staging tree without exposing /staging publicly.
+RewriteCond %{REQUEST_URI} !^/staging(?:/|$) [NC]
+RewriteRule ^(.*)$ staging/$1 [END]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Strict-Transport-Security "max-age=2592000"
+</IfModule>
