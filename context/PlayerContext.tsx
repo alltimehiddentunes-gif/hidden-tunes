@@ -9818,23 +9818,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void applyProgressUpdateInterval("app_state_active");
         void (async () => {
           if (isHiddenAudioNativePlaybackEnabled()) {
-            if (!currentSongRef.current || activeQueueRef.current.length === 0) {
-              const hydrated = await hydrateJsPlaybackSessionFromStorage();
-              if (hydrated) {
-                logLockscreenPlaybackDiagnostic(
-                  "foreground_saved_session_loaded_before_native_probe",
-                  {
-                    source: "app_state_active",
-                    songId: currentSongRef.current?.id || null,
-                    queueLength: activeQueueRef.current.length,
-                    queueIndex: activeQueueIndexRef.current,
-                  }
-                );
+            if (Platform.OS === "ios") {
+              await resyncForegroundHiddenAudioState();
+            } else {
+              if (!currentSongRef.current || activeQueueRef.current.length === 0) {
+                const hydrated = await hydrateJsPlaybackSessionFromStorage();
+                if (hydrated) {
+                  logLockscreenPlaybackDiagnostic(
+                    "foreground_saved_session_loaded_before_native_probe",
+                    {
+                      source: "app_state_active",
+                      songId: currentSongRef.current?.id || null,
+                      queueLength: activeQueueRef.current.length,
+                      queueIndex: activeQueueIndexRef.current,
+                    }
+                  );
+                }
               }
+              await reconcileHiddenAudioActiveState("app_state_active");
             }
-            await reconcileHiddenAudioActiveState("app_state_active");
           }
-          await resyncForegroundHiddenAudioState();
         })();
         void catchUpPlaybackIfEnded();
         void flushPendingSmartExtend();
