@@ -1,0 +1,90 @@
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-destination {
+  display: grid;
+  gap: clamp(28px, 2.2vw, 56px);
+  padding-bottom: clamp(72px, 8vh, 180px);
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .sectionHero {
+  min-height: clamp(300px, 35vh, 700px);
+  border: 1px solid var(--tv-border);
+  border-radius: var(--tv-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--tv-shadow-lg);
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-tabs {
+  display: flex;
+  gap: clamp(12px, 1vw, 24px);
+  overflow: hidden;
+  padding: 12px;
+  margin: -12px;
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-tab {
+  min-height: clamp(52px, 4vw, 82px);
+  padding-inline: clamp(22px, 2vw, 42px);
+  border-radius: 999px;
+  font-size: clamp(18px, 1.2vw, 30px);
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-section {
+  display: grid;
+  gap: clamp(18px, 1.4vw, 34px);
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-section-header h2 {
+  font-size: clamp(30px, 2.3vw, 54px);
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-featured-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(250px, 20vw, 500px);
+  gap: clamp(22px, 1.8vw, 44px);
+  overflow: hidden;
+  padding: 14px;
+  margin: -14px;
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcast-featured-card {
+  border: 1px solid var(--tv-border);
+  border-radius: var(--tv-radius-md);
+  background: var(--tv-surface);
+  overflow: hidden;
+  transition: transform var(--tv-transition-fast), border-color var(--tv-transition-fast), box-shadow var(--tv-transition-fast);
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcast-featured-card:focus-within,
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcast-show-episode:focus-within {
+  transform: scale(1.035);
+  border-color: var(--tv-focus);
+  box-shadow: var(--tv-focus-ring), var(--tv-shadow-lg);
+  z-index: 2;
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcast-featured-card-copy,
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcast-show-episode {
+  padding: clamp(20px, 1.6vw, 38px);
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-category-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(18px, 1.4vw, 34px);
+}
+
+html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcast-show-episode {
+  border: 1px solid var(--tv-border);
+  border-radius: var(--tv-radius-md);
+  background: var(--tv-surface);
+  transition: transform var(--tv-transition-fast), border-color var(--tv-transition-fast), box-shadow var(--tv-transition-fast);
+}
+
+@media (max-width: 1400px), (max-height: 800px) {
+  html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-featured-rail { grid-auto-columns: 250px; }
+  html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-category-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+@media (min-width: 3000px) {
+  html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-featured-rail { grid-auto-columns: 600px; }
+  html[data-hidden-tunes-tv] .page-view[data-page="podcasts"] .podcasts-category-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
