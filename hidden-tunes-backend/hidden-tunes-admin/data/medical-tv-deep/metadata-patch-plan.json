@@ -1,0 +1,230 @@
+{
+  "generatedAt": "2026-08-17T14:51:04.292Z",
+  "apply": false,
+  "rollback": "Restore exactly the before fields for each ID; do not delete rows or alter stream/playback fields.",
+  "changes": [
+    {
+      "id": "1844bef9-8e9b-4d03-be2c-8ae7cc954ee9",
+      "title": "Doctor",
+      "before": {
+        "id": "1844bef9-8e9b-4d03-be2c-8ae7cc954ee9",
+        "title": "Doctor",
+        "language": null,
+        "category": "education",
+        "genre": null,
+        "description": null,
+        "thumbnail_url": null,
+        "tags": ["education", "lifestyle", "Education", "Lifestyle"],
+        "source_url": "https://stream8.cinerama.uz/1409/tracks-v1a1/mono.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      },
+      "after": {
+        "id": "1844bef9-8e9b-4d03-be2c-8ae7cc954ee9",
+        "title": "Doctor",
+        "language": "ru",
+        "category": "Medical & Health",
+        "genre": "Surgery & Diagnosis",
+        "description": "Russian-language medical education, diagnosis, treatment and public-health television.",
+        "thumbnail_url": "https://i.imgur.com/VNirxxn.png",
+        "tags": [
+          "Medical & Health",
+          "Surgery & Diagnosis",
+          "Russian",
+          "official:https://doc-tv.ru/"
+        ],
+        "source_url": "https://stream8.cinerama.uz/1409/tracks-v1a1/mono.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      }
+    },
+    {
+      "id": "548625af-200a-4aa2-b3c3-d8c4ce7ff11a",
+      "title": "Code Health TV",
+      "before": {
+        "id": "548625af-200a-4aa2-b3c3-d8c4ce7ff11a",
+        "title": "Code Health TV",
+        "language": null,
+        "category": "lifestyle",
+        "genre": null,
+        "description": null,
+        "thumbnail_url": null,
+        "tags": ["lifestyle", "Lifestyle"],
+        "source_url": "https://cdn2.invivo.bg/codehealth_test/index.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      },
+      "after": {
+        "id": "548625af-200a-4aa2-b3c3-d8c4ce7ff11a",
+        "title": "Code Health TV",
+        "language": "bg",
+        "category": "Medical & Health",
+        "genre": "Public Health",
+        "description": "Bulgarian 24-hour specialist health television focused on prevention, medicine, mental health and healthy living.",
+        "thumbnail_url": "https://i.imgur.com/NXBMzGV.png",
+        "tags": [
+          "Medical & Health",
+          "Public Health",
+          "Bulgarian",
+          "official:https://codehealth.bg/"
+        ],
+        "source_url": "https://cdn2.invivo.bg/codehealth_test/index.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      }
+    },
+    {
+      "id": "550cdf1b-80a8-4fa1-8f0e-a668e2f2df79",
+      "title": "CVR Health",
+      "before": {
+        "id": "550cdf1b-80a8-4fa1-8f0e-a668e2f2df79",
+        "title": "CVR Health",
+        "language": null,
+        "category": "lifestyle",
+        "genre": null,
+        "description": null,
+        "thumbnail_url": null,
+        "tags": ["lifestyle", "Lifestyle", "Asia"],
+        "source_url": "https://cdn-6.pishow.tv/live/395/master.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      },
+      "after": {
+        "id": "550cdf1b-80a8-4fa1-8f0e-a668e2f2df79",
+        "title": "CVR Health",
+        "language": "te",
+        "category": "Medical & Health",
+        "genre": "Medical Education",
+        "description": "Telugu-language health education, medical information and public-health programming.",
+        "thumbnail_url": "https://i.imgur.com/bCyW32I.png",
+        "tags": [
+          "Medical & Health",
+          "Medical Education",
+          "Telugu",
+          "official:http://www.cvrinfo.com/health.html"
+        ],
+        "source_url": "https://cdn-6.pishow.tv/live/395/master.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      }
+    },
+    {
+      "id": "74e2384f-43dd-4a53-8b3a-fe3914ab8b6a",
+      "title": "Persiana Medical",
+      "before": {
+        "id": "74e2384f-43dd-4a53-8b3a-fe3914ab8b6a",
+        "title": "Persiana Medical",
+        "language": null,
+        "category": "education",
+        "genre": null,
+        "description": null,
+        "thumbnail_url": null,
+        "tags": ["education", "Education", "Europe"],
+        "source_url": "https://phd2hls.persiana.live/hls/stream.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      },
+      "after": {
+        "id": "74e2384f-43dd-4a53-8b3a-fe3914ab8b6a",
+        "title": "Persiana Medical",
+        "language": "fa",
+        "category": "Medical & Health",
+        "genre": "Medical Education",
+        "description": "Persian-language medical documentaries, scientific programming, health education and wellness information.",
+        "thumbnail_url": null,
+        "tags": [
+          "Medical & Health",
+          "Medical Education",
+          "Persian",
+          "official:https://www.persianagroup.tv/"
+        ],
+        "source_url": "https://phd2hls.persiana.live/hls/stream.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      }
+    },
+    {
+      "id": "9cbba769-295c-4126-8990-697fdf9c5137",
+      "title": "Better Health TV",
+      "before": {
+        "id": "9cbba769-295c-4126-8990-697fdf9c5137",
+        "title": "Better Health TV",
+        "language": null,
+        "category": "lifestyle",
+        "genre": null,
+        "description": null,
+        "thumbnail_url": null,
+        "tags": ["lifestyle", "Lifestyle", "Americas"],
+        "source_url": "https://tgn.bozztv.com/betterlife/betterhealth/betterhealth/index.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      },
+      "after": {
+        "id": "9cbba769-295c-4126-8990-697fdf9c5137",
+        "title": "Better Health TV",
+        "language": "en",
+        "category": "Medical & Health",
+        "genre": "Fitness & Clinical Wellness",
+        "description": "Health-focused educational programming from Better Life Television.",
+        "thumbnail_url": "https://i.imgur.com/qnwJiji.png",
+        "tags": [
+          "Medical & Health",
+          "Fitness & Clinical Wellness",
+          "English",
+          "official:https://betterlifetv.tv/"
+        ],
+        "source_url": "https://tgn.bozztv.com/betterlife/betterhealth/betterhealth/index.m3u8",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      }
+    },
+    {
+      "id": "bacc6b74-3211-4cf2-9636-9f940f13d4ec",
+      "title": "Dr G Medical Examiner",
+      "before": {
+        "id": "bacc6b74-3211-4cf2-9636-9f940f13d4ec",
+        "title": "Dr G Medical Examiner",
+        "language": null,
+        "category": "general",
+        "genre": null,
+        "description": null,
+        "thumbnail_url": null,
+        "tags": ["general", "General"],
+        "source_url": "https://d39g1vxj2ef6in.cloudfront.net/v1/master/3fec3e5cac39a52b2132f9c66c83dae043dc17d4/prod-rakuten-stitched/master.m3u8?ads.xumo_channelId=88883008",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      },
+      "after": {
+        "id": "bacc6b74-3211-4cf2-9636-9f940f13d4ec",
+        "title": "Dr G Medical Examiner",
+        "language": "en",
+        "category": "Medical & Health",
+        "genre": "Medical Documentaries",
+        "description": "Forensic medical documentary series following investigations by medical examiner Dr. Jan Garavaglia.",
+        "thumbnail_url": null,
+        "tags": [
+          "Medical & Health",
+          "Medical Documentaries",
+          "Forensic Medicine",
+          "English",
+          "official:https://www.rakuten.tv/pl/live_channels/filmrise-dr-g-medical-examiner"
+        ],
+        "source_url": "https://d39g1vxj2ef6in.cloudfront.net/v1/master/3fec3e5cac39a52b2132f9c66c83dae043dc17d4/prod-rakuten-stitched/master.m3u8?ads.xumo_channelId=88883008",
+        "status": "approved",
+        "is_active": true,
+        "playback_status": "playable"
+      }
+    }
+  ]
+}

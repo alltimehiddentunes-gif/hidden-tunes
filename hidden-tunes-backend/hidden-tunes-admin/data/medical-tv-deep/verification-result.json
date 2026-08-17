@@ -1,0 +1,503 @@
+{
+  "generatedAt": "2026-08-17T14:51:26.156Z",
+  "apply": false,
+  "continuityWaitMs": 15000,
+  "results": [
+    {
+      "name": "Code Health TV",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["548625af-200a-4aa2-b3c3-d8c4ce7ff11a"],
+      "existingVerification": [
+        {
+          "id": "548625af-200a-4aa2-b3c3-d8c4ce7ff11a",
+          "catalog": {
+            "id": "548625af-200a-4aa2-b3c3-d8c4ce7ff11a",
+            "title": "Code Health TV",
+            "channel_name": "Code Health TV",
+            "description": "Bulgarian 24-hour specialist health television focused on prevention, medicine, mental health and healthy living.",
+            "thumbnail_url": "https://i.imgur.com/NXBMzGV.png",
+            "region": "BG",
+            "language": "bg",
+            "category": "Medical & Health",
+            "genre": "Public Health",
+            "tags": [
+              "Medical & Health",
+              "Public Health",
+              "Bulgarian",
+              "official:https://codehealth.bg/"
+            ],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:CodeHealthTV.bg",
+            "source_url": "https://cdn2.invivo.bg/codehealth_test/index.m3u8",
+            "status": "approved",
+            "is_active": true,
+            "playback_status": "playable",
+            "reliability_score": 100,
+            "ios_playable": true,
+            "android_playable": true,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-07-25T21:27:22.75+00:00"
+          },
+          "medicalCategory": true,
+          "publicPlayable": true,
+          "metadataComplete": true,
+          "productionPlay": {
+            "ok": true,
+            "status": 200,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": true,
+            "error": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "Persiana Medical",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["74e2384f-43dd-4a53-8b3a-fe3914ab8b6a"],
+      "existingVerification": [
+        {
+          "id": "74e2384f-43dd-4a53-8b3a-fe3914ab8b6a",
+          "catalog": {
+            "id": "74e2384f-43dd-4a53-8b3a-fe3914ab8b6a",
+            "title": "Persiana Medical",
+            "channel_name": "Persiana Medical",
+            "description": "Persian-language medical documentaries, scientific programming, health education and wellness information.",
+            "thumbnail_url": null,
+            "region": "FR",
+            "language": "fa",
+            "category": "Medical & Health",
+            "genre": "Medical Education",
+            "tags": [
+              "Medical & Health",
+              "Medical Education",
+              "Persian",
+              "official:https://www.persianagroup.tv/"
+            ],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:PersianaMedical.fr",
+            "source_url": "https://phd2hls.persiana.live/hls/stream.m3u8",
+            "status": "approved",
+            "is_active": true,
+            "playback_status": "playable",
+            "reliability_score": 100,
+            "ios_playable": true,
+            "android_playable": true,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-07-25T20:27:38.924+00:00"
+          },
+          "medicalCategory": true,
+          "publicPlayable": true,
+          "metadataComplete": false,
+          "productionPlay": {
+            "ok": true,
+            "status": 200,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": true,
+            "error": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "Better Health TV",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["9cbba769-295c-4126-8990-697fdf9c5137"],
+      "existingVerification": [
+        {
+          "id": "9cbba769-295c-4126-8990-697fdf9c5137",
+          "catalog": {
+            "id": "9cbba769-295c-4126-8990-697fdf9c5137",
+            "title": "Better Health TV",
+            "channel_name": "Better Health TV",
+            "description": "Health-focused educational programming from Better Life Television.",
+            "thumbnail_url": "https://i.imgur.com/qnwJiji.png",
+            "region": "US",
+            "language": "en",
+            "category": "Medical & Health",
+            "genre": "Fitness & Clinical Wellness",
+            "tags": [
+              "Medical & Health",
+              "Fitness & Clinical Wellness",
+              "English",
+              "official:https://betterlifetv.tv/"
+            ],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:BetterHealthTV.us",
+            "source_url": "https://tgn.bozztv.com/betterlife/betterhealth/betterhealth/index.m3u8",
+            "status": "approved",
+            "is_active": true,
+            "playback_status": "playable",
+            "reliability_score": 100,
+            "ios_playable": true,
+            "android_playable": true,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-07-21T19:54:25.337+00:00"
+          },
+          "medicalCategory": true,
+          "publicPlayable": true,
+          "metadataComplete": true,
+          "productionPlay": {
+            "ok": true,
+            "status": 200,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": true,
+            "error": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "CCTV Health",
+      "classification": "NO_DIRECT_PLAYABLE_STREAM",
+      "reason": "HTTP-only unofficial endpoint"
+    },
+    {
+      "name": "CVR Health",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["550cdf1b-80a8-4fa1-8f0e-a668e2f2df79"],
+      "existingVerification": [
+        {
+          "id": "550cdf1b-80a8-4fa1-8f0e-a668e2f2df79",
+          "catalog": {
+            "id": "550cdf1b-80a8-4fa1-8f0e-a668e2f2df79",
+            "title": "CVR Health",
+            "channel_name": "CVR Health",
+            "description": "Telugu-language health education, medical information and public-health programming.",
+            "thumbnail_url": "https://i.imgur.com/bCyW32I.png",
+            "region": "IN",
+            "language": "te",
+            "category": "Medical & Health",
+            "genre": "Medical Education",
+            "tags": [
+              "Medical & Health",
+              "Medical Education",
+              "Telugu",
+              "official:http://www.cvrinfo.com/health.html"
+            ],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:CVRHealth.in",
+            "source_url": "https://cdn-6.pishow.tv/live/395/master.m3u8",
+            "status": "approved",
+            "is_active": true,
+            "playback_status": "playable",
+            "reliability_score": 100,
+            "ios_playable": true,
+            "android_playable": true,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-07-21T20:38:04.543+00:00"
+          },
+          "medicalCategory": true,
+          "publicPlayable": true,
+          "metadataComplete": true,
+          "productionPlay": {
+            "ok": true,
+            "status": 200,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": true,
+            "error": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "Detetives Medicos",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["7f767f8b-e346-4ee9-938c-14a92a42370a"],
+      "existingVerification": [
+        {
+          "id": "7f767f8b-e346-4ee9-938c-14a92a42370a",
+          "catalog": {
+            "id": "7f767f8b-e346-4ee9-938c-14a92a42370a",
+            "title": "Detetives Medicos",
+            "channel_name": "Detetives Medicos",
+            "description": null,
+            "thumbnail_url": null,
+            "region": "US",
+            "language": null,
+            "category": "documentary",
+            "genre": "Documentary",
+            "tags": ["documentary", "Documentary", "Americas"],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:DetetivesMedicos.us",
+            "source_url": "https://jmp2.uk/plu-638df93ae2f2a3000737c168.m3u8",
+            "status": "approved",
+            "is_active": false,
+            "playback_status": "blocked",
+            "reliability_score": 0,
+            "ios_playable": false,
+            "android_playable": false,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-08-10T20:51:43.754+00:00"
+          },
+          "medicalCategory": false,
+          "publicPlayable": false,
+          "metadataComplete": false,
+          "productionPlay": {
+            "ok": false,
+            "status": 404,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": false,
+            "error": "TV station not found or not currently playable."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctor",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["1844bef9-8e9b-4d03-be2c-8ae7cc954ee9"],
+      "existingVerification": [
+        {
+          "id": "1844bef9-8e9b-4d03-be2c-8ae7cc954ee9",
+          "catalog": {
+            "id": "1844bef9-8e9b-4d03-be2c-8ae7cc954ee9",
+            "title": "Doctor",
+            "channel_name": "Doctor",
+            "description": "Russian-language medical education, diagnosis, treatment and public-health television.",
+            "thumbnail_url": "https://i.imgur.com/VNirxxn.png",
+            "region": "RU",
+            "language": "ru",
+            "category": "Medical & Health",
+            "genre": "Surgery & Diagnosis",
+            "tags": [
+              "Medical & Health",
+              "Surgery & Diagnosis",
+              "Russian",
+              "official:https://doc-tv.ru/"
+            ],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:Doctor.ru",
+            "source_url": "https://stream8.cinerama.uz/1409/tracks-v1a1/mono.m3u8",
+            "status": "approved",
+            "is_active": true,
+            "playback_status": "playable",
+            "reliability_score": 100,
+            "ios_playable": true,
+            "android_playable": true,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-07-21T21:08:00.936+00:00"
+          },
+          "medicalCategory": true,
+          "publicPlayable": true,
+          "metadataComplete": true,
+          "productionPlay": {
+            "ok": true,
+            "status": 200,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": true,
+            "error": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dr G Medical Examiner",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["bacc6b74-3211-4cf2-9636-9f940f13d4ec"],
+      "existingVerification": [
+        {
+          "id": "bacc6b74-3211-4cf2-9636-9f940f13d4ec",
+          "catalog": {
+            "id": "bacc6b74-3211-4cf2-9636-9f940f13d4ec",
+            "title": "Dr G Medical Examiner",
+            "channel_name": "Dr G Medical Examiner",
+            "description": "Forensic medical documentary series following investigations by medical examiner Dr. Jan Garavaglia.",
+            "thumbnail_url": null,
+            "region": "PL",
+            "language": "en",
+            "category": "Medical & Health",
+            "genre": "Medical Documentaries",
+            "tags": [
+              "Medical & Health",
+              "Medical Documentaries",
+              "Forensic Medicine",
+              "English",
+              "official:https://www.rakuten.tv/pl/live_channels/filmrise-dr-g-medical-examiner"
+            ],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:DrGMedicalExaminer.pl",
+            "source_url": "https://d39g1vxj2ef6in.cloudfront.net/v1/master/3fec3e5cac39a52b2132f9c66c83dae043dc17d4/prod-rakuten-stitched/master.m3u8?ads.xumo_channelId=88883008",
+            "status": "approved",
+            "is_active": true,
+            "playback_status": "playable",
+            "reliability_score": 100,
+            "ios_playable": true,
+            "android_playable": true,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-07-25T21:21:07.626+00:00"
+          },
+          "medicalCategory": true,
+          "publicPlayable": true,
+          "metadataComplete": false,
+          "productionPlay": {
+            "ok": true,
+            "status": 200,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": true,
+            "error": null
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logos TV Salud",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["301b1281-cbd6-41b4-9f44-c6f5f2f34039"],
+      "existingVerification": [
+        {
+          "id": "301b1281-cbd6-41b4-9f44-c6f5f2f34039",
+          "catalog": {
+            "id": "301b1281-cbd6-41b4-9f44-c6f5f2f34039",
+            "title": "Logos TV Salud",
+            "channel_name": "Logos TV Salud",
+            "description": null,
+            "thumbnail_url": null,
+            "region": "ES",
+            "language": null,
+            "category": "lifestyle",
+            "genre": null,
+            "tags": ["lifestyle", "Lifestyle", "Europe", "Latin"],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:LogosTVSalud.es",
+            "source_url": "https://streamer1.streamhost.org/salive/logossaludH/playlist.m3u8",
+            "status": "approved",
+            "is_active": false,
+            "playback_status": "blocked",
+            "reliability_score": 16,
+            "ios_playable": false,
+            "android_playable": false,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-07-25T20:46:18.786+00:00"
+          },
+          "medicalCategory": false,
+          "publicPlayable": false,
+          "metadataComplete": false,
+          "productionPlay": {
+            "ok": false,
+            "status": 404,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": false,
+            "error": "TV station not found or not currently playable."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pluto TV Misterios Medicos",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["fbc437a0-937b-4867-81d5-28c0f78dee8f"],
+      "existingVerification": [
+        {
+          "id": "fbc437a0-937b-4867-81d5-28c0f78dee8f",
+          "catalog": {
+            "id": "fbc437a0-937b-4867-81d5-28c0f78dee8f",
+            "title": "Pluto TV Misterios Medicos",
+            "channel_name": "Pluto TV Misterios Medicos",
+            "description": null,
+            "thumbnail_url": null,
+            "region": "US",
+            "language": null,
+            "category": "series",
+            "genre": null,
+            "tags": ["series", "Series", "Americas"],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:PlutoTVMisteriosMedicos.us",
+            "source_url": "https://jmp2.uk/plu-5f230e416b68ff00075b0139.m3u8",
+            "status": "approved",
+            "is_active": false,
+            "playback_status": "blocked",
+            "reliability_score": 0,
+            "ios_playable": false,
+            "android_playable": false,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-08-10T20:51:43.754+00:00"
+          },
+          "medicalCategory": false,
+          "publicPlayable": false,
+          "metadataComplete": false,
+          "productionPlay": {
+            "ok": false,
+            "status": 404,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": false,
+            "error": "TV station not found or not currently playable."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Doctor TV Network",
+      "classification": "DRM_OR_AUTH_PROTECTED",
+      "reason": "signed session URL"
+    },
+    {
+      "name": "The Health Channel",
+      "classification": "GEO_RESTRICTED",
+      "reason": "regional PBS stream"
+    },
+    {
+      "name": "UCTV",
+      "classification": "DUPLICATE_EXISTING",
+      "duplicateIds": ["bfb072cf-0bf5-4aca-81fc-4e6d08006f9c"],
+      "existingVerification": [
+        {
+          "id": "bfb072cf-0bf5-4aca-81fc-4e6d08006f9c",
+          "catalog": {
+            "id": "bfb072cf-0bf5-4aca-81fc-4e6d08006f9c",
+            "title": "UCTV",
+            "channel_name": "UCTV",
+            "description": null,
+            "thumbnail_url": null,
+            "region": "US",
+            "language": null,
+            "category": "education",
+            "genre": null,
+            "tags": ["education", "Education", "Americas"],
+            "source_type": "hls_stream",
+            "source_key": "iptv-org:UCTV.us",
+            "source_url": "https://59e8e1c60a2b2.streamlock.net/509/509.stream/playlist.m3u8",
+            "status": "approved",
+            "is_active": true,
+            "playback_status": "playable",
+            "reliability_score": 100,
+            "ios_playable": true,
+            "android_playable": true,
+            "stream_is_https": true,
+            "stream_protocol": "hls",
+            "last_health_checked_at": "2026-07-21T19:32:52.157+00:00"
+          },
+          "medicalCategory": false,
+          "publicPlayable": true,
+          "metadataComplete": false,
+          "productionPlay": {
+            "ok": true,
+            "status": 200,
+            "deliveryMode": null,
+            "protocol": null,
+            "hasUrl": true,
+            "error": null
+          }
+        }
+      ]
+    }
+  ]
+}

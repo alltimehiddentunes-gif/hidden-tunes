@@ -1,0 +1,35 @@
+{
+  "appliedAt": "2026-08-17T14:51:05.123Z",
+  "results": [
+    {
+      "id": "1844bef9-8e9b-4d03-be2c-8ae7cc954ee9",
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "548625af-200a-4aa2-b3c3-d8c4ce7ff11a",
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "550cdf1b-80a8-4fa1-8f0e-a668e2f2df79",
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "74e2384f-43dd-4a53-8b3a-fe3914ab8b6a",
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "9cbba769-295c-4126-8990-697fdf9c5137",
+      "ok": true,
+      "error": null
+    },
+    {
+      "id": "bacc6b74-3211-4cf2-9636-9f940f13d4ec",
+      "ok": true,
+      "error": null
+    }
+  ]
+}
