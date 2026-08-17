@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
-  AppState,
   Image,
   InteractionManager,
   useWindowDimensions,
@@ -13,7 +12,6 @@ import {
   Pressable,
   TouchableOpacity,
   View,
-  type AppStateStatus,
 } from "react-native";
 
 import { router, useFocusEffect } from "expo-router";
@@ -1234,16 +1232,6 @@ export default function MusicFeedScreen() {
   useEffect(() => {
     void refreshGenreSpotlightSignals();
   }, [refreshGenreSpotlightSignals, showDeferredHomeSections]);
-
-  useEffect(() => {
-    const onAppStateChange = (nextState: AppStateStatus) => {
-      if (nextState === "active") {
-        void refreshGenreSpotlightSignals();
-      }
-    };
-    const subscription = AppState.addEventListener("change", onAppStateChange);
-    return () => subscription.remove();
-  }, [refreshGenreSpotlightSignals]);
 
   const genreSpotlightLimit = useMemo(
     () => resolveGenreSpotlightLimit(viewportWidth),
