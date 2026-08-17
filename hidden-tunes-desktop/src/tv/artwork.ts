@@ -1,26 +1,50 @@
 const FALLBACK_ARTWORK = '/__tv_art/fallback.jpg'
 const APPROVED_ARTWORK_ORIGIN = 'https://pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev'
-const PLAYER_ARTWORK_SELECTOR = '.player-bar .player-artwork img,.ht-player-art-frame img,.premium-shell-art-frame img,.ht-player-queue-section img,.queue-now-card img'
-const PROVEN_PLAYER_ARTWORK = '/__tv_art/player.jpg'
+const PLAYER_ARTWORK_SELECTOR = '.player-bar .player-artwork img,.ht-player-art-frame img,.premium-shell-art-frame img'
+const MAX_RESOLVED_ARTWORK = 24
 const SURFACES = [
   ['miniArtwork', '.player-bar .player-artwork'],
   ['mainArtwork', '.ht-player-art-frame'],
   ['fullArtwork', '.premium-shell-art-frame'],
-  ['queueArtwork', '.ht-player-queue-section .art-frame,.queue-now-card .art-frame'],
 ] as const
 
-type ResolvedArtwork = { mediaId: string; url: string; decoded: boolean; width: number; height: number }
-const resolvedByMediaId = new Map<string, ResolvedArtwork>()
+type ResolvedArtwork = { mediaId: string; artworkUrl: string; url: string; decoded: boolean; width: number; height: number }
+type ArtworkInput = { url: string | null; field: string }
+const resolvedByArtworkUrl = new Map<string, ResolvedArtwork>()
 let activeResolved: ResolvedArtwork | null = null
+let activeRequestKey = ''
+let requestSequence = 0
+
+function normalizeArtworkUrl(raw: string | null | undefined) {
+  if (!raw) return null
+  try {
+    const url = new URL(raw, location.href)
+    if (url.origin !== APPROVED_ARTWORK_ORIGIN || !/^\/(covers|artists)\//.test(url.pathname) || url.pathname.includes('..') || url.pathname.includes('\\')) return null
+    return `${APPROVED_ARTWORK_ORIGIN}${url.pathname}`
+  } catch { return null }
+}
+
+function selectArtworkInput(media: unknown, displayArtwork: string | null): ArtworkInput {
+  const record = media && typeof media === 'object' ? media as Record<string, unknown> : {}
+  const aliases = ['artwork', 'artworkUrl', 'artwork_url', 'image', 'imageUrl', 'image_url', 'cover', 'coverUrl', 'cover_url', 'thumbnail'] as const
+  const candidates = aliases.map((field) => ({ field, url: typeof record[field] === 'string' ? normalizeArtworkUrl(record[field] as string) : null })).filter((item) => item.url)
+  const cover = candidates.find((item) => new URL(item.url!).pathname.startsWith('/covers/'))
+  const selected = cover || candidates[0]
+  if (selected) return { url: selected.url, field: selected.field }
+  return { url: normalizeArtworkUrl(displayArtwork), field: displayArtwork ? 'displayArtwork' : 'missing' }
+}
+
+function touchCache(url: string, state: ResolvedArtwork) {
+  resolvedByArtworkUrl.delete(url)
+  resolvedByArtworkUrl.set(url, state)
+  while (resolvedByArtworkUrl.size > MAX_RESOLVED_ARTWORK) resolvedByArtworkUrl.delete(resolvedByArtworkUrl.keys().next().value as string)
+}
 
 function diagnostic(message: string) {
   let overlay = document.getElementById('tv-artwork-diagnostic')
   if (!overlay) {
-    overlay = document.createElement('aside')
-    overlay.id = 'tv-artwork-diagnostic'
-    overlay.tabIndex = -1
-    overlay.setAttribute('aria-hidden', 'true')
-    document.body.appendChild(overlay)
+    overlay = document.createElement('aside'); overlay.id = 'tv-artwork-diagnostic'; overlay.tabIndex = -1
+    overlay.setAttribute('aria-hidden', 'true'); document.body.appendChild(overlay)
   }
   const script = Array.from(document.scripts).map((item) => item.src).find((src) => /\/assets\/tv-[^/]+\.js/.test(src)) || 'pending'
   overlay.textContent = `TV ${script.split('/').pop()} | ${message}`
@@ -28,7 +52,7 @@ function diagnostic(message: string) {
 
 function report(event: string, image: HTMLImageElement) {
   const source = image.currentSrc || image.src
-  const kind = source.includes(PROVEN_PLAYER_ARTWORK) ? 'static-proxy-baseline-rgb' : source.includes('/__tv_artwork/') ? (source.includes('compat=1') ? 'proxy-baseline-jpeg' : 'proxy-original') : (source.endsWith(FALLBACK_ARTWORK) ? 'logo-fallback-resized' : 'direct')
+  const kind = /\/__tv_art\/[a-f0-9]{24}\.jpg$/.test(new URL(source, location.href).pathname) ? 'hashed-baseline-rgb' : (source.endsWith(FALLBACK_ARTWORK) ? 'logo-fallback-resized' : 'direct')
   diagnostic(`${kind} | ${event} | ${image.naturalWidth}x${image.naturalHeight}`)
   const query = new URLSearchParams({ event, kind, width: String(image.naturalWidth), height: String(image.naturalHeight) })
   fetch(`/__tv_diag?${query}`, { method: 'GET', cache: 'no-store', credentials: 'omit' }).catch(() => {})
@@ -39,115 +63,118 @@ function visibility(node: HTMLElement) {
   return `${style.display}/${style.visibility}/o${style.opacity}/${Math.round(box.width)}x${Math.round(box.height)}/z${style.zIndex}`
 }
 
-function showSurfaceDiagnostics() {
-  if (!activeResolved) return
-  const resolved = activeResolved
-  const rows = SURFACES.slice(0, 2).map(([name, selector]) => {
-    const image = document.querySelector<HTMLImageElement>(`${selector} img.tv-resolved-artwork`)
-    return `${name}=${image ? `${resolved.url} decoded=${resolved.decoded} ${resolved.width}x${resolved.height} ${visibility(image)}` : 'missing'}`
-  })
-  diagnostic(rows.join(' | '))
-}
-
 function bindResolvedArtwork(state: ResolvedArtwork) {
   activeResolved = state
   for (const [surface, selector] of SURFACES) {
     document.querySelectorAll<HTMLElement>(selector).forEach((container) => {
-      const image = container.querySelector<HTMLImageElement>('img')
-      if (!image) return
+      const image = container.querySelector<HTMLImageElement>('img'); if (!image) return
+      const original = normalizeArtworkUrl(image.dataset.tvOriginalArtwork)
+      if (original && original !== state.artworkUrl) return
       image.classList.add('tv-resolved-artwork', `tv-resolved-artwork--${surface}`)
       if (image.src !== new URL(state.url, location.href).href) image.src = state.url
-      image.dataset.tvArtLoaded = String(state.decoded)
-      image.dataset.tvMediaId = state.mediaId
+      image.dataset.tvArtLoaded = 'true'
+      if (image.dataset.tvMediaId !== state.mediaId) image.dataset.tvMediaId = state.mediaId
+      image.dataset.tvResolvedArtwork = state.artworkUrl
     })
   }
-  requestAnimationFrame(showSurfaceDiagnostics)
+  requestAnimationFrame(() => {
+    const rows = SURFACES.slice(0, 2).map(([name, selector]) => {
+      const image = document.querySelector<HTMLImageElement>(`${selector} img.tv-resolved-artwork`)
+      return `${name}=${image ? `${state.url} ${state.width}x${state.height} ${visibility(image)}` : 'missing'}`
+    })
+    diagnostic(rows.join(' | '))
+  })
 }
 
-function resolveForMedia(mediaId: string) {
-  const existing = resolvedByMediaId.get(mediaId)
-  if (existing?.decoded) return void bindResolvedArtwork(existing)
-  const pending: ResolvedArtwork = existing || { mediaId, url: PROVEN_PLAYER_ARTWORK, decoded: false, width: 0, height: 0 }
-  resolvedByMediaId.set(mediaId, pending)
-  const preload = new Image()
-  preload.onload = () => {
-    pending.decoded = preload.naturalWidth > 0
-    pending.width = preload.naturalWidth
-    pending.height = preload.naturalHeight
-    if (pending.decoded) bindResolvedArtwork(pending)
+function bindFallback(mediaId: string, artworkUrl: string) {
+  bindResolvedArtwork({ mediaId, artworkUrl, url: FALLBACK_ARTWORK, decoded: true, width: 0, height: 0 })
+}
+
+async function resolveForMedia(mediaId: string, rawArtworkUrl: string, artworkField: string) {
+  const artworkUrl = normalizeArtworkUrl(rawArtworkUrl)
+  const requestKey = `${mediaId}\n${artworkUrl || 'missing'}`
+  if (requestKey === activeRequestKey) {
+    if (activeResolved?.artworkUrl === artworkUrl) bindResolvedArtwork(activeResolved)
+    return
   }
-  preload.onerror = () => diagnostic(`sharedArtwork=${mediaId} decode-error previous-preserved`)
-  preload.src = pending.url
+  activeRequestKey = requestKey
+  const sequence = ++requestSequence
+  if (!artworkUrl) {
+    bindFallback(mediaId, ''); return
+  }
+  const cached = resolvedByArtworkUrl.get(artworkUrl)
+  if (cached?.decoded) {
+    const state = { ...cached, mediaId }; touchCache(artworkUrl, state); bindResolvedArtwork(state); return
+  }
+  try {
+    const registrationUrl = new URL('/__tv_art/register', location.href)
+    registrationUrl.searchParams.set('src', artworkUrl); registrationUrl.searchParams.set('media', mediaId); registrationUrl.searchParams.set('field', artworkField)
+    const registration = await fetch(registrationUrl, { method: 'GET', cache: 'no-store', credentials: 'omit' })
+    if (!registration.ok) throw new Error(`register-${registration.status}`)
+    const payload = await registration.json() as { artworkUrl?: string; derivativeUrl?: string }
+    if (payload.artworkUrl !== artworkUrl || !/^\/__tv_art\/[a-f0-9]{24}\.jpg$/.test(payload.derivativeUrl || '')) throw new Error('register-invalid')
+    const pending: ResolvedArtwork = { mediaId, artworkUrl, url: payload.derivativeUrl!, decoded: false, width: 0, height: 0 }
+    let ready = false
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const probe = await fetch(pending.url, { method: 'HEAD', cache: 'no-store', credentials: 'omit' })
+      if (probe.ok && probe.headers.get('content-type') === 'image/jpeg') { ready = true; break }
+      if (probe.status !== 503 || attempt > 0) throw new Error(`derivative-${probe.status}`)
+      await new Promise((resolve) => setTimeout(resolve, 900))
+      if (sequence !== requestSequence || requestKey !== activeRequestKey) return
+    }
+    if (!ready) throw new Error('derivative-not-ready')
+    const preload = new Image()
+    preload.onload = () => {
+      pending.decoded = preload.naturalWidth > 0; pending.width = preload.naturalWidth; pending.height = preload.naturalHeight
+      if (!pending.decoded) return
+      touchCache(artworkUrl, pending)
+      if (sequence !== requestSequence || requestKey !== activeRequestKey) return void diagnostic(`staleArtwork=${mediaId} ignored`)
+      bindResolvedArtwork(pending)
+    }
+    preload.onerror = () => {
+      if (sequence !== requestSequence || requestKey !== activeRequestKey) return
+      diagnostic(`sharedArtwork=${mediaId} decode-error logo-fallback`); bindFallback(mediaId, artworkUrl)
+    }
+    preload.src = pending.url
+  } catch {
+    if (sequence === requestSequence && requestKey === activeRequestKey) {
+      diagnostic(`sharedArtwork=${mediaId} resolve-error logo-fallback`); bindFallback(mediaId, artworkUrl)
+    }
+  }
 }
 
 export function installTvArtworkCompatibility() {
-  const tvWindow = window as typeof window & { __HT_TV_RESOLVE_ARTWORK__?: (src: string | null, mediaId: string) => string | null }
-  tvWindow.__HT_TV_RESOLVE_ARTWORK__ = (src) => {
-    if (!src) return src
-    try {
-      const original = new URL(src, location.href)
-      return original.origin === APPROVED_ARTWORK_ORIGIN && (/^\/covers\//.test(original.pathname) || /^\/artists\//.test(original.pathname)) ? PROVEN_PLAYER_ARTWORK : src
-    } catch { return src }
+  const tvWindow = window as typeof window & {
+    __HT_TV_RESOLVE_ARTWORK__?: (src: string | null, mediaId: string) => string | null
+    __HT_TV_SELECT_ARTWORK__?: (media: unknown, displayArtwork: string | null) => ArtworkInput
   }
-  const preparedImages = new WeakSet<HTMLImageElement>()
-  const preparedMedia = new WeakSet<HTMLMediaElement>()
+  tvWindow.__HT_TV_RESOLVE_ARTWORK__ = (src) => normalizeArtworkUrl(src) ? FALLBACK_ARTWORK : src
+  tvWindow.__HT_TV_SELECT_ARTWORK__ = selectArtworkInput
+  const preparedImages = new WeakSet<HTMLImageElement>(); const preparedMedia = new WeakSet<HTMLMediaElement>()
   const updatePlaybackState = () => {
     const media = document.querySelector<HTMLMediaElement>('audio,video')
     document.documentElement.dataset.tvMediaPlaying = String(Boolean(media && !media.paused && !media.ended && media.readyState >= 2))
   }
   const prepareImage = (image: HTMLImageElement) => {
     if (preparedImages.has(image)) return
-    preparedImages.add(image)
-    image.loading = 'eager'
-    image.decoding = 'async'
-    let compatibilityAttempted = false
-    const loaded = () => {
-      image.dataset.tvArtLoaded = String(image.naturalWidth > 0)
-      image.dataset.tvArtFallback = String(image.src.endsWith(FALLBACK_ARTWORK))
-      report(image.naturalWidth > 0 ? 'decode-complete' : 'decode-empty', image)
-    }
-    image.addEventListener('load', loaded)
-    image.addEventListener('error', () => {
-      image.dataset.tvArtLoaded = 'false'
-      report('decode-error', image)
-      if (image.src.includes('/__tv_artwork/') && !compatibilityAttempted) {
-        compatibilityAttempted = true
-        image.src = `${image.src.split('?')[0]}?compat=1`
-        diagnostic('proxy-baseline-jpeg | retry-once')
-        return
-      }
-      if (!image.src.endsWith(FALLBACK_ARTWORK)) setTimeout(() => { image.src = FALLBACK_ARTWORK }, 1200)
-    })
-    try {
-      const original = new URL(image.currentSrc || image.src, location.href)
-      if (original.origin === APPROVED_ARTWORK_ORIGIN && (/^\/covers\//.test(original.pathname) || /^\/artists\//.test(original.pathname))) {
-        image.dataset.tvOriginalArtwork = original.href
-        image.removeAttribute('srcset')
-        image.src = PROVEN_PLAYER_ARTWORK
-        diagnostic('static-proxy-baseline-rgb | /__tv_art/player.jpg')
-      } else if (image.complete) loaded()
-    } catch {
-      if (image.complete) loaded()
-    }
+    preparedImages.add(image); image.loading = 'eager'; image.decoding = 'async'
+    image.addEventListener('load', () => { image.dataset.tvArtLoaded = String(image.naturalWidth > 0); report(image.naturalWidth > 0 ? 'decode-complete' : 'decode-empty', image) })
+    image.addEventListener('error', () => { image.dataset.tvArtLoaded = 'false'; report('decode-error', image); if (!activeResolved && !image.src.endsWith(FALLBACK_ARTWORK)) image.src = FALLBACK_ARTWORK })
   }
   const prepareMedia = (media: HTMLMediaElement) => {
     if (preparedMedia.has(media)) return
-    preparedMedia.add(media)
-    for (const event of ['play', 'playing', 'pause', 'waiting', 'stalled', 'ended', 'emptied']) media.addEventListener(event, updatePlaybackState)
+    preparedMedia.add(media); for (const event of ['play', 'playing', 'pause', 'waiting', 'stalled', 'ended', 'emptied']) media.addEventListener(event, updatePlaybackState)
   }
   const scan = () => {
-    document.querySelectorAll<HTMLImageElement>(PLAYER_ARTWORK_SELECTOR).forEach(prepareImage)
-    const candidate = Array.from(document.querySelectorAll<HTMLImageElement>(PLAYER_ARTWORK_SELECTOR)).find((image) => !image.classList.contains('tv-resolved-artwork') && Boolean(image.dataset.tvOriginalArtwork || image.src))
-    if (candidate) {
-      const source = candidate.dataset.tvOriginalArtwork || candidate.src
-      const mediaId = source.split('/').pop()?.split('?')[0] || 'active-media'
-      resolveForMedia(mediaId)
-    } else if (activeResolved) bindResolvedArtwork(activeResolved)
-    document.querySelectorAll<HTMLMediaElement>('audio,video').forEach(prepareMedia)
-    updatePlaybackState()
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>(PLAYER_ARTWORK_SELECTOR)); images.forEach(prepareImage)
+    const candidate = document.querySelector<HTMLImageElement>('.ht-player-art-frame img[data-tv-original-artwork]')
+      || document.querySelector<HTMLImageElement>('.premium-shell-art-frame img[data-tv-original-artwork]')
+      || document.querySelector<HTMLImageElement>('.player-bar .player-artwork img[data-tv-original-artwork]')
+    if (candidate) void resolveForMedia(candidate.dataset.tvMediaId || 'active-media', candidate.dataset.tvOriginalArtwork || '', candidate.dataset.tvArtworkField || 'unknown')
+    else if (activeResolved) bindResolvedArtwork(activeResolved)
+    document.querySelectorAll<HTMLMediaElement>('audio,video').forEach(prepareMedia); updatePlaybackState()
   }
   scan()
-  const observer = new MutationObserver(scan)
-  observer.observe(document.body, { childList: true, subtree: true })
-  return () => { observer.disconnect(); delete tvWindow.__HT_TV_RESOLVE_ARTWORK__ }
+  const observer = new MutationObserver(scan); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-tv-original-artwork', 'data-tv-media-id', 'data-tv-artwork-field'] })
+  return () => { observer.disconnect(); requestSequence += 1; delete tvWindow.__HT_TV_RESOLVE_ARTWORK__; delete tvWindow.__HT_TV_SELECT_ARTWORK__ }
 }

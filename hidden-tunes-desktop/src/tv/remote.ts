@@ -1,9 +1,13 @@
 const KEY_ALIASES: Record<number, string> = {
-  8: 'Back', 13: 'Enter', 27: 'Back', 37: 'ArrowLeft', 38: 'ArrowUp',
+  8: 'Back', 13: 'Enter', 27: 'Back', 33: 'PageUp', 34: 'PageDown', 37: 'ArrowLeft', 38: 'ArrowUp',
   39: 'ArrowRight', 40: 'ArrowDown', 10009: 'Back', 461: 'Back',
   415: 'MediaPlay', 19: 'MediaPause', 413: 'MediaStop', 417: 'MediaFastForward',
   412: 'MediaRewind', 176: 'MediaTrackNext', 177: 'MediaTrackPrevious',
 }
+
+let viewportOffsetY = 0
+let queueOffsetY = 0
+const routeOffsets = new Map<string, number>()
 
 export function normalizeRemoteKey(event: KeyboardEvent) {
   return KEY_ALIASES[event.keyCode] ?? event.key
@@ -15,50 +19,29 @@ function focusables() {
   )).filter((node) => node.offsetParent !== null && node.getAttribute('aria-hidden') !== 'true')
 }
 
-function revealFocused(node: HTMLElement) {
-  try { node.scrollIntoView(false) } catch { /* explicit ancestor scrolling below is authoritative */ }
-  let parent = node.parentElement
-  while (parent) {
-    const bounds = parent.getBoundingClientRect()
-    const item = node.getBoundingClientRect()
-    if (parent.scrollHeight > parent.clientHeight + 2) {
-      if (item.bottom > bounds.bottom - 18) parent.scrollTop += item.bottom - bounds.bottom + 36
-      if (item.top < bounds.top + 18) parent.scrollTop -= bounds.top - item.top + 36
-    }
-    if (parent.scrollWidth > parent.clientWidth + 2) {
-      if (item.right > bounds.right - 18) parent.scrollLeft += item.right - bounds.right + 36
-      if (item.left < bounds.left + 18) parent.scrollLeft -= bounds.left - item.left + 36
-    }
-    parent = parent.parentElement
-  }
-  const viewportItem = node.getBoundingClientRect()
-  const page = document.scrollingElement
-  if (page) {
-    if (viewportItem.bottom > innerHeight - 24) page.scrollTop += viewportItem.bottom - innerHeight + 48
-    if (viewportItem.top < 24) page.scrollTop -= 48 - viewportItem.top
-  }
+function translateFocused(node: HTMLElement, keyCode: number, pageStep = 0) {
+  const queue = node.closest<HTMLElement>('.queue-list-scroll,.up-next-list,.ht-player-queue-section')
+  const viewport = queue || document.querySelector<HTMLElement>('.main-scroll')
+  const content = queue ? queue.firstElementChild as HTMLElement | null : viewport?.querySelector<HTMLElement>('.page-view')
+  if (!viewport || !content) return
+  const bounds = viewport.getBoundingClientRect(); const item = node.getBoundingClientRect()
+  const before = queue ? queueOffsetY : viewportOffsetY
+  let next = before + pageStep
+  if (!pageStep && item.bottom > bounds.bottom - 48) next -= item.bottom - bounds.bottom + Math.round(bounds.height * .18)
+  if (!pageStep && item.top < bounds.top + 48) next += bounds.top - item.top + Math.round(bounds.height * .18)
+  const height = Math.max(content.scrollHeight, content.getBoundingClientRect().height)
+  next = Math.max(Math.min(0, bounds.height - height - 48), Math.min(0, next))
+  content.style.setProperty(queue ? '--tv-queue-offset-y' : '--tv-offset-y', `${next}px`)
+  content.classList.add(queue ? 'tv-queue-translated' : 'tv-route-translated')
+  if (queue) queueOffsetY = next
+  else { viewportOffsetY = next; routeOffsets.set(location.pathname, next) }
+  let overlay = document.getElementById('tv-remote-diagnostic')
+  if (!overlay) { overlay = document.createElement('aside'); overlay.id = 'tv-remote-diagnostic'; overlay.tabIndex = -1; overlay.setAttribute('aria-hidden', 'true'); document.body.appendChild(overlay) }
+  const selected = (node.getAttribute('aria-label') || node.textContent || 'none').trim().slice(0, 32)
+  overlay.textContent = `key=${keyCode} focus=${selected} owner=${queue ? 'queue' : 'route'} offset=${Math.round(before)}->${Math.round(next)} height=${Math.round(height)}`
+  const query = new URLSearchParams({ event: 'remote-move', keyCode: String(keyCode), selected, owner: queue ? 'queue' : 'route', before: String(Math.round(before)), after: String(Math.round(next)), height: String(Math.round(height)) })
+  fetch(`/__tv_diag?${query}`, { method: 'GET', cache: 'no-store', credentials: 'omit' }).catch(() => {})
 }
-
-function scrollCurrentRegion(active: HTMLElement | null, key: string) {
-  const horizontal = key === 'ArrowLeft' || key === 'ArrowRight'
-  const positive = key === 'ArrowRight' || key === 'ArrowDown'
-  let region = active?.parentElement ?? null
-  while (region) {
-    const hasRange = horizontal
-      ? region.scrollWidth > region.clientWidth + 2
-      : region.scrollHeight > region.clientHeight + 2
-    if (hasRange) {
-      const amount = Math.round((horizontal ? region.clientWidth : region.clientHeight) * 0.72) * (positive ? 1 : -1)
-      if (horizontal) region.scrollLeft += amount
-      else region.scrollTop += amount
-      return
-    }
-    region = region.parentElement
-  }
-  if (horizontal) window.scrollBy(positive ? Math.round(innerWidth * 0.72) : -Math.round(innerWidth * 0.72), 0)
-  else window.scrollBy(0, positive ? Math.round(innerHeight * 0.72) : -Math.round(innerHeight * 0.72))
-}
-
 function requestNextPage(node: HTMLElement) {
   const container = node.closest<HTMLElement>('main,section,[class*="page"]')
   const visible = container ? Array.from(container.querySelectorAll<HTMLElement>('button:not([disabled])')).filter((item) => item.offsetParent !== null) : []
@@ -78,7 +61,7 @@ function enhanceTvDom() {
   })
 }
 
-function moveFocus(key: string) {
+function moveFocus(key: string, keyCode: number) {
   const nodes = focusables()
   if (!nodes.length) return
   const active = document.activeElement as HTMLElement | null
@@ -95,10 +78,10 @@ function moveFocus(key: string) {
   const target = candidates[0]?.node
   if (target) {
     target.focus()
-    revealFocused(target)
+    translateFocused(target, keyCode)
     requestNextPage(target)
   } else {
-    scrollCurrentRegion(active, key)
+    if (active) translateFocused(active, keyCode, Math.round(innerHeight * .6) * (positive ? -1 : 1))
   }
 }
 
@@ -112,7 +95,7 @@ export function installTvRemoteControls() {
   const onKey = (event: KeyboardEvent) => {
     const key = normalizeRemoteKey(event)
     if (key.startsWith('Arrow')) {
-      moveFocus(key)
+      moveFocus(key, event.keyCode)
       event.preventDefault()
       return
     }
@@ -137,11 +120,13 @@ export function installTvRemoteControls() {
     event.preventDefault()
   }
   addEventListener('keydown', onKey, true)
+  const restoreOffset = () => { viewportOffsetY = routeOffsets.get(location.pathname) || 0; const content = document.querySelector<HTMLElement>('.main-scroll .page-view'); if (content) { content.style.setProperty('--tv-offset-y', String(viewportOffsetY) + 'px'); content.classList.add('tv-route-translated') } }
+  addEventListener('popstate', restoreOffset)
   const focusFirst = () => {
     if (document.activeElement === document.body || !document.activeElement) focusables()[0]?.focus()
   }
   requestAnimationFrame(() => { enhanceTvDom(); focusFirst() })
   const observer = new MutationObserver(() => { enhanceTvDom(); focusFirst() })
   observer.observe(document.body, { childList: true, subtree: true })
-  return () => { removeEventListener('keydown', onKey, true); observer.disconnect() }
+  return () => { removeEventListener('keydown', onKey, true); removeEventListener('popstate', restoreOffset); observer.disconnect() }
 }

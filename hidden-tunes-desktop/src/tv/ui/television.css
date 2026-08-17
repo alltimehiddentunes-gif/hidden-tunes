@@ -1,0 +1,22 @@
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] { padding: 0 !important; background: radial-gradient(circle at 74% 0%, rgba(246, 189, 66, .12), transparent 34%), #050408; }
+html[data-hidden-tunes-tv] .main-scroll--tv .global-top-nav-links { display: none !important; }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .page-frame { max-width: none; padding: var(--tv-safe-y) var(--tv-safe-x) calc(var(--tv-safe-y) * 2); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-destination { display: flex; flex-direction: column; gap: var(--tv-space-lg); color: var(--tv-text-primary); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .sectionHero { min-height: clamp(300px, 44vh, 700px); overflow: hidden; border: 1px solid rgba(246, 189, 66, .28); border-radius: var(--tv-radius-hero); background: linear-gradient(105deg, rgba(5, 4, 8, .98), rgba(28, 17, 8, .62)); box-shadow: 0 28px 80px rgba(0, 0, 0, .42); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .sectionHero h1 { font-size: var(--tv-hero-title); letter-spacing: -.045em; }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-tabs { display: flex; flex-wrap: nowrap; gap: var(--tv-space-sm); overflow: hidden; padding: 12px; margin: -12px; }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-tab { min-height: 52px; padding: .7em 1.25em; border: 1px solid var(--tv-border); border-radius: 999px; color: var(--tv-text-secondary); background: rgba(16, 12, 8, .9); font-size: var(--tv-meta); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-tab.is-active { color: #0a0710; border-color: transparent; background: linear-gradient(135deg, #fff1ac, var(--tv-gold)); font-weight: 850; }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-section { margin: 0; gap: var(--tv-space-md); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-section-header h2 { margin: 0; font-size: var(--tv-section-title); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-station-rail { display: grid; grid-auto-flow: column; grid-auto-columns: clamp(260px, 22vw, 520px); gap: var(--tv-space-md); overflow: hidden; padding: 12px; margin: -12px; }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] :is(.tv-station-card,.tv-genre-card,.tv-region-card) { border: 1px solid var(--tv-border); border-radius: var(--tv-radius-md); background: linear-gradient(145deg, rgba(28, 22, 14, .94), rgba(7, 6, 9, .98)); overflow: hidden; }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-station-card-art { aspect-ratio: 16 / 9; }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-station-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--tv-space-md); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-genre-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--tv-space-md); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-region-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--tv-space-md); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-status { min-height: 180px; display: grid; place-items: center; border: 1px solid var(--tv-border); border-radius: var(--tv-radius-md); background: var(--tv-surface); }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] :is(button,a):focus-visible { outline: none !important; border-color: var(--tv-border-focus) !important; box-shadow: var(--tv-focus-ring) !important; transform: scale(1.035) translateZ(0); z-index: 5; }
+html[data-hidden-tunes-tv] .page-view[data-page="tv"] img { max-width: 100%; content-visibility: auto; }
+@media (max-width: 1400px), (max-height: 800px) { html[data-hidden-tunes-tv] .page-view[data-page="tv"] .sectionHero { min-height: 270px; } html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-station-rail { grid-auto-columns: 250px; } html[data-hidden-tunes-tv] .page-view[data-page="tv"] :is(.tv-station-grid,.tv-genre-grid) { grid-template-columns: repeat(3, minmax(0, 1fr)); } html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-region-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 3000px) { html[data-hidden-tunes-tv] .page-view[data-page="tv"] .tv-station-rail { grid-auto-columns: 580px; } }

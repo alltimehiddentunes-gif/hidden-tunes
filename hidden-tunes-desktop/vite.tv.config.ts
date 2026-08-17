@@ -69,8 +69,8 @@ function resolveTvArtworkBeforeReactMount() {
       if (!id.replace(/\\/g, '/').endsWith('/src/components/ArtworkImage.tsx')) return null
       return code
         .replace("  const [failed, setFailed] = useState(false)", "  const [failed, setFailed] = useState(false)\n  const resolvedSrc = (window as typeof window & { __HT_TV_RESOLVE_ARTWORK__?: (src: string | null, mediaId: string) => string | null }).__HT_TV_RESOLVE_ARTWORK__?.(src, seed) ?? src")
-        .replace('{!src || failed ? (', '{!resolvedSrc || failed ? (')
-        .replace('          src={src}', '          src={resolvedSrc}')
+        .replace('{!src || failed ? (', '{!resolvedSrc ? (')
+        .replace('          src={src}', '          src={resolvedSrc}\n          data-tv-original-artwork={src ?? \'\'}\n          data-tv-media-id={seed}\n          data-tv-artwork-field="src"')
     },
   }
 }
@@ -82,9 +82,12 @@ function pinTvPrimaryPlayerArtwork() {
     transform(code: string, id: string) {
       const sourcePath = id.replace(/\\/g, '/')
       if (!sourcePath.endsWith('/src/components/player/DesktopPersistentPlayer.tsx') && !sourcePath.endsWith('/src/components/player/PremiumFullscreenShell.tsx')) return null
+      const mediaId = sourcePath.endsWith('/PremiumFullscreenShell.tsx') ? "displayTrack?.id ?? 'premium-shell'" : "activeTrack?.id ?? 'persistent-player'"
+      const media = sourcePath.endsWith('/PremiumFullscreenShell.tsx') ? 'displayTrack' : 'activeTrack'
+      const selector = `(window as typeof window & { __HT_TV_SELECT_ARTWORK__?: (media: unknown, displayArtwork: string | null) => { url: string | null; field: string } }).__HT_TV_SELECT_ARTWORK__?.(${media}, displayArtwork)`
       const replaced = code.replace(
         /<ArtworkImage\s+src=\{displayArtwork\}[\s\S]*?priority\s*\/>/,
-        '<img src="/__tv_art/player.jpg" alt="" className="card-art-img tv-primary-player-artwork" loading="eager" decoding="async" />',
+        `<img src="/__tv_art/fallback.jpg" data-tv-original-artwork={${selector}?.url ?? displayArtwork ?? ''} data-tv-artwork-field={${selector}?.field ?? 'displayArtwork'} data-tv-media-id={${mediaId}} alt="" className="card-art-img tv-primary-player-artwork" loading="eager" decoding="async" />`,
       )
       if (replaced === code) throw new Error(`Universal TV primary artwork transform did not match ${sourcePath}`)
       return replaced

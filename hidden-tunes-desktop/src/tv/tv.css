@@ -12,6 +12,13 @@ html[data-low-memory="true"] *, html[data-low-memory="true"] *::before, html[dat
 .tv-activation-notice { position: fixed; z-index: 10000; inset: var(--tv-safe-y) var(--tv-safe-x) auto; padding: 18px 24px; border: 2px solid #f7c948; border-radius: 12px; background: #190c2f; color: #fff; font-weight: 700; }
 html[data-hidden-tunes-tv], html[data-hidden-tunes-tv] body { width: 100%; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
 html[data-hidden-tunes-tv] .sidebar, html[data-hidden-tunes-tv] .main-scroll, html[data-hidden-tunes-tv] .page-view { overflow-y: auto !important; overflow-x: hidden !important; scroll-behavior: auto !important; }
+html[data-hidden-tunes-tv] .main-scroll { overflow: hidden !important; position: relative; }
+html[data-hidden-tunes-tv] .tv-route-translated { transform: translate3d(0, var(--tv-offset-y, 0px), 0) !important; transition: none !important; will-change: transform; }
+html[data-hidden-tunes-tv] .queue-list-scroll, html[data-hidden-tunes-tv] .up-next-list, html[data-hidden-tunes-tv] .ht-player-queue-section { overflow: hidden !important; }
+html[data-hidden-tunes-tv] .tv-queue-translated { transform: translate3d(0, var(--tv-queue-offset-y, 0px), 0) !important; transition: none !important; }
+html[data-hidden-tunes-tv] #tv-artwork-diagnostic, html[data-hidden-tunes-tv] #tv-remote-diagnostic, html[data-hidden-tunes-tv] #tv-session-diagnostic { pointer-events: none !important; user-select: none !important; position: fixed; z-index: 2147483647; left: 28px; max-width: calc(100vw - 56px); font: 14px/1.25 monospace; color: #fff; background: rgba(15,6,31,.88); padding: 6px 10px; border: 1px solid #7d55ff; }
+html[data-hidden-tunes-tv] #tv-artwork-diagnostic { top: 24px; }
+html[data-hidden-tunes-tv] #tv-remote-diagnostic { bottom: 24px; }
 html[data-hidden-tunes-tv] [class*="rail"], html[data-hidden-tunes-tv] [class*="grid"] { scroll-behavior: auto !important; }
 html[data-hidden-tunes-tv] .queue-item, html[data-hidden-tunes-tv] .player-queue-row, html[data-hidden-tunes-tv] .up-next-item { min-height: 58px; }
 html[data-hidden-tunes-tv] .conditional-player-rail, html[data-hidden-tunes-tv] .now-playing-rail { overflow-y: auto !important; overflow-x: hidden !important; }

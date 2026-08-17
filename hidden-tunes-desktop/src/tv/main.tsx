@@ -9,9 +9,11 @@ import './ui/foundation.css'
 import './ui/home.css'
 import './ui/music.css'
 import './ui/radio.css'
+import './ui/television.css'
 import { installTvArtworkCompatibility } from './artwork'
 import { detectTvCapabilities } from './capabilities'
 import { installTvRemoteControls } from './remote'
+import { installTvSessionDiagnostics } from './session'
 import { tvPathForRoute, tvRouteFromPath } from './routes'
 
 const capabilities = detectTvCapabilities()
@@ -28,9 +30,10 @@ if (location.pathname === '/activate') {
   document.body.appendChild(notice)
 }
 
+const uninstallSession = installTvSessionDiagnostics()
 const uninstallRemote = installTvRemoteControls()
 const uninstallArtwork = installTvArtworkCompatibility()
-addEventListener('beforeunload', () => { uninstallRemote(); uninstallArtwork() }, { once: true })
+addEventListener('beforeunload', () => { uninstallSession(); uninstallRemote(); uninstallArtwork() }, { once: true })
 
 const connectHistory = () => {
   const navigation = window.HiddenTunesNavigation
