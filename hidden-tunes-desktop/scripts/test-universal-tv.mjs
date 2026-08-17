@@ -25,7 +25,7 @@ for (const contract of ['.music-home-reference-top', '.music-home-product-hero',
 assert.ok(tvHomeCss.includes(':focus-visible'), 'TV Home must expose remote-visible focus')
 for (const contract of ['.music-discover-page-header--compact', '.music-discover-release-rail', '.music-discover-song-list', '.music-discover-genre-grid--editorial', 'max-width: 1400px', 'min-width: 3000px']) assert.ok(tvMusicCss.includes(contract), `missing premium TV Music contract ${contract}`)
 assert.ok(tvMusicCss.includes(':focus-visible'), 'TV Music must expose remote-visible focus')
-for (const contract of ['.section-hero', '.radio-station-rail', '.radio-genre-grid', '.radio-country-grid', '.radio-station-grid', 'max-width: 1400px', 'min-width: 3000px']) assert.ok(tvRadioCss.includes(contract), `missing premium TV Radio contract ${contract}`)
+for (const contract of ['.sectionHero', '.radio-station-rail', '.radio-genre-grid', '.radio-country-grid', '.radio-station-grid', 'max-width: 1400px', 'min-width: 3000px']) assert.ok(tvRadioCss.includes(contract), `missing premium TV Radio contract ${contract}`)
 assert.ok(tvRadioCss.includes(':focus-visible'), 'TV Radio must expose remote-visible focus')
 for (const path of ['/', '/explore', '/search', '/player', '/library', '/music', '/tv', '/radio', '/podcasts', '/audiobooks', '/motivationals', '/lectures', '/about', '/activate']) assert.ok(routes.includes(`'${path}'`), `missing ${path}`)
 assert.ok(routes.includes("kind: 'artist'"), 'missing artist detail route')
