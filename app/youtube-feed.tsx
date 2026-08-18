@@ -40,6 +40,11 @@ import {
 import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
 import { chunkTvVideosForVirtualizedRows } from "@/services/tv/tvPagePerformanceContract";
 import {
+  loadTvRecentlyWatched,
+  subscribeTvRecentlyWatched,
+} from "@/services/tv/tvRecentlyWatched";
+import type { TvRecentlyWatchedEntry } from "@/types/tv";
+import {
   decideTvBrowseTap,
   shouldApplyTvBrowseTapResult,
 } from "@/services/tv/tvTapPlaybackContract";
@@ -160,6 +165,7 @@ export default function YouTubeFeedScreen() {
   const [archiveLaneLoading, setArchiveLaneLoading] = useState(false);
   const [connectingVideoId, setConnectingVideoId] = useState<string | null>(null);
   const [visibleLaneBudget, setVisibleLaneBudget] = useState(3);
+  const [recentlyWatched, setRecentlyWatched] = useState<TvRecentlyWatchedEntry[]>([]);
   const tvSearchRequestIdRef = useRef(0);
   const categoryRequestRef = useRef(0);
   const homeAbortRef = useRef<AbortController | null>(null);
@@ -184,17 +190,28 @@ export default function YouTubeFeedScreen() {
   const { width } = useWindowDimensions();
   const featuredWidth = Math.max(300, width - 36);
 
-  const { featuredLane, recentlyAddedLane, channelLanes, featuredVideo } = useMemo(() => {
+  const { featuredLane, channelLanes, featuredVideo } = useMemo(() => {
     const featured = lanes.find((lane) => lane.id === "featured");
-    const recent = lanes.find((lane) => lane.id === "recent");
     const channels = lanes.filter((lane) => !["featured", "recent"].includes(lane.id));
     return {
       featuredLane: featured,
-      recentlyAddedLane: recent,
       channelLanes: channels,
       featuredVideo: featured?.videos[0],
     };
   }, [lanes]);
+  const recentlyWatchedLane = useMemo<TvLane | null>(() => {
+    if (!recentlyWatched.length) return null;
+    const currentById = new Map<string, HiddenTunesTvVideo>();
+    lanes.forEach((lane) => {
+      lane.videos.forEach((video) => currentById.set(video.id, video));
+    });
+    const videos = recentlyWatched
+      .map((entry) => currentById.get(entry.channelId))
+      .filter((video): video is HiddenTunesTvVideo => Boolean(video));
+    return videos.length
+      ? { id: "recently-watched", title: "Recently Watched", videos }
+      : null;
+  }, [lanes, recentlyWatched]);
   const hasSearchText = query.trim().length > 0;
 
   const abortHome = useCallback(() => {
@@ -335,7 +352,16 @@ export default function YouTubeFeedScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
+      void loadTvRecentlyWatched().then((entries) => {
+        if (active) setRecentlyWatched(entries);
+      });
+      const unsubscribeRecentlyWatched = subscribeTvRecentlyWatched((entries) => {
+        if (active) setRecentlyWatched(entries);
+      });
       return () => {
+        active = false;
+        unsubscribeRecentlyWatched();
         abortCategory();
         abortArchive();
         openGuardRef.current = null;
@@ -849,11 +875,11 @@ export default function YouTubeFeedScreen() {
             lane: featuredLane,
           });
         }
-        if (recentlyAddedLane?.videos.length) {
+        if (recentlyWatchedLane?.videos.length) {
           rows.push({
-            key: `lane-${recentlyAddedLane.id}`,
+            key: `lane-${recentlyWatchedLane.id}`,
             kind: "lane",
-            lane: recentlyAddedLane,
+            lane: recentlyWatchedLane,
           });
         }
         channelLanes
@@ -904,7 +930,7 @@ export default function YouTubeFeedScreen() {
     lanesLoading,
     loadError,
     query,
-    recentlyAddedLane,
+    recentlyWatchedLane,
     searchHasMore,
     searchLane,
     searchLoadingMore,

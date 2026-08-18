@@ -46,6 +46,21 @@ export function resolveTvBrowseReturnPath(
   return normalizeReturnPath(explicit || fromSession || TV_HOME_ROUTE);
 }
 
+/** Capture the renderable destination before player presentation state changes. */
+export function resolveTvPlayerExitTarget(
+  browseReturnPath?: string | null
+): string {
+  return resolveTvBrowseReturnPath(browseReturnPath);
+}
+
+/**
+ * Deterministic full-player exit. Replacing avoids an empty iOS history entry
+ * exposing the native window while the persistent TV surface changes layout.
+ */
+export function navigateTvPlayerToTarget(target: string): void {
+  router.replace(normalizeReturnPath(target) as never);
+}
+
 /**
  * Exit the TV section from TV Home only.
  * Always goes to Main App Home — never history / Library / Profile / Search.

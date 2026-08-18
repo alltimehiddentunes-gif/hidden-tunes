@@ -4,9 +4,11 @@ import type { TVChannel, TvRecentlyWatchedEntry } from "@/types/tv";
 
 const TV_RECENTLY_WATCHED_KEY = "hidden_tunes_tv_recently_watched_v1";
 const TV_HISTORY_STORAGE_VERSION = 1;
-const MAX_RECENT_ENTRIES = 100;
+const MAX_RECENT_ENTRIES = 20;
 
 let recentMemory: TvRecentlyWatchedEntry[] | null = null;
+const listeners = new Set<(entries: TvRecentlyWatchedEntry[]) => void>();
+const pendingChannels = new Map<string, TVChannel>();
 
 function optionalNumber(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
@@ -51,6 +53,7 @@ function normalizeEntry(raw: unknown): TvRecentlyWatchedEntry | null {
 
 async function persistRecent(entries: TvRecentlyWatchedEntry[]) {
   recentMemory = entries;
+  listeners.forEach((listener) => listener(entries));
 
   try {
     await AsyncStorage.setItem(TV_RECENTLY_WATCHED_KEY, JSON.stringify(entries));
@@ -84,6 +87,14 @@ export async function loadTvRecentlyWatched() {
 }
 
 export async function recordTvRecentlyWatched(channel: TVChannel) {
+  pendingChannels.set(channel.id, channel);
+  return loadTvRecentlyWatched();
+}
+
+export async function confirmTvRecentlyWatched(channelId: string) {
+  const channel = pendingChannels.get(channelId);
+  if (!channel) return loadTvRecentlyWatched();
+  pendingChannels.delete(channelId);
   const current = await loadTvRecentlyWatched();
   const previous = current.find((item) => item.channelId === channel.id);
 
@@ -190,6 +201,17 @@ export function getContinueWatchingEntries(
 
 export function readTvRecentlyWatchedSync() {
   return recentMemory || [];
+}
+
+export function cancelPendingTvRecentlyWatched(channelId: string) {
+  pendingChannels.delete(String(channelId || "").trim());
+}
+
+export function subscribeTvRecentlyWatched(
+  listener: (entries: TvRecentlyWatchedEntry[]) => void
+) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function getTvHistoryStorageVersion() {

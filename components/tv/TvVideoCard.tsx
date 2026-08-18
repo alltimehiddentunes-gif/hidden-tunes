@@ -42,7 +42,7 @@ function TvVideoCard({
 }: TvVideoCardProps) {
   const item = useMemo(() => normalizeVideoItem(video), [video]);
   const artworkUrl = useMemo(() => resolveTvArtworkUrl(video), [video]);
-  const [artworkFailed, setArtworkFailed] = useState(false);
+  const [failedArtworkSource, setFailedArtworkSource] = useState<string | null>(null);
   const channelName = useMemo(() => getTvDisplayChannelName(video), [video]);
   const subtitle = useMemo(() => getTvDisplaySubtitle(video), [video]);
   const showVerified = useMemo(() => shouldShowTvVerifiedBadge(video), [video]);
@@ -51,7 +51,8 @@ function TvVideoCard({
     [item.title]
   );
   const initials = useMemo(() => getTvChannelInitials(displayName), [displayName]);
-  const showArtwork = Boolean(artworkUrl) && !artworkFailed;
+  const artworkSourceKey = artworkUrl ? `${video.id}:${artworkUrl}` : null;
+  const showArtwork = Boolean(artworkUrl) && failedArtworkSource !== artworkSourceKey;
   const imageSource = useMemo(
     () =>
       artworkUrl
@@ -78,14 +79,14 @@ function TvVideoCard({
           <Image
             source={imageSource}
             style={styles.thumb}
-            contentFit="cover"
+            contentFit="contain"
             cachePolicy="memory-disk"
             recyclingKey={video.id}
             priority="low"
             transition={0}
             onError={() => {
               markTvArtworkLoadFailure(artworkUrl);
-              setArtworkFailed(true);
+              setFailedArtworkSource(artworkSourceKey);
             }}
           />
         ) : (

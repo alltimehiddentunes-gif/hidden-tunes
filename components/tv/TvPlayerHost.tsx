@@ -37,6 +37,10 @@ import { COLORS, GRADIENTS } from "@/constants/theme";
 import { getMatureTvEnabled } from "@/services/matureTvPreferences";
 import { markTvChannelBroken } from "@/services/tv/tvBrokenChannels";
 import { markTvChannelTemporarilyUnavailable } from "@/services/tv/tvChannelVerification";
+import {
+  cancelPendingTvRecentlyWatched,
+  confirmTvRecentlyWatched,
+} from "@/services/tv/tvRecentlyWatched";
 import { getRelatedTvChannels } from "@/services/tv/tvChannelService";
 import {
   isTvChannelFavorite,
@@ -54,7 +58,10 @@ import {
   shouldShowTvVerifiedBadge,
 } from "@/utils/tvArtwork";
 import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
-import { navigateTvPlayerBack } from "@/utils/tvNavigation";
+import {
+  navigateTvPlayerToTarget,
+  resolveTvPlayerExitTarget,
+} from "@/utils/tvNavigation";
 import { useMountedRef } from "@/utils/useMountedRef";
 
 import TvChannelCard from "./TvChannelCard";
@@ -240,6 +247,7 @@ function TvPlayerHost({
   /** In-route UI fullscreen — same VideoView, distinct absoluteFill geometry. */
   const [isUiFullscreen, setIsUiFullscreen] = useState(false);
   const [isFullscreenTransitioning, setIsFullscreenTransitioning] = useState(false);
+  const exitInFlightRef = useRef(false);
   /**
    * Single controls-visibility owner for the active full TV surface.
    * Floating chrome stays always visible; only full/fullscreen overlays auto-hide.
@@ -282,6 +290,23 @@ function TvPlayerHost({
   const showVerifiedBadge = displayChannel
     ? displayChannel.isVerifiedLegal
     : shouldShowTvVerifiedBadge(item);
+
+  useEffect(() => {
+    const channelId = displayChannel?.id;
+    if (!channelId || !isPlaying || hasError) return;
+    const timer = setTimeout(() => {
+      if (!mountedRef.current) return;
+      void confirmTvRecentlyWatched(channelId);
+    }, 5_000);
+    return () => clearTimeout(timer);
+  }, [displayChannel?.id, hasError, isPlaying, mountedRef, playerGeneration]);
+
+  useEffect(() => {
+    const channelId = displayChannel?.id;
+    return () => {
+      if (channelId) cancelPendingTvRecentlyWatched(channelId);
+    };
+  }, [displayChannel?.id]);
 
   /**
    * Deterministic floating layout (same path in Metro and Preview/release).
@@ -409,6 +434,22 @@ function TvPlayerHost({
       : [styles.videoShell, styles.videoShellPortrait];
 
   useEffect(() => {
+    exitInFlightRef.current = false;
+  }, [playerGeneration]);
+
+  const exitFullPlayer = useCallback(() => {
+    if (exitInFlightRef.current) return;
+    const target = resolveTvPlayerExitTarget();
+    exitInFlightRef.current = true;
+
+    // Secure a renderable destination before changing persistent-host layout.
+    navigateTvPlayerToTarget(target);
+    onMinimize();
+    setIsUiFullscreen(false);
+    void restoreTvPortraitOrientation().catch(() => undefined);
+  }, [onMinimize]);
+
+  useEffect(() => {
     if (!full) {
       setIsUiFullscreen(false);
       void restoreTvPortraitOrientation();
@@ -430,15 +471,14 @@ function TvPlayerHost({
         void restoreTvPortraitOrientation();
         return true;
       }
-      onMinimize();
-      navigateTvPlayerBack();
+      exitFullPlayer();
       return true;
     });
 
     return () => {
       subscription.remove();
     };
-  }, [full, isUiFullscreen, onMinimize]);
+  }, [exitFullPlayer, full, isUiFullscreen]);
 
   useEffect(() => {
     if (!displayChannel) {
@@ -485,9 +525,8 @@ function TvPlayerHost({
       void restoreTvPortraitOrientation();
       return;
     }
-    onMinimize();
-    navigateTvPlayerBack();
-  }, [isUiFullscreen, onMinimize]);
+    exitFullPlayer();
+  }, [exitFullPlayer, isUiFullscreen]);
 
   const handleEnterFullscreen = useCallback(async () => {
     // In-route true fullscreen owner (same VideoView). Native enterFullscreen is
