@@ -9,6 +9,7 @@ import {
   applyNormalizedGenreToSongInsert,
   normalizeIncomingGenrePayload,
 } from "@/lib/uploadGenreTaxonomy";
+import { normalizeLyricsForPersistence } from "@/lib/lyricsUploadSafety";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,97 +29,6 @@ function slugify(value: string) {
     .replace(/['"]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function detectLyricsType(text: string) {
-  const hasTimestamp = /\[\d{1,2}:\d{2}(?:\.\d{1,3})?\]/.test(text);
-  return hasTimestamp ? "lrc" : "plain";
-}
-
-function formatLrcTime(seconds: number) {
-  const safeSeconds = Math.max(0, seconds);
-  const minutes = Math.floor(safeSeconds / 60);
-  const remainingSeconds = safeSeconds % 60;
-  const wholeSeconds = Math.floor(remainingSeconds);
-  const centiseconds = Math.floor((remainingSeconds - wholeSeconds) * 100);
-
-  return `[${String(minutes).padStart(2, "0")}:${String(wholeSeconds).padStart(
-    2,
-    "0"
-  )}.${String(centiseconds).padStart(2, "0")}]`;
-}
-
-function isSectionLabel(line: string) {
-  return /^\[(intro|verse|chorus|bridge|outro|hook|pre-chorus|pre chorus|refrain|instrumental)\]$/i.test(
-    line.trim()
-  );
-}
-
-function generateEstimatedLrc(rawLyrics: string, durationSeconds: number) {
-  const lines = String(rawLyrics || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .filter((line) => !isSectionLabel(line));
-
-  if (lines.length === 0) return rawLyrics;
-
-  const safeDuration =
-    durationSeconds && durationSeconds > 20
-      ? durationSeconds
-      : Math.max(lines.length * 5, 60);
-
-  const introSeconds = Math.min(8, Math.max(2, safeDuration * 0.04));
-  const endingBufferSeconds = Math.min(8, Math.max(3, safeDuration * 0.04));
-
-  const usableDuration = Math.max(
-    safeDuration - introSeconds - endingBufferSeconds,
-    lines.length * 3.5
-  );
-
-  const spacing = usableDuration / Math.max(lines.length - 1, 1);
-
-  return lines
-    .map((line, index) => {
-      const time = index === 0 ? 0 : introSeconds + index * spacing;
-      return `${formatLrcTime(time)} ${line}`;
-    })
-    .join("\n");
-}
-
-function normalizeLyricsPayload({
-  legacyLyricsText,
-  plainLyricsText,
-  syncedLrcText,
-  durationSeconds,
-}: {
-  legacyLyricsText: string;
-  plainLyricsText: string;
-  syncedLrcText: string;
-  durationSeconds: number;
-}) {
-  let plainLyrics = plainLyricsText || null;
-  let syncedLrc = syncedLrcText || null;
-
-  if (!plainLyrics && !syncedLrc && legacyLyricsText) {
-    const detectedType = detectLyricsType(legacyLyricsText);
-
-    if (detectedType === "lrc") {
-      syncedLrc = legacyLyricsText;
-    } else {
-      plainLyrics = legacyLyricsText;
-    }
-  }
-
-  if (plainLyrics && !syncedLrc) {
-    syncedLrc = generateEstimatedLrc(plainLyrics, durationSeconds);
-  }
-
-  return {
-    plainLyrics,
-    syncedLrc,
-    hasLyrics: Boolean(plainLyrics || syncedLrc),
-  };
 }
 
 async function upsertArtist(name: string, slug: string, imageUrl: string) {
@@ -280,6 +190,7 @@ export async function POST(req: NextRequest) {
     const lyricsText = String(body.lyricsText || "").trim();
     const plainLyricsText = String(body.plainLyricsText || "").trim();
     const syncedLrcText = String(body.syncedLrcText || "").trim();
+    const requestedLyricsSource = String(body.lyricsSource || "").trim();
 
     if (!title || !artistName || !audioUrl || !audioKey) {
       return NextResponse.json(
@@ -329,17 +240,15 @@ export async function POST(req: NextRequest) {
 
     let lyricsUrl: string | null = null;
     let lyricsKey: string | null = null;
-    let lyricsType: "lrc" | null = null;
-    const normalizedLyrics = normalizeLyricsPayload({
+    let lyricsType: "lrc" | "plain" | null = null;
+    const normalizedLyrics = normalizeLyricsForPersistence({
       legacyLyricsText: lyricsText,
       plainLyricsText,
       syncedLrcText,
-      durationSeconds,
     });
+    lyricsType = normalizedLyrics.lyricsType;
 
-    if (normalizedLyrics.hasLyrics && normalizedLyrics.syncedLrc) {
-      lyricsType = "lrc";
-
+    if (normalizedLyrics.syncedLrc) {
       lyricsKey = `lyrics/${artistSlug}/${songId}-${titleSlug}.lrc`;
 
       lyricsUrl = await uploadToR2({
@@ -412,9 +321,9 @@ export async function POST(req: NextRequest) {
             r2_cover_key: artworkKey,
 
             lyrics_url: lyricsUrl,
-            has_lyrics: Boolean(lyricsUrl),
+            has_lyrics: normalizedLyrics.hasLyrics,
             lyrics_type: lyricsType,
-            lyrics_updated_at: lyricsUrl ? new Date().toISOString() : null,
+            lyrics_updated_at: normalizedLyrics.hasLyrics ? new Date().toISOString() : null,
 
             source_name: "Hidden Tunes",
             source_type: "r2",
@@ -436,7 +345,7 @@ export async function POST(req: NextRequest) {
 
     let uploadWarning: string | null = null;
 
-    if (lyricsUrl && lyricsType) {
+    if (normalizedLyrics.hasLyrics && lyricsType) {
       const { error: lyricsError } = await supabaseAdmin
         .from("track_lyrics")
         .insert({
@@ -447,10 +356,13 @@ export async function POST(req: NextRequest) {
           word_sync_json: null,
           r2_lyrics_key: lyricsKey,
           lyrics_url: lyricsUrl,
-          source:
-            normalizedLyrics.plainLyrics && !syncedLrcText
-              ? "auto_estimated_lrc"
-              : "admin_upload",
+          source: syncedLrcText && requestedLyricsSource === "transcription"
+            ? "audio_transcription_unverified"
+            : syncedLrcText && requestedLyricsSource === "automatic"
+              ? "audio_alignment_unverified"
+            : normalizedLyrics.syncedLrc
+              ? "admin_upload_supplied_lrc"
+              : "admin_upload_plain",
         });
 
       if (lyricsError) {

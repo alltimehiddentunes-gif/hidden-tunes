@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { alignLyricsToWordTimestamps } from "../lib/audioLyricAlignment";
+import {
+  alignLyricsToWordTimestamps,
+  buildAudioTranscriptionLyrics,
+} from "../lib/audioLyricAlignment";
 
 function timedWords(text: string, start = 1) {
   return text
@@ -41,4 +44,27 @@ assert.equal(lowConfidence.lrcText, undefined);
 const missingTimestamps = alignLyricsToWordTimestamps("Keep plain lyrics", []);
 assert.equal(missingTimestamps.ok, false);
 assert.equal(missingTimestamps.reason, "missing_timestamps");
+
+const audioOnly = buildAudioTranscriptionLyrics(
+  timedWords("We listen to the audio. Every timestamp is real", 2),
+);
+assert.equal(audioOnly.ok, true);
+assert.equal(audioOnly.timestampSource, "whisper_words");
+assert.equal(audioOnly.timedWordCount, 9);
+assert.equal(audioOnly.lineCount, 2);
+assert.match(audioOnly.lrcText || "", /^\[00:02\.00\] We listen to the audio\./m);
+assert.match(audioOnly.lrcText || "", /^\[00:04\.50\] Every timestamp is real/m);
+
+const segmentFallback = buildAudioTranscriptionLyrics([], [
+  { text: "First real segment", start: 3.25, end: 4.5 },
+  { text: "Second real segment", start: 8, end: 10 },
+]);
+assert.equal(segmentFallback.ok, true);
+assert.equal(segmentFallback.timestampSource, "whisper_segments");
+assert.match(segmentFallback.lrcText || "", /^\[00:03\.25\] First real segment/m);
+assert.match(segmentFallback.lrcText || "", /^\[00:08\.00\] Second real segment/m);
+
+const audioOnlyMissingTimestamps = buildAudioTranscriptionLyrics([], []);
+assert.equal(audioOnlyMissingTimestamps.ok, false);
+assert.equal(audioOnlyMissingTimestamps.reason, "missing_timestamps");
 console.log("audio lyric alignment tests passed");

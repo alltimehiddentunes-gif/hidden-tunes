@@ -4,6 +4,22 @@ export type TimedTranscriptWord = {
   end: number;
 };
 
+export type TimedTranscriptSegment = {
+  text: string;
+  start: number;
+  end: number;
+};
+
+export type AudioTranscriptionLyricsResult = {
+  ok: boolean;
+  plainLyricsText?: string;
+  lrcText?: string;
+  lineCount: number;
+  timedWordCount: number;
+  timestampSource?: "whisper_words" | "whisper_segments";
+  reason?: "missing_timestamps" | "empty_transcription";
+};
+
 export type AudioLyricAlignmentResult = {
   ok: boolean;
   lrcText?: string;
@@ -120,6 +136,107 @@ function formatLrcTimestamp(seconds: number) {
   const minutes = Math.floor(centiseconds / 6000);
   const remainder = centiseconds % 6000;
   return `[${String(minutes).padStart(2, "0")}:${String(Math.floor(remainder / 100)).padStart(2, "0")}.${String(remainder % 100).padStart(2, "0")}]`;
+}
+
+function cleanTranscriptText(value: string) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+export function buildAudioTranscriptionLyrics(
+  timedWords: TimedTranscriptWord[],
+  timedSegments: TimedTranscriptSegment[] = [],
+): AudioTranscriptionLyricsResult {
+  const words = timedWords
+    .filter(
+      (word) =>
+        cleanTranscriptText(word.word) &&
+        Number.isFinite(word.start) &&
+        Number.isFinite(word.end) &&
+        word.start >= 0 &&
+        word.end >= word.start,
+    )
+    .map((word) => ({ ...word, word: cleanTranscriptText(word.word) }));
+
+  if (words.length > 0) {
+    const lines: Array<{ start: number; text: string }> = [];
+    let current: TimedTranscriptWord[] = [];
+    const flush = () => {
+      if (!current.length) return;
+      lines.push({
+        start: current[0].start,
+        text: current.map((word) => word.word).join(" ").trim(),
+      });
+      current = [];
+    };
+
+    for (const word of words) {
+      const previous = current[current.length - 1];
+      const nextText = [...current.map((entry) => entry.word), word.word].join(" ");
+      if (
+        current.length > 0 &&
+        (word.start - previous.end > 1.5 ||
+          current.length >= 12 ||
+          nextText.length > 80)
+      ) {
+        flush();
+      }
+      current.push(word);
+      if (/[.!?][\"')\]]?$/.test(word.word)) flush();
+    }
+    flush();
+
+    const validLines = lines.filter((line) => Boolean(line.text));
+    if (!validLines.length) {
+      return {
+        ok: false,
+        lineCount: 0,
+        timedWordCount: words.length,
+        reason: "empty_transcription",
+      };
+    }
+    return {
+      ok: true,
+      plainLyricsText: validLines.map((line) => line.text).join("\n"),
+      lrcText: validLines
+        .map((line) => `${formatLrcTimestamp(line.start)} ${line.text}`)
+        .join("\n"),
+      lineCount: validLines.length,
+      timedWordCount: words.length,
+      timestampSource: "whisper_words",
+    };
+  }
+
+  const segments = timedSegments
+    .filter(
+      (segment) =>
+        cleanTranscriptText(segment.text) &&
+        Number.isFinite(segment.start) &&
+        Number.isFinite(segment.end) &&
+        segment.start >= 0 &&
+        segment.end >= segment.start,
+    )
+    .map((segment) => ({
+      ...segment,
+      text: cleanTranscriptText(segment.text),
+    }));
+  if (!segments.length) {
+    return {
+      ok: false,
+      lineCount: 0,
+      timedWordCount: 0,
+      reason: "missing_timestamps",
+    };
+  }
+  return {
+    ok: true,
+    plainLyricsText: segments.map((segment) => segment.text).join("\n"),
+    lrcText: segments
+      .map((segment) => `${formatLrcTimestamp(segment.start)} ${segment.text}`)
+      .join("\n"),
+    lineCount: segments.length,
+    timedWordCount: 0,
+    timestampSource: "whisper_segments",
+  };
 }
 
 export function alignLyricsToWordTimestamps(

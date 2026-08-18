@@ -163,6 +163,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const body = await request.json();
     const mode = String(body.mode || "").trim();
     const value = String(body.value || "");
+    const requestedSource = String(body.source || "").trim();
+    const source =
+      requestedSource === "audio_alignment_unverified" ||
+      requestedSource === "audio_transcription_unverified"
+        ? requestedSource
+        : "creator_lyrics_editor";
 
     if (mode !== "plain" && mode !== "synced") {
       return NextResponse.json(
@@ -191,8 +197,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     const existingLyrics = await getLyrics(trackId);
+    const suppliedPlainLyrics =
+      body.plainLyrics === undefined
+        ? undefined
+        : String(body.plainLyrics || "");
     const plainLyrics =
-      mode === "plain" ? value : String(existingLyrics?.plain_lyrics || "");
+      mode === "plain"
+        ? value
+        : suppliedPlainLyrics !== undefined
+          ? suppliedPlainLyrics
+          : String(existingLyrics?.plain_lyrics || "");
     const syncedLrc =
       mode === "synced" ? value : String(existingLyrics?.synced_lrc || "");
     const hasLyrics = Boolean(plainLyrics.trim() || syncedLrc.trim());
@@ -205,7 +219,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       word_sync_json: existingLyrics?.word_sync_json || null,
       r2_lyrics_key: existingLyrics?.r2_lyrics_key || null,
       lyrics_url: existingLyrics?.lyrics_url || track.lyrics_url || null,
-      source: "creator_lyrics_editor",
+      source,
     };
 
     if (existingLyrics) {

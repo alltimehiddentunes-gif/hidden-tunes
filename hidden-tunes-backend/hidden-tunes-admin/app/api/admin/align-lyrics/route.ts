@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 import {
   alignLyricsToWordTimestamps,
+  buildAudioTranscriptionLyrics,
+  type TimedTranscriptSegment,
   type TimedTranscriptWord,
 } from "@/lib/audioLyricAlignment";
 import { requireUploadPermission } from "@/lib/requireUploadPermission";
@@ -19,6 +21,7 @@ const alignmentWaiters: Array<() => void> = [];
 
 type OpenAITranscriptionResponse = {
   words?: TimedTranscriptWord[];
+  segments?: TimedTranscriptSegment[];
   usage?: { type?: string; seconds?: number };
 };
 
@@ -54,8 +57,11 @@ export async function POST(request: NextRequest) {
   }
 
   const audio = body.get("audio");
+  const mode = String(body.get("mode") || "align").trim();
+  const transcribeAudioOnly = mode === "transcribe";
   const plainLyrics = String(body.get("plainLyrics") || "").trim();
-  if (!(audio instanceof File) || !plainLyrics)
+  if (!(audio instanceof File)) return failure("Audio is required.", 400);
+  if (!transcribeAudioOnly && !plainLyrics)
     return failure("Audio and plain lyrics are required.", 400);
   if (audio.size > MAX_AUDIO_BYTES)
     return failure("Audio exceeds the 25 MB alignment limit.", 413);
@@ -69,6 +75,7 @@ export async function POST(request: NextRequest) {
     providerBody.set("model", "whisper-1");
     providerBody.set("response_format", "verbose_json");
     providerBody.append("timestamp_granularities[]", "word");
+    providerBody.append("timestamp_granularities[]", "segment");
     const response = await fetch(OPENAI_TRANSCRIPTION_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -83,14 +90,44 @@ export async function POST(request: NextRequest) {
 
     const transcription =
       (await response.json()) as OpenAITranscriptionResponse;
-    const alignment = alignLyricsToWordTimestamps(
-      plainLyrics,
-      transcription.words || [],
-    );
     const processedAudioSeconds =
       transcription.usage?.type === "duration"
         ? transcription.usage.seconds
         : undefined;
+    if (transcribeAudioOnly) {
+      const generated = buildAudioTranscriptionLyrics(
+        transcription.words || [],
+        transcription.segments || [],
+      );
+      if (!generated.ok || !generated.plainLyricsText || !generated.lrcText) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Audio transcription did not return usable real timestamps.",
+            reason: generated.reason,
+            verified: false,
+            processedAudioSeconds,
+          },
+          { status: 422 },
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        plainLyricsText: generated.plainLyricsText,
+        lrcText: generated.lrcText,
+        lineCount: generated.lineCount,
+        timedWordCount: generated.timedWordCount,
+        timestampSource: generated.timestampSource,
+        verified: false,
+        source: "audio_transcription_unverified",
+        processedAudioSeconds,
+      });
+    }
+    const alignment = alignLyricsToWordTimestamps(
+      plainLyrics,
+      transcription.words || [],
+    );
     if (!alignment.ok || !alignment.lrcText) {
       return NextResponse.json(
         {
@@ -115,7 +152,9 @@ export async function POST(request: NextRequest) {
     });
   } catch {
     return failure(
-      "Automatic alignment failed; plain lyrics were retained.",
+      transcribeAudioOnly
+        ? "Automatic audio transcription failed; no lyrics were generated."
+        : "Automatic alignment failed; plain lyrics were retained.",
       502,
     );
   } finally {

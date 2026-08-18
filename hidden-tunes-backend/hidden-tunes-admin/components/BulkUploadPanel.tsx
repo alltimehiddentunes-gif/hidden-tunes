@@ -7,6 +7,13 @@ import {
   extractAudioUploadData,
   type AudioUploadExtractionResult,
 } from "@/lib/audioUploadExtraction";
+import {
+  isUploadAlignmentCandidate,
+  resolveUploadLyrics,
+  resolveCompanionMatches,
+  validateImportedLrc,
+  type CompanionMatch,
+} from "@/lib/lyricsUploadSafety";
 import { supabase } from "@/lib/auth";
 import { resolveGenreFields } from "@/lib/controlledGenreState";
 import {
@@ -23,7 +30,11 @@ import {
 } from "@/lib/uploadGenreTaxonomy";
 
 type UploadStatus = "idle" | "ready" | "uploading" | "success" | "error";
-type AlignmentStatus = "aligning" | "automatic-unverified" | "failed";
+type AlignmentStatus =
+  | "aligning"
+  | "transcribing"
+  | "automatic-unverified"
+  | "failed";
 
 type TrackUploadItem = {
   id: string;
@@ -40,18 +51,31 @@ type TrackUploadItem = {
   artworkFile?: File | null;
   lyricsFile?: File | null;
   lrcFile?: File | null;
+  accompanyingPlainLyricsText?: string;
   embeddedPlainLyricsText?: string;
   embeddedSyncedLrcText?: string;
   reviewPlainLyricsText?: string;
   reviewSyncedLrcText?: string;
   manualPlainLyricsText?: string;
   manualSyncedLrcText?: string;
+  automaticPlainLyricsText?: string;
   automaticSyncedLrcText?: string;
   alignmentStatus?: AlignmentStatus;
   alignmentConfidence?: number;
+  lyricsMatchStatus?: CompanionMatch<File>["status"];
+  lrcMatchStatus?: CompanionMatch<File>["status"];
+  lyricsReviewReason?: string;
+  uploadedTrackId?: string;
+  uploadedReleaseId?: string;
   metadataSource?: "embedded" | "filename" | "manual";
   artworkSource?: "embedded" | "companion" | "manual";
-  lyricsSource?: "embedded" | "companion" | "manual" | "automatic";
+  lyricsSource?:
+    | "embedded"
+    | "companion"
+    | "accompanying"
+    | "manual"
+    | "automatic"
+    | "transcription";
   extraction?: AudioUploadExtractionResult | null;
   status: UploadStatus;
   progress: number;
@@ -82,10 +106,35 @@ const FALLBACK_ARTIST = "Hidden Tunes";
 const FALLBACK_ALBUM = "Singles";
 
 function getLyricsSourceLabel(source?: TrackUploadItem["lyricsSource"]) {
+  if (source === "accompanying") return "Accompanying text";
   if (source === "manual") return "Entered manually";
   if (source === "companion") return "Companion file";
   if (source === "automatic") return "Automatic · unverified";
+  if (source === "transcription") return "Machine transcribed · unverified";
   return "Embedded in audio";
+}
+
+function getLyricsStatusLabel(item: TrackUploadItem) {
+  if (item.lyricsReviewReason || item.lyricsMatchStatus === "ambiguous" || item.lrcMatchStatus === "ambiguous") {
+    return "Lyrics need review";
+  }
+  if (item.alignmentStatus === "aligning") return "Auto-syncing";
+  if (item.alignmentStatus === "transcribing") return "Transcribing & syncing lyrics";
+  if (item.alignmentStatus === "automatic-unverified") return "Auto-synced from audio · unverified";
+  if (item.alignmentStatus === "failed") return "Sync failed · plain lyrics retained";
+  if (item.lrcFile || item.embeddedSyncedLrcText || item.manualSyncedLrcText) {
+    return "Synced lyrics detected";
+  }
+  if (
+    item.accompanyingPlainLyricsText ||
+    item.lyricsFile ||
+    item.embeddedPlainLyricsText ||
+    item.automaticPlainLyricsText ||
+    item.manualPlainLyricsText
+  ) {
+    return "Lyrics detected";
+  }
+  return "No lyrics";
 }
 
 const emotionalFieldClass =
@@ -262,6 +311,15 @@ type AlignmentResponse = {
   error?: string;
 };
 
+type AudioTranscriptionResponse = AlignmentResponse & {
+  plainLyricsText?: string;
+  lineCount?: number;
+  timedWordCount?: number;
+  timestampSource?: "whisper_words" | "whisper_segments";
+  source?: "audio_transcription_unverified";
+  verified?: false;
+};
+
 async function alignCompanionLyrics(
   audio: File,
   plainLyrics: string,
@@ -282,6 +340,61 @@ async function alignCompanionLyrics(
     throw new Error(data?.error || "Automatic alignment was unavailable.");
   }
   return data;
+}
+
+async function transcribeAudioLyrics(audio: File, accessToken: string) {
+  const body = new FormData();
+  body.set("audio", audio, audio.name);
+  body.set("mode", "transcribe");
+  const response = await fetch(API_ALIGN_LYRICS_URL, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body,
+  });
+  const data = (await response.json().catch(() => null)) as
+    | AudioTranscriptionResponse
+    | null;
+  if (
+    !response.ok ||
+    !data?.success ||
+    !data.plainLyricsText ||
+    !data.lrcText
+  ) {
+    throw new Error(data?.error || "Automatic audio transcription was unavailable.");
+  }
+  return data;
+}
+
+async function persistRetriedAlignment(
+  item: TrackUploadItem,
+  lrcText: string,
+  accessToken: string,
+  options?: {
+    plainLyricsText?: string;
+    source?: "audio_alignment_unverified" | "audio_transcription_unverified";
+  }
+) {
+  if (!item.uploadedTrackId || !item.uploadedReleaseId) return;
+  const response = await fetch(
+    `/api/admin/releases/${item.uploadedReleaseId}/tracks/${item.uploadedTrackId}/lyrics`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mode: "synced",
+        value: lrcText,
+        plainLyrics: options?.plainLyricsText,
+        source: options?.source || "audio_alignment_unverified",
+      }),
+    }
+  );
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || "Auto-sync succeeded, but saving the retried lyrics failed.");
+  }
 }
 
 async function mapWithConcurrency<T>(
@@ -737,8 +850,6 @@ export default function BulkUploadPanel() {
   const [defaultMood, setDefaultMood] = useState("");
   const [defaultEmotional, setDefaultEmotional] = useState(emptyEmotionalDraft);
   const [globalArtwork, setGlobalArtwork] = useState<File | null>(null);
-  const [globalLyrics, setGlobalLyrics] = useState<File | null>(null);
-  const [globalLrc, setGlobalLrc] = useState<File | null>(null);
 
   const [bulkArtworkFiles, setBulkArtworkFiles] = useState<File[]>([]);
   const [bulkLyricsFiles, setBulkLyricsFiles] = useState<File[]>([]);
@@ -750,13 +861,6 @@ export default function BulkUploadPanel() {
     () => buildFileMap(bulkArtworkFiles),
     [bulkArtworkFiles]
   );
-
-  const lyricsMap = useMemo(
-    () => buildFileMap(bulkLyricsFiles),
-    [bulkLyricsFiles]
-  );
-
-  const lrcMap = useMemo(() => buildFileMap(bulkLrcFiles), [bulkLrcFiles]);
 
   const stats = useMemo(() => {
     const total = items.length;
@@ -801,8 +905,9 @@ export default function BulkUploadPanel() {
       : bulkLrcFiles;
 
     const nextArtworkMap = buildFileMap(nextArtworkFiles);
-    const nextLyricsMap = buildFileMap(nextLyricsFiles);
-    const nextLrcMap = buildFileMap(nextLrcFiles);
+    const allAudioFiles = [...audioFiles, ...items.map((item) => item.file)];
+    const nextLyricsMatches = resolveCompanionMatches(allAudioFiles, nextLyricsFiles);
+    const nextLrcMatches = resolveCompanionMatches(allAudioFiles, nextLrcFiles);
 
     if (artworkFiles.length) setBulkArtworkFiles(nextArtworkFiles);
     if (lyricsFiles.length) setBulkLyricsFiles(nextLyricsFiles);
@@ -826,10 +931,27 @@ export default function BulkUploadPanel() {
       const duration = Math.round(extraction?.technical.durationSeconds || browserDuration || 0);
       const companionArtwork = globalArtwork || findMatchingFile(file, nextArtworkMap);
       const matchedArtwork = companionArtwork || extraction?.artwork?.file || null;
-      const matchedLyrics = globalLyrics || findMatchingFile(file, nextLyricsMap);
-      const matchedLrc = globalLrc || findMatchingFile(file, nextLrcMap);
+      const lyricsMatch = nextLyricsMatches.get(file);
+      const lrcMatch = nextLrcMatches.get(file);
+      const matchedLyrics = lyricsMatch?.status === "unique" ? lyricsMatch.file : null;
+      const rawMatchedLrc = lrcMatch?.status === "unique" ? lrcMatch.file : null;
+      const rawCompanionSyncedLrcText = await readTextFile(rawMatchedLrc);
+      const lrcValidation = rawMatchedLrc
+        ? validateImportedLrc(rawCompanionSyncedLrcText)
+        : null;
+      const matchedLrc = lrcValidation?.valid ? rawMatchedLrc : null;
       const companionPlainLyricsText = await readTextFile(matchedLyrics);
-      const companionSyncedLrcText = await readTextFile(matchedLrc);
+      const companionSyncedLrcText = matchedLrc ? rawCompanionSyncedLrcText : "";
+      const embeddedSyncedLrcText = extraction?.lyrics?.syncedLrcText || "";
+      const embeddedLrcValidation = embeddedSyncedLrcText
+        ? validateImportedLrc(embeddedSyncedLrcText)
+        : null;
+      const safeEmbeddedSyncedLrcText = embeddedLrcValidation?.valid
+        ? embeddedSyncedLrcText
+        : undefined;
+      const embeddedPlainLyricsText =
+        extraction?.lyrics?.plainText ||
+        (!embeddedLrcValidation?.valid ? embeddedLrcValidation?.plainText : undefined);
       const hasExplicitDefaultArtist = Boolean(defaultArtist.trim());
       const hasExplicitDefaultAlbum = Boolean(
         defaultAlbum.trim() && defaultAlbum.trim() !== FALLBACK_ALBUM
@@ -857,12 +979,23 @@ export default function BulkUploadPanel() {
         artworkFile: matchedArtwork,
         lyricsFile: matchedLyrics,
         lrcFile: matchedLrc,
-        embeddedPlainLyricsText: extraction?.lyrics?.plainText,
-        embeddedSyncedLrcText: extraction?.lyrics?.syncedLrcText,
+        lyricsMatchStatus: lyricsMatch?.status || "none",
+        lrcMatchStatus:
+          rawMatchedLrc && !lrcValidation?.valid ? "ambiguous" : lrcMatch?.status || "none",
+        lyricsReviewReason:
+          lyricsMatch?.status === "ambiguous" || lrcMatch?.status === "ambiguous"
+            ? "Multiple companion lyric files match this audio file. Choose the correct file manually."
+            : rawMatchedLrc && !lrcValidation?.valid
+              ? `The matching LRC is invalid (${lrcValidation?.error || "malformed"}) and was not accepted as synchronized lyrics.`
+              : embeddedSyncedLrcText && !embeddedLrcValidation?.valid
+                ? `Embedded synchronized lyrics are invalid (${embeddedLrcValidation?.error || "malformed"}) and were retained only as plain lyrics.`
+              : undefined,
+        embeddedPlainLyricsText,
+        embeddedSyncedLrcText: safeEmbeddedSyncedLrcText,
         reviewPlainLyricsText:
-          companionPlainLyricsText || extraction?.lyrics?.plainText,
+          companionPlainLyricsText || embeddedPlainLyricsText,
         reviewSyncedLrcText:
-          companionSyncedLrcText || extraction?.lyrics?.syncedLrcText,
+          companionSyncedLrcText || safeEmbeddedSyncedLrcText,
         metadataSource:
           hasExplicitDefaultArtist || hasExplicitDefaultAlbum
             ? "manual"
@@ -877,9 +1010,7 @@ export default function BulkUploadPanel() {
             ? "embedded"
             : undefined,
         lyricsSource:
-          globalLrc || globalLyrics
-            ? "manual"
-            : matchedLrc || matchedLyrics
+          matchedLrc || matchedLyrics
               ? "companion"
               : extraction?.lyrics
                 ? "embedded"
@@ -907,10 +1038,15 @@ export default function BulkUploadPanel() {
     });
     const updated = await Promise.all(
       items.map(async (item) => {
-        const companionLyrics = findMatchingFile(item.file, nextLyricsMap);
-        const companionLrc = findMatchingFile(item.file, nextLrcMap);
-        const lyricsFile = item.lyricsFile || companionLyrics || globalLyrics;
-        const lrcFile = item.lrcFile || companionLrc || globalLrc;
+        const lyricsMatch = nextLyricsMatches.get(item.file);
+        const lrcMatch = nextLrcMatches.get(item.file);
+        const companionLyrics = lyricsMatch?.status === "unique" ? lyricsMatch.file : null;
+        const candidateLrc = lrcMatch?.status === "unique" ? lrcMatch.file : null;
+        const candidateLrcText = await readTextFile(candidateLrc);
+        const lrcValidation = candidateLrc ? validateImportedLrc(candidateLrcText) : null;
+        const companionLrc = lrcValidation?.valid ? candidateLrc : null;
+        const lyricsFile = item.lyricsFile || companionLyrics;
+        const lrcFile = item.lrcFile || companionLrc;
         const newlyMatchedPlainLyrics =
           !item.lyricsFile && companionLyrics
             ? await readTextFile(companionLyrics)
@@ -928,6 +1064,17 @@ export default function BulkUploadPanel() {
             globalArtwork,
           lyricsFile,
           lrcFile,
+          lyricsMatchStatus: lyricsMatch?.status || item.lyricsMatchStatus || "none",
+          lrcMatchStatus:
+            candidateLrc && !lrcValidation?.valid
+              ? "ambiguous"
+              : lrcMatch?.status || item.lrcMatchStatus || "none",
+          lyricsReviewReason:
+            lyricsMatch?.status === "ambiguous" || lrcMatch?.status === "ambiguous"
+              ? "Multiple companion lyric files match this audio file. Choose the correct file manually."
+              : candidateLrc && !lrcValidation?.valid
+                ? `The matching LRC is invalid (${lrcValidation?.error || "malformed"}) and was not accepted as synchronized lyrics.`
+                : item.lyricsReviewReason,
           reviewPlainLyricsText:
             item.reviewPlainLyricsText || newlyMatchedPlainLyrics,
           reviewSyncedLrcText:
@@ -944,17 +1091,45 @@ export default function BulkUploadPanel() {
 
     const nextItems = [...newItems, ...updated];
     const alignmentCandidates = nextItems.filter(
+      (item) => {
+        const plainLyricsText =
+          item.accompanyingPlainLyricsText || item.reviewPlainLyricsText || "";
+        return (
+          (item.lyricsSource === "companion" ||
+            item.lyricsSource === "embedded" ||
+            item.lyricsSource === "accompanying") &&
+          item.lrcMatchStatus !== "ambiguous" &&
+          item.manualSyncedLrcText === undefined &&
+          !item.lrcFile &&
+          !item.embeddedSyncedLrcText &&
+          !item.automaticSyncedLrcText &&
+          isUploadAlignmentCandidate({
+            plainLyricsText,
+            companionMatchStatus: item.lyricsMatchStatus,
+            hasExplicitAccompanyingText: Boolean(
+              item.accompanyingPlainLyricsText?.trim()
+            ),
+          })
+        );
+      }
+    );
+    const transcriptionCandidates = nextItems.filter(
       (item) =>
-        item.lyricsSource === "companion" &&
-        Boolean(item.lyricsFile && item.reviewPlainLyricsText) &&
-        item.manualSyncedLrcText === undefined &&
+        !item.accompanyingPlainLyricsText?.trim() &&
+        !item.reviewPlainLyricsText?.trim() &&
+        !item.manualPlainLyricsText?.trim() &&
         !item.lrcFile &&
         !item.embeddedSyncedLrcText &&
-        !item.automaticSyncedLrcText
+        !item.automaticSyncedLrcText &&
+        item.lyricsMatchStatus !== "ambiguous" &&
+        item.lrcMatchStatus !== "ambiguous"
     );
 
     alignmentCandidates.forEach((item) => {
       item.alignmentStatus = "aligning";
+    });
+    transcriptionCandidates.forEach((item) => {
+      item.alignmentStatus = "transcribing";
     });
     setItems(nextItems);
 
@@ -965,7 +1140,9 @@ export default function BulkUploadPanel() {
           try {
             const alignment = await alignCompanionLyrics(
               item.file,
-              item.reviewPlainLyricsText || "",
+              item.accompanyingPlainLyricsText ||
+                item.reviewPlainLyricsText ||
+                "",
               accessToken
             );
             setItems((current) =>
@@ -1029,6 +1206,79 @@ export default function BulkUploadPanel() {
         );
       }
     }
+    if (transcriptionCandidates.length > 0) {
+      try {
+        const accessToken = await getUploadAccessToken();
+        await mapWithConcurrency(transcriptionCandidates, 2, async (item) => {
+          try {
+            const transcription = await transcribeAudioLyrics(
+              item.file,
+              accessToken
+            );
+            setItems((current) =>
+              current.map((currentItem) => {
+                if (currentItem.id !== item.id) return currentItem;
+                if (
+                  currentItem.accompanyingPlainLyricsText?.trim() ||
+                  currentItem.reviewPlainLyricsText?.trim() ||
+                  currentItem.manualPlainLyricsText?.trim() ||
+                  currentItem.lrcFile ||
+                  currentItem.embeddedSyncedLrcText
+                ) {
+                  return { ...currentItem, alignmentStatus: undefined };
+                }
+                return {
+                  ...currentItem,
+                  automaticPlainLyricsText: transcription.plainLyricsText,
+                  automaticSyncedLrcText: transcription.lrcText,
+                  reviewPlainLyricsText: transcription.plainLyricsText,
+                  reviewSyncedLrcText: transcription.lrcText,
+                  alignmentStatus: "automatic-unverified",
+                  lyricsSource: "transcription",
+                  lyricsReviewReason: undefined,
+                };
+              })
+            );
+          } catch (error: unknown) {
+            const message = getErrorMessage(
+              error,
+              "Automatic audio transcription failed; no lyrics were generated."
+            );
+            setItems((current) =>
+              current.map((currentItem) =>
+                currentItem.id === item.id
+                  ? {
+                      ...currentItem,
+                      alignmentStatus: "failed",
+                      lyricsSource: undefined,
+                      lyricsReviewReason: message,
+                    }
+                  : currentItem
+              )
+            );
+          }
+        });
+      } catch (error: unknown) {
+        const message = getErrorMessage(
+          error,
+          "Automatic audio transcription was unavailable."
+        );
+        setItems((current) =>
+          current.map((currentItem) =>
+            transcriptionCandidates.some(
+              (item) => item.id === currentItem.id
+            )
+              ? {
+                  ...currentItem,
+                  alignmentStatus: "failed",
+                  lyricsSource: undefined,
+                  lyricsReviewReason: message,
+                }
+              : currentItem
+          )
+        );
+      }
+    }
   }
 
   function updateItem(id: string, patch: Partial<TrackUploadItem>) {
@@ -1045,27 +1295,40 @@ export default function BulkUploadPanel() {
     setItems((current) => current.filter((item) => item.status !== "success"));
   }
 
-  function matchAssetsToExistingSongs() {
-    setItems((current) =>
-      current.map((item) => {
+  async function matchAssetsToExistingSongs() {
+    const lyricsMatches = resolveCompanionMatches(items.map((item) => item.file), bulkLyricsFiles);
+    const lrcMatches = resolveCompanionMatches(items.map((item) => item.file), bulkLrcFiles);
+    const next = await Promise.all(
+      items.map(async (item) => {
         const artworkFile =
           findMatchingFile(item.file, artworkMap) ||
           item.artworkFile ||
           globalArtwork;
+        const lyricsMatch = lyricsMatches.get(item.file);
+        const lrcMatch = lrcMatches.get(item.file);
+        const lyricsFile = lyricsMatch?.status === "unique" ? lyricsMatch.file : null;
+        const candidateLrc = lrcMatch?.status === "unique" ? lrcMatch.file : null;
+        const validation = candidateLrc ? validateImportedLrc(await readTextFile(candidateLrc)) : null;
+        const lrcFile = validation?.valid ? candidateLrc : null;
 
         return {
           ...item,
           artworkFile,
-          lyricsFile:
-            findMatchingFile(item.file, lyricsMap) ||
-            item.lyricsFile ||
-            globalLyrics,
-          lrcFile:
-            findMatchingFile(item.file, lrcMap) || item.lrcFile || globalLrc,
+          lyricsFile: lyricsFile || item.lyricsFile,
+          lrcFile: lrcFile || item.lrcFile,
+          lyricsMatchStatus: lyricsMatch?.status || "none",
+          lrcMatchStatus: candidateLrc && !validation?.valid ? "ambiguous" : lrcMatch?.status || "none",
+          lyricsReviewReason:
+            lyricsMatch?.status === "ambiguous" || lrcMatch?.status === "ambiguous"
+              ? "Multiple companion lyric files match this audio file. Choose the correct file manually."
+              : candidateLrc && !validation?.valid
+                ? `The matching LRC is invalid (${validation?.error || "malformed"}) and was not accepted as synchronized lyrics.`
+                : undefined,
           warning: artworkFile ? undefined : item.warning,
         };
       })
     );
+    setItems(next);
   }
 
   async function uploadSingle(item: TrackUploadItem) {
@@ -1079,8 +1342,8 @@ export default function BulkUploadPanel() {
     try {
       const accessToken = await getUploadAccessToken();
       const artworkToUpload = item.artworkFile || globalArtwork || null;
-      const plainLyricsToRead = item.lyricsFile || globalLyrics;
-      const syncedLrcToRead = item.lrcFile || globalLrc;
+      const plainLyricsToRead = item.lyricsFile;
+      const syncedLrcToRead = item.lrcFile;
 
       updateItem(item.id, { progress: 10 });
 
@@ -1118,17 +1381,19 @@ export default function BulkUploadPanel() {
       let syncedLrcText = "";
 
       try {
-        plainLyricsText =
-          item.manualPlainLyricsText ?? (await readTextFile(plainLyricsToRead));
-        syncedLrcText =
-          item.manualSyncedLrcText ?? (await readTextFile(syncedLrcToRead));
-        if (!plainLyricsText) plainLyricsText = item.embeddedPlainLyricsText || "";
-        if (item.manualSyncedLrcText === undefined && !syncedLrcText) {
-          syncedLrcText = item.embeddedSyncedLrcText || "";
-        }
-        if (item.manualSyncedLrcText === undefined && !syncedLrcText) {
-          syncedLrcText = item.automaticSyncedLrcText || "";
-        }
+        const resolvedLyrics = resolveUploadLyrics({
+          suppliedLrcText: await readTextFile(syncedLrcToRead),
+          embeddedSyncedLrcText: item.embeddedSyncedLrcText,
+          accompanyingPlainLyricsText: item.accompanyingPlainLyricsText,
+          companionPlainLyricsText: await readTextFile(plainLyricsToRead),
+          embeddedPlainLyricsText: item.embeddedPlainLyricsText,
+          automaticPlainLyricsText: item.automaticPlainLyricsText,
+          automaticSyncedLrcText: item.automaticSyncedLrcText,
+          manualPlainLyricsText: item.manualPlainLyricsText,
+          manualSyncedLrcText: item.manualSyncedLrcText,
+        });
+        plainLyricsText = resolvedLyrics.plainLyricsText;
+        syncedLrcText = resolvedLyrics.syncedLrcText;
       } catch (error: unknown) {
         throw new UploadStepError(
           "lyrics read",
@@ -1188,6 +1453,7 @@ export default function BulkUploadPanel() {
             lyricsText: syncedLrcText || plainLyricsText,
             plainLyricsText,
             syncedLrcText,
+            lyricsSource: item.lyricsSource,
 
             ...emotionalPayload,
           }),
@@ -1222,6 +1488,8 @@ export default function BulkUploadPanel() {
         progress: 100,
         error: undefined,
         warning: data?.warning,
+        uploadedTrackId: data?.track?.id,
+        uploadedReleaseId: data?.track?.albumId || data?.track?.album_id,
       });
     } catch (error: unknown) {
       const step = getUploadStep(error);
@@ -1231,6 +1499,119 @@ export default function BulkUploadPanel() {
         status: "error",
         progress: 0,
         error: `${step}: ${message}`,
+      });
+    }
+  }
+
+  async function alignTrackPlainLyrics(
+    item: TrackUploadItem,
+    plainLyricsText: string
+  ) {
+    if (!plainLyricsText.trim()) return;
+    updateItem(item.id, {
+      alignmentStatus: "aligning",
+      alignmentConfidence: undefined,
+      automaticSyncedLrcText: undefined,
+      error: undefined,
+    });
+    try {
+      const accessToken = await getUploadAccessToken();
+      const alignment = await alignCompanionLyrics(
+        item.file,
+        plainLyricsText,
+        accessToken
+      );
+      await persistRetriedAlignment(item, alignment.lrcText || "", accessToken);
+      updateItem(item.id, {
+        automaticSyncedLrcText: alignment.lrcText,
+        reviewSyncedLrcText: alignment.lrcText,
+        alignmentStatus: "automatic-unverified",
+        alignmentConfidence: alignment.confidence,
+        lyricsSource: "automatic",
+        lyricsReviewReason: undefined,
+      });
+    } catch (error: unknown) {
+      updateItem(item.id, {
+        alignmentStatus: "failed",
+        lyricsSource: item.accompanyingPlainLyricsText
+          ? "accompanying"
+          : item.lyricsFile
+            ? "companion"
+            : "embedded",
+        lyricsReviewReason: getErrorMessage(
+          error,
+          "Automatic alignment failed; plain lyrics were retained."
+        ),
+      });
+    }
+  }
+
+  function setAccompanyingPlainLyrics(
+    item: TrackUploadItem,
+    plainLyricsText: string
+  ) {
+    updateItem(item.id, {
+      accompanyingPlainLyricsText: plainLyricsText,
+      lyricsSource: plainLyricsText.trim()
+        ? "accompanying"
+        : item.lyricsFile
+          ? "companion"
+          : item.extraction?.lyrics
+            ? "embedded"
+            : undefined,
+      automaticSyncedLrcText: undefined,
+      alignmentStatus: undefined,
+      alignmentConfidence: undefined,
+      lyricsReviewReason: undefined,
+    });
+  }
+
+  async function retryFailedAlignment(item: TrackUploadItem) {
+    await alignTrackPlainLyrics(
+      item,
+      item.accompanyingPlainLyricsText || item.reviewPlainLyricsText || ""
+    );
+  }
+
+  async function transcribeTrackAudio(item: TrackUploadItem) {
+    updateItem(item.id, {
+      alignmentStatus: "transcribing",
+      automaticPlainLyricsText: undefined,
+      automaticSyncedLrcText: undefined,
+      lyricsReviewReason: undefined,
+    });
+    try {
+      const accessToken = await getUploadAccessToken();
+      const transcription = await transcribeAudioLyrics(
+        item.file,
+        accessToken
+      );
+      await persistRetriedAlignment(
+        item,
+        transcription.lrcText || "",
+        accessToken,
+        {
+          plainLyricsText: transcription.plainLyricsText,
+          source: "audio_transcription_unverified",
+        }
+      );
+      updateItem(item.id, {
+        automaticPlainLyricsText: transcription.plainLyricsText,
+        automaticSyncedLrcText: transcription.lrcText,
+        reviewPlainLyricsText: transcription.plainLyricsText,
+        reviewSyncedLrcText: transcription.lrcText,
+        alignmentStatus: "automatic-unverified",
+        lyricsSource: "transcription",
+        lyricsReviewReason: undefined,
+      });
+    } catch (error: unknown) {
+      updateItem(item.id, {
+        alignmentStatus: "failed",
+        lyricsSource: undefined,
+        lyricsReviewReason: getErrorMessage(
+          error,
+          "Automatic audio transcription failed; no lyrics were generated."
+        ),
       });
     }
   }
@@ -1280,9 +1661,8 @@ export default function BulkUploadPanel() {
         emotional: hasEmotionalDraftValues(defaultEmotional)
           ? { ...defaultEmotional }
           : item.emotional,
-        lyricsFile:
-          item.lyricsFile || findMatchingFile(item.file, lyricsMap) || globalLyrics,
-        lrcFile: item.lrcFile || findMatchingFile(item.file, lrcMap) || globalLrc,
+        lyricsFile: item.lyricsFile,
+        lrcFile: item.lrcFile,
       }))
     );
   }
@@ -1477,7 +1857,7 @@ export default function BulkUploadPanel() {
                   <span className="text-white/50">
                     {bulkLyricsFiles.length
                       ? `${bulkLyricsFiles.length} TXT files selected`
-                      : globalLyrics?.name || "Choose TXT"}
+                      : "Choose matching TXT files"}
                   </span>
                 </button>
 
@@ -1489,7 +1869,7 @@ export default function BulkUploadPanel() {
                   <span className="text-white/50">
                     {bulkLrcFiles.length
                       ? `${bulkLrcFiles.length} LRC files selected`
-                      : globalLrc?.name || "Choose LRC"}
+                      : "Choose matching LRC files"}
                   </span>
                 </button>
 
@@ -1557,24 +1937,7 @@ export default function BulkUploadPanel() {
 
                     if (!files.length) return;
 
-                    if (files.length === 1) {
-                      setGlobalLyrics(files[0]);
-                    }
-
-                    const nextFiles = [...bulkLyricsFiles, ...files];
-                    const nextMap = buildFileMap(nextFiles);
-                    const fallbackLyrics = files.length === 1 ? files[0] : globalLyrics;
-
-                    setBulkLyricsFiles(nextFiles);
-                    setItems((current) =>
-                      current.map((item) => ({
-                        ...item,
-                        lyricsFile:
-                          findMatchingFile(item.file, nextMap) ||
-                          item.lyricsFile ||
-                          fallbackLyrics,
-                      }))
-                    );
+                    void addFiles(files);
                     event.target.value = "";
                   }}
                 />
@@ -1592,24 +1955,7 @@ export default function BulkUploadPanel() {
 
                     if (!files.length) return;
 
-                    if (files.length === 1) {
-                      setGlobalLrc(files[0]);
-                    }
-
-                    const nextFiles = [...bulkLrcFiles, ...files];
-                    const nextMap = buildFileMap(nextFiles);
-                    const fallbackLrc = files.length === 1 ? files[0] : globalLrc;
-
-                    setBulkLrcFiles(nextFiles);
-                    setItems((current) =>
-                      current.map((item) => ({
-                        ...item,
-                        lrcFile:
-                          findMatchingFile(item.file, nextMap) ||
-                          item.lrcFile ||
-                          fallbackLrc,
-                      }))
-                    );
+                    void addFiles(files);
                     event.target.value = "";
                   }}
                 />
@@ -1836,11 +2182,27 @@ export default function BulkUploadPanel() {
 
                         <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
                           Lyrics:{" "}
-                          {item.lyricsFile?.name || globalLyrics?.name || "No"}
+                          {item.accompanyingPlainLyricsText ||
+                          item.lyricsFile ||
+                          item.embeddedPlainLyricsText ||
+                          item.automaticPlainLyricsText ||
+                          item.manualPlainLyricsText ||
+                          item.lrcFile ||
+                          item.embeddedSyncedLrcText ||
+                          item.automaticSyncedLrcText ||
+                          item.manualSyncedLrcText
+                            ? "Yes"
+                            : "No"}
                         </span>
 
                         <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
-                          LRC: {item.lrcFile?.name || globalLrc?.name || "No"}
+                          LRC:{" "}
+                          {item.lrcFile ||
+                          item.embeddedSyncedLrcText ||
+                          item.automaticSyncedLrcText ||
+                          item.manualSyncedLrcText
+                            ? "Yes"
+                            : "No"}
                         </span>
 
                         {item.lyricsSource && (
@@ -1849,9 +2211,15 @@ export default function BulkUploadPanel() {
                           </span>
                         )}
 
+                        <span className="break-all rounded-full bg-white/[0.06] px-3 py-1">
+                          {getLyricsStatusLabel(item)}
+                        </span>
+
                         {item.alignmentStatus === "automatic-unverified" && (
                           <span className="break-all rounded-full bg-yellow-300/10 px-3 py-1 text-yellow-100">
-                            Generated LRC: Automatic · unverified
+                            {item.lyricsSource === "transcription"
+                              ? "Machine transcribed · Unverified"
+                              : "Generated LRC: Automatic · unverified"}
                             {typeof item.alignmentConfidence === "number"
                               ? ` · ${Math.round(item.alignmentConfidence * 100)}% match`
                               : ""}
@@ -1863,7 +2231,89 @@ export default function BulkUploadPanel() {
                             Generating synchronized lyrics…
                           </span>
                         )}
+
+                        {item.alignmentStatus === "transcribing" && (
+                          <span className="break-all rounded-full bg-violet-300/10 px-3 py-1 text-violet-100">
+                            Transcribing &amp; syncing lyrics…
+                          </span>
+                        )}
                       </div>
+
+                      {item.lyricsReviewReason && (
+                        <p className="mt-3 break-words rounded-2xl border border-yellow-400/20 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-100">
+                          {item.lyricsReviewReason}
+                        </p>
+                      )}
+
+                      {item.alignmentStatus === "failed" &&
+                        (item.accompanyingPlainLyricsText ||
+                          item.reviewPlainLyricsText) && (
+                        <button
+                          type="button"
+                          onClick={() => void retryFailedAlignment(item)}
+                          className="mt-3 rounded-2xl border border-violet-300/25 bg-violet-300/10 px-4 py-3 text-sm font-black text-violet-100"
+                        >
+                          Retry failed auto-sync
+                        </button>
+                      )}
+
+                      {item.alignmentStatus === "failed" &&
+                        !item.accompanyingPlainLyricsText &&
+                        !item.reviewPlainLyricsText && (
+                          <button
+                            type="button"
+                            onClick={() => void transcribeTrackAudio(item)}
+                            className="mt-3 rounded-2xl border border-violet-300/25 bg-violet-300/10 px-4 py-3 text-sm font-black text-violet-100"
+                          >
+                            Retry audio transcription
+                          </button>
+                        )}
+
+                      <details className="mt-3 rounded-2xl border border-violet-300/20 bg-violet-300/[0.05] px-4 py-3">
+                        <summary className="cursor-pointer text-sm font-bold text-violet-100">
+                          Edit / supply lyrics (fallback)
+                        </summary>
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs leading-5 text-white/45">
+                            Matching TXT/lyrics files and supported embedded text
+                            are detected automatically. Use this only to correct
+                            detected text or supply lyrics that did not accompany
+                            the audio into Hidden Tunes.
+                          </p>
+                          <label className="block space-y-1 text-xs text-white/45">
+                            Plain lyrics or transcription
+                            <textarea
+                              rows={8}
+                              value={item.accompanyingPlainLyricsText ?? ""}
+                              onChange={(event) =>
+                                setAccompanyingPlainLyrics(
+                                  item,
+                                  event.target.value
+                                )
+                              }
+                              placeholder="Paste the trusted plain lyrics or transcription that accompanies this audio."
+                              className={emotionalFieldClass}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            disabled={
+                              !item.accompanyingPlainLyricsText?.trim() ||
+                              item.alignmentStatus === "aligning" ||
+                              Boolean(item.lrcFile || item.embeddedSyncedLrcText)
+                            }
+                            onClick={() =>
+                              void alignTrackPlainLyrics(
+                                item,
+                                item.accompanyingPlainLyricsText || ""
+                              )
+                            }
+                            className="rounded-2xl border border-violet-300/25 bg-violet-300/10 px-4 py-3 text-sm font-black text-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            Auto-Sync Against Audio
+                          </button>
+                        </div>
+                      </details>
 
                       {(item.reviewPlainLyricsText || item.reviewSyncedLrcText) && (
                         <details className="mt-3 rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
