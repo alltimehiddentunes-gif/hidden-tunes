@@ -3,7 +3,6 @@ import { existsSync } from 'node:fs'
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { tmpdir } from 'node:os'
 
 const CONFIG = Object.freeze({
   domain: 'hiddentunes.com',
@@ -67,9 +66,9 @@ function assertCommittedDesktopSource() {
 
 function assertCommittedDesktopDist() {
   if (!committedDesktopDist) return false
-  const tempRoot = `${resolve(tmpdir())}${sep}`
-  if (!committedDesktopDist.startsWith(tempRoot) || !existsSync(join(committedDesktopDist, 'index.html'))) {
-    throw new Error('HT_COMMITTED_DESKTOP_DIST must be a built exact-commit artifact under the operating-system temp directory')
+  const releaseRoot = `${resolve(evidenceRoot)}${sep}`
+  if (!committedDesktopDist.startsWith(releaseRoot) || !existsSync(join(committedDesktopDist, 'index.html'))) {
+    throw new Error(`HT_COMMITTED_DESKTOP_DIST must be a built exact-commit artifact under ${evidenceRoot}`)
   }
   return true
 }
