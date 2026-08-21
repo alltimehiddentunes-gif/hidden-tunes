@@ -12,6 +12,7 @@ import {
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
@@ -465,6 +466,7 @@ const MetadataContextChip = memo(function MetadataContextChip({
 
 export default function PlayerScreen() {
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const compactLayout = viewportWidth < 380 || viewportHeight < 760;
   const artworkSize = Math.round(
     Math.min(compactLayout ? 268 : 334, Math.max(232, viewportWidth * (compactLayout ? 0.68 : 0.76)))
@@ -873,7 +875,16 @@ export default function PlayerScreen() {
       <LinearGradient colors={GRADIENTS.player} style={styles.container}>
         <AmbientGlow />
 
-        <View style={[styles.playerAnchor, compactLayout && styles.playerAnchorCompact, { paddingHorizontal: horizontalPadding }]}>
+        <View
+          style={[
+            styles.playerAnchor,
+            compactLayout && styles.playerAnchorCompact,
+            {
+              paddingHorizontal: horizontalPadding,
+              paddingTop: Math.max(insets.top + 8, compactLayout ? 44 : 38),
+            },
+          ]}
+        >
           <View style={styles.header}>
             <TouchableOpacity style={styles.iconButton} onPress={handleBack}>
               <Ionicons name="chevron-down" size={26} color={COLORS.text} />

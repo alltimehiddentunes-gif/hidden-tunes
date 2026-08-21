@@ -143,6 +143,7 @@ import {
   bridgeTryResumeHiddenAudioPlayback,
   reconcileHiddenAudioBridgeWithNative,
   bridgeSeekTo,
+  bridgeSetVolume,
   bridgeSyncRepeatMode,
   deactivateHiddenAudioPlayback,
   markHiddenAudioBridgeActive,
@@ -7928,7 +7929,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     await setStoredValueIfChanged(VOLUME_KEY, String(safeValue));
 
-
+    await bridgeSetVolume(safeValue, isMutedRef.current);
     if (!isMutedRef.current && soundRef.current) {
       await soundRef.current.setVolumeAsync(safeValue);
     }
@@ -7942,7 +7943,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     await setStoredValueIfChanged(MUTED_KEY, String(nextMuted));
 
-
+    await bridgeSetVolume(volumeRef.current, nextMuted);
     if (soundRef.current) {
       await soundRef.current.setVolumeAsync(nextMuted ? 0 : volumeRef.current);
     }

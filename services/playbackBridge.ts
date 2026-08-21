@@ -242,9 +242,12 @@ export async function bridgeSeekTo(millis: number): Promise<void> {
 }
 
 export async function bridgeSetVolume(
-  _volume: number,
-  _muted: boolean
-): Promise<void> {}
+  volume: number,
+  muted: boolean
+): Promise<void> {
+  if (!isHiddenAudioPlaybackActive()) return;
+  await hiddenAudioBridge.setVolume(muted ? 0 : volume);
+}
 
 export async function bridgeSkipToNext(): Promise<void> {}
 

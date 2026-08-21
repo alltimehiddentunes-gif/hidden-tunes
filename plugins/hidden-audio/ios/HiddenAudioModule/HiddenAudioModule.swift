@@ -51,6 +51,7 @@ class HiddenAudioModule: RCTEventEmitter {
   private var presentedPlaybackRate: Double = 0
   private var presentedHasNext = false
   private var presentedHasPrevious = false
+  private var currentVolume: Float = 1.0
 
   override static func requiresMainQueueSetup() -> Bool {
     return true
@@ -318,6 +319,17 @@ class HiddenAudioModule: RCTEventEmitter {
     resolve(nil)
   }
 
+  @objc(setVolume:resolver:rejecter:)
+  func setVolume(
+    volume: NSNumber,
+    resolver resolve: RCTPromiseResolveBlock,
+    rejecter reject: RCTPromiseRejectBlock
+  ) {
+    currentVolume = min(1.0, max(0.0, volume.floatValue))
+    player?.volume = currentVolume
+    resolve(nil)
+  }
+
   @objc(next:rejecter:)
   func next(resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
     moveToIndex(activeIndex + 1, autoplay: true)
@@ -399,6 +411,7 @@ class HiddenAudioModule: RCTEventEmitter {
     } else {
       player = AVPlayer(playerItem: item)
     }
+    player?.volume = currentVolume
     playerStatus = autoplay ? "buffering" : "ready"
     shouldResumeAfterItemLoad = autoplay
     observePlayerItem(item)

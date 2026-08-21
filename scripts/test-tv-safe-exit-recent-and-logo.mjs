@@ -14,7 +14,11 @@ const page = read("app/youtube-feed.tsx");
 
 assert.match(host, /exitInFlightRef\.current/, "TV exit is idempotent");
 assert.match(host, /resolveTvPlayerExitTarget\(\)/, "destination is captured first");
-assert.match(host, /navigateTvPlayerToTarget\(target\);\s*onMinimize\(\)/, "destination precedes minimize");
+assert.match(host, /navigateTvPlayerToTarget\(target\);[\s\S]*?onStop\(\)/, "destination precedes teardown");
+assert.match(host, /const closeFullPlayer = useCallback/, "TV close has one shared pathway");
+assert.match(host, /hardwareBackPress[\s\S]*?closeFullPlayer\(\)/, "system Back uses shared close");
+assert.match(host, /onPress=\{full \? closeFullPlayer : onStop\}/, "full-player stop cannot expose the route shell");
+assert.match(host, /backgroundColor: "rgba\(0,0,0,0\.72\)"/, "full controls retain strong video contrast");
 assert.match(navigation, /router\.replace\(normalizeReturnPath\(target\)/, "exit is deterministic");
 assert.doesNotMatch(host, /navigateTvPlayerBack/, "host has one exit path");
 

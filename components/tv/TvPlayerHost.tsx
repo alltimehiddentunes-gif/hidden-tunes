@@ -437,17 +437,17 @@ function TvPlayerHost({
     exitInFlightRef.current = false;
   }, [playerGeneration]);
 
-  const exitFullPlayer = useCallback(() => {
+  const closeFullPlayer = useCallback(() => {
     if (exitInFlightRef.current) return;
     const target = resolveTvPlayerExitTarget();
     exitInFlightRef.current = true;
 
-    // Secure a renderable destination before changing persistent-host layout.
+    // Secure a renderable destination before releasing the persistent TV host.
     navigateTvPlayerToTarget(target);
-    onMinimize();
     setIsUiFullscreen(false);
     void restoreTvPortraitOrientation().catch(() => undefined);
-  }, [onMinimize]);
+    onStop();
+  }, [onStop]);
 
   useEffect(() => {
     if (!full) {
@@ -466,19 +466,14 @@ function TvPlayerHost({
     if (!full) return;
 
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (isUiFullscreen) {
-        setIsUiFullscreen(false);
-        void restoreTvPortraitOrientation();
-        return true;
-      }
-      exitFullPlayer();
+      closeFullPlayer();
       return true;
     });
 
     return () => {
       subscription.remove();
     };
-  }, [exitFullPlayer, full, isUiFullscreen]);
+  }, [closeFullPlayer, full]);
 
   useEffect(() => {
     if (!displayChannel) {
@@ -520,13 +515,8 @@ function TvPlayerHost({
   }, [displayChannel, isFavorite, mountedRef]);
 
   const handleBack = useCallback(() => {
-    if (isUiFullscreen) {
-      setIsUiFullscreen(false);
-      void restoreTvPortraitOrientation();
-      return;
-    }
-    exitFullPlayer();
-  }, [exitFullPlayer, isUiFullscreen]);
+    closeFullPlayer();
+  }, [closeFullPlayer]);
 
   const handleEnterFullscreen = useCallback(async () => {
     // In-route true fullscreen owner (same VideoView). Native enterFullscreen is
@@ -939,7 +929,7 @@ function TvPlayerHost({
         style={styles.iconButton}
         onPress={() => {
           bumpControlsInteraction();
-          onStop();
+          closeFullPlayer();
         }}
         accessibilityRole="button"
         accessibilityLabel="Close"
@@ -992,7 +982,7 @@ function TvPlayerHost({
         <TouchableOpacity
           activeOpacity={0.86}
           style={styles.stopButton}
-          onPress={onStop}
+          onPress={full ? closeFullPlayer : onStop}
         >
           <Ionicons name="stop" size={17} color="#000" />
         </TouchableOpacity>
@@ -1074,9 +1064,7 @@ function TvPlayerHost({
           style={styles.fullControlButton}
           onPress={() => {
             bumpControlsInteraction();
-            setIsUiFullscreen(false);
-            void restoreTvPortraitOrientation();
-            onStop();
+            closeFullPlayer();
           }}
           accessibilityRole="button"
           accessibilityLabel="Close"
@@ -1594,9 +1582,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(0,0,0,0.72)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.42)",
   },
   playButton: {
     width: 64,

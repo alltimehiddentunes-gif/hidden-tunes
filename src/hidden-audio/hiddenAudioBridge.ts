@@ -89,6 +89,7 @@ export interface HiddenAudioEngine {
   pause(reason?: string): Promise<void>;
   stop(reason?: string): Promise<void>;
   seek(positionMs: number): Promise<void>;
+  setVolume(volume: number): Promise<void>;
   getStatus(): Promise<HiddenAudioStatus>;
   updateNowPlaying(metadata: HiddenAudioNowPlayingMetadata): Promise<void>;
 }
@@ -121,6 +122,7 @@ type HiddenAudioNativeModule = {
   pause(): Promise<void>;
   stop(): Promise<void>;
   seekTo?(seconds: number): Promise<void>;
+  setVolume?(volume: number): Promise<void>;
   getState?(): Promise<Record<string, unknown>>;
   getProgress?(): Promise<Record<string, unknown>>;
   syncAndroidAutoCatalog?: (snapshot: Record<string, unknown>) => Promise<void>;
@@ -630,6 +632,14 @@ export const hiddenAudioBridge: HiddenAudioEngine = {
       return;
     }
     await HiddenAudioNative.seekTo(Math.max(0, positionMs / 1000));
+  },
+  async setVolume(volume: number): Promise<void> {
+    if (!HiddenAudioNative?.setVolume) {
+      warnStub("setVolume");
+      return;
+    }
+    const safeVolume = Math.max(0, Math.min(1, Number(volume) || 0));
+    await HiddenAudioNative.setVolume(safeVolume);
   },
   async getStatus(): Promise<HiddenAudioStatus> {
     if (!HiddenAudioNative) {
