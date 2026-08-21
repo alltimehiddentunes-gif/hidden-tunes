@@ -368,5 +368,20 @@ export async function signOutSession() {
   };
 }
 
+export async function clearDeletedAccountLocalSession() {
+  lockMaturePodcastSession();
+  const supabase = getMobileSupabaseClient();
+  if (supabase) {
+    await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+  }
+  clearCachedArtistFollowStates();
+  try {
+    const { invalidateAndroidAutoProfileSnapshot } = await import("./androidAutoCatalogBridge");
+    await invalidateAndroidAutoProfileSnapshot();
+  } catch {
+    // Account deletion remains complete when an optional native cache is unavailable.
+  }
+}
+
 /** Compatibility alias. There is no separate artist session. */
 export const signOutArtistSession = signOutSession;

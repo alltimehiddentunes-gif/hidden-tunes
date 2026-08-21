@@ -25,7 +25,9 @@ import {
   requestPasswordReset,
   signOutSession,
   signUpWithPassword,
+  clearDeletedAccountLocalSession,
 } from "../services/mobileSupabaseAuth";
+import { requestOwnAccountDeletion } from "../services/accountDeletion";
 import { safeRouterBack } from "../utils/safeNavigation";
 
 function safeReturnPath(value: unknown) {
@@ -45,6 +47,10 @@ export default function AuthScreen() {
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [canResendConfirmation, setCanResendConfirmation] = useState(false);
+  const [deleteExpanded, setDeleteExpanded] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -145,6 +151,50 @@ export default function AuthScreen() {
     setMessage(result.error || "Check your email for a new confirmation link.");
   }
 
+  function confirmAccountDeletion() {
+    if (!sessionEmail || !deletePassword) {
+      setDeleteError("Enter your current password to continue.");
+      return;
+    }
+    Alert.alert(
+      "Permanently delete account?",
+      "Your Hidden Tunes account, follows, playback progress, device records and account activity will be deleted or anonymized. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: () => void deleteAccount(),
+        },
+      ]
+    );
+  }
+
+  async function deleteAccount() {
+    if (!sessionEmail || !deletePassword || deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteError("");
+    const reauthenticated = await signInWithPassword(sessionEmail, deletePassword);
+    if (reauthenticated.error || !reauthenticated.email) {
+      setDeleteError("Your password could not be verified. Your account is unchanged.");
+      setDeleteBusy(false);
+      return;
+    }
+    const result = await requestOwnAccountDeletion();
+    if (result.error) {
+      setDeleteError(result.error);
+      setDeleteBusy(false);
+      return;
+    }
+    await clearDeletedAccountLocalSession();
+    setDeletePassword("");
+    setSessionEmail(null);
+    setDeleteBusy(false);
+    Alert.alert("Account deleted", "Your Hidden Tunes account has been permanently deleted.", [
+      { text: "OK", onPress: () => router.replace("/profile" as never) },
+    ]);
+  }
+
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboardView}>
@@ -167,6 +217,57 @@ export default function AuthScreen() {
               <TouchableOpacity disabled={busy} style={styles.switchButton} onPress={() => void signOut()}>
                 <Text style={styles.switchText}>Sign out</Text>
               </TouchableOpacity>
+              <View style={styles.dangerSection}>
+                <Text style={styles.dangerTitle}>Delete Account</Text>
+                <Text style={styles.dangerCopy}>Permanently remove your account and account-linked activity. Catalog and legal ownership records may be retained only in anonymized form.</Text>
+                {deleteExpanded ? (
+                  <>
+                    <View style={styles.inputBox}>
+                      <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMuted} />
+                      <TextInput
+                        accessibilityLabel="Current password for account deletion"
+                        value={deletePassword}
+                        onChangeText={(value) => { setDeletePassword(value); setDeleteError(""); }}
+                        placeholder="Current password"
+                        placeholderTextColor={COLORS.textMuted}
+                        style={styles.input}
+                        secureTextEntry
+                        autoComplete="current-password"
+                      />
+                    </View>
+                    {deleteError ? <Text accessibilityRole="alert" style={styles.message}>{deleteError}</Text> : null}
+                    <View style={styles.dangerActions}>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel="Cancel account deletion"
+                        disabled={deleteBusy}
+                        style={styles.cancelDeleteButton}
+                        onPress={() => { setDeleteExpanded(false); setDeletePassword(""); setDeleteError(""); }}
+                      >
+                        <Text style={styles.cancelDeleteText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityLabel="Permanently delete account"
+                        disabled={deleteBusy}
+                        style={[styles.deleteButton, deleteBusy && styles.disabled]}
+                        onPress={confirmAccountDeletion}
+                      >
+                        {deleteBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.deleteButtonText}>Delete Account</Text>}
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Open account deletion controls"
+                    style={styles.deleteOutlineButton}
+                    onPress={() => setDeleteExpanded(true)}
+                  >
+                    <Text style={styles.deleteOutlineText}>Delete Account</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </>
           ) : (
             <>
@@ -206,4 +307,14 @@ const styles = StyleSheet.create({
   switchButton: { marginTop: 18, alignItems: "center", minHeight: 44, justifyContent: "center" }, switchText: { color: COLORS.primary, fontSize: 14, fontWeight: "800" },
   forgotButton: { alignSelf: "flex-end", minHeight: 44, justifyContent: "center", marginTop: -8 }, forgotText: { color: COLORS.primary, fontSize: 14, fontWeight: "800" },
   outlineButton: { height: 54, borderRadius: 20, borderWidth: 1, borderColor: COLORS.primary, flexDirection: "row", gap: 9, alignItems: "center", justifyContent: "center", marginTop: 14 }, outlineButtonText: { color: COLORS.primary, fontSize: 15, fontWeight: "900" },
+  dangerSection: { marginTop: 24, paddingTop: 20, borderTopWidth: 1, borderTopColor: "rgba(248,113,113,0.28)" },
+  dangerTitle: { color: "#fca5a5", fontSize: 18, fontWeight: "900" },
+  dangerCopy: { color: COLORS.textMuted, fontSize: 13, lineHeight: 19, marginTop: 7, marginBottom: 14 },
+  dangerActions: { flexDirection: "row", gap: 10 },
+  cancelDeleteButton: { flex: 1, height: 50, borderRadius: 17, borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  cancelDeleteText: { color: COLORS.text, fontWeight: "800" },
+  deleteButton: { flex: 1, height: 50, borderRadius: 17, backgroundColor: "#b91c1c", alignItems: "center", justifyContent: "center" },
+  deleteButtonText: { color: "#fff", fontWeight: "900" },
+  deleteOutlineButton: { height: 50, borderRadius: 17, borderWidth: 1, borderColor: "#ef4444", alignItems: "center", justifyContent: "center" },
+  deleteOutlineText: { color: "#f87171", fontWeight: "900" },
 });
