@@ -27,7 +27,7 @@ const html = `<!doctype html>
   <title>Privacy Policy · Hidden Tunes</title>
   <link rel="icon" type="image/png" href="/brand/hidden-tunes-mark.png" />
   <link rel="canonical" href="${escape(meta.canonicalUrl)}" />
-  <meta name="description" content="Hidden Tunes privacy policy for the Android app com.hiddentunes.app, including collection, sharing, security, retention and deletion." />
+  <meta name="description" content="Hidden Tunes privacy policy for the iOS and Android apps com.hiddentunes.app, including authentication, activity, playback, security, retention and account deletion." />
   <style>
     :root { color-scheme: dark; }
     body { margin:0; background:#07060b; color:#f4f1ff; font:16px/1.65 Inter,system-ui,sans-serif; }
@@ -63,7 +63,7 @@ const html = `<!doctype html>
     <article>
       <p class="kicker">Legal</p>
       <h1>Privacy Policy</h1>
-      <p class="meta">Hidden Tunes · Android package ${escape(meta.packageId)} · Effective ${escape(meta.effectiveDate)}</p>
+      <p class="meta">Hidden Tunes · iOS and Android identifier ${escape(meta.packageId)} · Effective ${escape(meta.effectiveDate)}</p>
       ${body}
       <p>Privacy contact: ${escape(meta.contactEmail)}</p>
     </article>

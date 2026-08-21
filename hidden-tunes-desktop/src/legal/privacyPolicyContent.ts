@@ -3,7 +3,7 @@ export const PRIVACY_POLICY_META = {
   packageId: 'com.hiddentunes.app',
   canonicalUrl: 'https://hiddentunes.com/privacy',
   contactEmail: 'support [at] hiddentunes.com',
-  effectiveDate: '17 August 2026',
+  effectiveDate: '21 August 2026',
 } as const
 
 export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
@@ -16,8 +16,8 @@ export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
     title: 'Who we are',
     paragraphs: [
       'This Privacy Policy describes how Hidden Tunes collects, uses, shares, stores, and deletes information when you use the Hidden Tunes applications and website.',
-      'Hidden Tunes is an entertainment app for music, global radio, podcasts, audiobooks, TV, and related listening features. The Android application package name is com.hiddentunes.app.',
-      'This page is the canonical public policy for Hidden Tunes. Effective date: 17 August 2026.',
+      'Hidden Tunes is an entertainment app for music, global radio, podcasts, audiobooks, TV, and related listening features on iOS and Android. The Apple bundle identifier and Android application package name are com.hiddentunes.app.',
+      'This page is the canonical public policy for Hidden Tunes. Effective date: 21 August 2026.',
     ],
   },
   {
@@ -44,11 +44,11 @@ export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
   },
   {
     id: 'not-collected',
-    title: 'Information we do not collect in the current Android app',
+    title: 'Information we do not collect in the current mobile apps',
     paragraphs: [
-      'Hidden Tunes does not require camera, microphone, contacts, or location permission in the current Android configuration. Microphone recording is blocked.',
-      'The current Android app does not include an advertising SDK and does not read the advertising ID in Hidden Tunes source.',
-      'Hidden Tunes does not currently collect payment card numbers, Google Play Billing purchases, or cryptocurrency / Hidden Coins through the Android app.',
+      'Hidden Tunes does not require contacts or location permission in the current iOS or Android configurations. It does not record microphone audio.',
+      'The current iOS and Android apps do not include an advertising SDK and do not use App Tracking Transparency or the Android advertising ID for cross-app tracking.',
+      'Hidden Tunes does not currently collect payment card numbers, App Store or Google Play Billing purchases, or cryptocurrency / Hidden Coins through the mobile apps.',
       'We do not sell personal information.',
     ],
   },
@@ -79,6 +79,7 @@ export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
       'Expo: the app may check for JavaScript updates through Expo’s update service.',
       'Content sources used when you search or play them: Audius, Internet Archive, Jamendo (if configured), and YouTube (via an in-app WebView for YouTube-sourced video).',
       'Google Play provides Android distribution and related store services.',
+      'Apple provides iOS distribution, TestFlight, and related App Store services.',
       'Each provider processes data under its own terms when you use that provider’s service.',
     ],
   },
@@ -117,9 +118,10 @@ export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
     title: 'Account and data deletion',
     paragraphs: [
       'You can sign out in the app. You can remove local favorites, playlists, and downloads. Uninstalling removes local app storage on that device.',
-      'To request deletion of your Hidden Tunes account and the server-side account data we control (authentication data, follow records, and Cross Play progress associated with that account), email support [at] hiddentunes.com from the same email address used on the account. Tell us that you want the account deleted. The visible form avoids automated email obfuscation on the public website; it is the Hidden Tunes support mailbox.',
-      'We will verify the request and delete account data we control. Data held only on your devices is removed by uninstalling or clearing storage. Third-party providers keep information according to their own policies.',
-      'The current Android app does not include an automated in-app account-delete button. Email is the deletion request path.',
+      'Signed-in mobile versions that support account deletion provide Delete Account under Profile, then Account. The app requires recent authentication and an explicit irreversible confirmation before sending an authenticated deletion request.',
+      'Successful deletion removes the Supabase Authentication user and account-owned follow, activity, device, history, and playback-progress records we control. Catalog, creator, rights, and legal ownership evidence may be retained only where required and is detached from or pseudonymized from the deleted account.',
+      'On successful deletion, the app signs out and clears account-specific session caches. Data held only on your devices can also be removed by uninstalling or clearing app storage. Third-party providers keep information according to their own policies.',
+      'If your installed version does not yet expose Delete Account, email support [at] hiddentunes.com from the account email address and request deletion.',
     ],
   },
   {
@@ -152,7 +154,7 @@ export const PRIVACY_POLICY_SECTIONS: ReadonlyArray<{
     paragraphs: [
       'Privacy contact: support [at] hiddentunes.com. You can also use https://hiddentunes.com/contact.',
       'Canonical policy URL: https://hiddentunes.com/privacy',
-      'Android package: com.hiddentunes.app',
+      'iOS bundle identifier and Android package: com.hiddentunes.app',
     ],
   },
 ]

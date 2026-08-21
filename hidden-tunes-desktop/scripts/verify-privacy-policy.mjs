@@ -10,7 +10,7 @@ const REQUIRED_PHRASES = [
   'Privacy Policy',
   'Hidden Tunes',
   'com.hiddentunes.app',
-  '17 August 2026',
+  '21 August 2026',
   'support [at] hiddentunes.com',
   'Supabase Authentication',
   'Follow',
@@ -28,6 +28,11 @@ const REQUIRED_PHRASES = [
   'email support [at] hiddentunes.com',
   'Children',
   'more than one country',
+  'iOS and Android',
+  'Apple',
+  'Delete Account under Profile, then Account',
+  'recent authentication',
+  'account-specific session caches',
 ]
 
 const [
