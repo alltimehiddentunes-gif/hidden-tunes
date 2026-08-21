@@ -12,6 +12,7 @@ import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import { loadAdminEnv } from "@/lib/radioExpansion25k/env";
+import { decodeHtmlEntities } from "@/lib/audiobookDescriptionSanitizer";
 import { getSupabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   classifyStreamUrl,

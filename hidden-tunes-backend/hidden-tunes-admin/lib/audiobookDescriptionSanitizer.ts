@@ -27,19 +27,28 @@ const NAMED_ENTITIES: Record<string, string> = {
   rsquo: "'",
 };
 
-function decodeHtmlEntities(value: string) {
+export function decodeHtmlEntities(value: string) {
   return value.replace(/&(#x?[0-9a-f]+|[a-z][a-z0-9]+);/gi, (match, entity) => {
     const key = String(entity || "").toLowerCase();
     if (key.startsWith("#x")) {
       const codePoint = Number.parseInt(key.slice(2), 16);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      return isValidHtmlCodePoint(codePoint) ? String.fromCodePoint(codePoint) : match;
     }
     if (key.startsWith("#")) {
       const codePoint = Number.parseInt(key.slice(1), 10);
-      return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : match;
+      return isValidHtmlCodePoint(codePoint) ? String.fromCodePoint(codePoint) : match;
     }
     return NAMED_ENTITIES[key] || match;
   });
+}
+
+function isValidHtmlCodePoint(value: number) {
+  return (
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= 0x10ffff &&
+    !(value >= 0xd800 && value <= 0xdfff)
+  );
 }
 
 function normalizeUrl(value: string) {
