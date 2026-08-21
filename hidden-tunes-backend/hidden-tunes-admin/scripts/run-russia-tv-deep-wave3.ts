@@ -131,8 +131,14 @@ async function main() {
     if (dup) {
       return { ...c, status: "duplicate", sanitizedUrl: sanitize(c.url), probe: null };
     }
-    const probe = await probeStreamUrl(c.url);
-    let station: Awaited<ReturnType<typeof probeTvStation>> | null = null;
+    const probe = await probeStreamUrl(c.url) as Awaited<ReturnType<typeof probeStreamUrl>> & {
+      isHls?: boolean;
+      geoRestricted?: boolean;
+      authRequired?: boolean;
+      drm?: boolean;
+      error?: unknown;
+    };
+    let station: (Awaited<ReturnType<typeof probeTvStation>> & { ok?: boolean }) | null = null;
     try {
       station = await probeTvStation({
         id: `wave3-${createHash("sha1").update(c.url).digest("hex").slice(0, 12)}`,

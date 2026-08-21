@@ -21,8 +21,8 @@ export type NormalizedRadioStation = {
   normalized_name: string;
   station_fingerprint: string;
   fingerprint_version: number;
-  source_name: "radio_browser";
-  source_type: "radio_browser";
+  source_name: "radio_browser" | "icecast_yp";
+  source_type: "radio_browser" | "icecast_yp";
   source_uuid: string;
   source_station_id: string;
   source_station_uuid: string;

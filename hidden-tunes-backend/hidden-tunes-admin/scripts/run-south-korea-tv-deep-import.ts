@@ -515,7 +515,7 @@ async function phaseAudit(cp: Checkpoint) {
     })),
   };
   writeJson(path.join(OUT_DIR, "01b-north-korea-separate.json"), kpAudit);
-  audit.northKoreaSeparate = kpAudit;
+  (audit as typeof audit & { northKoreaSeparate?: typeof kpAudit }).northKoreaSeparate = kpAudit;
 
   const out = path.join(OUT_DIR, "01-existing-catalog-audit.json");
   writeJson(out, audit);

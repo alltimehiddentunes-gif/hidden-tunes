@@ -2,7 +2,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const adminRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-function loadEnvFile(filePath) {
+function loadEnvFile(filePath: string) {
   if (!fs.existsSync(filePath)) return;
   for (const line of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
     const t = line.trim(); if (!t || t.startsWith("#")) continue;
