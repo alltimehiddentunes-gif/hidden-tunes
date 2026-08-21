@@ -36,7 +36,7 @@ loadEnvFile(path.join(adminRoot, ".env"));
 async function main() {
   const state = loadPodcastMassExpansionState(adminRoot);
   const done = new Set(
-    (state.completed_feed_urls || []).map((url) => url.toLowerCase())
+    (state?.completed_feed_urls || []).map((url) => url.toLowerCase())
   );
 
   const probes = [

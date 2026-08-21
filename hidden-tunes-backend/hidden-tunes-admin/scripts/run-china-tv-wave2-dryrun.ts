@@ -73,7 +73,13 @@ async function main() {
       });
       continue;
     }
-    const probe = await probeStreamUrl(c.url);
+    const probe = await probeStreamUrl(c.url) as Awaited<ReturnType<typeof probeStreamUrl>> & {
+      geoRestricted?: boolean;
+      error?: unknown;
+      authRequired?: boolean;
+      drm?: boolean;
+      isHls?: boolean;
+    };
     let status = "rejected";
     if (probe?.geoRestricted || String(probe?.error || "").includes("403")) {
       status = "geo_restricted";

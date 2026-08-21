@@ -6,6 +6,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 import { toSportsMatchCard } from "./matchCard";
+import type { MatchCardParticipantInput } from "./matchCard";
 import type { SportsMatchCard } from "./types";
 import {
   filterPublicSportsFixtures,
@@ -293,7 +294,7 @@ export async function batchLoadMatchCards(
     const hint = broadcastHints.get(fixture.id);
     const flags = videoFlags.get(fixture.id);
 
-    const cardParticipants = (participantsByFixture.get(fixture.id) || []).map(
+    const cardParticipants: MatchCardParticipantInput[] = (participantsByFixture.get(fixture.id) || []).map(
       (p) => {
         if (p.team_id && teams.has(p.team_id)) {
           const team = teams.get(p.team_id)!;

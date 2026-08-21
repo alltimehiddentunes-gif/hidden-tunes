@@ -10,6 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getContinentQueue, getWorldwideCountry } from "@/lib/radioWorldwideExpansion/continents";
 import { buildCuratedNormalizedStation } from "@/lib/radioWorldwideExpansion/deepSources/buildCuratedCandidate";
@@ -94,7 +95,7 @@ function ensureDir(filePath: string) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 }
 
-async function publicPlayableCount(supabase: ReturnType<typeof createClient>, code: string) {
+async function publicPlayableCount(supabase: SupabaseClient, code: string) {
   const { count, error } = await supabase
     .from("radio_stations")
     .select("id", { count: "exact", head: true })

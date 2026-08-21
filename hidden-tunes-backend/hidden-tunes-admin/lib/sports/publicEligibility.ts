@@ -5,7 +5,7 @@
  * or competitions in the public Sports product.
  */
 
-import type { SportsCompetitionCard, SportsMatchCard } from "../home/types";
+import type { SportsCompetitionCard, SportsMatchCard } from "./home/types";
 
 const CATALOG_COMPETITION_RE =
   /\b(iptv[\s_-]?org|tv\s*catalog|sports\s*bridge|free[\s_-]?tv\s*iptv|playlist)\b/i;

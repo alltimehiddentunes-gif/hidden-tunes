@@ -38,6 +38,7 @@ export type MotivationPlayableImportOptions = {
   insertBatchSize?: number;
   probeConcurrency?: number;
   rightsConcurrency?: number;
+  concurrency?: number;
   maxPages?: number;
   dryRun?: boolean;
   resume?: boolean;

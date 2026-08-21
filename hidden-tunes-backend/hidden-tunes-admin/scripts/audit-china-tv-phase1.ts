@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadAdminEnv } from "../lib/radioExpansion25k/env";
 
 const adminRoot = path.resolve(__dirname, "..");
@@ -15,7 +16,7 @@ const OUT = path.join(adminRoot, "data", "china-tv-deep");
 type Row = Record<string, unknown>;
 
 async function fetchByRegion(
-  sb: ReturnType<typeof createClient>,
+  sb: SupabaseClient,
   codes: string[]
 ): Promise<Row[]> {
   const rows: Row[] = [];
@@ -37,7 +38,7 @@ async function fetchByRegion(
   return rows;
 }
 
-async function fetchTitleHints(sb: ReturnType<typeof createClient>): Promise<Row[]> {
+async function fetchTitleHints(sb: SupabaseClient): Promise<Row[]> {
   const rows: Row[] = [];
   for (const term of ["CCTV", "CGTN", "中国", "中华"]) {
     const PAGE = 500;

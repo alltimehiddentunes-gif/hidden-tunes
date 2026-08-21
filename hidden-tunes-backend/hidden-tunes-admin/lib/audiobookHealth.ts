@@ -142,7 +142,12 @@ async function countDistinctField(field: "language" | "category_slug" | "source_
     .not(field, "is", null)
     .limit(5000);
   if (error) return 0;
-  return new Set((data || []).map((row) => (row as Record<string, unknown>)[field]).filter(Boolean)).size;
+  const values = new Set<unknown>();
+  for (const row of data || []) {
+    const value = (row as Record<string, unknown>)[field];
+    if (value) values.add(value);
+  }
+  return values.size;
 }
 
 async function countGroupedField(field: "language" | "category_slug") {

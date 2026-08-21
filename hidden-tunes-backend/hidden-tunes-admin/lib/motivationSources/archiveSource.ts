@@ -375,9 +375,10 @@ async function fetchArchiveDiscoveryCandidates(doc: ArchiveSearchDoc) {
       });
 
       if (!normalized.title || normalized.weakTitle) return [];
+      const baseTitle = normalized.title;
 
       const subjects = normalized.subjects.length ? normalized.subjects : collectSubjects(doc);
-      const subcategory = inferSubcategory(normalized.title, subjects);
+      const subcategory = inferSubcategory(baseTitle, subjects);
       const licenseUrl =
         normalizeText(payload.metadata?.licenseurl) || normalizeText(doc.licenseurl) || undefined;
 
@@ -389,8 +390,8 @@ async function fetchArchiveDiscoveryCandidates(doc: ArchiveSearchDoc) {
         const mediaType = picked.isVideo ? "video" : "audio";
         const title =
           expandChapters && mediaFiles.length > 1
-            ? chapterTitle(normalized.title, picked.name)
-            : normalized.title;
+            ? chapterTitle(baseTitle, picked.name)
+            : baseTitle;
 
         return {
           sourceKey: `archive:${sourceId}`,

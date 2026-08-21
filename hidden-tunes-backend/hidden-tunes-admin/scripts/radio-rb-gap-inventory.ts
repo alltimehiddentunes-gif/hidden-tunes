@@ -63,7 +63,7 @@ async function main() {
     // optional table
   }
 
-  let server = RADIO_BROWSER_SERVERS[0];
+  let server: (typeof RADIO_BROWSER_SERVERS)[number] = RADIO_BROWSER_SERVERS[0];
   let rbUuids: string[] = [];
   for (const candidate of RADIO_BROWSER_SERVERS) {
     try {

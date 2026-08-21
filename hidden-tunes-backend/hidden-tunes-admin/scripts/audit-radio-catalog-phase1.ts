@@ -10,7 +10,7 @@ import { RADIO_PUBLIC_RELIABILITY_THRESHOLD } from "@/lib/radioPublicCatalog";
 
 type CountFilter =
   | { op: "eq"; column: string; value: string | number | boolean }
-  | { op: "gte"; column: string; value: number }
+  | { op: "gte"; column: string; value: string | number }
   | { op: "lt"; column: string; value: number }
   | { op: "ilike"; column: string; value: string }
   | { op: "is"; column: string; value: null }

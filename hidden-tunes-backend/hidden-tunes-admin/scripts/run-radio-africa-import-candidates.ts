@@ -106,7 +106,7 @@ async function main() {
       categories: ["global"],
       source_payload_hash: hashId(`${cleanedName}|${normalizedStreamUrl}`),
       source_last_seen_at: now,
-      is_active: true,
+      is_active: true as const,
       last_checked_at: now,
     };
 
