@@ -12,7 +12,7 @@ const CONFIG = Object.freeze({
   remoteDomainRoot: '/home/u489896272/domains/hiddentunes.com',
   remoteDocumentRoot: '/home/u489896272/domains/hiddentunes.com/public_html',
   liveDirectoryName: 'staging',
-  protectedRemotePaths: ['catalog-api', 'proxy-preview', '.htaccess', '.well-known', 'wp-admin', 'wp-content', 'wp-includes', 'wp-config.php'],
+  protectedRemotePaths: ['catalog-api', 'google-play-review', 'proxy-preview', '.htaccess', '.well-known', 'wp-admin', 'wp-content', 'wp-includes', 'wp-config.php'],
 })
 
 const desktopRoot = resolve(import.meta.dirname, '..')
@@ -134,7 +134,7 @@ async function dryRun() {
   const remoteFiles = ssh(`find "${CONFIG.remoteDocumentRoot}/${CONFIG.liveDirectoryName}" -type f -printf '%P\\n' | sort`).split(/\r?\n/).filter(Boolean)
   const local = new Set(manifest.files.map(file => file.path))
   const remoteSet = new Set(remoteFiles)
-  const preserved = remoteFiles.filter(file => file === '.htaccess' || file.startsWith('catalog-api/'))
+  const preserved = remoteFiles.filter(file => file === '.htaccess' || file.startsWith('catalog-api/') || file.startsWith('google-play-review/'))
   const upload = manifest.files.map(file => file.path)
   const replace = upload.filter(file => remoteSet.has(file))
   const pruned = remoteFiles.filter(file => !local.has(file) && !preserved.includes(file))
@@ -158,7 +158,7 @@ async function production() {
   const upload = `${root}/.ht-upload-${releaseId}`
   const rollback = `${root}/staging-rollback-${releaseId}`
   const htaccessRollback = `${root}/.htaccess-rollback-${releaseId}`
-  ssh(`set -eu; test -d "${root}/staging"; test -f "${root}/staging/.htaccess"; test -d "${root}/staging/catalog-api"; test -f "${root}/.htaccess"; test -f "${remoteRootHtaccess}"; test ! -e "${upload}"; test ! -e "${rollback}"; test ! -e "${htaccessRollback}"; mkdir "${upload}"; tar -xzf "${remoteArchive}" -C "${upload}"; test -f "${upload}/index.html"; cp -a "${root}/staging/.htaccess" "${upload}/.htaccess"; cp -a "${root}/staging/catalog-api" "${upload}/catalog-api"; test -f "${upload}/.htaccess"; test -d "${upload}/catalog-api"; cp -a "${root}/.htaccess" "${htaccessRollback}"; mv "${root}/staging" "${rollback}"; if mv "${upload}" "${root}/staging" && mv "${remoteRootHtaccess}" "${root}/.htaccess"; then rm -f "${remoteArchive}" "${CONFIG.remoteDomainRoot}/.${releaseId}.manifest.json"; else test ! -d "${root}/staging" || mv "${root}/staging" "${root}/staging-failed-${releaseId}"; mv "${rollback}" "${root}/staging"; cp -a "${htaccessRollback}" "${root}/.htaccess"; exit 1; fi`, false)
+  ssh(`set -eu; test -d "${root}/staging"; test -f "${root}/staging/.htaccess"; test -d "${root}/staging/catalog-api"; test -d "${root}/staging/google-play-review"; test -f "${root}/.htaccess"; test -f "${remoteRootHtaccess}"; test ! -e "${upload}"; test ! -e "${rollback}"; test ! -e "${htaccessRollback}"; mkdir "${upload}"; tar -xzf "${remoteArchive}" -C "${upload}"; test -f "${upload}/index.html"; cp -a "${root}/staging/.htaccess" "${upload}/.htaccess"; cp -a "${root}/staging/catalog-api" "${upload}/catalog-api"; cp -a "${root}/staging/google-play-review" "${upload}/google-play-review"; test -f "${upload}/.htaccess"; test -d "${upload}/catalog-api"; test -d "${upload}/google-play-review"; cp -a "${root}/.htaccess" "${htaccessRollback}"; mv "${root}/staging" "${rollback}"; if mv "${upload}" "${root}/staging" && mv "${remoteRootHtaccess}" "${root}/.htaccess"; then rm -f "${remoteArchive}" "${CONFIG.remoteDomainRoot}/.${releaseId}.manifest.json"; else test ! -d "${root}/staging" || mv "${root}/staging" "${root}/staging-failed-${releaseId}"; mv "${rollback}" "${root}/staging"; cp -a "${htaccessRollback}" "${root}/.htaccess"; exit 1; fi`, false)
   console.log(JSON.stringify({ mode: 'production', releaseId, previousRelease: basename(rollback), manifestPath, remoteTarget: `${root}/staging` }, null, 2))
 }
 
