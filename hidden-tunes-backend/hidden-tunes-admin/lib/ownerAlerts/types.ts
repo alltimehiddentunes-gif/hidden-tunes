@@ -1,0 +1,5 @@
+export type AlertSeverity="critical"|"high"|"normal"|"info"; export type AlertStatus="open"|"acknowledged"|"resolved";
+export type DeliveryState="pending"|"disabled"|"sent"|"failed"|"digest_pending"|"digested";
+export type SafeMetadata=Record<string,string|number|boolean|null>;
+export type OwnerAlertInput={eventType:string;severity:AlertSeverity;source:string;title:string;message:string;platform?:string;environment?:string;entityType?:string;entityId?:string;metadata?:Record<string,unknown>;occurredAt?:string};
+export type OwnerAlertRecord={id:string;event_type:string;severity:AlertSeverity;source:string;title:string;message:string;platform:string|null;environment:string;entity_type:string|null;entity_id:string|null;metadata:SafeMetadata;fingerprint:string;status:AlertStatus;occurrence_count:number;first_occurred_at:string;last_occurred_at:string;delivery_state:DeliveryState;delivery_attempts:number;last_delivery_error:string|null;next_delivery_at:string|null;notification_sent_at:string|null;acknowledged_at:string|null;acknowledged_by:string|null;resolved_at:string|null;resolved_by:string|null;created_at:string;updated_at:string};

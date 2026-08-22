@@ -1,0 +1,3 @@
+import type{OwnerAlertInput}from"./types";
+export type Pm2Snapshot={name:string;status:string;restarts:number;windowMinutes:number};
+export function normalizePm2Snapshot(s:Pm2Snapshot):OwnerAlertInput|null{if(s.status!=="online")return{eventType:"pm2.offline",severity:"critical",source:"watchdog",title:"HiddenTunes PM2",message:`${s.name} is ${s.status}.`,entityType:"pm2_process",entityId:s.name,metadata:{status:s.status,restarts:s.restarts}};if(s.restarts>=5)return{eventType:"pm2.restart_loop",severity:"critical",source:"watchdog",title:"HiddenTunes PM2",message:`${s.name} restarted ${s.restarts} times in ${s.windowMinutes} minutes.`,entityType:"pm2_process",entityId:s.name,metadata:{restarts:s.restarts,windowMinutes:s.windowMinutes}};return null;}
