@@ -1,4 +1,4 @@
 import type{SafeMetadata}from"./types";
 const S=/(authorization|cookie|token|secret|password|phone|email|api.?key|card|cvv)/i,E=/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,P=/(?<!\w)(?:\+?\d[\d ().-]{7,}\d)/g,U=/([?&](?:token|key|secret|password|signature|sig)=)[^&#\s]+/gi,A=/bearer\s+[a-z0-9._~+\/-]+=*/gi;
 export const redactText=(v:unknown,max=500)=>String(v??"").replace(A,"[REDACTED]").replace(E,"[REDACTED_EMAIL]").replace(P,"[REDACTED_PHONE]").replace(U,"$1[REDACTED]").slice(0,max);
-export function sanitizeMetadata(i:Record<string,unknown>={}):SafeMetadata{const o:SafeMetadata={};for(const[k,v]of Object.entries(i).slice(0,32)){const key=k.slice(0,64);if(S.test(k))o[key]="[REDACTED]";else if(v==null||typeof v==="boolean"||typeof v==="number")o[key]=v;else o[key]=redactText(v);}return o;}
+export function sanitizeMetadata(i:Record<string,unknown>={}):SafeMetadata{const o:SafeMetadata={};for(const[k,v]of Object.entries(i).slice(0,32)){const key=k.slice(0,64);if(S.test(k))o[key]="[REDACTED]";else if(v===null||typeof v==="boolean"||typeof v==="number")o[key]=v;else if(typeof v==="string")o[key]=redactText(v);}return o;}
