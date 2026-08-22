@@ -135,12 +135,12 @@ const TvSkeletonCards = () => (
 );
 
 export default function YouTubeFeedScreen() {
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     const frame = requestAnimationFrame(() =>
       markTvCloseDestinationRendered("/youtube-feed")
     );
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, []));
   const insets = useSafeAreaInsets();
   const scrollTailPadding = useMemo(
     () => getMobileScrollTailPadding(insets.bottom),

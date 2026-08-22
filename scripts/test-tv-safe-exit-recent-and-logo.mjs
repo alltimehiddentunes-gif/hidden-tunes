@@ -7,6 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 
 const host = read("components/tv/TvPlayerHost.tsx");
+const tvHome = read("app/youtube-feed.tsx");
 const navigation = read("utils/tvNavigation.ts");
 const card = read("components/tv/TvVideoCard.tsx");
 const history = read("services/tv/tvRecentlyWatched.ts");
@@ -16,6 +17,7 @@ assert.match(host, /exitInFlightRef\.current/, "TV exit is idempotent");
 assert.match(host, /resolveTvPlayerExitTarget\(\)/, "destination is captured first");
 assert.match(host, /setClosingTarget\(target\);[\s\S]*?navigateTvPlayerToTarget\(target\)/, "navigation begins while the persistent host remains mounted");
 assert.match(host, /isTvCloseDestinationCommitted\(pathname, closingTarget\)[\s\S]*?isFreshTvCloseDestinationRender[\s\S]*?onStop\(\)/, "teardown waits for committed destination and its explicit render signal");
+assert.match(tvHome, /useFocusEffect\(useCallback\([\s\S]*?markTvCloseDestinationRendered\("\/youtube-feed"\)/, "TV home confirms every focus, not only its first mount");
 assert.doesNotMatch(host, /navigateTvPlayerToTarget\(target\);\s*setIsUiFullscreen\(false\);\s*void restoreTvPortraitOrientation\(\)\.catch\(\(\) => undefined\);\s*onStop\(\)/, "navigation and teardown are not synchronous");
 assert.match(host, /closeFinalizedRef\.current/, "teardown finalizes once");
 assert.match(host, /setTimeout\([\s\S]*?setShowClosingFallback\(true\)[\s\S]*?TV_HOME_ROUTE[\s\S]*?2_500/, "timeout uses a bounded branded fallback");

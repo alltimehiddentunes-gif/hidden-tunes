@@ -47,6 +47,8 @@ export type PlaybackEngineKind = "hidden_audio";
 export type HiddenAudioEndedEvent = HiddenAudioPlaybackEndedEvent;
 export type HiddenAudioDiagnosticEvent = HiddenAudioNativeDiagnosticEvent;
 
+let hiddenAudioVolumeWriteSequence: Promise<void> = Promise.resolve();
+
 type QueueSnapshot = {
   queueLength: number;
   activeIndex: number | null;
@@ -250,7 +252,14 @@ export async function bridgeSetVolume(
   // not drop updates merely because the JS activity mirror is temporarily
   // stale during foreground/session reconciliation.
   if (!isHiddenAudioNativePlaybackEnabled()) return;
-  await hiddenAudioBridge.setVolume(muted ? 0 : volume);
+  const targetVolume = muted ? 0 : Math.max(0, Math.min(1, volume));
+  // Slider callbacks are intentionally fire-and-forget at the UI boundary.
+  // Serialize their native writes so an earlier promise can never finish
+  // after and overwrite the user's final selected value.
+  hiddenAudioVolumeWriteSequence = hiddenAudioVolumeWriteSequence
+    .catch(() => undefined)
+    .then(() => hiddenAudioBridge.setVolume(targetVolume));
+  await hiddenAudioVolumeWriteSequence;
 }
 
 export async function bridgeSkipToNext(): Promise<void> {}

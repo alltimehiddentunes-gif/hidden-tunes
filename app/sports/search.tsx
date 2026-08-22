@@ -16,7 +16,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, router, useLocalSearchParams } from "expo-router";
+import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { markTvCloseDestinationRendered } from "../../services/tv/tvCloseRenderSignal";
 
@@ -77,12 +77,12 @@ function dedupeFixturesById(items: SportsMatchCardType[]): SportsMatchCardType[]
 }
 
 export default function SportsSearchScreen() {
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     const frame = requestAnimationFrame(() =>
       markTvCloseDestinationRendered("/sports/search")
     );
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, []));
   const gate = useSportsFullUiGate();
   const params = useLocalSearchParams<{ q?: string; country?: string }>();
 

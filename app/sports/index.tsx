@@ -980,12 +980,12 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
 }
 
 export default function SportsHomeScreen() {
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     const frame = requestAnimationFrame(() =>
       markTvCloseDestinationRendered("/sports")
     );
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, []));
   return <SportsHomeInner />;
 }
 

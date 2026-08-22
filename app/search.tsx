@@ -14,7 +14,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
 import { markTvCloseDestinationRendered } from "../services/tv/tvCloseRenderSignal";
 
@@ -321,12 +321,12 @@ function withInheritedSearchArtwork<
 }
 
 export default function SearchScreen() {
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     const frame = requestAnimationFrame(() =>
       markTvCloseDestinationRendered("/search")
     );
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, []));
   const params = useLocalSearchParams<{ q?: string }>();
   const { playSong } = usePlayerActions();
   const { playRadioStation, playPodcastEpisode } = usePlaybackRouter();
