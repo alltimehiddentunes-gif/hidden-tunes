@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
+import AppScreenErrorBoundary from "../components/AppScreenErrorBoundary";
 import { isHiddenAudioPocRoute } from "../constants/playbackConfig";
 import { PlayerProvider } from "../context/PlayerContext";
 import { TvPlaybackProvider } from "../context/TvPlaybackContext";
@@ -61,7 +62,11 @@ function RootLayout() {
     }
   }, []);
 
-  const stack = <RootStack memoizedScreenOptions={memoizedScreenOptions} />;
+  const stack = (
+    <AppScreenErrorBoundary>
+      <RootStack memoizedScreenOptions={memoizedScreenOptions} />
+    </AppScreenErrorBoundary>
+  );
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

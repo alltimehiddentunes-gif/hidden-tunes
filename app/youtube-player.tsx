@@ -298,6 +298,9 @@ export default function YouTubePlayerScreen() {
   const autoNextLockRef = useRef(false);
   const errorSkipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const playbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoNextUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const screenMountedRef = useRef(true);
 
   const initialVideoSource = normalizeVideoSourceParam(params.videoSource);
   const initialRouteId = cleanRouteText(params.videoId || params.externalVideoId || params.source_id || params.id);
@@ -393,6 +396,7 @@ export default function YouTubePlayerScreen() {
   }, [currentEmbedUrl, embedPageOrigin, videoId, videoSource]);
 
   useEffect(() => {
+    screenMountedRef.current = true;
     let active = true;
     const sessionActive = { current: true };
 
@@ -439,6 +443,7 @@ export default function YouTubePlayerScreen() {
     })();
 
     return () => {
+      screenMountedRef.current = false;
       active = false;
       sessionActive.current = false;
       unregisterAdapter();
@@ -449,6 +454,14 @@ export default function YouTubePlayerScreen() {
       }
       if (playbackTimerRef.current) {
         clearTimeout(playbackTimerRef.current);
+      }
+      if (autoNextTimerRef.current) {
+        clearTimeout(autoNextTimerRef.current);
+        autoNextTimerRef.current = null;
+      }
+      if (autoNextUnlockTimerRef.current) {
+        clearTimeout(autoNextUnlockTimerRef.current);
+        autoNextUnlockTimerRef.current = null;
       }
     };
   }, []);
@@ -597,11 +610,15 @@ export default function YouTubePlayerScreen() {
     setIsVideoPlaying(false);
     setPlayerStatus("Playing next...");
 
-    setTimeout(() => {
+    autoNextTimerRef.current = setTimeout(() => {
+      autoNextTimerRef.current = null;
+      if (!screenMountedRef.current) return;
       playNext();
     }, 400);
 
-    setTimeout(() => {
+    autoNextUnlockTimerRef.current = setTimeout(() => {
+      autoNextUnlockTimerRef.current = null;
+      if (!screenMountedRef.current) return;
       autoNextLockRef.current = false;
     }, 1800);
   }

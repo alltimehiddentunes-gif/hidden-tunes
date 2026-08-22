@@ -27,6 +27,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
+import { createScopedActionLock } from "../utils/scopedActionLock";
 
 import {
   getBestLyricsPayload,
@@ -208,6 +209,7 @@ function CinematicBackground({ artwork }: { artwork?: string }) {
 }
 
 export default function LyricsScreen() {
+  const closeActionLockRef = useRef(createScopedActionLock());
   const params = useLocalSearchParams();
   const { seekTo } = usePlayerActions();
   const { currentSong } = usePlayerNowPlaying();
@@ -336,7 +338,11 @@ export default function LyricsScreen() {
     setActiveIndex(-1);
     clearResumeSyncTimer();
 
-    requestAnimationFrame(() => {
+    if (scrollAnimFrameRef.current !== null) {
+      cancelAnimationFrame(scrollAnimFrameRef.current);
+    }
+    scrollAnimFrameRef.current = requestAnimationFrame(() => {
+      scrollAnimFrameRef.current = null;
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     });
   }, [songId, initialLyrics, clearResumeSyncTimer]);
@@ -393,12 +399,18 @@ export default function LyricsScreen() {
 
   useEffect(() => {
     return () => {
+      closeActionLockRef.current.dispose();
       clearResumeSyncTimer();
       if (scrollAnimFrameRef.current !== null) {
         cancelAnimationFrame(scrollAnimFrameRef.current);
       }
     };
   }, [clearResumeSyncTimer]);
+
+  const handleClose = useCallback(() => {
+    if (!closeActionLockRef.current.tryAcquire("lyrics_close")) return;
+    safeRouterBack("/music-feed");
+  }, []);
 
   const lyricsDisplay = useMemo(
     () => resolveLyricsDisplay(syncedLrc, plainLyrics),
@@ -525,7 +537,7 @@ export default function LyricsScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => safeRouterBack("/music-feed")}
+            onPress={handleClose}
             activeOpacity={0.85}
           >
             <Ionicons name="chevron-down" size={26} color="#FFFFFF" />

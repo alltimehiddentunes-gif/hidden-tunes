@@ -36,10 +36,12 @@ assert.deepEqual(resolve({ artistId: "display name", albumId: "Singles" }), { pa
 assert.deepEqual(resolveMiniPlayerDestination(null, baseContext, { isYoutubeMode: true, isLiveRadioMode: false }), { pathname: "/youtube-feed" });
 
 const source = readFileSync(new URL("../components/MiniPlayer.tsx", import.meta.url), "utf8");
+const scopedLockSource = readFileSync(new URL("../utils/scopedActionLock.ts", import.meta.url), "utf8");
 assert.match(source, /accessibilityLabel="Open full player"[\s\S]*?onPress=\{handleOpenPlayer\}/);
 assert.match(source, /accessibilityLabel=\{`Open details for \$\{title\}`\}[\s\S]*?onPress=\{handleOpenMetadata\}/);
 assert.doesNotMatch(source, /<AnimatedPressable[\s\S]{0,180}onPress=\{handleOpenPlayer\}[\s\S]{0,500}<MiniPlayerMetadata/);
 assert.match(source, /navigationLockRef\.current\.tryAcquire\(key\)/);
+assert.match(scopedLockSource, /if \(active\) return false/);
 assert.match(source, /const metadataDestination = useMemo/);
 assert.doesNotMatch(source, /\[pathname,/);
 assert.match(source, /queueCommandTailRef\.current/);

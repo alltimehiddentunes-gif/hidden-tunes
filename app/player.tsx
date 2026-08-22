@@ -53,6 +53,7 @@ import {
 } from "../utils/playerControlDiagnostics";
 import { useAppActiveState } from "../utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
+import { createScopedActionLock } from "../utils/scopedActionLock";
 
 const METADATA_PRESS_GUARD_MS = 500;
 
@@ -503,6 +504,9 @@ export default function PlayerScreen() {
 
   const [addToPlaylistOpen, setAddToPlaylistOpen] = useState(false);
   const lastMetadataPressAtRef = useRef(0);
+  const closeActionLockRef = useRef(createScopedActionLock());
+
+  useEffect(() => () => closeActionLockRef.current.dispose(), []);
   const pulse = useSharedValue(1);
   const artworkRotation = useSharedValue(0);
   const artworkHalo = useSharedValue(0.28);
@@ -714,6 +718,7 @@ export default function PlayerScreen() {
   }));
 
   const handleBack = useCallback(() => {
+    if (!closeActionLockRef.current.tryAcquire("player_close")) return;
     if (isLiveRadioMode) {
       navigateRadioPlayerBack({
         searchQuery: activeQueueContext?.searchQuery,
