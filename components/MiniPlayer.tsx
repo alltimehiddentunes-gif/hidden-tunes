@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, usePathname } from "expo-router";
 import Animated, {
   Easing,
   FadeInDown,
@@ -63,6 +63,7 @@ import {
   getUserFacingArtist,
   getUserFacingRadioSubtitle,
 } from "../services/ui/displayMetadata";
+import { resolveMiniPlayerDestination } from "../utils/miniPlayerNavigation";
 
 type YouTubeMini = {
   id: string;
@@ -428,6 +429,7 @@ function MiniPlayer() {
     youtubeQueue,
     radioQueue,
     activeQueue,
+    activeQueueContext,
   } = usePlayerState();
   const { togglePlayPause, nextSong, previousSong } = usePlayerActions();
 
@@ -436,6 +438,10 @@ function MiniPlayer() {
 
   const mountedRef = useRef(true);
   const tapGuardRef = useRef(createTapGuard(420));
+  const pathname = usePathname();
+  const navigationLockRef = useRef<{ key: string; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const commandLocksRef = useRef(new Set<string>());
+  const queueCommandTailRef = useRef<Promise<void>>(Promise.resolve());
   const appActiveRef = useRef(isAppActiveForWork());
   const lastYouTubeJsonRef = useRef<string | null>(null);
   const sessionYoutubeHydratedRef = useRef(false);
@@ -528,6 +534,26 @@ function MiniPlayer() {
       sub.remove();
     };
   }, [currentSong, loadYouTubeMini]);
+
+  const clearNavigationLock = useCallback(() => {
+    const lock = navigationLockRef.current;
+    if (lock) clearTimeout(lock.timer);
+    navigationLockRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    const lock = navigationLockRef.current;
+    if (!lock) return;
+    clearTimeout(lock.timer);
+    lock.timer = setTimeout(() => {
+      navigationLockRef.current = null;
+    }, 250);
+  }, [pathname, clearNavigationLock]);
+
+  useEffect(() => () => {
+    clearNavigationLock();
+    commandLocksRef.current.clear();
+  }, [clearNavigationLock]);
 
   useEffect(() => {
     if (!currentSong) return;
@@ -630,6 +656,8 @@ function MiniPlayer() {
 
   const runMiniPlayerAction = useCallback(
     async (buttonId: string, action: () => void | Promise<void>) => {
+      if (commandLocksRef.current.has(buttonId)) return;
+      commandLocksRef.current.add(buttonId);
       logMiniPlayerControl("mini_player_button_action_start", { buttonId });
       try {
         await action();
@@ -639,10 +667,44 @@ function MiniPlayer() {
           buttonId,
           reason: error instanceof Error ? error.message : "action_failed",
         });
+      } finally {
+        commandLocksRef.current.delete(buttonId);
       }
     },
     []
   );
+
+  const runNavigation = useCallback((key: string, action: () => void) => {
+    if (navigationLockRef.current) return;
+    const timer = setTimeout(() => {
+      navigationLockRef.current = null;
+    }, 1500);
+    navigationLockRef.current = { key, timer };
+    try {
+      action();
+    } catch (error) {
+      clearNavigationLock();
+      logMiniPlayerControl("mini_player_button_action_blocked", {
+        buttonId: key,
+        reason: error instanceof Error ? error.message : "navigation_failed",
+      });
+    }
+  }, [clearNavigationLock]);
+
+  const runQueueAction = useCallback((buttonId: "next" | "previous", action: () => void | Promise<void>) => {
+    if (commandLocksRef.current.has(buttonId)) return;
+    commandLocksRef.current.add(buttonId);
+    const scheduled = queueCommandTailRef.current
+      .catch(() => undefined)
+      .then(() => {
+        if (!mountedRef.current) return;
+        return runMiniPlayerAction(`queue_${buttonId}`, action);
+      })
+      .finally(() => {
+        commandLocksRef.current.delete(buttonId);
+      });
+    queueCommandTailRef.current = scheduled;
+  }, [runMiniPlayerAction]);
 
   const openPlayer = useCallback(() => {
     if (isYoutubeMode && youtubeVideo?.id) {
@@ -664,8 +726,18 @@ function MiniPlayer() {
   }, [isYoutubeMode, youtubeVideo]);
 
   const handleOpenPlayer = useCallback(() => {
-    void runMiniPlayerAction("open_player", openPlayer);
-  }, [openPlayer, runMiniPlayerAction]);
+    runNavigation("open_player", openPlayer);
+  }, [openPlayer, runNavigation]);
+
+  const handleOpenMetadata = useCallback(() => {
+    const destination = resolveMiniPlayerDestination(currentSong, activeQueueContext, {
+      isYoutubeMode,
+      isLiveRadioMode,
+    });
+    runNavigation(`open_metadata:${destination.pathname}`, () => {
+      router.push(destination as any);
+    });
+  }, [activeQueueContext, currentSong, isLiveRadioMode, isYoutubeMode, runNavigation]);
 
   const handleMainButton = useCallback(() => {
     if (!tapGuardRef.current("mini_main_button")) {
@@ -681,18 +753,16 @@ function MiniPlayer() {
       return;
     }
 
-    void runMiniPlayerAction("play_pause", () => {
-      void togglePlayPause();
-    });
+    void runMiniPlayerAction("play_pause", togglePlayPause);
   }, [isYoutubeMode, openPlayer, runMiniPlayerAction, togglePlayPause]);
 
   const handlePrevious = useCallback(() => {
-    void runMiniPlayerAction("previous", previousSong);
-  }, [previousSong, runMiniPlayerAction]);
+    runQueueAction("previous", previousSong);
+  }, [previousSong, runQueueAction]);
 
   const handleNext = useCallback(() => {
-    void runMiniPlayerAction("next", nextSong);
-  }, [nextSong, runMiniPlayerAction]);
+    runQueueAction("next", nextSong);
+  }, [nextSong, runQueueAction]);
 
   const badgeIconName = useMemo(() => {
     if (isYoutubeMode) return "tv";
@@ -761,29 +831,41 @@ function MiniPlayer() {
           <BlurView intensity={50} tint="dark" style={styles.container}>
             <View style={styles.sheen} pointerEvents="none" />
 
-            <AnimatedPressable
-              accessibilityLabel="Open player"
-              onPress={handleOpenPlayer}
-              onPressIn={onShellPressIn}
-              onPressOut={onShellPressOut}
-              style={styles.openPlayerTapArea}
-            >
-              <MiniPlayerArtwork
-                cover={cover}
-                isYoutubeMode={isYoutubeMode}
-                isPlaying={isPlaying}
-                trackKey={trackKey}
-              />
+            <View style={styles.openPlayerTapArea}>
+              <AnimatedPressable
+                accessibilityRole="button"
+                accessibilityLabel="Open full player"
+                onPress={handleOpenPlayer}
+                onPressIn={onShellPressIn}
+                onPressOut={onShellPressOut}
+                style={styles.artworkTapArea}
+              >
+                <MiniPlayerArtwork
+                  cover={cover}
+                  isYoutubeMode={isYoutubeMode}
+                  isPlaying={isPlaying}
+                  trackKey={trackKey}
+                />
+              </AnimatedPressable>
 
-              <MiniPlayerMetadata
-                title={title}
-                artist={artist}
-                queueLabel={queueLabel}
-                badgeIconName={badgeIconName}
-                isYoutubeMode={isYoutubeMode}
-                isLiveRadioMode={isLiveRadioMode}
-              />
-            </AnimatedPressable>
+              <AnimatedPressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open details for ${title}`}
+                onPress={handleOpenMetadata}
+                onPressIn={onShellPressIn}
+                onPressOut={onShellPressOut}
+                style={styles.metadataTapArea}
+              >
+                <MiniPlayerMetadata
+                  title={title}
+                  artist={artist}
+                  queueLabel={queueLabel}
+                  badgeIconName={badgeIconName}
+                  isYoutubeMode={isYoutubeMode}
+                  isLiveRadioMode={isLiveRadioMode}
+                />
+              </AnimatedPressable>
+            </View>
 
             <View pointerEvents="box-none" style={styles.controlsCluster}>
               {!isYoutubeMode && !isLiveRadioMode && currentSong?.id ? (
@@ -884,6 +966,15 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    minWidth: 0,
+  },
+
+  artworkTapArea: {
+    flexShrink: 0,
+  },
+
+  metadataTapArea: {
+    flex: 1,
     minWidth: 0,
   },
 
