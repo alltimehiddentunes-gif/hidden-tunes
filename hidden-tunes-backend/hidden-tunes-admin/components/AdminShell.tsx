@@ -90,6 +90,12 @@ const NAV_ITEMS = [
     roles: "ownership",
   },
   {
+    href: "/admin/owner-alerts",
+    label: "Owner Alerts",
+    description: "Operational alert center",
+    roles: "ownership",
+  },
+  {
     href: "/admin/uploaders",
     label: "Uploaders",
     description: "Owner permissions",

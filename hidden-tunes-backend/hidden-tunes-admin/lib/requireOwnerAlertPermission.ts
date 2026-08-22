@@ -1,0 +1,2 @@
+import{NextRequest,NextResponse}from"next/server";import{requireUploadPermission}from"@/lib/requireUploadPermission";import{canManageUploaderOwnership}from"@/lib/adminPermissions";
+export async function requireOwnerAlertPermission(r:NextRequest){const p=await requireUploadPermission(r);if(p.errorResponse)return p;if(!canManageUploaderOwnership(p.profile.role))return{...p,errorResponse:NextResponse.json({success:false,error:"Owner alert access requires owner or admin role."},{status:403})};return p;}
