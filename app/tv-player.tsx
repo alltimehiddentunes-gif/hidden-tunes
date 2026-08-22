@@ -187,5 +187,6 @@ export default function TvPlayerScreen() {
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
+    backgroundColor: "#000000",
   },
 });

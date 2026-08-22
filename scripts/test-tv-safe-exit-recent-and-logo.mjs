@@ -14,13 +14,20 @@ const page = read("app/youtube-feed.tsx");
 
 assert.match(host, /exitInFlightRef\.current/, "TV exit is idempotent");
 assert.match(host, /resolveTvPlayerExitTarget\(\)/, "destination is captured first");
-assert.match(host, /navigateTvPlayerToTarget\(target\);[\s\S]*?onStop\(\)/, "destination precedes teardown");
+assert.match(host, /setClosingTarget\(target\);[\s\S]*?navigateTvPlayerToTarget\(target\)/, "navigation begins while the persistent host remains mounted");
+assert.match(host, /isTvCloseDestinationCommitted\(pathname, closingTarget\)[\s\S]*?requestAnimationFrame[\s\S]*?onStop\(\)/, "teardown waits for committed destination and one rendered frame");
+assert.doesNotMatch(host, /navigateTvPlayerToTarget\(target\);\s*setIsUiFullscreen\(false\);\s*void restoreTvPortraitOrientation\(\)\.catch\(\(\) => undefined\);\s*onStop\(\)/, "navigation and teardown are not synchronous");
+assert.match(host, /closeFinalizedRef\.current/, "teardown finalizes once");
+assert.match(host, /setTimeout\([\s\S]*?setShowClosingFallback\(true\)[\s\S]*?TV_HOME_ROUTE[\s\S]*?2_500/, "timeout uses a bounded branded fallback");
+assert.match(host, /showClosingFallback[\s\S]*?HIDDEN TUNES[\s\S]*?Returning to TV/, "pending fallback never exposes the route shell");
 assert.match(host, /const closeFullPlayer = useCallback/, "TV close has one shared pathway");
 assert.match(host, /hardwareBackPress[\s\S]*?closeFullPlayer\(\)/, "system Back uses shared close");
+assert.match(host, /isUiFullscreen[\s\S]*?handleExitFullscreen\(\)[\s\S]*?return;[\s\S]*?closeFullPlayer\(\)/, "fullscreen header X exits fullscreen only");
 assert.match(host, /onPress=\{full \? closeFullPlayer : onStop\}/, "full-player stop cannot expose the route shell");
 assert.match(host, /backgroundColor: "rgba\(0,0,0,0\.72\)"/, "full controls retain strong video contrast");
 assert.match(navigation, /router\.replace\(normalizeReturnPath\(target\)/, "exit is deterministic");
 assert.doesNotMatch(host, /navigateTvPlayerBack/, "host has one exit path");
+assert.match(read("app/tv-player.tsx"), /backgroundColor: "#000000"/, "route shell cannot expose a white native window");
 
 assert.match(card, /contentFit="contain"/, "station logos preserve aspect ratio");
 assert.match(card, /failedArtworkSource !== artworkSourceKey/, "recycled cards isolate stale failures by source");

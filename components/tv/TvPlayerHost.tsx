@@ -28,6 +28,7 @@ import {
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { usePathname } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
@@ -61,6 +62,7 @@ import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
 import {
   navigateTvPlayerToTarget,
   resolveTvPlayerExitTarget,
+  TV_HOME_ROUTE,
 } from "@/utils/tvNavigation";
 import { useMountedRef } from "@/utils/useMountedRef";
 
@@ -70,6 +72,7 @@ import TvNativeVideoSurface, {
 } from "./TvNativeVideoSurface";
 import type { TvPlaybackSurface } from "@/services/tv/tvPlaybackSurface";
 import { canUseTvPiP } from "@/services/tv/tvPipEligibility";
+import { isTvCloseDestinationCommitted } from "@/services/tv/tvCloseTransition";
 import {
   shouldAutoHideTvFullscreenControls,
   TV_FULLSCREEN_CONTROLS_FADE_MS,
@@ -248,6 +251,10 @@ function TvPlayerHost({
   const [isUiFullscreen, setIsUiFullscreen] = useState(false);
   const [isFullscreenTransitioning, setIsFullscreenTransitioning] = useState(false);
   const exitInFlightRef = useRef(false);
+  const closeFinalizedRef = useRef(false);
+  const pathname = usePathname();
+  const [closingTarget, setClosingTarget] = useState<string | null>(null);
+  const [showClosingFallback, setShowClosingFallback] = useState(false);
   /**
    * Single controls-visibility owner for the active full TV surface.
    * Floating chrome stays always visible; only full/fullscreen overlays auto-hide.
@@ -435,6 +442,9 @@ function TvPlayerHost({
 
   useEffect(() => {
     exitInFlightRef.current = false;
+    closeFinalizedRef.current = false;
+    setClosingTarget(null);
+    setShowClosingFallback(false);
   }, [playerGeneration]);
 
   const closeFullPlayer = useCallback(() => {
@@ -442,12 +452,44 @@ function TvPlayerHost({
     const target = resolveTvPlayerExitTarget();
     exitInFlightRef.current = true;
 
-    // Secure a renderable destination before releasing the persistent TV host.
+    // Phase A: keep the persistent video owner mounted while navigation is
+    // pending. Phase B below observes the committed pathname before teardown.
+    setClosingTarget(target);
     navigateTvPlayerToTarget(target);
     setIsUiFullscreen(false);
-    void restoreTvPortraitOrientation().catch(() => undefined);
-    onStop();
-  }, [onStop]);
+  }, []);
+
+  useEffect(() => {
+    if (!closingTarget || closeFinalizedRef.current) return;
+    if (!isTvCloseDestinationCommitted(pathname, closingTarget)) return;
+
+    // The destination has committed. Keep the overlay for one rendered frame,
+    // persist viewing history, then release orientation and TV resources once.
+    const frame = requestAnimationFrame(() => {
+      if (closeFinalizedRef.current) return;
+      closeFinalizedRef.current = true;
+      void (async () => {
+        const channelId = displayChannel?.id;
+        if (channelId) {
+          await confirmTvRecentlyWatched(channelId).catch(() => undefined);
+        }
+        await restoreTvPortraitOrientation().catch(() => undefined);
+        onStop();
+      })();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [closingTarget, displayChannel?.id, onStop, pathname]);
+
+  useEffect(() => {
+    if (!closingTarget || showClosingFallback) return;
+    const timeout = setTimeout(() => {
+      if (closeFinalizedRef.current) return;
+      setShowClosingFallback(true);
+      setClosingTarget(TV_HOME_ROUTE);
+      navigateTvPlayerToTarget(TV_HOME_ROUTE);
+    }, 2_500);
+    return () => clearTimeout(timeout);
+  }, [closingTarget, showClosingFallback]);
 
   useEffect(() => {
     if (!full) {
@@ -539,6 +581,14 @@ function TvPlayerHost({
       if (mountedRef.current) setIsFullscreenTransitioning(false);
     }
   }, [mountedRef]);
+
+  const handleHeaderClose = useCallback(() => {
+    if (isUiFullscreen) {
+      void handleExitFullscreen();
+      return;
+    }
+    closeFullPlayer();
+  }, [closeFullPlayer, handleExitFullscreen, isUiFullscreen]);
 
   const clearControlsHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -929,7 +979,7 @@ function TvPlayerHost({
         style={styles.iconButton}
         onPress={() => {
           bumpControlsInteraction();
-          closeFullPlayer();
+          handleHeaderClose();
         }}
         accessibilityRole="button"
         accessibilityLabel="Close"
@@ -1064,7 +1114,7 @@ function TvPlayerHost({
           style={styles.fullControlButton}
           onPress={() => {
             bumpControlsInteraction();
-            closeFullPlayer();
+            void handleExitFullscreen();
           }}
           accessibilityRole="button"
           accessibilityLabel="Close"
@@ -1312,6 +1362,12 @@ function TvPlayerHost({
           {floatingCard}
         </GestureDetector>
       )}
+      {showClosingFallback ? (
+        <View style={styles.closingFallback} pointerEvents="auto">
+          <Text style={styles.closingBrand}>HIDDEN TUNES</Text>
+          <Text style={styles.closingMessage}>Returning to TV…</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1323,6 +1379,30 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     zIndex: 200,
     elevation: 20,
+  },
+  closingFallback: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    zIndex: 999,
+    elevation: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#05070A",
+  },
+  closingBrand: {
+    color: COLORS.primary,
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 2.4,
+  },
+  closingMessage: {
+    marginTop: 8,
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "700",
   },
   floatingCard: {
     position: "absolute",
