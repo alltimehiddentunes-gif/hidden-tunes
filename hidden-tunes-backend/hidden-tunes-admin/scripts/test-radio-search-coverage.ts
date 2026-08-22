@@ -3,7 +3,7 @@
  * Does not mutate data.
  */
 import { createClient } from "@supabase/supabase-js";
-import { config } from "dotenv";
+import { loadEnvConfig } from "@next/env";
 import {
   applyPublicRadioFilters,
   buildRadioTextSearchOrFilter,
@@ -35,7 +35,7 @@ async function samplePage(
 }
 
 async function main() {
-  config({ path: ".env.local" });
+  loadEnvConfig(process.cwd());
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
