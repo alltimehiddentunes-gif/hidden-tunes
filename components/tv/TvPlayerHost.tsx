@@ -74,6 +74,12 @@ import type { TvPlaybackSurface } from "@/services/tv/tvPlaybackSurface";
 import { canUseTvPiP } from "@/services/tv/tvPipEligibility";
 import { isTvCloseDestinationCommitted } from "@/services/tv/tvCloseTransition";
 import {
+  getTvCloseRenderEpoch,
+  getLatestTvCloseRenderSignal,
+  isFreshTvCloseDestinationRender,
+  subscribeTvCloseDestinationRendered,
+} from "@/services/tv/tvCloseRenderSignal";
+import {
   shouldAutoHideTvFullscreenControls,
   TV_FULLSCREEN_CONTROLS_FADE_MS,
   TV_FULLSCREEN_CONTROLS_HIDE_MS,
@@ -252,6 +258,7 @@ function TvPlayerHost({
   const [isFullscreenTransitioning, setIsFullscreenTransitioning] = useState(false);
   const exitInFlightRef = useRef(false);
   const closeFinalizedRef = useRef(false);
+  const closeRenderEpochRef = useRef(0);
   const pathname = usePathname();
   const [closingTarget, setClosingTarget] = useState<string | null>(null);
   const [showClosingFallback, setShowClosingFallback] = useState(false);
@@ -451,6 +458,7 @@ function TvPlayerHost({
     if (exitInFlightRef.current) return;
     const target = resolveTvPlayerExitTarget();
     exitInFlightRef.current = true;
+    closeRenderEpochRef.current = getTvCloseRenderEpoch();
 
     // Phase A: keep the persistent video owner mounted while navigation is
     // pending. Phase B below observes the committed pathname before teardown.
@@ -461,11 +469,24 @@ function TvPlayerHost({
 
   useEffect(() => {
     if (!closingTarget || closeFinalizedRef.current) return;
-    if (!isTvCloseDestinationCommitted(pathname, closingTarget)) return;
 
-    // The destination has committed. Keep the overlay for one rendered frame,
-    // persist viewing history, then release orientation and TV resources once.
-    const frame = requestAnimationFrame(() => {
+    const finalizeAfterDestinationRender = (signal: ReturnType<
+      typeof getLatestTvCloseRenderSignal
+    >) => {
+      if (closeFinalizedRef.current) return;
+      if (!isTvCloseDestinationCommitted(pathname, closingTarget)) return;
+      if (
+        !isFreshTvCloseDestinationRender(
+          signal,
+          closingTarget,
+          closeRenderEpochRef.current
+        )
+      ) {
+        return;
+      }
+
+      // The destination component has committed and explicitly confirmed a
+      // rendered frame. Only now may the persistent TV surface be released.
       if (closeFinalizedRef.current) return;
       closeFinalizedRef.current = true;
       void (async () => {
@@ -476,8 +497,12 @@ function TvPlayerHost({
         await restoreTvPortraitOrientation().catch(() => undefined);
         onStop();
       })();
-    });
-    return () => cancelAnimationFrame(frame);
+    };
+
+    // A destination's post-render signal can race the parent's passive-effect
+    // resubscription. Check the retained signal before listening for the next.
+    finalizeAfterDestinationRender(getLatestTvCloseRenderSignal());
+    return subscribeTvCloseDestinationRendered(finalizeAfterDestinationRender);
   }, [closingTarget, displayChannel?.id, onStop, pathname]);
 
   useEffect(() => {
@@ -1362,10 +1387,12 @@ function TvPlayerHost({
           {floatingCard}
         </GestureDetector>
       )}
-      {showClosingFallback ? (
+      {closingTarget ? (
         <View style={styles.closingFallback} pointerEvents="auto">
           <Text style={styles.closingBrand}>HIDDEN TUNES</Text>
-          <Text style={styles.closingMessage}>Returning to TV…</Text>
+          <Text style={styles.closingMessage}>
+            {showClosingFallback ? "Returning to TV…" : "Closing TV…"}
+          </Text>
         </View>
       ) : null}
     </View>

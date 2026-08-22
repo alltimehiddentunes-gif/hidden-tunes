@@ -19,6 +19,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, router, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { markTvCloseDestinationRendered } from "../../services/tv/tvCloseRenderSignal";
 
 import {
   SportsCompetitionShelf,
@@ -979,6 +980,12 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
 }
 
 export default function SportsHomeScreen() {
+  useEffect(() => {
+    const frame = requestAnimationFrame(() =>
+      markTvCloseDestinationRendered("/sports")
+    );
+    return () => cancelAnimationFrame(frame);
+  }, []);
   return <SportsHomeInner />;
 }
 

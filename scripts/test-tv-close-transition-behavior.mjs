@@ -11,6 +11,19 @@ const compiled = transformSync(source, { format: "esm", loader: "ts" }).code;
 const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`;
 const close = await import(moduleUrl);
 
+const renderSignalSource = readFileSync(
+  resolve(process.cwd(), "services/tv/tvCloseRenderSignal.ts"),
+  "utf8"
+);
+const renderSignalCompiled = transformSync(renderSignalSource, {
+  format: "esm",
+  loader: "ts",
+}).code;
+const renderSignalUrl = `data:text/javascript;base64,${Buffer.from(
+  renderSignalCompiled
+).toString("base64")}`;
+const renderSignal = await import(renderSignalUrl);
+
 for (const playbackState of ["playing", "paused", "buffering", "failed"]) {
   let state = close.beginTvCloseTransition(
     close.IDLE_TV_CLOSE_TRANSITION,
@@ -59,5 +72,38 @@ assert.equal(
   true
 );
 assert.equal(close.isTvCloseDestinationCommitted("/tv-player", "/tv-player"), false);
+
+const baselineEpoch = renderSignal.getTvCloseRenderEpoch();
+let observed = null;
+const unsubscribe = renderSignal.subscribeTvCloseDestinationRendered((signal) => {
+  observed = signal;
+});
+renderSignal.markTvCloseDestinationRendered("/youtube-feed?tab=live");
+unsubscribe();
+assert.ok(observed, "destination component emits an explicit render signal");
+assert.equal(observed.path, "/youtube-feed");
+assert.equal(
+  renderSignal.isFreshTvCloseDestinationRender(
+    observed,
+    "/youtube-feed",
+    baselineEpoch
+  ),
+  true,
+  "only a fresh matching destination render can finalize close"
+);
+assert.equal(
+  renderSignal.isFreshTvCloseDestinationRender(observed, "/search", baselineEpoch),
+  false,
+  "a different rendered route cannot release the TV owner"
+);
+assert.equal(
+  renderSignal.isFreshTvCloseDestinationRender(
+    observed,
+    "/youtube-feed",
+    observed.epoch
+  ),
+  false,
+  "a pre-close render cannot be reused"
+);
 
 console.log("PASS: behavioral TV close transition state machine");

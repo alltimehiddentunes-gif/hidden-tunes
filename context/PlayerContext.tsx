@@ -7927,12 +7927,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setVolumeState(safeValue);
     volumeRef.current = safeValue;
 
-    await setStoredValueIfChanged(VOLUME_KEY, String(safeValue));
-
+    // Apply to the active native player before asynchronous persistence. A
+    // continuous slider can emit many values; storage must never delay or
+    // reorder the audible updates.
     await bridgeSetVolume(safeValue, isMutedRef.current);
     if (!isMutedRef.current && soundRef.current) {
       await soundRef.current.setVolumeAsync(safeValue);
     }
+
+    await setStoredValueIfChanged(VOLUME_KEY, String(safeValue));
   }, [setStoredValueIfChanged]);
 
   const toggleMute = useCallback(async () => {
@@ -7941,12 +7944,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsMuted(nextMuted);
     isMutedRef.current = nextMuted;
 
-    await setStoredValueIfChanged(MUTED_KEY, String(nextMuted));
-
     await bridgeSetVolume(volumeRef.current, nextMuted);
     if (soundRef.current) {
       await soundRef.current.setVolumeAsync(nextMuted ? 0 : volumeRef.current);
     }
+
+    await setStoredValueIfChanged(MUTED_KEY, String(nextMuted));
   }, [setStoredValueIfChanged]);
 
   const toggleShuffle = useCallback(() => {

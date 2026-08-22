@@ -22,6 +22,16 @@ assert.match(playbackBridge, /if \(!isHiddenAudioNativePlaybackEnabled\(\)\) ret
 assert.doesNotMatch(playbackBridge, /bridgeSetVolume[\s\S]{0,180}isHiddenAudioPlaybackActive\(\)/);
 assert.match(player, /bridgeSetVolume\(safeValue, isMutedRef\.current\)/);
 assert.match(player, /bridgeSetVolume\(volumeRef\.current, nextMuted\)/);
+assert.ok(
+  player.indexOf("bridgeSetVolume(safeValue, isMutedRef.current)") <
+    player.indexOf("setStoredValueIfChanged(VOLUME_KEY, String(safeValue))"),
+  "audible volume applies before persistence"
+);
+assert.ok(
+  player.indexOf("bridgeSetVolume(volumeRef.current, nextMuted)") <
+    player.indexOf("setStoredValueIfChanged(MUTED_KEY, String(nextMuted))"),
+  "mute applies before persistence"
+);
 assert.match(playerScreen, /onValueChange=\{handleVolumeChange\}/);
 assert.match(playerScreen, /onSlidingComplete=\{handleVolumeChange\}/);
 

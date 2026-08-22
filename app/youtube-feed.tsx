@@ -52,6 +52,7 @@ import { getListPerformanceSettings, markFastScrolling } from "@/utils/performan
 import { buildTvDiscoveryLaunchContext } from "@/utils/tvDiscoveryLaunchContext";
 import { navigateTvHomeBack } from "@/utils/tvNavigation";
 import { warmTvPlaybackFailureStore } from "@/utils/tvPlaybackFailureStore";
+import { markTvCloseDestinationRendered } from "@/services/tv/tvCloseRenderSignal";
 
 type TvLane = TvHomeLane;
 const TV_LANE_PREVIEW_LIMIT = 8;
@@ -134,6 +135,12 @@ const TvSkeletonCards = () => (
 );
 
 export default function YouTubeFeedScreen() {
+  useEffect(() => {
+    const frame = requestAnimationFrame(() =>
+      markTvCloseDestinationRendered("/youtube-feed")
+    );
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const insets = useSafeAreaInsets();
   const scrollTailPadding = useMemo(
     () => getMobileScrollTailPadding(insets.bottom),
