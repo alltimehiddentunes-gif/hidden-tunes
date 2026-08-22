@@ -8,8 +8,9 @@ const full = read("app/player.tsx");
 const remote = read("components/RemoteMediaControlsBridge.tsx");
 
 // Both phone surfaces and remote/vehicle commands share PlayerContext authority.
-assert.match(mini, /runMiniPlayerAction\("next", nextSong\)/);
-assert.match(mini, /runMiniPlayerAction\("previous", previousSong\)/);
+assert.match(mini, /runQueueAction\("next", nextSong\)/);
+assert.match(mini, /runQueueAction\("previous", previousSong\)/);
+assert.match(mini, /queueCommandTailRef\.current/);
 assert.match(full, /void nextSong\(\)/);
 assert.match(full, /void previousSong\(\)/);
 assert.match(remote, /await nextSongRef\.current\(\)/);

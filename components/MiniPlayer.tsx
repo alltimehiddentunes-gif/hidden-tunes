@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, usePathname } from "expo-router";
+import { router } from "expo-router";
 import Animated, {
   Easing,
   FadeInDown,
@@ -64,6 +64,7 @@ import {
   getUserFacingRadioSubtitle,
 } from "../services/ui/displayMetadata";
 import { resolveMiniPlayerDestination } from "../utils/miniPlayerNavigation";
+import { createMiniPlayerNavigationLock } from "../utils/miniPlayerNavigationLock";
 
 type YouTubeMini = {
   id: string;
@@ -438,8 +439,7 @@ function MiniPlayer() {
 
   const mountedRef = useRef(true);
   const tapGuardRef = useRef(createTapGuard(420));
-  const pathname = usePathname();
-  const navigationLockRef = useRef<{ key: string; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const navigationLockRef = useRef(createMiniPlayerNavigationLock());
   const commandLocksRef = useRef(new Set<string>());
   const queueCommandTailRef = useRef<Promise<void>>(Promise.resolve());
   const appActiveRef = useRef(isAppActiveForWork());
@@ -535,25 +535,10 @@ function MiniPlayer() {
     };
   }, [currentSong, loadYouTubeMini]);
 
-  const clearNavigationLock = useCallback(() => {
-    const lock = navigationLockRef.current;
-    if (lock) clearTimeout(lock.timer);
-    navigationLockRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    const lock = navigationLockRef.current;
-    if (!lock) return;
-    clearTimeout(lock.timer);
-    lock.timer = setTimeout(() => {
-      navigationLockRef.current = null;
-    }, 250);
-  }, [pathname, clearNavigationLock]);
-
   useEffect(() => () => {
-    clearNavigationLock();
+    navigationLockRef.current.dispose();
     commandLocksRef.current.clear();
-  }, [clearNavigationLock]);
+  }, []);
 
   useEffect(() => {
     if (!currentSong) return;
@@ -675,21 +660,17 @@ function MiniPlayer() {
   );
 
   const runNavigation = useCallback((key: string, action: () => void) => {
-    if (navigationLockRef.current) return;
-    const timer = setTimeout(() => {
-      navigationLockRef.current = null;
-    }, 1500);
-    navigationLockRef.current = { key, timer };
+    if (!navigationLockRef.current.tryAcquire(key)) return;
     try {
       action();
     } catch (error) {
-      clearNavigationLock();
+      navigationLockRef.current.release();
       logMiniPlayerControl("mini_player_button_action_blocked", {
         buttonId: key,
         reason: error instanceof Error ? error.message : "navigation_failed",
       });
     }
-  }, [clearNavigationLock]);
+  }, []);
 
   const runQueueAction = useCallback((buttonId: "next" | "previous", action: () => void | Promise<void>) => {
     if (commandLocksRef.current.has(buttonId)) return;
@@ -729,15 +710,19 @@ function MiniPlayer() {
     runNavigation("open_player", openPlayer);
   }, [openPlayer, runNavigation]);
 
-  const handleOpenMetadata = useCallback(() => {
-    const destination = resolveMiniPlayerDestination(currentSong, activeQueueContext, {
+  const metadataDestination = useMemo(
+    () => resolveMiniPlayerDestination(currentSong, activeQueueContext, {
       isYoutubeMode,
       isLiveRadioMode,
+    }),
+    [activeQueueContext, currentSong, isLiveRadioMode, isYoutubeMode],
+  );
+
+  const handleOpenMetadata = useCallback(() => {
+    runNavigation(`open_metadata:${metadataDestination.pathname}`, () => {
+      router.push(metadataDestination as any);
     });
-    runNavigation(`open_metadata:${destination.pathname}`, () => {
-      router.push(destination as any);
-    });
-  }, [activeQueueContext, currentSong, isLiveRadioMode, isYoutubeMode, runNavigation]);
+  }, [metadataDestination, runNavigation]);
 
   const handleMainButton = useCallback(() => {
     if (!tapGuardRef.current("mini_main_button")) {

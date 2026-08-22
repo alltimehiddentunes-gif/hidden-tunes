@@ -39,7 +39,9 @@ const source = readFileSync(new URL("../components/MiniPlayer.tsx", import.meta.
 assert.match(source, /accessibilityLabel="Open full player"[\s\S]*?onPress=\{handleOpenPlayer\}/);
 assert.match(source, /accessibilityLabel=\{`Open details for \$\{title\}`\}[\s\S]*?onPress=\{handleOpenMetadata\}/);
 assert.doesNotMatch(source, /<AnimatedPressable[\s\S]{0,180}onPress=\{handleOpenPlayer\}[\s\S]{0,500}<MiniPlayerMetadata/);
-assert.match(source, /if \(navigationLockRef\.current\) return;/);
+assert.match(source, /navigationLockRef\.current\.tryAcquire\(key\)/);
+assert.match(source, /const metadataDestination = useMemo/);
+assert.doesNotMatch(source, /\[pathname,/);
 assert.match(source, /queueCommandTailRef\.current/);
 assert.match(source, /runMiniPlayerAction\("play_pause", togglePlayPause\)/);
 
