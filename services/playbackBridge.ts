@@ -245,7 +245,11 @@ export async function bridgeSetVolume(
   volume: number,
   muted: boolean
 ): Promise<void> {
-  if (!isHiddenAudioPlaybackActive()) return;
+  // Volume is player configuration, not a transport command. Native keeps the
+  // latest value and applies it to the current and next AVPlayer item, so do
+  // not drop updates merely because the JS activity mirror is temporarily
+  // stale during foreground/session reconciliation.
+  if (!isHiddenAudioNativePlaybackEnabled()) return;
   await hiddenAudioBridge.setVolume(muted ? 0 : volume);
 }
 

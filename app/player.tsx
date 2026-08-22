@@ -1130,6 +1130,7 @@ export default function PlayerScreen() {
               minimumTrackTintColor={COLORS.primaryGlow}
               maximumTrackTintColor="rgba(255,255,255,0.16)"
               thumbTintColor={COLORS.primary}
+              onValueChange={handleVolumeChange}
               onSlidingComplete={handleVolumeChange}
             />
           </View>

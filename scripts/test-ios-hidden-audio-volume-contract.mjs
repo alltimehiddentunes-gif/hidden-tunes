@@ -8,6 +8,7 @@ const objc = read("plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioModule.
 const bridge = read("src/hidden-audio/hiddenAudioBridge.ts");
 const playbackBridge = read("services/playbackBridge.ts");
 const player = read("context/PlayerContext.tsx");
+const playerScreen = read("app/player.tsx");
 
 assert.match(swift, /private var currentVolume: Float = 1\.0/);
 assert.match(swift, /@objc\(setVolume:resolver:rejecter:\)/);
@@ -17,7 +18,11 @@ assert.match(objc, /RCT_EXTERN_METHOD\(setVolume:/);
 assert.match(bridge, /setVolume\?\(volume: number\): Promise<void>/);
 assert.match(bridge, /await HiddenAudioNative\.setVolume\(safeVolume\)/);
 assert.match(playbackBridge, /hiddenAudioBridge\.setVolume\(muted \? 0 : volume\)/);
+assert.match(playbackBridge, /if \(!isHiddenAudioNativePlaybackEnabled\(\)\) return;/);
+assert.doesNotMatch(playbackBridge, /bridgeSetVolume[\s\S]{0,180}isHiddenAudioPlaybackActive\(\)/);
 assert.match(player, /bridgeSetVolume\(safeValue, isMutedRef\.current\)/);
 assert.match(player, /bridgeSetVolume\(volumeRef\.current, nextMuted\)/);
+assert.match(playerScreen, /onValueChange=\{handleVolumeChange\}/);
+assert.match(playerScreen, /onSlidingComplete=\{handleVolumeChange\}/);
 
 console.log("PASS: iOS HiddenAudio volume and mute contract");
