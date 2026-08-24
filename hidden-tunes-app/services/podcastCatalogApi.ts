@@ -1,6 +1,6 @@
 export const PODCAST_CATALOG_BASE_URL = "https://admin.hiddentunes.com";
 export const HIDDEN_TUNES_PODCAST_API_BASE_URL =
-  "https://hidden-tunes-api.onrender.com";
+  "https://api.hiddentunes.com";
 export const PODCAST_SHOWS_API_PATH = "/api/podcasts/shows";
 export const PODCAST_EPISODES_API_PATH = "/api/podcasts/episodes";
 export const PODCAST_DEFAULT_PAGE_LIMIT = 20;
