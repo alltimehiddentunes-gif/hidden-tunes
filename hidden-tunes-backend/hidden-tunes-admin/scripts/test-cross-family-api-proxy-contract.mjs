@@ -12,7 +12,7 @@ const config = fs.readFileSync(
 assert.match(config, /server_name api\.hiddentunes\.com/);
 assert.match(
   config,
-  /location ~ \^\/api\/\(tv.*audiobooks.*podcasts.*radio.*music\/emotional-worlds/
+  /location ~ \^\/api\/\(tv.*audiobooks.*podcasts.*radio.*lectures.*motivation.*music\/emotional-worlds/
 );
 
 const compatibilityLocation = config.slice(
