@@ -1,0 +1,10 @@
+import type { JourneyMode, ListenerSignals, ScoreComponents } from "./types";
+export const RECOMMENDATION_RANKING_VERSION = "music-recommendation-2026.08.1";
+export const MAX_RECOMMENDATIONS = 20;
+export const MAX_CONTEXT_IDS = 50;
+export type RecommendationRequest = { seedSongId: string; journeyIntent?: JourneyMode; limit?: number; generationToken?: string; recentSongIds?: string[]; recentlySkippedSongIds?: string[]; manuallyQueuedSongIds?: string[]; listener?: Partial<Pick<ListenerSignals, "completions" | "replays" | "favorites" | "librarySaves" | "playlistAdds" | "followedArtists" | "lateSkips">>; };
+export type SafeExplanation = Pick<ScoreComponents, "emotional" | "thematic" | "direction" | "journey" | "genre" | "artist" | "user" | "energy" | "freshness" | "repetitionPenalty" | "skipPenalty" | "final">;
+export type RecommendationItem = { songId: string; position: number; finalScore: number; profileConfidence: number; journeyCompatibility: number; rankingVersion: typeof RECOMMENDATION_RANKING_VERSION; explanation?: SafeExplanation; };
+export type RecommendationSuccess = { success: true; seedSongId: string; effectiveIntent: JourneyMode; generationToken: string | null; rankingVersion: typeof RECOMMENDATION_RANKING_VERSION; recommendations: RecommendationItem[]; diagnostics?: { cache: "hit" | "miss" | "coalesced" | "bypassed"; candidateCount: number; timingsMs: Record<string, number> }; };
+export type RecommendationFailure = { success: false; error: "invalid_request" | "seed_not_found" | "no_eligible_candidates" | "service_unavailable"; message: string; retryable: boolean; generationToken: string | null; };
+export type RecommendationResponse = RecommendationSuccess | RecommendationFailure;

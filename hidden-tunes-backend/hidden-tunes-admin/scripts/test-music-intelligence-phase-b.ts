@@ -1,0 +1,38 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { buildEmotionalProfile } from "../lib/musicIntelligence/emotionalProfile";
+import { GOLDEN_SONGS } from "../lib/musicIntelligence/goldenDataset";
+import { PROFILE_SCHEMA_VERSION, TAXONOMY_VERSION, deserializeProfile, profileInputFingerprint, profileIsStale, provenanceConfidenceCeiling, serializeProfile, sha256 } from "../lib/musicIntelligence/profilePersistence";
+
+const seed = GOLDEN_SONGS.find((song) => song.id === "afro-heart"); assert(seed);
+const profile = buildEmotionalProfile(seed); const persisted = serializeProfile(profile, "2026-08-24T00:00:00.000Z");
+const roundTrip = deserializeProfile(JSON.parse(JSON.stringify(persisted)));
+assert.deepEqual(roundTrip, persisted);
+assert.equal(roundTrip.profileSchemaVersion, PROFILE_SCHEMA_VERSION);
+assert.equal(roundTrip.taxonomyVersion, TAXONOMY_VERSION);
+assert.deepEqual(roundTrip.themes, profile.themes); assert.deepEqual(roundTrip.secondaryEmotions, profile.secondaryEmotions);
+assert.equal(roundTrip.direction, profile.direction); assert.equal(roundTrip.confidence, profile.confidence);
+assert.equal(roundTrip.lyricsProvenance, profile.lyricsProvenance);
+
+const lyricHash = sha256("normalized synthetic lyric reference");
+const base = profileInputFingerprint({ lyricHash, analyzerVersion: profile.analyzerVersion, materialMetadata: { mood: seed.mood, genre: seed.genre } });
+assert.equal(base, profileInputFingerprint({ materialMetadata: { genre: seed.genre, mood: seed.mood }, analyzerVersion: profile.analyzerVersion, lyricHash }));
+assert.notEqual(base, profileInputFingerprint({ lyricHash: sha256("changed"), analyzerVersion: profile.analyzerVersion, materialMetadata: { mood: seed.mood, genre: seed.genre } }));
+assert.notEqual(base, profileInputFingerprint({ lyricHash, analyzerVersion: "next-version", materialMetadata: { mood: seed.mood, genre: seed.genre } }));
+assert.equal(profileIsStale({ inputFingerprint: base, reviewStatus: "unreviewed" }, base), false);
+assert.equal(profileIsStale({ inputFingerprint: base, reviewStatus: "unreviewed" }, sha256("new")), true);
+assert.equal(profileIsStale({ inputFingerprint: base, reviewStatus: "corrected" }, sha256("new")), false);
+assert(provenanceConfidenceCeiling("trusted_plain", true) > provenanceConfidenceCeiling("supplied", false));
+assert(provenanceConfidenceCeiling("supplied", false) > provenanceConfidenceCeiling("whisper_transcription", false));
+assert(provenanceConfidenceCeiling("whisper_transcription", false) > provenanceConfidenceCeiling("none", false));
+assert.throws(() => deserializeProfile({ profileSchemaVersion: "other" }));
+const migration = readFileSync(resolve("supabase/migrations/20260824160000_music_emotional_profiles_draft.sql"), "utf8").toLowerCase();
+const rollback = readFileSync(resolve("supabase/migrations/rollback/20260824160000_music_emotional_profiles_draft_rollback.sql"), "utf8").toLowerCase();
+assert(migration.includes("enable row level security"));
+assert(migration.includes("revoke all on table public.music_emotional_profiles from public, anon, authenticated"));
+assert(migration.includes("references public.songs(id) on delete cascade"));
+assert(migration.includes("profile_json jsonb")); assert(migration.includes("input_fingerprint"));
+assert(!migration.includes("plain_lyrics")); assert(!migration.includes("synced_lrc"));
+assert.equal((rollback.match(/drop table/g) ?? []).length, 1); assert(rollback.includes("music_emotional_profiles"));
+console.log(JSON.stringify({ status: "PASS", roundTrip: true, invalidation: true, provenance: true, versioning: true, schemaContract: true, rollbackScope: true }, null, 2));
