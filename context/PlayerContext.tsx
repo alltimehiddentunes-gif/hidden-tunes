@@ -83,6 +83,14 @@ import {
   type ContinuationSession,
   type ContinuationUserIntent,
 } from "../services/endlessMusicContinuation";
+import {
+  requestMusicRecommendations,
+  type MusicRecommendationRequest,
+} from "../services/musicIntelligenceApi";
+import {
+  isCurrentMusicRecommendationResult,
+  selectServerRecommendedSongs,
+} from "../services/musicIntelligenceRefill";
 
 import {
   addToRecentlyPlayed,
@@ -895,9 +903,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const tryAdvanceViaEmotionalQueueRef = useRef<() => Promise<boolean>>(
     async () => false
   );
-  const extendQueueWithSmartTracksRef = useRef<(() => Promise<boolean>) | null>(
-    null
-  );
+  const extendQueueWithSmartTracksRef = useRef<
+    ((options?: { networkAllowed?: boolean }) => Promise<boolean>) | null
+  >(null);
   const unloadPromiseRef = useRef<Promise<void> | null>(null);
   const lastPositionSaveRef = useRef(0);
   const lastSavedPositionRef = useRef(0);
@@ -911,6 +919,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const preloadInFlightRef = useRef(false);
   const pendingSmartExtendRef = useRef(false);
   const continuationRefillInFlightRef = useRef(false);
+  const continuationRefillRequestRef = useRef(0);
   const continuationGenerationRef = useRef(0);
   const continuationUserIntentRef = useRef<ContinuationUserIntent>("stopped");
   const continuationSessionRef = useRef<ContinuationSession | null>(null);
@@ -4595,7 +4604,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        const extended = await extendQueueWithSmartTracksRef.current?.();
+        const extended = await extendQueueWithSmartTracksRef.current?.({
+          networkAllowed: false,
+        });
 
         if (!extended && await tryAdvanceViaEmotionalQueueRef.current()) {
           logAutoNextSuccess({ reason: "emotional_queue_after_context_exhausted", queueLength: queue.length });
@@ -4698,7 +4709,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         queueLength: queue.length,
       });
       if (queue.length - safeIndex - 1 <= ENDLESS_MUSIC_LIMITS.lowWater) {
-        void extendQueueWithSmartTracksRef.current?.();
+        void extendQueueWithSmartTracksRef.current?.({ networkAllowed: true });
       }
 
       persistActiveQueueDeferred(
@@ -5300,7 +5311,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const extended = await extendQueueWithSmartTracksRef.current?.();
+    const extended = await extendQueueWithSmartTracksRef.current?.({
+      networkAllowed: false,
+    });
 
     if (!extended) {
       if (isHiddenAudioNativePlaybackEnabled()) {
@@ -6396,7 +6409,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const extendQueueWithSmartTracks = useCallback(async () => {
+  const extendQueueWithSmartTracks = useCallback(async (
+    options?: { networkAllowed?: boolean }
+  ) => {
+    let refillRequestId: number | null = null;
     try {
       const { queue: smartQueue, safeIndex: smartIndex } = getActiveQueuePlaybackState();
       const current = currentSongRef.current;
@@ -6431,6 +6447,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
         return false;
       }
+      if (
+        options?.networkAllowed === false &&
+        continuationRefillInFlightRef.current
+      ) {
+        continuationRefillRequestRef.current += 1;
+        continuationRefillInFlightRef.current = false;
+      }
       if (!shouldRefillContinuationQueue({
         domain,
         enabled:
@@ -6442,7 +6465,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       })) return false;
 
       continuationRefillInFlightRef.current = true;
+      refillRequestId = continuationRefillRequestRef.current + 1;
+      continuationRefillRequestRef.current = refillRequestId;
       const generation = continuationGenerationRef.current;
+      const generationToken = `${generation}:${String(current.id)}`;
+      const queueIdentity = smartQueue.map((song) => String(song.id)).join("\u001f");
+      const isCurrentRefill = () => {
+        if (
+          continuationRefillRequestRef.current !== refillRequestId ||
+          generation !== continuationGenerationRef.current ||
+          String(currentSongRef.current?.id || "") !== String(current.id)
+        ) return false;
+        const latest = getActiveQueuePlaybackState();
+        return (
+          latest.safeIndex === smartIndex &&
+          latest.queue.map((song) => String(song.id)).join("\u001f") === queueIdentity
+        );
+      };
       const startedAt = Date.now();
       logLockscreenPlaybackDiagnostic("smart_continuation_requested", {
         queueLength: smartQueue.length,
@@ -6451,41 +6490,101 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         contextSource: context.source,
       });
       const memory = await getSmartQueue();
-      if (generation !== continuationGenerationRef.current) {
-        continuationRefillInFlightRef.current = false;
-        return false;
-      }
-      const catalogSongs = getHydratedCatalogSnapshot()
-        .slice(0, ENDLESS_MUSIC_LIMITS.candidateCap)
-        .map((song) => normalizeSong(song as unknown as AppSong));
-      const combinedLibrary = [...(memory as AppSong[]), ...catalogSongs]
-        .slice(0, ENDLESS_MUSIC_LIMITS.candidateCap)
-        .map(normalizeSong)
-        .filter((song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
-      const playCounts = new Map(
-        recentlyPlayedRef.current.map((song) => [String(song.id), song.playCount || 1])
-      );
+      if (!isCurrentRefill()) return false;
+      const catalogSnapshot = getHydratedCatalogSnapshot();
       const favoriteIds = new Set(
         getUnifiedFavoritesSnapshot().items
           .filter((item) => item.type === "song")
           .map((item) => String(item.id))
       );
-      const ranked = rankContinuationCandidates(combinedLibrary, {
-        current,
-        context,
-        existingQueue: smartQueue,
-        recentIds: recentlyPlayedRef.current
-          .slice(0, ENDLESS_MUSIC_LIMITS.recentWindow)
+      const recentIds = recentlyPlayedRef.current
+        .slice(0, ENDLESS_MUSIC_LIMITS.recentWindow)
+        .map((song) => String(song.id));
+      const existingQueueIds = new Set(smartQueue.map((song) => String(song.id)));
+      const recommendationRequest: MusicRecommendationRequest = {
+        seedSongId: String(current.id),
+        journeyIntent: "CONTINUE",
+        limit: ENDLESS_MUSIC_LIMITS.refillBatch,
+        generationToken,
+        recentSongIds: recentIds,
+        recentlySkippedSongIds: [],
+        manuallyQueuedSongIds: smartQueue
+          .slice(smartIndex + 1)
           .map((song) => String(song.id)),
-        favorites: favoriteIds,
-        playCounts,
-        skippedIds: new Set<string>(),
-        matureVisible: shouldIncludeMatureInApi(),
-        intent: "continue",
-      });
-      const freshRelated = ranked.map((entry) => entry.song);
-      if (!freshRelated.length || generation !== continuationGenerationRef.current) {
-        continuationRefillInFlightRef.current = false;
+        listener: { favorites: [...favoriteIds] },
+      };
+      const serverResult = options?.networkAllowed === false
+        ? null
+        : await requestMusicRecommendations(recommendationRequest);
+      if (!isCurrentRefill()) return false;
+
+      let freshRelated: AppSong[] = [];
+      let rankingSource: "server" | "local_fallback" = "local_fallback";
+      let candidateCount = 0;
+      if (
+        serverResult &&
+        isCurrentMusicRecommendationResult(serverResult, {
+          seedSongId: String(current.id),
+          generationToken,
+          liveSeedSongId: currentSongRef.current?.id
+            ? String(currentSongRef.current.id)
+            : null,
+          liveGenerationToken: `${continuationGenerationRef.current}:${String(
+            currentSongRef.current?.id || ""
+          )}`,
+        })
+      ) {
+        const requestedIds = new Set(
+          serverResult.recommendations.map((entry) => String(entry.songId))
+        );
+        const serverCandidates: AppSong[] = [];
+        const addRequestedCandidate = (song: AppSong) => {
+          const id = String(song.id || "");
+          if (!requestedIds.has(id)) return;
+          const normalized = normalizeSong(song);
+          if (!isYouTubeSong(normalized) && Boolean(getPlayableUri(normalized))) {
+            serverCandidates.push(normalized);
+          }
+        };
+        (memory as AppSong[]).forEach(addRequestedCandidate);
+        catalogSnapshot.forEach((song) => {
+          addRequestedCandidate(song as unknown as AppSong);
+        });
+        candidateCount = serverCandidates.length;
+        freshRelated = selectServerRecommendedSongs(
+          serverResult,
+          serverCandidates,
+          existingQueueIds,
+          ENDLESS_MUSIC_LIMITS.refillBatch
+        );
+        if (freshRelated.length) rankingSource = "server";
+      }
+      if (!freshRelated.length) {
+        const catalogSongs = catalogSnapshot
+          .slice(0, ENDLESS_MUSIC_LIMITS.candidateCap)
+          .map((song) => normalizeSong(song as unknown as AppSong));
+        const combinedLibrary = [...(memory as AppSong[]), ...catalogSongs]
+          .slice(0, ENDLESS_MUSIC_LIMITS.candidateCap)
+          .map(normalizeSong)
+          .filter((song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
+        const playCounts = new Map(
+          recentlyPlayedRef.current.map((song) => [String(song.id), song.playCount || 1])
+        );
+        candidateCount = combinedLibrary.length;
+        const ranked = rankContinuationCandidates(combinedLibrary, {
+          current,
+          context,
+          existingQueue: smartQueue,
+          recentIds,
+          favorites: favoriteIds,
+          playCounts,
+          skippedIds: new Set<string>(),
+          matureVisible: shouldIncludeMatureInApi(),
+          intent: "continue",
+        });
+        freshRelated = ranked.map((entry) => entry.song);
+      }
+      if (!freshRelated.length || !isCurrentRefill()) {
         logLockscreenPlaybackDiagnostic("smart_queue_fallback_used", {
           reason: "no_scored_candidates",
           contextSource: context.source,
@@ -6497,10 +6596,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const retainedIndex = smartIndex - prefixStart;
       const capacity = Math.max(0, ENDLESS_MUSIC_LIMITS.queueCap - retainedQueue.length);
       const additions = freshRelated.slice(0, capacity);
-      if (!additions.length) {
-        continuationRefillInFlightRef.current = false;
-        return false;
-      }
+      if (!additions.length || !isCurrentRefill()) return false;
       const updatedQueue = [...retainedQueue, ...additions];
       const nextContext = normalizePlaybackQueueContext(
         {
@@ -6515,19 +6611,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         added: additions.length,
         nextSongId: updatedQueue[retainedIndex + 1]?.id,
         previousQueueLength: smartQueue.length,
-        candidateCount: combinedLibrary.length,
+        candidateCount,
         rankingMs: Date.now() - startedAt,
+        rankingSource,
       });
-      continuationRefillInFlightRef.current = false;
       if (remaining === 0) {
         await removeStoredValues([POSITION_KEY]);
         await loadAndPlay(updatedQueue[retainedIndex + 1]);
       }
       return true;
     } catch (error) {
-      continuationRefillInFlightRef.current = false;
       console.log("Smart autoplay extend error:", error);
       return false;
+    } finally {
+      if (
+        refillRequestId !== null &&
+        continuationRefillRequestRef.current === refillRequestId
+      ) {
+        continuationRefillInFlightRef.current = false;
+      }
     }
   }, [
     isYouTubeSong,
