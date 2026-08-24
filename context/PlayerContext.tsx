@@ -61,6 +61,7 @@ import {
   releasePlaybackOwner,
 } from "../services/playback/PlaybackHandoffCoordinator";
 import { inferSharedAudioContentKind } from "../services/playback/inferSharedAudioContentKind";
+import { createRemoteTransportSkipGate } from "../services/playback/remoteTransportSkipGate";
 import {
   beginIosAudioInterruption,
   clearIosAudioInterruption,
@@ -859,6 +860,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loadRequestIdRef = useRef(0);
   const latestPlaySongTapIdRef = useRef(0);
   const manualQueueCommandGenerationRef = useRef(0);
+  const remoteTransportSkipGateRef = useRef(createRemoteTransportSkipGate());
   const inFlightPlaySongIdRef = useRef<string | null>(null);
   const queueControlTapGuardRef = useRef(createKeyedTapGuard(420));
   const loadingRecoveryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -8632,7 +8634,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [savePlaybackPosition, scheduleTrackAdvance]);
 
-  const handleIosRemoteLockscreenCommand = useCallback(
+  const dispatchIosRemoteLockscreenCommand = useCallback(
     async (command: string, data: Record<string, unknown> = {}) => {
       const normalizedCommand = String(command || "").toLowerCase();
       if (!normalizedCommand) return;
@@ -8664,7 +8666,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             ? normalizedCommand
             : null;
         if (mapped) {
-          dispatchTvRemoteTransportCommand(mapped);
+          await dispatchTvRemoteTransportCommand(mapped);
           logLockscreenPlaybackDiagnostic("remote_command_native_action_success", {
             command: mapped,
             owner: "tv",
@@ -9072,6 +9074,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const handleIosRemoteLockscreenCommand = useCallback(
+    async (command: string, data: Record<string, unknown> = {}) => {
+      const normalizedCommand = String(command || "").toLowerCase();
+      if (normalizedCommand !== "next" && normalizedCommand !== "previous") {
+        await dispatchIosRemoteLockscreenCommand(normalizedCommand, data);
+        return;
+      }
+
+      const owner = getActivePlaybackOwner();
+      const result = await remoteTransportSkipGateRef.current.run({
+        direction: normalizedCommand,
+        owner,
+        isOwnerCurrent: () => getActivePlaybackOwner() === owner,
+        action: () => dispatchIosRemoteLockscreenCommand(normalizedCommand, data),
+      });
+      if (result !== "completed") {
+        logLockscreenPlaybackDiagnostic("remote_command_skipped", {
+          command: normalizedCommand,
+          owner,
+          reason: result,
+        });
+      }
+    },
+    [dispatchIosRemoteLockscreenCommand]
+  );
+
+  useEffect(() => {
+    const gate = remoteTransportSkipGateRef.current;
+    return () => gate.dispose();
+  }, []);
 
   useEffect(() => {
     if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {

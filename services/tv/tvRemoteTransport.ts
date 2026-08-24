@@ -14,9 +14,9 @@ export type TvRemoteTransportCommand =
   | "previous"
   | "stop";
 
-export function dispatchTvRemoteTransportCommand(
+export async function dispatchTvRemoteTransportCommand(
   command: TvRemoteTransportCommand
-): boolean {
+): Promise<boolean> {
   const api = getTvSessionController();
   if (!api?.isSessionActive()) {
     logTvMediaSessionDiag("remote_command_routed", {
@@ -85,7 +85,7 @@ export function dispatchTvRemoteTransportCommand(
         routed: true,
         target: "tv_session",
       });
-      api.nextChannel?.();
+      await api.nextChannel?.();
       return true;
     case "previous":
       if (!api.canGoPrevious?.()) {
@@ -104,7 +104,7 @@ export function dispatchTvRemoteTransportCommand(
         routed: true,
         target: "tv_session",
       });
-      api.previousChannel?.();
+      await api.previousChannel?.();
       return true;
     case "stop":
       logTvMediaSessionDiag("tv_remote_stop_received");

@@ -693,7 +693,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   );
 
   const playQueueIndex = useCallback(
-    (nextIndex: number) => {
+    async (nextIndex: number) => {
       if (seedQueueIds.length && seedChannel) {
         const bounded =
           ((nextIndex % seedQueueIds.length) + seedQueueIds.length) %
@@ -701,7 +701,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         const nextId = seedQueueIds[bounded];
         const next = nextId ? getTvChannelById(nextId) : null;
         if (!next) return;
-        void startSeedSession({
+        await startSeedSession({
           channel: next,
           sectionId: sectionId || "related",
           channelIds: seedQueueIds,
@@ -716,7 +716,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         ((nextIndex % tvQueue.length) + tvQueue.length) % tvQueue.length;
       const channel = tvQueue[bounded];
       if (!channel) return;
-      void startCatalogSession({
+      await startCatalogSession({
         video: channel,
         queue: tvQueue,
         presentation:
@@ -734,12 +734,12 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  const nextTvChannel = useCallback(() => {
-    playQueueIndex(queueIndex + 1);
+  const nextTvChannel = useCallback(async () => {
+    await playQueueIndex(queueIndex + 1);
   }, [playQueueIndex, queueIndex]);
 
-  const previousTvChannel = useCallback(() => {
-    playQueueIndex(queueIndex - 1);
+  const previousTvChannel = useCallback(async () => {
+    await playQueueIndex(queueIndex - 1);
   }, [playQueueIndex, queueIndex]);
 
   const minimizeTv = useCallback(() => {

@@ -162,10 +162,10 @@ async function main() {
   assert(clears.includes("shared-audio"), "TV clears previous presented metadata owner");
 
   transportLog.length = 0;
-  assert(dispatchTvRemoteTransportCommand("play"), "remote play accepted");
-  assert(dispatchTvRemoteTransportCommand("pause"), "remote pause accepted");
-  assert(dispatchTvRemoteTransportCommand("next"), "remote next uses TV queue");
-  assert(dispatchTvRemoteTransportCommand("previous"), "remote previous uses TV queue");
+  assert(await dispatchTvRemoteTransportCommand("play"), "remote play accepted");
+  assert(await dispatchTvRemoteTransportCommand("pause"), "remote pause accepted");
+  assert(await dispatchTvRemoteTransportCommand("next"), "remote next uses TV queue");
+  assert(await dispatchTvRemoteTransportCommand("previous"), "remote previous uses TV queue");
   assertEqual(transportLog.join(","), "play,pause,next,previous", "TV transport order");
   assertEqual(tvPlaying, false, "pause left TV paused");
 
@@ -177,7 +177,7 @@ async function main() {
     getQueueLength: () => 1,
   });
   assertEqual(
-    dispatchTvRemoteTransportCommand("next"),
+    await dispatchTvRemoteTransportCommand("next"),
     false,
     "no next when TV queue is single"
   );

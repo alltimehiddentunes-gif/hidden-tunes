@@ -52,8 +52,8 @@ export type TvSessionControllerApi = {
   /** Lock-screen / car transport — pause/resume the same TV surface. */
   setPlaying?: (playing: boolean) => void;
   isPlaying?: () => boolean;
-  nextChannel?: () => void;
-  previousChannel?: () => void;
+  nextChannel?: () => void | Promise<void>;
+  previousChannel?: () => void | Promise<void>;
   canGoNext?: () => boolean;
   canGoPrevious?: () => boolean;
   getActiveVideo?: () => HiddenTunesTvVideo | null;
