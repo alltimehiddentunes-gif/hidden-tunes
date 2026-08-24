@@ -551,26 +551,17 @@ export async function searchPodcastEpisodes(
     Math.max(1, Number(options?.limit || PODCAST_BACKEND_PAGE_LIMIT))
   );
   const payload = await fetchPodcastBackendJson<{
-    items?: Record<string, unknown>[];
-    page?: number;
-    limit?: number;
-    hasMore?: boolean;
-  }>(
-    buildBackendUrl("/api/podcasts/search", {
-      q: query,
-      page: safePage,
-      limit: safeLimit,
-      include_mature: options?.includeMature ? "true" : undefined,
-    })
-  );
+    episodes?: Record<string, unknown>[];
+    pagination?: { page?: number; limit?: number; hasMore?: boolean };
+  }>(buildEpisodesUrl({ q: query, page: safePage, limit: safeLimit }));
 
   return {
-    items: (payload.items || [])
+    items: (payload.episodes || [])
       .map((item) => normalizePodcastEpisode(item))
       .filter((item): item is HiddenTunesPodcastEpisode => item !== null),
-    page: Number(payload.page || safePage),
-    limit: Number(payload.limit || safeLimit),
-    hasMore: payload.hasMore === true,
+    page: Number(payload.pagination?.page || safePage),
+    limit: Number(payload.pagination?.limit || safeLimit),
+    hasMore: payload.pagination?.hasMore === true,
   };
 }
 
