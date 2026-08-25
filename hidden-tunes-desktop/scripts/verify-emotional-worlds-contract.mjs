@@ -21,5 +21,7 @@ if (!app.includes('if (backendFailed) return new Map([...fallbackCatalogs]')) th
 if (!app.includes('backendCatalogs?.get') && !app.includes('catalog?.counts?.totalPlayable')) throw new Error('Counts are not backend-derived')
 if (!api.includes('entry.songId') || !api.includes('byId.get')) throw new Error('Backend-ranked IDs are not resolved through canonical catalog')
 if (!app.includes('buildQueueSeedPool')) throw new Error('World queue seed integration is missing')
+if (!app.includes('previousSelectedWorldId !== selectedWorldId')) throw new Error('Authoritative world changes do not reset the selected chip')
+if (/useEffect\(\(\) => \{\s*setSelectedChip\(/.test(app)) throw new Error('Selected chip reset must not use a synchronous state effect')
 if (/label=\{card\.title\}[\s\S]{0,100}fallbackInitial/.test(app)) throw new Error('World card may render placeholder initials')
 console.log(`PASS emotional-worlds-contract: ${worlds.length} profiles, assets, ranked playable queues, canonical context`)

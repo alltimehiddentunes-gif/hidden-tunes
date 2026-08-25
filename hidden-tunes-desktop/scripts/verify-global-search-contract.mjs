@@ -22,6 +22,11 @@ function check(label, condition, detail = '') {
 const hook = fs.readFileSync(path.join(ROOT, 'src/lib/search/useGlobalDesktopSearch.ts'), 'utf8')
 const ui = fs.readFileSync(path.join(ROOT, 'src/components/search/GlobalSearchSections.tsx'), 'utf8')
 const app = fs.readFileSync(path.join(ROOT, 'src/App.tsx'), 'utf8')
+const musicSearchErrorStart = app.indexOf('{remoteSearchError ? (')
+const musicSearchError = app.slice(
+  musicSearchErrorStart,
+  app.indexOf('{lectureSearchError ? (', musicSearchErrorStart),
+)
 
 check('hook exists', fs.existsSync(path.join(ROOT, 'src/lib/search/useGlobalDesktopSearch.ts')))
 check('UI sections exist', fs.existsSync(path.join(ROOT, 'src/components/search/GlobalSearchSections.tsx')))
@@ -49,7 +54,13 @@ check('UI has Downloads section', ui.includes('title="Downloads"'))
 check('partial failure isolation (per-family catch)', (hook.match(/\.catch\(/g) || []).length >= 6)
 check('family error/loading flags', hook.includes('hasFamilyErrors') && hook.includes('isFamilyLoading'))
 check('Discover empty respects remote families', app.includes('!globalSearch.hasRemoteResults') && app.includes('!globalSearch.hasFamilyErrors'))
-check('music search error surfaces Retry', app.includes('Retry music search'))
+check(
+  'music search error surfaces localized Retry',
+  musicSearchErrorStart >= 0
+    && musicSearchError.includes('data-search-error="music"')
+    && musicSearchError.includes('onClick={retryRemoteSearch}')
+    && musicSearchError.includes("t('common.retry')"),
+)
 check('free-text Load More', app.includes('Load more songs') && app.includes('data-search-load-more'))
 
 console.log(`\nGlobal search contract: ${passed} passed, ${failed} failed`)

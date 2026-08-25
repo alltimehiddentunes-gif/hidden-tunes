@@ -82,7 +82,15 @@ async function main() {
   const play = await fetchJson(
     `/api/lectures/items/${encodeURIComponent(seriesId)}/play?lessonId=${encodeURIComponent(lessonId)}`,
   )
-  const playableUrl = typeof play.playableUrl === 'string' ? play.playableUrl.trim() : ''
+  const playableUrl = [
+    play.playableUrl,
+    play.playback_url,
+    play.playbackUrl,
+    play.playable_url,
+    play.stream_url,
+    play.audio_url,
+    play.video_url,
+  ].find((value) => typeof value === 'string' && value.trim())?.trim() ?? ''
   if (!playableUrl.startsWith('http')) {
     throw new Error('Play resolver returned no playableUrl')
   }

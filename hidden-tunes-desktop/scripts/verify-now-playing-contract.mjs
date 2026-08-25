@@ -18,7 +18,11 @@ const checks = [
   ['activity, fullscreen and visibility listeners cleaned up', /removeEventListener\('pointermove'/.test(auto) && /unsubscribe\?\.\(\)/.test(auto)],
   ['OS fullscreen uses narrow preload bridge', /isFullScreen/.test(preload) && /setFullScreen/.test(preload) && /BrowserWindow\.fromWebContents/.test(main)],
   ['manual exit cooldown is wired', /markPlayerManuallyDismissed\(\)/.test(app)],
-  ['Music navigation remaps to Home', /navKey === 'music' \? 'home' : navKey/.test(app)],
+  [
+    'Music navigation retains its dedicated destination',
+    /key: 'music',\s+navKey: 'music',\s+page: 'music'/.test(app)
+      && /const page = resolvePageFromNavKey\(navKey\)[\s\S]{0,120}setActivePage\(page\)[\s\S]{0,120}setActiveNavKey\(navKey\)/.test(app),
+  ],
   ['underlying route remains mounted for restoration', /premium-player-overlay/.test(shell) && !/setActivePage\([^)]*now/i.test(app)],
   ['real queue, lyrics and details integrations retained', /PlayerQueuePanel/.test(shell) && /PlayerLyricsPanel/.test(shell) && /PlayerDetailsPanel/.test(shell)],
   ['single playback owner retained', /usePlayerShellState/.test(shell) && !/new Audio\(|<audio/.test(shell)],

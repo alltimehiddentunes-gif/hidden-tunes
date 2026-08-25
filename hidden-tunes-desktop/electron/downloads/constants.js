@@ -55,13 +55,54 @@ const WINDOWS_RESERVED = new Set([
   'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9',
 ])
 
+/**
+ * Exact production media hosts observed from catalog play resolvers.
+ *
+ * Keep multi-tenant storage/CDN hosts exact. Adding a provider-wide suffix here
+ * would let an unrelated tenant become a trusted download source.
+ */
+const APPROVED_MEDIA_HOSTS = new Set([
+  // HiddenTunes music catalog (3,762/3,762 production songs, 2026-08-25).
+  'pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev',
+
+  // Podcast resolver hosts observed in the production catalog.
+  'anchor.fm',
+  'clrtpod.com',
+  'content.rss.com',
+  'dts.podtrac.com',
+  'kdrt.org',
+  'mgln.ai',
+  'pdrl.fm',
+  'pdst.fm',
+  'podtrac.com',
+  'pscrb.fm',
+  's.gum.fm',
+  'tracking.swap.fm',
+  'www.buzzsprout.com',
+  'www.podtrac.com',
+
+  // Final podcast media hosts observed after redirects.
+  'audio.buzzsprout.com',
+  'content.blubrry.com',
+  'd11untcg2uthr3.cloudfront.net',
+  'd3ctxlq1ktw2nl.cloudfront.net',
+  'dcs-cached.megaphone.fm',
+  'dcs-spotify.megaphone.fm',
+  'iheartmedia.mc.tritondigital.com',
+  'injector.simplecastaudio.com',
+  'nyt.simplecastaudio.com',
+  'rss.art19.com',
+  'salem.mc.tritondigital.com',
+  'serve.castfire.com',
+])
+
+/**
+ * Provider-owned suffixes required for variable production media subdomains.
+ * Archive.org currently serves Audiobooks, Motivationals, and Lectures from
+ * root, www, and dynamic regional hosts.
+ */
 const APPROVED_MEDIA_HOST_SUFFIXES = [
-  'admin.hiddentunes.com',
-  'hidden-tunes-api.onrender.com',
-  'hiddentunes.com',
-  'r2.dev',
-  'cloudflarestorage.com',
-  'amazonaws.com',
+  'archive.org',
 ]
 
 function downloadsRoot(userDataPath) {
@@ -82,6 +123,7 @@ module.exports = {
   FAMILY_DIRS,
   STATUSES,
   WINDOWS_RESERVED,
+  APPROVED_MEDIA_HOSTS,
   APPROVED_MEDIA_HOST_SUFFIXES,
   downloadsRoot,
 }

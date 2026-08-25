@@ -4195,12 +4195,16 @@ function EmotionalWorldsPage({
   const { songs, indexes, showCatalogSkeleton } = useCatalog()
   const { setActiveAtmosphereId } = useAtmosphere()
   const [selectedChip, setSelectedChip] = useState<EmotionalWorldChipId>(selectedWorldId ?? 'all')
+  const [previousSelectedWorldId, setPreviousSelectedWorldId] = useState(selectedWorldId)
   const [backendCatalogs, setBackendCatalogs] = useState<Map<EmotionalWorldId, BackendWorldCatalog> | null>(null)
   const [backendFailed, setBackendFailed] = useState(false)
   const queuePools = useMemo(() => buildQueueCandidatePools(indexes), [indexes])
-  useEffect(() => {
+
+  if (previousSelectedWorldId !== selectedWorldId) {
+    setPreviousSelectedWorldId(selectedWorldId)
     setSelectedChip(selectedWorldId ?? 'all')
-  }, [selectedWorldId])
+  }
+
   useEffect(() => {
     if (songs.length === 0) return
     const controller = new AbortController()

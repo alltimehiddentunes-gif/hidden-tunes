@@ -18,6 +18,7 @@ process.env.HT_DOWNLOADS_TEST_ALLOW_HTTP = '1'
 
 const {
   classifyDownloadability,
+  hostAllowed,
   assertDownloadableHttpsUrl,
   isLiveOrPlaylistUrl,
   userFacingError,
@@ -226,13 +227,24 @@ async function main() {
   } catch {
     check('unapproved host rejected', true)
   }
+  const currentMusicHost = 'pub-cdc7ab995ca34ff1b3f95453a8024aa3.r2.dev'
+  check('exact current R2 media host accepted', hostAllowed(currentMusicHost))
+  check('unrelated R2 tenant rejected', !hostAllowed('cdn.r2.dev'))
+  check('retired Render host rejected', !hostAllowed('hidden-tunes-api.onrender.com'))
+  check('unscoped Cloudflare storage host rejected', !hostAllowed('bucket.cloudflarestorage.com'))
+  check('unscoped AWS storage host rejected', !hostAllowed('bucket.s3.amazonaws.com'))
+  check('Archive.org root media accepted', hostAllowed('archive.org'))
+  check('Archive.org regional media accepted', hostAllowed('dn711108.ca.archive.org'))
+  check('Archive.org lookalike rejected', !hostAllowed('archive.org.evil.example'))
+  check('observed podcast resolver host accepted', hostAllowed('www.podtrac.com'))
+  check('observed podcast redirect host accepted', hostAllowed('dcs-spotify.megaphone.fm'))
   try {
-    assertDownloadableHttpsUrl('https://cdn.r2.dev/a.mp3')
+    assertDownloadableHttpsUrl(`https://${currentMusicHost}/a.mp3`)
     check('approved HTTPS host accepted', true)
   } catch (e) {
     check('approved HTTPS host accepted', false, String(e.message))
   }
-  check('HLS playlist detected', isLiveOrPlaylistUrl('https://cdn.r2.dev/x.m3u8', 'application/vnd.apple.mpegurl'))
+  check('HLS playlist detected', isLiveOrPlaylistUrl(`https://${currentMusicHost}/x.m3u8`, 'application/vnd.apple.mpegurl'))
   check('Icecast relay detected', isLiveOrPlaylistUrl('https://admin.hiddentunes.com/relay?id=1', 'audio/mpeg'))
 
   // Downloadability policy

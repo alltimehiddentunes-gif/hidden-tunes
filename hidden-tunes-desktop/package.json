@@ -1,10 +1,14 @@
 {
   "name": "hidden-tunes-desktop",
   "productName": "Hidden Tunes Desktop",
-  "description": "Hidden Tunes Desktop — a cinematic catalog browsing experience for Windows.",
-  "author": "Hidden Tunes",
+  "description": "Hidden Tunes Desktop — a cinematic catalog browsing and playback experience for Windows and Linux.",
+  "author": {
+    "name": "Hidden Tunes",
+    "email": "support@hiddentunes.com"
+  },
+  "homepage": "https://hiddentunes.com",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "electron/main.js",
   "scripts": {
     "verify:emotional-worlds": "node scripts/verify-emotional-worlds-contract.mjs",
@@ -15,7 +19,6 @@
     "verify:localization": "node scripts/verify-localization-contract.mjs",
     "audit:hardcoded-copy": "node scripts/audit-hardcoded-copy.mjs",
     "verify:tv-country-search": "node scripts/verify-tv-country-search.mjs",
-    "verify:tv-country-search": "node scripts/verify-tv-country-search.mjs",
     "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
@@ -23,6 +26,7 @@
     "deploy": "node scripts/deploy-hidden-tunes-web.mjs",
     "dist": "npm run build && electron-builder",
     "dist:win-release": "node scripts/build-windows-release.mjs",
+    "dist:linux-release": "npm run build && electron-builder --linux AppImage deb --x64 --publish never",
     "lint": "eslint .",
     "verify:tv-hls": "electron scripts/verify-tv-hls-playback.mjs",
     "verify:tv-dash": "electron scripts/verify-tv-dash-playback.mjs",
@@ -104,7 +108,7 @@
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],
       "icon": "build/icon.ico",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": true
     },
     "mac": {
       "target": [{ "target": "dmg", "arch": ["x64", "arm64"] }],
@@ -117,7 +121,8 @@
       "target": [{ "target": "AppImage", "arch": ["x64"] }, { "target": "deb", "arch": ["x64"] }],
       "icon": "build/icon.png",
       "category": "AudioVideo;Audio;Video",
-      "executableName": "hidden-tunes-desktop"
+      "executableName": "hidden-tunes-desktop",
+      "maintainer": "Hidden Tunes <support@hiddentunes.com>"
     },
     "artifactName": "Hidden-Tunes-Desktop-${version}-${os}-${arch}.${ext}",
     "nsis": {

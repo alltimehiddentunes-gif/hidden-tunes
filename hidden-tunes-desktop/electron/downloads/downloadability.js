@@ -3,6 +3,7 @@
 const {
   DOWNLOADABLE_TYPES,
   STREAM_ONLY_TYPES,
+  APPROVED_MEDIA_HOSTS,
   APPROVED_MEDIA_HOST_SUFFIXES,
 } = require('./constants')
 
@@ -15,7 +16,7 @@ function classifyDownloadability(type) {
 function hostAllowed(hostname) {
   const host = String(hostname || '').toLowerCase()
   if (!host) return false
-  return APPROVED_MEDIA_HOST_SUFFIXES.some(
+  return APPROVED_MEDIA_HOSTS.has(host) || APPROVED_MEDIA_HOST_SUFFIXES.some(
     (suffix) => host === suffix || host.endsWith(`.${suffix}`),
   )
 }
