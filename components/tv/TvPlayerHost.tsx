@@ -60,10 +60,12 @@ import {
 } from "@/utils/tvArtwork";
 import { getHorizontalListPerformanceSettings } from "@/utils/performanceMode";
 import {
+  navigateTvPlayerBack,
   navigateTvPlayerToTarget,
   resolveTvPlayerExitTarget,
   TV_HOME_ROUTE,
 } from "@/utils/tvNavigation";
+import { createScopedActionLock } from "@/utils/scopedActionLock";
 import { useMountedRef } from "@/utils/useMountedRef";
 
 import TvChannelCard from "./TvChannelCard";
@@ -259,6 +261,7 @@ function TvPlayerHost({
   const exitInFlightRef = useRef(false);
   const closeFinalizedRef = useRef(false);
   const closeRenderEpochRef = useRef(0);
+  const backNavigationLock = useMemo(() => createScopedActionLock(2_500), []);
   const pathname = usePathname();
   const [closingTarget, setClosingTarget] = useState<string | null>(null);
   const [showClosingFallback, setShowClosingFallback] = useState(false);
@@ -530,19 +533,6 @@ function TvPlayerHost({
   }, []);
 
   useEffect(() => {
-    if (!full) return;
-
-    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
-      closeFullPlayer();
-      return true;
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [closeFullPlayer, full]);
-
-  useEffect(() => {
     if (!displayChannel) {
       setIsFavorite(false);
       setRelatedChannels([]);
@@ -581,10 +571,6 @@ function TvPlayerHost({
     }
   }, [displayChannel, isFavorite, mountedRef]);
 
-  const handleBack = useCallback(() => {
-    closeFullPlayer();
-  }, [closeFullPlayer]);
-
   const handleEnterFullscreen = useCallback(async () => {
     // In-route true fullscreen owner (same VideoView). Native enterFullscreen is
     // not mixed in — it left portrait chrome/flex geometry active on device.
@@ -607,13 +593,48 @@ function TvPlayerHost({
     }
   }, [mountedRef]);
 
-  const handleHeaderClose = useCallback(() => {
+  const handleBack = useCallback(() => {
     if (isUiFullscreen) {
       void handleExitFullscreen();
       return;
     }
+    if (!backNavigationLock.tryAcquire("tv-player-back")) return;
+
+    try {
+      // Back only leaves the full-player route. The route-blur owner changes
+      // presentation to floating while the same TV session keeps playing.
+      navigateTvPlayerBack();
+    } catch {
+      backNavigationLock.release();
+    }
+  }, [backNavigationLock, handleExitFullscreen, isUiFullscreen]);
+
+  useEffect(() => {
+    if (pathname !== "/tv-player") {
+      backNavigationLock.release();
+    }
+  }, [backNavigationLock, pathname]);
+
+  useEffect(() => {
+    return () => backNavigationLock.dispose();
+  }, [backNavigationLock]);
+
+  useEffect(() => {
+    if (!full) return;
+
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleBack();
+      return true;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [full, handleBack]);
+
+  const handleHeaderClose = useCallback(() => {
     closeFullPlayer();
-  }, [closeFullPlayer, handleExitFullscreen, isUiFullscreen]);
+  }, [closeFullPlayer]);
 
   const clearControlsHideTimer = useCallback(() => {
     if (hideTimerRef.current != null) {
@@ -1139,7 +1160,7 @@ function TvPlayerHost({
           style={styles.fullControlButton}
           onPress={() => {
             bumpControlsInteraction();
-            void handleExitFullscreen();
+            handleHeaderClose();
           }}
           accessibilityRole="button"
           accessibilityLabel="Close"
