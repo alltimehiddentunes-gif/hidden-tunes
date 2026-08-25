@@ -16,7 +16,7 @@ import {
   type FixtureRow,
 } from "./fixtureCards";
 import type { SportsHomeLimits } from "./limits";
-import { getCalendarDayBounds } from "./timezone";
+import { getCalendarDayBounds, getNextWeekdayBounds } from "./timezone";
 import type {
   SportsCompetitionCard,
   SportsCountryCard,
@@ -24,6 +24,10 @@ import type {
   SportsWorldCard,
 } from "./types";
 import { filterPublicSportsCompetitions } from "../publicEligibility";
+import {
+  oldestPossibleSportsLiveStart,
+  resolveSportsStatusAuthority,
+} from "../status/statusAuthority";
 
 export type HomeLoaderContext = {
   country: string;
@@ -62,11 +66,12 @@ async function loadFixtures(query: {
   orderAsc?: boolean;
   limit: number;
   featuredOnly?: boolean;
+  now?: Date;
 }): Promise<FixtureRow[]> {
   let q = supabaseAdmin
     .from("sports_fixtures")
     .select(
-      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata, availability_state, playable"
+      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata, availability_state, playable, provider_status_fresh_at"
     )
     .limit(query.featuredOnly ? Math.min(100, query.limit * 5) : query.limit);
 
@@ -79,7 +84,24 @@ async function loadFixtures(query: {
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  let rows = (data || []) as FixtureRow[];
+  let rows = (data || []) as Array<
+    FixtureRow & { provider_status_fresh_at?: string | null }
+  >;
+  if (query.statusIn?.length === 1 && query.statusIn[0] === "live") {
+    const now = query.now ?? new Date();
+    rows = rows.filter(
+      (row) =>
+        row.starts_at >= oldestPossibleSportsLiveStart(now) &&
+        resolveSportsStatusAuthority({
+          fixtureStatus: row.status,
+          startsAt: row.starts_at,
+          endsAt: row.ends_at,
+          metadata: row.metadata,
+          providerStatusFreshAt: row.provider_status_fresh_at,
+          now,
+        }).providerConfirmedLive
+    );
+  }
   if (query.featuredOnly) {
     rows = rows
       .filter(isFeaturedFixture)
@@ -93,10 +115,13 @@ export async function loadLiveNow(
   ctx: HomeLoaderContext
 ): Promise<SectionLoaderResult> {
   return withTimeout(ctx.limits.sectionTimeoutMs, async () => {
+    const now = ctx.now ?? new Date();
     const fixtures = await loadFixtures({
       statusIn: ["live"],
+      startsFrom: oldestPossibleSportsLiveStart(now),
       limit: ctx.limits.liveNow,
       orderAsc: true,
+      now,
     });
     const cards = await batchLoadMatchCards(fixtures, {
       now: ctx.now,
@@ -556,6 +581,39 @@ export async function loadTodaySchedule(
     });
     return {
       id: "todays_schedule",
+      type: "fixtures",
+      items,
+      subtitle: `${bounds.localDate} (${bounds.timeZone})`,
+      nextCursor:
+        items.length >= ctx.limits.todaysSchedule
+          ? encodeSportsCursor(ctx.limits.todaysSchedule)
+          : null,
+    };
+  });
+}
+
+export async function loadSaturdayFootball(
+  ctx: HomeLoaderContext
+): Promise<SectionLoaderResult> {
+  return withTimeout(ctx.limits.sectionTimeoutMs, async () => {
+    const now = ctx.now ?? new Date();
+    const bounds = getNextWeekdayBounds(now, 6, ctx.timeZone);
+    const fixtures = await loadFixtures({
+      startsFrom: bounds.startIso,
+      startsTo: bounds.endIso,
+      limit: ctx.limits.todaysSchedule,
+      orderAsc: true,
+      statusIn: ["scheduled", "verified", "live", "postponed"],
+    });
+    const cards = await batchLoadMatchCards(fixtures, {
+      now,
+      startingSoonWindowMs: ctx.limits.startingSoonWindowMs,
+    });
+    const items = cards.filter((card) =>
+      ["football", "soccer"].includes(String(card.sport?.slug || "").toLowerCase())
+    );
+    return {
+      id: "saturday_football",
       type: "fixtures",
       items,
       subtitle: `${bounds.localDate} (${bounds.timeZone})`,

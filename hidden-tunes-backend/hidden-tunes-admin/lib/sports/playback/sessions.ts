@@ -6,7 +6,11 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 import { isEligibleForReadyPlayback } from "./healthScore";
-import { normalizePlaybackKind } from "./allowlist";
+import {
+  isHostAllowedForProvider,
+  isPlaybackKindAllowed,
+  normalizePlaybackKind,
+} from "./allowlist";
 import { hashPlaybackToken, mintPlaybackToken } from "./tokens";
 
 export { hashPlaybackToken, mintPlaybackToken } from "./tokens";
@@ -64,10 +68,12 @@ export type ResolvedPlaybackSession =
       ok: true;
       fixtureId: string;
       broadcastId: string;
-      playbackKind: "iframe" | "webview" | "hls" | "dash";
+      playbackKind: "iframe" | "webview" | "hls" | "dash" | "progressive";
       title: string;
       providerLabel: string;
       embedUrl?: string | null;
+      manifestUrl?: string | null;
+      headers?: Record<string, string>;
       expiresAt: string;
     }
   | {
@@ -161,11 +167,12 @@ export async function resolveSportsPlaybackSession(
   }
 
   let providerLabel = "Official broadcaster";
+  let providerSlug = "";
   let providerHealthy = true;
   if (broadcast.provider_id) {
     const { data: provider } = await supabaseAdmin
       .from("sports_providers")
-      .select("name, is_enabled, kill_switch, health_status")
+      .select("slug, name, is_enabled, kill_switch, health_status")
       .eq("id", broadcast.provider_id)
       .maybeSingle();
     if (
@@ -181,6 +188,7 @@ export async function resolveSportsPlaybackSession(
       };
     }
     providerLabel = provider.name || providerLabel;
+    providerSlug = String(provider.slug || "");
     providerHealthy = ["healthy", "degraded", "unknown"].includes(
       String(provider.health_status)
     );
@@ -194,13 +202,94 @@ export async function resolveSportsPlaybackSession(
     };
   }
 
-  const { data: source } = await supabaseAdmin
+  const { data: sources } = await supabaseAdmin
     .from("sports_stream_sources")
-    .select("web_fallback_url, resolver_reference, is_embed_allowed, status")
+    .select(
+      "source_type, resolver_reference, web_fallback_url, referer_requirement, user_agent_requirement, expires_at, is_direct_play_allowed, is_embed_allowed, is_external_only, priority, status"
+    )
     .eq("broadcast_id", broadcast.id)
     .order("priority", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .limit(10);
+
+  const usableSources = (sources || []).filter((candidate) => {
+    if (
+      candidate.is_external_only ||
+      ["expired", "offline", "quarantined", "rights_revoked", "removed"].includes(
+        String(candidate.status || "")
+      )
+    ) return false;
+    if (candidate.expires_at && Date.parse(candidate.expires_at) <= now.getTime()) {
+      return false;
+    }
+    return true;
+  });
+
+  const nativeKind = normalizePlaybackKind(broadcast.playback_kind);
+  if (
+    nativeKind === "hls" ||
+    nativeKind === "dash" ||
+    nativeKind === "progressive"
+  ) {
+    const nativeSource = usableSources.find((candidate) => {
+      if (!candidate.is_direct_play_allowed) return false;
+      const rawUrl = String(
+        candidate.resolver_reference || candidate.web_fallback_url || ""
+      ).trim();
+      if (!rawUrl) return false;
+      try {
+        const parsed = new URL(rawUrl);
+        return (
+          parsed.protocol === "https:" &&
+          Boolean(providerSlug) &&
+          isHostAllowedForProvider(providerSlug, parsed.hostname) &&
+          isPlaybackKindAllowed(providerSlug, nativeKind)
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    if (!nativeSource) {
+      return {
+        ok: false,
+        reason: "broadcast_invalid",
+        message: "This broadcast is no longer available.",
+      };
+    }
+
+    const manifestUrl = String(
+      nativeSource.resolver_reference || nativeSource.web_fallback_url
+    );
+    const headers: Record<string, string> = {};
+    if (nativeSource.referer_requirement) {
+      headers.Referer = String(nativeSource.referer_requirement);
+    }
+    if (nativeSource.user_agent_requirement) {
+      headers["User-Agent"] = String(nativeSource.user_agent_requirement);
+    }
+
+    await supabaseAdmin
+      .from("sports_playback_sessions")
+      .update({
+        resolved_at: now.toISOString(),
+        started_at: session.started_at || now.toISOString(),
+      })
+      .eq("id", session.id);
+
+    return {
+      ok: true,
+      fixtureId: session.fixture_id,
+      broadcastId: broadcast.id,
+      playbackKind: nativeKind,
+      title: broadcast.title,
+      providerLabel,
+      manifestUrl,
+      headers: Object.keys(headers).length ? headers : undefined,
+      expiresAt: session.expires_at,
+    };
+  }
+
+  const source = usableSources.find((candidate) => candidate.is_embed_allowed);
 
   const meta = (broadcast.metadata || {}) as {
     embedUrl?: string;
@@ -224,9 +313,12 @@ export async function resolveSportsPlaybackSession(
   const kind =
     normalizePlaybackKind(broadcast.playback_kind) ||
     ("iframe" as const);
-  if (kind === "external" || kind === "hls" || kind === "dash") {
-    // Session resolve for native kinds would need separate manifest path;
-    // Phase 2 pilot is embed/webview only.
+  if (
+    kind === "external" ||
+    kind === "hls" ||
+    kind === "dash" ||
+    kind === "progressive"
+  ) {
     if (kind === "external") {
       return {
         ok: false,

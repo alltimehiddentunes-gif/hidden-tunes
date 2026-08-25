@@ -22,7 +22,10 @@ import {
   mapSportsPublicEventStatus,
   watchabilityFromPublicStatus,
 } from "../lib/sports/home/publicStatus";
-import { getCalendarDayBounds } from "../lib/sports/home/timezone";
+import {
+  getCalendarDayBounds,
+  getNextWeekdayBounds,
+} from "../lib/sports/home/timezone";
 import { SPORTS_FEATURE_FLAG_DEFAULTS } from "../lib/sports/constants";
 import type { SportsHomeSection } from "../lib/sports/home/types";
 
@@ -219,6 +222,38 @@ test("Today's Schedule timezone boundaries (not UTC day)", () => {
   // Bounds must cover the local midnight→midnight window.
   assert.ok(Date.parse(la.startIso) < utcEvening.getTime());
   assert.ok(Date.parse(la.endIso) > utcEvening.getTime());
+});
+
+test("Today grouping supports the four release-gate timezones", () => {
+  const justAfterUtcMidnight = new Date("2026-08-25T00:30:00.000Z");
+  const expected = new Map([
+    ["Europe/Berlin", "2026-08-25"],
+    ["Africa/Accra", "2026-08-25"],
+    ["Pacific/Auckland", "2026-08-25"],
+    ["America/Los_Angeles", "2026-08-24"],
+  ]);
+  for (const [timeZone, localDate] of expected) {
+    const bounds = getCalendarDayBounds(justAfterUtcMidnight, timeZone);
+    assert.equal(bounds.localDate, localDate, timeZone);
+    assert.ok(Date.parse(bounds.startIso) <= justAfterUtcMidnight.getTime());
+    assert.ok(Date.parse(bounds.endIso) > justAfterUtcMidnight.getTime());
+  }
+});
+
+test("nearest Saturday uses each user's local calendar", () => {
+  // The same instant is Saturday in Los Angeles but already Sunday elsewhere.
+  const instant = new Date("2026-08-29T23:30:00.000Z");
+  const expected = new Map([
+    ["Europe/Berlin", "2026-09-05"],
+    ["Africa/Accra", "2026-08-29"],
+    ["Pacific/Auckland", "2026-09-05"],
+    ["America/Los_Angeles", "2026-08-29"],
+  ]);
+  for (const [timeZone, localDate] of expected) {
+    const bounds = getNextWeekdayBounds(instant, 6, timeZone);
+    assert.equal(bounds.localDate, localDate, timeZone);
+    assert.ok(Date.parse(bounds.endIso) > Date.parse(bounds.startIso));
+  }
 });
 
 test("section ordering by rank", () => {

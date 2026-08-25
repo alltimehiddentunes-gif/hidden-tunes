@@ -39,6 +39,8 @@ export type StatusAuthorityInput = {
   startsAt?: string | null;
   endsAt?: string | null;
   sportSlug?: string | null;
+  /** Last successful authoritative provider refresh for this status. */
+  providerStatusFreshAt?: string | null;
   /** Explicit admin override in metadata.manual_status */
   now?: Date;
 };
@@ -73,8 +75,19 @@ export const SPORTS_MAX_LIVE_DURATION_MINUTES: Record<string, number> = {
   athletics: 360,
   esports: 360,
   "multi-sport": 360,
-  default: 240,
+  // Unknown sports use the longest supported window so the safeguard cannot
+  // prematurely remove a legitimate long-running event.
+  default: 720,
 };
+
+export const SPORTS_PROVIDER_LIVE_FRESHNESS_MS = 15 * 60_000;
+
+export function oldestPossibleSportsLiveStart(now: Date): string {
+  const longestMinutes = Math.max(
+    ...Object.values(SPORTS_MAX_LIVE_DURATION_MINUTES)
+  );
+  return new Date(now.getTime() - longestMinutes * 60_000).toISOString();
+}
 
 const LIVE_PHASE = new Set([
   "live",
@@ -201,14 +214,27 @@ export function resolveSportsStatusAuthority(
     LIVE_PHASE.has(normalizeToken(meta?.federation_status as string)) ||
     LIVE_PHASE.has(normalizeToken(meta?.manual_status as string));
 
+  const providerFreshAt = parseDate(
+    input.providerStatusFreshAt ||
+      (meta?.provider_status_fresh_at as string) ||
+      (meta?.last_synced_at as string)
+  );
+  const providerSignalFresh = Boolean(
+    providerFreshAt &&
+      now.getTime() >= providerFreshAt.getTime() &&
+      now.getTime() - providerFreshAt.getTime() <= SPORTS_PROVIDER_LIVE_FRESHNESS_MS
+  );
+
   let staleLiveCandidate = false;
   if (rawLiveSignal) {
+    const durationEnd = starts
+      ? new Date(starts.getTime() + maxLiveMs(input.sportSlug))
+      : null;
     const hardEnd =
-      ends ||
-      (starts
-        ? new Date(starts.getTime() + maxLiveMs(input.sportSlug))
-        : null);
-    if (hardEnd && now.getTime() > hardEnd.getTime()) {
+      ends && durationEnd
+        ? new Date(Math.min(ends.getTime(), durationEnd.getTime()))
+        : ends || durationEnd;
+    if (!providerSignalFresh && hardEnd && now.getTime() > hardEnd.getTime()) {
       staleLiveCandidate = true;
       // Do not invent scores — finalize as completed / stream unavailable.
       if (canonical === "live" || canonical === "halftime" || canonical === "intermission") {

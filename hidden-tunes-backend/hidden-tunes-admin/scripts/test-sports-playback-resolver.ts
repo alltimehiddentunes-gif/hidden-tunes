@@ -165,7 +165,7 @@ test("validateSportsBroadcast blocks subscription for in-app", () => {
   assert.equal(result.reason, "subscription_required");
 });
 
-test("playability: only validation grants playable", () => {
+test("playability: validation plus identity evidence grants playable", () => {
   const metaOnly = deriveFixtureAvailability({
     fixtureStatus: "live",
     startsAt: new Date(Date.now() - 60_000).toISOString(),
@@ -186,6 +186,7 @@ test("playability: only validation grants playable", () => {
         validation_status: "validated",
         health_score: 85,
         validation_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        metadata: { officialOrganization: "Example League" },
       },
     ],
   });
@@ -221,6 +222,7 @@ test("playability: live_in_app only with validated live broadcast", () => {
         validation_status: "validated",
         health_score: 90,
         validation_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        metadata: { officialOrganization: "Example League" },
       },
     ],
   });

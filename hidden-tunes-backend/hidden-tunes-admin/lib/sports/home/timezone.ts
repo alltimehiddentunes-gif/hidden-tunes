@@ -31,6 +31,31 @@ export function getCalendarDayBounds(
   };
 }
 
+/** Calendar bounds for the nearest requested weekday, including today. */
+export function getNextWeekdayBounds(
+  now: Date,
+  weekday: number,
+  timeZone?: string | null
+): DayBounds {
+  const tz = normalizeTimeZone(timeZone) || DEFAULT_TZ;
+  const localDate = formatDateInTimeZone(now, tz);
+  const [year, month, day] = localDate.split("-").map(Number);
+  const localDay = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  const daysAhead = ((weekday - localDay) % 7 + 7) % 7;
+  const target = new Date(Date.UTC(year, month - 1, day + daysAhead));
+  const targetDate = [
+    target.getUTCFullYear(),
+    String(target.getUTCMonth() + 1).padStart(2, "0"),
+    String(target.getUTCDate()).padStart(2, "0"),
+  ].join("-");
+  return {
+    startIso: zonedLocalToUtc(`${targetDate}T00:00:00`, tz).toISOString(),
+    endIso: zonedLocalToUtc(`${targetDate}T24:00:00`, tz).toISOString(),
+    timeZone: tz,
+    localDate: targetDate,
+  };
+}
+
 export function normalizeTimeZone(value?: string | null): string | null {
   const raw = String(value || "").trim();
   if (!raw) return null;

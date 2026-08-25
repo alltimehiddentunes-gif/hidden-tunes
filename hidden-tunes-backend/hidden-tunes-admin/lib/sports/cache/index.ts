@@ -1,3 +1,5 @@
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+
 type CacheEntry<T> = { value: T; expiresAt: number };
 
 const store = new Map<string, CacheEntry<unknown>>();
@@ -30,4 +32,18 @@ export function sportsCacheKey(
   parts: Array<string | number | boolean | null | undefined>
 ): string {
   return parts.map((p) => String(p ?? "")).join(":");
+}
+
+/**
+ * Cross-process cache generation. Fixture writers bump this after a committed
+ * recovery batch so the API process cannot serve an older in-memory entry.
+ */
+export async function getSportsFixtureDataVersion(): Promise<string> {
+  const { data, error } = await supabaseAdmin
+    .from("sports_data_versions")
+    .select("version")
+    .eq("key", "fixture_catalog")
+    .maybeSingle();
+  if (error || data?.version == null) return "legacy";
+  return String(data.version);
 }

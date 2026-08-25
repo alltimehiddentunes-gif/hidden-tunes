@@ -3,7 +3,13 @@
  * Database content cannot introduce arbitrary domains.
  */
 
-export type SportsPlaybackKind = "iframe" | "webview" | "hls" | "dash" | "external";
+export type SportsPlaybackKind =
+  | "iframe"
+  | "webview"
+  | "hls"
+  | "dash"
+  | "progressive"
+  | "external";
 
 export type SportsProviderAllowlistEntry = {
   hosts: readonly string[];
@@ -92,6 +98,7 @@ export function normalizePlaybackKind(
   if (k === "webview") return "webview";
   if (k === "hls") return "hls";
   if (k === "dash") return "dash";
+  if (k === "mp4" || k === "progressive") return "progressive";
   if (k === "external") return "external";
   return null;
 }

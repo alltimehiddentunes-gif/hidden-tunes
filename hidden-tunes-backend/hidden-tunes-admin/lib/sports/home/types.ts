@@ -222,6 +222,7 @@ export type SportsHomeSectionId =
   | "browse_sports"
   | "browse_countries"
   | "todays_schedule"
+  | "saturday_football"
   | "trending"
   | "recently_finished"
   | "highlights"
@@ -237,6 +238,7 @@ export const SPORTS_HOME_SECTION_RANK: Record<SportsHomeSectionId, number> = {
   browse_sports: 70,
   browse_countries: 80,
   todays_schedule: 90,
+  saturday_football: 95,
   trending: 100,
   recently_finished: 110,
   highlights: 120,
@@ -253,6 +255,7 @@ export const SPORTS_HOME_SECTION_TITLES: Record<SportsHomeSectionId, string> = {
   browse_sports: "Browse Sports",
   browse_countries: "Browse Countries",
   todays_schedule: "Today's Schedule",
+  saturday_football: "Saturday Football",
   trending: "Trending",
   recently_finished: "Recently Finished",
   highlights: "Highlights",

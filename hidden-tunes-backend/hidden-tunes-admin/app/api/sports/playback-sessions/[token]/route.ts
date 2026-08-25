@@ -39,6 +39,8 @@ export async function GET(
       title: result.title,
       providerLabel: result.providerLabel,
       embedUrl: result.embedUrl,
+      manifestUrl: result.manifestUrl,
+      headers: result.headers,
       expiresAt: result.expiresAt,
     });
   } catch (err) {

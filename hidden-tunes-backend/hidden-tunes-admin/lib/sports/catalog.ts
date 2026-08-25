@@ -7,7 +7,12 @@ import {
   SPORTS_TAXONOMY_CACHE_TTL_MS,
   SPORTS_VIDEO_CACHE_TTL_MS,
 } from "./constants";
-import { sportsCacheGet, sportsCacheKey, sportsCacheSet } from "./cache";
+import {
+  getSportsFixtureDataVersion,
+  sportsCacheGet,
+  sportsCacheKey,
+  sportsCacheSet,
+} from "./cache";
 import { isSportsFeatureEnabled } from "./featureFlags";
 import type { SportsBrowseItem, SportsHomeSections, SportsPagination } from "./types";
 
@@ -95,8 +100,10 @@ export async function getSportsHome(input: {
     20,
     Math.max(10, input.limitPerSection ?? SPORTS_HOME_SECTION_LIMIT)
   );
+  const fixtureDataVersion = await getSportsFixtureDataVersion();
   const cacheKey = sportsCacheKey([
     "sports-home",
+    fixtureDataVersion,
     input.country,
     input.platform,
     limit,

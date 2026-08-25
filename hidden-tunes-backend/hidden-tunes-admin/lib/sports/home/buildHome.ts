@@ -3,7 +3,12 @@
  * Phase 2C: optional preference-aware ranking after loaders.
  */
 
-import { sportsCacheGet, sportsCacheKey, sportsCacheSet } from "../cache";
+import {
+  getSportsFixtureDataVersion,
+  sportsCacheGet,
+  sportsCacheKey,
+  sportsCacheSet,
+} from "../cache";
 import { SPORTS_LIVE_CACHE_TTL_MS } from "../constants";
 import { isSportsFeatureEnabled } from "../featureFlags";
 import {
@@ -32,6 +37,7 @@ import {
   loadPopularCompetitions,
   loadRecentlyFinished,
   loadReplays,
+  loadSaturdayFootball,
   loadStartingSoon,
   loadTodaySchedule,
   loadTrending,
@@ -49,6 +55,7 @@ const SECTION_LABELS: SportsHomeSectionId[] = [
   "browse_sports",
   "browse_countries",
   "todays_schedule",
+  "saturday_football",
   "trending",
   "recently_finished",
   "highlights",
@@ -159,8 +166,12 @@ export async function buildSportsHomeContract(
   }
 
   const limits = resolveSportsHomeLimits(input.limits);
+  const fixtureDataVersion = input.bypassCache
+    ? "bypass"
+    : await getSportsFixtureDataVersion();
   const cacheKey = sportsCacheKey([
     "sports-home-ia",
+    fixtureDataVersion,
     input.country,
     input.platform,
     input.userId || "anon",
@@ -225,6 +236,7 @@ export async function buildSportsHomeContract(
     loadBrowseSports(ctx),
     loadBrowseCountries(ctx),
     loadTodaySchedule(ctx),
+    loadSaturdayFootball(ctx),
     loadTrending(ctx),
     loadRecentlyFinished(ctx),
     loadHighlights(ctx),

@@ -37,7 +37,7 @@ export type FixturePlaySession =
   | {
       status: "ready";
       fixtureId: string;
-      playbackKind: "iframe" | "webview" | "hls" | "dash";
+      playbackKind: "iframe" | "webview" | "hls" | "dash" | "progressive";
       playbackToken: string;
       expiresAt: string;
       title: string;
@@ -471,7 +471,7 @@ export async function resolveFixturePlayback(
       .order("priority", { ascending: true })
       .limit(25);
 
-    let candidates = (rows || []) as CandidateBroadcast[];
+    const candidates = (rows || []) as CandidateBroadcast[];
 
     // Remove disabled / expired / unsupported / unsafe classifications
     const filtered: CandidateBroadcast[] = [];
@@ -551,7 +551,7 @@ export async function resolveFixturePlayback(
         rejectedGeneric += 1;
         continue;
       }
-      if (!["iframe", "webview", "hls", "dash"].includes(kind)) continue;
+      if (!["iframe", "webview", "hls", "dash", "progressive"].includes(kind)) continue;
 
       filtered.push(b);
     }
@@ -621,13 +621,15 @@ export async function resolveFixturePlayback(
         devicePlatform: request.platform,
       });
 
-      const clientKind: "iframe" | "webview" | "hls" | "dash" =
+      const clientKind: "iframe" | "webview" | "hls" | "dash" | "progressive" =
         kind === "webview"
           ? "webview"
           : kind === "hls"
             ? "hls"
             : kind === "dash"
-              ? "dash"
+            ? "dash"
+            : kind === "progressive"
+              ? "progressive"
               : "iframe";
 
       const session: FixturePlaySession = {

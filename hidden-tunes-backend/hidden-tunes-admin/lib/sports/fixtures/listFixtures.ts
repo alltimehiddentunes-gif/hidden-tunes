@@ -12,6 +12,10 @@ import {
 } from "../home/fixtureCards";
 import type { SportsMatchCard } from "../home/types";
 import { filterPublicSportsFixtures } from "../publicEligibility";
+import {
+  oldestPossibleSportsLiveStart,
+  resolveSportsStatusAuthority,
+} from "../status/statusAuthority";
 
 export type ListSportsFixturesInput = {
   sportId?: string | null;
@@ -60,9 +64,9 @@ export async function listSportsFixturesFiltered(
   let query = supabaseAdmin
     .from("sports_fixtures")
     .select(
-      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata, availability_state, playable"
+      "id, title, sport_id, competition_id, starts_at, ends_at, status, venue_id, country_code, metadata, availability_state, playable, provider_status_fresh_at"
     )
-    .order("starts_at", { ascending: true })
+    .order("starts_at", { ascending: !input.finished })
     .range(offset, offset + limit);
 
   if (sportId) query = query.eq("sport_id", sportId);
@@ -74,7 +78,9 @@ export async function listSportsFixturesFiltered(
   }
 
   if (input.live) {
-    query = query.eq("status", "live");
+    query = query
+      .eq("status", "live")
+      .gte("starts_at", oldestPossibleSportsLiveStart(now));
   } else if (input.upcoming) {
     query = query
       .in("status", ["scheduled", "verified"])
@@ -101,7 +107,21 @@ export async function listSportsFixturesFiltered(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  const rows = (data || []) as FixtureRow[];
+  let rows = (data || []) as Array<
+    FixtureRow & { provider_status_fresh_at?: string | null }
+  >;
+  if (input.live) {
+    rows = rows.filter((row) =>
+      resolveSportsStatusAuthority({
+        fixtureStatus: row.status,
+        startsAt: row.starts_at,
+        endsAt: row.ends_at,
+        metadata: row.metadata,
+        providerStatusFreshAt: row.provider_status_fresh_at,
+        now,
+      }).providerConfirmedLive
+    );
+  }
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
   const items = filterPublicSportsFixtures(

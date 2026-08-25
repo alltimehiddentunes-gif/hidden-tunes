@@ -3,6 +3,10 @@ import {
   runSportsExpiryCleanupWorker,
   runSportsUnsafeBroadcastQuarantineWorker,
 } from "./expiryAndQuarantine";
+import {
+  runSportsFixtureSyncWorker,
+  type SportsFixtureSyncLane,
+} from "./fixtureSync";
 
 export type SportsWorkerReport = {
   workerKey: SportsWorkerKey;
@@ -18,6 +22,8 @@ export type SportsWorkerContext = {
   dryRun?: boolean;
   batchSize?: number;
   signal?: AbortSignal;
+  fixtureSyncLanes?: SportsFixtureSyncLane[];
+  scheduled?: boolean;
 };
 
 /**
@@ -51,10 +57,13 @@ export async function runSportsWorker(
     return runSportsUnsafeBroadcastQuarantineWorker(ctx);
   }
 
+  if (workerKey === "sports-fixture-sync") {
+    return runSportsFixtureSyncWorker(ctx);
+  }
+
   if (
     workerKey === "sports-video-import" ||
-    workerKey === "sports-broadcast-discovery" ||
-    workerKey === "sports-fixture-sync"
+    workerKey === "sports-broadcast-discovery"
   ) {
     return {
       workerKey,
