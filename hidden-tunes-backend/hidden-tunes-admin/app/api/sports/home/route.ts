@@ -7,9 +7,9 @@ import {
   jsonSportsOk,
   parseSportsCountry,
   parseSportsPlatform,
+  parseSportsPositiveInt,
 } from "@/lib/sports/http";
 import { resolveSportsBrowseAccess } from "@/lib/sports/pilotAccess";
-import { parsePositiveInt } from "@/lib/tvCatalog";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
           ""
       ).trim() || null;
 
-    const limitOverride = parsePositiveInt(
+    const limitOverride = parseSportsPositiveInt(
       url.searchParams.get("limitPerSection"),
       0,
       50

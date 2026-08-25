@@ -35,6 +35,7 @@ const IMPORT_BATCH = `sports-fixture-repair-${new Date().toISOString().slice(0, 
 let currentPhase = "startup";
 let activeRecoveryBatchId: string | null = null;
 let activeClient: SupabaseClient | null = null;
+let openLigaAllowedForRun = !SCHEDULED;
 
 type JsonRecord = Record<string, unknown>;
 type ProviderTeam = { id: string | null; name: string; logo: string | null };
@@ -794,12 +795,12 @@ async function main() {
       .select("slug,is_enabled,kill_switch")
       .in("slug", requested);
     if (providersError) throw providersError;
-    for (const providerSlug of requested) {
-      const provider = (providers || []).find((row) => row.slug === providerSlug);
-      if (!provider?.is_enabled || provider.kill_switch) {
-        throw new Error(`Scheduled provider is disabled or kill-switched: ${providerSlug}`);
-      }
+    const apiFootball = (providers || []).find((row) => row.slug === "api_football");
+    if (!apiFootball?.is_enabled || apiFootball.kill_switch) {
+      throw new Error("Scheduled provider is disabled or kill-switched: api_football");
     }
+    const openLiga = (providers || []).find((row) => row.slug === "openligadb");
+    openLigaAllowedForRun = Boolean(openLiga?.is_enabled && !openLiga.kill_switch);
   }
   const key = apiKey();
   const now = new Date();
@@ -825,7 +826,9 @@ async function main() {
     ? await fetchOptionalApiFootball("/fixtures?date=2026-08-01", key)
     : { rows: [], providerError: false };
   const staleDateRaw = staleDate.rows;
-  const openLigaRaw = ACTIVE_LANES.has("future") ? await fetchJson(OPENLIGA_URL) : [];
+  const openLigaRaw = ACTIVE_LANES.has("future") && openLigaAllowedForRun
+    ? await fetchJson(OPENLIGA_URL)
+    : [];
 
   const normalizeMany = (rows: JsonRecord[]) =>
     rows.map(normalizeApiFixture).filter((row): row is ProviderFixture => Boolean(row));
@@ -906,8 +909,10 @@ async function main() {
         Number(ACTIVE_LANES.has("today")) +
         Number(ACTIVE_LANES.has("future")) +
         Number(RUN_STALE_RECOVERY),
-      openLigaDb: Number(ACTIVE_LANES.has("future")),
+      openLigaDb: Number(ACTIVE_LANES.has("future") && openLigaAllowedForRun),
     },
+    openLigaSkippedByRegistry:
+      ACTIVE_LANES.has("future") && !openLigaAllowedForRun,
     staleLive: {
       count: selectedStaleRows.length,
       rawCount: staleCount || 0,

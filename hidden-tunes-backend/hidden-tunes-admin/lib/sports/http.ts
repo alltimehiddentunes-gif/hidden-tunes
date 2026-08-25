@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { parsePositiveInt } from "@/lib/tvCatalog";
-
 import {
   SPORTS_DEFAULT_PAGE_LIMIT,
   SPORTS_MAX_PAGE_LIMIT,
@@ -12,6 +10,16 @@ import { SPORTS_PLATFORMS } from "./types";
 
 export function jsonSportsOk(body: Record<string, unknown>, init?: ResponseInit) {
   return NextResponse.json({ success: true, ...body }, init);
+}
+
+export function parseSportsPositiveInt(
+  value: string | null,
+  fallback: number,
+  max: number
+): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
+  return Math.min(max, Math.floor(parsed));
 }
 
 export function jsonSportsError(
@@ -40,13 +48,13 @@ export function parseSportsPageLimit(request: Request): {
   const url = new URL(request.url);
   const page = Math.max(
     1,
-    parsePositiveInt(url.searchParams.get("page"), 1, 10_000)
+    parseSportsPositiveInt(url.searchParams.get("page"), 1, 10_000)
   );
   const limit = Math.min(
     SPORTS_MAX_PAGE_LIMIT,
     Math.max(
       1,
-      parsePositiveInt(
+      parseSportsPositiveInt(
         url.searchParams.get("limit"),
         SPORTS_DEFAULT_PAGE_LIMIT,
         SPORTS_MAX_PAGE_LIMIT

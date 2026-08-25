@@ -18,7 +18,7 @@ import {
   verifyTechnicalSafety,
 } from "../lib/sports/verification/engine";
 import { resolveSportsBroadcastPlayback } from "../lib/sports/playback/resolver";
-import { redactSecrets } from "../lib/sports/http";
+import { parseSportsPositiveInt, redactSecrets } from "../lib/sports/http";
 import { SPORTS_FEATURE_FLAG_DEFAULTS } from "../lib/sports/constants";
 import { listSportsWorkerKeys, runSportsWorker } from "../lib/sports/workers";
 import type { SportsBroadcastRow, SportsRightsGrant, SportsStreamSource } from "../lib/sports/types";
@@ -90,6 +90,14 @@ const baseSource = (over: Partial<SportsStreamSource> = {}): SportsStreamSource 
   priority: 1,
   status: "verified",
   ...over,
+});
+
+test("http: positive integer parsing stays Sports-local and bounded", () => {
+  assert.equal(parseSportsPositiveInt("7", 1, 50), 7);
+  assert.equal(parseSportsPositiveInt("7.9", 1, 50), 7);
+  assert.equal(parseSportsPositiveInt("500", 1, 50), 50);
+  assert.equal(parseSportsPositiveInt("0", 3, 50), 3);
+  assert.equal(parseSportsPositiveInt("invalid", 3, 50), 3);
 });
 
 test("rights: approved grant allows modes", () => {
