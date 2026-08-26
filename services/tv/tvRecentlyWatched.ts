@@ -7,8 +7,13 @@ const TV_HISTORY_STORAGE_VERSION = 1;
 const MAX_RECENT_ENTRIES = 20;
 
 let recentMemory: TvRecentlyWatchedEntry[] | null = null;
+let recentLoadPromise: Promise<TvRecentlyWatchedEntry[]> | null = null;
 const listeners = new Set<(entries: TvRecentlyWatchedEntry[]) => void>();
-const pendingChannels = new Map<string, TVChannel>();
+const pendingChannels = new Map<string, boolean | undefined>();
+
+function normalizeChannelId(value: unknown) {
+  return String(value ?? "").trim();
+}
 
 function optionalNumber(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
@@ -30,18 +35,20 @@ function normalizeEntry(raw: unknown): TvRecentlyWatchedEntry | null {
   if (!raw || typeof raw !== "object") return null;
 
   const row = raw as Record<string, unknown>;
-  const channelId = String(row.channelId || "").trim();
+  const channelId = normalizeChannelId(row.channelId);
   const name = String(row.name || "").trim();
   const category = String(row.category || "").trim();
-  const watchedAt = String(row.watchedAt || "").trim();
+  const watchedAt = String(row.watchedAt || row.lastWatchedAt || "").trim();
 
-  if (!channelId || !name || !category || !watchedAt) return null;
+  if (!channelId || !watchedAt) return null;
 
   return {
     channelId,
-    name,
+    // Legacy metadata remains readable, but rendering resolves against the
+    // current catalog by channelId rather than trusting persisted card data.
+    name: name || channelId,
     logoUrl: row.logoUrl ? String(row.logoUrl) : undefined,
-    category: category as TvRecentlyWatchedEntry["category"],
+    category: (category || "local") as TvRecentlyWatchedEntry["category"],
     country: row.country ? String(row.country) : undefined,
     watchedAt,
     positionSeconds: optionalNumber(row.positionSeconds),
@@ -51,12 +58,30 @@ function normalizeEntry(raw: unknown): TvRecentlyWatchedEntry | null {
   };
 }
 
+function toPersistedEntry(entry: TvRecentlyWatchedEntry) {
+  return {
+    channelId: normalizeChannelId(entry.channelId),
+    watchedAt: entry.watchedAt,
+    ...(typeof entry.positionSeconds === "number"
+      ? { positionSeconds: entry.positionSeconds }
+      : {}),
+    ...(typeof entry.durationSeconds === "number"
+      ? { durationSeconds: entry.durationSeconds }
+      : {}),
+    ...(entry.completed === true ? { completed: true } : {}),
+    ...(entry.isLive === false ? { isLive: false } : {}),
+  };
+}
+
 async function persistRecent(entries: TvRecentlyWatchedEntry[]) {
   recentMemory = entries;
   listeners.forEach((listener) => listener(entries));
 
   try {
-    await AsyncStorage.setItem(TV_RECENTLY_WATCHED_KEY, JSON.stringify(entries));
+    await AsyncStorage.setItem(
+      TV_RECENTLY_WATCHED_KEY,
+      JSON.stringify(entries.map(toPersistedEntry))
+    );
     return true;
   } catch {
     return false;
@@ -65,56 +90,77 @@ async function persistRecent(entries: TvRecentlyWatchedEntry[]) {
 
 export async function loadTvRecentlyWatched() {
   if (recentMemory) return recentMemory;
+  if (recentLoadPromise) return recentLoadPromise;
 
-  try {
-    const raw = await AsyncStorage.getItem(TV_RECENTLY_WATCHED_KEY);
-    if (!raw) {
+  recentLoadPromise = (async () => {
+    try {
+      const raw = await AsyncStorage.getItem(TV_RECENTLY_WATCHED_KEY);
+      if (!raw) {
+        recentMemory = [];
+        return recentMemory;
+      }
+
+      const parsed = JSON.parse(raw) as unknown[];
+      recentMemory = (Array.isArray(parsed) ? parsed : [])
+        .map(normalizeEntry)
+        .filter((entry): entry is TvRecentlyWatchedEntry => entry !== null)
+        .slice(0, MAX_RECENT_ENTRIES);
+
+      return recentMemory;
+    } catch {
       recentMemory = [];
       return recentMemory;
     }
+  })();
 
-    const parsed = JSON.parse(raw) as unknown[];
-    recentMemory = (Array.isArray(parsed) ? parsed : [])
-      .map(normalizeEntry)
-      .filter((entry): entry is TvRecentlyWatchedEntry => entry !== null)
-      .slice(0, MAX_RECENT_ENTRIES);
-
-    return recentMemory;
-  } catch {
-    recentMemory = [];
-    return recentMemory;
+  try {
+    return await recentLoadPromise;
+  } finally {
+    recentLoadPromise = null;
   }
 }
 
-export async function recordTvRecentlyWatched(channel: TVChannel) {
-  pendingChannels.set(channel.id, channel);
+export async function recordTvRecentlyWatched(channel: TVChannel | string) {
+  const channelId = normalizeChannelId(
+    typeof channel === "string" ? channel : channel.id
+  );
+  if (channelId) {
+    const isLive = typeof channel === "string" ? undefined : channel.isLive;
+    if (isLive !== undefined || !pendingChannels.has(channelId)) {
+      pendingChannels.set(channelId, isLive);
+    }
+  }
   return loadTvRecentlyWatched();
 }
 
 export async function confirmTvRecentlyWatched(channelId: string) {
-  const channel = pendingChannels.get(channelId);
-  if (!channel) return loadTvRecentlyWatched();
-  pendingChannels.delete(channelId);
+  const normalizedChannelId = normalizeChannelId(channelId);
+  if (!normalizedChannelId || !pendingChannels.has(normalizedChannelId)) {
+    return loadTvRecentlyWatched();
+  }
+  const pendingIsLive = pendingChannels.get(normalizedChannelId);
+  pendingChannels.delete(normalizedChannelId);
   const current = await loadTvRecentlyWatched();
-  const previous = current.find((item) => item.channelId === channel.id);
+  const previous = current.find((item) => item.channelId === normalizedChannelId);
+  const isLive = pendingIsLive ?? previous?.isLive ?? true;
 
   const entry: TvRecentlyWatchedEntry = {
-    channelId: channel.id,
-    name: channel.name,
-    logoUrl: channel.logoUrl,
-    category: channel.category,
-    country: channel.country,
+    channelId: normalizedChannelId,
+    name: previous?.name || normalizedChannelId,
+    logoUrl: previous?.logoUrl,
+    category: previous?.category || "local",
+    country: previous?.country,
     watchedAt: new Date().toISOString(),
-    isLive: channel.isLive,
+    isLive,
     // Preserve any prior VOD progress fields when reopening live metadata-only.
-    positionSeconds: channel.isLive ? undefined : previous?.positionSeconds,
-    durationSeconds: channel.isLive ? undefined : previous?.durationSeconds,
-    completed: channel.isLive ? undefined : previous?.completed,
+    positionSeconds: isLive ? undefined : previous?.positionSeconds,
+    durationSeconds: isLive ? undefined : previous?.durationSeconds,
+    completed: isLive ? undefined : previous?.completed,
   };
 
   const next = [
     entry,
-    ...current.filter((item) => item.channelId !== channel.id),
+    ...current.filter((item) => item.channelId !== normalizedChannelId),
   ].slice(0, MAX_RECENT_ENTRIES);
 
   await persistRecent(next);
@@ -204,7 +250,7 @@ export function readTvRecentlyWatchedSync() {
 }
 
 export function cancelPendingTvRecentlyWatched(channelId: string) {
-  pendingChannels.delete(String(channelId || "").trim());
+  pendingChannels.delete(normalizeChannelId(channelId));
 }
 
 export function subscribeTvRecentlyWatched(

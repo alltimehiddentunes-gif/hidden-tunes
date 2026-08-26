@@ -41,6 +41,7 @@ import { markTvChannelTemporarilyUnavailable } from "@/services/tv/tvChannelVeri
 import {
   cancelPendingTvRecentlyWatched,
   confirmTvRecentlyWatched,
+  recordTvRecentlyWatched,
 } from "@/services/tv/tvRecentlyWatched";
 import { getRelatedTvChannels } from "@/services/tv/tvChannelService";
 import {
@@ -261,6 +262,7 @@ function TvPlayerHost({
   const exitInFlightRef = useRef(false);
   const closeFinalizedRef = useRef(false);
   const closeRenderEpochRef = useRef(0);
+  const recentlyWatchedStageRef = useRef<string | null>(null);
   const backNavigationLock = useMemo(() => createScopedActionLock(2_500), []);
   const pathname = usePathname();
   const [closingTarget, setClosingTarget] = useState<string | null>(null);
@@ -309,21 +311,33 @@ function TvPlayerHost({
     : shouldShowTvVerifiedBadge(item);
 
   useEffect(() => {
-    const channelId = displayChannel?.id;
+    const channelId = String(displayChannel?.id || item.id || "").trim();
     if (!channelId || !isPlaying || hasError) return;
+    const stageKey = `${playerGeneration}:${channelId}`;
+    if (recentlyWatchedStageRef.current !== stageKey) {
+      recentlyWatchedStageRef.current = stageKey;
+      void recordTvRecentlyWatched(channelId);
+    }
     const timer = setTimeout(() => {
       if (!mountedRef.current) return;
       void confirmTvRecentlyWatched(channelId);
     }, 5_000);
     return () => clearTimeout(timer);
-  }, [displayChannel?.id, hasError, isPlaying, mountedRef, playerGeneration]);
+  }, [
+    displayChannel?.id,
+    hasError,
+    isPlaying,
+    item.id,
+    mountedRef,
+    playerGeneration,
+  ]);
 
   useEffect(() => {
-    const channelId = displayChannel?.id;
+    const channelId = String(displayChannel?.id || item.id || "").trim();
     return () => {
       if (channelId) cancelPendingTvRecentlyWatched(channelId);
     };
-  }, [displayChannel?.id]);
+  }, [displayChannel?.id, item.id]);
 
   /**
    * Deterministic floating layout (same path in Metro and Preview/release).
@@ -493,10 +507,6 @@ function TvPlayerHost({
       if (closeFinalizedRef.current) return;
       closeFinalizedRef.current = true;
       void (async () => {
-        const channelId = displayChannel?.id;
-        if (channelId) {
-          await confirmTvRecentlyWatched(channelId).catch(() => undefined);
-        }
         await restoreTvPortraitOrientation().catch(() => undefined);
         onStop();
       })();
@@ -506,7 +516,7 @@ function TvPlayerHost({
     // resubscription. Check the retained signal before listening for the next.
     finalizeAfterDestinationRender(getLatestTvCloseRenderSignal());
     return subscribeTvCloseDestinationRendered(finalizeAfterDestinationRender);
-  }, [closingTarget, displayChannel?.id, onStop, pathname]);
+  }, [closingTarget, onStop, pathname]);
 
   useEffect(() => {
     if (!closingTarget || showClosingFallback) return;
