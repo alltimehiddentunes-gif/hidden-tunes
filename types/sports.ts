@@ -88,6 +88,8 @@ export type SportsMatchCard = {
     extraMinute?: number | null;
     period?: string | null;
     providerUpdatedAt?: string | null;
+    refreshTier?: "priority" | "standard";
+    recommendedRefreshSeconds?: number | null;
   };
   venue?: {
     name?: string | null;

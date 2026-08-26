@@ -1,5 +1,47 @@
 import type { SportsHomeSection, SportsMatchCard } from "../../../types/sports";
 
+export type SportsLiveClientRefreshPlan = {
+  eligibleLiveCount: number;
+  intervalMs: number | null;
+  nextPriorityKickoff: SportsMatchCard | null;
+};
+
+export function getSportsLiveClientRefreshPlan(
+  sections: SportsHomeSection[]
+): SportsLiveClientRefreshPlan {
+  const live = sections.find((section) => section.id === "live_now");
+  const eligible = ((live?.items || []) as SportsMatchCard[]).filter(
+    (card) =>
+      card.timing?.refreshTier === "priority" &&
+      Number(card.timing?.recommendedRefreshSeconds) > 0
+  );
+  const seconds = eligible
+    .map((card) => Number(card.timing?.recommendedRefreshSeconds))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const upcomingSections = sections.filter(
+    (section) => section.id === "starting_soon" || section.id === "upcoming"
+  );
+  const priorityUpcoming = upcomingSections
+    .flatMap((section) => (section.items || []) as SportsMatchCard[])
+    .filter(
+      (card) =>
+        card.timing?.refreshTier === "priority" &&
+        Number(card.timing?.recommendedRefreshSeconds) > 0
+    )
+    .sort((a, b) =>
+      String(a.timing?.startsAt || "").localeCompare(
+        String(b.timing?.startsAt || "")
+      )
+    );
+  return {
+    eligibleLiveCount: eligible.length,
+    intervalMs: seconds.length
+      ? Math.max(30_000, Math.min(...seconds) * 1_000)
+      : null,
+    nextPriorityKickoff: priorityUpcoming[0] || null,
+  };
+}
+
 function renderedCardSignature(card: SportsMatchCard): string {
   const timing = card.timing
     ? { ...card.timing, providerUpdatedAt: undefined }

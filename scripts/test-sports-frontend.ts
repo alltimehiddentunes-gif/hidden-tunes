@@ -30,7 +30,10 @@ import {
   getSportsWatchAction,
   primaryActionLabel,
 } from "../lib/sports/ui/formatStatus";
-import { mergeSportsLiveState } from "../lib/sports/ui/liveRefresh";
+import {
+  getSportsLiveClientRefreshPlan,
+  mergeSportsLiveState,
+} from "../lib/sports/ui/liveRefresh";
 import {
   boundSectionItems,
   ensureLiveNowSection,
@@ -201,6 +204,49 @@ function main() {
   };
   assert.equal(primaryActionLabel(liveNotPlayable), "Live score");
   assert.equal(canShowWatchAction(liveNotPlayable), false);
+
+  const priorityLive: SportsMatchCard = {
+    ...liveNotPlayable,
+    id: "priority-live",
+    timing: {
+      startsAt: null,
+      minute: 67,
+      refreshTier: "priority",
+      recommendedRefreshSeconds: 60,
+    },
+  };
+  const standardLive: SportsMatchCard = {
+    ...liveNotPlayable,
+    id: "standard-live",
+    timing: {
+      startsAt: null,
+      minute: 22,
+      refreshTier: "standard",
+      recommendedRefreshSeconds: null,
+    },
+  };
+  const priorityUpcoming: SportsMatchCard = {
+    ...liveNotPlayable,
+    id: "priority-upcoming",
+    status: { code: "scheduled", label: "Upcoming", live: false, finished: false },
+    timing: {
+      startsAt: "2026-08-26T18:00:00.000Z",
+      refreshTier: "priority",
+      recommendedRefreshSeconds: 60,
+    },
+  };
+  const clientRefreshPlan = getSportsLiveClientRefreshPlan([
+    section("live_now", "live", [standardLive, priorityLive], 10),
+    section("starting_soon", "fixtures", [priorityUpcoming], 20),
+  ]);
+  assert.equal(clientRefreshPlan.eligibleLiveCount, 1);
+  assert.equal(clientRefreshPlan.intervalMs, 60_000);
+  assert.equal(clientRefreshPlan.nextPriorityKickoff?.id, "priority-upcoming");
+  const standardOnlyPlan = getSportsLiveClientRefreshPlan([
+    section("live_now", "live", [standardLive], 10),
+  ]);
+  assert.equal(standardOnlyPlan.eligibleLiveCount, 0);
+  assert.equal(standardOnlyPlan.intervalMs, null);
 
   // Live refresh updates only changed cards and moves terminal fixtures.
   const stableLive: SportsMatchCard = {

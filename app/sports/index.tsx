@@ -86,7 +86,10 @@ import {
 } from "../../lib/sports/ui/availability";
 import { formatCountdown, formatKickoff } from "../../lib/sports/ui/formatKickoff";
 import { formatMatchTitle } from "../../lib/sports/ui/formatScore";
-import { mergeSportsLiveState } from "../../lib/sports/ui/liveRefresh";
+import {
+  getSportsLiveClientRefreshPlan,
+  mergeSportsLiveState,
+} from "../../lib/sports/ui/liveRefresh";
 
 import { SPORTS_COLORS, SportsDisabledState, navigateSportsHomeBack, useSportsFullUiGate, useSportsNowClock } from "./_shared";
 
@@ -239,7 +242,9 @@ function SportsHomeInner() {
   const liveRefreshInFlightRef = useRef(false);
   const focusedRef = useRef(false);
   const lastFetchedAtRef = useRef(0);
-  const liveFixtureCountRef = useRef(0);
+  const liveRefreshEligibleCountRef = useRef(0);
+  const liveRefreshIntervalMsRef = useRef<number | null>(null);
+  const lastLiveRefreshAtRef = useRef(0);
   const prefsLoadedRef = useRef(false);
 
   const applyHomeSections = useCallback((raw: SportsHomeSection[], sectionErrors?: { section: string; error: string }[]) => {
@@ -296,6 +301,7 @@ function SportsHomeInner() {
       if (controller.signal.aborted) return;
 
       lastFetchedAtRef.current = Date.now();
+      lastLiveRefreshAtRef.current = Date.now();
 
       if (!home.enabled) {
         // Keep prior sections if background refresh reports disabled briefly.
@@ -337,6 +343,7 @@ function SportsHomeInner() {
         limit: 20,
       });
       if (controller.signal.aborted) return;
+      lastLiveRefreshAtRef.current = Date.now();
       setSections((current) =>
         mergeSportsLiveState(current, liveState.live, liveState.finished)
       );
@@ -397,7 +404,10 @@ function SportsHomeInner() {
         if (!focusedRef.current) return;
         if (AppState.currentState !== "active") return;
         if (!sportsLiveScoresEnabled) return;
-        if (liveFixtureCountRef.current <= 0) return;
+        if (liveRefreshEligibleCountRef.current <= 0) return;
+        const intervalMs = liveRefreshIntervalMsRef.current;
+        if (!intervalMs) return;
+        if (Date.now() - lastLiveRefreshAtRef.current < intervalMs) return;
         void refreshLiveState();
       };
       const intervalId = sportsLiveScoresEnabled
@@ -450,15 +460,26 @@ function SportsHomeInner() {
     const live = displaySections.find((s) => s.id === "live_now");
     return Array.isArray(live?.items) ? live.items.length : 0;
   }, [displaySections]);
-  liveFixtureCountRef.current = liveFixtureCount;
+  const liveClientRefreshPlan = useMemo(
+    () => getSportsLiveClientRefreshPlan(sections),
+    [sections]
+  );
+  liveRefreshEligibleCountRef.current = liveClientRefreshPlan.eligibleLiveCount;
+  liveRefreshIntervalMsRef.current = liveClientRefreshPlan.intervalMs;
 
   // With zero live fixtures, schedule one bounded check just after the nearest
   // announced kickoff. This enables Starting Soon -> Live without an idle poll.
   useEffect(() => {
-    if (!gate.allowed || !sportsLiveScoresEnabled || liveFixtureCount > 0) {
+    if (
+      !gate.allowed ||
+      !sportsLiveScoresEnabled ||
+      liveClientRefreshPlan.eligibleLiveCount > 0
+    ) {
       return undefined;
     }
-    const kickoff = Date.parse(String(nextUpcoming?.timing?.startsAt || ""));
+    const kickoff = Date.parse(
+      String(liveClientRefreshPlan.nextPriorityKickoff?.timing?.startsAt || "")
+    );
     if (!Number.isFinite(kickoff)) return undefined;
     const now = Date.now();
     if (kickoff < now - 2 * 60_000 || kickoff > now + 2 * 60 * 60_000) {
@@ -470,7 +491,12 @@ function SportsHomeInner() {
       void refreshLiveState();
     }, delay);
     return () => clearTimeout(timer);
-  }, [gate.allowed, liveFixtureCount, nextUpcoming?.timing?.startsAt, refreshLiveState]);
+  }, [
+    gate.allowed,
+    liveClientRefreshPlan.eligibleLiveCount,
+    liveClientRefreshPlan.nextPriorityKickoff?.timing?.startsAt,
+    refreshLiveState,
+  ]);
 
   const goSearch = useCallback(() => router.push("/sports/search" as any), []);
   const goFollowing = useCallback(() => router.push("/sports/following" as any), []);
