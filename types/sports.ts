@@ -222,7 +222,7 @@ export type SportsPlaybackSession =
   | {
       status: "ready";
       fixtureId: string;
-      playbackKind: "embed" | "webview" | "hls" | "dash";
+      playbackKind: "embed" | "webview" | "hls" | "dash" | "progressive";
       playbackToken: string;
       expiresAt: string;
       title: string;
@@ -232,6 +232,7 @@ export type SportsPlaybackSession =
       /** Controlled HTML only for __DEV__ fixtures — never production. */
       fixtureHtml?: string | null;
       manifestUrl?: string | null;
+      headers?: Record<string, string>;
     }
   | {
       status: "external";
@@ -327,7 +328,6 @@ export type SportsFavorite = {
 };
 export const SPORTS_HOME_SECTION_RANK: Record<string, number> = {
   live_now: 10,
-  live_sports_tv: 15,
   starting_soon: 20,
   featured: 30,
   because_you_follow: 40,
@@ -336,6 +336,7 @@ export const SPORTS_HOME_SECTION_RANK: Record<string, number> = {
   browse_sports: 70,
   browse_countries: 80,
   todays_schedule: 90,
+  saturday_football: 95,
   upcoming: 95,
   trending: 100,
   recently_finished: 110,
@@ -344,7 +345,6 @@ export const SPORTS_HOME_SECTION_RANK: Record<string, number> = {
 };
 export const SPORTS_HOME_SECTION_TITLES: Record<string, string> = {
   live_now: "Live Now",
-  live_sports_tv: "Live Sports TV",
   starting_soon: "Starting Soon",
   featured: "Featured",
   because_you_follow: "Because You Follow",
@@ -353,6 +353,7 @@ export const SPORTS_HOME_SECTION_TITLES: Record<string, string> = {
   browse_sports: "Browse Sports",
   browse_countries: "Browse Countries",
   todays_schedule: "Today's Fixtures",
+  saturday_football: "Saturday Football",
   upcoming: "Upcoming Fixtures",
   trending: "Trending",
   recently_finished: "Recently Finished",

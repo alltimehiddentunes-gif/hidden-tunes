@@ -16,9 +16,8 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { markTvCloseDestinationRendered } from "../../services/tv/tvCloseRenderSignal";
 
 import {
   SportsBackButton,
@@ -28,19 +27,14 @@ import {
   SportsHorizontalShelf,
   SportsMatchCard,
   SportsSection,
-  SportsTvChannelCard,
   SportsVideoCard,
   SportsWorldGrid,
 } from "../../components/sports";
-import { sportsTvEnabled } from "../../constants/sportsFlags";
 import {
   getSportsRecentSearches,
   pushSportsRecentSearch,
   searchSportsCatalog,
 } from "../../services/sports";
-import { fetchTvCatalog, type HiddenTunesTvVideo } from "../../services/tvCatalogApi";
-import { openTvDiscoveryStation } from "../../services/tvDiscoveryOpen";
-import { buildTvDiscoveryLaunchContext } from "../../utils/tvDiscoveryLaunchContext";
 import { isSportsResolveAbortError } from "../../services/sports/sportsPlaybackResolver";
 import {
   getSportsWatchAction,
@@ -62,7 +56,6 @@ import { SPORTS_COLORS, SportsDisabledState, navigateSportsBack, useSportsFullUi
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
-const SPORTS_TV_SEARCH_LIMIT = 12;
 
 function dedupeFixturesById(items: SportsMatchCardType[]): SportsMatchCardType[] {
   const seen = new Set<string>();
@@ -77,20 +70,12 @@ function dedupeFixturesById(items: SportsMatchCardType[]): SportsMatchCardType[]
 }
 
 export default function SportsSearchScreen() {
-  useFocusEffect(useCallback(() => {
-    const frame = requestAnimationFrame(() =>
-      markTvCloseDestinationRendered("/sports/search")
-    );
-    return () => cancelAnimationFrame(frame);
-  }, []));
   const gate = useSportsFullUiGate();
   const params = useLocalSearchParams<{ q?: string; country?: string }>();
 
   const [queryInput, setQueryInput] = useState(String(params.q || params.country || ""));
   const [activeQuery, setActiveQuery] = useState("");
   const [groups, setGroups] = useState<SportsSearchGroup[]>([]);
-  const [sportsTvResults, setSportsTvResults] = useState<HiddenTunesTvVideo[]>([]);
-  const [connectingTvId, setConnectingTvId] = useState<string | null>(null);
   const [recent, setRecent] = useState<string[]>([]);
   const [hasSearchedOnce, setHasSearchedOnce] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -100,7 +85,6 @@ export default function SportsSearchScreen() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryGenerationRef = useRef(0);
   const navGuardRef = useRef(createTapGuardState());
-  const tvGuardRef = useRef(createTapGuardState());
 
   const countdownNeeded = groups.some(
     (g) =>
@@ -125,7 +109,6 @@ export default function SportsSearchScreen() {
     const trimmed = q.trim();
     if (!trimmed) {
       setGroups([]);
-      setSportsTvResults([]);
       setLoading(false);
       setError(null);
       setActiveQuery("");
@@ -143,26 +126,12 @@ export default function SportsSearchScreen() {
     setError(null);
     setActiveQuery(trimmed);
     try {
-      const sportsPromise = searchSportsCatalog(trimmed, {
+      const res = await searchSportsCatalog(trimmed, {
         signal: controller.signal,
         country: "ZZ",
         platform: Platform.OS,
         limit: SPORTS_SECTION_LIMITS.searchPage,
       });
-      const tvPromise =
-        sportsTvEnabled
-          ? fetchTvCatalog(
-              {
-                q: trimmed,
-                category: "Sports",
-                page: 1,
-                limit: SPORTS_TV_SEARCH_LIMIT,
-              },
-              { signal: controller.signal }
-            ).catch(() => null)
-          : Promise.resolve(null);
-
-      const [res, tvPage] = await Promise.all([sportsPromise, tvPromise]);
       if (
         controller.signal.aborted ||
         generation !== queryGenerationRef.current
@@ -186,7 +155,6 @@ export default function SportsSearchScreen() {
         };
       });
       setGroups(nextGroups);
-      setSportsTvResults((tvPage?.videos || []).slice(0, SPORTS_TV_SEARCH_LIMIT));
       setHasSearchedOnce(true);
       void pushSportsRecentSearch(trimmed).then(setRecent);
     } catch (err) {
@@ -250,31 +218,12 @@ export default function SportsSearchScreen() {
   const onPressVideo = useCallback((v: SportsVideoCardType) => {
     if (v.fixtureId) router.push(`/sports/fixture/${encodeURIComponent(v.fixtureId)}` as any);
   }, []);
-  const onPressSportsTv = useCallback(async (video: HiddenTunesTvVideo) => {
-    if (shouldIgnoreDuplicateTap(tvGuardRef.current, `tv:${video.id}`)) return;
-    setConnectingTvId(video.id);
-    try {
-      await openTvDiscoveryStation(video, {
-        queueVideos: sportsTvResults,
-        discoveryContext: buildTvDiscoveryLaunchContext(video, {
-          query: activeQuery,
-          categorySlug: "sports",
-          categoryTitle: "Sports",
-          browseReturnPath: "/sports/search",
-        }),
-      });
-    } finally {
-      setConnectingTvId(null);
-    }
-  }, [activeQuery, sportsTvResults]);
-
   const trimmedQuery = queryInput.trim();
   const showRecent = !trimmedQuery && recent.length > 0;
   const showEmptyResults =
     !loading &&
     trimmedQuery.length > 0 &&
     !groups.length &&
-    !sportsTvResults.length &&
     !error &&
     hasSearchedOnce;
   const showInlineSpinner = loading && hasSearchedOnce;
@@ -300,7 +249,7 @@ export default function SportsSearchScreen() {
           <TextInput
             value={queryInput}
             onChangeText={setQueryInput}
-            placeholder="Search teams, leagues, sports, Live TV…"
+            placeholder="Search teams, leagues, sports, and fixtures…"
             placeholderTextColor={SPORTS_COLORS.textDim}
             style={styles.searchInput}
             autoFocus
@@ -316,7 +265,6 @@ export default function SportsSearchScreen() {
                 queryGenerationRef.current += 1;
                 setQueryInput("");
                 setGroups([]);
-                setSportsTvResults([]);
                 setError(null);
                 setLoading(false);
                 setActiveQuery("");
@@ -367,7 +315,7 @@ export default function SportsSearchScreen() {
                 <SportsEmptyState
                   icon="search-outline"
                   title="Search Sports"
-                  message="Find live matches, teams, leagues, sports, and Live Sports TV."
+                  message="Find live matches, teams, leagues, sports, and fixtures."
                 />
               ) : null}
 
@@ -379,20 +327,6 @@ export default function SportsSearchScreen() {
                 />
               ) : null}
 
-              {sportsTvResults.length > 0 ? (
-                <SportsSection title="Live Sports TV">
-                  <SportsHorizontalShelf columns="auto" maxItems={SPORTS_TV_SEARCH_LIMIT}>
-                    {sportsTvResults.map((video) => (
-                      <SportsTvChannelCard
-                        key={video.id}
-                        video={video}
-                        connecting={connectingTvId === video.id}
-                        onPress={onPressSportsTv}
-                      />
-                    ))}
-                  </SportsHorizontalShelf>
-                </SportsSection>
-              ) : null}
             </>
           }
           renderItem={({ item: group }) => (

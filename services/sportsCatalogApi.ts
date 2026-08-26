@@ -88,6 +88,13 @@ type FetchOptions = {
   timeZone?: string | null;
   locale?: string | null;
 };
+function deviceTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
 /** Dev fixtures always populate `sections` as an array; narrow away the browse-item-map union. */
 function devHomeSections(home: SportsHomeResponse): SportsHomeSection[] {
   return Array.isArray(home.sections) ? home.sections : [];
@@ -153,7 +160,7 @@ export async function fetchSportsHome(
   }
   const country = options.country || "ZZ";
   const platform = options.platform || "ios";
-  const tz = options.timeZone || undefined;
+  const tz = options.timeZone || deviceTimeZone();
   const locale = options.locale || undefined;
   const cacheKey = sportsHomeCacheKey(
     country,
@@ -1056,10 +1063,16 @@ async function hydrateSportsPlaybackSessionEmbed(
       title?: string;
       providerLabel?: string;
       playbackKind?: string;
+      manifestUrl?: string | null;
+      headers?: Record<string, string>;
       expiresAt?: string;
     };
     const embedUrl = String(json.embedUrl || "").trim();
-    if (!embedUrl || embedUrl === "about:blank") return session;
+    const manifestUrl = String(json.manifestUrl || "").trim();
+    if (
+      (!embedUrl || embedUrl === "about:blank") &&
+      !manifestUrl
+    ) return session;
     const kindRaw = String(json.playbackKind || session.playbackKind || "iframe")
       .trim()
       .toLowerCase();
@@ -1068,8 +1081,10 @@ async function hydrateSportsPlaybackSessionEmbed(
         ? "webview"
         : kindRaw === "hls"
           ? "hls"
-          : kindRaw === "dash"
-            ? "dash"
+        : kindRaw === "dash"
+          ? "dash"
+          : kindRaw === "progressive" || kindRaw === "mp4"
+            ? "progressive"
             : kindRaw === "embed" || kindRaw === "iframe"
               ? "embed"
               : session.playbackKind;
@@ -1079,7 +1094,9 @@ async function hydrateSportsPlaybackSessionEmbed(
       title: json.title || session.title,
       providerLabel: json.providerLabel || session.providerLabel,
       expiresAt: json.expiresAt || session.expiresAt,
-      embedUrl,
+      embedUrl: embedUrl && embedUrl !== "about:blank" ? embedUrl : null,
+      manifestUrl: manifestUrl || session.manifestUrl || null,
+      headers: json.headers || session.headers,
     };
   } catch {
     return session;
@@ -1099,13 +1116,17 @@ function normalizePlayableSession(
   const hasNative =
     nativeEnabled &&
     Boolean(String(session.manifestUrl || "").trim()) &&
-    (session.playbackKind === "hls" || session.playbackKind === "dash");
+    (session.playbackKind === "hls" ||
+      session.playbackKind === "dash" ||
+      session.playbackKind === "progressive");
 
   if (hasEmbed || hasDevHtml || hasNative) return session;
 
   if (
     !nativeEnabled &&
-    (session.playbackKind === "hls" || session.playbackKind === "dash")
+    (session.playbackKind === "hls" ||
+      session.playbackKind === "dash" ||
+      session.playbackKind === "progressive")
   ) {
     return unavailableSession(
       fixtureId,

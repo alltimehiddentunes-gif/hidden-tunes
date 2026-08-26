@@ -36,11 +36,6 @@ export const SPORTS_CLIENT_FLAGS = {
   /** Verified legal streams only — must stay false for fixtures-only pilot. */
   sports_streams_enabled: false,
 
-  /**
-   * Canonical Live Sports TV catalog surface (category=Sports).
-   * Independent of sports_streams_enabled — does not re-enable fixture broadcasts.
-   */
-  sports_tv_enabled: true,
 
   sports_notifications_enabled: false,
 
@@ -88,7 +83,6 @@ const SPORTS_ENV_OVERRIDES: Record<SportsClientFlagKey, string | undefined> = {
 
   sports_streams_enabled: process.env.EXPO_PUBLIC_SPORTS_STREAMS_ENABLED,
 
-  sports_tv_enabled: process.env.EXPO_PUBLIC_SPORTS_TV_ENABLED,
 
   sports_notifications_enabled:
 
@@ -137,8 +131,6 @@ export const sportsFixturesEnabled = isSportsClientEnabled(
 export const sportsStreamsEnabled = isSportsClientEnabled(
   "sports_streams_enabled"
 );
-
-export const sportsTvEnabled = isSportsClientEnabled("sports_tv_enabled");
 
 export const sportsLiveScoresEnabled = isSportsClientEnabled(
   "sports_live_scores_enabled"

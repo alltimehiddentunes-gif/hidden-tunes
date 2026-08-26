@@ -19,7 +19,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, router, useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { markTvCloseDestinationRendered } from "../../services/tv/tvCloseRenderSignal";
 
 import {
   SportsCompetitionShelf,
@@ -34,23 +33,19 @@ import {
   SportsScheduleSection,
   SportsSection,
   SportsSkeletonRow,
-  SportsTvShelf,
   SportsVideoCard,
   SportsWorldGrid,
 } from "../../components/sports";
 import {
   isSportsClientEnabled,
   sportsLiveScoresEnabled,
-  sportsTvEnabled,
 } from "../../constants/sportsFlags";
-import { useSportsTvCatalog } from "../../hooks/useSportsTvCatalog";
 import {
   boundSectionItems,
   ensureLiveNowSection,
   omitEmptySportsSections,
   pickSportsHero,
   sectionItemLimit,
-  sortSportsHomeSections,
 } from "../../lib/sports/ui/homeSections";
 import {
   followSportsEntity,
@@ -128,34 +123,11 @@ function filterSectionsBySport(
   if (filter === "all") return sections;
   return sections.map((section) => {
     if (section.type !== "fixtures" && section.type !== "live") return section;
-    if (section.id === "live_sports_tv") return section;
     const items = (section.items as SportsMatchCardType[]).filter((card) =>
       matchPassesSportFilter(card, filter)
     );
     return { ...section, items };
   });
-}
-
-/** Inject Live Sports TV placeholder section immediately after Live now. */
-function ensureLiveSportsTvSection(
-  sections: SportsHomeSection[],
-  enabled: boolean
-): SportsHomeSection[] {
-  const without = sections.filter((s) => s.id !== "live_sports_tv");
-  if (!enabled) return without;
-  const liveIdx = without.findIndex((s) => s.id === "live_now");
-  const tvSection: SportsHomeSection = {
-    id: "live_sports_tv",
-    type: "tv_channels",
-    title: "Live Sports TV",
-    subtitle: "Sports channels from the Hidden Tunes TV catalog",
-    rank: 15,
-    items: [{ id: "sports-tv-surface" }],
-  };
-  if (liveIdx < 0) return sortSportsHomeSections([tvSection, ...without]);
-  const next = [...without];
-  next.splice(liveIdx + 1, 0, tvSection);
-  return sortSportsHomeSections(next);
 }
 
 /** Development-only local reordering demo — never active in production builds. */
@@ -235,8 +207,6 @@ function SportsHomeInner() {
   const [remindedIds, setRemindedIds] = useState<Set<string>>(new Set());
   const [savedFixtureIds, setSavedFixtureIds] = useState<Set<string>>(new Set());
   const [followedCompetitionIds, setFollowedCompetitionIds] = useState<Set<string>>(new Set());
-
-  const sportsTv = useSportsTvCatalog({ enabled: sportsTvEnabled });
 
   const countdownNeeded = useMemo(() => {
     for (const section of sections) {
@@ -426,10 +396,7 @@ function SportsHomeInner() {
   const displaySections = useMemo(() => {
     const profiled = applyDevProfile(sections, devProfile);
     const filtered = filterSectionsBySport(profiled, sportFilter);
-    return ensureLiveSportsTvSection(
-      omitEmptySportsSections(filtered),
-      sportsTvEnabled
-    );
+    return omitEmptySportsSections(filtered);
   }, [sections, devProfile, sportFilter]);
   const hero = useMemo(() => pickSportsHero(displaySections), [displaySections]);
   const nextUpcoming = useMemo(() => {
@@ -450,7 +417,6 @@ function SportsHomeInner() {
     return Array.isArray(live?.items) ? live.items.length : 0;
   }, [displaySections]);
   liveFixtureCountRef.current = liveFixtureCount;
-  const hasPlayableSportsTv = sportsTv.videos.length > 0;
 
   const goSearch = useCallback(() => router.push("/sports/search" as any), []);
   const goFollowing = useCallback(() => router.push("/sports/following" as any), []);
@@ -646,28 +612,6 @@ function SportsHomeInner() {
     ]
   );
 
-  // Narrow TV shelf props so playback progress elsewhere cannot churn this list.
-  const sportsTvShelfProps = useMemo(
-    () => ({
-      videos: sportsTv.videos,
-      loading: sportsTv.loading,
-      loadingMore: sportsTv.loadingMore,
-      error: sportsTv.error,
-      hasMore: sportsTv.hasMore,
-      onLoadMore: sportsTv.loadMore,
-      onRetry: sportsTv.refresh,
-    }),
-    [
-      sportsTv.videos,
-      sportsTv.loading,
-      sportsTv.loadingMore,
-      sportsTv.error,
-      sportsTv.hasMore,
-      sportsTv.loadMore,
-      sportsTv.refresh,
-    ]
-  );
-
   if (!gate.allowed) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -726,8 +670,6 @@ function SportsHomeInner() {
               nextUpcoming,
               recentFinishedCount,
               liveFixtureCount,
-              hasPlayableSportsTv,
-              sportsTv: sportsTvShelfProps,
               onPressMatch,
               onWatchMatch,
               onRemindMatch,
@@ -767,16 +709,6 @@ type HomeSectionHandlers = {
   nextUpcoming: SportsMatchCardType | null;
   recentFinishedCount: number;
   liveFixtureCount: number;
-  hasPlayableSportsTv: boolean;
-  sportsTv: {
-    videos: ReturnType<typeof useSportsTvCatalog>["videos"];
-    loading: boolean;
-    loadingMore: boolean;
-    error: string | null;
-    hasMore: boolean;
-    onLoadMore: () => void;
-    onRetry: () => void;
-  };
   onPressMatch: (c: SportsMatchCardType) => void;
   onWatchMatch: (c: SportsMatchCardType) => void;
   onRemindMatch: (c: SportsMatchCardType) => void;
@@ -791,47 +723,10 @@ type HomeSectionHandlers = {
 function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
   const itemLimit = sectionItemLimit(section.id);
 
-  if (section.id === "live_sports_tv" || section.type === "tv_channels") {
-    if (!sportsTvEnabled) return null;
-    if (
-      !h.sportsTv.loading &&
-      !h.sportsTv.error &&
-      !h.hasPlayableSportsTv &&
-      h.liveFixtureCount === 0
-    ) {
-      return (
-        <SportsSection title="Live Sports TV">
-          <SportsEmptyState
-            icon="tv-outline"
-            title="No live matches or sports channels are available right now."
-            message="Check upcoming fixtures below."
-            compact
-          />
-        </SportsSection>
-      );
-    }
-    if (!h.hasPlayableSportsTv && !h.sportsTv.loading && !h.sportsTv.error) {
-      return null;
-    }
-    return (
-      <SportsSection
-        title={section.title || "Live Sports TV"}
-        subtitle={section.subtitle}
-      >
-        <SportsTvShelf
-          videos={h.sportsTv.videos}
-          loading={h.sportsTv.loading}
-          loadingMore={h.sportsTv.loadingMore}
-          error={h.sportsTv.error}
-          hasMore={h.sportsTv.hasMore}
-          onLoadMore={h.sportsTv.onLoadMore}
-          onRetry={h.sportsTv.onRetry}
-        />
-      </SportsSection>
-    );
-  }
-
-  if (section.id === "todays_schedule" && section.type === "fixtures") {
+  if (
+    (section.id === "todays_schedule" || section.id === "saturday_football") &&
+    section.type === "fixtures"
+  ) {
     const matches = boundSectionItems(
       section.items as SportsMatchCardType[],
       itemLimit
@@ -865,17 +760,13 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
         ? formatCountdown(next.timing?.startsAt, h.nowMs) ||
           formatKickoff(next.timing?.startsAt, h.nowMs)
         : null;
-      const tvHint = sportsTvEnabled
-        ? "Live sports channels are available below"
-        : null;
       const messageParts = [
-        tvHint,
         nextTitle && nextWhen
           ? `Next up: ${nextTitle} · ${nextWhen}`
           : nextTitle
             ? `Next up: ${nextTitle}`
             : null,
-        !tvHint && h.recentFinishedCount > 0
+        h.recentFinishedCount > 0
           ? `${h.recentFinishedCount} recent results ready to browse.`
           : null,
       ].filter(Boolean);
@@ -886,8 +777,8 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
             title="No confirmed live matches right now"
             message={messageParts.join(". ") || "Check upcoming fixtures below."}
             compact
-            ctaLabel={next && !tvHint ? "View next match" : undefined}
-            onCta={next && !tvHint ? () => h.onPressMatch(next) : undefined}
+            ctaLabel={next ? "View next match" : undefined}
+            onCta={next ? () => h.onPressMatch(next) : undefined}
           />
         </SportsSection>
       );
@@ -980,12 +871,6 @@ function renderHomeSection(section: SportsHomeSection, h: HomeSectionHandlers) {
 }
 
 export default function SportsHomeScreen() {
-  useFocusEffect(useCallback(() => {
-    const frame = requestAnimationFrame(() =>
-      markTvCloseDestinationRendered("/sports")
-    );
-    return () => cancelAnimationFrame(frame);
-  }, []));
   return <SportsHomeInner />;
 }
 

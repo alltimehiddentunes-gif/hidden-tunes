@@ -1,6 +1,7 @@
 export { default as SportsStatusBadge } from "./SportsStatusBadge";
 
 export { default as SportsMatchCard } from "./SportsMatchCard";
+export { default as SportsNativeVideoSurface } from "./SportsNativeVideoSurface";
 export type { SportsMatchCardProps, SportsMatchCardVariant } from "./SportsMatchCard";
 
 export { default as SportsHero } from "./SportsHero";
@@ -24,8 +25,6 @@ export { default as SportsCountryGrid } from "./SportsCountryGrid";
 
 export { default as SportsVideoCard } from "./SportsVideoCard";
 
-export { default as SportsTvChannelCard } from "./SportsTvChannelCard";
-export { default as SportsTvShelf } from "./SportsTvShelf";
 
 export { default as SportsFollowButton } from "./SportsFollowButton";
 export { default as SportsReminderButton } from "./SportsReminderButton";

@@ -26,6 +26,7 @@ import type {
 import SportsBackButton from "./SportsBackButton";
 import SportsHorizontalShelf from "./SportsHorizontalShelf";
 import SportsMatchCard from "./SportsMatchCard";
+import SportsNativeVideoSurface from "./SportsNativeVideoSurface";
 import SportsStatusBadge from "./SportsStatusBadge";
 
 type SportsPlayerShellProps = {
@@ -167,16 +168,21 @@ function PlayerSurface({
     );
   }
 
-  if (session.manifestUrl) {
+  if (
+    session.manifestUrl &&
+    (session.playbackKind === "hls" ||
+      session.playbackKind === "dash" ||
+      session.playbackKind === "progressive")
+  ) {
     return (
-      <View style={styles.surfaceCenter}>
-        <Ionicons name="play-circle-outline" size={36} color={SPORTS_COLORS.amber} />
-        <Text style={styles.surfaceTitle}>Match ready to play</Text>
-        <Text style={styles.surfaceText}>
-          Authorized stream session prepared. Native Sports player wiring arrives with provider
-          integration.
-        </Text>
-      </View>
+      <SportsNativeVideoSurface
+        key={`${session.playbackToken}:${session.manifestUrl}`}
+        manifestUrl={session.manifestUrl}
+        playbackKind={session.playbackKind}
+        headers={session.headers}
+        title={session.title}
+        onPlaybackError={onRetry}
+      />
     );
   }
 
