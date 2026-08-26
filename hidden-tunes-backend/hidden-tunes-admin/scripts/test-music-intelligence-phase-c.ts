@@ -55,7 +55,7 @@ const brokenCatalog = { getSeed: async () => { throw new Error("offline"); }, ge
 const failed = await recommendMusic(request("afro-heart", { generationToken: "repository-failure" }), "failure-user", { catalog: brokenCatalog, profiles: repository }); assert.equal(failed.success, false); if (!failed.success) assert.equal(failed.error, "service_unavailable");
 const noProfiles = new InMemoryMusicRepository(GOLDEN_SONGS);
 const fallback = await recommendMusic(request("no-lyrics-afro"), "u1", { catalog: noProfiles, profiles: noProfiles }); success(fallback); assert(fallback.recommendations.length > 0);
-class BrokenCache<T> extends RecommendationCache<T> { override get(): T | undefined { throw new Error("cache offline"); } override set(): void { throw new Error("cache offline"); } override async coalesce(): Promise<{ value: T; coalesced: boolean }> { throw new Error("cache offline"); } }
+class BrokenCache<T> extends RecommendationCache<T> { override get(): T | undefined { throw new Error("cache offline"); } override set(): void { throw new Error("cache offline"); } override async coalesce(key: string, work: () => Promise<T>): Promise<never> { void key; void work; throw new Error("cache offline"); } }
 const cacheFailure = await recommendMusic(request("afro-heart", { generationToken: "cache-failure" }), "u1", { catalog: repository, profiles: repository, cache: new BrokenCache() }); success(cacheFailure);
 
 const uncached: number[] = []; const cached: number[] = [];
