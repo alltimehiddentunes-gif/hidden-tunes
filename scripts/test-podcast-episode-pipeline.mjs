@@ -3,8 +3,20 @@
  * Run: node scripts/test-podcast-episode-pipeline.mjs
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 const BASE = "https://admin.hiddentunes.com";
+const apiSource = readFileSync(
+  new URL("../services/podcastCatalogApi.ts", import.meta.url),
+  "utf8"
+);
+
+const episodeByShowSource = apiSource.slice(
+  apiSource.indexOf("export async function fetchPodcastEpisodesByShow"),
+  apiSource.indexOf("export async function fetchPodcastShowById")
+);
+assert.match(episodeByShowSource, /mature_enabled:\s*options\?\.includeMature/);
+assert.match(episodeByShowSource, /age_confirmed:\s*options\?\.includeMature/);
 
 async function getJson(path) {
   const response = await fetch(`${BASE}${path}`);
@@ -19,7 +31,7 @@ async function getJson(path) {
 }
 
 const showsResp = await getJson(
-  "/api/podcasts/shows?page=1&limit=3&includeMature=true&category=adult-lifestyle"
+  "/api/podcasts/shows?page=1&limit=3&includeMature=true&mature_enabled=true&age_confirmed=true&category=adult-lifestyle"
 );
 assert.equal(showsResp.status, 200);
 assert.ok(showsResp.json?.shows?.length >= 3);
@@ -27,20 +39,20 @@ assert.ok(showsResp.json?.shows?.length >= 3);
 const samples = showsResp.json.shows.slice(0, 3);
 const report = [];
 
-for (const show of samples) {
+for (const [index, show] of samples.entries()) {
   const id = show.id;
-  const title = show.title;
+  const sampleLabel = `sample-${index + 1}`;
   const claimed = Number(show.episode_count || 0);
 
   const broken = await getJson(
-    `/api/podcasts/episodes?show_id=${encodeURIComponent(id)}&page=1&limit=40`
-  );
-  const fixed = await getJson(
     `/api/podcasts/episodes?show_id=${encodeURIComponent(id)}&page=1&limit=40&includeMature=true`
   );
+  const fixed = await getJson(
+    `/api/podcasts/episodes?show_id=${encodeURIComponent(id)}&page=1&limit=40&includeMature=true&mature_enabled=true&age_confirmed=true`
+  );
 
-  assert.equal(broken.status, 200, `${title}: broken request status`);
-  assert.equal(fixed.status, 200, `${title}: fixed request status`);
+  assert.equal(broken.status, 200, `${sampleLabel}: broken request status`);
+  assert.equal(fixed.status, 200, `${sampleLabel}: fixed request status`);
 
   const brokenCount = Array.isArray(broken.json?.episodes) ? broken.json.episodes.length : -1;
   const fixedCount = Array.isArray(fixed.json?.episodes) ? fixed.json.episodes.length : -1;
@@ -50,17 +62,16 @@ for (const show of samples) {
   assert.equal(
     brokenCount,
     0,
-    `${title}: current client (no includeMature) must reproduce empty episodes`
+    `${sampleLabel}: includeMature without age confirmation must reproduce empty episodes`
   );
-  assert.ok(fixedCount > 0, `${title}: includeMature=true must return episodes`);
-  assert.equal(matchShow, fixedCount, `${title}: all episodes must belong to show`);
+  assert.ok(fixedCount > 0, `${sampleLabel}: gated mature request must return episodes`);
+  assert.equal(matchShow, fixedCount, `${sampleLabel}: all episodes must belong to show`);
 
   report.push({
-    podcastId: id,
-    title,
+    sample: sampleLabel,
     claimedEpisodeCount: claimed,
-    requestBroken: `/api/podcasts/episodes?show_id=${id}&page=1&limit=40`,
-    requestFixed: `/api/podcasts/episodes?show_id=${id}&page=1&limit=40&includeMature=true`,
+    missingAgeConfirmation: true,
+    gatedRequest: true,
     httpBroken: broken.status,
     httpFixed: fixed.status,
     rawBroken: brokenCount,
@@ -71,6 +82,6 @@ for (const show of samples) {
 }
 
 console.log("PASS podcast episode pipeline", {
-  rootCause: "fetchPodcastEpisodesByShow omitted includeMature=true",
+  rootCause: "mature episode metadata requires explicit age confirmation",
   samples: report,
 });
