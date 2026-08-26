@@ -85,11 +85,23 @@ export function statusTone(code: string | null | undefined): SportsStatusTone {
 }
 
 export function formatMatchMinute(card: SportsMatchCard): string | null {
+  const status = normalizeStatusCode(card.status?.code);
+  if (status === "half_time") return "HT";
+  if (status === "penalties") return "PEN";
   const minute = card.timing?.minute;
   if (typeof minute === "number" && Number.isFinite(minute) && minute >= 0) {
+    const extra = card.timing?.extraMinute;
+    if (typeof extra === "number" && Number.isFinite(extra) && extra > 0) {
+      return `${minute}+${extra}'`;
+    }
     return `${minute}'`;
   }
+  if (status === "extra_time") return "ET";
   const period = card.timing?.period;
+  const normalizedPeriod = normalizeStatusCode(period);
+  if (normalizedPeriod === "half_time" || normalizedPeriod === "ht") return "HT";
+  if (normalizedPeriod === "extra_time" || normalizedPeriod === "et") return "ET";
+  if (normalizedPeriod === "penalties" || normalizedPeriod === "pen") return "PEN";
   if (period && String(period).trim()) return String(period).trim();
   return null;
 }

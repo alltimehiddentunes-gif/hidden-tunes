@@ -371,6 +371,58 @@ export async function fetchSportsFixtures(
   }
   return { ...res, items };
 }
+
+/** Small foreground payload used by Sports Home; never resolves playback. */
+export async function fetchSportsLiveState(
+  options: FetchOptions & { limit?: number } = {}
+): Promise<{
+  live: SportsMatchCard[];
+  finished: SportsMatchCard[];
+  fetchedAt: string;
+}> {
+  const limit = Math.min(40, Math.max(1, options.limit || SPORTS_DEFAULT_PAGE_LIMIT));
+  if (isSportsDevFixturesEnabled()) {
+    const sections = devHomeSections(buildDevSportsHome("anonymous"));
+    return {
+      live: normalizeMatchCards(
+        sections.find((section) => section.id === "live_now")?.items as SportsMatchCard[]
+      ),
+      finished: sortFinishedNewestFirst(
+        normalizeMatchCards(
+          sections.find((section) => section.id === "recently_finished")
+            ?.items as SportsMatchCard[]
+        )
+      ),
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+  const country = options.country || "ZZ";
+  const platform = options.platform || "ios";
+  const [liveResponse, finishedResponse] = await Promise.all([
+    sportsFetch<{
+      success?: boolean;
+      enabled?: boolean;
+      items?: SportsMatchCard[];
+    }>(`/api/sports/live?limit=${limit}`, {
+      signal: options.signal,
+      country,
+      platform,
+      userId: options.userId,
+    }),
+    fetchSportsFixtures({
+      ...options,
+      country,
+      platform,
+      finished: true,
+      limit,
+    }),
+  ]);
+  return {
+    live: normalizeMatchCards(liveResponse.items),
+    finished: sortFinishedNewestFirst(normalizeMatchCards(finishedResponse.items)),
+    fetchedAt: new Date().toISOString(),
+  };
+}
 export async function fetchSportsFixtureDetail(
   fixtureId: string,
   options: FetchOptions = {}

@@ -25,10 +25,12 @@ import { buildMatchAccessibilityLabel } from "../lib/sports/ui/buildAccessibilit
 import {
   canShowWatchAction,
   deriveSportsAvailability,
+  formatMatchMinute,
   formatStatusLabel,
   getSportsWatchAction,
   primaryActionLabel,
 } from "../lib/sports/ui/formatStatus";
+import { mergeSportsLiveState } from "../lib/sports/ui/liveRefresh";
 import {
   boundSectionItems,
   ensureLiveNowSection,
@@ -149,6 +151,22 @@ function main() {
   assert.equal(formatStatusLabel("live"), "LIVE");
   assert.equal(formatStatusLabel("starting_soon"), "STARTING SOON");
   assert.equal(formatStatusLabel("finished"), "FINAL");
+  assert.equal(
+    formatMatchMinute({
+      id: "clock-extra",
+      status: { code: "live", label: "Live", live: true, finished: false },
+      timing: { startsAt: null, minute: 90, extraMinute: 4 },
+    }),
+    "90+4'"
+  );
+  assert.equal(
+    formatMatchMinute({
+      id: "clock-half",
+      status: { code: "half_time", label: "Half time", live: true, finished: false },
+      timing: { startsAt: null, minute: 45 },
+    }),
+    "HT"
+  );
   assert.equal(formatScore(DEV_FOOTBALL_LIVE), "2–1");
   // Streams disabled by default — never advertise Watch Live in fixtures pilot
   assert.equal(SPORTS_CLIENT_FLAGS.sports_streams_enabled, false);
@@ -183,6 +201,62 @@ function main() {
   };
   assert.equal(primaryActionLabel(liveNotPlayable), "Live score");
   assert.equal(canShowWatchAction(liveNotPlayable), false);
+
+  // Live refresh updates only changed cards and moves terminal fixtures.
+  const stableLive: SportsMatchCard = {
+    ...liveNotPlayable,
+    id: "stable-live",
+    timing: {
+      startsAt: null,
+      minute: 67,
+      providerUpdatedAt: "2026-08-26T15:00:00.000Z",
+    },
+  };
+  const finishedLive: SportsMatchCard = {
+    ...liveNotPlayable,
+    id: "finished-live",
+    timing: { startsAt: "2026-08-26T14:00:00.000Z", minute: 88 },
+  };
+  const liveSections = [
+    section("live_now", "live", [stableLive, finishedLive], 10),
+    section("upcoming", "fixtures", [{ ...stableLive, id: "new-live" }], 30),
+  ];
+  const stableFreshnessOnly: SportsMatchCard = {
+    ...stableLive,
+    timing: {
+      ...stableLive.timing!,
+      providerUpdatedAt: "2026-08-26T15:00:30.000Z",
+    },
+  };
+  const newLive: SportsMatchCard = {
+    ...liveNotPlayable,
+    id: "new-live",
+    timing: { startsAt: null, minute: 1 },
+  };
+  const nowFinished: SportsMatchCard = {
+    ...finishedLive,
+    status: { code: "finished", label: "Final", live: false, finished: true },
+  };
+  const mergedLive = mergeSportsLiveState(
+    liveSections,
+    [stableFreshnessOnly, newLive],
+    [nowFinished]
+  );
+  const mergedLiveItems = mergedLive.find((item) => item.id === "live_now")!
+    .items as SportsMatchCard[];
+  assert.equal(mergedLiveItems[0], stableLive, "freshness-only update preserves card identity");
+  assert.equal(mergedLiveItems.some((item) => item.id === "new-live"), true);
+  assert.equal(
+    mergedLive.find((item) => item.id === "upcoming")?.items.length,
+    0,
+    "newly live fixture leaves Upcoming"
+  );
+  assert.equal(
+    (mergedLive.find((item) => item.id === "recently_finished")?.items[0] as SportsMatchCard)
+      .id,
+    "finished-live",
+    "terminal fixture moves to Finished"
+  );
 
   // Replay / highlights actions — streams off → Match details, not Watch
   const finishedHighlights = ALL_DEV_FIXTURES.find(

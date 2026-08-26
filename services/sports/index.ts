@@ -7,6 +7,7 @@ export {
 } from "./sportsApiClient";
 export {
   fetchSportsFixtures,
+  fetchSportsLiveState,
   fetchSportsFixtureDetail,
   fetchSportsWatchOptions,
   fetchSportsList,

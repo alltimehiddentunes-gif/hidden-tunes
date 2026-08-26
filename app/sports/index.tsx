@@ -53,6 +53,7 @@ import {
   getSportsFollows,
   getSportsReminders,
   fetchSportsHome,
+  fetchSportsLiveState,
   removeSportsFavorite,
   saveSportsFavorite,
   setSportsReminder,
@@ -85,10 +86,14 @@ import {
 } from "../../lib/sports/ui/availability";
 import { formatCountdown, formatKickoff } from "../../lib/sports/ui/formatKickoff";
 import { formatMatchTitle } from "../../lib/sports/ui/formatScore";
+import { mergeSportsLiveState } from "../../lib/sports/ui/liveRefresh";
 
 import { SPORTS_COLORS, SportsDisabledState, navigateSportsHomeBack, useSportsFullUiGate, useSportsNowClock } from "./_shared";
 
 type DevProfile = "anonymous" | "football" | "basketball";
+
+const LIVE_REFRESH_MS = 30_000;
+const KICKOFF_REFRESH_DELAY_MS = 30_000;
 
 type SportFilterId = "all" | "football" | "basketball" | "cricket" | "more";
 
@@ -227,9 +232,11 @@ function SportsHomeInner() {
   const nowMs = useSportsNowClock(countdownNeeded ? 30_000 : 0);
 
   const abortRef = useRef<AbortController | null>(null);
+  const liveAbortRef = useRef<AbortController | null>(null);
   const watchGuardRef = useRef(createTapGuardState());
   const navGuardRef = useRef(createTapGuardState());
   const refreshInFlightRef = useRef(false);
+  const liveRefreshInFlightRef = useRef(false);
   const focusedRef = useRef(false);
   const lastFetchedAtRef = useRef(0);
   const liveFixtureCountRef = useRef(0);
@@ -314,6 +321,32 @@ function SportsHomeInner() {
     }
   }, [applyHomeSections]);
 
+  const refreshLiveState = useCallback(async () => {
+    if (liveRefreshInFlightRef.current) return;
+    if (!focusedRef.current || AppState.currentState !== "active") return;
+    if (!sportsLiveScoresEnabled) return;
+    liveRefreshInFlightRef.current = true;
+    liveAbortRef.current?.abort();
+    const controller = new AbortController();
+    liveAbortRef.current = controller;
+    try {
+      const liveState = await fetchSportsLiveState({
+        signal: controller.signal,
+        country: "ZZ",
+        platform: Platform.OS,
+        limit: 20,
+      });
+      if (controller.signal.aborted) return;
+      setSections((current) =>
+        mergeSportsLiveState(current, liveState.live, liveState.finished)
+      );
+    } catch {
+      // Keep the last known cards during a transient background refresh failure.
+    } finally {
+      liveRefreshInFlightRef.current = false;
+    }
+  }, []);
+
   // Instant paint from browse cache — never blank while a fresh network load runs.
   useEffect(() => {
     if (!gate.allowed) return;
@@ -341,13 +374,14 @@ function SportsHomeInner() {
     });
     return () => {
       abortRef.current?.abort();
+      liveAbortRef.current?.abort();
     };
   }, [gate.allowed, load, applyHomeSections]);
 
   // Capability-aware live refresh:
-  // - no interval when live scores off or live count is 0
+  // - zero network calls when live scores are off or live count is 0
   // - pause in background
-  // - AppState/focus refresh only after meaningful staleness
+  // - fetch only lifecycle-sensitive fixture shelves at the live cadence
   // - Sports TV is never polled here
   useFocusEffect(
     useCallback(() => {
@@ -359,13 +393,12 @@ function SportsHomeInner() {
         void load({ background: true, skipPrefs: true, forceNetwork: true });
       }
 
-      const LIVE_REFRESH_MS = 45_000;
       const tick = () => {
         if (!focusedRef.current) return;
         if (AppState.currentState !== "active") return;
         if (!sportsLiveScoresEnabled) return;
         if (liveFixtureCountRef.current <= 0) return;
-        void load({ background: true, skipPrefs: true, forceNetwork: true });
+        void refreshLiveState();
       };
       const intervalId = sportsLiveScoresEnabled
         ? setInterval(tick, LIVE_REFRESH_MS)
@@ -384,8 +417,9 @@ function SportsHomeInner() {
         if (intervalId) clearInterval(intervalId);
         sub.remove();
         abortRef.current?.abort();
+        liveAbortRef.current?.abort();
       };
-    }, [gate.allowed, load])
+    }, [gate.allowed, load, refreshLiveState])
   );
 
   const onRefresh = useCallback(() => {
@@ -417,6 +451,26 @@ function SportsHomeInner() {
     return Array.isArray(live?.items) ? live.items.length : 0;
   }, [displaySections]);
   liveFixtureCountRef.current = liveFixtureCount;
+
+  // With zero live fixtures, schedule one bounded check just after the nearest
+  // announced kickoff. This enables Starting Soon -> Live without an idle poll.
+  useEffect(() => {
+    if (!gate.allowed || !sportsLiveScoresEnabled || liveFixtureCount > 0) {
+      return undefined;
+    }
+    const kickoff = Date.parse(String(nextUpcoming?.timing?.startsAt || ""));
+    if (!Number.isFinite(kickoff)) return undefined;
+    const now = Date.now();
+    if (kickoff < now - 2 * 60_000 || kickoff > now + 2 * 60 * 60_000) {
+      return undefined;
+    }
+    const delay = Math.max(1_000, kickoff + KICKOFF_REFRESH_DELAY_MS - now);
+    const timer = setTimeout(() => {
+      if (!focusedRef.current || AppState.currentState !== "active") return;
+      void refreshLiveState();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [gate.allowed, liveFixtureCount, nextUpcoming?.timing?.startsAt, refreshLiveState]);
 
   const goSearch = useCallback(() => router.push("/sports/search" as any), []);
   const goFollowing = useCallback(() => router.push("/sports/following" as any), []);

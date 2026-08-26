@@ -85,7 +85,9 @@ export type SportsMatchCard = {
     startsAt: string | null;
     endsAt?: string | null;
     minute?: number | null;
+    extraMinute?: number | null;
     period?: string | null;
+    providerUpdatedAt?: string | null;
   };
   venue?: {
     name?: string | null;
