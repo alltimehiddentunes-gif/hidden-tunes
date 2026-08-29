@@ -2,10 +2,9 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import {
   classifyStreamUrl,
   derivePlatformPlayability,
-  probeStreamUrl,
+  probeDeepTvStream,
 } from "@/lib/tvStreamProtocol";
 import {
-  TV_PUBLIC_VIDEO_SELECT,
   TV_VIDEO_SOURCE_TYPE,
   TvPublicVideo,
   TvVideoRow,
@@ -13,7 +12,6 @@ import {
   fetchYouTubeOEmbedMetadata,
   toTvPublicStation,
 } from "@/lib/tvCatalog";
-import { isTvMatureColumnEnabled } from "@/lib/tvPlatformPolicy";
 
 export const TV_RELIABILITY_THRESHOLD = 60;
 export const TV_AUTO_DISABLE_THRESHOLD = 30;
@@ -30,6 +28,7 @@ export type TvHealthProbeResult = {
   stream_is_https?: boolean;
   validated_stream_url?: string | null;
   last_validation_result?: string | null;
+  classification?: "playable" | "drm" | "temporary" | "dead" | "unsupported" | "invalid";
 };
 
 export type TvHealthRow = Pick<
@@ -46,6 +45,9 @@ export type TvHealthRow = Pick<
 > & {
   reliability_score?: number | null;
   consecutive_failures?: number | null;
+  validated_stream_url?: string | null;
+  quarantined_at?: string | null;
+  disabled_at?: string | null;
 };
 
 export type TvHealthUpdate = {
@@ -192,13 +194,14 @@ export function applyTvHealthProbe(
   const currentFailures = Math.max(0, Number(row.consecutive_failures ?? 0));
 
   if (probe.playable) {
+    const currentlyActive = row.is_active === true;
     return {
       playback_status: "playable",
       reliability_score: clampScore(currentScore + 6),
       consecutive_failures: 0,
-      is_active: row.status === "approved",
-      quarantined_at: null,
-      disabled_at: null,
+      is_active: currentlyActive,
+      quarantined_at: currentlyActive ? null : row.quarantined_at || null,
+      disabled_at: currentlyActive ? null : row.disabled_at || null,
       last_health_checked_at: nowIso,
       last_health_error: null,
       last_validation_result: probe.last_validation_result || "playable",
@@ -212,15 +215,14 @@ export function applyTvHealthProbe(
 
   const failures = currentFailures + 1;
   const nextScore = clampScore(currentScore - (failures >= 3 ? 20 : 12));
-  const autoDisabled = nextScore < TV_AUTO_DISABLE_THRESHOLD;
 
   return {
-    playback_status: autoDisabled ? "blocked" : probe.playback_status || "failed",
+    playback_status: probe.playback_status || "failed",
     reliability_score: nextScore,
     consecutive_failures: failures,
-    is_active: false,
-    quarantined_at: nowIso,
-    disabled_at: autoDisabled ? nowIso : null,
+    is_active: row.is_active === true,
+    quarantined_at: row.quarantined_at || (row.is_active ? nowIso : null),
+    disabled_at: row.disabled_at || null,
     last_health_checked_at: nowIso,
     last_health_error: probe.reason,
     last_validation_result: probe.last_validation_result || probe.reason,
@@ -285,41 +287,59 @@ export async function probeTvStation(row: TvHealthRow): Promise<TvHealthProbeRes
     };
   }
 
-  const rawUrl = String(row.source_url || row.embed_url || "").trim();
-  const classification = classifyStreamUrl(rawUrl);
-  if (!classification.ok) {
-    return {
-      playable: false,
-      playback_status: "blocked",
-      reason: classification.reason,
-      ios_playable: false,
-      android_playable: false,
-      stream_protocol: classification.protocol,
-      stream_is_https: classification.streamIsHttps,
-      last_validation_result: classification.reason,
-    };
+  const seen = new Set<string>();
+  const candidates = [row.validated_stream_url, row.source_url, row.embed_url]
+    .map((value) => String(value || "").trim())
+    .filter((value) => {
+      const key = value.toLowerCase();
+      if (!value || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  let strongestFailure: Awaited<ReturnType<typeof probeDeepTvStream>> | null = null;
+  const priority = { playable: 6, drm: 5, temporary: 4, dead: 3, unsupported: 2, invalid: 1 };
+  for (const rawUrl of candidates) {
+    const classification = classifyStreamUrl(rawUrl);
+    if (!classification.ok) continue;
+    const probe = await probeDeepTvStream(classification.normalizedUrl);
+    const platform = derivePlatformPlayability({
+      sourceType: String(row.source_type || ""),
+      classification: probe,
+      probePlayable: probe.playable,
+    });
+    if (probe.playable && probe.stableUrl && (platform.iosPlayable || platform.androidPlayable)) {
+      return {
+        playable: true,
+        playback_status: "playable",
+        reason: probe.reason,
+        classification: "playable",
+        ios_playable: platform.iosPlayable,
+        android_playable: platform.androidPlayable,
+        stream_protocol: probe.protocol,
+        stream_is_https: probe.streamIsHttps,
+        validated_stream_url: probe.stableUrl,
+        last_validation_result: platform.lastValidationResult,
+      };
+    }
+    if (!strongestFailure || priority[probe.outcome] > priority[strongestFailure.outcome]) {
+      strongestFailure = probe;
+    }
   }
 
-  const probe = await probeStreamUrl(classification.normalizedUrl);
-  const platform = derivePlatformPlayability({
-    sourceType: String(row.source_type || ""),
-    classification: probe,
-    probePlayable: probe.playable,
-  });
-
+  const failure = strongestFailure;
+  const classification = failure?.outcome || "invalid";
   return {
-    playable: probe.playable && (platform.iosPlayable || platform.androidPlayable),
-    playback_status:
-      probe.playable && (platform.iosPlayable || platform.androidPlayable)
-        ? "playable"
-        : "failed",
-    reason: probe.reason,
-    ios_playable: platform.iosPlayable,
-    android_playable: platform.androidPlayable,
-    stream_protocol: probe.protocol,
-    stream_is_https: probe.streamIsHttps,
-    validated_stream_url: probe.playable ? probe.finalUrl : null,
-    last_validation_result: platform.lastValidationResult,
+    playable: false,
+    playback_status: classification === "drm" || classification === "unsupported" ? "blocked" : "failed",
+    reason: failure?.reason || (candidates.length === 0 ? "missing_url" : "validation_failed"),
+    classification,
+    ios_playable: false,
+    android_playable: false,
+    stream_protocol: failure?.protocol || null,
+    stream_is_https: failure?.streamIsHttps === true,
+    validated_stream_url: null,
+    last_validation_result: failure?.reason || "validation_failed",
   };
 }
 
@@ -327,7 +347,7 @@ export async function runTvStationHealthChecks(limit = TV_HEALTH_BATCH_SIZE) {
   const { data, error } = await supabaseAdmin
     .from("tv_videos")
     .select(
-      "id, source_type, source_id, source_url, embed_url, title, playback_status, status, is_active, reliability_score, consecutive_failures"
+      "id, source_type, source_id, source_url, validated_stream_url, embed_url, title, playback_status, status, is_active, reliability_score, consecutive_failures, quarantined_at, disabled_at"
     )
     .in("status", ["approved", "pending"])
     .order("last_health_checked_at", { ascending: true, nullsFirst: true })

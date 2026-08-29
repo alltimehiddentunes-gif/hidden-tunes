@@ -53,7 +53,7 @@ const failedUpdate = applyTvHealthProbe(
 assert.equal(failedUpdate.playback_status, "failed");
 assert.equal(failedUpdate.reliability_score, 53);
 assert.equal(failedUpdate.consecutive_failures, 2);
-assert.equal(failedUpdate.is_active, false);
+assert.equal(failedUpdate.is_active, true, "health failure does not rewrite station identity");
 assert.equal(failedUpdate.quarantined_at, "2026-07-02T00:00:00.000Z");
 
 const disabledUpdate = applyTvHealthProbe(
@@ -65,9 +65,22 @@ const disabledUpdate = applyTvHealthProbe(
   },
   "2026-07-02T01:00:00.000Z"
 );
-assert.equal(disabledUpdate.playback_status, "blocked");
+assert.equal(disabledUpdate.playback_status, "failed");
 assert.ok(disabledUpdate.reliability_score < TV_AUTO_DISABLE_THRESHOLD);
-assert.equal(disabledUpdate.disabled_at, "2026-07-02T01:00:00.000Z");
+assert.equal(disabledUpdate.disabled_at, null, "health probing never permanently disables identity");
+
+const inactiveSuccess = applyTvHealthProbe(
+  {
+    ...baseRow,
+    is_active: false,
+    quarantined_at: "2026-07-01T00:00:00.000Z",
+    disabled_at: "2026-07-01T00:00:00.000Z",
+  },
+  { playable: true, playback_status: "playable", reason: "media validated" }
+);
+assert.equal(inactiveSuccess.is_active, false, "playable inactive row remains in review");
+assert.equal(inactiveSuccess.quarantined_at, "2026-07-01T00:00:00.000Z");
+assert.equal(inactiveSuccess.disabled_at, "2026-07-01T00:00:00.000Z");
 
 assert.equal(
   isPublicTvRow({
