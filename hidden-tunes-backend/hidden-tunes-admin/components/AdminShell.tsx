@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth";
 import {
   canAccessCreatorLyricsEditors,
+  canReadRights,
   canManageUploaderOwnership,
   canManageUploaders,
 } from "@/lib/adminPermissions";
@@ -96,6 +97,12 @@ const NAV_ITEMS = [
     roles: "ownership",
   },
   {
+    href: "/admin/rights",
+    label: "Rights & Licensing",
+    description: "Catalog policy control center",
+    roles: "rights",
+  },
+  {
     href: "/admin/uploaders",
     label: "Uploaders",
     description: "Owner permissions",
@@ -172,6 +179,7 @@ export default function AdminShell({
     if (item.roles === "creator_lyrics") {
       return canAccessCreatorLyricsEditors(profile?.role);
     }
+    if (item.roles === "rights") return canReadRights(profile?.role);
     return canManageUploaderOwnership(profile?.role);
   });
 

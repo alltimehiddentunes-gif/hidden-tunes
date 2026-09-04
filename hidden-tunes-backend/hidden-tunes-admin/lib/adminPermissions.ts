@@ -83,3 +83,17 @@ export function canAccessCreatorLyricsEditors(role?: string | null) {
 export function isArtistLyricsRole(role?: string | null) {
   return role === "artist" || role === "creator";
 }
+
+/** Rights metadata is visible only to trusted administrative roles. */
+export function canReadRights(role?: string | null) {
+  return role === "owner" || role === "admin" || role === "moderator";
+}
+
+/** High-impact rights execution and rollback remain owner-only. */
+export function canExecuteRights(role?: string | null) {
+  return role === "owner";
+}
+
+export function canReviewRights(role?: string | null) {
+  return canReadRights(role);
+}
