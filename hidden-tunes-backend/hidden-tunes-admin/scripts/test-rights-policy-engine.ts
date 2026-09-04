@@ -20,7 +20,7 @@ const policies: RightsPolicy[] = [
 ];
 
 assert.equal(isRightsEnforcementEnabled({} as NodeJS.ProcessEnv), false);
-assert.equal(isRightsBulkExecutionEnabled({ RIGHTS_BULK_EXECUTION_ENABLED: "1" } as NodeJS.ProcessEnv), false);
+assert.equal(isRightsBulkExecutionEnabled({ RIGHTS_BULK_EXECUTION_ENABLED: "1" } as unknown as NodeJS.ProcessEnv), false);
 assert.equal(canExecuteRights("owner"), true);
 assert.equal(canExecuteRights("admin"), false);
 assert.equal(canReadRights("moderator"), true);
