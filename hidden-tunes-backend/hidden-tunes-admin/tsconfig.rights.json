@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "incremental": false,
+    "noEmit": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "lib/rights/**/*.ts",
+    "lib/adminPermissions.ts",
+    "components/AdminShell.tsx",
+    "app/admin/rights/**/*.tsx",
+    "app/api/admin/rights/**/*.ts",
+    "scripts/run-rights-*.ts",
+    "scripts/test-rights-*.ts"
+  ],
+  "exclude": ["node_modules"]
+}
