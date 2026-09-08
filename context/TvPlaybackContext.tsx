@@ -259,6 +259,18 @@ function authorizedTvPlayback(playback: HiddenTunesTvPlayback, authorization: Ex
   throw new Error("This TV delivery is unavailable in this player.");
 }
 
+/** Stop the denied asset without clearing the current item, queue or presentation. */
+function pauseIosDeniedTvPlayback(nativePlayer: { pause(): void } | null, webView: { injectJavaScript(script: string): void } | null) {
+  try { nativePlayer?.pause(); } catch { /* The native surface may already be released. */ }
+  try {
+    webView?.injectJavaScript(`try { window.togglePlayback && window.togglePlayback(false); } catch(e) {}
+      try { document.querySelectorAll('iframe').forEach(function(frame) {
+        try { frame.contentWindow.postMessage(JSON.stringify({event:'command',func:'stopVideo',args:''}), '*'); } catch(e) {}
+        frame.src = 'about:blank';
+      }); } catch(e) {} true;`);
+  } catch { /* The WebView may already be released. */ }
+}
+
 function dedupeQueue(queue: HiddenTunesTvVideo[]) {
   const seen = new Set<string>();
   const deduped: HiddenTunesTvVideo[] = [];
@@ -794,14 +806,17 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   const authorizeTvResume = useCallback(async () => {
     if (!IOS_OPERATIONAL_PLATFORM) return true;
     const item = currentItemRef.current;
+    const sessionId = sessionIdRef.current;
+    const generation = iosTvAuthorizationGenerationRef.current;
+    const current = () => sessionId === sessionIdRef.current && generation === iosTvAuthorizationGenerationRef.current && currentItemRef.current?.id === item?.id && getActivePlaybackOwner() === "tv";
+    if (!item || !current()) return false;
     try {
       const ref = item ? { type: "tv", id: String(item.id) } : null;
       await assertIosOperationalContentAllowed(ref, await iosOperationalMatureAccess(ref));
-      return currentItemRef.current?.id === item?.id;
+      return current();
     } catch {
-      if (currentItemRef.current?.id === item?.id) {
-        nativePlayerRef.current?.pause();
-        webViewRef.current?.injectJavaScript("window.togglePlayback && window.togglePlayback(false); true;");
+      if (current()) {
+        pauseIosDeniedTvPlayback(nativePlayerRef.current, webViewRef.current);
         setIsTvPlaying(false);
         setIsTvLoading(false);
         setHasError(true);
@@ -850,12 +865,40 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     );
   }, [authorizeTvResume]);
 
-  const handleRetry = useCallback(() => {
+  const handleRetry = useCallback(async () => {
+    if (IOS_OPERATIONAL_PLATFORM) {
+      const item = currentItemRef.current;
+      const playback = currentPlayback;
+      const generation = ++iosTvAuthorizationGenerationRef.current;
+      const sessionId = sessionIdRef.current;
+      const current = () => generation === iosTvAuthorizationGenerationRef.current && sessionId === sessionIdRef.current && currentItemRef.current?.id === item?.id && getActivePlaybackOwner() === "tv";
+      if (!item || !playback || !current()) return;
+      try {
+        const ref = { type: "tv", id: String(item.id) };
+        const authorization = await resolveIosOperationalPlayback(ref, await iosOperationalMatureAccess(ref));
+        if (!current()) return;
+        if (authorization.enforced) {
+          const authorized = authorizedTvPlayback(playback, authorization);
+          const nextSurface = resolveTvPlaybackSurface(authorized);
+          setCurrentPlayback(authorized);
+          setSurface(nextSurface);
+          surfaceRef.current = nextSurface;
+        }
+      } catch {
+        if (current()) {
+          pauseIosDeniedTvPlayback(nativePlayerRef.current, webViewRef.current);
+          setIsTvPlaying(false);
+          setIsTvLoading(false);
+          setHasError(true);
+        }
+        return;
+      }
+    }
     setHasError(false);
     setIsTvLoading(true);
     setIsTvPlaying(false);
     setPlayerGeneration((value) => value + 1);
-  }, []);
+  }, [currentPlayback]);
 
   const handleSelectSeedChannel = useCallback(
     (channel: TVChannel) => {
