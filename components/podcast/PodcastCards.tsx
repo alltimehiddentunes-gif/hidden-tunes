@@ -1,3 +1,4 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
 import React, { memo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -57,7 +58,8 @@ export const PodcastShowCard = memo(function PodcastShowCard({
   show,
   onPress,
 }: PodcastShowCardProps) {
-  return (
+  const iosVisible = useIosOperationalItemVisibility({ type: "podcast_show", id: String(show.id) });
+  return iosVisible ? ((
     <TouchableOpacity activeOpacity={0.88} style={styles.showRow} onPress={onPress}>
       {show.artworkUrl ? (
         <HTImage
@@ -83,7 +85,7 @@ export const PodcastShowCard = memo(function PodcastShowCard({
       </View>
       <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
     </TouchableOpacity>
-  );
+  )) : null;
 });
 
 type PodcastEpisodeCardProps = {
@@ -108,6 +110,7 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
   index = 0,
   browseOnly = false,
 }: PodcastEpisodeCardProps) {
+  const iosVisible = useIosOperationalItemVisibility({ type: "podcast_episode", id: String(episode.id) });
   if (!episode?.id?.trim() || !episode?.title?.trim()) {
     return null;
   }
@@ -122,7 +125,7 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
       : undefined;
   const dateLabel = formatEpisodeDate(episode.publishedAt);
 
-  return (
+  return iosVisible ? ((
     <TouchableOpacity
       activeOpacity={0.88}
       style={[styles.episodeCard, isDisabled && styles.episodeDisabled]}
@@ -187,7 +190,7 @@ export const PodcastEpisodeCard = memo(function PodcastEpisodeCard({
         </View>
       </View>
     </TouchableOpacity>
-  );
+  )) : null;
 });
 
 const styles = StyleSheet.create({

@@ -1,3 +1,5 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
+import { iosOperationalSongRef } from "../../services/iosOperationalPolicy";
 import { memo, useCallback } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -37,11 +39,12 @@ function ArtistTrackRow({
   metaLine,
   onPress,
 }: ArtistTrackRowProps) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(track));
   const handlePress = useCallback(() => {
     onPress(track);
   }, [onPress, track]);
 
-  return (
+  return iosVisible ? ((
     <Pressable
       onPress={handlePress}
       style={({ pressed }) => [
@@ -79,7 +82,7 @@ function ArtistTrackRow({
         color={COLORS.primary}
       />
     </Pressable>
-  );
+  )) : null;
 }
 
 export default memo(ArtistTrackRow, (previous, next) => {

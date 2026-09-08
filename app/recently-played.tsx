@@ -1,3 +1,4 @@
+import IosOperationalItemGate from "../components/IosOperationalItemGate";
 import React, { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { FlatList,
   StyleSheet,
@@ -97,7 +98,7 @@ const RecentRow = memo(function RecentRow({
     onPress(item);
   }, [item, onPress]);
 
-  return (
+  return (<IosOperationalItemGate item={item}>{(
     <TouchableOpacity
       activeOpacity={0.88}
       style={[styles.trackCard, active && styles.trackCardActive]}
@@ -132,7 +133,7 @@ const RecentRow = memo(function RecentRow({
         )}
       </View>
     </TouchableOpacity>
-  );
+  )}</IosOperationalItemGate>);
 });
 
 function RecentlyPlayedScreen() {

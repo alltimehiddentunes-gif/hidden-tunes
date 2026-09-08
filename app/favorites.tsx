@@ -1,3 +1,4 @@
+import IosOperationalItemGate from "../components/IosOperationalItemGate";
 import { useCallback, useEffect, useMemo } from "react";
 import { Alert,
   SectionList,
@@ -108,7 +109,7 @@ export default function FavoritesScreen() {
       const isSong = item.type === "song";
       const active = isSong && String(currentSong?.id || "") === String(item.id || "");
 
-      return (
+      return (<IosOperationalItemGate item={item}>{(
         <TouchableOpacity
           style={[styles.row, active && styles.rowActive]}
           activeOpacity={0.85}
@@ -144,7 +145,7 @@ export default function FavoritesScreen() {
             <FavoriteButton item={item} size={22} />
           )}
         </TouchableOpacity>
-      );
+      )}</IosOperationalItemGate>);
     },
     [currentSong?.id, isPlaying, openFavorite]
   );

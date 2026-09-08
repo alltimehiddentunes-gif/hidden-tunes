@@ -1,3 +1,5 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
+import { iosOperationalSongRef } from "../../services/iosOperationalPolicy";
 import { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -15,9 +17,10 @@ const WorldTrackRow = memo(function WorldTrackRow({
   track,
   index,
 }: WorldTrackRowProps) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(track));
   const artwork = getArtworkUri(track, FALLBACK_ARTWORK);
 
-  return (
+  return iosVisible ? ((
     <View style={styles.shell}>
       <Text style={styles.rank}>{String(index + 1).padStart(2, "0")}</Text>
       <View style={styles.cardWrap}>
@@ -31,7 +34,7 @@ const WorldTrackRow = memo(function WorldTrackRow({
         />
       </View>
     </View>
-  );
+  )) : null;
 });
 
 export default WorldTrackRow;

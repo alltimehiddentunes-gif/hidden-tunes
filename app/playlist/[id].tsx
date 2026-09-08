@@ -1,3 +1,4 @@
+import IosOperationalItemGate from "../../components/IosOperationalItemGate";
 import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
@@ -541,7 +542,7 @@ export default function PlaylistDetailScreen() {
           const trackId = getTrackId(item);
           const active = currentSong?.id === trackId;
 
-          return (
+          return (<IosOperationalItemGate item={item}>{(
             <View style={[styles.trackShell, active && styles.trackShellActive]}>
               <MediaCard
                 title={item.title || "Unknown Song"}
@@ -585,7 +586,7 @@ export default function PlaylistDetailScreen() {
                 )}
               </View>
             </View>
-          );
+          )}</IosOperationalItemGate>);
         }}
       />
 

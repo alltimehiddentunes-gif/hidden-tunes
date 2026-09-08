@@ -86,6 +86,8 @@ import { HomeDiscoveryShortcut } from "@/components/home/HomeDiscoveryShortcut";
 import GenreSpotlightCard from "@/components/home/GenreSpotlightCard";
 import { getUserFacingArtist } from "@/services/ui/displayMetadata";
 import { HOME_DISCOVERY_SHORTCUTS } from "@/constants/discoveryShortcuts";
+import { useIosOperationalPolicy } from "@/hooks/useIosOperationalPolicy";
+import { IOS_OPERATIONAL_PLATFORM, filterIosOperationalItems, iosOperationalSongRef } from "@/services/iosOperationalPolicy";
 import { useLocalization } from "@/localization";
 import type { TranslationKey } from "@/localization";
 import {
@@ -796,6 +798,7 @@ function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
 type HomeCatalogStatus = "loading" | "cached" | "fresh" | "empty" | "error";
 
 export default function MusicFeedScreen() {
+  const iosPolicy = useIosOperationalPolicy();
   const { playSong } = usePlayerActions();
   const playerFeed = usePlayerFeedSnapshot();
   const { t } = useLocalization();
@@ -920,11 +923,21 @@ export default function MusicFeedScreen() {
   const heroCardHeight = Math.min(430, Math.max(340, Math.round(heroCardWidth * 0.92)));
   const searchPanelPadding = viewportWidth < 380 ? 10 : 12;
 
-  const songs = catalog?.songs || [];
-  const artists = catalog?.artists || [];
-  const albums = catalog?.albums || [];
-  const genres = catalog?.genres || [];
-  const playlists = catalog?.playlists || [];
+  const eligibleCatalog = useMemo(() => {
+    if (!catalog || iosPolicy.status === "legacy") return catalog;
+    const eligible = (song: HiddenTunesSong) => iosPolicy.itemVisible(iosOperationalSongRef(song));
+    const groups = <T extends { songs: HiddenTunesSong[] }>(items: T[]) => items.map((item) => ({ ...item, songs: item.songs.filter(eligible) })).filter((item) => item.songs.length > 0);
+    return { ...catalog, songs: catalog.songs.filter(eligible), artists: groups(catalog.artists), albums: groups(catalog.albums), genres: groups(catalog.genres), playlists: groups(catalog.playlists) };
+  }, [catalog, iosPolicy.generation, iosPolicy.status]);
+  useEffect(() => {
+    if (!IOS_OPERATIONAL_PLATFORM || !catalog || iosPolicy.status !== "active") return;
+    void filterIosOperationalItems(catalog.songs, iosOperationalSongRef);
+  }, [catalog, iosPolicy.revision, iosPolicy.status]);
+  const songs = eligibleCatalog?.songs || [];
+  const artists = eligibleCatalog?.artists || [];
+  const albums = eligibleCatalog?.albums || [];
+  const genres = eligibleCatalog?.genres || [];
+  const playlists = eligibleCatalog?.playlists || [];
   // Never block the Home shell behind a full-screen loader. Header, search,
   // tabs, and cached/skeleton content must paint immediately.
   const showInlineCatalogLoading = loading && songs.length === 0;
@@ -1337,7 +1350,7 @@ export default function MusicFeedScreen() {
 
   const listeningBrief = useMemo(() => {
     const current = playerFeed.currentSongMeta;
-    if (current?.title) {
+    if (current?.title && iosPolicy.itemVisible(iosOperationalSongRef(current))) {
       return {
         label: homeUi.listening.nowPlaying,
         title: current.title,
@@ -1352,18 +1365,18 @@ export default function MusicFeedScreen() {
       subtitle: homeUi.listening.tapToStart,
       icon: "musical-notes-outline" as const,
     };
-  }, [homeUi.listening, playerFeed.currentSongMeta]);
+  }, [homeUi.listening, playerFeed.currentSongMeta, iosPolicy.generation]);
 
   const heroCards = useMemo(
     () =>
       buildHeroCards(
         songs,
         homeFeaturedSongs,
-        playerFeed.currentSongMeta,
-        playerFeed.recentHead,
+        playerFeed.currentSongMeta && iosPolicy.itemVisible(iosOperationalSongRef(playerFeed.currentSongMeta)) ? playerFeed.currentSongMeta : null,
+        playerFeed.recentHead.filter((song) => iosPolicy.itemVisible(iosOperationalSongRef(song))),
         homeUi.heroLabels
       ),
-    [homeFeaturedSongs, homeUi.heroLabels, playerFeed.currentSongMeta, playerFeed.recentHead, songs]
+    [homeFeaturedSongs, homeUi.heroLabels, playerFeed.currentSongMeta, playerFeed.recentHead, songs, iosPolicy.generation]
   );
 
   const playCatalogSong = useCallback(
@@ -1787,7 +1800,7 @@ export default function MusicFeedScreen() {
                     </TouchableOpacity>
 
                     <View style={styles.homeShortcutGrid}>
-                      {HOME_DISCOVERY_SHORTCUTS.map((shortcut) => (
+                      {HOME_DISCOVERY_SHORTCUTS.filter((shortcut) => iosPolicy.routeEnabled(shortcut.route)).map((shortcut) => (
                         <HomeDiscoveryShortcut
                           key={shortcut.key}
                           icon={shortcut.icon}
@@ -1806,7 +1819,7 @@ export default function MusicFeedScreen() {
                     </View>
                 </>
 
-                {showDeferredHomeSections ? (
+                {showDeferredHomeSections && iosPolicy.sectionEnabled("music") ? (
                 <>
                     <EmotionalDiscoveryChips
                       style={styles.emotionalWorldsSection}

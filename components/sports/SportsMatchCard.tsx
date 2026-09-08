@@ -1,3 +1,4 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
 import { memo, useCallback } from "react";
 import {
   Pressable,
@@ -144,6 +145,7 @@ function SportsMatchCard({
   onSave,
   style,
 }: SportsMatchCardProps) {
+  const iosVisible = useIosOperationalItemVisibility({ type: "sports_fixture", id: String(card.id) });
   const clockMs = typeof nowMs === "number" ? nowMs : 0;
   const home = participantBySide(card.participants, "home");
   const away = participantBySide(card.participants, "away");
@@ -440,7 +442,7 @@ function SportsMatchCard({
   }
 
   // default: shelf (upcoming / live / starting soon)
-  return (
+  return iosVisible ? ((
     <Pressable
       onPress={handlePress}
       style={[styles.card, styles.cardShelf, isLive && styles.cardLive, style]}
@@ -491,7 +493,7 @@ function SportsMatchCard({
       </Text>
       {actionButton ? <View style={styles.shelfActionRow}>{actionButton}</View> : null}
     </Pressable>
-  );
+  )) : null;
 }
 
 function areEqual(prev: SportsMatchCardProps, next: SportsMatchCardProps) {

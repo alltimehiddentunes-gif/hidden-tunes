@@ -1,3 +1,5 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
+import { iosOperationalSongRef } from "../../services/iosOperationalPolicy";
 import { memo, useCallback } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -19,11 +21,12 @@ type GenreTrackRowProps = {
 };
 
 function GenreTrackRow({ item, onPress }: GenreTrackRowProps) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(item));
   const handlePress = useCallback(() => {
     onPress(item);
   }, [item, onPress]);
 
-  return (
+  return iosVisible ? ((
     <Pressable
       onPress={handlePress}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -43,7 +46,7 @@ function GenreTrackRow({ item, onPress }: GenreTrackRowProps) {
         <Ionicons name="play" size={16} color="#000" />
       </View>
     </Pressable>
-  );
+  )) : null;
 }
 
 export default memo(GenreTrackRow, (previous, next) => {

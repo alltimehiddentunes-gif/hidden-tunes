@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
 import AppScreenErrorBoundary from "../components/AppScreenErrorBoundary";
+import IosOperationalRouteBoundary from "../components/IosOperationalRouteBoundary";
 import { isHiddenAudioPocRoute } from "../constants/playbackConfig";
 import { PlayerProvider } from "../context/PlayerContext";
 import { TvPlaybackProvider } from "../context/TvPlaybackContext";
@@ -64,7 +65,9 @@ function RootLayout() {
 
   const stack = (
     <AppScreenErrorBoundary>
-      <RootStack memoizedScreenOptions={memoizedScreenOptions} />
+      <IosOperationalRouteBoundary>
+        <RootStack memoizedScreenOptions={memoizedScreenOptions} />
+      </IosOperationalRouteBoundary>
     </AppScreenErrorBoundary>
   );
 

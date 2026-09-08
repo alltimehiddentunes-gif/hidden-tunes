@@ -1,3 +1,4 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
 import React, { memo } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
@@ -135,10 +136,11 @@ export const RadioStationCard = memo(function RadioStationCard({
   variant = "list",
   pending = false,
 }: RadioStationCardProps) {
+  const iosVisible = useIosOperationalItemVisibility({ type: item.iosPolicyType || "radio_legacy_station", id: String(item.id) });
   const isPremium = variant === "premium";
   const artSize = isPremium ? 64 : 44;
 
-  return (
+  return iosVisible ? ((
     <TouchableOpacity
       activeOpacity={0.88}
       style={[
@@ -172,17 +174,18 @@ export const RadioStationCard = memo(function RadioStationCard({
         <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
       )}
     </TouchableOpacity>
-  );
+  )) : null;
 });
 
 export const RadioStationRailCard = memo(function RadioStationRailCard({
   item,
   onPress,
 }: RadioStationCardProps) {
+  const iosVisible = useIosOperationalItemVisibility({ type: item.iosPolicyType || "radio_legacy_station", id: String(item.id) });
   const { includeMatureInApi } = useMatureContentSettings();
   const showMatureArt = !isMatureContentItem(item) || includeMatureInApi;
 
-  return (
+  return iosVisible ? ((
     <TouchableOpacity activeOpacity={0.88} style={styles.railCard} onPress={onPress}>
       <LinearGradient colors={["rgba(255,255,255,0.08)", "rgba(255,255,255,0.03)"]} style={styles.railGradient}>
         {item.artworkUrl && showMatureArt ? (
@@ -212,7 +215,7 @@ export const RadioStationRailCard = memo(function RadioStationRailCard({
         ) : null}
       </LinearGradient>
     </TouchableOpacity>
-  );
+  )) : null;
 });
 
 const styles = StyleSheet.create({

@@ -1,3 +1,5 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
+import { iosOperationalSongRef } from "../../services/iosOperationalPolicy";
 import { memo, useCallback } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
@@ -36,11 +38,12 @@ function CatalogSongRow({
   isPlaying,
   onPress,
 }: CatalogSongRowProps) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(song));
   const handlePress = useCallback(() => {
     onPress(song);
   }, [onPress, song]);
 
-  return (
+  return iosVisible ? ((
     <View style={[styles.shell, active && styles.shellActive]}>
       <MediaCard
         title={song.title}
@@ -72,7 +75,7 @@ function CatalogSongRow({
         )}
       </View>
     </View>
-  );
+  )) : null;
 }
 
 export default memo(CatalogSongRow, (previous, next) => {

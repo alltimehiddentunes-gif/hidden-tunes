@@ -1,3 +1,5 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
+import { iosOperationalSongRef } from "../../services/iosOperationalPolicy";
 import React, { memo } from "react";
 import { Text, TouchableOpacity, View, type ViewStyle } from "react-native";
 
@@ -38,9 +40,10 @@ export const SearchApkSongRow = memo(function SearchApkSongRow({
   onPress,
   styles,
 }: SearchApkSongRowProps) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(song));
   const { isActive, isPlaying } = useTrackPlaybackStatus(String(song.id || ""));
 
-  return (
+  return iosVisible ? ((
     <TouchableOpacity
       activeOpacity={0.86}
       style={[styles.songRow, isActive && styles.songRowActive]}
@@ -71,5 +74,5 @@ export const SearchApkSongRow = memo(function SearchApkSongRow({
         )}
       </View>
     </TouchableOpacity>
-  );
+  )) : null;
 });

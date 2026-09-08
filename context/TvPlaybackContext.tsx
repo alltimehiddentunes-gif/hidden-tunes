@@ -13,6 +13,7 @@ import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import TvPlayerHost from "../components/tv/TvPlayerHost";
 import type { TvNativeVideoHandle } from "../components/tv/TvNativeVideoSurface";
 import { getTvChannelById } from "../data/tvChannelSeedCatalog";
+import { IOS_OPERATIONAL_PLATFORM, resolveIosOperationalPlayback, assertIosOperationalContentAllowed, iosOperationalMatureAccess, monitorIosOperationalPlayback, type IosOperationalPlayback } from "../services/iosOperationalPolicy";
 import {
   fetchTvPlayback,
   type HiddenTunesTvPlayback,
@@ -229,6 +230,9 @@ function buildYouTubePlayerHtml(sourceId: string) {
 }
 
 function playbackToHtml(playback: HiddenTunesTvPlayback) {
+  if (IOS_OPERATIONAL_PLATFORM && playback.embed_url && playback.source_type === "youtube_video") {
+    return buildYouTubePlayerHtml(playback.source_id);
+  }
   if (isHlsLikeSource(playback.source_type)) {
     return buildHlsPlayerHtml(playback.stream_url);
   }
@@ -239,6 +243,20 @@ function playbackToHtml(playback: HiddenTunesTvPlayback) {
   return videoId
     ? buildYouTubePlayerHtml(videoId)
     : buildHlsPlayerHtml(playback.stream_url);
+}
+
+/** Bind the existing TV surface to the authorized asset; never guess an iframe is a stream. */
+function authorizedTvPlayback(playback: HiddenTunesTvPlayback, authorization: Extract<IosOperationalPlayback, { enforced: true }>): HiddenTunesTvPlayback {
+  if (authorization.delivery === "direct" || authorization.delivery === "controlled_media") {
+    return { ...playback, source_type: "official_stream", source_id: playback.id, stream_url: authorization.playbackUrl, embed_url: null };
+  }
+  if (authorization.delivery === "embed") {
+    const url = new URL(authorization.playbackUrl);
+    const id = /^(?:www\.)?youtube(?:-nocookie)?\.com$/i.test(url.hostname) ? url.pathname.match(/^\/embed\/([a-zA-Z0-9_-]{11})\/?$/)?.[1] : null;
+    if (id) return { ...playback, source_type: "youtube_video", source_id: id, stream_url: "", embed_url: authorization.playbackUrl };
+  }
+  // Other embeds use the separately guarded existing youtube-player route.
+  throw new Error("This TV delivery is unavailable in this player.");
 }
 
 function dedupeQueue(queue: HiddenTunesTvVideo[]) {
@@ -312,6 +330,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
   const activeItemIdRef = useRef<string | null>(null);
   const sessionActiveRef = useRef(false);
+  const iosTvAuthorizationGenerationRef = useRef(0);
 
   useEffect(() => {
     presentationModeRef.current = presentationMode;
@@ -361,6 +380,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const stopTv = useCallback(() => {
+    iosTvAuthorizationGenerationRef.current += 1;
     sessionIdRef.current += 1;
     invalidateTvMediaTransitions();
     releaseTvPlayerRuntime({ webViewRef, clearSession: true });
@@ -438,6 +458,15 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     async (
       input: StartResolvedTvSessionInput
     ): Promise<TvSessionStartResult> => {
+      if (IOS_OPERATIONAL_PLATFORM) {
+        const authorizationGeneration = ++iosTvAuthorizationGenerationRef.current;
+        try {
+          const ref = { type: "tv", id: String(input.item.id) };
+          const authorization = await resolveIosOperationalPlayback(ref, await iosOperationalMatureAccess(ref));
+          if (authorizationGeneration !== iosTvAuthorizationGenerationRef.current) return { ok: false, error: "TV request was replaced." };
+          if (authorization.enforced) input = { ...input, playback: authorizedTvPlayback(input.playback, authorization) };
+        } catch { return { ok: false, error: "This TV channel is unavailable on iOS." }; }
+      }
       const { transitionId } = beginTvMediaTransition();
       const sessionId = ++sessionIdRef.current;
       const presentation =
@@ -489,7 +518,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       });
       noteTvMediaOwnerIfChanged("tv_claim");
 
-      if (!input.playback?.stream_url) {
+      if (!input.playback?.stream_url && !(IOS_OPERATIONAL_PLATFORM && input.playback?.embed_url)) {
         return {
           ok: false,
           error: "This TV channel is not playable right now.",
@@ -532,6 +561,15 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     async (
       input: StartCatalogTvSessionInput
     ): Promise<TvSessionStartResult> => {
+      if (IOS_OPERATIONAL_PLATFORM) {
+        const authorizationGeneration = ++iosTvAuthorizationGenerationRef.current;
+        try {
+          const ref = { type: "tv", id: String(input.video.id) };
+          const authorization = await resolveIosOperationalPlayback(ref, await iosOperationalMatureAccess(ref));
+          if (authorizationGeneration !== iosTvAuthorizationGenerationRef.current) return { ok: false, error: "TV request was replaced." };
+          if (authorization.enforced) input = { ...input, playback: authorizedTvPlayback({ id: input.video.id, source_type: String(input.video.source_type || "direct"), source_id: String(input.video.source_id || input.video.id), stream_url: "", embed_url: null, ...input.playback }, authorization) };
+        } catch { return { ok: false, error: "This TV channel is unavailable on iOS." }; }
+      }
       const { transitionId } = beginTvMediaTransition();
       const sessionId = ++sessionIdRef.current;
       const presentation =
@@ -583,7 +621,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
       noteTvMediaOwnerIfChanged("tv_claim_catalog");
 
       let playback = input.playback ?? null;
-      if (!playback?.stream_url) {
+      if (!playback?.stream_url && !(IOS_OPERATIONAL_PLATFORM && playback?.embed_url)) {
         try {
           playback = await fetchTvPlayback(input.video);
         } catch {
@@ -606,7 +644,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: "TV request was replaced." };
       }
 
-      if (!playback?.stream_url) {
+      if (!playback?.stream_url && !(IOS_OPERATIONAL_PLATFORM && playback?.embed_url)) {
         if (input.video.source_id && !isHlsLikeSource(input.video.source_type || "")) {
           playback = {
             id: input.video.id,
@@ -753,8 +791,32 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     openTvPlayerFullScreen("floating-player-tap");
   }, [presentationMode]);
 
-  const handleTogglePlayback = useCallback(() => {
+  const authorizeTvResume = useCallback(async () => {
+    if (!IOS_OPERATIONAL_PLATFORM) return true;
+    const item = currentItemRef.current;
+    try {
+      const ref = item ? { type: "tv", id: String(item.id) } : null;
+      await assertIosOperationalContentAllowed(ref, await iosOperationalMatureAccess(ref));
+      return currentItemRef.current?.id === item?.id;
+    } catch {
+      if (currentItemRef.current?.id === item?.id) {
+        nativePlayerRef.current?.pause();
+        webViewRef.current?.injectJavaScript("window.togglePlayback && window.togglePlayback(false); true;");
+        setIsTvPlaying(false);
+        setIsTvLoading(false);
+        setHasError(true);
+      }
+      return false;
+    }
+  }, []);
+
+  useEffect(() => monitorIosOperationalPlayback(async () => {
+    if (currentItemRef.current && isPlayingRef.current) await authorizeTvResume();
+  }), [authorizeTvResume]);
+
+  const handleTogglePlayback = useCallback(async () => {
     const nextPlaying = !isPlayingRef.current;
+    if (nextPlaying && IOS_OPERATIONAL_PLATFORM && !(await authorizeTvResume())) return;
     setIsTvPlaying(nextPlaying);
     if (surfaceRef.current === "native") {
       if (nextPlaying) nativePlayerRef.current?.play();
@@ -766,10 +828,11 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         nextPlaying ? "true" : "false"
       }); true;`
     );
-  }, []);
+  }, [authorizeTvResume]);
 
-  const setTvPlayingState = useCallback((playing: boolean) => {
+  const setTvPlayingState = useCallback(async (playing: boolean) => {
     if (playing === isPlayingRef.current) return;
+    if (playing && IOS_OPERATIONAL_PLATFORM && !(await authorizeTvResume())) return;
     setIsTvPlaying(playing);
     logTvMediaSessionDiag("tv_playback_state_update", {
       isPlaying: playing,
@@ -785,7 +848,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
         playing ? "true" : "false"
       }); true;`
     );
-  }, []);
+  }, [authorizeTvResume]);
 
   const handleRetry = useCallback(() => {
     setHasError(false);

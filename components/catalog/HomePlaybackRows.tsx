@@ -1,3 +1,5 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
+import { iosOperationalSongRef } from "../../services/iosOperationalPolicy";
 import { memo, useCallback, useEffect } from "react";
 import {
   Dimensions,
@@ -46,9 +48,10 @@ export const HomeCatalogSongRow = memo(function HomeCatalogSongRow({
   image,
   onPress,
 }: HomeCatalogSongRowProps) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(song));
   const { isActive, isPlaying } = useTrackPlaybackStatus(String(song.id));
 
-  return (
+  return iosVisible ? ((
     <View style={[styles.mediaShell, isActive && styles.mediaShellActive]}>
       <CatalogSongRow
         song={song}
@@ -58,7 +61,7 @@ export const HomeCatalogSongRow = memo(function HomeCatalogSongRow({
         onPress={onPress}
       />
     </View>
-  );
+  )) : null;
 });
 
 const FeaturedCardGlow = memo(function FeaturedCardGlow({
@@ -148,13 +151,14 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
   onPress,
   fillWidth = false,
 }: HomeFeaturedCardProps) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(item));
   const { isActive, isPlaying } = useTrackPlaybackStatus(String(item.id));
 
   const handlePress = useCallback(() => {
     onPress(item);
   }, [item, onPress]);
 
-  return (
+  return iosVisible ? ((
     <TouchableOpacity
       activeOpacity={0.9}
       style={[
@@ -203,7 +207,7 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
 
       </View>
     </TouchableOpacity>
-  );
+  )) : null;
 });
 
 const { width } = Dimensions.get("window");

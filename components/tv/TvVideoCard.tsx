@@ -1,3 +1,4 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
 import { memo, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -40,6 +41,7 @@ function TvVideoCard({
   connecting = false,
   onPress,
 }: TvVideoCardProps) {
+  const iosVisible = useIosOperationalItemVisibility({ type: "tv", id: String(video.id) });
   const item = useMemo(() => normalizeVideoItem(video), [video]);
   const artworkUrl = useMemo(() => resolveTvArtworkUrl(video), [video]);
   const [failedArtworkSource, setFailedArtworkSource] = useState<string | null>(null);
@@ -65,7 +67,7 @@ function TvVideoCard({
     [artworkUrl]
   );
 
-  return (
+  return iosVisible ? ((
     <TouchableOpacity
       activeOpacity={0.88}
       disabled={connecting}
@@ -129,7 +131,7 @@ function TvVideoCard({
         </Text>
       ) : null}
     </TouchableOpacity>
-  );
+  )) : null;
 }
 
 function areEqual(prev: TvVideoCardProps, next: TvVideoCardProps) {

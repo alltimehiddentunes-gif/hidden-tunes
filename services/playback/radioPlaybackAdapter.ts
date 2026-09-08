@@ -8,6 +8,7 @@ export function radioStationToAppSong(station: RadioStation): AppSong {
 
   return {
     id: `radio-${station.id}`,
+    iosPolicyType: station.iosPolicyType || "radio_legacy_station",
     title: station.title,
     artist: subtitle || "Hidden Tunes Radio",
     streamUrl: station.streamUrl,

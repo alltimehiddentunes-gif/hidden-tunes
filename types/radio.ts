@@ -19,6 +19,7 @@ export type RadioBrowserStationRaw = {
 /** Full station record — stream may be empty until tap-time /play. */
 export type HiddenTunesStation = {
   id: string;
+  iosPolicyType?: "radio" | "radio_browser_station" | "radio_legacy_station";
   name: string;
   /** Direct HTTPS when known; empty until /play on tap. */
   streamUrl: string;
@@ -41,6 +42,7 @@ export type HiddenTunesStation = {
 /** Lightweight row model for FlatList — no stream URL in render props. */
 export type RadioStationListItem = {
   id: string;
+  iosPolicyType?: HiddenTunesStation["iosPolicyType"];
   title: string;
   country?: string;
   language?: string;
@@ -58,6 +60,7 @@ export type RadioStationListItem = {
 
 export type RadioStation = {
   id: string;
+  iosPolicyType?: HiddenTunesStation["iosPolicyType"];
   title: string;
   streamUrl: string;
   artworkUrl?: string;

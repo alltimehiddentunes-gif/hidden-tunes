@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { IOS_OPERATIONAL_PLATFORM, assertIosOperationalContentAllowed, monitorIosOperationalPlayback } from "../../../services/iosOperationalPolicy";
 
 import { SportsEmptyState, SportsPlayerShell } from "../../../components/sports";
 import {
@@ -75,6 +76,18 @@ export default function SportsPlayerScreen() {
     releasePlaybackOwner("sports", claimGenerationRef.current ?? undefined);
     claimGenerationRef.current = null;
   }, []);
+
+  useEffect(() => monitorIosOperationalPlayback(async () => {
+    const id = activeFixtureRef.current;
+    if (!id || !sessionActiveRef.current) return;
+    try { await assertIosOperationalContentAllowed({ type: "sports_fixture", id }); }
+    catch {
+      if (activeFixtureRef.current === id) {
+        stopSportsOwner();
+        setError("This Sports content is unavailable on iOS.");
+      }
+    }
+  }), [stopSportsOwner]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -182,6 +195,10 @@ export default function SportsPlayerScreen() {
           });
         }
 
+        if (IOS_OPERATIONAL_PLATFORM) {
+          await assertIosOperationalContentAllowed({ type: "sports_fixture", id });
+          if (!canCommit() || !claim.isCurrent()) return;
+        }
         if (detail.fixture) setFixture(detail.fixture);
         setSession(playSession);
         sessionActiveRef.current = playSession.status === "ready";

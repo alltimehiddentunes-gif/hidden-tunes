@@ -34,6 +34,7 @@ import AppShell from "../components/navigation/AppShell";
 import { useAppActiveState } from "../utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
 import { HOME_MORE_HUB_SHORTCUTS } from "../constants/homeMoreHub";
+import { useIosOperationalPolicy } from "../hooks/useIosOperationalPolicy";
 import {
   sportsEnabled,
   sportsFullUiEnabled,
@@ -230,6 +231,7 @@ function MoreHero({
 /** Dedicated More / Discovery hub — separate from Library collection. */
 export default function MoreScreen() {
   const { t } = useLocalization();
+  const iosPolicy = useIosOperationalPolicy();
 
   useEffect(() => {
     if (!__DEV__) return;
@@ -248,7 +250,7 @@ export default function MoreScreen() {
         id: "more",
         label: t("library.more"),
         sections: [
-          ...HOME_MORE_HUB_SHORTCUTS.map((shortcut) => {
+          ...HOME_MORE_HUB_SHORTCUTS.filter((shortcut) => iosPolicy.routeEnabled(shortcut.route)).map((shortcut) => {
             const keys = HUB_TRANSLATION_KEYS[shortcut.key];
             return {
               id: shortcut.key,
@@ -259,7 +261,7 @@ export default function MoreScreen() {
               accent: shortcut.color,
             };
           }),
-          ...(isSportsPreviewVisible()
+          ...(isSportsPreviewVisible() && iosPolicy.sectionEnabled("sports")
             ? [
                 {
                   id: "sports-preview",
@@ -274,7 +276,7 @@ export default function MoreScreen() {
         ],
       },
     ],
-    [t]
+    [t, iosPolicy.revision, iosPolicy.status]
   );
 
   const heroCopy = useMemo(

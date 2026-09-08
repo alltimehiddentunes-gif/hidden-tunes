@@ -1,4 +1,4 @@
-﻿import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ReactNode,
   useCallback,
@@ -133,8 +133,8 @@ import {
   bridgeGetProgress,
   bridgeHiddenAudioPause,
   blockHiddenAudioBridgePlay,
-  bridgeHiddenAudioPlay,
-  bridgeHiddenAudioReassertBackgroundPlay,
+  bridgeHiddenAudioPlay as playExistingNativeAudio,
+  bridgeHiddenAudioReassertBackgroundPlay as reassertExistingNativeAudio,
   clearHiddenAudioBridgePlayBlock,
   isHiddenAudioBridgePlayBlocked,
   nativeSnapshotCanPreserveSession,
@@ -167,6 +167,7 @@ import type { HiddenAudioNativeSnapshot } from "../src/hidden-audio/hiddenAudioB
 import { resetHiddenAudioLoadedUrl, notifyHiddenAudioAppBackgrounded } from "../src/hidden-audio/hiddenAudioBridge";
 import { getArtworkValue } from "../utils/artwork";
 import { shouldIncludeMatureInApi } from "../utils/matureContentSettings";
+import { IOS_OPERATIONAL_PLATFORM, authorizeIosOperationalSong, assertIosOperationalSongAllowed, monitorIosOperationalPlayback } from "../services/iosOperationalPolicy";
 import { getHydratedCatalogSnapshot } from "../state/catalogFetchLayer";
 import {
   beginAndroidContinuousPlaybackTap,
@@ -287,6 +288,8 @@ export type SyncedLyricLine = {
 
 export type AppSong = {
   id: string;
+  /** Distinguishes catalog identity from Radio Browser's external station UUID. */
+  iosPolicyType?: "radio" | "radio_browser_station" | "radio_legacy_station";
   title: string;
   artist?: string;
   user?: { name?: string };
@@ -882,6 +885,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     handledAt: 0,
   });
   type LoadAndPlayOptions = {
+    /** Preserve the same position when authorization replaces a cached source URL. */
+    iosAuthorizedResumePositionMillis?: number;
     /** Direct user tap - pause/stop current audio before loading the next track. */
     userInitiated?: boolean;
     /** Set when playSong/playQueue already ran interrupt for this tap. */
@@ -900,6 +905,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const loadAndPlayRef = useRef<
     ((song: AppSong, options?: LoadAndPlayOptions) => Promise<void>) | null
   >(null);
+  const iosAuthorizationGenerationRef = useRef(0);
   const tryAdvanceViaEmotionalQueueRef = useRef<() => Promise<boolean>>(
     async () => false
   );
@@ -1148,6 +1154,50 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     );
   }, []);
+
+  const pauseIosRevokedPlayback = useCallback(async () => {
+    markIntentionalPause("ios_operational_policy");
+    continuationUserIntentRef.current = "paused";
+    loadRequestIdRef.current += 1;
+    iosAuthorizationGenerationRef.current += 1;
+    await bridgeHiddenAudioPause().catch(() => undefined);
+    await soundRef.current?.pauseAsync().catch(() => undefined);
+    setIsPlaying(false);
+    setIsLoading(false);
+  }, [markIntentionalPause, setIsPlaying, setIsLoading]);
+
+  // Existing native owner remains responsible for resume. Only its authorization boundary is added.
+  const bridgeHiddenAudioPlay = useCallback(async () => {
+    if (!IOS_OPERATIONAL_PLATFORM) return playExistingNativeAudio();
+    const current = currentSongRef.current;
+    const commandGeneration = manualQueueCommandGenerationRef.current;
+    const authorizationGeneration = iosAuthorizationGenerationRef.current;
+    try {
+      if (!current) throw new Error("No current item to authorize");
+      const authorized = await authorizeIosOperationalSong(current);
+      if (currentSongRef.current?.id !== current.id || manualQueueCommandGenerationRef.current !== commandGeneration || iosAuthorizationGenerationRef.current !== authorizationGeneration) return;
+      if (String(authorized.streamUrl || authorized.url || "") !== String(current.streamUrl || current.url || "")) {
+        await loadAndPlayRef.current?.(authorized, { iosAuthorizedResumePositionMillis: positionMillisRef.current });
+        return;
+      }
+      return playExistingNativeAudio();
+    } catch (error) {
+      if (currentSongRef.current?.id === current?.id) await pauseIosRevokedPlayback();
+      throw error;
+    }
+  }, [pauseIosRevokedPlayback]);
+
+  const bridgeHiddenAudioReassertBackgroundPlay = useCallback(async () => {
+    if (!IOS_OPERATIONAL_PLATFORM) return reassertExistingNativeAudio();
+    return bridgeHiddenAudioPlay();
+  }, [bridgeHiddenAudioPlay]);
+
+  useEffect(() => monitorIosOperationalPlayback(async () => {
+    const current = currentSongRef.current;
+    if (!current || !isPlayingRef.current) return;
+    try { await assertIosOperationalSongAllowed(current); }
+    catch { if (currentSongRef.current?.id === current.id) await pauseIosRevokedPlayback(); }
+  }), [pauseIosRevokedPlayback]);
 
   const clearLoadingRecoveryTimeout = useCallback(() => {
     if (!loadingRecoveryTimeoutRef.current) return;
@@ -5514,6 +5564,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const loadAndPlay = useCallback(
     async (song: AppSong, options?: LoadAndPlayOptions) => {
+      if (IOS_OPERATIONAL_PLATFORM) {
+        const generation = ++iosAuthorizationGenerationRef.current;
+        song = await authorizeIosOperationalSong(song);
+        if (generation !== iosAuthorizationGenerationRef.current) return;
+      }
       let requestId = 0;
 
       try {
@@ -5840,9 +5895,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               return;
             }
 
-            let startPositionSeconds = 0;
+            let startPositionSeconds = options?.iosAuthorizedResumePositionMillis != null
+              ? Math.max(0, options.iosAuthorizedResumePositionMillis / 1000) : 0;
 
-            if (shouldRestorePosition) {
+            if (shouldRestorePosition && options?.iosAuthorizedResumePositionMillis == null) {
               try {
                 const savedPosition = await AsyncStorage.getItem(POSITION_KEY);
                 const millis = Number(savedPosition);
@@ -6772,6 +6828,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const tryResumeHiddenAudioForSong = useCallback(
     async (song: AppSong, source: string): Promise<boolean> => {
       if (!isHiddenAudioNativePlaybackEnabled()) return false;
+      if (IOS_OPERATIONAL_PLATFORM) song = await authorizeIosOperationalSong(song);
 
       const normalizedSong = normalizeSong(song);
       const playableUri = getPlayableUri(normalizedSong);
@@ -6825,6 +6882,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const seedSong = normalizeSong(
         queue[Math.max(0, Math.min(startIndex, queue.length - 1))] || queue[0]
       );
+      if (IOS_OPERATIONAL_PLATFORM && queue.length) {
+        const generation = ++iosAuthorizationGenerationRef.current;
+        await assertIosOperationalSongAllowed(seedSong);
+        if (generation !== iosAuthorizationGenerationRef.current) return;
+      }
       if (!priorInterruptDone) {
         continuationGenerationRef.current += 1;
         continuationUserIntentRef.current = "playing";
@@ -7143,6 +7205,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const tapStartedAt = Date.now();
       const tapRequestId = latestPlaySongTapIdRef.current + 1;
       latestPlaySongTapIdRef.current = tapRequestId;
+      if (IOS_OPERATIONAL_PLATFORM) {
+        const commandGeneration = manualQueueCommandGenerationRef.current;
+        const authorizationGeneration = ++iosAuthorizationGenerationRef.current;
+        song = await authorizeIosOperationalSong(song);
+        if (latestPlaySongTapIdRef.current !== tapRequestId || manualQueueCommandGenerationRef.current !== commandGeneration || iosAuthorizationGenerationRef.current !== authorizationGeneration) return;
+      }
       manualQueueCommandGenerationRef.current += 1;
       loadRequestIdRef.current += 1;
       if (isIosAudioInterruptionActive()) {
@@ -7812,6 +7880,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const togglePlayPause = useCallback(async () => {
     if (!queueControlTapGuardRef.current("toggle_play_pause")) return;
+    if (IOS_OPERATIONAL_PLATFORM && !isPlayingRef.current) {
+      try { await assertIosOperationalSongAllowed(currentSongRef.current); }
+      catch { await pauseIosRevokedPlayback(); return; }
+    }
     logPauseResumeStart({ source: "toggle_play_pause" });
     manualQueueCommandGenerationRef.current += 1;
 

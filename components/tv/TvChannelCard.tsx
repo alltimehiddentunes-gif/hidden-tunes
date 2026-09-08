@@ -1,3 +1,4 @@
+import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
 import { memo, useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -46,6 +47,7 @@ function TvChannelCard({
   onRemove,
   progressRatio = null,
 }: TvChannelCardProps) {
+  const iosVisible = useIosOperationalItemVisibility({ type: "tv", id: String(channel.id) });
   const displayName = formatTvChannelTitle(channel.name) || channel.name;
   const [favorited, setFavorited] = useState(() =>
     readTvFavoritesSync().some((entry) => entry.channelId === channel.id)
@@ -82,7 +84,7 @@ function TvChannelCard({
     }
   }, [channel, favoriteBusy, favorited]);
 
-  return (
+  return iosVisible ? ((
     <TouchableOpacity
       activeOpacity={0.88}
       onPress={() => onPress(channel)}
@@ -192,7 +194,7 @@ function TvChannelCard({
         </Text>
       ) : null}
     </TouchableOpacity>
-  );
+  )) : null;
 }
 
 export default memo(TvChannelCard, (prev, next) => {
