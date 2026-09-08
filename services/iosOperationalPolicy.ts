@@ -1,19 +1,29 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Platform } from "react-native";
+import { requireOptionalNativeModule } from "expo-modules-core";
+import { installedIosOperationalIdentity, isIos216PolicyTarget, ios216RequestHeaders } from "./iosOperationalIdentity";
 import { IosOperationalPolicyClient, IosOperationalUnavailableError, type IosOperationalAccess, type IosOperationalRef, type IosOperationalSection } from "./iosOperationalPolicyCore";
 
 export type { IosOperationalRef, IosOperationalSection, IosOperationalAccess, IosOperationalSnapshot, IosOperationalPlayback, IosOperationalDelivery } from "./iosOperationalPolicyCore";
-const POLICY_STORAGE_KEY = "@hidden_tunes_ios_operational_policy_v1";
-export const IOS_OPERATIONAL_PLATFORM = Platform.OS === "ios";
+const POLICY_STORAGE_KEY = "@hidden_tunes_ios_operational_policy_IOS_216_v1";
+function readNativePolicyIdentity() {
+  try { return Platform.OS === "ios" ? requireOptionalNativeModule("ExponentConstants") : null; }
+  catch { return null; }
+}
+export const IOS_OPERATIONAL_IDENTITY = installedIosOperationalIdentity(Platform.OS, readNativePolicyIdentity());
+/** Existing callers use this capability guard, now scoped to the exact installed216 binary. */
+export const IOS_OPERATIONAL_PLATFORM = isIos216PolicyTarget(IOS_OPERATIONAL_IDENTITY);
+export const iosOperationalRequestHeaders = () => ios216RequestHeaders(IOS_OPERATIONAL_IDENTITY);
+export { isIos216PolicyTarget };
 const client = new IosOperationalPolicyClient({
-  platform: Platform.OS, now: Date.now,
+  platform: Platform.OS, identity: IOS_OPERATIONAL_IDENTITY, now: Date.now,
   read: () => AsyncStorage.getItem(POLICY_STORAGE_KEY),
   write: (value) => AsyncStorage.setItem(POLICY_STORAGE_KEY, value),
   request: async (path, init) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
     try {
-      return await fetch(`https://admin.hiddentunes.com${path}`, { ...init, headers: { Accept: "application/json", "x-ht-platform": "ios", ...init?.headers }, signal: controller.signal, cache: "no-store" });
+      return await fetch(`https://admin.hiddentunes.com${path}`, { ...init, headers: { Accept: "application/json", ...init?.headers, ...iosOperationalRequestHeaders() }, signal: controller.signal, cache: "no-store" });
     } finally { clearTimeout(timeout); }
   },
 });

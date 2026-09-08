@@ -1,4 +1,4 @@
-import { IOS_OPERATIONAL_PLATFORM, refreshIosOperationalPolicy, iosOperationalControlEnabled, getIosOperationalPolicySnapshot } from "./iosOperationalPolicy";
+import { IOS_OPERATIONAL_PLATFORM, refreshIosOperationalPolicy, iosOperationalControlEnabled, getIosOperationalPolicySnapshot, iosOperationalRequestHeaders, isIos216PolicyTarget } from "./iosOperationalPolicy";
 
 export async function assertIosSportsAvailability(video = false) {
   if (!IOS_OPERATIONAL_PLATFORM) return;
@@ -38,10 +38,12 @@ export async function fetchIosSportsPlayback(url: string, init: RequestInit): Pr
   parsed.pathname = play ? `/api/ios/sports/play/${type[play[1] as keyof typeof type]}/${play[2]}` : `/api/ios/sports/sessions/${session![1]}`;
   const body = typeof init.body === "string" ? JSON.parse(init.body) : undefined;
   if (body) delete body.platform;
-  const response = await fetch(parsed.toString(), { ...init, ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store" });
+  const headers = new Headers(init.headers);
+  for (const [key, value] of Object.entries(iosOperationalRequestHeaders())) headers.set(key, value);
+  const response = await fetch(parsed.toString(), { ...init, headers, ...(body ? { body: JSON.stringify(body) } : {}), cache: "no-store" });
   if (!response.ok) return response;
   const check = await response.clone().json();
   const current = await refreshIosOperationalPolicy(true);
-  if (current.status !== "active" || check.iosOperational?.enforcementEnabled !== true || check.iosOperational?.revision !== current.revision || !iosOperationalControlEnabled("source:sports:sports-video")) throw new Error("Sports availability changed during playback authorization");
+  if (current.status !== "active" || !isIos216PolicyTarget(check.iosOperational?.policyTarget) || check.iosOperational?.enforcementEnabled !== true || check.iosOperational?.revision !== current.revision || !iosOperationalControlEnabled("source:sports:sports-video")) throw new Error("Sports availability changed during playback authorization");
   return response;
 }

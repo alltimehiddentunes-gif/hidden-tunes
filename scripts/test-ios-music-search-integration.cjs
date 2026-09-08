@@ -10,6 +10,8 @@ const ids = [1, 2, 3].map((id) => `00000000-0000-4000-8000-${String(id).padStart
 let status = "active", revision = 1, ios = true, sportsVideo = true, responseRevision = 1;
 const known = new Set(), denied = new Set(), requests = [], authorizedRefs = [];
 const radioCache = new Map();
+const policyTarget = { platform: "ios", nativeBuild: "1.0.216", bundleId: "com.hiddentunes.app", profile: "IOS_216" };
+const identityHeaders = { "x-ht-platform": "ios", "x-ht-native-build": "1.0.216", "x-ht-bundle-id": "com.hiddentunes.app", "x-ht-policy-profile": "IOS_216" };
 const rows = [
   { id: ids[0], title: "Morning One", artist_name: "Echoes", album_title: "Morning Set", genre: "Jazz", mood: "Calm", duration_seconds: 198, artwork_url: "https://images.invalid/cover.png", created_at: "2026-09-01T00:00:00Z" },
   { id: ids[1], title: "Morning Two", artist_name: "Echoes", album_title: "Morning Set", genre: "Jazz", mood: "Calm", duration_seconds: 205 },
@@ -17,6 +19,8 @@ const rows = [
 ];
 const policy = {
   get IOS_OPERATIONAL_PLATFORM() { return ios; },
+  iosOperationalRequestHeaders: () => identityHeaders,
+  isIos216PolicyTarget: (value) => JSON.stringify(value) === JSON.stringify(policyTarget),
   refreshIosOperationalPolicy: async () => ({ status: ios ? status : "legacy", revision }),
   getIosOperationalPolicySnapshot: () => ({ status: ios ? status : "legacy", revision }),
   isIosOperationalItemVisible: (ref) => !ios || status === "legacy" || status === "active" && ref && known.has(ref.id) && !denied.has(ref.id),
@@ -53,6 +57,7 @@ global.__DEV__ = false;
 global.fetch = async (url, init) => {
   requests.push({ url, init });
   const parsed = new URL(url);
+  if (parsed.pathname.startsWith("/api/ios/")) for (const [key, value] of Object.entries(identityHeaders)) assert.equal(new Headers(init?.headers).get(key), value);
   if (parsed.pathname === "/api/ios/catalog/music") {
     assert.equal(parsed.origin, "https://admin.hiddentunes.com");
     const params = parsed.searchParams;
@@ -62,9 +67,9 @@ global.fetch = async (url, init) => {
       selected = selected.filter((row) => row[field].toLowerCase().includes(query));
     }
     const limit = Number(params.get("limit")), offset = Number(params.get("cursor") || 0);
-    return new Response(JSON.stringify({ success: true, enforcementEnabled: true, revision, total: selected.length, items: selected.slice(offset, offset + limit), nextCursor: offset + limit < selected.length ? String(offset + limit) : null }), { status: 200 });
+    return new Response(JSON.stringify({ policyTarget, success: true, enforcementEnabled: true, revision, total: selected.length, items: selected.slice(offset, offset + limit), nextCursor: offset + limit < selected.length ? String(offset + limit) : null }), { status: 200 });
   }
-  if (parsed.pathname.includes("/sports/")) return new Response(JSON.stringify({ success: true, playback: { mode: "embedded", embedUrl: "https://sports.invalid/watch" }, iosOperational: { enforcementEnabled: true, revision: responseRevision } }), { status: 200 });
+  if (parsed.pathname.includes("/sports/")) return new Response(JSON.stringify({ success: true, playback: { mode: "embedded", embedUrl: "https://sports.invalid/watch" }, iosOperational: { policyTarget, enforcementEnabled: true, revision: responseRevision } }), { status: 200 });
   if (parsed.pathname === "/api/radio/stations") return new Response(JSON.stringify({ success: true, stations: [{ id: "radio-safe", name: "Jazz Safe", stream_url: "https://cached.invalid/safe.mp3" }, { id: "radio-denied", name: "Jazz Denied", stream_url: "https://cached.invalid/denied.mp3" }], pagination: { page: 1, limit: 40, total: 80, totalPages: 2, hasMore: true } }), { status: 200 });
   throw new Error(`Unmocked request forbidden: ${url}`);
 };

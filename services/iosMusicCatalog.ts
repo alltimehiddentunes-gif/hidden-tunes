@@ -1,9 +1,9 @@
-import { filterIosOperationalItems, getIosOperationalPolicySnapshot, isIosOperationalItemVisible, refreshIosOperationalPolicy, IOS_OPERATIONAL_PLATFORM } from "./iosOperationalPolicy";
+import { filterIosOperationalItems, getIosOperationalPolicySnapshot, isIosOperationalItemVisible, refreshIosOperationalPolicy, IOS_OPERATIONAL_PLATFORM, iosOperationalRequestHeaders, isIos216PolicyTarget } from "./iosOperationalPolicy";
 import { shouldIncludeMatureInApi } from "../utils/matureContentSettings";
 
 export type IosMusicOptions = { page?: number; limit?: number; query?: string; artistId?: string; albumId?: string; genre?: string; forceRefresh?: boolean };
 type Row = { id: string; [key: string]: unknown };
-type Page = { items: Row[]; total: number; nextCursor: string | null; revision: number; enforcementEnabled: boolean; success: boolean };
+type Page = { items: Row[]; total: number; nextCursor: string | null; revision: number; enforcementEnabled: boolean; success: boolean; policyTarget?: unknown };
 const BASE = "https://admin.hiddentunes.com";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 let revision = -1;
@@ -34,11 +34,11 @@ async function readPage(params: URLSearchParams, expectedRevision: number): Prom
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 35000);
   try {
-    const response = await fetch(`${BASE}/api/ios/catalog/music?${params}`, { headers: { Accept: "application/json" }, cache: "no-store", signal: controller.signal });
+    const response = await fetch(`${BASE}/api/ios/catalog/music?${params}`, { headers: { Accept: "application/json", ...iosOperationalRequestHeaders() }, cache: "no-store", signal: controller.signal });
     if (response.status === 409) throw new Error("ios_policy_revision_changed");
     if (!response.ok) throw new Error("iOS music catalog unavailable");
     const data = await response.json() as Page;
-    if (!data.success || !data.enforcementEnabled || data.revision !== expectedRevision || !Array.isArray(data.items) || !Number.isSafeInteger(data.total) || data.total < 0 || (data.nextCursor !== null && typeof data.nextCursor !== "string") || data.items.some((row) => !row || !UUID.test(row.id))) throw new Error("ios_policy_revision_changed");
+    if (!data.success || !isIos216PolicyTarget(data.policyTarget) || !data.enforcementEnabled || data.revision !== expectedRevision || !Array.isArray(data.items) || !Number.isSafeInteger(data.total) || data.total < 0 || (data.nextCursor !== null && typeof data.nextCursor !== "string") || data.items.some((row) => !row || !UUID.test(row.id))) throw new Error("ios_policy_revision_changed");
     return data;
   } finally { clearTimeout(timer); }
 }

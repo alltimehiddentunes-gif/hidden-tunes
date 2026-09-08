@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { IOS_216_POLICY_TARGET } from "../services/iosOperationalIdentity";
 import { IosOperationalPolicyClient, type IosOperationalPolicy } from "../services/iosOperationalPolicyCore";
 
 const mureka = "00000000-0000-4000-8000-000000000001";
@@ -7,19 +8,19 @@ function fixture(platform = "ios") {
   let revision = 1, active = false, offline = false, stored: string | null = null, now = 0;
   const enabled: Record<string, boolean> = { ios: true, "section:music": true, "section:tv": true, "source:music:mureka": true, "source:music:djcity": true };
   const calls: { path: string; count?: number }[] = [];
-  const policy = (): IosOperationalPolicy => ({ version: 1, revision, enforcementEnabled: active, profileActive: active, mode: active ? "active" : "legacy", controls: Object.entries(enabled).map(([id, value]) => ({ id, enabled: value, parentId: id === "ios" ? null : id.startsWith("source:") ? "section:music" : "ios" })) });
+  const policy = (): IosOperationalPolicy => ({ version: 1, policyTarget: IOS_216_POLICY_TARGET, revision, enforcementEnabled: active, profileActive: active, mode: active ? "active" : "legacy", controls: Object.entries(enabled).map(([id, value]) => ({ id, enabled: value, parentId: id === "ios" ? null : id.startsWith("source:") ? "section:music" : "ios" })) });
   const allowed = (id: string, type: string) => enabled.ios && enabled[type === "tv" ? "section:tv" : "section:music"] && (type === "tv" || enabled[id === djcity ? "source:music:djcity" : "source:music:mureka"]);
   const response = (body: unknown, status = 200) => ({ ok: status < 400, status, json: async () => body });
-  const client = new IosOperationalPolicyClient({ platform, now: () => now, read: async () => stored, write: async (value) => { stored = value; }, request: async (path, init) => {
+  const client = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform, now: () => now, read: async () => stored, write: async (value) => { stored = value; }, request: async (path, init) => {
     if (offline) throw new Error("offline");
     if (path === "/api/ios/policy") { calls.push({ path }); return response(policy()); }
     if (path.startsWith("/api/ios/resolve")) {
       const { items } = JSON.parse(init!.body!); calls.push({ path, count: items.length });
-      return response({ success: true, revision, enforcementEnabled: active, items: items.map((item: { id: string; type: string }) => ({ ...item, allowed: allowed(item.id, item.type) })) });
+      return response({ policyTarget: IOS_216_POLICY_TARGET, success: true, revision, enforcementEnabled: active, items: items.map((item: { id: string; type: string }) => ({ ...item, allowed: allowed(item.id, item.type) })) });
     }
     const [type, id] = path.split("?")[0].split("/").slice(-2);
     calls.push({ path });
-    return response({ success: allowed(id, type), allowed: allowed(id, type), enforcementEnabled: active, revision, type, id, playbackUrl: `https://controlled.invalid/${type}/${id}`, delivery: type === "music" ? "controlled_media" : "direct" }, allowed(id, type) ? 200 : 403);
+    return response({ policyTarget: IOS_216_POLICY_TARGET, success: allowed(id, type), allowed: allowed(id, type), enforcementEnabled: active, revision, type, id, playbackUrl: `https://controlled.invalid/${type}/${id}`, delivery: type === "music" ? "controlled_media" : "direct" }, allowed(id, type) ? 200 : 403);
   } });
   return { client, calls, activate() { active = true; revision++; now += 20000; }, deactivate() { active = false; revision++; now += 20000; }, set(id: string, value: boolean) { enabled[id] = value; revision++; now += 20000; }, offline() { offline = true; now += 20000; }, policy, saved: () => stored };
 }
@@ -30,14 +31,14 @@ async function main() {
     let finishRequest!: (value: { ok: boolean; status: number; json(): Promise<unknown> }) => void;
     let notifyRequested!: () => void;
     const requested = new Promise<void>((resolve) => { notifyRequested = resolve; });
-    const cold = new IosOperationalPolicyClient({ platform: "ios", now: Date.now, read: () => new Promise((resolve) => { finishRead = resolve; }), write: async () => {}, request: () => { notifyRequested(); return new Promise((resolve) => { finishRequest = resolve; }); } });
+    const cold = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform: "ios", now: Date.now, read: () => new Promise((resolve) => { finishRead = resolve; }), write: async () => {}, request: () => { notifyRequested(); return new Promise((resolve) => { finishRequest = resolve; }); } });
     const refreshing = cold.refresh();
     assert.equal(cold.itemVisible({ type: "music", id: mureka }), false, "no legacy verdict before marker hydration");
-    finishRead(remembered ? JSON.stringify({ version: 1, activated: true, revision: 1 }) : null);
+    finishRead(remembered ? JSON.stringify({ version: 1, policyTarget: IOS_216_POLICY_TARGET, activated: true, revision: 1 }) : null);
     await requested;
-    assert.equal(cold.itemVisible({ type: "music", id: mureka }), !remembered, "only proven never-active cache is visible while policy network is pending");
+    assert.equal(cold.itemVisible({ type: "music", id: mureka }), false, "exact216 remains closed while the first target policy is pending");
     finishRequest({ ok: false, status: 503, json: async () => ({}) });
-    assert.equal((await refreshing).status, remembered ? "unavailable" : "legacy");
+    assert.equal((await refreshing).status, "unavailable");
   }
   for (const platform of ["android", "web", "windows", "macos", "linux", "amazon-fire"]) {
     const f = fixture(platform), input = [{ id: djcity }];
@@ -79,32 +80,32 @@ async function main() {
   assert.equal((await batch.client.filter(many, (x) => ({ type: "music", id: x.id }))).length, 401);
   assert.deepEqual(batch.calls.filter((c) => c.count).map((c) => c.count), [200, 200, 1]);
 
-  const restart = new IosOperationalPolicyClient({ platform: "ios", now: Date.now, read: async () => f.saved(), write: async () => {}, request: async () => { throw new Error("offline"); } });
+  const restart = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform: "ios", now: Date.now, read: async () => f.saved(), write: async () => {}, request: async () => { throw new Error("offline"); } });
   assert.equal((await restart.refresh()).status, "unavailable", "restart hydrates activation before fallback verdict");
-  const stale = new IosOperationalPolicyClient({ platform: "ios", now: Date.now, read: async () => f.saved(), write: async () => {}, request: async () => ({ ok: true, status: 200, json: async () => ({ ...batch.policy(), revision: 0 }) }) });
+  const stale = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform: "ios", now: Date.now, read: async () => f.saved(), write: async () => {}, request: async () => ({ ok: true, status: 200, json: async () => ({ ...batch.policy(), revision: 0 }) }) });
   assert.equal((await stale.refresh()).status, "unavailable", "stale server cannot erase remembered activation");
   const deactivated = fixture(); deactivated.activate(); await deactivated.client.refresh(true);
   deactivated.deactivate(); assert.equal((await deactivated.client.refresh(true)).status, "legacy");
   assert.equal((await deactivated.client.refresh(true)).status, "legacy", "same accepted deactivation revision remains valid");
-  const deactivatedRestart = new IosOperationalPolicyClient({ platform: "ios", now: Date.now, read: async () => deactivated.saved(), write: async () => {}, request: async () => ({ ok: true, status: 200, json: async () => deactivated.policy() }) });
+  const deactivatedRestart = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform: "ios", now: Date.now, read: async () => deactivated.saved(), write: async () => {}, request: async () => ({ ok: true, status: 200, json: async () => deactivated.policy() }) });
   assert.equal((await deactivatedRestart.refresh()).status, "legacy", "persisted explicit deactivation permits fresh equal-revision policy");
 
   let raceRevision = 1, resolveAttempts = 0;
   const racePolicy = () => ({ ...batch.policy(), revision: raceRevision });
-  const raceClient = new IosOperationalPolicyClient({ platform: "ios", now: Date.now, read: async () => null, write: async () => {}, request: async (path, init) => {
+  const raceClient = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform: "ios", now: Date.now, read: async () => null, write: async () => {}, request: async (path, init) => {
     if (path === "/api/ios/policy") return { ok: true, status: 200, json: async () => racePolicy() };
     resolveAttempts++;
     if (resolveAttempts === 1) { raceRevision++; return { ok: false, status: 409, json: async () => ({}) }; }
-    return { ok: true, status: 200, json: async () => ({ success: true, revision: raceRevision, enforcementEnabled: true, items: JSON.parse(init!.body!).items.map((ref: object) => ({ ...ref, allowed: true })) }) };
+    return { ok: true, status: 200, json: async () => ({ policyTarget: IOS_216_POLICY_TARGET, success: true, revision: raceRevision, enforcementEnabled: true, items: JSON.parse(init!.body!).items.map((ref: object) => ({ ...ref, allowed: true })) }) };
   } });
   assert.equal((await raceClient.filter(songs, (x) => ({ type: "music", id: x.id }))).length, 2);
   assert.equal(resolveAttempts, 2, "one retry refreshes a racing revision");
   let rejectedAttempts = 0;
-  const alwaysRacing = new IosOperationalPolicyClient({ platform: "ios", now: Date.now, read: async () => null, write: async () => {}, request: async (path) => path === "/api/ios/policy" ? { ok: true, status: 200, json: async () => racePolicy() } : (++rejectedAttempts, { ok: false, status: 409, json: async () => ({}) }) });
+  const alwaysRacing = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform: "ios", now: Date.now, read: async () => null, write: async () => {}, request: async (path) => path === "/api/ios/policy" ? { ok: true, status: 200, json: async () => racePolicy() } : (++rejectedAttempts, { ok: false, status: 409, json: async () => ({}) }) });
   assert.deepEqual(await alwaysRacing.filter(songs, (x) => ({ type: "music", id: x.id })), []);
   assert.equal(rejectedAttempts, 2, "repeat revision races fail closed without unbounded requests");
   for (const delivery of ["embed", "external", "direct", "unexpected", undefined]) {
-    const delivered = new IosOperationalPolicyClient({ platform: "ios", now: Date.now, read: async () => null, write: async () => {}, request: async (path) => ({ ok: true, status: 200, json: async () => path === "/api/ios/policy" ? racePolicy() : ({ success: true, allowed: true, revision: raceRevision, enforcementEnabled: true, type: "tv", id: mureka, playbackUrl: "https://controlled.invalid/embed", delivery }) }) });
+    const delivered = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform: "ios", now: Date.now, read: async () => null, write: async () => {}, request: async (path) => ({ ok: true, status: 200, json: async () => path === "/api/ios/policy" ? racePolicy() : ({ policyTarget: IOS_216_POLICY_TARGET, success: true, allowed: true, revision: raceRevision, enforcementEnabled: true, type: "tv", id: mureka, playbackUrl: "https://controlled.invalid/embed", delivery }) }) });
     if (delivery === "unexpected" || delivery === undefined) await assert.rejects(delivered.playback({ type: "tv", id: mureka }));
     else { const result = await delivered.playback({ type: "tv", id: mureka }); assert.ok(result.enforced && result.delivery === delivery); }
   }
@@ -113,10 +114,10 @@ async function main() {
     let release!: () => void;
     let requested!: () => void;
     const started = new Promise<void>((resolve) => { requested = resolve; });
-    const interrupted = new IosOperationalPolicyClient({ platform: "ios", now: Date.now, read: async () => null, write: async () => {}, request: async (path) => {
+    const interrupted = new IosOperationalPolicyClient({ identity: IOS_216_POLICY_TARGET, platform: "ios", now: Date.now, read: async () => null, write: async () => {}, request: async (path) => {
       if (path === "/api/ios/policy") return { ok: online, status: online ? 200 : 503, json: async () => racePolicy() };
       requested(); await new Promise<void>((resolve) => { release = resolve; });
-      return { ok: true, status: 200, json: async () => ({ success: true, allowed: true, revision: raceRevision, enforcementEnabled: true, items: [{ type: "music", id: mureka, allowed: true }], type: "music", id: mureka, playbackUrl: "https://controlled.invalid/music", delivery: "controlled_media" }) };
+      return { ok: true, status: 200, json: async () => ({ policyTarget: IOS_216_POLICY_TARGET, success: true, allowed: true, revision: raceRevision, enforcementEnabled: true, items: [{ type: "music", id: mureka, allowed: true }], type: "music", id: mureka, playbackUrl: "https://controlled.invalid/music", delivery: "controlled_media" }) };
     } });
     await interrupted.refresh();
     const pending = purpose === "discovery" ? interrupted.filter([{ id: mureka }], (x) => ({ type: "music", id: x.id })) : interrupted.playback({ type: "music", id: mureka });

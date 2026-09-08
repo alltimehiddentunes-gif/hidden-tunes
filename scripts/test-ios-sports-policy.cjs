@@ -3,11 +3,13 @@ const fs = require('node:fs');
 const ts = require('typescript');
 const vm = require('node:vm');
 let status='active', revision=3, video=true, metadata=true, calls=[], race=false;
-const policy={ IOS_OPERATIONAL_PLATFORM:true, refreshIosOperationalPolicy:async()=>({status,revision}), getIosOperationalPolicySnapshot:()=>({status,revision}), iosOperationalControlEnabled:id=>id.endsWith('sports-video')?video:metadata };
+const target={platform:'ios',nativeBuild:'1.0.216',bundleId:'com.hiddentunes.app',profile:'IOS_216'};
+const identityHeaders={'x-ht-platform':'ios','x-ht-native-build':'1.0.216','x-ht-bundle-id':'com.hiddentunes.app','x-ht-policy-profile':'IOS_216'};
+const policy={ IOS_OPERATIONAL_PLATFORM:true, iosOperationalRequestHeaders:()=>identityHeaders, isIos216PolicyTarget:value=>JSON.stringify(value)===JSON.stringify(target), refreshIosOperationalPolicy:async()=>({status,revision}), getIosOperationalPolicySnapshot:()=>({status,revision}), iosOperationalControlEnabled:id=>id.endsWith('sports-video')?video:metadata };
 const mod={exports:{}};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(require('node:path').join(__dirname,'../services/iosSportsPolicy.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
- module:mod,exports:mod.exports,require:name=>{assert.equal(name,'./iosOperationalPolicy');return policy;},URL,
- fetch:async(url,init)=>{calls.push({url,init}); const issued=revision; if(race)revision++;return{ok:true,status:200,clone:()=>({json:async()=>({iosOperational:{enforcementEnabled:true,revision:issued}})})};},
+ module:mod,exports:mod.exports,require:name=>{assert.equal(name,'./iosOperationalPolicy');return policy;},URL,Headers,
+ fetch:async(url,init)=>{calls.push({url,init}); if(url.includes('/api/ios/'))for(const [key,value]of Object.entries(identityHeaders))assert.equal(init.headers.get(key),value); const issued=revision; if(race)revision++;return{ok:true,status:200,clone:()=>({json:async()=>({iosOperational:{policyTarget:target,enforcementEnabled:true,revision:issued}})})};},
 });
 async function main(){
  const api=mod.exports;

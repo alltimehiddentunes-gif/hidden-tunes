@@ -7,9 +7,13 @@ const ids = [1,2,3,4,5].map(n => `00000000-0000-4000-8000-${String(n).padStart(1
 let revision = 1, status = 'active', music = true, djcity = true, requests = [], changed = false, fail = false, mature = false, flipAfterSnapshots = 0;
 const matureId = '00000000-0000-4000-8000-000000000006';
 const accesses = [];
+const target = { platform: 'ios', nativeBuild: '1.0.216', bundleId: 'com.hiddentunes.app', profile: 'IOS_216' };
+const headers = { 'x-ht-platform': 'ios', 'x-ht-native-build': '1.0.216', 'x-ht-bundle-id': 'com.hiddentunes.app', 'x-ht-policy-profile': 'IOS_216' };
 let known = new Set();
 const policy = {
   IOS_OPERATIONAL_PLATFORM: true,
+  iosOperationalRequestHeaders: () => headers,
+  isIos216PolicyTarget: value => JSON.stringify(value) === JSON.stringify(target),
   refreshIosOperationalPolicy: async () => ({ status, revision }),
   getIosOperationalPolicySnapshot: () => { const value = { status, revision }; if (flipAfterSnapshots && --flipAfterSnapshots === 0) { revision++; known.clear(); } return value; },
   isIosOperationalItemVisible: ref => known.has(ref.id),
@@ -18,7 +22,8 @@ const policy = {
 const source = fs.readFileSync(path.join(__dirname,'../services/iosMusicCatalog.ts'),'utf8');
 const moduleValue = { exports: {} };
 const context = { module: moduleValue, exports: moduleValue.exports, require: name => { if (name === '../utils/matureContentSettings') return { shouldIncludeMatureInApi: () => mature }; assert.equal(name,'./iosOperationalPolicy'); return policy; }, URLSearchParams, AbortController, setTimeout, clearTimeout, console,
- fetch: async (url) => {
+ fetch: async (url, init) => {
+   for (const [key, value] of Object.entries(headers)) assert.equal(init.headers[key], value, 'catalog carries exact native216 identity');
    requests.push(url);
    if (fail) return { ok:false, status:503 };
    if (changed) { changed=false; revision++; known.clear(); return { ok:false, status:409 }; }
@@ -26,7 +31,7 @@ const context = { module: moduleValue, exports: moduleValue.exports, require: na
    const rows = music ? ids.filter((_,i)=>djcity || i<2).map(id=>({ id, title:`track ${id}`, artist_name:'Artist' })) : [];
    if (music && params.get('mature_enabled') === 'true' && params.get('age_confirmed') === 'true') rows.push({ id: matureId, title: 'Mature fixture', is_mature: true });
    const limit = Number(params.get('limit')), offset = Number(params.get('cursor') || '0');
-   return { ok:true, status:200, json:async()=>({ success:true, enforcementEnabled:true, revision, total:rows.length, items:rows.slice(offset, offset+limit), nextCursor:offset+limit<rows.length?String(offset+limit):null }) };
+   return { ok:true, status:200, json:async()=>({ policyTarget:target, success:true, enforcementEnabled:true, revision, total:rows.length, items:rows.slice(offset, offset+limit), nextCursor:offset+limit<rows.length?String(offset+limit):null }) };
  },
 };
 vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);
