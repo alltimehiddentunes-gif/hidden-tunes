@@ -1,0 +1,11 @@
+# iOS 216 build authorization and plan
+
+2026-09-08: owner accepted backend05c3f33 and mobile75a115a6 and explicitly moved physical-device/runtime qualification from pre-build to pre-submission. Proceed with production archive and safe App Store Connect upload. Do not submit for review before device, live DJcity/TV switch and215 isolation qualification. New branches/worktrees: zero.
+
+Both repositories were clean before this phase; HEAD/tree/hash-verified Git archives are preserved in sibling HiddenTunes-iOS-216-Safety-20260908/build-now-accepted-checkpoint/manifest.json. Continue the existing branches only.
+
+Exact mobile changes: app.json iOS buildNumber1.0.215 to1.0.216; current-build assertions in scripts/test-ios-static-ownership.mjs and scripts/test-carplay-static-readiness.ts to216. Marketing version stays1.0.2, bundlecom.hiddentunes.app. Historical records and215/legacy isolation fixtures stay unchanged. Existing app.config.js derives production runtime from the native build; eas.json retains production profile/channel, store distribution, local version source and existing signing/submission project. No OTA or other-platform build.
+
+Exact backend changes: existing components/BulkUploadPanel.tsx adds explicit per-upload Mureka/DJcity source, defaulting new selections to Mureka; lib/rights/musicUploadProvenance.ts validates that choice without emails; app/api/admin/upload-track/route.ts and app/api/complete-song/route.ts persist source_type=mureka/djcity and source_name while retaining type=r2 transport and existing provenance on edits; existing release asset replacement must preserve source_type. Extend scripts/test-rights-music-upload-provenance.cjs for explicit selection, default UI, unknown/invalid rejection, inherited policy, legacy isolation and existing-record preservation. No schema or catalog mutation.
+
+Build preparation checks exact resolved production identity, standalone mode, existing entitlements/background/privacy/auth configuration, environment variable names and archive exclusions without exposing credentials. Use established EAS project and existing credentials. Build may precede backend deployment and device availability; production endpoint readiness and actual initial profile must be verified before runtime qualification/submission. No claim that local switches are already production-active.
