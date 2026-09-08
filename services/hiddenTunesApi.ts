@@ -1,4 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getAllIosMusic, getIosMusicPage, iosMusicIsControlled, iosMusicNormalizerRow, iosMusicSnapshot } from "./iosMusicCatalog";
+import { assertIosOperationalContentAllowed } from "./iosOperationalPolicy";
 
 import {
   FALLBACK_ARTWORK,
@@ -760,6 +762,8 @@ export async function fetchCoordinatedCatalogFirstPage(options?: {
   limit?: number;
   forceRefresh?: boolean;
 }): Promise<HiddenTunesNormalizedSong[]> {
+  const controlled = await getIosMusicPage({ limit: options?.limit || HOME_SONG_LIMIT, forceRefresh: options?.forceRefresh });
+  if (controlled) return normalizeIosMusicRows(controlled.items);
   const requestedLimit = Number(options?.limit) || HOME_SONG_LIMIT;
   const limit = Math.min(
     Math.max(requestedLimit, HOME_SONG_LIMIT),
@@ -821,6 +825,8 @@ export async function fetchCoordinatedCatalogFirstPage(options?: {
 export async function hydrateHiddenTunesCatalogCache(): Promise<
   HiddenTunesNormalizedSong[]
 > {
+  const controlled = await getIosMusicPage({ limit: 100 });
+  if (controlled) return normalizeIosMusicRows(controlled.items);
   if (songsMemoryCache?.length) {
     logCacheResult("catalog", true, {
       source: "memory",
@@ -853,6 +859,8 @@ const FULL_CATALOG_TRUSTED_CACHE_MIN = 1500;
 export async function fetchAllHiddenTunesCatalogSongs(options?: {
   forceRefresh?: boolean;
 }): Promise<HiddenTunesNormalizedSong[]> {
+  const controlled = await getAllIosMusic(options);
+  if (controlled) return normalizeIosMusicRows(controlled);
   const forceRefresh = Boolean(options?.forceRefresh);
 
   if (!forceRefresh && fullCatalogFetchPromise) {
@@ -941,10 +949,16 @@ export async function fetchAllHiddenTunesCatalogSongs(options?: {
 }
 
 export function getHiddenTunesCatalogSnapshot(): HiddenTunesNormalizedSong[] {
+  const controlled = iosMusicSnapshot();
+  if (controlled) return normalizeIosMusicRows(controlled);
   return songsMemoryCache?.length ? songsMemoryCache : [];
 }
 
 export async function getHiddenTunesCatalogCacheInfo() {
+  if (await iosMusicIsControlled()) {
+    const songs = iosMusicSnapshot() || [];
+    return { count: songs.length, cachedAt: 0, ageMs: 0, isFresh: true };
+  }
   if (!songsMemoryCache?.length) {
     await readCachedSongs();
   }
@@ -1247,6 +1261,10 @@ export function normalizeHiddenTunesSong(
   };
 }
 
+function normalizeIosMusicRows(rows: { id: string; [key: string]: unknown }[]) {
+  return rows.map((row) => normalizeHiddenTunesSong(iosMusicNormalizerRow(row) as HiddenTunesCloudSong)).filter((row): row is HiddenTunesNormalizedSong => row !== null);
+}
+
 export async function clearHiddenTunesSongsCache() {
   songsMemoryCache = null;
   songsMemoryCacheTime = 0;
@@ -1282,6 +1300,8 @@ export async function getHiddenTunesSongsPage(options?: {
   /** Isolation A: fetch page without publishing growing intermediates to global cache. */
   deferGlobalCachePublish?: boolean;
 }): Promise<HiddenTunesSongPage> {
+  const controlled = await getIosMusicPage(options);
+  if (controlled) return { songs: normalizeIosMusicRows(controlled.items), page: controlled.page, limit: controlled.limit, hasMore: controlled.hasMore, nextPage: controlled.nextPage, source: "network", authoritativeEmpty: controlled.items.length === 0 };
   const page = Math.max(Number(options?.page) || 1, 1);
   const limit = Math.min(
     Math.max(Number(options?.limit) || HIDDEN_TUNES_SONG_PAGE_SIZE, 1),
@@ -1479,6 +1499,8 @@ export async function getHiddenTunesSongsPage(options?: {
 }
 
 export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) {
+  const controlled = await getAllIosMusic(options);
+  if (controlled) return normalizeIosMusicRows(controlled);
   const forceRefresh = options?.forceRefresh ?? false;
 
   if (!forceRefresh && songsMemoryCache?.length) {
@@ -1547,6 +1569,8 @@ export async function getHiddenTunesSongs(options?: { forceRefresh?: boolean }) 
 }
 
 export async function refreshHiddenTunesSongs() {
+  const controlled = await getAllIosMusic({ forceRefresh: true });
+  if (controlled) return normalizeIosMusicRows(controlled);
   if (!isAppActiveForWork()) {
     return await getHiddenTunesSongs({ forceRefresh: false });
   }
@@ -1580,6 +1604,8 @@ export async function searchHiddenTunesSongs(
   query: string,
   options?: SearchHiddenTunesSongsOptions
 ) {
+  const controlled = await getIosMusicPage({ query, limit: options?.limit || SEARCH_SONG_LIMIT });
+  if (controlled) return query.trim() ? normalizeIosMusicRows(controlled.items) : [];
   const cleanQuery = query.trim().toLowerCase();
   const limit = Math.min(Math.max(Number(options?.limit) || SEARCH_SONG_LIMIT, 1), 100);
   const softEmptyOnError = options?.softEmptyOnError !== false;
@@ -1763,6 +1789,11 @@ export async function getHiddenTunesAlbums(options?: { forceRefresh?: boolean })
 }
 
 export async function getHiddenTunesAlbumById(id: string) {
+  const controlled = await getAllIosMusic(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ? { albumId: id } : {});
+  if (controlled) {
+    const cleanId = slugify(id);
+    return extractHiddenTunesAlbums(normalizeIosMusicRows(controlled)).find((album) => album.id === id || slugify(album.id) === cleanId || album.slug === cleanId || slugify(album.title) === cleanId) || null;
+  }
   const albums = await getHiddenTunesAlbums({ forceRefresh: false });
   const cleanId = slugify(id);
   const cachedAlbum =
@@ -1825,6 +1856,8 @@ export async function getHiddenTunesAlbumById(id: string) {
 export async function getHiddenTunesArtists(options?: {
   forceRefresh?: boolean;
 }) {
+  const controlled = await getAllIosMusic(options);
+  if (controlled) return extractHiddenTunesArtists(normalizeIosMusicRows(controlled));
   const forceRefresh = options?.forceRefresh ?? false;
 
   if (
@@ -1876,6 +1909,13 @@ export async function getHiddenTunesArtistsPage(options?: {
   query?: string;
   throwOnError?: boolean;
 }): Promise<HiddenTunesArtistPage> {
+  const controlled = await getAllIosMusic();
+  if (controlled) {
+    const page = Math.max(1, Number(options?.page) || 1), limit = Math.min(500, Math.max(1, Number(options?.limit) || HIDDEN_TUNES_ARTIST_PAGE_SIZE));
+    const query = (options?.query || "").trim().toLowerCase();
+    const artists = extractHiddenTunesArtists(normalizeIosMusicRows(controlled)).filter((artist) => !query || artist.name.toLowerCase().includes(query));
+    return { artists: artists.slice((page - 1) * limit, page * limit), page, limit, hasMore: page * limit < artists.length, nextPage: page + 1 };
+  }
   const page = Math.max(Number(options?.page) || 1, 1);
   const limit = Math.min(
     Math.max(Number(options?.limit) || HIDDEN_TUNES_ARTIST_PAGE_SIZE, 1),
@@ -1961,6 +2001,7 @@ export async function searchHiddenTunesSongsPage(
   page = 1,
   limit = SEARCH_SONG_LIMIT
 ) {
+  if (await iosMusicIsControlled()) return getHiddenTunesSongsPage({ page, limit, query });
   const cleanQuery = query.trim().toLowerCase();
 
   if (!cleanQuery) {
@@ -2008,6 +2049,11 @@ export async function searchHiddenTunesSongsPage(
 }
 
 export async function getHiddenTunesArtistById(id: string) {
+  const controlled = await getAllIosMusic(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id) ? { artistId: id } : {});
+  if (controlled) {
+    const cleanId = slugify(id);
+    return extractHiddenTunesArtists(normalizeIosMusicRows(controlled)).find((artist) => artist.id === id || slugify(artist.id) === cleanId || artist.slug === cleanId || slugify(artist.name) === cleanId) || null;
+  }
   const artists = await getHiddenTunesArtists({ forceRefresh: false });
   const cleanId = slugify(id);
   const cachedArtist =
@@ -2151,6 +2197,7 @@ function normalizeLyricsResponse(
 }
 
 export async function getHiddenTunesLyrics(songId: string) {
+  await assertIosOperationalContentAllowed({ type: "music", id: songId });
   const cacheKey = `${LYRICS_CACHE_PREFIX}${songId}`;
 
   try {

@@ -13,6 +13,7 @@ import {
   type TvStationMetadataMode,
 } from "../utils/tvPlayabilityGate";
 import { resolveTvArtworkUrl } from "../utils/tvArtwork";
+import { IOS_OPERATIONAL_PLATFORM, filterIosOperationalItems, iosOperationalMatureAccess, refreshIosOperationalPolicy, resolveIosOperationalPlayback, iosOperationalSectionEnabled } from "./iosOperationalPolicy";
 import {
   normalizeTvSearchQuery,
   resolveTvSearchCountryCode,
@@ -405,6 +406,15 @@ export async function fetchTvPlayback(
   video: HiddenTunesTvVideo,
   options?: { signal?: AbortSignal }
 ): Promise<HiddenTunesTvPlayback | null> {
+  if (IOS_OPERATIONAL_PLATFORM) {
+    try {
+      const ref = { type: "tv", id: video.id };
+      const authorized = await resolveIosOperationalPlayback(ref, await iosOperationalMatureAccess(ref));
+      if (authorized.enforced) return { id: video.id, source_type: authorized.delivery === "embed" ? "embed" : "official_stream", source_id: video.id,
+        stream_url: authorized.delivery === "embed" ? "" : authorized.playbackUrl,
+        embed_url: authorized.delivery === "embed" ? authorized.playbackUrl : null };
+    } catch { return null; }
+  }
   const cacheKey = String(video.id || "").trim();
   if (cacheKey) {
     const cached = tvPlaybackCache.get(cacheKey);
@@ -569,7 +579,7 @@ async function fetchTvCatalogNetwork(
   }
 }
 
-export async function fetchTvCatalog(
+async function fetchTvCatalogLegacy(
   query: TvCatalogQuery = {},
   options?: { signal?: AbortSignal }
 ): Promise<TvCatalogResponse> {
@@ -634,7 +644,7 @@ export async function fetchTvCatalog(
   return result;
 }
 
-export async function loadTvHomeCache() {
+async function loadTvHomeCacheLegacy() {
   try {
     const raw = await AsyncStorage.getItem(TV_HOME_CACHE_KEY);
     if (!raw) return null;
@@ -682,6 +692,7 @@ export type TvHomeLane = {
 export async function fetchTvCategories(options?: {
   signal?: AbortSignal;
 }): Promise<TvBrowseCategory[]> {
+  if (IOS_OPERATIONAL_PLATFORM) { await refreshIosOperationalPolicy(); if (!iosOperationalSectionEnabled("tv")) return []; }
   try {
     const { response, json } = await catalogJsonFetch(
       `${TV_CATALOG_BASE_URL}${TV_CATEGORIES_API_PATH}`,
@@ -800,7 +811,7 @@ export async function fetchTvCategoryLane(
   };
 }
 
-export async function fetchArchiveConcertLane(options?: {
+async function fetchArchiveConcertLaneLegacy(options?: {
   signal?: AbortSignal;
   query?: string;
 }): Promise<TvHomeLane> {
@@ -841,7 +852,7 @@ function mergeTvSearchPages(
   return merged;
 }
 
-export async function fetchTvSearchPage(
+async function fetchTvSearchPageLegacy(
   query: string,
   options?: { signal?: AbortSignal; limit?: number; page?: number }
 ): Promise<TvSearchPageResult> {
@@ -1073,4 +1084,30 @@ export function buildTvPlayerQueue(
   return videos
     .map((video) => buildTvPlayerQueueItem(video, playbackById?.[video.id] || null))
     .filter((item) => item.videoId);
+}
+
+async function filterIosTvVideos<T extends { id: string }>(videos: T[]): Promise<T[]> {
+  return filterIosOperationalItems(videos, (video) => ({ type: "tv", id: video.id }), await iosOperationalMatureAccess({ type: "tv", id: "" }));
+}
+export async function fetchTvCatalog(...args: Parameters<typeof fetchTvCatalogLegacy>): Promise<TvCatalogResponse> {
+  const result = await fetchTvCatalogLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  const videos = await filterIosTvVideos(result.videos);
+  return { ...result, videos, pagination: { ...result.pagination, total: videos.length } };
+}
+export async function loadTvHomeCache(): ReturnType<typeof loadTvHomeCacheLegacy> {
+  const cached = await loadTvHomeCacheLegacy();
+  if (!cached || !IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return cached;
+  const lanes = await Promise.all(cached.lanes.map(async (lane) => ({ ...lane, videos: await filterIosTvVideos(lane.videos) })));
+  return { ...cached, lanes: lanes.filter((lane) => lane.videos.length > 0) };
+}
+export async function fetchTvSearchPage(...args: Parameters<typeof fetchTvSearchPageLegacy>): Promise<TvSearchPageResult> {
+  const result = await fetchTvSearchPageLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  return { ...result, videos: await filterIosTvVideos(result.videos) };
+}
+export async function fetchArchiveConcertLane(...args: Parameters<typeof fetchArchiveConcertLaneLegacy>): Promise<TvHomeLane> {
+  const result = await fetchArchiveConcertLaneLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  return { ...result, videos: await filterIosTvVideos(result.videos) };
 }

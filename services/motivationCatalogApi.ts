@@ -1,4 +1,5 @@
 import { MOTIVATION_CATALOG_BASE_URL } from "@/constants/motivationCatalog";
+import { IOS_OPERATIONAL_PLATFORM, filterIosOperationalItems, iosOperationalMatureAccess, refreshIosOperationalPolicy, resolveIosOperationalPlayback, iosOperationalSectionEnabled, IosOperationalUnavailableError } from "./iosOperationalPolicy";
 import type {
   MotivationCategory,
   MotivationCategoryProgramSummary,
@@ -145,7 +146,7 @@ export function formatMotivationDuration(seconds?: number | null) {
   return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
 }
 
-export async function fetchMotivationHome(signal?: AbortSignal) {
+async function fetchMotivationHomeLegacy(signal?: AbortSignal) {
   const body = await fetchMotivationJson<
     MotivationHomeResponse & {
       success?: boolean;
@@ -188,7 +189,7 @@ export async function fetchMotivationHome(signal?: AbortSignal) {
   } satisfies MotivationHomeResponse;
 }
 
-export async function fetchMotivationCategories(signal?: AbortSignal) {
+async function fetchMotivationCategoriesLegacy(signal?: AbortSignal) {
   const body = await fetchMotivationJson<{ categories?: Record<string, unknown>[] }>(
     MOTIVATION_CATEGORIES_API_PATH,
     signal
@@ -205,7 +206,7 @@ export async function fetchMotivationCategories(signal?: AbortSignal) {
   })) satisfies MotivationCategory[];
 }
 
-export async function fetchMotivationCategoryPage(
+async function fetchMotivationCategoryPageLegacy(
   slug: string,
   options?: { page?: number; limit?: number; signal?: AbortSignal }
 ) {
@@ -265,7 +266,7 @@ function looksLikeProgramSummaryRow(row: Record<string, unknown>) {
  * Category browse as program summaries (`view=programs`).
  * Falls back to one bounded legacy episode page when the contract is unavailable.
  */
-export async function fetchMotivationCategoryPrograms(
+async function fetchMotivationCategoryProgramsLegacy(
   slug: string,
   options?: { page?: number; limit?: number; signal?: AbortSignal }
 ) {
@@ -349,7 +350,7 @@ export async function fetchMotivationCategoryPrograms(
   };
 }
 
-export async function fetchMotivationProgramDetail(
+async function fetchMotivationProgramDetailLegacy(
   programId: string,
   options?: { page?: number; limit?: number; signal?: AbortSignal }
 ) {
@@ -378,7 +379,7 @@ export async function fetchMotivationProgramDetail(
   };
 }
 
-export async function searchMotivationItems(
+async function searchMotivationItemsLegacy(
   query: string,
   options?: {
     page?: number;
@@ -423,7 +424,7 @@ export async function searchMotivationItems(
   return { items, pagination: body.pagination };
 }
 
-export async function fetchMotivationItemPlayback(
+async function fetchMotivationItemPlaybackLegacy(
   itemId: string,
   signal?: AbortSignal
 ): Promise<MotivationPlaybackResolve> {
@@ -448,4 +449,81 @@ export async function fetchMotivationItemPlayback(
       item.duration_seconds == null ? null : Math.max(0, Number(item.duration_seconds)),
     programId: cleanText(item.program_id, 80),
   };
+}
+
+async function filterIosMotivationItems<T extends { id: string }>(items: T[]): Promise<T[]> {
+  return filterIosOperationalItems(items, (item) => ({ type: "motivational", id: item.id }), await iosOperationalMatureAccess({ type: "motivational", id: "" }));
+}
+function visibleMotivationPagination<T extends MotivationOffsetPagination | MotivationCursorPagination | undefined>(pagination: T, count: number): T {
+  return pagination && "total" in pagination ? { ...pagination, total: count } : pagination;
+}
+async function iosMotivationProgramHasVisibleItem(programId: string, signal?: AbortSignal) {
+  // Program summaries have no independent source identity. Establish an allowed canonical member.
+  for (let page = 1; page <= 5; page++) {
+    if (signal?.aborted) return false;
+    const detail = await fetchMotivationProgramDetailLegacy(programId, { page, limit: MOTIVATION_MAX_PAGE_LIMIT, signal });
+    if ((await filterIosMotivationItems(detail.items)).length) return true;
+    if (!detail.pagination?.hasMore) return false;
+  }
+  return false;
+}
+export async function fetchMotivationHome(...args: Parameters<typeof fetchMotivationHomeLegacy>): Promise<MotivationHomeResponse> {
+  const result = await fetchMotivationHomeLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  const [featured_items, recommended, popular, new_releases, continue_listening, recently_played] = await Promise.all([
+    result.featured_items, result.recommended, result.popular, result.new_releases, result.continue_listening, result.recently_played,
+  ].map((items) => filterIosMotivationItems(items)));
+  const establishedPrograms = new Set([...featured_items, ...recommended, ...popular, ...new_releases, ...continue_listening, ...recently_played].map((item) => item.program_id).filter(Boolean));
+  const featured_programs: MotivationProgram[] = [];
+  if (iosOperationalSectionEnabled("motivationals")) {
+    for (let start = 0; start < result.featured_programs.length; start += 3) {
+      const batch = result.featured_programs.slice(start, start + 3);
+      const allowed = await Promise.all(batch.map(async (program) => establishedPrograms.has(program.id) || await iosMotivationProgramHasVisibleItem(program.id, args[0]).catch(() => false)));
+      for (let index = 0; index < batch.length; index++) if (allowed[index]) featured_programs.push(batch[index]);
+    }
+  }
+  const categories = iosOperationalSectionEnabled("motivationals") ? result.categories.map(({ item_count: _count, ...category }) => category) : [];
+  return { ...result, featured_items, recommended, popular, new_releases, continue_listening, recently_played, featured_programs, categories };
+}
+export async function fetchMotivationCategories(...args: Parameters<typeof fetchMotivationCategoriesLegacy>) {
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return fetchMotivationCategoriesLegacy(...args);
+  if (!iosOperationalSectionEnabled("motivationals")) return [];
+  return (await fetchMotivationCategoriesLegacy(...args)).map(({ item_count: _count, ...category }) => category);
+}
+export async function fetchMotivationCategoryPage(...args: Parameters<typeof fetchMotivationCategoryPageLegacy>): ReturnType<typeof fetchMotivationCategoryPageLegacy> {
+  const result = await fetchMotivationCategoryPageLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  const items = await filterIosMotivationItems(result.items);
+  return { ...result, items, pagination: visibleMotivationPagination(result.pagination, items.length) };
+}
+export async function fetchMotivationCategoryPrograms(...args: Parameters<typeof fetchMotivationCategoryProgramsLegacy>): ReturnType<typeof fetchMotivationCategoryProgramsLegacy> {
+  const result = await fetchMotivationCategoryProgramsLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  if (result.mode === "programs") {
+    const items = await filterIosOperationalItems(result.items, (program) => ({ type: "motivational", id: program.first_item_id }), await iosOperationalMatureAccess({ type: "motivational", id: "" }));
+    return { ...result, items, pagination: visibleMotivationPagination(result.pagination, items.length) };
+  }
+  const items = await filterIosMotivationItems(result.items);
+  return { ...result, items, pagination: visibleMotivationPagination(result.pagination, items.length) };
+}
+export async function fetchMotivationProgramDetail(...args: Parameters<typeof fetchMotivationProgramDetailLegacy>): ReturnType<typeof fetchMotivationProgramDetailLegacy> {
+  const result = await fetchMotivationProgramDetailLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  const items = await filterIosMotivationItems(result.items);
+  if (!items.length && !await iosMotivationProgramHasVisibleItem(args[0], args[1]?.signal)) throw new IosOperationalUnavailableError();
+  return { ...result, items, pagination: visibleMotivationPagination(result.pagination, items.length) };
+}
+export async function searchMotivationItems(...args: Parameters<typeof searchMotivationItemsLegacy>): ReturnType<typeof searchMotivationItemsLegacy> {
+  const result = await searchMotivationItemsLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  const items = await filterIosMotivationItems(result.items);
+  return { ...result, items, pagination: visibleMotivationPagination(result.pagination, items.length) };
+}
+export async function fetchMotivationItemPlayback(...args: Parameters<typeof fetchMotivationItemPlaybackLegacy>): Promise<MotivationPlaybackResolve> {
+  if (!IOS_OPERATIONAL_PLATFORM) return fetchMotivationItemPlaybackLegacy(...args);
+  const ref = { type: "motivational", id: args[0] };
+  const playback = await resolveIosOperationalPlayback(ref, await iosOperationalMatureAccess(ref));
+  const result = await fetchMotivationItemPlaybackLegacy(...args);
+  if (!playback.enforced) return result;
+  return { ...result, playableUrl: playback.playbackUrl };
 }

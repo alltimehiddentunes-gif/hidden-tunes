@@ -1,3 +1,4 @@
+import { filterIosOperationalItems, resolveIosOperationalPlayback } from "../iosOperationalPolicy";
 ﻿import { MEDIA_DISCOVERY_PAGE_SIZE } from "../../constants/mediaDiscovery";
 import {
   getRadioCategory,
@@ -252,7 +253,7 @@ function resolveCategoryCacheKey(categoryId: string) {
   return resolvedId;
 }
 
-export async function fetchRadioStationsPage(
+async function fetchRadioStationsPageLegacy(
   categoryId: string,
   offset = 0,
   limit = RADIO_STATION_PAGE_SIZE,
@@ -278,7 +279,7 @@ export async function fetchRadioStationsPage(
   return normalizeAndCurateStations(raw, category, offset, limit);
 }
 
-export async function fetchRadioSearchPage(
+async function fetchRadioSearchPageLegacy(
   query: string,
   offset = 0,
   limit = RADIO_STATION_PAGE_SIZE,
@@ -733,7 +734,7 @@ async function loadRadioPage(
   }
 }
 
-export async function loadRadioCategoryPage(
+async function loadRadioCategoryPageLegacy(
   categoryId: string,
   options?: LoadRadioPageOptions
 ) {
@@ -762,7 +763,7 @@ export async function loadRadioCategoryPage(
   );
 }
 
-export async function loadRadioSearchPage(query: string, options?: LoadRadioPageOptions) {
+async function loadRadioSearchPageLegacy(query: string, options?: LoadRadioPageOptions) {
   const safeQuery = String(query || "").trim();
   const cacheKey = normalizeRadioSearchCacheKey(safeQuery);
   if (!cacheKey) return { stations: [], hasMore: false, fromCache: false };
@@ -789,7 +790,7 @@ export async function loadRadioSearchPage(query: string, options?: LoadRadioPage
   );
 }
 
-export async function resolveRadioStationForPlayback(
+async function resolveRadioStationForPlaybackLegacy(
   cacheKey: string,
   stationId: string,
   fallback?: HiddenTunesStation | null
@@ -803,4 +804,31 @@ export async function resolveRadioStationForPlayback(
 
   const hydrated = await hydrateCachedRadioStations(cacheKey);
   return hydrated?.find((station) => station.id === stationId) || fallback || null;
+}
+
+export async function fetchRadioStationsPage(...args: Parameters<typeof fetchRadioStationsPageLegacy>): ReturnType<typeof fetchRadioStationsPageLegacy> {
+ const result = await fetchRadioStationsPageLegacy(...args);
+ return filterIosOperationalItems(result, (station) => ({ type: station.iosPolicyType || "radio_legacy_station", id: station.id }), { matureEnabled: shouldIncludeMatureInApi() });
+}
+
+export async function fetchRadioSearchPage(...args: Parameters<typeof fetchRadioSearchPageLegacy>): ReturnType<typeof fetchRadioSearchPageLegacy> {
+ const result = await fetchRadioSearchPageLegacy(...args);
+ return { ...result, stations: await filterIosOperationalItems(result.stations, (station) => ({ type: station.iosPolicyType || "radio_legacy_station", id: station.id }), { matureEnabled: shouldIncludeMatureInApi() }) };
+}
+
+export async function loadRadioCategoryPage(...args: Parameters<typeof loadRadioCategoryPageLegacy>): ReturnType<typeof loadRadioCategoryPageLegacy> {
+ const result = await loadRadioCategoryPageLegacy(...args);
+ return { ...result, stations: await filterIosOperationalItems(result.stations, (station) => ({ type: station.iosPolicyType || "radio_legacy_station", id: station.id }), { matureEnabled: shouldIncludeMatureInApi() }) };
+}
+
+export async function loadRadioSearchPage(...args: Parameters<typeof loadRadioSearchPageLegacy>): ReturnType<typeof loadRadioSearchPageLegacy> {
+ const result = await loadRadioSearchPageLegacy(...args);
+ return { ...result, stations: await filterIosOperationalItems(result.stations, (station) => ({ type: station.iosPolicyType || "radio_legacy_station", id: station.id }), { matureEnabled: shouldIncludeMatureInApi() }) };
+}
+
+export async function resolveRadioStationForPlayback(...args: Parameters<typeof resolveRadioStationForPlaybackLegacy>): ReturnType<typeof resolveRadioStationForPlaybackLegacy> {
+ const result = await resolveRadioStationForPlaybackLegacy(...args);
+ if (!result) return result;
+ const controlled = await resolveIosOperationalPlayback({ type: result.iosPolicyType || "radio_legacy_station", id: result.id }, { matureEnabled: shouldIncludeMatureInApi() });
+ return controlled.enforced ? { ...result, streamUrl: controlled.playbackUrl } : result;
 }

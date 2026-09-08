@@ -1,4 +1,5 @@
 import type { HiddenTunesNormalizedSong } from "./hiddenTunesApi";
+import { filterIosOperationalItems, iosOperationalSongRef } from "./iosOperationalPolicy";
 import { logSearchDiagnostic } from "../utils/searchDiagnostics";
 
 export type FreeMusicProviderSource =
@@ -468,7 +469,7 @@ export async function searchFreeMusicProviders(
       );
 
       if (outcome.status === "success") {
-        const results = dedupeResults(outcome.value).slice(0, limit);
+        const results = await filterIosOperationalItems(dedupeResults(outcome.value).slice(0, limit), iosOperationalSongRef);
         allResults.push(...results);
         const status = toStatus(
           provider.source,
@@ -503,7 +504,7 @@ export async function searchFreeMusicProviders(
     })
   );
 
-  const results = dedupeResults(allResults).slice(0, limit * 2);
+  const results = await filterIosOperationalItems(dedupeResults(allResults).slice(0, limit * 2), iosOperationalSongRef);
   logSearchDiagnostic("merge_complete", {
     query: cleanQuery,
     providerCount: statuses.length,

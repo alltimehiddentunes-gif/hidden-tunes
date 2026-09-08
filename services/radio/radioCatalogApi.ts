@@ -101,6 +101,7 @@ export function mapRadioCatalogStationToHiddenTunes(
 
   return {
     id,
+    iosPolicyType: "radio",
     name,
     streamUrl: pickOptionalHttpsStreamUrl(station.stream_url),
     favicon: String(station.artwork_url || "").trim() || undefined,
@@ -242,6 +243,8 @@ export async function fetchRadioStationPlay(
   stationId: string,
   signal?: AbortSignal
 ): Promise<RadioCatalogPlayResult | null> {
+  const controlled = await resolveIosOperationalPlayback({ type: "radio", id: stationId }, { matureEnabled: shouldIncludeMatureInApi() });
+  if (controlled.enforced) return { stationId, streamUrl: controlled.playbackUrl };
   const id = String(stationId || "").trim();
   if (!id) return null;
 
@@ -274,9 +277,11 @@ export async function fetchRadioStationPlay(
 }
 
 export async function resolveRadioStationStreamUrl(
-  station: Pick<HiddenTunesStation, "id" | "streamUrl">,
+  station: Pick<HiddenTunesStation, "id" | "streamUrl" | "iosPolicyType">,
   signal?: AbortSignal
 ): Promise<string | null> {
+  const controlled = await resolveIosOperationalPlayback({ type: station.iosPolicyType || "radio_legacy_station", id: station.id }, { matureEnabled: shouldIncludeMatureInApi() });
+  if (controlled.enforced) return controlled.playbackUrl;
   const existing = pickOptionalHttpsStreamUrl(station.streamUrl);
   if (existing) return existing;
   const play = await fetchRadioStationPlay(station.id, signal);
@@ -351,7 +356,7 @@ export async function fetchRadioCatalogSearchPage(
   const hasMore = paging.backendHasMore === true;
 
   return {
-    stations: filterMatureStations(mapped).slice(0, safeLimit),
+    stations: await filterIosOperationalItems(filterMatureStations(mapped).slice(0, safeLimit), (station) => ({ type: "radio", id: station.id }), { matureEnabled: shouldIncludeMatureInApi() }),
     hasMore,
     backendTotal: paging.backendTotal,
     backendPageRowCount: rawBackendRowsReturned,
@@ -361,3 +366,4 @@ export async function fetchRadioCatalogSearchPage(
     source: "catalog",
   };
 }
+import { resolveIosOperationalPlayback, filterIosOperationalItems } from "../iosOperationalPolicy";

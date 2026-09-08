@@ -17,6 +17,8 @@ import WebView, { type WebViewMessageEvent } from "react-native-webview";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
   claimExclusivePlayback,
+  getActivePlaybackOwner,
+  getPlaybackHandoffGeneration,
   registerPlaybackOwnerAdapter,
   releasePlaybackOwner,
 } from "../services/playback/PlaybackHandoffCoordinator";
@@ -24,6 +26,8 @@ import {
   registerVideoSessionController,
 } from "../services/playback/videoSessionController";
 import { navigateTvPlayerBack } from "../utils/tvNavigation";
+import { IOS_OPERATIONAL_PLATFORM, getIosOperationalPolicySnapshot, monitorIosOperationalPlayback, subscribeIosOperationalPolicy } from "../services/iosOperationalPolicy";
+import { authorizeIosVideoEmbed, type IosVideoEmbedAuthorization } from "../services/videos/openVideoItem";
 
 type YouTubeQueueItem = {
   id: string;
@@ -36,6 +40,7 @@ type YouTubeQueueItem = {
   thumbnail: string;
   embedUrl?: string;
   playbackUrl?: string;
+  iosCanonicalId?: string;
 };
 
 const YOUTUBE_MINI_KEY = "hidden_tunes_current_youtube";
@@ -286,6 +291,7 @@ function normalizeQueueItem(item: any): YouTubeQueueItem | null {
     thumbnail,
     embedUrl,
     playbackUrl,
+    ...(IOS_OPERATIONAL_PLATFORM ? { iosCanonicalId: cleanRouteText(item?.iosCanonicalId) } : {}),
   };
 }
 
@@ -301,6 +307,11 @@ export default function YouTubePlayerScreen() {
   const autoNextTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoNextUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const screenMountedRef = useRef(true);
+  const videoSessionActiveRef = useRef(!IOS_OPERATIONAL_PLATFORM);
+  const stopVideoRef = useRef<() => void>(() => {});
+  const authorizationGenerationRef = useRef(0);
+  const [authorizationAttempt, setAuthorizationAttempt] = useState(0);
+  const [iosAuthorization, setIosAuthorization] = useState<{ key: string; authorization: IosVideoEmbedAuthorization } | null>(null);
 
   const initialVideoSource = normalizeVideoSourceParam(params.videoSource);
   const initialRouteId = cleanRouteText(params.videoId || params.externalVideoId || params.source_id || params.id);
@@ -336,6 +347,7 @@ export default function YouTubePlayerScreen() {
       artist: initialArtist,
       channelTitle: initialArtist,
       thumbnail: String(params.thumbnail || ""),
+      iosCanonicalId: String(params.id || ""),
     });
 
     return fallbackItem ? [fallbackItem] : [];
@@ -373,9 +385,13 @@ export default function YouTubePlayerScreen() {
   const queue = parsedQueue;
   const currentVideo = queue[currentIndex] || queue[0];
 
-  const videoId = currentVideo?.videoId || initialVideoId;
-  const videoSource = currentVideo?.videoSource || initialVideoSource;
-  const currentEmbedUrl = currentVideo?.embedUrl || initialEmbedUrl;
+  const requestedVideoId = currentVideo?.videoId || initialVideoId;
+  const canonicalId = currentVideo?.iosCanonicalId || (requestedVideoId === initialVideoId ? String(params.id || "") : "");
+  const authorizationKey = `${currentIndex}:${canonicalId}:${requestedVideoId}:${authorizationAttempt}`;
+  const currentAuthorization = iosAuthorization?.key === authorizationKey ? iosAuthorization.authorization : null;
+  const videoId = currentAuthorization?.enforced ? currentAuthorization.videoId : requestedVideoId;
+  const videoSource = currentAuthorization?.enforced ? currentAuthorization.videoSource : currentVideo?.videoSource || initialVideoSource;
+  const currentEmbedUrl = currentAuthorization?.enforced ? currentAuthorization.embedUrl : currentVideo?.embedUrl || initialEmbedUrl;
   const title = currentVideo?.title || initialTitle;
   const artist =
     currentVideo?.artist ||
@@ -388,21 +404,24 @@ export default function YouTubePlayerScreen() {
   const playerReadyRef = useRef(false);
 
   const embedHtml = useMemo(() => {
+    if (IOS_OPERATIONAL_PLATFORM && !currentAuthorization) return "";
     if (videoSource === "archive") {
       return isArchiveEmbedUrl(currentEmbedUrl) ? buildArchiveEmbedPlayerHtml(currentEmbedUrl) : "";
     }
 
     return videoId ? buildEmbedPlayerHtml(videoId, embedPageOrigin, true) : "";
-  }, [currentEmbedUrl, embedPageOrigin, videoId, videoSource]);
+  }, [currentEmbedUrl, embedPageOrigin, videoId, videoSource, currentAuthorization]);
 
   useEffect(() => {
     screenMountedRef.current = true;
     let active = true;
-    const sessionActive = { current: true };
+    const sessionActive = videoSessionActiveRef;
+    if (!IOS_OPERATIONAL_PLATFORM) sessionActive.current = true;
 
     const stopVideo = () => {
       sessionActive.current = false;
       try {
+        if (IOS_OPERATIONAL_PLATFORM) webViewRef.current?.injectJavaScript?.("try { document.querySelectorAll('iframe').forEach(function(frame) { try { frame.contentWindow.postMessage(JSON.stringify({event:'command',func:'stopVideo',args:''}), '*'); } catch(e) {} frame.src='about:blank'; }); } catch(e) {} true;");
         webViewRef.current?.injectJavaScript?.(
           `try {
             var v = document.querySelector('video');
@@ -417,6 +436,7 @@ export default function YouTubePlayerScreen() {
       setIsVideoPlaying(false);
       releasePlaybackOwner("video");
     };
+    stopVideoRef.current = stopVideo;
 
     registerVideoSessionController({
       stopSession: stopVideo,
@@ -432,6 +452,7 @@ export default function YouTubePlayerScreen() {
     });
 
     void (async () => {
+      if (IOS_OPERATIONAL_PLATFORM) return;
       const claim = await claimExclusivePlayback({
         owner: "video",
         contentKind: "video",
@@ -467,6 +488,58 @@ export default function YouTubePlayerScreen() {
   }, []);
 
   useEffect(() => {
+    if (!IOS_OPERATIONAL_PLATFORM) return;
+    let active = true;
+    const generation = ++authorizationGenerationRef.current;
+    const ownerGeneration = getPlaybackHandoffGeneration();
+    let unsubscribe = () => {}, stopMonitor = () => {};
+    let checking = false;
+    setIosAuthorization(null);
+    const current = () => active && screenMountedRef.current && generation === authorizationGenerationRef.current;
+    const revoke = () => {
+      if (!current()) return;
+      setIosAuthorization(null);
+      if (getActivePlaybackOwner() === "video") stopVideoRef.current();
+      setPlayerStatus("This video is currently unavailable on iOS.");
+    };
+    void (async () => {
+      try {
+        const authorization = await authorizeIosVideoEmbed(canonicalId);
+        if (!current() || getPlaybackHandoffGeneration() !== ownerGeneration) return;
+        const policyCurrent = () => {
+          const snapshot = getIosOperationalPolicySnapshot();
+          return authorization.enforced ? snapshot.status === "active" && snapshot.revision === authorization.revision : snapshot.status === "legacy";
+        };
+        if (!policyCurrent()) { revoke(); return; }
+        const claim = await claimExclusivePlayback({ owner: "video", contentKind: "video", mediaKey: canonicalId || requestedVideoId });
+        if (!current() || !claim.isCurrent()) return;
+        if (!policyCurrent()) { revoke(); return; }
+        videoSessionActiveRef.current = true;
+        setIosAuthorization({ key: authorizationKey, authorization });
+        const verify = async () => {
+          if (!current() || checking || !claim.isCurrent() || getActivePlaybackOwner() !== "video") return;
+          checking = true;
+          try {
+            const latest = await authorizeIosVideoEmbed(canonicalId);
+            if (!current() || !claim.isCurrent()) return;
+            // Revocation or an asset change stops this owner; a later tap authorizes a new start.
+            if (authorization.enforced !== latest.enforced || (authorization.enforced && latest.enforced && (authorization.videoId !== latest.videoId || authorization.videoSource !== latest.videoSource || authorization.embedUrl !== latest.embedUrl))) { revoke(); return; }
+          } catch { if (claim.isCurrent()) revoke(); }
+          finally { checking = false; }
+        };
+        unsubscribe = subscribeIosOperationalPolicy(() => {
+          const snapshot = getIosOperationalPolicySnapshot();
+          if (snapshot.status === "unavailable") revoke();
+          else void verify();
+        });
+        stopMonitor = monitorIosOperationalPlayback(verify);
+      } catch { revoke(); }
+    })();
+    return () => { active = false; unsubscribe(); stopMonitor(); };
+  }, [authorizationKey, canonicalId, requestedVideoId]);
+
+  useEffect(() => {
+    if (IOS_OPERATIONAL_PLATFORM && !currentAuthorization) return;
     saveYouTubeMini();
 
     startedAtRef.current = Date.now();
@@ -491,14 +564,14 @@ export default function YouTubePlayerScreen() {
         scheduleEmbedErrorSkip("embed-timeout");
       }
     }, 12000);
-  }, [videoId, title, artist, thumbnail]);
+  }, [videoId, title, artist, thumbnail, currentAuthorization, canonicalId]);
 
   async function saveYouTubeMini() {
     if (!videoId) return;
 
     try {
       const payload = JSON.stringify({
-        id: videoId,
+        id: IOS_OPERATIONAL_PLATFORM && currentAuthorization?.enforced ? canonicalId : videoId,
         videoId,
         title,
         channelTitle: artist,
@@ -518,6 +591,7 @@ export default function YouTubePlayerScreen() {
     if (!queue.length) return;
 
     const safeIndex = Math.max(0, Math.min(index, queue.length - 1));
+    if (IOS_OPERATIONAL_PLATFORM) { setIosAuthorization(null); setAuthorizationAttempt((attempt) => attempt + 1); }
 
     startedAtRef.current = Date.now();
     autoNextLockRef.current = false;
@@ -549,7 +623,14 @@ export default function YouTubePlayerScreen() {
     playAtIndex(previous < 0 ? queue.length - 1 : previous);
   }
 
-  function togglePlayPause() {
+  async function togglePlayPause() {
+    if (IOS_OPERATIONAL_PLATFORM && !isVideoPlaying) {
+      const generation = authorizationGenerationRef.current;
+      try {
+        const authorization = await authorizeIosVideoEmbed(canonicalId);
+        if (generation !== authorizationGenerationRef.current || getActivePlaybackOwner() !== "video" || !currentAuthorization || authorization.enforced !== currentAuthorization.enforced || (authorization.enforced && currentAuthorization.enforced && (authorization.videoId !== currentAuthorization.videoId || authorization.embedUrl !== currentAuthorization.embedUrl))) throw new Error("Stale embedded video");
+      } catch { setIosAuthorization(null); if (getActivePlaybackOwner() === "video") stopVideoRef.current(); setPlayerStatus("This video is currently unavailable on iOS."); return; }
+    }
     if (!playerReady) {
       setPlayerStatus("Almost ready. Try again in a moment.");
       return;
@@ -624,6 +705,7 @@ export default function YouTubePlayerScreen() {
   }
 
   function handleWebViewMessage(event: WebViewMessageEvent) {
+    if (IOS_OPERATIONAL_PLATFORM && !currentAuthorization) return;
     const message = String(event.nativeEvent.data || "");
 
     if (message === "playing") {
@@ -683,6 +765,19 @@ export default function YouTubePlayerScreen() {
 
   function handleInAppWebViewNavigation(request: { url: string }) {
     const requestUrl = String(request.url || "");
+    if (IOS_OPERATIONAL_PLATFORM && !currentAuthorization) return requestUrl === "about:blank";
+    if (IOS_OPERATIONAL_PLATFORM && currentAuthorization?.enforced) {
+      // Embedded recommendations and arbitrary route/header URLs cannot start a different asset.
+      if (requestUrl === "about:blank") return true;
+      try {
+        const url = new URL(requestUrl);
+        if (url.protocol !== "https:" || url.username || url.password) return false;
+        const host = url.hostname.toLowerCase();
+        if (["hiddentunes.com", "lonelycpp.github.io"].includes(host)) return url.pathname === "/" && !url.search && !url.hash;
+        if (videoSource === "archive") return host === "archive.org" && url.pathname === new URL(currentEmbedUrl).pathname;
+        return ["www.youtube.com", "youtube.com", "www.youtube-nocookie.com", "youtube-nocookie.com"].includes(host) && url.pathname === `/embed/${videoId}`;
+      } catch { return false; }
+    }
 
     if (!requestUrl) return true;
     if (isBlockedExternalUrl(requestUrl)) {

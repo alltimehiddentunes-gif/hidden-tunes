@@ -1,4 +1,5 @@
 import type { HiddenTunesCatalogPlaylist } from "./hiddenTunes";
+import { getIosOperationalPolicySnapshot, isIosOperationalItemVisible, iosOperationalSongRef } from "./iosOperationalPolicy";
 import type { HiddenTunesGenre } from "../utils/genres";
 import {
   CATALOG_SEARCH_TV_MAX_SCORE,
@@ -880,6 +881,10 @@ export function runUniversalCatalogSearch(
   catalog: UniversalSearchCatalog,
   query: string
 ): UniversalSearchGroupedResults {
+  if (getIosOperationalPolicySnapshot().status !== "legacy") {
+    catalog = { ...catalog, songs: currentIosSongs(catalog.songs),
+      tvVideos: catalog.tvVideos.filter((video) => isIosOperationalItemVisible({ type: "tv", id: video.id })) };
+  }
   const startedAt = Date.now();
   const cleanQuery = String(query || "").trim();
   if (cleanQuery.length < 2) return EMPTY_UNIVERSAL_SEARCH_RESULTS;
@@ -930,7 +935,7 @@ export function runUniversalCatalogSearch(
       result.albums.length,
   });
 
-  return result;
+  return currentIosSearchResults(result);
 }
 
 export function buildTrustedBackendSongHits(
@@ -940,6 +945,7 @@ export function buildTrustedBackendSongHits(
   UniversalSearchGroupedResults,
   "songs" | "artists" | "albums" | "genreMoods" | "moodRooms" | "playlists"
 > {
+  songs = currentIosSongs(songs);
   const cleanQuery = String(query || "").trim();
   if (!cleanQuery || !songs.length) {
     return {
@@ -1038,6 +1044,7 @@ export function buildTrustedInternetAudioHits(
   songs: HiddenTunesNormalizedSong[],
   query: string
 ): UniversalSearchSongHit[] {
+  songs = currentIosSongs(songs);
   const cleanQuery = String(query || "").trim();
   if (!cleanQuery || !songs.length) return [];
 
@@ -1142,8 +1149,39 @@ export function mergeGroupedSearchResults(
     .sort((left, right) => right.score - left.score)
     .slice(0, LIMITS.top);
 
-  merged.hasAnyResults = hasGroupedResults(merged);
-  return merged;
+  return currentIosSearchResults(merged);
+}
+
+function currentIosSongs(songs: HiddenTunesNormalizedSong[]) {
+  if (getIosOperationalPolicySnapshot().status === "legacy") return songs;
+  return songs.filter((song) => isIosOperationalItemVisible(iosOperationalSongRef(song)));
+}
+
+/** Recheck cached groups before merging them into newly authorized results. */
+function currentIosSearchResults(result: UniversalSearchGroupedResults): UniversalSearchGroupedResults {
+  if (getIosOperationalPolicySnapshot().status === "legacy") { result.hasAnyResults = hasGroupedResults(result); return result; }
+  const songs = result.songs.filter((hit) => isIosOperationalItemVisible(iosOperationalSongRef(hit.payload)));
+  const lyrics = result.lyrics.filter((hit) => isIosOperationalItemVisible(iosOperationalSongRef(hit.payload)));
+  const internetAudio = result.internetAudio.filter((hit) => isIosOperationalItemVisible(iosOperationalSongRef(hit.payload)));
+  const backbone = [...songs, ...lyrics].map((hit) => hit.payload);
+  const albumPayload = (album: HiddenTunesAlbum) => ({ ...album, tracks: currentIosSongs(album.tracks || []) });
+  const artists = result.artists
+    .filter((hit) => backbone.some((song) => song.artistId === hit.payload.id || normalizeSearchText(song.artist) === normalizeSearchText(hit.payload.name)))
+    .map((hit) => ({ ...hit, payload: { ...hit.payload,
+      tracks: currentIosSongs(hit.payload.tracks || []),
+      albums: (hit.payload.albums || []).map(albumPayload).filter((album) => album.tracks.length > 0),
+    } }));
+  const albums = result.albums.map((hit) => ({ ...hit, payload: albumPayload(hit.payload) })).filter((hit) => hit.payload.tracks.length > 0);
+  const genres = new Set(backbone.flatMap((song) => [normalizeSearchText(song.genre), normalizeSearchText(song.mood)]));
+  const genreMoods = result.genreMoods.filter((hit) => genres.has(normalizeSearchText(hit.payload.title)));
+  const moodRooms = backbone.length ? result.moodRooms : [];
+  const playlists = result.playlists.map((hit) => ({ ...hit, payload: { ...hit.payload, songs: hit.payload.songs.filter((song) => isIosOperationalItemVisible(iosOperationalSongRef(song))) } })).filter((hit) => hit.payload.songs.length > 0);
+  const tv = result.tv.filter((hit) => isIosOperationalItemVisible({ type: "tv", id: hit.payload.id }));
+  const kept = new Map<string, UniversalSearchTopHit>([...songs, ...lyrics, ...internetAudio, ...artists, ...albums, ...genreMoods, ...moodRooms, ...playlists, ...tv].map((hit) => [hit.id, hit]));
+  const topResults = result.topResults.flatMap((hit) => { const current = kept.get(hit.id); return current ? [current] : []; });
+  const filtered = { ...result, songs, lyrics, internetAudio, artists, albums, genreMoods, moodRooms, playlists, tv, topResults };
+  filtered.hasAnyResults = hasGroupedResults(filtered);
+  return filtered;
 }
 
 export function rankCachedSongsForQuery(
@@ -1151,6 +1189,7 @@ export function rankCachedSongsForQuery(
   query: string,
   limit = 80
 ) {
+  songs = currentIosSongs(songs);
   const cleanQuery = String(query || "").trim();
   if (!cleanQuery) return songs;
 

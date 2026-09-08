@@ -3,6 +3,8 @@ import type { HiddenTunesStation } from "../../types/radio";
 import { readCachedRadioStations, writeCachedRadioStations } from "./radioCache";
 import { loadRadioCategoryPage, RADIO_STATION_PAGE_SIZE } from "./radioBrowserApi";
 import { sortStationsByQuality } from "./radioQualityScore";
+import { filterIosOperationalItems, isIosOperationalItemVisible } from "../iosOperationalPolicy";
+import { shouldIncludeMatureInApi } from "../../utils/matureContentSettings";
 
 type LaneLoadOptions = {
   offset?: number;
@@ -50,7 +52,7 @@ export function buildRecommendedRadioStations(
   return sortStationsByQuality(scored.map((entry) => entry.station)).slice(0, limit);
 }
 
-export async function loadRecommendedRadioLanePage(options?: LaneLoadOptions) {
+async function loadRecommendedRadioLanePageLegacy(options?: LaneLoadOptions) {
   const offset = Math.max(0, Number(options?.offset) || 0);
   const limit = Math.max(
     1,
@@ -91,6 +93,11 @@ export async function loadRecommendedRadioLanePage(options?: LaneLoadOptions) {
   };
 }
 
+export async function loadRecommendedRadioLanePage(options?: LaneLoadOptions) {
+  const result = await loadRecommendedRadioLanePageLegacy(options);
+  return { ...result, stations: await filterIosOperationalItems(result.stations, (station) => ({ type: station.iosPolicyType || "radio_legacy_station", id: station.id }), { matureEnabled: shouldIncludeMatureInApi() }) };
+}
+
 export async function loadRadioHomeLanePage(
   laneId: "featured" | "trending" | "popular",
   options?: LaneLoadOptions
@@ -107,5 +114,5 @@ export function rememberRecommendedLane(
   void writeCachedRadioStations(radioHomeLaneCacheKey("recommended"), recommended, {
     append: false,
   });
-  return recommended;
+  return recommended.filter((station) => isIosOperationalItemVisible({ type: station.iosPolicyType || "radio_legacy_station", id: station.id }));
 }

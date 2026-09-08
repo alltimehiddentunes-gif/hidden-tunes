@@ -1,4 +1,5 @@
 import { LECTURES_CATALOG_BASE_URL } from "@/constants/lecturesCatalog";
+import { IOS_OPERATIONAL_PLATFORM, filterIosOperationalItems, iosOperationalMatureAccess, refreshIosOperationalPolicy, resolveIosOperationalPlayback, iosOperationalSectionEnabled, IosOperationalUnavailableError } from "./iosOperationalPolicy";
 import type {
   EducationalCategory,
   EducationalContentFormat,
@@ -278,7 +279,7 @@ async function fetchLectureJson<T>(url: string, signal?: AbortSignal): Promise<T
   }
 }
 
-export async function fetchEducationalCategories(options?: { signal?: AbortSignal }) {
+async function fetchEducationalCategoriesLegacy(options?: { signal?: AbortSignal }) {
   const body = await fetchLectureJson<{ categories: EducationalCategory[] }>(
     `${LECTURES_CATALOG_BASE_URL}${LECTURES_CATEGORIES_API_PATH}`,
     options?.signal
@@ -286,7 +287,7 @@ export async function fetchEducationalCategories(options?: { signal?: AbortSigna
   return body.categories || [];
 }
 
-export async function fetchEducationalCategoryPage(
+async function fetchEducationalCategoryPageLegacy(
   slug: string,
   options?: { page?: number; limit?: number; signal?: AbortSignal }
 ) {
@@ -310,7 +311,7 @@ export async function fetchEducationalCategoryPage(
   return { programs: lectures.map(lectureToEducationalProgram), items: lectures, pagination: body.pagination };
 }
 
-export async function searchEducationalPrograms(
+async function searchEducationalProgramsLegacy(
   query: string,
   options?: { page?: number; limit?: number; signal?: AbortSignal }
 ) {
@@ -353,7 +354,7 @@ export async function searchEducationalPrograms(
   };
 }
 
-export async function fetchEducationalProgramDetail(
+async function fetchEducationalProgramDetailLegacy(
   programId: string,
   options?: { sessionPage?: number; sessionLimit?: number; signal?: AbortSignal }
 ): Promise<EducationalProgramDetail> {
@@ -403,7 +404,7 @@ export async function fetchEducationalProgramDetail(
   };
 }
 
-export async function fetchEducationalSessionPlayback(
+async function fetchEducationalSessionPlaybackLegacy(
   programId: string,
   sessionId?: string,
   signal?: AbortSignal
@@ -537,4 +538,40 @@ export function filterEducationalBrowseItems(
 ) {
   const allowMature = options?.allowMature === true;
   return items.filter((item) => allowMature || item.is_mature !== true);
+}
+
+async function filterIosLecturePage<T extends { items: HiddenTunesLectureItem[]; programs: EducationalProgram[]; pagination: EducationalOffsetPagination }>(page: T): Promise<T> {
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return page;
+  const items = await filterIosOperationalItems(page.items, (item) => ({ type: "lecture", id: item.id }), await iosOperationalMatureAccess({ type: "lecture", id: "" }));
+  const ids = new Set(items.map((item) => item.id));
+  return { ...page, items, programs: page.programs.filter((program) => ids.has(program.id)), pagination: { ...page.pagination, total: items.length } };
+}
+
+export async function fetchEducationalCategories(...args: Parameters<typeof fetchEducationalCategoriesLegacy>) {
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return fetchEducationalCategoriesLegacy(...args);
+  if (!iosOperationalSectionEnabled("lectures")) return [];
+  return (await fetchEducationalCategoriesLegacy(...args)).map(({ item_count: _count, ...category }) => category);
+}
+export async function fetchEducationalCategoryPage(...args: Parameters<typeof fetchEducationalCategoryPageLegacy>) {
+  return filterIosLecturePage(await fetchEducationalCategoryPageLegacy(...args));
+}
+export async function searchEducationalPrograms(...args: Parameters<typeof searchEducationalProgramsLegacy>) {
+  return filterIosLecturePage(await searchEducationalProgramsLegacy(...args));
+}
+export async function fetchEducationalProgramDetail(...args: Parameters<typeof fetchEducationalProgramDetailLegacy>): Promise<EducationalProgramDetail> {
+  const detail = await fetchEducationalProgramDetailLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return detail;
+  const access = await iosOperationalMatureAccess({ type: "lecture", id: detail.program.id });
+  if (!(await filterIosOperationalItems([detail.program], (program) => ({ type: "lecture", id: program.id }), access)).length) throw new IosOperationalUnavailableError();
+  const sessions = await filterIosOperationalItems(detail.sessions, (session) => ({ type: "lecture_file", id: session.id }), access);
+  return { ...detail, sessions, pagination: { ...detail.pagination, total: sessions.length } };
+}
+export async function fetchEducationalSessionPlayback(...args: Parameters<typeof fetchEducationalSessionPlaybackLegacy>): Promise<EducationalPlaybackResolve> {
+  if (!IOS_OPERATIONAL_PLATFORM) return fetchEducationalSessionPlaybackLegacy(...args);
+  const [programId, sessionId] = args;
+  const ref = { type: "lecture", id: programId };
+  const playback = await resolveIosOperationalPlayback(ref, { ...await iosOperationalMatureAccess(ref), ...(sessionId ? { assetId: sessionId } : {}) });
+  const result = await fetchEducationalSessionPlaybackLegacy(...args);
+  if (!playback.enforced) return result;
+  return { ...result, playableUrl: playback.playbackUrl };
 }

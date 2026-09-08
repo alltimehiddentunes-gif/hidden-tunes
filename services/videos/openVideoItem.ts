@@ -8,6 +8,7 @@ import {
   type HiddenTunesTvVideo,
 } from "../tvCatalogApi";
 import { openTvDiscoveryStation } from "../tvDiscoveryOpen";
+import { IOS_OPERATIONAL_PLATFORM, resolveIosOperationalPlayback, iosOperationalMatureAccess, IosOperationalUnavailableError } from "../iosOperationalPolicy";
 import type { TvDiscoveryLaunchContext } from "@/types/tvDiscovery";
 import {
   getVideoDisplayCreator,
@@ -35,6 +36,29 @@ type OpenVideoOptions = {
 };
 
 export type OpenVideoResult = { ok: true } | { ok: false; error: string };
+const CANONICAL_TV_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export type IosVideoEmbedAuthorization = { enforced: false } | { enforced: true; revision: number; videoId: string; videoSource: "youtube" | "archive"; embedUrl: string };
+
+/** Only a fresh canonical TV response may bind active iOS to an embedded video. */
+export async function authorizeIosVideoEmbed(canonicalId: string): Promise<IosVideoEmbedAuthorization> {
+  if (!IOS_OPERATIONAL_PLATFORM) return { enforced: false };
+  const ref = CANONICAL_TV_ID.test(canonicalId) ? { type: "tv", id: canonicalId.toLowerCase() } : null;
+  const authorization = await resolveIosOperationalPlayback(ref, await iosOperationalMatureAccess(ref));
+  if (!authorization.enforced) return authorization;
+  if (!["direct", "embed"].includes(authorization.delivery)) throw new IosOperationalUnavailableError();
+  const url = new URL(authorization.playbackUrl);
+  if (url.protocol !== "https:" || url.username || url.password) throw new IosOperationalUnavailableError();
+  const host = url.hostname.toLowerCase();
+  if (["youtube.com", "www.youtube.com", "m.youtube.com", "youtube-nocookie.com", "www.youtube-nocookie.com", "youtu.be"].includes(host)) {
+    const candidate = host === "youtu.be" ? url.pathname.slice(1) : url.pathname === "/watch" ? url.searchParams.get("v") ?? "" : url.pathname.match(/^\/embed\/([a-zA-Z0-9_-]{11})\/?$/)?.[1] ?? "";
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(candidate)) throw new IosOperationalUnavailableError();
+    return { enforced: true, revision: authorization.revision, videoId: candidate, videoSource: "youtube", embedUrl: `https://www.youtube.com/embed/${candidate}` };
+  }
+  if (host === "archive.org" && /^\/embed\/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,199}\/?$/.test(url.pathname)) {
+    return { enforced: true, revision: authorization.revision, videoId: url.pathname.split("/")[2], videoSource: "archive", embedUrl: url.href };
+  }
+  throw new IosOperationalUnavailableError();
+}
 
 function tvPlaybackErrorMessage(error: string) {
   switch (error) {
@@ -167,12 +191,13 @@ function buildRouteQueue(
   playback: HiddenTunesTvPlayback
 ) {
   return queueVideos
-    .map((video) =>
-      buildTvPlayerQueueItem(
+    .map((video) => ({
+      ...buildTvPlayerQueueItem(
         video,
         video.id === tappedVideoId ? playback : null
-      )
-    )
+      ),
+      ...(IOS_OPERATIONAL_PLATFORM ? { iosCanonicalId: video.id } : {}),
+    }))
     .filter((item) => item.videoId);
 }
 
@@ -239,8 +264,11 @@ export async function openVideoItem(
   }
 
   let playback: HiddenTunesTvPlayback | null = null;
+  let authorization: IosVideoEmbedAuthorization;
+  try { authorization = await authorizeIosVideoEmbed(rawVideo.id); }
+  catch { return { ok: false, error: "This video is currently unavailable on iOS." }; }
   try {
-    playback = await resolvePlayback(rawVideo);
+    playback = authorization.enforced ? { id: rawVideo.id, source_type: authorization.videoSource, source_id: authorization.videoId, stream_url: authorization.embedUrl, embed_url: authorization.embedUrl } : await resolvePlayback(rawVideo);
   } catch {
     await markPlaybackFailure(rawVideo.id);
     return {

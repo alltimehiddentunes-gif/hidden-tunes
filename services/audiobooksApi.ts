@@ -10,6 +10,7 @@ import type {
   AudiobookPlayResponse,
 } from "../types/audiobooks";
 import { orderAudiobookChapters } from "../utils/audiobookOrdering";
+import { IOS_OPERATIONAL_PLATFORM, filterIosOperationalItems, getIosOperationalPolicySnapshot, isIosOperationalItemVisible, refreshIosOperationalPolicy, resolveIosOperationalPlayback, iosOperationalSectionEnabled, IosOperationalUnavailableError } from "./iosOperationalPolicy";
 import {
   catalogJsonFetch,
   isCatalogAbortError,
@@ -136,7 +137,7 @@ async function loadAudiobookPage(
 }
 
 /** Sync peek for stale-while-revalidate UI (does not start a network fetch). */
-export function peekCachedAudiobookPage(
+function peekCachedAudiobookPageLegacy(
   kind: "all" | "category" | "search",
   key: string,
   page: number,
@@ -403,6 +404,7 @@ export function formatAudiobookDuration(seconds?: number | null) {
 }
 
 export async function fetchAudiobookTree(signal?: AbortSignal): Promise<AudiobookCategory[]> {
+  if (IOS_OPERATIONAL_PLATFORM) { await refreshIosOperationalPolicy(); if (!iosOperationalSectionEnabled("audiobooks")) return []; }
   const now = Date.now();
   if (cachedTree && now - cachedTreeAt < TREE_CACHE_TTL_MS) {
     return cachedTree;
@@ -444,7 +446,7 @@ function mapAudiobookPagePayload(
 }
 
 /** Unfiltered browse — used for the default "All" rail so first paint is not an empty category. */
-export async function fetchAudiobooksBrowse(options?: {
+async function fetchAudiobooksBrowseLegacy(options?: {
   page?: number;
   limit?: number;
   signal?: AbortSignal;
@@ -468,7 +470,7 @@ export async function fetchAudiobooksBrowse(options?: {
   );
 }
 
-export async function fetchAudiobookCategory(
+async function fetchAudiobookCategoryLegacy(
   slug: string,
   options?: {
     page?: number;
@@ -505,7 +507,7 @@ export async function fetchAudiobookCategory(
   );
 }
 
-export async function searchAudiobooks(
+async function searchAudiobooksLegacy(
   q: string,
   options?: {
     page?: number;
@@ -541,7 +543,7 @@ export async function searchAudiobooks(
   );
 }
 
-export async function fetchAudiobookDetail(
+async function fetchAudiobookDetailLegacy(
   id: string,
   signal?: AbortSignal,
   chapterPage = 1
@@ -609,7 +611,7 @@ function normalizeChapterPlayItem(raw: Record<string, unknown>): AudiobookChapte
   };
 }
 
-export async function fetchAudiobookChapterQueuePlay(
+async function fetchAudiobookChapterQueuePlayLegacy(
   bookId: string,
   fromChapterId: string,
   signal?: AbortSignal
@@ -655,7 +657,7 @@ export async function fetchAudiobookChapterQueuePlay(
   };
 }
 
-export async function fetchAudiobookPlay(
+async function fetchAudiobookPlayLegacy(
   id: string,
   signal?: AbortSignal
 ): Promise<AudiobookPlayResponse> {
@@ -684,4 +686,52 @@ export async function fetchAudiobookPlay(
       bitrate: Number.isFinite(Number(file.bitrate)) ? Number(file.bitrate) : null,
     },
   };
+}
+
+async function filterIosAudiobookPage(page: AudiobookPage): Promise<AudiobookPage> {
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return page;
+  const items = await filterIosOperationalItems(page.items, (book) => ({ type: "audiobook", id: book.id }));
+  return { ...page, items, pagination: { ...page.pagination, total: items.length } };
+}
+export function peekCachedAudiobookPage(...args: Parameters<typeof peekCachedAudiobookPageLegacy>): AudiobookPage | null {
+  const page = peekCachedAudiobookPageLegacy(...args);
+  if (!page || !IOS_OPERATIONAL_PLATFORM || getIosOperationalPolicySnapshot().status === "legacy") return page;
+  const items = page.items.filter((book) => isIosOperationalItemVisible({ type: "audiobook", id: book.id }));
+  return { ...page, items, pagination: { ...page.pagination, total: items.length } };
+}
+export async function fetchAudiobooksBrowse(...args: Parameters<typeof fetchAudiobooksBrowseLegacy>): Promise<AudiobookPage> {
+  return filterIosAudiobookPage(await fetchAudiobooksBrowseLegacy(...args));
+}
+export async function fetchAudiobookCategory(...args: Parameters<typeof fetchAudiobookCategoryLegacy>): Promise<AudiobookPage> {
+  return filterIosAudiobookPage(await fetchAudiobookCategoryLegacy(...args));
+}
+export async function searchAudiobooks(...args: Parameters<typeof searchAudiobooksLegacy>): Promise<AudiobookPage> {
+  return filterIosAudiobookPage(await searchAudiobooksLegacy(...args));
+}
+export async function fetchAudiobookDetail(...args: Parameters<typeof fetchAudiobookDetailLegacy>): Promise<AudiobookDetail> {
+  const detail = await fetchAudiobookDetailLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return detail;
+  if (!(await filterIosOperationalItems([detail.audiobook], (book) => ({ type: "audiobook", id: book.id }))).length) throw new IosOperationalUnavailableError();
+  const chapters = await filterIosOperationalItems(detail.chapters, (chapter) => ({ type: "audiobook_chapter", id: chapter.id }));
+  return { ...detail, chapters, chapterPagination: { ...detail.chapterPagination, total: chapters.length } };
+}
+export async function fetchAudiobookChapterQueuePlay(...args: Parameters<typeof fetchAudiobookChapterQueuePlayLegacy>): Promise<AudiobookChapterQueuePlayResponse> {
+  if (!IOS_OPERATIONAL_PLATFORM) return fetchAudiobookChapterQueuePlayLegacy(...args);
+  const initial = await resolveIosOperationalPlayback({ type: "audiobook_chapter", id: args[1] });
+  const result = await fetchAudiobookChapterQueuePlayLegacy(...args);
+  if (!initial.enforced) return result;
+  if (result.audiobook_id !== args[0] || result.chapters.some((chapter) => chapter.audiobook_id !== args[0])) throw new IosOperationalUnavailableError();
+  const chapters = await Promise.all(result.chapters.map(async (chapter) => {
+    const playback = chapter.id === args[1] ? initial : await resolveIosOperationalPlayback({ type: "audiobook_chapter", id: chapter.id });
+    if (!playback.enforced) throw new IosOperationalUnavailableError();
+    return { ...chapter, audio_url: playback.playbackUrl, ...(chapter.file ? { file: { ...chapter.file, audio_url: playback.playbackUrl } } : {}) };
+  }));
+  return { ...result, chapters };
+}
+export async function fetchAudiobookPlay(...args: Parameters<typeof fetchAudiobookPlayLegacy>): Promise<AudiobookPlayResponse> {
+  if (!IOS_OPERATIONAL_PLATFORM) return fetchAudiobookPlayLegacy(...args);
+  const playback = await resolveIosOperationalPlayback({ type: "audiobook", id: args[0] });
+  const result = await fetchAudiobookPlayLegacy(...args);
+  if (!playback.enforced) return result;
+  return { ...result, audio_url: playback.playbackUrl, ...(result.file ? { file: { ...result.file, audio_url: playback.playbackUrl } } : {}) };
 }

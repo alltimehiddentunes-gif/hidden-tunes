@@ -58,6 +58,7 @@ export function normalizeRadioBrowserStation(
 
   return {
     id,
+    iosPolicyType: "radio_browser_station",
     name,
     streamUrl,
     favicon: String(station.favicon || "").trim() || undefined,
@@ -85,6 +86,7 @@ export function normalizeRadioStation(station: HiddenTunesStation): RadioStation
 
   return {
     id: station.id,
+    iosPolicyType: station.iosPolicyType,
     title: station.name,
     streamUrl: station.streamUrl,
     artworkUrl: station.favicon,
@@ -102,6 +104,7 @@ export function radioStationToAppSong(station: RadioStation): AppSong {
 
   return {
     id: `radio-${station.id}`,
+    iosPolicyType: station.iosPolicyType || "radio_legacy_station",
     title: station.title,
     artist: subtitle || "Hidden Tunes Radio",
     streamUrl: station.streamUrl,
@@ -140,6 +143,7 @@ export function toRadioStationListItem(station: HiddenTunesStation): RadioStatio
 
   return {
     id: station.id,
+    iosPolicyType: station.iosPolicyType,
     title: station.name,
     country: station.country,
     language: station.language,

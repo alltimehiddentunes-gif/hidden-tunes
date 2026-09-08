@@ -1,3 +1,4 @@
+import { assertIosSportsAvailability, filterIosSportsPayload, fetchIosSportsPlayback } from "./iosSportsPolicy";
 /**
  * Isolated Sports catalog API client.
  * Browse methods never request playback. Playback resolves only on Watch tap.
@@ -152,7 +153,7 @@ async function sportsFetch<T>(
   }
   return (await response.json()) as T;
 }
-export async function fetchSportsHome(
+async function fetchSportsHomeLegacy(
   options: FetchOptions & { forceNetwork?: boolean } = {}
 ): Promise<SportsHomeResponse> {
   if (isSportsDevFixturesEnabled()) {
@@ -306,7 +307,7 @@ async function composeFixturesOnlyHome(
     message: undefined,
   };
 }
-export async function fetchSportsFixtures(
+async function fetchSportsFixturesLegacy(
   options: FetchOptions & {
     page?: number;
     limit?: number;
@@ -373,7 +374,7 @@ export async function fetchSportsFixtures(
 }
 
 /** Small foreground payload used by Sports Home; never resolves playback. */
-export async function fetchSportsLiveState(
+async function fetchSportsLiveStateLegacy(
   options: FetchOptions & { limit?: number } = {}
 ): Promise<{
   live: SportsMatchCard[];
@@ -423,7 +424,7 @@ export async function fetchSportsLiveState(
     fetchedAt: new Date().toISOString(),
   };
 }
-export async function fetchSportsFixtureDetail(
+async function fetchSportsFixtureDetailLegacy(
   fixtureId: string,
   options: FetchOptions = {}
 ): Promise<{
@@ -461,7 +462,7 @@ export async function fetchSportsFixtureDetail(
     }
   );
 }
-export async function fetchSportsWatchOptions(
+async function fetchSportsWatchOptionsLegacy(
   fixtureId: string,
   options: FetchOptions = {}
 ): Promise<{
@@ -487,7 +488,7 @@ export async function fetchSportsWatchOptions(
     }
   );
 }
-export async function fetchSportsList(
+async function fetchSportsListLegacy(
   options: FetchOptions & { page?: number; limit?: number } = {}
 ): Promise<{
   success: boolean;
@@ -511,7 +512,7 @@ export async function fetchSportsList(
     platform: options.platform || "ios",
   });
 }
-export async function fetchSportsCountries(
+async function fetchSportsCountriesLegacy(
   options: FetchOptions & { page?: number; limit?: number } = {}
 ): Promise<{
   success: boolean;
@@ -535,7 +536,7 @@ export async function fetchSportsCountries(
     platform: options.platform || "ios",
   });
 }
-export async function fetchSportsCompetitions(
+async function fetchSportsCompetitionsLegacy(
   options: FetchOptions & {
     page?: number;
     limit?: number;
@@ -570,7 +571,7 @@ export async function fetchSportsCompetitions(
     platform: options.platform || "ios",
   });
 }
-export async function fetchSportsCompetitionDetail(
+async function fetchSportsCompetitionDetailLegacy(
   competitionId: string,
   options: FetchOptions = {}
 ): Promise<{
@@ -601,7 +602,7 @@ export async function fetchSportsCompetitionDetail(
     }
   );
 }
-export async function fetchSportsSportHub(
+async function fetchSportsSportHubLegacy(
   sportSlug: string,
   options: FetchOptions = {}
 ): Promise<{
@@ -721,7 +722,7 @@ export async function fetchSportsSportHub(
   return result;
 }
 
-export async function fetchSportsCountryHub(
+async function fetchSportsCountryHubLegacy(
   countryCode: string,
   options: FetchOptions = {}
 ): Promise<{
@@ -876,7 +877,7 @@ function ALL_DEV_COUNTRY_FIXTURES(code: string): SportsMatchCard[] {
     (f) => String(f.competition?.countryCode || "").toUpperCase() === code
   );
 }
-export async function searchSportsCatalog(
+async function searchSportsCatalogLegacy(
   query: string,
   options: FetchOptions & { page?: number; limit?: number } = {}
 ): Promise<SportsSearchResponse> {
@@ -917,7 +918,7 @@ export async function searchSportsCatalog(
   }
   return result;
 }
-export async function fetchSportsVideos(
+async function fetchSportsVideosLegacy(
   options: FetchOptions & {
     page?: number;
     limit?: number;
@@ -987,7 +988,7 @@ export async function resolveSportsVideoPlayback(input: {
   return dedupe(
     `video-play:${sportsAccessMode()}:${input.videoId}:${input.platform}:${input.country}`,
     async () => {
-      const response = await fetch(
+      const response = await fetchIosSportsPlayback(
         `${SPORTS_CATALOG_BASE_URL}/api/sports/videos/${encodeURIComponent(input.videoId)}/play`,
         {
           method: "POST",
@@ -1054,7 +1055,7 @@ export async function resolveSportsBroadcastPlayback(input: {
   return dedupe(
     `play:${sportsAccessMode()}:${input.broadcastId}:${input.platform}:${input.country}`,
     async () => {
-      const response = await fetch(
+      const response = await fetchIosSportsPlayback(
         `${SPORTS_CATALOG_BASE_URL}/api/sports/broadcasts/${encodeURIComponent(input.broadcastId)}/play`,
         {
           method: "POST",
@@ -1097,7 +1098,7 @@ async function hydrateSportsPlaybackSessionEmbed(
     return session;
   }
   try {
-    const response = await fetch(
+    const response = await fetchIosSportsPlayback(
       `${SPORTS_CATALOG_BASE_URL}/api/sports/playback-sessions/${encodeURIComponent(token)}`,
       {
         method: "GET",
@@ -1283,7 +1284,7 @@ export async function resolveSportsFixturePlaySession(input: {
   let allowWatchOptionsFallback = false;
 
   try {
-    const response = await fetch(
+    const response = await fetchIosSportsPlayback(
       `${SPORTS_CATALOG_BASE_URL}/api/sports/fixtures/${encodeURIComponent(fixtureId)}/play`,
       {
         method: "POST",
@@ -1488,4 +1489,95 @@ export async function resolveSportsFixturePlayback(input: {
     playback: legacy,
     title: session.title,
   };
+}
+
+export async function fetchSportsHome(...args: Parameters<typeof fetchSportsHomeLegacy>): ReturnType<typeof fetchSportsHomeLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsHomeLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsFixtures(...args: Parameters<typeof fetchSportsFixturesLegacy>): ReturnType<typeof fetchSportsFixturesLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsFixturesLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsLiveState(...args: Parameters<typeof fetchSportsLiveStateLegacy>): ReturnType<typeof fetchSportsLiveStateLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsLiveStateLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsFixtureDetail(...args: Parameters<typeof fetchSportsFixtureDetailLegacy>): ReturnType<typeof fetchSportsFixtureDetailLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsFixtureDetailLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsWatchOptions(...args: Parameters<typeof fetchSportsWatchOptionsLegacy>): ReturnType<typeof fetchSportsWatchOptionsLegacy> {
+  await assertIosSportsAvailability(true);
+  const result = await fetchSportsWatchOptionsLegacy(...args);
+  await assertIosSportsAvailability(true);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsList(...args: Parameters<typeof fetchSportsListLegacy>): ReturnType<typeof fetchSportsListLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsListLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsCountries(...args: Parameters<typeof fetchSportsCountriesLegacy>): ReturnType<typeof fetchSportsCountriesLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsCountriesLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsCompetitions(...args: Parameters<typeof fetchSportsCompetitionsLegacy>): ReturnType<typeof fetchSportsCompetitionsLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsCompetitionsLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsCompetitionDetail(...args: Parameters<typeof fetchSportsCompetitionDetailLegacy>): ReturnType<typeof fetchSportsCompetitionDetailLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsCompetitionDetailLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsSportHub(...args: Parameters<typeof fetchSportsSportHubLegacy>): ReturnType<typeof fetchSportsSportHubLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsSportHubLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsCountryHub(...args: Parameters<typeof fetchSportsCountryHubLegacy>): ReturnType<typeof fetchSportsCountryHubLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await fetchSportsCountryHubLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function searchSportsCatalog(...args: Parameters<typeof searchSportsCatalogLegacy>): ReturnType<typeof searchSportsCatalogLegacy> {
+  await assertIosSportsAvailability(false);
+  const result = await searchSportsCatalogLegacy(...args);
+  await assertIosSportsAvailability(false);
+  return filterIosSportsPayload(result);
+}
+
+export async function fetchSportsVideos(...args: Parameters<typeof fetchSportsVideosLegacy>): ReturnType<typeof fetchSportsVideosLegacy> {
+  await assertIosSportsAvailability(true);
+  const result = await fetchSportsVideosLegacy(...args);
+  await assertIosSportsAvailability(true);
+  return filterIosSportsPayload(result);
 }

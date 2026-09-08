@@ -1,4 +1,5 @@
 import type { PodcastMatureLevel, PodcastShow } from "../types/podcast";
+import { IOS_OPERATIONAL_PLATFORM, filterIosOperationalItems, iosOperationalMatureAccess, refreshIosOperationalPolicy, resolveIosOperationalPlayback, iosOperationalSectionEnabled } from "./iosOperationalPolicy";
 import {
   catalogJsonFetch,
   isCatalogTimeoutError,
@@ -426,6 +427,7 @@ export function isBackendPodcastShowId(showId: string) {
 }
 
 export async function fetchPodcastCategories(): Promise<PodcastCatalogCategoriesResponse> {
+  if (IOS_OPERATIONAL_PLATFORM) { await refreshIosOperationalPolicy(); if (!iosOperationalSectionEnabled("podcasts")) return { success: true, categories: [] }; }
   try {
     const { response, payload } = await fetchPodcastCatalogPayload(
       buildCatalogUrl(PODCAST_CATEGORIES_API_PATH)
@@ -456,7 +458,7 @@ export async function fetchPodcastCategories(): Promise<PodcastCatalogCategories
   }
 }
 
-export async function fetchPodcastEpisodesByCategory(
+async function fetchPodcastEpisodesByCategoryLegacy(
   categorySlug: string,
   page = 1,
   limit = PODCAST_CATALOG_PAGE_LIMIT,
@@ -565,7 +567,7 @@ export function catalogShowToPodcastShow(
   };
 }
 
-export async function fetchPodcastShows(
+async function fetchPodcastShowsLegacy(
   options: FetchPodcastShowsOptions = {}
 ): Promise<PodcastCatalogShowsResponse> {
   const safePage = Math.max(1, Number(options.page || 1));
@@ -682,7 +684,7 @@ export async function fetchMaturePodcastShows(options?: {
   });
 }
 
-export async function fetchPodcastEpisodesByShow(
+async function fetchPodcastEpisodesByShowLegacy(
   showId: string,
   page = 1,
   limit = PODCAST_CATALOG_PAGE_LIMIT,
@@ -754,7 +756,7 @@ export async function fetchPodcastEpisodesByShow(
   }
 }
 
-export async function fetchPodcastShowById(
+async function fetchPodcastShowByIdLegacy(
   showId: string
 ): Promise<{ success: boolean; show: PodcastCatalogShowMetadata | null; error?: string }> {
   const id = String(showId || "").trim();
@@ -790,7 +792,7 @@ export async function fetchPodcastShowById(
   }
 }
 
-export async function fetchPodcastEpisodePlay(
+async function fetchPodcastEpisodePlayLegacy(
   episodeId: string,
   options?: { includeMature?: boolean; signal?: AbortSignal }
 ): Promise<{
@@ -893,7 +895,7 @@ export async function fetchPodcastEpisodePlay(
   }
 }
 
-export async function fetchPodcastHomeMetadata(options?: {
+async function fetchPodcastHomeMetadataLegacy(options?: {
   page?: number;
   limit?: number;
   includeMature?: boolean;
@@ -940,4 +942,48 @@ export async function fetchPodcastHomeMetadata(options?: {
       error: podcastTransportError(error, "Network error while loading podcast metadata."),
     };
   }
+}
+
+async function iosPodcastAccess(includeMature?: boolean) {
+  const access = await iosOperationalMatureAccess({ type: "podcast_show", id: "" });
+  return { matureEnabled: includeMature === true && access.matureEnabled === true };
+}
+async function filterIosPodcastEpisodes(page: PodcastCatalogEpisodesResponse, includeMature?: boolean): Promise<PodcastCatalogEpisodesResponse> {
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return page;
+  const episodes = await filterIosOperationalItems(page.episodes, (episode) => ({ type: "podcast_episode", id: episode.id }), await iosPodcastAccess(includeMature));
+  return { ...page, episodes, pagination: { ...page.pagination, total: episodes.length } };
+}
+export async function fetchPodcastEpisodesByCategory(...args: Parameters<typeof fetchPodcastEpisodesByCategoryLegacy>): Promise<PodcastCatalogEpisodesResponse> {
+  return filterIosPodcastEpisodes(await fetchPodcastEpisodesByCategoryLegacy(...args), args[3]?.includeMature);
+}
+export async function fetchPodcastEpisodesByShow(...args: Parameters<typeof fetchPodcastEpisodesByShowLegacy>): Promise<PodcastCatalogEpisodesResponse> {
+  return filterIosPodcastEpisodes(await fetchPodcastEpisodesByShowLegacy(...args), args[3]?.includeMature);
+}
+export async function fetchPodcastShows(...args: Parameters<typeof fetchPodcastShowsLegacy>): Promise<PodcastCatalogShowsResponse> {
+  const page = await fetchPodcastShowsLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return page;
+  const shows = await filterIosOperationalItems(page.shows, (show) => ({ type: "podcast_show", id: show.id }), await iosPodcastAccess(args[0]?.includeMature));
+  return { ...page, shows, pagination: { ...page.pagination, total: shows.length } };
+}
+export async function fetchPodcastShowById(...args: Parameters<typeof fetchPodcastShowByIdLegacy>): ReturnType<typeof fetchPodcastShowByIdLegacy> {
+  const result = await fetchPodcastShowByIdLegacy(...args);
+  if (!result.show || !IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  if (!(await filterIosOperationalItems([result.show], (show) => ({ type: "podcast_show", id: show.id }))).length) return { success: false, show: null, error: "This content is currently unavailable on iOS." };
+  return result;
+}
+export async function fetchPodcastHomeMetadata(...args: Parameters<typeof fetchPodcastHomeMetadataLegacy>): Promise<PodcastHomeMetadataResponse> {
+  const result = await fetchPodcastHomeMetadataLegacy(...args);
+  if (!IOS_OPERATIONAL_PLATFORM || (await refreshIosOperationalPolicy()).status === "legacy") return result;
+  const access = await iosPodcastAccess(args[0]?.includeMature);
+  const sections = await Promise.all(result.sections.map(async (section) => ({ ...section, shows: await filterIosOperationalItems(section.shows, (show) => ({ type: "podcast_show", id: show.id }), access) })));
+  return { ...result, sections: sections.filter((section) => section.shows.length > 0) };
+}
+export async function fetchPodcastEpisodePlay(...args: Parameters<typeof fetchPodcastEpisodePlayLegacy>): ReturnType<typeof fetchPodcastEpisodePlayLegacy> {
+  if (!IOS_OPERATIONAL_PLATFORM) return fetchPodcastEpisodePlayLegacy(...args);
+  try {
+    const playback = await resolveIosOperationalPlayback({ type: "podcast_episode", id: args[0] }, await iosPodcastAccess(args[1]?.includeMature));
+    const result = await fetchPodcastEpisodePlayLegacy(...args);
+    if (!playback.enforced || !result.play) return result;
+    return { ...result, play: { ...result.play, audioUrl: playback.playbackUrl } };
+  } catch { return { success: false, play: null, error: "This content is currently unavailable on iOS." }; }
 }
