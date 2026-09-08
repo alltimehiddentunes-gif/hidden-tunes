@@ -53,6 +53,26 @@ class HiddenAudioModule: RCTEventEmitter {
   private var presentedHasPrevious = false
   private var currentVolume: Float = 1.0
 
+  private var requiresIos216PolicyAuthorization: Bool {
+    return Bundle.main.bundleIdentifier == "com.hiddentunes.app"
+      && (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) == "1.0.216"
+  }
+
+  // Accept the native command, but let the existing JS owner authorize its current asset.
+  // No JS listener/network means no new216 resume;215 keeps its native behavior.
+  private func deferIos216ResumeToJs(reason: String) -> Bool {
+    guard requiresIos216PolicyAuthorization else { return false }
+    emitDiagnostic("ios_remote_command_received", [
+      "command": "play",
+      "source": "ios216_native_resume",
+      "owner": "shared-audio",
+      "trackId": activeTrack?["id"] as? String ?? "",
+      "reason": reason
+    ])
+    emitDiagnostic("ios216_native_resume_pending_authorization", ["reason": reason])
+    return true
+  }
+
   override static func requiresMainQueueSetup() -> Bool {
     return true
   }
@@ -784,6 +804,7 @@ class HiddenAudioModule: RCTEventEmitter {
         self.emitRemoteCommandResult("play", success: false, reason: "no_player")
         return .commandFailed
       }
+      if self.deferIos216ResumeToJs(reason: "remote_play") { return .success }
       self.emitDiagnostic("remote_command_received", [
         "command": "play"
       ])
@@ -872,8 +893,9 @@ class HiddenAudioModule: RCTEventEmitter {
         self.emitRemoteCommandResult("toggle", success: false, reason: "no_player")
         return .commandFailed
       }
+      if self.playerStatus != "playing" && self.deferIos216ResumeToJs(reason: "remote_toggle") { return .success }
       self.emitDiagnostic("ios_remote_command_received", [
-        "command": "toggle"
+        "command": self.requiresIos216PolicyAuthorization ? "pause" : "toggle"
       ])
       self.emitDiagnostic("hidden_audio_remote_toggle_received", [
         "status": self.playerStatus
@@ -1634,6 +1656,7 @@ class HiddenAudioModule: RCTEventEmitter {
       return
     }
 
+    if deferIos216ResumeToJs(reason: "background:\(reason)") { return }
     emitDiagnostic("background_recovery_allowed_no_intentional_pause", [
       "reason": reason,
       "status": playerStatus

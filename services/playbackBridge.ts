@@ -606,6 +606,7 @@ export async function activateHiddenAudioPlayback(options: {
   artworkUrl?: string;
   isLiveStream?: boolean;
   shouldPlay?: () => boolean;
+  revalidateBeforePlay?: () => boolean;
 }): Promise<boolean> {
   logAndRememberLockscreenDiagnostic(
     "hidden_audio_load_track_start",
@@ -643,6 +644,8 @@ export async function activateHiddenAudioPlayback(options: {
   if (startPositionMs > 0) {
     await hiddenAudioBridge.seek(startPositionMs);
   }
+
+  if (options.revalidateBeforePlay && !options.revalidateBeforePlay()) return false;
 
   try {
     await hiddenAudioBridge.play();
@@ -717,7 +720,7 @@ export async function deactivateHiddenAudioPlayback(
   );
 }
 
-export async function bridgeHiddenAudioPlay(): Promise<void> {
+export async function bridgeHiddenAudioPlay(revalidateBeforePlay?: () => boolean): Promise<void> {
   if (!isHiddenAudioNativePlaybackEnabled()) return;
 
   if (hiddenAudioBridgePlayBlocked) {
@@ -768,6 +771,7 @@ export async function bridgeHiddenAudioPlay(): Promise<void> {
     throw error;
   }
 
+  if (revalidateBeforePlay && !revalidateBeforePlay()) return;
   markHiddenAudioBridgeActive(true);
   await hiddenAudioBridge.play();
 }

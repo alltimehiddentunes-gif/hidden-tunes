@@ -903,7 +903,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const liveRadioNavigateInFlightRef = useRef(false);
 
   const loadAndPlayRef = useRef<
-    ((song: AppSong, options?: LoadAndPlayOptions) => Promise<void>) | null
+    ((song: AppSong, options?: LoadAndPlayOptions) => Promise<boolean | void>) | null
   >(null);
   const iosAuthorizationGenerationRef = useRef(0);
   const tryAdvanceViaEmotionalQueueRef = useRef<() => Promise<boolean>>(
@@ -1171,18 +1171,27 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!IOS_OPERATIONAL_PLATFORM) return playExistingNativeAudio();
     const current = currentSongRef.current;
     const commandGeneration = manualQueueCommandGenerationRef.current;
-    const authorizationGeneration = iosAuthorizationGenerationRef.current;
+    let authorizationGeneration = iosAuthorizationGenerationRef.current;
+    const requestId = loadRequestIdRef.current;
+    const owner = getActivePlaybackOwner();
+    const isCurrentAuthorization = () => currentSongRef.current?.id === current?.id && manualQueueCommandGenerationRef.current === commandGeneration && iosAuthorizationGenerationRef.current === authorizationGeneration && getActivePlaybackOwner() === owner;
     try {
       if (!current) throw new Error("No current item to authorize");
       const authorized = await authorizeIosOperationalSong(current);
-      if (currentSongRef.current?.id !== current.id || manualQueueCommandGenerationRef.current !== commandGeneration || iosAuthorizationGenerationRef.current !== authorizationGeneration) return;
+      if (!isCurrentAuthorization() || loadRequestIdRef.current !== requestId) return false;
       if (String(authorized.streamUrl || authorized.url || "") !== String(current.streamUrl || current.url || "")) {
-        await loadAndPlayRef.current?.(authorized, { iosAuthorizedResumePositionMillis: positionMillisRef.current });
-        return;
+        const reload = loadAndPlayRef.current;
+        if (!reload) return false;
+        const pendingReload = reload(authorized, { iosAuthorizedResumePositionMillis: positionMillisRef.current });
+        // This nested entry advances its own generation before its first await.
+        authorizationGeneration = iosAuthorizationGenerationRef.current;
+        const started = await pendingReload;
+        return started === true && isCurrentAuthorization();
       }
-      return playExistingNativeAudio();
+      await playExistingNativeAudio(() => isCurrentAuthorization() && loadRequestIdRef.current === requestId);
+      return isCurrentAuthorization() && loadRequestIdRef.current === requestId;
     } catch (error) {
-      if (currentSongRef.current?.id === current?.id) await pauseIosRevokedPlayback();
+      if (isCurrentAuthorization() && loadRequestIdRef.current === requestId) await pauseIosRevokedPlayback();
       throw error;
     }
   }, [pauseIosRevokedPlayback]);
@@ -5564,10 +5573,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const loadAndPlay = useCallback(
     async (song: AppSong, options?: LoadAndPlayOptions) => {
+      let isCurrentIosLoad = () => true;
       if (IOS_OPERATIONAL_PLATFORM) {
         const generation = ++iosAuthorizationGenerationRef.current;
+        const commandGeneration = manualQueueCommandGenerationRef.current;
+        const owner = getActivePlaybackOwner();
+        const previousSongId = currentSongRef.current?.id;
+        const previousRequestId = loadRequestIdRef.current;
+        isCurrentIosLoad = () => generation === iosAuthorizationGenerationRef.current && commandGeneration === manualQueueCommandGenerationRef.current && owner === getActivePlaybackOwner();
         song = await authorizeIosOperationalSong(song);
-        if (generation !== iosAuthorizationGenerationRef.current) return;
+        if (!isCurrentIosLoad() || previousSongId !== currentSongRef.current?.id || previousRequestId !== loadRequestIdRef.current) return false;
       }
       let requestId = 0;
 
@@ -5746,7 +5761,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             if (
-              loadRequestIdRef.current !== requestId ||
+              loadRequestIdRef.current !== requestId || !isCurrentIosLoad() ||
               !isMountedRef.current
             ) {
               logPlayerContextDebug("playback_recovery_stale_request_ignored", {
@@ -5884,7 +5899,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             if (
-              loadRequestIdRef.current !== requestId ||
+              loadRequestIdRef.current !== requestId || !isCurrentIosLoad() ||
               !isMountedRef.current
             ) {
               logPlayerContextDebug("playback_recovery_stale_request_ignored", {
@@ -5934,6 +5949,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 engine: "hidden_audio",
               });
               deferPlaybackSideEffects(normalizedSong, "load_and_play_side_effects");
+              if (IOS_OPERATIONAL_PLATFORM) return isCurrentIosLoad() && loadRequestIdRef.current === requestId && currentSongRef.current?.id === normalizedSong.id && statusAfterPreserve?.isPlaying === true;
               return;
             }
 
@@ -6003,7 +6019,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 activeQueueModeRef.current
               ),
               shouldPlay: () =>
-                loadRequestIdRef.current === requestId && isMountedRef.current,
+                loadRequestIdRef.current === requestId && isMountedRef.current && isCurrentIosLoad(),
+              ...(IOS_OPERATIONAL_PLATFORM ? { revalidateBeforePlay: () =>
+                loadRequestIdRef.current === requestId && isMountedRef.current && isCurrentIosLoad() } : {}),
             });
             if (!nativePlaybackStarted) {
               logPlayerContextDebug("playback_recovery_stale_request_ignored", {
@@ -6045,7 +6063,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             }
 
             if (
-              loadRequestIdRef.current !== requestId ||
+              loadRequestIdRef.current !== requestId || !isCurrentIosLoad() ||
               !isMountedRef.current
             ) {
               return;
@@ -6186,6 +6204,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
             void removeStoredValues([POSITION_KEY]);
             deferPlaybackSideEffects(normalizedSong, "load_and_play_side_effects");
+            if (IOS_OPERATIONAL_PLATFORM) return isCurrentIosLoad() && loadRequestIdRef.current === requestId && currentSongRef.current?.id === normalizedSong.id && statusAfterPlay?.isPlaying === true;
           } catch (error) {
             logPlayerContextDebug("hidden_audio_play_failed", error);
             console.log("Hidden audio load and play error:", error);
@@ -8813,6 +8832,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const normalizedCommand = String(command || "").toLowerCase();
       if (!normalizedCommand) return;
 
+      if (IOS_OPERATIONAL_PLATFORM && data.source === "ios216_native_resume") {
+        const recovery = String(data.reason || "").startsWith("background:");
+        if (getActivePlaybackOwner() !== "shared-audio" || String(data.trackId || "") !== String(currentSongRef.current?.id || "") || (recovery && (continuationUserIntentRef.current !== "playing" || hasRecentIntentionalPause() || isIosAudioInterruptionActive()))) {
+          logLockscreenPlaybackDiagnostic("ios216_stale_native_resume_ignored", data);
+          return;
+        }
+      }
+
       const incomingAndroidTransactionId = Number(data.transactionId || 0);
       if (Platform.OS === "android" && incomingAndroidTransactionId > 0) {
         const { acceptAndroidAutoTransaction, isAndroidAutoTransactionCurrent } =
@@ -8849,6 +8876,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (IOS_OPERATIONAL_PLATFORM && ["play", "pause", "toggle", "stop"].includes(normalizedCommand)) {
+        manualQueueCommandGenerationRef.current += 1;
+        iosAuthorizationGenerationRef.current += 1;
+      }
       logLockscreenPlaybackDiagnostic("remote_command_received", {
         command: normalizedCommand,
         ...data,
@@ -8867,7 +8898,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           case "play": {
             logLockscreenPlaybackDiagnostic("remote_play_received", data);
             clearIntentionalPause("play");
-            if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
+            if (IOS_OPERATIONAL_PLATFORM) {
+              const commandGeneration = manualQueueCommandGenerationRef.current;
+              const songId = currentSongRef.current?.id;
+              const started = await bridgeHiddenAudioPlay();
+              if (started !== true || commandGeneration !== manualQueueCommandGenerationRef.current || songId !== currentSongRef.current?.id || getActivePlaybackOwner() !== "shared-audio") return;
+              continuationUserIntentRef.current = "playing";
+              await syncHiddenAudioState("ios216_remote_play");
+            } else if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
               const snapshot = await bridgeProbeNativePlayback();
               const canResumeNative =
                 !isHiddenAudioBridgePlayBlocked() &&
@@ -8911,6 +8949,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           case "pause": {
             logLockscreenPlaybackDiagnostic("remote_pause_received", data);
             markIntentionalPause("remote_pause");
+            if (IOS_OPERATIONAL_PLATFORM) continuationUserIntentRef.current = "paused";
             if (Platform.OS === "android" && isHiddenAudioNativePlaybackEnabled()) {
               await bridgeHiddenAudioPause("remote_pause");
             }
@@ -8922,8 +8961,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             break;
           }
           case "toggle": {
+            if (IOS_OPERATIONAL_PLATFORM && !isPlayingRef.current) {
+              clearIntentionalPause("play");
+              const commandGeneration = manualQueueCommandGenerationRef.current;
+              const songId = currentSongRef.current?.id;
+              const started = await bridgeHiddenAudioPlay();
+              if (started !== true || commandGeneration !== manualQueueCommandGenerationRef.current || songId !== currentSongRef.current?.id || getActivePlaybackOwner() !== "shared-audio") return;
+              continuationUserIntentRef.current = "playing";
+              await syncHiddenAudioState("ios216_remote_toggle");
+              break;
+            }
             if (isPlayingRef.current) {
               markIntentionalPause("remote_toggle_pause");
+              if (IOS_OPERATIONAL_PLATFORM) continuationUserIntentRef.current = "paused";
               isPlayingRef.current = false;
               setIsPlayingState(false);
             } else {
@@ -9238,6 +9288,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     },
     [
+      bridgeHiddenAudioPlay,
+      hasRecentIntentionalPause,
       getActiveQueuePlaybackState,
       nextSong,
       playSong,
