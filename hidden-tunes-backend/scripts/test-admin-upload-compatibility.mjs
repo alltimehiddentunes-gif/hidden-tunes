@@ -1,14 +1,75 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 
 import {
   idempotencyKey,
   insertStagedSong,
   isMissingOptionalExplicitColumn,
   normalizedBody,
+  proxyAdminServerUpload,
   requestedPublication,
 } from "../routes/adminUploadCompatibility.js";
+
+const originalFetch = globalThis.fetch;
+const proxyRequest = new PassThrough();
+Object.assign(proxyRequest, {
+  aborted: false,
+  adminActor: { id: "admin-proxy-test", role: "admin" },
+  adminRequestId: "proxy-test-request",
+  headers: {
+    authorization: "Bearer test-token",
+    "content-length": "4",
+    "content-type": "multipart/form-data; boundary=test-boundary",
+  },
+  method: "POST",
+  originalUrl: "/api/admin/upload-file",
+});
+const proxyResponse = {
+  body: null,
+  destroyed: false,
+  headers: {},
+  statusCode: null,
+  setHeader(name, value) {
+    this.headers[name] = value;
+  },
+  status(value) {
+    this.statusCode = value;
+    return this;
+  },
+  send(value) {
+    this.body = value;
+    return this;
+  },
+};
+try {
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, "http://127.0.0.1:3000/api/admin/upload-file");
+    assert.equal(options.method, "POST");
+    assert.equal(options.duplex, "half");
+    assert.equal(options.body, proxyRequest);
+    assert.equal(options.headers.authorization, "Bearer test-token");
+    assert.equal(options.headers["content-length"], "4");
+    assert.equal(
+      options.headers["content-type"],
+      "multipart/form-data; boundary=test-boundary"
+    );
+    return new Response(JSON.stringify({ success: true, key: "songs/test.mp3" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  await proxyAdminServerUpload(proxyRequest, proxyResponse);
+} finally {
+  globalThis.fetch = originalFetch;
+}
+assert.equal(proxyResponse.statusCode, 200);
+assert.equal(proxyResponse.headers["content-type"], "application/json");
+assert.deepEqual(JSON.parse(proxyResponse.body.toString("utf8")), {
+  success: true,
+  key: "songs/test.mp3",
+});
 
 const body = normalizedBody({
   title: "Compatibility Track",
@@ -170,5 +231,15 @@ const compatibilitySource = fs.readFileSync(
   "utf8"
 );
 assert.doesNotMatch(compatibilitySource, /Classification review is required before publication/);
+assert.match(
+  compatibilitySource,
+  /ADMIN_SERVER_UPLOAD_TARGET = "http:\/\/127\.0\.0\.1:3000\/api\/admin\/upload-file"/
+);
+assert.match(compatibilitySource, /duplex: "half"/);
+assert.match(
+  compatibilitySource,
+  /router\.post\("\/api\/admin\/upload-file", \.\.\.secureChain\(\), proxyAdminServerUpload\)/
+);
+assert.doesNotMatch(compatibilitySource, /Server upload fallback is temporarily unavailable/);
 
 console.log("admin-upload-compatibility: PASS");

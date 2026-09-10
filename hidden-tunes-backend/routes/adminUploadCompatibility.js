@@ -25,6 +25,9 @@ import {
 const router = express.Router();
 const jsonBody = express.json({ limit: "1mb" });
 const ALLOWED_FOLDERS = new Set(["songs", "covers"]);
+const ADMIN_SERVER_UPLOAD_TARGET = "http://127.0.0.1:3000/api/admin/upload-file";
+const MAX_SERVER_UPLOAD_REQUEST_BYTES = 260 * 1024 * 1024;
+const SERVER_UPLOAD_TIMEOUT_MS = 30 * 60 * 1000;
 const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 const recentResults = new Map();
 const defaultDependencies = {
@@ -129,6 +132,72 @@ function audit(req, action, result, details = {}) {
   } catch {
     console.error("Administrative audit event write failed", { requestId: req.adminRequestId, action });
     return false;
+  }
+}
+
+async function proxyAdminServerUpload(req, res) {
+  const contentLength = Number(req.headers["content-length"] || 0);
+  if (
+    !Number.isFinite(contentLength) ||
+    contentLength < 0 ||
+    contentLength > MAX_SERVER_UPLOAD_REQUEST_BYTES
+  ) {
+    return safeFailure(req, res, 413, "File is too large for the server fallback upload.");
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SERVER_UPLOAD_TIMEOUT_MS);
+  const abortUpstream = () => controller.abort();
+  req.once("aborted", abortUpstream);
+
+  const headers = {};
+  for (const name of ["authorization", "content-type", "content-length", "idempotency-key"]) {
+    const value = req.headers[name];
+    if (value !== undefined) headers[name] = String(value);
+  }
+
+  audit(req, "server_upload_fallback_started", "accepted", {
+    contentLength: contentLength || null,
+  });
+
+  try {
+    const upstream = await fetch(ADMIN_SERVER_UPLOAD_TARGET, {
+      method: "POST",
+      headers,
+      body: req,
+      duplex: "half",
+      signal: controller.signal,
+    });
+    const responseBody = Buffer.from(await upstream.arrayBuffer());
+    const contentType = upstream.headers.get("content-type");
+    if (contentType) res.setHeader("content-type", contentType);
+
+    audit(req, "server_upload_fallback_completed", upstream.ok ? "success" : "error", {
+      upstreamStatus: upstream.status,
+    });
+    return res.status(upstream.status).send(responseBody);
+  } catch (error) {
+    const timedOut = controller.signal.aborted && !req.aborted;
+    console.error("Admin server upload fallback proxy failed", {
+      requestId: req.adminRequestId,
+      error: error instanceof Error ? error.message : "Unknown proxy failure",
+      timedOut,
+    });
+    audit(req, "server_upload_fallback_failed", "error", {
+      failureStage: timedOut ? "timeout" : "internal_proxy",
+    });
+    if (req.aborted || res.destroyed) return undefined;
+    return safeFailure(
+      req,
+      res,
+      timedOut ? 504 : 502,
+      timedOut
+        ? "Server upload fallback timed out before completion."
+        : "Server upload fallback could not reach the upload service."
+    );
+  } finally {
+    clearTimeout(timeout);
+    req.off("aborted", abortUpstream);
   }
 }
 
@@ -453,13 +522,7 @@ router.post("/api/upload-url", ...secureChain(), jsonBody, async (req, res) => {
   }
 });
 
-router.post("/api/admin/upload-file", ...secureChain(), (req, res) =>
-  res.status(503).json({
-    success: false,
-    error: "Server upload fallback is temporarily unavailable. Retry the direct upload.",
-    requestId: req.adminRequestId,
-  })
-);
+router.post("/api/admin/upload-file", ...secureChain(), proxyAdminServerUpload);
 router.post("/api/complete-song", ...secureChain(), jsonBody, completeTrack);
 
 export {
@@ -467,6 +530,7 @@ export {
   insertStagedSong,
   isMissingOptionalExplicitColumn,
   normalizedBody,
+  proxyAdminServerUpload,
   requestedPublication,
   resetRecentResultsForTests,
   resolveDuplicateCompletion,
