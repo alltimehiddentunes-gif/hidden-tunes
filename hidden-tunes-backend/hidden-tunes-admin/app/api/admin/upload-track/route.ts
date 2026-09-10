@@ -10,6 +10,16 @@ import {
   normalizeIncomingGenrePayload,
 } from "@/lib/uploadGenreTaxonomy";
 import { normalizeLyricsForPersistence } from "@/lib/lyricsUploadSafety";
+import {
+  MusicTaxonomyValidationError,
+  normalizeMusicSource,
+  normalizeMusicTaxonomyDraft,
+} from "@/lib/musicTaxonomy";
+import {
+  captureMusicTrackLegacyMetadata,
+  persistMusicTrackClassification,
+  upsertMusicTrackSource,
+} from "@/lib/musicTaxonomyRepository";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -159,6 +169,14 @@ export async function POST(req: NextRequest) {
 
     const uploadedByUserId = permission.profile.id;
     const body = (await req.json()) as Record<string, unknown>;
+
+    const musicSource = normalizeMusicSource(body.musicSource);
+    const musicTaxonomy =
+      body.musicTaxonomy === undefined
+        ? null
+        : normalizeMusicTaxonomyDraft(body.musicTaxonomy, {
+            requirePrimaryGenre: true,
+          });
 
     const emotionalResult = buildEmotionalMetadataPatch(body);
 
@@ -344,6 +362,8 @@ export async function POST(req: NextRequest) {
     if (songError) throw songError;
 
     let uploadWarning: string | null = null;
+    let musicTaxonomySaved = false;
+    let musicSourceSaved = false;
 
     if (normalizedLyrics.hasLyrics && lyricsType) {
       const { error: lyricsError } = await supabaseAdmin
@@ -375,6 +395,41 @@ export async function POST(req: NextRequest) {
           lyricsError,
         });
       }
+    }
+
+    try {
+      if (musicTaxonomy) {
+        await persistMusicTrackClassification({
+          trackId: song.id,
+          taxonomyInput: musicTaxonomy,
+          sourceInput: musicSource,
+          actorId: uploadedByUserId,
+        });
+        musicTaxonomySaved = true;
+        musicSourceSaved = true;
+      } else {
+        // Existing clients may not send canonical fields yet. Still record the
+        // safe default provenance without changing songs.source_* storage data.
+        await upsertMusicTrackSource(song.id, musicSource, uploadedByUserId);
+        musicSourceSaved = true;
+      }
+      await captureMusicTrackLegacyMetadata(song.id, {
+        genre: body.genre || body.defaultGenre,
+        mood: body.mood || body.defaultMood,
+      });
+    } catch (taxonomyError) {
+      uploadWarning = [
+        uploadWarning,
+        "Track saved, but canonical music taxonomy metadata could not be saved; review classification before publishing.",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      console.error("Upload music taxonomy save failed after song save:", {
+        songId: song.id,
+        musicTaxonomySaved,
+        musicSourceSaved,
+        taxonomyError,
+      });
     }
 
     return NextResponse.json({
@@ -427,12 +482,24 @@ export async function POST(req: NextRequest) {
         type: song.type || song.source_type || "r2",
         source_type: song.source_type || song.type || "r2",
 
+        musicSource: musicSource.sourceKey,
+        musicSourceExplicit: musicSource.isExplicit,
+        musicTaxonomySaved,
+        musicSourceSaved,
+
         isOnline: song.isOnline ?? song.is_online ?? true,
         is_online: song.is_online ?? song.isOnline ?? true,
       },
     });
   } catch (error: unknown) {
     console.error("Upload metadata save failed:", error);
+
+    if (error instanceof MusicTaxonomyValidationError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json(
       {

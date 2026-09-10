@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import ControlledGenreFields from "@/components/ControlledGenreFields";
+import MusicTaxonomyControls from "@/components/MusicTaxonomyControls";
 import {
   cleanAudioUploadFilename,
   extractAudioUploadData,
@@ -28,6 +29,11 @@ import {
   getDefaultMainGenreId,
   getDefaultSubgenreId,
 } from "@/lib/uploadGenreTaxonomy";
+import {
+  MusicSourceKey,
+  MusicTaxonomyDraft,
+  emptyMusicTaxonomyDraft,
+} from "@/lib/musicTaxonomy";
 
 type UploadStatus = "idle" | "ready" | "uploading" | "success" | "error";
 type AlignmentStatus =
@@ -46,6 +52,9 @@ type TrackUploadItem = {
   subgenreId: string;
   genre: string;
   mood: string;
+  taxonomy: MusicTaxonomyDraft;
+  musicSource: MusicSourceKey;
+  musicSourceExplicit: boolean;
   emotional: EmotionalMetadataDraft;
   duration: number;
   artworkFile?: File | null;
@@ -835,6 +844,22 @@ async function readTextFile(file: File | null | undefined) {
   }
 }
 
+function cloneMusicTaxonomyDraft(draft: MusicTaxonomyDraft): MusicTaxonomyDraft {
+  return {
+    ...draft,
+    secondaryGenreIds: [...draft.secondaryGenreIds],
+    subgenreIds: [...draft.subgenreIds],
+    regionalStyleIds: [...draft.regionalStyleIds],
+    culturalStyleIds: [...draft.culturalStyleIds],
+    moodIds: [...draft.moodIds],
+    activityIds: [...draft.activityIds],
+    themeIds: [...draft.themeIds],
+    languageIds: [...draft.languageIds],
+    vocalStyleIds: [...draft.vocalStyleIds],
+    instrumentIds: [...draft.instrumentIds],
+  };
+}
+
 export default function BulkUploadPanel() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const artworkInputRef = useRef<HTMLInputElement | null>(null);
@@ -848,6 +873,12 @@ export default function BulkUploadPanel() {
   const [defaultMainGenreId, setDefaultMainGenreId] = useState(getDefaultMainGenreId);
   const [defaultSubgenreId, setDefaultSubgenreId] = useState(getDefaultSubgenreId);
   const [defaultMood, setDefaultMood] = useState("");
+  const [defaultTaxonomy, setDefaultTaxonomy] = useState<MusicTaxonomyDraft>(
+    emptyMusicTaxonomyDraft
+  );
+  const [defaultMusicSource, setDefaultMusicSource] = useState<MusicSourceKey>("mureka");
+  const [defaultMusicSourceExplicit, setDefaultMusicSourceExplicit] = useState(false);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [defaultEmotional, setDefaultEmotional] = useState(emptyEmotionalDraft);
   const [globalArtwork, setGlobalArtwork] = useState<File | null>(null);
 
@@ -972,6 +1003,21 @@ export default function BulkUploadPanel() {
           : embeddedAlbum || defaultAlbum || FALLBACK_ALBUM,
         ...resolveGenreFields(defaultMainGenreId, defaultSubgenreId),
         mood: defaultMood,
+        taxonomy: {
+          ...defaultTaxonomy,
+          secondaryGenreIds: [...defaultTaxonomy.secondaryGenreIds],
+          subgenreIds: [...defaultTaxonomy.subgenreIds],
+          regionalStyleIds: [...defaultTaxonomy.regionalStyleIds],
+          culturalStyleIds: [...defaultTaxonomy.culturalStyleIds],
+          moodIds: [...defaultTaxonomy.moodIds],
+          activityIds: [...defaultTaxonomy.activityIds],
+          themeIds: [...defaultTaxonomy.themeIds],
+          languageIds: [...defaultTaxonomy.languageIds],
+          vocalStyleIds: [...defaultTaxonomy.vocalStyleIds],
+          instrumentIds: [...defaultTaxonomy.instrumentIds],
+        },
+        musicSource: defaultMusicSource,
+        musicSourceExplicit: defaultMusicSourceExplicit,
         emotional: hasEmotionalDraftValues(defaultEmotional)
           ? { ...defaultEmotional }
           : emptyEmotionalDraft(),
@@ -1287,12 +1333,30 @@ export default function BulkUploadPanel() {
     );
   }
 
+  function toggleItemSelected(id: string) {
+    setSelectedItemIds((current) =>
+      current.includes(id)
+        ? current.filter((selectedId) => selectedId !== id)
+        : [...current, id]
+    );
+  }
+
+  function selectAllItems() {
+    setSelectedItemIds((current) =>
+      current.length === items.length ? [] : items.map((item) => item.id)
+    );
+  }
+
   function removeItem(id: string) {
     setItems((current) => current.filter((item) => item.id !== id));
+    setSelectedItemIds((current) => current.filter((selectedId) => selectedId !== id));
   }
 
   function clearCompleted() {
     setItems((current) => current.filter((item) => item.status !== "success"));
+    setSelectedItemIds((current) =>
+      current.filter((selectedId) => items.some((item) => item.id === selectedId && item.status !== "success"))
+    );
   }
 
   async function matchAssetsToExistingSongs() {
@@ -1340,6 +1404,19 @@ export default function BulkUploadPanel() {
     });
 
     try {
+      const taxonomy = item.taxonomy.primaryGenreId
+        ? item.taxonomy
+        : defaultTaxonomy.primaryGenreId
+          ? defaultTaxonomy
+          : null;
+
+      if (item.musicSource === "djcity" && !item.musicSourceExplicit) {
+        throw new UploadStepError(
+          "music taxonomy",
+          "DJcity is a legacy source and must be explicitly confirmed before upload."
+        );
+      }
+
       const accessToken = await getUploadAccessToken();
       const artworkToUpload = item.artworkFile || globalArtwork || null;
       const plainLyricsToRead = item.lyricsFile;
@@ -1443,6 +1520,12 @@ export default function BulkUploadPanel() {
             genreSlug: genrePayload?.genreSlug,
             mood: item.mood || defaultMood,
             duration: item.duration,
+
+            musicSource: {
+              sourceKey: item.musicSource || "mureka",
+              isExplicit: item.musicSourceExplicit,
+            },
+            musicTaxonomy: taxonomy || undefined,
 
             audioUrl: audioUpload.publicUrl,
             audioKey: audioUpload.key,
@@ -1636,6 +1719,20 @@ export default function BulkUploadPanel() {
     }
   }
 
+  function updateDefaultTaxonomy(patch: Partial<MusicTaxonomyDraft>) {
+    const nextTaxonomy = { ...defaultTaxonomy, ...patch };
+    setDefaultTaxonomy(nextTaxonomy);
+    if (!nextTaxonomy.primaryGenreId) return;
+
+    setItems((current) =>
+      current.map((item) =>
+        item.taxonomy.primaryGenreId
+          ? item
+          : { ...item, taxonomy: cloneMusicTaxonomyDraft(nextTaxonomy) }
+      )
+    );
+  }
+
   function applyDefaultArtistToAll() {
     const artist = defaultArtist.trim();
 
@@ -1658,6 +1755,9 @@ export default function BulkUploadPanel() {
         album: defaultAlbum.trim() || item.album || FALLBACK_ALBUM,
         ...resolvedGenre,
         mood: defaultMood.trim() || item.mood,
+        taxonomy: cloneMusicTaxonomyDraft(defaultTaxonomy),
+        musicSource: defaultMusicSource,
+        musicSourceExplicit: defaultMusicSourceExplicit,
         emotional: hasEmotionalDraftValues(defaultEmotional)
           ? { ...defaultEmotional }
           : item.emotional,
@@ -1665,6 +1765,31 @@ export default function BulkUploadPanel() {
         lrcFile: item.lrcFile,
       }))
     );
+  }
+
+  function applyTaxonomyDefaults(scope: "selected" | "all") {
+    const selected = new Set(selectedItemIds);
+    setItems((current) =>
+      current.map((item) => {
+        if (scope === "selected" && !selected.has(item.id)) return item;
+        return {
+          ...item,
+          taxonomy: cloneMusicTaxonomyDraft(defaultTaxonomy),
+          musicSource: defaultMusicSource,
+          musicSourceExplicit: defaultMusicSourceExplicit,
+        };
+      })
+    );
+  }
+
+  function copyPreviousClassification(item: TrackUploadItem, index: number) {
+    const previous = items[index - 1];
+    if (!previous) return;
+    updateItem(item.id, {
+      taxonomy: cloneMusicTaxonomyDraft(previous.taxonomy),
+      musicSource: previous.musicSource,
+      musicSourceExplicit: previous.musicSourceExplicit,
+    });
   }
 
   function applyAlbumArtworkToAll() {
@@ -1774,9 +1899,31 @@ export default function BulkUploadPanel() {
                   onSubgenreChange={setDefaultSubgenreId}
                 />
 
+                <details open className="rounded-2xl border border-yellow-300/15 bg-yellow-300/[0.035] px-4 py-3">
+                  <summary className="cursor-pointer text-sm font-black text-yellow-100/90">
+                    Canonical music taxonomy
+                  </summary>
+                  <p className="mt-2 text-xs leading-5 text-white/40">
+                    Searchable controlled selectors are stored separately from the legacy genre and mood labels above.
+                  </p>
+                  <div className="mt-4">
+                    <MusicTaxonomyControls
+                      value={defaultTaxonomy}
+                      autoSelectDefaultPrimaryGenre
+                      sourceKey={defaultMusicSource}
+                      sourceExplicit={defaultMusicSourceExplicit}
+                      onChange={updateDefaultTaxonomy}
+                      onSourceChange={(sourceKey, explicit) => {
+                        setDefaultMusicSource(sourceKey);
+                        setDefaultMusicSourceExplicit(explicit);
+                      }}
+                    />
+                  </div>
+                </details>
+
                 <label className="space-y-2">
                   <span className="text-xs font-bold uppercase tracking-widest text-white/45">
-                    Mood
+                    Legacy mood fallback (compatibility)
                   </span>
                   <input
                     value={defaultMood}
@@ -1814,7 +1961,23 @@ export default function BulkUploadPanel() {
                   onClick={applyAlbumDefaultsToAll}
                   className="rounded-2xl border border-white/10 px-4 py-3 text-sm font-black text-white/80 transition hover:border-yellow-400"
                 >
-                  Apply Album, Genre & Mood To All
+                  Apply Album, Legacy Genre, Mood & Taxonomy To All
+                </button>
+
+                <button
+                  onClick={() => applyTaxonomyDefaults("selected")}
+                  disabled={!selectedItemIds.length}
+                  className="rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-3 text-sm font-black text-yellow-100 transition hover:border-yellow-200 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Apply Taxonomy To Selected ({selectedItemIds.length})
+                </button>
+
+                <button
+                  onClick={() => applyTaxonomyDefaults("all")}
+                  disabled={!items.length}
+                  className="rounded-2xl border border-yellow-300/25 bg-yellow-300/10 px-4 py-3 text-sm font-black text-yellow-100 transition hover:border-yellow-200 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Apply Taxonomy To All ({items.length})
                 </button>
 
                 <p className="text-xs leading-5 text-white/45">
@@ -2010,6 +2173,17 @@ export default function BulkUploadPanel() {
 
             <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
+                type="button"
+                onClick={selectAllItems}
+                disabled={!items.length}
+                className="min-w-0 rounded-2xl border border-white/10 px-5 py-4 text-sm font-black text-white/75 transition hover:border-yellow-300/50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {selectedItemIds.length === items.length && items.length
+                  ? "Clear Selection"
+                  : "Select All Rows"}
+              </button>
+
+              <button
                 onClick={uploadAll}
                 disabled={!items.length || isUploadingAll}
                 className="min-w-0 flex-1 rounded-2xl bg-yellow-300 px-5 py-4 text-sm font-black text-black transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40"
@@ -2026,7 +2200,7 @@ export default function BulkUploadPanel() {
             </div>
 
             <div className="flex flex-col gap-4">
-              {items.map((item) => (
+              {items.map((item, itemIndex) => (
                 <article
                   key={item.id}
                   className="min-w-0 rounded-[1.75rem] border border-white/10 bg-[#101017] p-4 shadow-xl"
@@ -2035,9 +2209,18 @@ export default function BulkUploadPanel() {
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
-                          <p className="break-all text-xs font-bold uppercase tracking-widest text-white/40">
-                            {item.file.name}
-                          </p>
+                          <div className="flex items-start gap-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedItemIds.includes(item.id)}
+                              onChange={() => toggleItemSelected(item.id)}
+                              aria-label={`Select ${item.file.name}`}
+                              className="mt-0.5 h-4 w-4 accent-yellow-300"
+                            />
+                            <p className="break-all text-xs font-bold uppercase tracking-widest text-white/40">
+                              {item.file.name}
+                            </p>
+                          </div>
                           <h3 className="mt-1 break-words text-xl font-black">
                             {item.title}
                           </h3>
@@ -2110,6 +2293,43 @@ export default function BulkUploadPanel() {
                           }
                         />
                       </div>
+
+                      <details className="mt-3 rounded-2xl border border-yellow-300/15 bg-yellow-300/[0.035] px-4 py-3">
+                        <summary className="cursor-pointer text-sm font-black text-yellow-100/90">
+                          Canonical taxonomy
+                          {item.taxonomy.primaryGenreId ? " · set" : " · needs primary genre"}
+                        </summary>
+                        <div className="mt-4">
+                          <MusicTaxonomyControls
+                            compact
+                            value={item.taxonomy}
+                            sourceKey={item.musicSource}
+                            sourceExplicit={item.musicSourceExplicit}
+                            onChange={(patch) =>
+                              updateItem(item.id, {
+                                taxonomy: { ...item.taxonomy, ...patch },
+                              })
+                            }
+                            onSourceChange={(sourceKey, explicit) =>
+                              updateItem(item.id, {
+                                musicSource: sourceKey,
+                                musicSourceExplicit: explicit,
+                              })
+                            }
+                            disabled={item.status === "uploading"}
+                          />
+                          {itemIndex > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => copyPreviousClassification(item, itemIndex)}
+                              disabled={item.status === "uploading"}
+                              className="mt-3 rounded-xl border border-white/10 px-3 py-2 text-xs font-black text-white/65 hover:border-yellow-300/40 disabled:opacity-40"
+                            >
+                              Copy Previous Row Classification
+                            </button>
+                          ) : null}
+                        </div>
+                      </details>
 
                       <details className="mt-3 rounded-2xl border border-violet-400/15 bg-violet-500/[0.04] px-4 py-3">
                         <summary className="cursor-pointer text-sm font-bold text-violet-200/90">

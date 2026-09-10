@@ -9,6 +9,7 @@ import adminUploadRouter from "./routes/adminUpload.js";
 import adminUploadCompatibilityRouter from "./routes/adminUploadCompatibility.js";
 import lyricsRouter from "./routes/lyrics.js";
 import podcastsRouter from "./routes/podcasts.js";
+import musicTaxonomyRouter from "./routes/musicTaxonomy.js";
 import audioVersionHealthRouter from "./routes/audioVersionHealth.js";
 import audioVersionWorkerRouter from "./routes/audioVersionWorker.js";
 import {
@@ -72,6 +73,7 @@ app.use("/api/artists", artistsRouter);
 app.use("/api/albums", albumsRouter);
 app.use("/api/lyrics", lyricsRouter);
 app.use("/api/podcasts", podcastsRouter);
+app.use("/api/music/taxonomy", musicTaxonomyRouter);
 
 app.use((req, res) => {
   res.status(404).json({

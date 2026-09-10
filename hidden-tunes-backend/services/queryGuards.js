@@ -1,4 +1,5 @@
 import { sanitizeFilterToken } from "./apiDiagnostics.js";
+import { normalizeMusicTaxonomyFilters } from "./musicTaxonomyFilterUtils.js";
 
 const DEFAULT_LIMIT = 30;
 const MAX_LIMIT = 100;
@@ -34,12 +35,37 @@ export function normalizeSongFilters(query = {}) {
   const artistId = sanitizeFilterToken(query.artistId || query.artist_id || "", 120);
   const albumId = sanitizeFilterToken(query.albumId || query.album_id || "", 120);
   const genre = sanitizeFilterToken(query.genre || "", 80);
+  const mood = sanitizeFilterToken(query.mood || "", 80);
+  const taxonomy = normalizeMusicTaxonomyFilters(query);
+  const taxonomySchemaKeys = [
+    "taxonomyGenre",
+    "taxonomySubgenre",
+    "taxonomyMood",
+    "subgenre",
+    "region",
+    "regionalStyle",
+    "regional_style",
+    "language",
+    "languages",
+    "activity",
+    "activities",
+    "era",
+    "tempo",
+    "tempoClass",
+    "tempo_class",
+  ];
+  const taxonomySchemaRequired = taxonomySchemaKeys.some(
+    (key) => query[key] !== undefined && query[key] !== null && String(query[key]).trim() !== ""
+  );
 
   return {
     search,
     artistId,
     albumId,
     genre,
+    mood,
+    taxonomy,
+    taxonomySchemaRequired,
   };
 }
 

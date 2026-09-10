@@ -22,6 +22,10 @@ import {
   normalizePagination,
   normalizeSongFilters,
 } from "../services/queryGuards.js";
+import {
+  MusicTaxonomyFilterError,
+  resolveMusicTaxonomyTrackIds,
+} from "../services/musicTaxonomyFilters.js";
 import { handleLyricsRequest } from "./lyrics.js";
 
 const router = express.Router();
@@ -364,6 +368,7 @@ function buildSongRequest({
   resolvedArtist,
   search,
   searchCandidateLimit,
+  taxonomyResolution,
 }) {
   const rangeStart = filters.search ? 0 : offset;
   const rangeEnd = filters.search
@@ -383,6 +388,11 @@ function buildSongRequest({
     if (searchClause) {
       request = request.or(searchClause);
     }
+  }
+
+  if (taxonomyResolution?.trackIds) {
+    if (!taxonomyResolution.trackIds.length) return null;
+    request = request.in("id", taxonomyResolution.trackIds);
   }
 
   if (resolvedArtist.artistIds.length === 1) {
@@ -409,9 +419,14 @@ function buildSongRequest({
     return null;
   }
 
-  if (filters.genre) {
+  if (filters.genre && !taxonomyResolution?.resolvedKeys?.has("genre")) {
     const pattern = escapeIlikePattern(filters.genre);
     request = request.or(`genre.ilike.%${pattern}%,mood.ilike.%${pattern}%`);
+  }
+
+  if (filters.mood && !taxonomyResolution?.resolvedKeys?.has("mood")) {
+    const pattern = escapeIlikePattern(filters.mood);
+    request = request.or(`mood.ilike.%${pattern}%`);
   }
 
   return request;
@@ -577,13 +592,16 @@ router.get("/", async (req, res) => {
   });
 
   try {
-    const [resolvedAlbum, resolvedArtist] = await Promise.all([
+    const [resolvedAlbum, resolvedArtist, taxonomyResolution] = await Promise.all([
       filters.albumId
         ? resolveAlbumFilter(filters.albumId, "GET /api/songs")
         : Promise.resolve({ albumIds: [], resolvedBy: null, textFallback: null }),
       filters.artistId
         ? resolveArtistFilter(filters.artistId, "GET /api/songs")
         : Promise.resolve({ artistIds: [], resolvedBy: null, textFallback: null }),
+      resolveMusicTaxonomyTrackIds(filters.taxonomy, {
+        allowLegacyFallback: !filters.taxonomySchemaRequired,
+      }),
     ]);
 
     const fetchResult = await fetchSongsWithFallback({
@@ -594,6 +612,7 @@ router.get("/", async (req, res) => {
       resolvedArtist,
       search,
       searchCandidateLimit,
+      taxonomyResolution,
     });
 
     if (fetchResult.error) {
@@ -645,8 +664,9 @@ router.get("/", async (req, res) => {
       filters,
     });
 
-    return res.status(500).json({
-      error: "Server error",
+    const status = error instanceof MusicTaxonomyFilterError ? error.status : 500;
+    return res.status(status).json({
+      error: status === 503 ? "Canonical taxonomy filters are unavailable" : "Server error",
       details: error?.message || "Unknown server error",
     });
   }
