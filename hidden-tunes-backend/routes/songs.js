@@ -27,6 +27,7 @@ import {
   resolveMusicTaxonomyTrackIds,
 } from "../services/musicTaxonomyFilters.js";
 import { handleLyricsRequest } from "./lyrics.js";
+import { resolveGenreIntent, genreTiers, genreOrClause, fetchGenrePage } from "../services/musicSearchGenres.js";
 
 const router = express.Router();
 
@@ -369,20 +370,25 @@ function buildSongRequest({
   search,
   searchCandidateLimit,
   taxonomyResolution,
+  genreLabels,
+  legacyGenreIntent,
+  restrictLegacyGenre,
 }) {
-  const rangeStart = filters.search ? 0 : offset;
-  const rangeEnd = filters.search
+  const rangeStart = filters.search && !genreLabels ? 0 : offset;
+  const rangeEnd = filters.search && !genreLabels
     ? Math.max(searchCandidateLimit - 1, 0)
     : offset + limit - 1;
 
   let request = supabase
     .from("songs")
-    .select(selectClause)
+    .select(selectClause, genreLabels ? { count: "exact" } : {})
     .eq("is_public", true)
     .order("created_at", { ascending: false })
     .range(rangeStart, rangeEnd);
 
-  if (filters.search) {
+  if (genreLabels) {
+    request = request.or(genreOrClause(genreLabels)).order("id", { ascending: true });
+  } else if (filters.search) {
     const searchClause = buildSearchOrClause(search);
 
     if (searchClause) {
@@ -419,9 +425,11 @@ function buildSongRequest({
     return null;
   }
 
-  if (filters.genre && !taxonomyResolution?.resolvedKeys?.has("genre")) {
+  if (legacyGenreIntent && (!genreLabels || restrictLegacyGenre)) {
+    request = request.or(genreOrClause(genreTiers(legacyGenreIntent).flat()));
+  } else if (filters.genre && !legacyGenreIntent && !taxonomyResolution?.resolvedKeys?.has("genre")) {
     const pattern = escapeIlikePattern(filters.genre);
-    request = request.or(`genre.ilike.%${pattern}%,mood.ilike.%${pattern}%`);
+    request = request.or(`genre.ilike.%${pattern}%`);
   }
 
   if (filters.mood && !taxonomyResolution?.resolvedKeys?.has("mood")) {
@@ -443,6 +451,7 @@ async function fetchSongsWithFallback(queryContext) {
       data: [],
       error: null,
       selectMode: "skipped_unresolved_album",
+      count: 0,
     };
   }
 
@@ -464,6 +473,7 @@ async function fetchSongsWithFallback(queryContext) {
       if (!legacyResult.error) {
         return {
           data: legacyResult.data || [],
+          count: legacyResult.count,
           error: null,
           selectMode: "relations_legacy_no_audio_versions",
         };
@@ -474,6 +484,7 @@ async function fetchSongsWithFallback(queryContext) {
   if (!fullResult.error) {
     return {
       data: fullResult.data || [],
+      count: fullResult.count,
       error: null,
       selectMode: "relations",
     };
@@ -510,6 +521,7 @@ async function fetchSongsWithFallback(queryContext) {
       data: [],
       error: null,
       selectMode: "skipped_unresolved_album",
+      count: 0,
     };
   }
 
@@ -531,6 +543,7 @@ async function fetchSongsWithFallback(queryContext) {
       if (!legacyLiteResult.error) {
         return {
           data: legacyLiteResult.data || [],
+          count: legacyLiteResult.count,
           error: null,
           selectMode: "lite_legacy_no_audio_versions",
         };
@@ -541,6 +554,7 @@ async function fetchSongsWithFallback(queryContext) {
   if (!liteResult.error) {
     return {
       data: liteResult.data || [],
+      count: liteResult.count,
       error: null,
       selectMode: "lite",
     };
@@ -577,6 +591,12 @@ router.get("/", async (req, res) => {
   const pagination = normalizePagination(req.query);
   const filters = normalizeSongFilters(req.query);
   const search = normalizeSongSearchQuery(filters.search);
+  // Plain genre search uses the existing authoritative songs.genre field.
+  // Explicit taxonomyGenre/subgenre/etc. retain their accepted-assignment contract.
+  const legacyGenreIntent = !filters.taxonomySchemaRequired ? resolveGenreIntent(req.query.genre) : null;
+  const genreIntent = resolveGenreIntent(req.query.q || req.query.search) || (!filters.search ? legacyGenreIntent : null);
+  const taxonomyFilters = { ...filters.taxonomy };
+  if (legacyGenreIntent) delete taxonomyFilters.genre;
   const searchCandidateLimit = filters.search
     ? Math.min(
         SEARCH_CANDIDATE_LIMIT,
@@ -599,12 +619,12 @@ router.get("/", async (req, res) => {
       filters.artistId
         ? resolveArtistFilter(filters.artistId, "GET /api/songs")
         : Promise.resolve({ artistIds: [], resolvedBy: null, textFallback: null }),
-      resolveMusicTaxonomyTrackIds(filters.taxonomy, {
+      resolveMusicTaxonomyTrackIds(taxonomyFilters, {
         allowLegacyFallback: !filters.taxonomySchemaRequired,
       }),
     ]);
 
-    const fetchResult = await fetchSongsWithFallback({
+    const queryContext = {
       limit: pagination.limit,
       offset: pagination.offset,
       filters,
@@ -613,7 +633,15 @@ router.get("/", async (req, res) => {
       search,
       searchCandidateLimit,
       taxonomyResolution,
-    });
+      legacyGenreIntent,
+      restrictLegacyGenre: legacyGenreIntent && legacyGenreIntent !== genreIntent,
+    };
+    const fetchResult = genreIntent
+      ? await fetchGenrePage(genreIntent, pagination, (genreLabels, offset, limit) =>
+          fetchSongsWithFallback({
+            ...queryContext, genreLabels, offset, limit,
+          }))
+      : await fetchSongsWithFallback(queryContext);
 
     if (fetchResult.error) {
       logApiError("GET /api/songs", {
@@ -628,8 +656,8 @@ router.get("/", async (req, res) => {
       });
     }
 
-    const rankedRows = rankSongSearchRows(fetchResult.data || [], search);
-    const pagedRows = filters.search
+    const rankedRows = genreIntent ? fetchResult.data || [] : rankSongSearchRows(fetchResult.data || [], search);
+    const pagedRows = filters.search && !genreIntent
       ? rankedRows.slice(pagination.offset, pagination.offset + pagination.limit)
       : rankedRows;
 

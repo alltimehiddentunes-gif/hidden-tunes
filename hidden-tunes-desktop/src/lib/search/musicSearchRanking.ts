@@ -1,5 +1,6 @@
 import type { ApiAlbum, ApiArtist, ApiSong } from '../api'
 import { getMusicGenreByLabelOrAlias, type MusicGenreDefinition } from '../musicGenres'
+import { resolveSearchGenre, searchGenreRank } from './musicGenreIntent'
 
 export const SEARCH_TOP_MATCH_CONFIDENCE = 0.78
 
@@ -23,13 +24,13 @@ export type RankedSearchSong = {
 }
 
 export const normalizeSearchText = (value: string) =>
-  value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  value.normalize('NFKD').replace(/\p{Mark}+/gu, '').toLocaleLowerCase().replace(/[^\p{Letter}\p{Number}]+/gu, ' ').trim()
 
 export const tokenizeSearchQuery = (value: string) =>
   [...new Set(normalizeSearchText(value).split(' ').filter(Boolean))]
 
 export function resolveExactGenreIntent(query: string): MusicGenreDefinition | null {
-  return getMusicGenreByLabelOrAlias(query)
+  return resolveSearchGenre(query) ?? getMusicGenreByLabelOrAlias(query)
 }
 
 function includesAll(haystack: string, tokens: string[]) {
@@ -39,6 +40,7 @@ function includesAll(haystack: string, tokens: string[]) {
 export function rankSearchSongs(songs: ApiSong[], query: string): RankedSearchSong[] {
   const normalizedQuery = normalizeSearchText(query)
   const tokens = tokenizeSearchQuery(query)
+  const intent = resolveExactGenreIntent(query)
   const unique = new Map<string, ApiSong>()
   for (const song of songs) if (!unique.has(song.id)) unique.set(song.id, song)
 
@@ -50,6 +52,8 @@ export function rankSearchSongs(songs: ApiSong[], query: string): RankedSearchSo
     const metadata = normalizeSearchText([item.title, item.artist, item.album, item.genre, item.mood, ...item.tags].filter(Boolean).join(' '))
     const reasons: string[] = []
     let score = 0
+    const genrePriority = searchGenreRank(item.genre ?? '', intent)
+    if (genrePriority) { score += genrePriority * 1000; reasons.push(genrePriority === 2 ? 'genre intent exact' : 'genre intent family') }
     if (title === normalizedQuery) { score += SEARCH_RELEVANCE_WEIGHTS.exactTitle; reasons.push('exact title') }
     if (artist === normalizedQuery) { score += SEARCH_RELEVANCE_WEIGHTS.exactArtist; reasons.push('exact artist') }
     if (album === normalizedQuery) { score += SEARCH_RELEVANCE_WEIGHTS.exactAlbum; reasons.push('exact album') }
@@ -60,7 +64,8 @@ export function rankSearchSongs(songs: ApiSong[], query: string): RankedSearchSo
     score += tokenHits * SEARCH_RELEVANCE_WEIGHTS.metadataToken
     if (tokens.length > 0 && tokenHits === 0) { score += SEARCH_RELEVANCE_WEIGHTS.zeroTokenPenalty; reasons.push('zero-token penalty') }
     return { item, score, confidence: Math.max(0, Math.min(1, score / 150)), reasons }
-  }).sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
+  }).filter((result) => tokens.length === 0 || result.score >= tokens.length * SEARCH_RELEVANCE_WEIGHTS.metadataToken)
+    .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title))
 }
 
 export function rankArtists(artists: ApiArtist[], query: string) {

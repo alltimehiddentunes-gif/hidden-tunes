@@ -3377,14 +3377,13 @@ async function loadFilteredGenrePage(
     }
 
     const result = await loadMusicGenreSongsPage({
-      genre: genreDefinition.requestValue,
+      genre: resolveExactGenreIntent(genreDefinition.label)?.requestValue ?? genreDefinition.requestValue,
       page,
       limit: MUSIC_CATALOG_PAGE_SIZE,
       signal,
     })
-    const items = result.items.filter(
-      (song) => song.genre && genreDefinition.backendValues.includes(song.genre),
-    )
+    // The backend owns bounded genre candidates and their exact/family ordering.
+    const items = result.items
 
     if (items.length > 0 || !result.hasMore) {
       return { items, page, hasMore: result.hasMore }
@@ -3461,7 +3460,9 @@ function DiscoverPage({
   )
   const genreId = genreDefinition?.id ?? null
   const textQuery = genreDefinition ? '' : query
-  const debouncedQuery = useDebouncedValue(textQuery, SEARCH_DEBOUNCE_MS)
+  // HomeTopBar already debounces typing and flushes that timer on form submit.
+  // A second debounce here delays Enter and can replay the previous query.
+  const debouncedQuery = textQuery
   const isSearchPending = textQuery !== debouncedQuery
   const [sort] = usePersistedPreference(
     DESKTOP_PREFERENCE_KEYS.discoverSort,
@@ -3585,7 +3586,7 @@ function DiscoverPage({
     if (trimmedQuery || genreDefinition) {
       if (!genreDefinition && !normalizeSearchText(trimmedQuery)) return []
       return genreDefinition
-        ? sortSongsList(remoteSongs, sort)
+        ? remoteSongs
         : rankSearchSongs(remoteSongs, trimmedQuery).map((result) => result.item)
     }
     return metadataRecordsToApiSongs(
