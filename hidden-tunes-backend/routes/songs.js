@@ -28,8 +28,19 @@ import {
 } from "../services/musicTaxonomyFilters.js";
 import { handleLyricsRequest } from "./lyrics.js";
 import { resolveGenreIntent, genreTiers, genreOrClause, fetchGenrePage } from "../services/musicSearchGenres.js";
+import { discoverAndMerge } from "../services/junction2/discover.js";
+import { publicApiBaseUrl } from "../services/junction2/publicOrigin.js";
+import { loadJunction2Config } from "../services/junction2/config.js";
 
 const router = express.Router();
+
+function abortFrom(res) {
+  const controller = new AbortController();
+  res.on("close", () => {
+    if (!res.writableEnded) controller.abort();
+  });
+  return controller.signal;
+}
 
 const FALLBACK_COVER =
   "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
@@ -665,9 +676,19 @@ router.get("/", async (req, res) => {
       .map(normalizeSong)
       .filter(Boolean);
 
+    const payload =
+      filters.search && !genreIntent
+        ? await discoverAndMerge(normalizedSongs, {
+            query: search.phrase,
+            limit: pagination.limit,
+            publicBaseUrl: publicApiBaseUrl(req, loadJunction2Config()),
+            signal: abortFrom(res),
+          })
+        : normalizedSongs;
+
     logApiSuccess("GET /api/songs", {
       durationMs: timer.durationMs(),
-      resultCount: normalizedSongs.length,
+      resultCount: payload.length,
       filters,
       page: pagination.page,
       limit: pagination.limit,
@@ -684,7 +705,7 @@ router.get("/", async (req, res) => {
       cacheState: "live_query",
     });
 
-    return res.json(normalizedSongs);
+    return res.json(payload);
   } catch (error) {
     logApiError("GET /api/songs", {
       durationMs: timer.durationMs(),

@@ -13,7 +13,8 @@
     "test:admin-upload-failure-matrix": "node scripts/test-admin-upload-failure-matrix.mjs",
     "test:admin-upload-freeze": "node scripts/test-admin-upload-freeze.mjs",
     "test:music-taxonomy-filters": "node scripts/test-music-taxonomy-filters.mjs",
-    "check:syntax": "node --check server.js && node --check routes/adminUploadCompatibility.js && node --check services/adminCatalogSecurity.js && node --check services/adminUploadCompensation.js",
+    "test:junction2": "node --test scripts/test-junction2.mjs",
+    "check:syntax": "node --check server.js && node --check routes/adminUploadCompatibility.js && node --check routes/songs.js && node --check routes/media.js && node --check services/adminCatalogSecurity.js && node --check services/adminUploadCompensation.js && node --check services/junction2/config.js && node --check services/junction2/client.js && node --check services/junction2/discover.js",
     "validate:admin-upload": "npm run test:admin-security && npm run test:admin-upload-compensation && npm run test:admin-upload-failure-matrix && npm run test:admin-upload-freeze && npm run check:syntax"
   },
   "dependencies": {
