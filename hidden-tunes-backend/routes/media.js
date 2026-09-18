@@ -11,7 +11,11 @@ import { publicPlaybackError, sanitizeStreamHeaders, containsPublicLeak } from "
 import { publicApiBaseUrl } from "../services/junction2/publicOrigin.js";
 import { recordMetric } from "../services/junction2/metrics.js";
 import { markUnplayable } from "../services/junction2/playability.js";
-import { resolveBridgeMediaId } from "../services/junction2/prewarm.js";
+import {
+  resolveBridgeMediaId,
+  beginUserPlay,
+  endUserPlay,
+} from "../services/junction2/prewarm.js";
 
 function abortFrom(res) {
   const controller = new AbortController();
@@ -67,20 +71,38 @@ export function createMediaRouter(deps = {}) {
       if (!bridgeMediaId) {
         if (!record.provider || !record.sourceId) return sendPublicError(res, 404);
         const tIngest = Date.now();
-        // Join in-flight prewarm if the same source is already resolving.
-        bridgeMediaId = await (deps.resolveBridgeMediaId || resolveBridgeMediaId)(
-          record,
-          client,
-          store,
-          { publicPlaybackId: record.publicPlaybackId, signal },
-        );
+        beginUserPlay();
+        try {
+          // Join in-flight prewarm if the same source is already resolving.
+          // Bound cold resolve so the player is not left hanging 20s+.
+          const coldBudgetMs = Math.min(
+            Number(config.playbackTimeoutMs) || 45_000,
+            Number.parseInt(String(process.env.J2_COLD_RESOLVE_TIMEOUT_MS || "12000"), 10) || 12_000,
+          );
+          bridgeMediaId = await (deps.resolveBridgeMediaId || resolveBridgeMediaId)(
+            record,
+            client,
+            store,
+            {
+              publicPlaybackId: record.publicPlaybackId,
+              signal,
+              timeoutMs: coldBudgetMs,
+              priority: "user",
+            },
+          );
+        } finally {
+          endUserPlay();
+        }
         marks.ingestMs = Date.now() - tIngest;
       }
 
       const tStream = Date.now();
+      // Many media CDNs reject HEAD; probe with a 1-byte ranged GET and discard the body.
+      const upstreamMethod = method === "HEAD" ? "GET" : method;
+      const upstreamRange = method === "HEAD" ? (req.headers.range || "bytes=0-0") : req.headers.range;
       const upstream = await client.stream(bridgeMediaId, {
-        method,
-        range: req.headers.range,
+        method: upstreamMethod,
+        range: upstreamRange,
         signal,
       });
       marks.streamMs = Date.now() - tStream;
@@ -116,6 +138,13 @@ export function createMediaRouter(deps = {}) {
       marks.firstByteMs = Date.now() - started;
 
       if (method === "HEAD") {
+        if (upstream.body?.cancel) {
+          try {
+            await upstream.body.cancel();
+          } catch {
+            /* ignore */
+          }
+        }
         recordMetric("playbackSuccess", { method, durationMs: marks.firstByteMs, ...marks, cache: Boolean(record.bridgeMediaId) });
         console.log(JSON.stringify({ event: "j2_playback_timing", method, ...marks, cacheHit: Boolean(record.bridgeMediaId && marks.ingestMs === 0) }));
         res.end();

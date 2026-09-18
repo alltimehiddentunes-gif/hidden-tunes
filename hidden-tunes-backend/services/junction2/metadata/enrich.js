@@ -85,6 +85,7 @@ export async function enrichSearchHit(hit, options = {}) {
   }
 
   const timeoutMs = Math.max(100, Number(options.timeoutMs) || 1200);
+  const mode = String(options.mode || "deep").toLowerCase() === "shallow" ? "shallow" : "deep";
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   if (options.signal) {
@@ -108,24 +109,28 @@ export async function enrichSearchHit(hit, options = {}) {
       }
     }
 
-    for (const provider of verifiedProviders) {
-      if (controller.signal.aborted) break;
-      try {
-        const result = await provider.lookup(identity, controller.signal);
-        if (!result) continue;
-        if (result.confidence && result.confidence !== "NO_MATCH") {
-          if (!verified || confidenceRank(result.confidence) > confidenceRank(verified.confidence)) {
-            verified = { ...result, providerId: provider.id };
+    // Shallow mode: presentation-only. Do not wait on MusicBrainz / artwork providers.
+    if (mode !== "shallow") {
+      for (const provider of verifiedProviders) {
+        if (controller.signal.aborted) break;
+        try {
+          const result = await provider.lookup(identity, controller.signal);
+          if (!result) continue;
+          if (result.confidence && result.confidence !== "NO_MATCH") {
+            if (!verified || confidenceRank(result.confidence) > confidenceRank(verified.confidence)) {
+              verified = { ...result, providerId: provider.id };
+            }
           }
+        } catch {
+          /* isolated */
         }
-      } catch {
-        /* isolated */
       }
     }
 
     const merged = mergeEnrichment(identity, basic, verified);
     const safe = sanitizeEnrichment(identity, merged);
-    cacheSet(cacheKey, safe);
+    // Only persist deep/verified enrichment into the long-lived cache.
+    if (mode !== "shallow" || verified) cacheSet(cacheKey, safe);
     return attachIdentity(hit, safe, verified ? "verified" : "basic");
   } catch {
     const fallback = sanitizeEnrichment(identity, {

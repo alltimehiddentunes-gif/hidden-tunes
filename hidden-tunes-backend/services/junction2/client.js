@@ -83,6 +83,8 @@ export class MediaBridgeClient {
           provider: source.provider,
           id: source.sourceId,
         },
+        // Internal priority only — never surfaced publicly.
+        priority: options.priority === "prewarm" ? "prewarm" : "user",
       },
       options.timeoutMs ?? this.config.playbackTimeoutMs,
       options.signal

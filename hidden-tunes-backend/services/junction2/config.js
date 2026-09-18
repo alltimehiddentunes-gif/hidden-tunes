@@ -102,7 +102,11 @@ export function loadJunction2Config(env = process.env) {
     secret: parsedBase && secret.length >= 8 ? secret : "",
     ready: Boolean(parsedBase && secret.length >= 8),
     searchTimeoutMs: asPositiveInt(env.J2_SEARCH_TIMEOUT_MS, 1200),
-    ownerCanarySearchTimeoutMs: asPositiveInt(env.J2_OWNER_CANARY_SEARCH_TIMEOUT_MS, asPositiveInt(env.J2_SEARCH_TIMEOUT_MS, 12_000)),
+    // Cap owner-canary search so cold enrichment cannot produce multi-second user waits.
+    ownerCanarySearchTimeoutMs: asPositiveInt(
+      env.J2_OWNER_CANARY_SEARCH_TIMEOUT_MS,
+      asPositiveInt(env.J2_SEARCH_TIMEOUT_MS, 4_000),
+    ),
     searchLimit: Math.min(asPositiveInt(env.J2_SEARCH_LIMIT, 5), 10),
     playbackTimeoutMs: asPositiveInt(env.J2_PLAYBACK_TIMEOUT_MS, 45_000),
     circuitOpenMs: asPositiveInt(env.J2_CIRCUIT_OPEN_MS, 30_000),

@@ -1054,3 +1054,70 @@ test("existing catalog precedence keeps local song over external duplicate", asy
   assert.ok(!merged.some((row) => row.type === "external" && row.title === "Never Gonna Give You Up"));
 });
 
+
+test("prewarm launches top-2 concurrently under maxConcurrent=2", async () => {
+  const { schedulePlaybackPrewarm, clearPrewarmForTests, loadPrewarmConfig, prewarmStats } = await import("../services/junction2/prewarm.js");
+  clearPrewarmForTests();
+  const starts = [];
+  const remembered = new Map();
+  const client = {
+    ingest: async (src, _opts) => {
+      starts.push({ id: src.sourceId, at: Date.now() });
+      await new Promise((r) => setTimeout(r, 120));
+      return "mid-" + src.sourceId;
+    },
+    stream: async () => ({ status: 200, body: { cancel: async () => {} } }),
+  };
+  const store = {
+    get: (id) => (remembered.has(id) ? { publicPlaybackId: id, bridgeMediaId: remembered.get(id) } : null),
+    rememberBridgeMediaId: (id, mid) => remembered.set(id, mid),
+  };
+  const records = [
+    { provider: "youtube", sourceId: "aaa", canonicalSourceKey: "youtube:aaa", publicPlaybackId: "p1" },
+    { provider: "youtube", sourceId: "bbb", canonicalSourceKey: "youtube:bbb", publicPlaybackId: "p2" },
+  ];
+  const cfg = loadPrewarmConfig({ ready: true }, {
+    PLAYBACK_PREWARM_ENABLED: "true",
+    PLAYBACK_PREWARM_TOP_N: "2",
+    MAX_PREWARM_RESOLUTIONS: "2",
+    PLAYBACK_PREWARM_OPTIONAL_EXTRA: "false",
+  });
+  schedulePlaybackPrewarm(records, client, store, { ready: true }, { prewarmConfig: cfg });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(starts.length, 2, "both prewarms should start without waiting for each other");
+  assert.ok(Math.abs(starts[0].at - starts[1].at) < 80, "starts should be near-simultaneous");
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(prewarmStats().activePrewarms, 0);
+  clearPrewarmForTests();
+});
+
+test("search does not await sync playability probes for SoundCloud", async () => {
+  const config = enabledConfig({ J2_OWNER_CANARY_ENABLED: "true", J2_OWNER_CANARY_MODE: "open" });
+  let probes = 0;
+  let ingestCalls = 0;
+  const client = {
+    search: async () => [
+      archiveHit({ provider: "soundcloud", sourceId: "sc1", canonicalSourceKey: "soundcloud:sc1", title: "SC Track", artist: "A" }),
+      archiveHit({ provider: "youtube", sourceId: "yt1", canonicalSourceKey: "youtube:yt1", title: "YT Track", artist: "B" }),
+    ],
+    ingest: async () => {
+      ingestCalls += 1;
+      probes += 1;
+      return "mid";
+    },
+  };
+  const t0 = Date.now();
+  const merged = await discoverAndMerge([], { query: "track", limit: 5, publicBaseUrl: PUBLIC_BASE }, {
+    config,
+    client,
+    store: new PlaybackStore(),
+    enrichSearchHit: async (hit) => hit,
+    schedulePlaybackPrewarm: () => ({ scheduled: 0 }),
+    asyncDeepEnrich: false,
+  });
+  const elapsed = Date.now() - t0;
+  assert.equal(probes, 0);
+  assert.equal(ingestCalls, 0);
+  assert.ok(merged.length >= 1, "youtube should surface");
+  assert.ok(elapsed < 500, "search post-process must stay fast, got " + elapsed);
+});
