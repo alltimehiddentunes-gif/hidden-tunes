@@ -39,6 +39,23 @@ First tap can be instant after search prewarm, but **Next / Auto-Next** was cold
 - Optional `MediaCache` boundary (Null miss-safe)
 - No client / OTA / native changes
 
-## Post-wave numbers
+## Post-wave numbers (owner-canary continuous suite)
 
-See final report from continuous session suite (filled after qualification).
+| Transition | p50 | p95 | notes |
+|---|---|---|---|
+| SEARCH | 1517ms | 2506ms | cold+warm samples |
+| FIRST TAP (prepared) | **201ms** | **201ms** | after ~7s search prep |
+| NEXT | **188ms** | **188ms** | session window P1 |
+| AUTO-NEXT | **202ms** | **202ms** | session window P3→P1 |
+| QUEUE JUMP | **164ms** | **164ms** | already in search session |
+| PREVIOUS | 354ms | 354ms | |
+| REPLAY | 403ms | 403ms | slightly above 300ms target |
+| READY_BEFORE_REQUEST | **100%** | | proxy: TTFB&lt;400ms |
+
+HEAD / RANGE / SEEK: PASS
+
+### Audit conclusion
+
+Backend **can** prepare continuous Search→Next→Auto-Next without client changes by treating **search result order** as the listening queue (matches existing `playSong(song, searchQueue, index)`).
+
+Backend **cannot** see arbitrary client queue reorders until that track is requested — missing signal: optional next-window hint on `/api/media` (not added this wave).
