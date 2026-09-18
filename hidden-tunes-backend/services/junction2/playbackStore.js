@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-const DEFAULT_TTL_MS = 60 * 60 * 1000;
+const DEFAULT_TTL_MS = 6 * 60 * 60 * 1000; // opaque queue identities outlive upstream resolve TTL
 
 export class PlaybackStore {
   constructor(ttlMs = DEFAULT_TTL_MS) {

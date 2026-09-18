@@ -16,7 +16,7 @@ import {
   beginUserPlay,
   endUserPlay,
 } from "../services/junction2/prewarm.js";
-import { onTrackStarted, getPreparationState } from "../services/junction2/preparation.js";
+import { onTrackStarted, getPreparationState, preparePlayerQueueWindow } from "../services/junction2/preparation.js";
 
 function abortFrom(res) {
   const controller = new AbortController();
@@ -207,6 +207,39 @@ export function createMediaRouter(deps = {}) {
       return sendPublicError(res, 503);
     }
   };
+
+  router.post("/prepare", (req, res) => {
+    const config = deps.config || loadJunction2Config();
+    const store = deps.store || playbackStore;
+    const client = deps.client || getMediaBridgeClient(config);
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const current = String(body.current || "").trim();
+    const next = Array.isArray(body.next) ? body.next : [];
+    // Opaque IDs only — never accept provider/source payloads from clients.
+    const safeNext = next
+      .map((id) => String(id || "").trim())
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+      .slice(0, 2);
+    const safeCurrent = /^[0-9a-f-]{36}$/i.test(current) ? current : "";
+
+    const result = preparePlayerQueueWindow(
+      { current: safeCurrent, next: safeNext },
+      client,
+      store,
+      config,
+      {
+        currentDurationMs: Number(body.currentDurationMs) || 0,
+        queryFold: "player-queue",
+      },
+    );
+
+    // Non-blocking: acknowledge immediately; work continues async.
+    return res.status(202).json({
+      ok: true,
+      scheduled: result.scheduled,
+      missing: result.missing?.length || 0,
+    });
+  });
 
   router.get("/:playbackId", (req, res) => {
     const method = String(req.method || "GET").toUpperCase() === "HEAD" ? "HEAD" : "GET";

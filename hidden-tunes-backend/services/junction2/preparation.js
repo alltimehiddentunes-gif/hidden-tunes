@@ -317,6 +317,91 @@ export function onTrackStarted(playbackRecord, client, store, config = {}) {
 }
 
 /**
+ * Player queue window: CURRENT known; prepare NEXT / NEXT+1 at P1/P2.
+ * Supersedes search-order session for rolling preparation.
+ */
+export function preparePlayerQueueWindow(opaqueIds, client, store, config = {}, meta = {}) {
+  const cfg = loadPrewarmConfig(config);
+  configurePreparation({ maxConcurrent: cfg.maxConcurrent });
+
+  const ids = {
+    current: String(opaqueIds?.current || "").trim(),
+    next: Array.isArray(opaqueIds?.next)
+      ? opaqueIds.next.map((id) => String(id || "").trim()).filter(Boolean).slice(0, 2)
+      : [],
+  };
+
+  const currentRecord = ids.current ? store.get(ids.current) : null;
+  const nextRecords = ids.next.map((id) => store.get(id)).filter(Boolean);
+
+  const sessionRecords = [];
+  if (currentRecord) sessionRecords.push(currentRecord);
+  for (const rec of nextRecords) sessionRecords.push(rec);
+
+  if (sessionRecords.length) {
+    registerSearchSession(sessionRecords, {
+      queryFold: String(meta.queryFold || "player-queue").slice(0, 120),
+    });
+  }
+
+  if (!cfg.enabled || !cfg.allow) {
+    return {
+      accepted: true,
+      scheduled: 0,
+      missing: ids.next.filter((id) => !store.get(id)),
+      currentFound: Boolean(currentRecord),
+    };
+  }
+
+  // Deprioritize speculative search work when real next needs capacity.
+  if (nextRecords.length) dropLowPriorityQueued();
+
+  let scheduled = 0;
+  if (nextRecords[0]) {
+    prepare(nextRecords[0], {
+      priority: PRIORITY.P1_NEXT,
+      client,
+      store,
+      timeoutMs: cfg.timeoutMs,
+      currentDurationMs: Number(meta.currentDurationMs) || currentRecord?.durationMs || 0,
+    });
+    scheduled += 1;
+  }
+  if (nextRecords[1]) {
+    prepare(nextRecords[1], {
+      priority: PRIORITY.P2_AUTO_NEXT,
+      client,
+      store,
+      timeoutMs: cfg.timeoutMs,
+      currentDurationMs: Number(meta.currentDurationMs) || currentRecord?.durationMs || 0,
+    });
+    scheduled += 1;
+  }
+
+  recordMetric("playerQueuePrepare", {
+    scheduled,
+    nextRequested: ids.next.length,
+    missing: ids.next.filter((id) => !store.get(id)).length,
+  });
+  console.log(
+    JSON.stringify({
+      event: "j2_player_queue_prepare",
+      scheduled,
+      nextRequested: ids.next.length,
+      currentFound: Boolean(currentRecord),
+      missing: ids.next.filter((id) => !store.get(id)).length,
+    }),
+  );
+
+  return {
+    accepted: true,
+    scheduled,
+    missing: ids.next.filter((id) => !store.get(id)),
+    currentFound: Boolean(currentRecord),
+  };
+}
+
+/**
  * Search returned: register session + P4 prepare top N.
  */
 export function onSearchResults(records, client, store, config = {}, meta = {}) {
