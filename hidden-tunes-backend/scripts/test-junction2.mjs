@@ -12,6 +12,9 @@ import { PlaybackStore } from "../services/junction2/playbackStore.js";
 import { containsPublicLeak, publicPlaybackError, sanitizeStreamHeaders } from "../services/junction2/leak.js";
 import { publicApiBaseUrl } from "../services/junction2/publicOrigin.js";
 import { createMediaRouter } from "../routes/media.js";
+import { cleanPresentationTitle } from "../services/junction2/metadata/titleClean.js";
+import { parseArtistCredits } from "../services/junction2/metadata/artistParse.js";
+import { enrichSearchHit, clearMetadataCacheForTests } from "../services/junction2/metadata/enrich.js";
 
 const PUBLIC_BASE = "http://127.0.0.1:4010";
 const LOCAL_R2 = {
@@ -143,8 +146,9 @@ test("local test fixture does not rewrite policy to ELIGIBLE", async () => {
   const client = { search: async () => [hit] };
   const merged = await discoverAndMerge([], { query: "testmp3testfile", limit: 30, publicBaseUrl: PUBLIC_BASE }, { config, client, store });
   assert.equal(merged.length, 1);
-  assert.equal(merged[0].source_type, "r2");
+  assert.equal(merged[0].source_type, "external");
   assert.equal(merged[0].sourceName, "Hidden Tunes");
+  assert.match(merged[0].artwork, /\/api\/artwork\/|images\.unsplash\.com/);
   assert.match(merged[0].streamUrl, /^http:\/\/127\.0\.0\.1:4010\/api\/media\/[0-9a-f-]+$/i);
   assert.equal(containsPublicLeak(merged, PUBLIC_BASE), false);
   const internal = store.get(merged[0].id);
@@ -206,7 +210,7 @@ test("owner canary is query+source gated and does not rewrite REVIEW_REQUIRED", 
   const canarySong = merged.find((row) => row.title === "Me at the zoo");
   assert.ok(canarySong);
   assert.equal(canarySong.sourceName, "Hidden Tunes");
-  assert.equal(canarySong.type, "r2");
+  assert.equal(canarySong.type, "external");
   assert.match(canarySong.streamUrl, /^http:\/\/127\.0\.0\.1:4010\/api\/media\/[0-9a-f-]+$/i);
   assert.equal(containsPublicLeak(canarySong, PUBLIC_BASE), false);
   assert.doesNotMatch(JSON.stringify(canarySong), /youtube\.com|youtu\.be|googlevideo|yt-dlp/i);
@@ -697,7 +701,8 @@ test("owner canary remains available while public rollout is killed", async () =
     rolloutKey: "user:public",
   }, { config, client, store: new PlaybackStore() });
   assert.equal(searches, 1);
-  assert.ok(merged.some((row) => row.title === "generic query hit"));
+  assert.ok(merged.some((row) => /generic query hit/i.test(row.title)));
+  assert.ok(merged.every((row) => !/ytimg|youtube\.com|yt-dlp/i.test(JSON.stringify(row))));
 });
 
 test("production logic has no fixture hard-codes", async () => {
@@ -709,5 +714,88 @@ test("production logic has no fixture hard-codes", async () => {
     const text = fs.readFileSync(path.join(root, rel), "utf8");
     assert.doesNotMatch(text, /Me at the zoo|jNQXAC9IVRw|Rick Astley|Never Gonna Give You Up/i);
   }
+});
+
+test("title cleaning strips video noise but keeps version identity", () => {
+  const cleaned = cleanPresentationTitle(
+    "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+    "Rick Astley",
+  );
+  assert.equal(cleaned.displayTitle, "Never Gonna Give You Up");
+  assert.match(cleaned.sourceTitle, /Official Video/);
+  const live = cleanPresentationTitle("Song Title (Live)", "Artist");
+  assert.match(live.displayTitle, /Live/i);
+  const remix = cleanPresentationTitle("Song Title Remix", "Artist");
+  assert.match(remix.displayTitle, /Remix/i);
+});
+
+test("artist parsing extracts featured credits conservatively", () => {
+  const parsed = parseArtistCredits("Burna Boy feat. Rema");
+  assert.equal(parsed.primaryArtist, "Burna Boy");
+  assert.deepEqual(parsed.featuredArtists, ["Rema"]);
+});
+
+test("metadata enrichment produces native track fields with opaque artwork", async () => {
+  clearMetadataCacheForTests();
+  const hit = archiveHit({
+    provider: "youtube",
+    sourceId: "dQw4w9WgXcQ",
+    canonicalSourceKey: "youtube:dqw4w9wgxcq",
+    title: "Rick Astley - Never Gonna Give You Up (Official Video)",
+    artist: "Rick Astley",
+    durationMs: 213_000,
+    policyState: "REVIEW_REQUIRED",
+  });
+  const enriched = await enrichSearchHit(hit, { timeoutMs: 200 });
+  assert.equal(enriched.sourceId, hit.sourceId);
+  assert.equal(enriched.canonicalSourceKey, hit.canonicalSourceKey);
+  assert.equal(enriched.title, "Never Gonna Give You Up");
+  assert.equal(enriched.artist, "Rick Astley");
+  assert.ok(enriched.enrichment.mediaThumbnailUrl.includes("ytimg"));
+
+  const store = new PlaybackStore();
+  const record = store.putFromSearchHit(enriched);
+  const song = toPublicSong(record, PUBLIC_BASE);
+  assert.equal(song.title, "Never Gonna Give You Up");
+  assert.equal(song.artist, "Rick Astley");
+  assert.equal(song.duration, 213);
+  assert.match(song.artwork, /\/api\/artwork\//);
+  assert.doesNotMatch(JSON.stringify(song), /ytimg|youtube\.com|googlevideo|yt-dlp/i);
+  assert.equal(containsPublicLeak(song, PUBLIC_BASE), false);
+  assert.equal(song.type, "external");
+});
+
+test("wrong-song protection rejects enrichment that changes source identity", async () => {
+  const config = enabledConfig({ J2_OWNER_CANARY_ENABLED: "true", J2_OWNER_CANARY_MODE: "open", EXTERNAL_DISCOVERY_ENABLED: "false", BRIDGE_PLAYBACK_ENABLED: "false" });
+  let searches = 0;
+  const client = {
+    search: async () => {
+      searches += 1;
+      return [
+        archiveHit({
+          provider: "youtube",
+          sourceId: "aaaaaaaaaaa",
+          canonicalSourceKey: "youtube:aaaaaaaaaaa",
+          title: "Track A",
+          artist: "Artist A",
+        }),
+      ];
+    },
+  };
+  const enrichSearchHit = async (hit) => ({
+    ...hit,
+    provider: "youtube",
+    sourceId: "bbbbbbbbbbb",
+    canonicalSourceKey: "youtube:bbbbbbbbbbb",
+    title: "Track B",
+    enrichment: { displayTitle: "Track B", primaryArtist: "Artist B", confidence: "HIGH" },
+  });
+  const merged = await discoverAndMerge([], {
+    query: "Track A",
+    limit: 5,
+    publicBaseUrl: PUBLIC_BASE,
+  }, { config, client, store: new PlaybackStore(), enrichSearchHit });
+  assert.equal(searches, 1);
+  assert.equal(merged.length, 0);
 });
 

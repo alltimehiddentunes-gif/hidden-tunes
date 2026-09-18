@@ -5,6 +5,7 @@ import { toPublicSong, isConservativeDuplicate, mergePreferLocal } from "./map.j
 import { playbackStore } from "./playbackStore.js";
 import { containsPublicLeak } from "./leak.js";
 import { recordMetric } from "./metrics.js";
+import { enrichSearchHit } from "./metadata/enrich.js";
 
 export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
   const local = Array.isArray(localSongs) ? localSongs : [];
@@ -24,6 +25,7 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       : context.query;
   const started = Date.now();
   const timeoutMs = canary ? config.ownerCanarySearchTimeoutMs : config.searchTimeoutMs;
+  const enrichFn = deps.enrichSearchHit || enrichSearchHit;
 
   recordMetric("externalSearchAttempt", { canary, workerRole: config.workerRole });
 
@@ -36,9 +38,29 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
     const mapped = [];
     for (const hit of results) {
       if (!isPubliclySurfaceable(hit, config)) continue;
+      // Existing Hidden Tunes catalog match wins — do not create inferior duplicate.
       if (local.some((song) => isConservativeDuplicate(hit, song))) continue;
-      const record = store.putFromSearchHit(hit);
-      mapped.push(toPublicSong(record, publicBaseUrl));
+
+      const enriched = await enrichFn(hit, {
+        signal: context.signal,
+        timeoutMs: Math.min(400, Math.max(100, Math.floor(timeoutMs / 8))),
+      });
+
+      // Wrong-song protection: enrichment cannot change playback source identity.
+      if (
+        enriched.provider !== hit.provider ||
+        enriched.sourceId !== hit.sourceId ||
+        enriched.canonicalSourceKey !== hit.canonicalSourceKey
+      ) {
+        continue;
+      }
+
+      if (local.some((song) => isConservativeDuplicate(enriched, song))) continue;
+
+      const record = store.putFromSearchHit(enriched);
+      const song = toPublicSong(record, publicBaseUrl);
+      if (containsPublicLeak(song, publicBaseUrl)) continue;
+      mapped.push(song);
     }
 
     const durationMs = Date.now() - started;

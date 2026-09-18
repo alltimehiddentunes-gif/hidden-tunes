@@ -11,16 +11,29 @@ export class PlaybackStore {
   putFromSearchHit(hit) {
     this.gc();
     const publicPlaybackId = randomUUID();
+    const enrichment = hit.enrichment || {};
     const record = {
       publicPlaybackId,
       bridgeMediaId: hit.bridgeMediaId ? String(hit.bridgeMediaId) : null,
       provider: String(hit.provider || ""),
       sourceId: String(hit.sourceId || ""),
       canonicalSourceKey: String(hit.canonicalSourceKey || ""),
-      title: String(hit.title || "Untitled"),
-      artist: hit.artist ? String(hit.artist) : "Unknown Artist",
-      album: hit.album ? String(hit.album) : "Singles",
-      durationMs: Number.isFinite(Number(hit.durationMs)) ? Number(hit.durationMs) : 0,
+      title: String(enrichment.displayTitle || hit.title || "Untitled"),
+      sourceTitle: String(enrichment.sourceTitle || hit.title || ""),
+      artist: String(enrichment.primaryArtist || hit.artist || "Unknown Artist"),
+      artists: Array.isArray(enrichment.artists) ? enrichment.artists : null,
+      album: enrichment.album ? String(enrichment.album) : hit.album ? String(hit.album) : null,
+      durationMs: Number.isFinite(Number(enrichment.durationMs ?? hit.durationMs))
+        ? Number(enrichment.durationMs ?? hit.durationMs)
+        : 0,
+      albumArtworkUrl: enrichment.albumArtworkUrl || null,
+      mediaThumbnailUrl: enrichment.mediaThumbnailUrl || null,
+      releaseYear: enrichment.releaseYear || null,
+      genre: enrichment.genre || null,
+      explicit: typeof enrichment.explicit === "boolean" ? enrichment.explicit : null,
+      isrc: enrichment.isrc || null,
+      versionHints: Array.isArray(enrichment.versionHints) ? enrichment.versionHints : [],
+      enrichmentConfidence: enrichment.confidence || null,
       policyState: hit.policyState || null,
       rightsState: hit.rightsState || null,
       playbackCapability: hit.playbackCapability === true,

@@ -1,5 +1,4 @@
-const FALLBACK_COVER =
-  "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000";
+import { resolvePublicArtwork, fallbackCoverUrl } from "./metadata/artwork.js";
 
 function publicMediaUrl(publicBaseUrl, publicPlaybackId) {
   return `${String(publicBaseUrl).replace(/\/+$/, "")}/api/media/${encodeURIComponent(publicPlaybackId)}`;
@@ -9,41 +8,54 @@ export function toPublicSong(record, publicBaseUrl) {
   const streamUrl = publicMediaUrl(publicBaseUrl, record.publicPlaybackId);
   const duration = record.durationMs ? Math.round(record.durationMs / 1000) : 0;
   const artist = record.artist || "Unknown Artist";
-  const album = record.album || "Singles";
+  const title = record.title || "Untitled";
+  const album = record.album || null;
+  const art = resolvePublicArtwork(record, publicBaseUrl);
+  const artists =
+    Array.isArray(record.artists) && record.artists.length
+      ? record.artists
+      : [{ name: artist, role: "primary" }];
 
   return {
     id: record.publicPlaybackId,
-    title: record.title || "Untitled",
+    title,
     slug: null,
     artist,
     artist_name: artist,
-    artistId: null,
-    artist_id: null,
-    album,
-    album_title: album,
-    albumId: null,
-    album_id: null,
-    genre: null,
+    artists,
+    artistId: record.artistId || null,
+    artist_id: record.artistId || null,
+    album: album || "Singles",
+    album_title: album || "Singles",
+    albumId: record.albumId || null,
+    album_id: record.albumId || null,
+    genre: record.genre || null,
+    genres: record.genre ? [record.genre] : null,
     mood: null,
     duration,
     duration_seconds: duration,
+    releaseDate: record.releaseDate || null,
+    releaseYear: record.releaseYear || null,
+    explicit: typeof record.explicit === "boolean" ? record.explicit : null,
+    trackNumber: record.trackNumber || null,
+    discNumber: record.discNumber || null,
+    isrc: record.isrc || null,
     url: streamUrl,
     audio_url: streamUrl,
     streamUrl,
     stream_url: streamUrl,
-    artwork: FALLBACK_COVER,
-    cover: FALLBACK_COVER,
-    cover_url: FALLBACK_COVER,
-    thumbnail: FALLBACK_COVER,
+    artwork: art.artwork,
+    cover: art.cover,
+    cover_url: art.cover_url,
+    thumbnail: art.thumbnail,
     sourceName: "Hidden Tunes",
     source_name: "Hidden Tunes",
-    type: "r2",
-    source_type: "r2",
+    type: "external",
+    source_type: "external",
     isOnline: true,
     is_online: true,
     is_public: true,
     created_at: new Date(record.createdAt || Date.now()).toISOString(),
-    artists: null,
     albums: null,
   };
 }
@@ -59,8 +71,8 @@ export function normalizeMatchText(value) {
 }
 
 export function isConservativeDuplicate(hit, localSong) {
-  const hitTitle = normalizeMatchText(hit.title);
-  const hitArtist = normalizeMatchText(hit.artist || hit.artist_name);
+  const hitTitle = normalizeMatchText(hit.title || hit.enrichment?.displayTitle);
+  const hitArtist = normalizeMatchText(hit.artist || hit.artist_name || hit.enrichment?.primaryArtist);
   const localTitle = normalizeMatchText(localSong.title);
   const localArtist = normalizeMatchText(localSong.artist || localSong.artist_name);
   if (!hitTitle || !localTitle || hitTitle !== localTitle) return false;
@@ -74,3 +86,5 @@ export function mergePreferLocal(localSongs, mappedSongs, limit) {
   if (room === 0) return localSongs.slice(0, cap);
   return [...localSongs, ...mappedSongs.slice(0, room)];
 }
+
+export { fallbackCoverUrl };

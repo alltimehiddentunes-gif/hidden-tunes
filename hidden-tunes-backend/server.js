@@ -13,6 +13,7 @@ import musicTaxonomyRouter from "./routes/musicTaxonomy.js";
 import audioVersionHealthRouter from "./routes/audioVersionHealth.js";
 import audioVersionWorkerRouter from "./routes/audioVersionWorker.js";
 import mediaRouter from "./routes/media.js";
+import artworkRouter from "./routes/artwork.js";
 import {
   adminCors,
   adminRateLimit,
@@ -70,6 +71,7 @@ app.use("/health", audioVersionHealthRouter);
 app.use("/internal/audio-versions", audioVersionWorkerRouter);
 
 app.use("/api/media", mediaRouter);
+app.use("/api/artwork", artworkRouter);
 app.use("/api/songs", songsRouter);
 app.use("/api/artists", artistsRouter);
 app.use("/api/albums", albumsRouter);
