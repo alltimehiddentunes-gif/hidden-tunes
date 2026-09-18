@@ -1,7 +1,11 @@
 /**
- * Fire-and-forget player-queue preparation.
- * Tells API which opaque /api/media IDs are CURRENT / NEXT / NEXT+1
- * so external resolve happens while the user is still listening.
+ * Fire-and-forget opaque queue signaling ONLY.
+ *
+ * Sends CURRENT / NEXT / NEXT+1 opaque /api/media IDs to the backend so
+ * resolution, cache, and auto-next preparation run server-side.
+ *
+ * Does NOT download, resolve, extract, or prebuffer media on device.
+ * Future-track audio bytes must remain 0 until that track becomes current.
  */
 
 import { HIDDEN_TUNES_API_BASE_URL } from "./hiddenTunesApi";

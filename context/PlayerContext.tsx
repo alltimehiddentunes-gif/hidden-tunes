@@ -3898,45 +3898,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [getActiveQueuePlaybackState, getNextQueueIndex, normalizeSong]);
 
   const preloadUpcomingTrack = useCallback(
-    async (upcomingSong: AppSong) => {
-      // Always signal backend prepare for the live queue window (non-blocking).
+    async (_upcomingSong: AppSong) => {
+      // Backend-only acceleration: tell API opaque CURRENT/NEXT/NEXT+1.
+      // Do NOT Range-fetch or download future-track media on device.
       prepareFromQueueState(
         activeQueueRef.current,
         activeQueueIndexRef.current,
         durationMillisRef.current || undefined,
       );
-
-      if (hiddenAudioActiveRef.current) return;
-      if (preloadInFlightRef.current) return;
-      if (preloadedSongIdRef.current === upcomingSong.id) return;
-
-      const playableUri = getPlayableUri(upcomingSong);
-
-      if (!playableUri && !upcomingSong.audio) return;
-
-      // Best-effort Range warm of opaque media URL (does not block playback).
-      if (typeof playableUri === "string" && playableUri.includes("/api/media/")) {
-        try {
-          void fetch(playableUri, {
-            method: "GET",
-            headers: { Range: "bytes=0-1" },
-          }).catch(() => {});
-        } catch {
-          /* isolated */
-        }
-      }
-
-      preloadInFlightRef.current = true;
-
-      try {
-        await clearPreloadedSound();
-      } catch (error) {
-        console.log("Preload upcoming track cleanup error:", error);
-      } finally {
-        preloadInFlightRef.current = false;
-      }
     },
-    [clearPreloadedSound, getPlayableUri]
+    []
   );
 
   const takePreloadedSound = useCallback(async (songId: string) => {
