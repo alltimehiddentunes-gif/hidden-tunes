@@ -16,6 +16,7 @@ import {
   beginUserPlay,
   endUserPlay,
 } from "../services/junction2/prewarm.js";
+import { onTrackStarted, getPreparationState } from "../services/junction2/preparation.js";
 
 function abortFrom(res) {
   const controller = new AbortController();
@@ -68,6 +69,13 @@ export function createMediaRouter(deps = {}) {
       let bridgeMediaId = record.bridgeMediaId;
       marks.storeMs = Date.now() - tStore;
 
+      const prepBefore = getPreparationState(record);
+      const readyBeforeRequest = Boolean(
+        bridgeMediaId || prepBefore?.state === "READY" || prepBefore?.state === "RESOLVING",
+      );
+      if (readyBeforeRequest) recordMetric("readyBeforeRequest", { method });
+      else recordMetric("readyBeforeRequestMiss", { method });
+
       if (!bridgeMediaId) {
         if (!record.provider || !record.sourceId) return sendPublicError(res, 404);
         const tIngest = Date.now();
@@ -94,6 +102,15 @@ export function createMediaRouter(deps = {}) {
           endUserPlay();
         }
         marks.ingestMs = Date.now() - tIngest;
+      }
+
+      // While current track streams, prepare NEXT / NEXT+1 from search session window.
+      if (method === "GET") {
+        try {
+          onTrackStarted(record, client, store, config);
+        } catch {
+          /* isolated */
+        }
       }
 
       const tStream = Date.now();

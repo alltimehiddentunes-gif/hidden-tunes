@@ -65,8 +65,8 @@ export async function resolveBridgeMediaId(hit, client, store, options = {}) {
     error.code = "NOT_FOUND";
     throw error;
   }
-  if (hit.bridgeMediaId) return String(hit.bridgeMediaId);
-  if (options.publicPlaybackId && store) {
+  if (hit.bridgeMediaId && !options.force) return String(hit.bridgeMediaId);
+  if (options.publicPlaybackId && store && !options.force) {
     const existing = store.get(options.publicPlaybackId);
     if (existing?.bridgeMediaId) return String(existing.bridgeMediaId);
   }

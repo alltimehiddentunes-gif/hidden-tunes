@@ -7,7 +7,7 @@ import { containsPublicLeak } from "./leak.js";
 import { recordMetric } from "./metrics.js";
 import { enrichSearchHit } from "./metadata/enrich.js";
 import { isKnownUnplayable, needsPlayabilityProbe } from "./playability.js";
-import { schedulePlaybackPrewarm } from "./prewarm.js";
+import { onSearchResults } from "./preparation.js";
 
 /** Lower is better. Prefer providers that reliably resolve for tap-to-play. */
 function playbackReliabilityRank(hit) {
@@ -160,10 +160,15 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       merged = mergePreferLocal(local, mapped, limit);
     }
 
-    // Search returns immediately; expensive resolve continues in background.
+    // Search returns immediately; preparation continues in background (session + top-N).
     if (deps.schedulePlaybackPrewarm !== false) {
-      const schedule = deps.schedulePlaybackPrewarm || schedulePlaybackPrewarm;
-      schedule(prewarmTargets, client, store, config);
+      if (typeof deps.schedulePlaybackPrewarm === "function") {
+        deps.schedulePlaybackPrewarm(prewarmTargets, client, store, config);
+      } else {
+        onSearchResults(prewarmTargets, client, store, config, {
+          queryFold: String(context.query || "").trim().toLowerCase(),
+        });
+      }
     }
 
     // Deep enrichment populates cache only — never blocks the user-facing search path.
