@@ -52,6 +52,12 @@ export function createArtworkRouter(deps = {}) {
     const tryUrls = [];
     if (record?.albumArtworkUrl) tryUrls.push(record.albumArtworkUrl);
     if (record?.mediaThumbnailUrl) tryUrls.push(record.mediaThumbnailUrl);
+    if (
+      String(record?.provider || "").toLowerCase() === "youtube" &&
+      /^[a-zA-Z0-9_-]{6,32}$/.test(String(record?.sourceId || ""))
+    ) {
+      tryUrls.push(`https://i.ytimg.com/vi/${record.sourceId}/hqdefault.jpg`);
+    }
 
     for (const url of tryUrls) {
       try {

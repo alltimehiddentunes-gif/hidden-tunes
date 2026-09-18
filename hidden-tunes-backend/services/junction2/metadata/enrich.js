@@ -96,13 +96,24 @@ export async function enrichSearchHit(hit, options = {}) {
     const providers = metadataProviderRegistry.list();
     let verified = null;
     let basic = null;
-    for (const provider of providers) {
+
+    // Always apply source-basic first so title/artist/thumbnail survive provider timeouts.
+    const basicProvider = providers.find((p) => p.id === "source-basic");
+    const verifiedProviders = providers.filter((p) => p.id !== "source-basic");
+    if (basicProvider) {
+      try {
+        basic = await basicProvider.lookup(identity, controller.signal);
+      } catch {
+        /* isolated */
+      }
+    }
+
+    for (const provider of verifiedProviders) {
       if (controller.signal.aborted) break;
       try {
         const result = await provider.lookup(identity, controller.signal);
         if (!result) continue;
-        if (provider.id === "source-basic") basic = result;
-        else if (result.confidence && result.confidence !== "NO_MATCH") {
+        if (result.confidence && result.confidence !== "NO_MATCH") {
           if (!verified || confidenceRank(result.confidence) > confidenceRank(verified.confidence)) {
             verified = { ...result, providerId: provider.id };
           }

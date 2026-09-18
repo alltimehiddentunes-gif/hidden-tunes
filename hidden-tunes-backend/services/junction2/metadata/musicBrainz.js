@@ -262,6 +262,8 @@ export function createMusicBrainzProvider(overrides = {}) {
           ) {
             break;
           }
+          // Stay inside search latency budget: at most one Lucene query when time is tight.
+          if (Date.now() - started > 2_800 && ranked.length) break;
           let recordings = [];
           try {
             recordings = await searchRecordings(cfg.mbBase, lucene, signal, 8);

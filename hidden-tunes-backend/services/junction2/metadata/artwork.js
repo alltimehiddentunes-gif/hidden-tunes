@@ -38,7 +38,20 @@ export function resolvePublicArtwork(record, publicBaseUrl) {
       cover_url: opaque,
       thumbnail: opaque,
       artworkKind: "MEDIA_THUMBNAIL",
-      artworkProvenance: "MEDIA_THUMBNAIL",
+      artworkProvenance: record?.mediaThumbnailUrl ? "MEDIA_THUMBNAIL" : "MEDIA_THUMBNAIL",
+      fallbackArtwork: FALLBACK_COVER,
+    };
+  }
+
+  if (opaque) {
+    // External opaque ids should never fall through to a third-party host in the public object.
+    return {
+      artwork: opaque,
+      cover: opaque,
+      cover_url: opaque,
+      thumbnail: opaque,
+      artworkKind: "FALLBACK",
+      artworkProvenance: "FALLBACK",
       fallbackArtwork: FALLBACK_COVER,
     };
   }
