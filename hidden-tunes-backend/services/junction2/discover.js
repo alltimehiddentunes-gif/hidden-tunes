@@ -36,14 +36,19 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       timeoutMs,
     });
     const mapped = [];
+    let enrichIndex = 0;
+    // Metadata enrichment is bounded: deeper MusicBrainz lookup only for the first few hits.
+    const enrichBudgetMs = Math.min(3_500, Math.max(900, Math.floor(timeoutMs / 2)));
     for (const hit of results) {
       if (!isPubliclySurfaceable(hit, config)) continue;
       // Existing Hidden Tunes catalog match wins — do not create inferior duplicate.
       if (local.some((song) => isConservativeDuplicate(hit, song))) continue;
 
+      const deep = enrichIndex < 3;
+      enrichIndex += 1;
       const enriched = await enrichFn(hit, {
         signal: context.signal,
-        timeoutMs: Math.min(400, Math.max(100, Math.floor(timeoutMs / 8))),
+        timeoutMs: deep ? enrichBudgetMs : Math.min(700, enrichBudgetMs),
       });
 
       // Wrong-song protection: enrichment cannot change playback source identity.

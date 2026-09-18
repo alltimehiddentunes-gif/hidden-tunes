@@ -1,11 +1,12 @@
 /**
  * Artwork priority for public presentation:
- * 1. Existing catalog artwork (handled by preferring local catalog songs)
- * 2. Verified album/single artwork (allowed hosts only)
- * 3. Provider media thumbnail via opaque Hidden Tunes artwork proxy
- * 4. Controlled fallback
+ * 1. existing Hidden Tunes catalog artwork (local catalog songs)
+ * 2. verified matched release artwork (opaque proxy)
+ * 3. verified recording artwork (opaque proxy)
+ * 4. source media thumbnail (opaque proxy)
+ * 5. Hidden Tunes fallback
  *
- * Never emit ytimg/youtube hosts in public JSON.
+ * Public client receives ONLY HT-owned artwork URLs.
  */
 
 const FALLBACK_COVER =
@@ -17,14 +18,15 @@ export function resolvePublicArtwork(record, publicBaseUrl) {
     ? `${base}/api/artwork/${encodeURIComponent(record.publicPlaybackId)}`
     : null;
 
-  const albumArt = sanitizeAllowedArtwork(record?.albumArtworkUrl, publicBaseUrl);
-  if (albumArt) {
+  // Prefer opaque proxy whenever we have a trusted internal artwork reference.
+  if (opaque && record?.albumArtworkUrl) {
     return {
-      artwork: albumArt,
-      cover: albumArt,
-      cover_url: albumArt,
-      thumbnail: albumArt,
-      artworkKind: "albumArtwork",
+      artwork: opaque,
+      cover: opaque,
+      cover_url: opaque,
+      thumbnail: opaque,
+      artworkKind: "RELEASE_ARTWORK",
+      artworkProvenance: record.artworkProvenance || "RELEASE_ARTWORK",
       fallbackArtwork: FALLBACK_COVER,
     };
   }
@@ -35,7 +37,22 @@ export function resolvePublicArtwork(record, publicBaseUrl) {
       cover: opaque,
       cover_url: opaque,
       thumbnail: opaque,
-      artworkKind: "mediaThumbnail",
+      artworkKind: "MEDIA_THUMBNAIL",
+      artworkProvenance: "MEDIA_THUMBNAIL",
+      fallbackArtwork: FALLBACK_COVER,
+    };
+  }
+
+  // Catalog/R2 hosts may appear directly when already HT-owned.
+  const catalogArt = sanitizeAllowedArtwork(record?.catalogArtworkUrl, publicBaseUrl);
+  if (catalogArt) {
+    return {
+      artwork: catalogArt,
+      cover: catalogArt,
+      cover_url: catalogArt,
+      thumbnail: catalogArt,
+      artworkKind: "CATALOG_ARTWORK",
+      artworkProvenance: "CATALOG_ARTWORK",
       fallbackArtwork: FALLBACK_COVER,
     };
   }
@@ -45,7 +62,8 @@ export function resolvePublicArtwork(record, publicBaseUrl) {
     cover: FALLBACK_COVER,
     cover_url: FALLBACK_COVER,
     thumbnail: FALLBACK_COVER,
-    artworkKind: "fallbackArtwork",
+    artworkKind: "FALLBACK",
+    artworkProvenance: "FALLBACK",
     fallbackArtwork: FALLBACK_COVER,
   };
 }
@@ -92,6 +110,12 @@ export function isAllowedUpstreamArtworkHost(host) {
     h === "i.ytimg.com" ||
     h === "img.youtube.com" ||
     h.endsWith(".ytimg.com") ||
-    h === "images.unsplash.com"
+    h === "images.unsplash.com" ||
+    h === "coverartarchive.org" ||
+    h.endsWith(".coverartarchive.org") ||
+    h === "archive.org" ||
+    h.endsWith(".archive.org") ||
+    h.endsWith(".archive.org") ||
+    /^ia\d+\.us\.archive\.org$/.test(h)
   );
 }

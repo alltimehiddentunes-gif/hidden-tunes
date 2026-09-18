@@ -2,6 +2,9 @@ import express from "express";
 import { playbackStore } from "../services/junction2/playbackStore.js";
 import { isAllowedUpstreamArtworkHost, fallbackCoverUrl } from "../services/junction2/metadata/artwork.js";
 
+const MAX_BYTES = 2_500_000;
+const MAX_REDIRECTS = 3;
+
 function abortFrom(res) {
   const controller = new AbortController();
   res.on("close", () => {
@@ -11,19 +14,31 @@ function abortFrom(res) {
 }
 
 async function fetchAllowedImage(url, signal) {
-  const parsed = new URL(url);
-  if (parsed.protocol !== "https:") return null;
-  if (!isAllowedUpstreamArtworkHost(parsed.host)) return null;
-  const upstream = await fetch(parsed.toString(), {
-    method: "GET",
-    redirect: "error",
-    signal,
-    headers: { accept: "image/*,*/*;q=0.8" },
-  });
-  if (!upstream.ok || !upstream.body) return null;
-  const contentType = String(upstream.headers.get("content-type") || "").toLowerCase();
-  if (contentType && !contentType.startsWith("image/")) return null;
-  return upstream;
+  let current = String(url || "");
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    const parsed = new URL(current);
+    if (parsed.protocol !== "https:") return null;
+    if (!isAllowedUpstreamArtworkHost(parsed.host)) return null;
+    const upstream = await fetch(parsed.toString(), {
+      method: "GET",
+      redirect: "manual",
+      signal,
+      headers: { accept: "image/*,*/*;q=0.8" },
+    });
+    if (upstream.status >= 300 && upstream.status < 400) {
+      const loc = upstream.headers.get("location");
+      if (!loc) return null;
+      current = new URL(loc, parsed).toString();
+      continue;
+    }
+    if (!upstream.ok || !upstream.body) return null;
+    const contentType = String(upstream.headers.get("content-type") || "").toLowerCase();
+    if (contentType && !contentType.startsWith("image/")) return null;
+    const length = Number(upstream.headers.get("content-length") || 0);
+    if (Number.isFinite(length) && length > MAX_BYTES) return null;
+    return upstream;
+  }
+  return null;
 }
 
 export function createArtworkRouter(deps = {}) {
@@ -44,12 +59,18 @@ export function createArtworkRouter(deps = {}) {
         if (!upstream) continue;
         res.status(200);
         res.setHeader("Content-Type", upstream.headers.get("content-type") || "image/jpeg");
-        res.setHeader("Cache-Control", "private, max-age=300");
+        res.setHeader("Cache-Control", "private, max-age=3600");
         res.setHeader("X-Content-Type-Options", "nosniff");
+        let sent = 0;
         const reader = upstream.body.getReader();
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
+          sent += value.byteLength;
+          if (sent > MAX_BYTES) {
+            res.destroy();
+            return;
+          }
           if (!res.write(Buffer.from(value))) {
             await new Promise((resolve) => res.once("drain", () => resolve()));
           }
@@ -61,14 +82,13 @@ export function createArtworkRouter(deps = {}) {
       }
     }
 
-    // Controlled fallback redirect only to allowlisted HT fallback host.
     const fallback = fallbackCoverUrl();
     try {
       const upstream = await fetchAllowedImage(fallback, signal);
       if (upstream) {
         res.status(200);
         res.setHeader("Content-Type", upstream.headers.get("content-type") || "image/jpeg");
-        res.setHeader("Cache-Control", "private, max-age=300");
+        res.setHeader("Cache-Control", "private, max-age=3600");
         const reader = upstream.body.getReader();
         for (;;) {
           const { done, value } = await reader.read();

@@ -21,6 +21,10 @@ export class MetadataProviderRegistry {
     return [...this.providers];
   }
 
+  clear() {
+    this.providers = [];
+  }
+
   async enrich(identity, signal) {
     const started = Date.now();
     for (const provider of this.providers) {

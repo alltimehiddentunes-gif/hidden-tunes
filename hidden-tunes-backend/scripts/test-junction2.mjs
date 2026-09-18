@@ -14,7 +14,7 @@ import { publicApiBaseUrl } from "../services/junction2/publicOrigin.js";
 import { createMediaRouter } from "../routes/media.js";
 import { cleanPresentationTitle } from "../services/junction2/metadata/titleClean.js";
 import { parseArtistCredits } from "../services/junction2/metadata/artistParse.js";
-import { enrichSearchHit, clearMetadataCacheForTests } from "../services/junction2/metadata/enrich.js";
+import { enrichSearchHit, clearMetadataCacheForTests, resetMetadataProvidersForTests } from "../services/junction2/metadata/enrich.js";
 
 const PUBLIC_BASE = "http://127.0.0.1:4010";
 const LOCAL_R2 = {
@@ -736,6 +736,8 @@ test("artist parsing extracts featured credits conservatively", () => {
 });
 
 test("metadata enrichment produces native track fields with opaque artwork", async () => {
+  process.env.J2_MUSICBRAINZ_ENABLED = "false";
+  resetMetadataProvidersForTests();
   clearMetadataCacheForTests();
   const hit = archiveHit({
     provider: "youtube",
@@ -751,6 +753,7 @@ test("metadata enrichment produces native track fields with opaque artwork", asy
   assert.equal(enriched.canonicalSourceKey, hit.canonicalSourceKey);
   assert.equal(enriched.title, "Never Gonna Give You Up");
   assert.equal(enriched.artist, "Rick Astley");
+  assert.equal(enriched.album, null);
   assert.ok(enriched.enrichment.mediaThumbnailUrl.includes("ytimg"));
 
   const store = new PlaybackStore();
@@ -758,11 +761,41 @@ test("metadata enrichment produces native track fields with opaque artwork", asy
   const song = toPublicSong(record, PUBLIC_BASE);
   assert.equal(song.title, "Never Gonna Give You Up");
   assert.equal(song.artist, "Rick Astley");
+  assert.equal(song.album, null);
   assert.equal(song.duration, 213);
   assert.match(song.artwork, /\/api\/artwork\//);
-  assert.doesNotMatch(JSON.stringify(song), /ytimg|youtube\.com|googlevideo|yt-dlp/i);
+  assert.doesNotMatch(JSON.stringify(song), /ytimg|youtube\.com|googlevideo|yt-dlp|coverartarchive/i);
   assert.equal(containsPublicLeak(song, PUBLIC_BASE), false);
   assert.equal(song.type, "external");
+});
+
+test("metadata match rejects cover/live mismatches and tolerates duration", async () => {
+  const { scoreMetadataCandidate } = await import("../services/junction2/metadata/match.js");
+  const identity = {
+    displayTitle: "Never Gonna Give You Up",
+    sourceTitle: "Never Gonna Give You Up",
+    primaryArtist: "Rick Astley",
+    durationMs: 213_000,
+  };
+  const cover = scoreMetadataCandidate(identity, {
+    title: "Never Gonna Give You Up (Cover)",
+    artist: "Someone Else",
+    durationMs: 210_000,
+  });
+  assert.equal(cover.confidence, "NO_MATCH");
+  const live = scoreMetadataCandidate(identity, {
+    title: "Never Gonna Give You Up (Live)",
+    artist: "Rick Astley",
+    durationMs: 240_000,
+  });
+  assert.equal(live.confidence, "NO_MATCH");
+  const good = scoreMetadataCandidate(identity, {
+    title: "Never Gonna Give You Up",
+    artist: "Rick Astley",
+    durationMs: 212_000,
+    releaseTitle: "Whenever You Need Somebody",
+  });
+  assert.ok(["EXACT", "HIGH"].includes(good.confidence));
 });
 
 test("wrong-song protection rejects enrichment that changes source identity", async () => {
@@ -797,5 +830,227 @@ test("wrong-song protection rejects enrichment that changes source identity", as
   }, { config, client, store: new PlaybackStore(), enrichSearchHit });
   assert.equal(searches, 1);
   assert.equal(merged.length, 0);
+});
+
+test("metadata provider registry selects capabilities and isolates failures", async () => {
+  const { MetadataProviderRegistry } = await import("../services/junction2/metadata/registry.js");
+  const registry = new MetadataProviderRegistry();
+  let calls = 0;
+  registry.register({
+    id: "boom",
+    capabilities: ["RECORDING_LOOKUP"],
+    lookup: async () => {
+      calls += 1;
+      throw new Error("provider_down");
+    },
+  });
+  registry.register({
+    id: "ok",
+    capabilities: ["RECORDING_LOOKUP", "ARTWORK"],
+    lookup: async () => ({
+      confidence: "HIGH",
+      displayTitle: "Song",
+      primaryArtist: "Artist",
+      album: "Album",
+      albumArtworkUrl: "https://coverartarchive.org/release/abc/front-500",
+      artworkProvenance: "RELEASE_ARTWORK",
+    }),
+  });
+  const result = await registry.enrich({ title: "Song", artist: "Artist" }, undefined);
+  assert.equal(calls, 1);
+  assert.equal(result.providerId, "ok");
+  assert.equal(result.confidence, "HIGH");
+  assert.equal(result.album, "Album");
+  assert.deepEqual(
+    registry.list().map((p) => p.id),
+    ["boom", "ok"],
+  );
+});
+
+test("metadata match duration tolerance and ISRC override", async () => {
+  const { scoreMetadataCandidate, durationCompatible } = await import("../services/junction2/metadata/match.js");
+  assert.equal(durationCompatible(213_000, 212_000), "tight");
+  assert.equal(durationCompatible(213_000, 200_000), "loose");
+  assert.equal(durationCompatible(213_000, 90_000), "incompatible");
+  const short = scoreMetadataCandidate(
+    { displayTitle: "Short", primaryArtist: "A", durationMs: 30_000 },
+    { title: "Short", artist: "A", durationMs: 31_000 },
+  );
+  assert.ok(["EXACT", "HIGH"].includes(short.confidence));
+  const longBad = scoreMetadataCandidate(
+    { displayTitle: "Long", primaryArtist: "A", durationMs: 600_000 },
+    { title: "Long", artist: "A", durationMs: 120_000 },
+  );
+  assert.equal(longBad.confidence, "NO_MATCH");
+  const isrcRescue = scoreMetadataCandidate(
+    { displayTitle: "Long", primaryArtist: "A", durationMs: 600_000, isrc: "USABC1234567" },
+    { title: "Long", artist: "A", durationMs: 120_000, isrc: "USABC1234567" },
+  );
+  assert.notEqual(isrcRescue.confidence, "NO_MATCH");
+  const sameTitleDiffArtist = scoreMetadataCandidate(
+    { displayTitle: "Hello", primaryArtist: "Adele", durationMs: 295_000 },
+    { title: "Hello", artist: "Lionel Richie", durationMs: 295_000 },
+  );
+  assert.equal(sameTitleDiffArtist.confidence, "NO_MATCH");
+});
+
+test("release scoring rejects compilations and prefers album over single", async () => {
+  const { scoreRelease, pickRelease } = await import("../services/junction2/metadata/musicBrainz.js");
+  const album = {
+    title: "Whenever You Need Somebody",
+    status: "Official",
+    date: "1987-11-12",
+    country: "GB",
+    "release-group": { "primary-type": "Album", title: "Whenever You Need Somebody" },
+  };
+  const single = {
+    title: "Never Gonna Give You Up",
+    status: "Official",
+    date: "1987-07-27",
+    country: "GB",
+    "release-group": { "primary-type": "Single", title: "Never Gonna Give You Up" },
+  };
+  const compilation = {
+    title: "Night Fever",
+    status: "Official",
+    date: "2006",
+    "artist-credit": [{ name: "Various Artists" }],
+    "release-group": { "primary-type": "Album", "secondary-types": ["Compilation"], title: "Night Fever" },
+  };
+  assert.ok(scoreRelease(album, { recordingTitle: "Never Gonna Give You Up" }) > scoreRelease(single, { recordingTitle: "Never Gonna Give You Up" }));
+  assert.ok(scoreRelease(compilation) < 5);
+  const picked = pickRelease({
+    title: "Never Gonna Give You Up",
+    releases: [compilation, single, album],
+  });
+  assert.equal(picked.title, "Whenever You Need Somebody");
+  assert.equal(pickRelease({ title: "X", releases: [compilation] }), null);
+});
+
+test("musicbrainz provider timeout and disabled failure isolation", async () => {
+  process.env.J2_MUSICBRAINZ_ENABLED = "true";
+  const { createMusicBrainzProvider } = await import("../services/junction2/metadata/musicBrainz.js");
+  const provider = createMusicBrainzProvider({
+    enabled: true,
+    mbBase: "https://musicbrainz.org/ws/2",
+  });
+  const controller = new AbortController();
+  controller.abort();
+  const aborted = await provider.lookup(
+    { title: "Never Gonna Give You Up", artist: "Rick Astley", durationMs: 213_000 },
+    controller.signal,
+  );
+  assert.equal(aborted.confidence, "NO_MATCH");
+
+  process.env.J2_MUSICBRAINZ_ENABLED = "false";
+  resetMetadataProvidersForTests();
+  clearMetadataCacheForTests();
+  const hit = archiveHit({
+    provider: "youtube",
+    sourceId: "dQw4w9WgXcQ",
+    canonicalSourceKey: "youtube:dqw4w9wgxcq",
+    title: "Rick Astley - Never Gonna Give You Up (Official Video)",
+    artist: "Rick Astley",
+    durationMs: 213_000,
+  });
+  const enriched = await enrichSearchHit(hit, { timeoutMs: 200 });
+  assert.equal(enriched.album, null);
+  assert.equal(enriched.title, "Never Gonna Give You Up");
+  assert.ok(enriched.enrichment.mediaThumbnailUrl);
+});
+
+test("metadata cache hit avoids recomputation", async () => {
+  process.env.J2_MUSICBRAINZ_ENABLED = "false";
+  resetMetadataProvidersForTests();
+  clearMetadataCacheForTests();
+  const hit = archiveHit({
+    provider: "youtube",
+    sourceId: "cachetestid1",
+    canonicalSourceKey: "youtube:cachetestid1",
+    title: "Cache Song (Official Video)",
+    artist: "Cache Artist",
+    durationMs: 120_000,
+  });
+  const a = await enrichSearchHit(hit, { timeoutMs: 200 });
+  const b = await enrichSearchHit(hit, { timeoutMs: 200 });
+  assert.equal(a.title, b.title);
+  assert.equal(a.enrichment.enrichmentSource, "basic");
+  assert.equal(b.enrichment.enrichmentSource, "cache");
+});
+
+test("artwork priority prefers release artwork then media thumbnail then fallback", async () => {
+  const { resolvePublicArtwork } = await import("../services/junction2/metadata/artwork.js");
+  const release = resolvePublicArtwork(
+    {
+      publicPlaybackId: "11111111-1111-1111-1111-111111111111",
+      albumArtworkUrl: "https://coverartarchive.org/release/abc/front-500",
+      artworkProvenance: "RELEASE_ARTWORK",
+      mediaThumbnailUrl: "https://i.ytimg.com/vi/abc/hqdefault.jpg",
+    },
+    PUBLIC_BASE,
+  );
+  assert.match(release.artwork, /\/api\/artwork\//);
+  assert.equal(release.artworkProvenance, "RELEASE_ARTWORK");
+  const thumb = resolvePublicArtwork(
+    {
+      publicPlaybackId: "22222222-2222-2222-2222-222222222222",
+      mediaThumbnailUrl: "https://i.ytimg.com/vi/abc/hqdefault.jpg",
+      provider: "youtube",
+    },
+    PUBLIC_BASE,
+  );
+  assert.match(thumb.artwork, /\/api\/artwork\//);
+  assert.equal(thumb.artworkProvenance, "MEDIA_THUMBNAIL");
+  const fallback = resolvePublicArtwork({}, PUBLIC_BASE);
+  assert.equal(fallback.artworkProvenance, "FALLBACK");
+});
+
+test("artwork proxy host allowlist blocks SSRF and allows CAA/ytimg", async () => {
+  const { isAllowedUpstreamArtworkHost } = await import("../services/junction2/metadata/artwork.js");
+  assert.equal(isAllowedUpstreamArtworkHost("coverartarchive.org"), true);
+  assert.equal(isAllowedUpstreamArtworkHost("i.ytimg.com"), true);
+  assert.equal(isAllowedUpstreamArtworkHost("ia800100.us.archive.org"), true);
+  assert.equal(isAllowedUpstreamArtworkHost("169.254.169.254"), false);
+  assert.equal(isAllowedUpstreamArtworkHost("evil.example"), false);
+  assert.equal(isAllowedUpstreamArtworkHost("localhost"), false);
+});
+
+test("existing catalog precedence keeps local song over external duplicate", async () => {
+  const config = enabledConfig({
+    J2_OWNER_CANARY_ENABLED: "true",
+    J2_OWNER_CANARY_MODE: "open",
+    EXTERNAL_DISCOVERY_ENABLED: "false",
+    BRIDGE_PLAYBACK_ENABLED: "false",
+  });
+  const local = [
+    {
+      id: "local-1",
+      title: "Never Gonna Give You Up",
+      artist: "Rick Astley",
+      album: "Whenever You Need Somebody",
+      streamUrl: "https://r2.example/local.mp3",
+      artwork: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1000",
+    },
+  ];
+  const client = {
+    search: async () => [
+      archiveHit({
+        provider: "youtube",
+        sourceId: "dQw4w9WgXcQ",
+        canonicalSourceKey: "youtube:dqw4w9wgxcq",
+        title: "Rick Astley - Never Gonna Give You Up (Official Video)",
+        artist: "Rick Astley",
+        durationMs: 213_000,
+      }),
+    ],
+  };
+  const merged = await discoverAndMerge(local, {
+    query: "Never Gonna Give You Up",
+    limit: 5,
+    publicBaseUrl: PUBLIC_BASE,
+  }, { config, client, store: new PlaybackStore() });
+  assert.equal(merged[0].id, "local-1");
+  assert.equal(merged[0].album, "Whenever You Need Somebody");
+  assert.ok(!merged.some((row) => row.type === "external" && row.title === "Never Gonna Give You Up"));
 });
 
