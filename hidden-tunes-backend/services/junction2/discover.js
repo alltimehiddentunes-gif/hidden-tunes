@@ -44,11 +44,11 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       // Existing Hidden Tunes catalog match wins — do not create inferior duplicate.
       if (local.some((song) => isConservativeDuplicate(hit, song))) continue;
 
-      const deep = enrichIndex < 3;
+      const deep = enrichIndex < 1;
       enrichIndex += 1;
       const enriched = await enrichFn(hit, {
         signal: context.signal,
-        timeoutMs: deep ? enrichBudgetMs : Math.min(700, enrichBudgetMs),
+        timeoutMs: deep ? enrichBudgetMs : Math.min(500, enrichBudgetMs),
       });
 
       // Wrong-song protection: enrichment cannot change playback source identity.
