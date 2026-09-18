@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import { AppState, AppStateStatus, InteractionManager, Platform } from "react-native";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
+import { prepareFromQueueState } from "../services/playbackPrepare";
 
 import {
   buildPersonalRadioQueue,
@@ -3605,6 +3606,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
 
       void syncNativeRemoteQueueAvailability();
+      // Tell backend the real player NEXT/NEXT+1 opaque IDs (fire-and-forget).
+      prepareFromQueueState(
+        normalizedQueue,
+        safeIndex,
+        durationMillisRef.current || undefined,
+      );
     },
     [normalizeSong, isYouTubeSong, persistActiveQueue, deferPlaybackStartWork, syncNativeRemoteQueueAvailability]
   );
@@ -3892,6 +3899,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const preloadUpcomingTrack = useCallback(
     async (upcomingSong: AppSong) => {
+      // Always signal backend prepare for the live queue window (non-blocking).
+      prepareFromQueueState(
+        activeQueueRef.current,
+        activeQueueIndexRef.current,
+        durationMillisRef.current || undefined,
+      );
+
       if (hiddenAudioActiveRef.current) return;
       if (preloadInFlightRef.current) return;
       if (preloadedSongIdRef.current === upcomingSong.id) return;
@@ -3899,6 +3913,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const playableUri = getPlayableUri(upcomingSong);
 
       if (!playableUri && !upcomingSong.audio) return;
+
+      // Best-effort Range warm of opaque media URL (does not block playback).
+      if (typeof playableUri === "string" && playableUri.includes("/api/media/")) {
+        try {
+          void fetch(playableUri, {
+            method: "GET",
+            headers: { Range: "bytes=0-1" },
+          }).catch(() => {});
+        } catch {
+          /* isolated */
+        }
+      }
 
       preloadInFlightRef.current = true;
 
@@ -4671,6 +4697,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           safeIndex,
           activeQueueModeRef.current,
           activeQueueContextRef.current
+        );
+      } else {
+        // Index-only advance still must refresh backend NEXT window.
+        prepareFromQueueState(
+          activeQueueRef.current,
+          safeIndex,
+          durationMillisRef.current || undefined,
         );
       }
 
@@ -6987,6 +7020,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // persistence and native queue availability are deferred until after load.
       updateActiveQueueLength(nativeQueue.length);
       void removeStoredValues([POSITION_KEY]);
+      // Prepare NEXT/NEXT+1 as soon as the real queue is known — before A finishes.
+      prepareFromQueueState(
+        nativeQueue,
+        safeIndex,
+        durationMillisRef.current || undefined,
+      );
 
       let interruptDone = priorInterruptDone;
 
@@ -9956,26 +9995,23 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         void applyProgressUpdateInterval("app_state_active");
         void (async () => {
           if (isHiddenAudioNativePlaybackEnabled()) {
-            if (Platform.OS === "ios") {
-              await resyncForegroundHiddenAudioState();
-            } else {
-              if (!currentSongRef.current || activeQueueRef.current.length === 0) {
-                const hydrated = await hydrateJsPlaybackSessionFromStorage();
-                if (hydrated) {
-                  logLockscreenPlaybackDiagnostic(
-                    "foreground_saved_session_loaded_before_native_probe",
-                    {
-                      source: "app_state_active",
-                      songId: currentSongRef.current?.id || null,
-                      queueLength: activeQueueRef.current.length,
-                      queueIndex: activeQueueIndexRef.current,
-                    }
-                  );
-                }
+            if (!currentSongRef.current || activeQueueRef.current.length === 0) {
+              const hydrated = await hydrateJsPlaybackSessionFromStorage();
+              if (hydrated) {
+                logLockscreenPlaybackDiagnostic(
+                  "foreground_saved_session_loaded_before_native_probe",
+                  {
+                    source: "app_state_active",
+                    songId: currentSongRef.current?.id || null,
+                    queueLength: activeQueueRef.current.length,
+                    queueIndex: activeQueueIndexRef.current,
+                  }
+                );
               }
-              await reconcileHiddenAudioActiveState("app_state_active");
             }
+            await reconcileHiddenAudioActiveState("app_state_active");
           }
+          await resyncForegroundHiddenAudioState();
         })();
         void catchUpPlaybackIfEnded();
         void flushPendingSmartExtend();

@@ -38,6 +38,8 @@ const HIDDEN_TUNES_API_BASE_URL = "https://api.hiddentunes.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
   "https://api.hiddentunes.com";
 
+export { HIDDEN_TUNES_API_BASE_URL };
+
 const CACHE_KEY_V4 = "hidden_tunes_cloud_songs_cache_v4";
 const CACHE_TIME_KEY_V4 = "hidden_tunes_cloud_songs_cache_time_v4";
 const CACHE_KEY_V5 = "hidden_tunes_cloud_songs_cache_v5";
@@ -75,8 +77,10 @@ const BROKEN_PROMISE_FALLBACK = {
 
 let songsMemoryCache: HiddenTunesNormalizedSong[] | null = null;
 let songsMemoryCacheTime = 0;
+let songsMemoryRevision = 0;
 let songsFetchPromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
 let catalogStorageHydratePromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
+let catalogStorageClearPromise: Promise<void> | null = null;
 let coordinatedCatalogFirstPagePromise: Promise<HiddenTunesNormalizedSong[]> | null =
   null;
 let songsBackgroundRefreshPromise: Promise<void> | null = null;
@@ -84,6 +88,23 @@ let songsBackgroundRefreshAttemptTime = 0;
 let fullCatalogFetchPromise: Promise<HiddenTunesNormalizedSong[]> | null = null;
 const songsPageInflight = new Map<string, Promise<HiddenTunesSongPage>>();
 const endpointFailures = new Map<string, { failedAt: number; count: number }>();
+
+type CatalogStorageMutation =
+  | {
+      kind: "write";
+      revision: number;
+      payload: string;
+      persistedAt: string;
+    }
+  | {
+      kind: "clear";
+      revision: number;
+      resolve: () => void;
+      reject: (error: unknown) => void;
+    };
+
+const catalogStorageMutationQueue: CatalogStorageMutation[] = [];
+let catalogStorageMutationPromise: Promise<void> | null = null;
 
 let artistsMemoryCache: HiddenTunesArtist[] | null = null;
 let artistsMemoryCacheTime = 0;
@@ -257,6 +278,7 @@ export type HiddenTunesLyricsResponse = {
 };
 
 const LYRICS_CACHE_PREFIX = "hidden_tunes_lyrics_cache_";
+const LYRICS_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 function slugify(value: string) {
   return String(value || "")
@@ -544,6 +566,40 @@ function finalizeSongs(songs: HiddenTunesNormalizedSong[]) {
   return applySmartArtworkFallbacks(mergeWithFallbackSongs(songs));
 }
 
+function getCurrentSongsMemoryCache() {
+  return songsMemoryCache?.length ? songsMemoryCache : [];
+}
+
+function publishSongsMemoryCache(
+  songs: HiddenTunesNormalizedSong[],
+  cachedAt = Date.now()
+) {
+  songsMemoryRevision += 1;
+  songsMemoryCache = songs;
+  songsMemoryCacheTime = cachedAt;
+  return songsMemoryRevision;
+}
+
+function clearSongsMemoryCache() {
+  songsMemoryRevision += 1;
+  songsMemoryCache = null;
+  songsMemoryCacheTime = 0;
+  return songsMemoryRevision;
+}
+
+function publishStorageHydratedSongs(
+  songs: HiddenTunesNormalizedSong[],
+  cachedAt: number,
+  expectedMemoryRevision: number
+) {
+  if (songsMemoryRevision !== expectedMemoryRevision) {
+    return getCurrentSongsMemoryCache();
+  }
+
+  publishSongsMemoryCache(songs, cachedAt);
+  return songs;
+}
+
 function isNormalizedCatalogSong(value: unknown): value is HiddenTunesNormalizedSong {
   if (!value || typeof value !== "object") return false;
 
@@ -635,7 +691,9 @@ async function readCacheTimestamp(timeKey: string) {
   return Number.isFinite(parsedTime) && parsedTime > 0 ? parsedTime : Date.now();
 }
 
-async function readCachedSongsV5FromStorage(): Promise<HiddenTunesNormalizedSong[] | null> {
+async function readCachedSongsV5FromStorage(
+  expectedMemoryRevision: number
+): Promise<HiddenTunesNormalizedSong[] | null> {
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY_V5);
     if (!cached) return null;
@@ -645,19 +703,25 @@ async function readCachedSongsV5FromStorage(): Promise<HiddenTunesNormalizedSong
     if (!songs.length) return null;
 
     const cacheTimestamp = await readCacheTimestamp(CACHE_TIME_KEY_V5);
-    songsMemoryCache = songs;
-    songsMemoryCacheTime = cacheTimestamp;
-
-    return songs;
+    return publishStorageHydratedSongs(
+      songs,
+      cacheTimestamp,
+      expectedMemoryRevision
+    );
   } catch (error) {
     console.log("Hidden Tunes v5 cache read error:", error);
     return null;
   }
 }
 
-async function readCachedSongsV4FromStorage(): Promise<HiddenTunesNormalizedSong[]> {
+async function readCachedSongsV4FromStorage(
+  expectedMemoryRevision: number
+): Promise<HiddenTunesNormalizedSong[]> {
   try {
     const cached = await AsyncStorage.getItem(CACHE_KEY_V4);
+    if (songsMemoryRevision !== expectedMemoryRevision) {
+      return getCurrentSongsMemoryCache();
+    }
     if (!cached) {
       return finalizeSongs([]);
     }
@@ -672,9 +736,11 @@ async function readCachedSongsV4FromStorage(): Promise<HiddenTunesNormalizedSong
       parsed.length > 0 &&
       parsed.every(isNormalizedCatalogSong)
     ) {
-      songsMemoryCache = parsed;
-      songsMemoryCacheTime = cacheTimestamp;
-      return parsed;
+      return publishStorageHydratedSongs(
+        parsed,
+        cacheTimestamp,
+        expectedMemoryRevision
+      );
     }
 
     const normalized = parsed
@@ -684,13 +750,16 @@ async function readCachedSongsV4FromStorage(): Promise<HiddenTunesNormalizedSong
       .filter(Boolean) as HiddenTunesNormalizedSong[];
 
     const songs = finalizeSongs(normalized);
-    songsMemoryCache = songs;
-    songsMemoryCacheTime = cacheTimestamp;
-
-    return songs;
+    return publishStorageHydratedSongs(
+      songs,
+      cacheTimestamp,
+      expectedMemoryRevision
+    );
   } catch (error) {
     console.log("Hidden Tunes v4 cache read error:", error);
-    return finalizeSongs([]);
+    return songsMemoryRevision === expectedMemoryRevision
+      ? finalizeSongs([])
+      : getCurrentSongsMemoryCache();
   }
 }
 
@@ -904,7 +973,7 @@ export async function fetchAllHiddenTunesCatalogSongs(options?: {
       }
 
       if (working.length > 0) {
-        await writeCachedSongs(working);
+        writeCachedSongs(working);
         console.log(
           `[HiddenTunes][catalog] loaded ${working.length} songs from API (${HIDDEN_TUNES_API_BASE_URL})`
         );
@@ -919,7 +988,7 @@ export async function fetchAllHiddenTunesCatalogSongs(options?: {
       : await hydrateHiddenTunesCatalogCache();
     if (fallback.length > 0) {
       if (fallback !== songsMemoryCache) {
-        await writeCachedSongs(fallback);
+        writeCachedSongs(fallback);
       }
       console.log(
         `[HiddenTunes][catalog] API fetch incomplete; using partial cache (${fallback.length} songs)`
@@ -1058,16 +1127,40 @@ async function fetchWithTimeout(
 }
 
 async function readCachedSongsFromStorage() {
+  const expectedMemoryRevision = songsMemoryRevision;
+
   try {
-    const v5Songs = await readCachedSongsV5FromStorage();
+    const pendingClear = catalogStorageClearPromise;
+    if (pendingClear) {
+      try {
+        await pendingClear;
+      } catch {
+        return getCurrentSongsMemoryCache();
+      }
+    }
+
+    if (songsMemoryRevision !== expectedMemoryRevision) {
+      return getCurrentSongsMemoryCache();
+    }
+
+    const v5Songs = await readCachedSongsV5FromStorage(expectedMemoryRevision);
+    if (songsMemoryRevision !== expectedMemoryRevision && !v5Songs?.length) {
+      return getCurrentSongsMemoryCache();
+    }
     if (v5Songs?.length) {
       return finalizeSongs(v5Songs);
     }
 
-    return await readCachedSongsV4FromStorage();
+    if (songsMemoryRevision !== expectedMemoryRevision) {
+      return getCurrentSongsMemoryCache();
+    }
+
+    return await readCachedSongsV4FromStorage(expectedMemoryRevision);
   } catch (error) {
     console.log("Hidden Tunes cache read error:", error);
-    return finalizeSongs([]);
+    return songsMemoryRevision === expectedMemoryRevision
+      ? finalizeSongs([])
+      : getCurrentSongsMemoryCache();
   }
 }
 
@@ -1080,26 +1173,140 @@ async function readCachedSongs() {
     return catalogStorageHydratePromise;
   }
 
-  catalogStorageHydratePromise = readCachedSongsFromStorage().finally(() => {
-    catalogStorageHydratePromise = null;
-  });
+  const hydratePromise = readCachedSongsFromStorage();
+  catalogStorageHydratePromise = hydratePromise;
+  void hydratePromise.then(
+    () => {
+      if (catalogStorageHydratePromise === hydratePromise) {
+        catalogStorageHydratePromise = null;
+      }
+    },
+    () => {
+      if (catalogStorageHydratePromise === hydratePromise) {
+        catalogStorageHydratePromise = null;
+      }
+    }
+  );
 
-  return catalogStorageHydratePromise;
+  return hydratePromise;
 }
 
-async function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
-  try {
-    songsMemoryCache = songs;
-    songsMemoryCacheTime = Date.now();
+async function drainCatalogStorageMutations() {
+  while (catalogStorageMutationQueue.length > 0) {
+    const mutation = catalogStorageMutationQueue.shift();
+    if (!mutation) continue;
 
-    const persistedAt = String(Date.now());
+    if (mutation.kind === "write") {
+      if (mutation.revision !== songsMemoryRevision) continue;
+
+      try {
+        await AsyncStorage.multiSet([
+          [CACHE_KEY_V5, mutation.payload],
+          [CACHE_TIME_KEY_V5, mutation.persistedAt],
+        ]);
+      } catch (error) {
+        console.log("Hidden Tunes cache write error:", error);
+      }
+      continue;
+    }
+
+    try {
+      await AsyncStorage.multiRemove([
+        CACHE_KEY_V4,
+        CACHE_TIME_KEY_V4,
+        CACHE_KEY_V5,
+        CACHE_TIME_KEY_V5,
+      ]);
+      mutation.resolve();
+    } catch (error) {
+      mutation.reject(error);
+    }
+  }
+}
+
+function startCatalogStorageMutationDrain() {
+  if (catalogStorageMutationPromise) return;
+
+  const drainPromise = drainCatalogStorageMutations().catch((error) => {
+    console.log("Hidden Tunes cache mutation error:", error);
+  });
+  catalogStorageMutationPromise = drainPromise;
+
+  void drainPromise.then(
+    () => {
+      if (catalogStorageMutationPromise !== drainPromise) return;
+      catalogStorageMutationPromise = null;
+      if (catalogStorageMutationQueue.length > 0) {
+        startCatalogStorageMutationDrain();
+      }
+    },
+    () => {
+      if (catalogStorageMutationPromise !== drainPromise) return;
+      catalogStorageMutationPromise = null;
+      if (catalogStorageMutationQueue.length > 0) {
+        startCatalogStorageMutationDrain();
+      }
+    }
+  );
+}
+
+function enqueueCatalogStorageWrite(
+  mutation: Extract<CatalogStorageMutation, { kind: "write" }>
+) {
+  const tailIndex = catalogStorageMutationQueue.length - 1;
+  const tail = catalogStorageMutationQueue[tailIndex];
+
+  if (tail?.kind === "write") {
+    catalogStorageMutationQueue[tailIndex] = mutation;
+  } else {
+    catalogStorageMutationQueue.push(mutation);
+  }
+
+  startCatalogStorageMutationDrain();
+}
+
+function enqueueCatalogStorageClear(revision: number) {
+  const clearPromise = new Promise<void>((resolve, reject) => {
+    catalogStorageMutationQueue.push({
+      kind: "clear",
+      revision,
+      resolve,
+      reject,
+    });
+    startCatalogStorageMutationDrain();
+  });
+
+  catalogStorageClearPromise = clearPromise;
+  void clearPromise.then(
+    () => {
+      if (catalogStorageClearPromise === clearPromise) {
+        catalogStorageClearPromise = null;
+      }
+    },
+    () => {
+      if (catalogStorageClearPromise === clearPromise) {
+        catalogStorageClearPromise = null;
+      }
+    }
+  );
+
+  return clearPromise;
+}
+
+function writeCachedSongs(songs: HiddenTunesNormalizedSong[]) {
+  try {
+    const cachedAt = Date.now();
+    const revision = publishSongsMemoryCache(songs, cachedAt);
+    const persistedAt = String(cachedAt);
     const compactSongs = songs.map(toPersistedCatalogSongV5);
     const payload = JSON.stringify(compactSongs);
 
-    await AsyncStorage.multiSet([
-      [CACHE_KEY_V5, payload],
-      [CACHE_TIME_KEY_V5, persistedAt],
-    ]);
+    enqueueCatalogStorageWrite({
+      kind: "write",
+      revision,
+      payload,
+      persistedAt,
+    });
   } catch (error) {
     console.log("Hidden Tunes cache write error:", error);
   }
@@ -1248,18 +1455,12 @@ export function normalizeHiddenTunesSong(
 }
 
 export async function clearHiddenTunesSongsCache() {
-  songsMemoryCache = null;
-  songsMemoryCacheTime = 0;
+  const clearRevision = clearSongsMemoryCache();
   songsFetchPromise = null;
   catalogStorageHydratePromise = null;
   fullCatalogFetchPromise = null;
   songsPageInflight.clear();
-  await AsyncStorage.multiRemove([
-    CACHE_KEY_V4,
-    CACHE_TIME_KEY_V4,
-    CACHE_KEY_V5,
-    CACHE_TIME_KEY_V5,
-  ]);
+  await enqueueCatalogStorageClear(clearRevision);
 }
 
 export async function clearHiddenTunesArtistsCache() {
@@ -1411,7 +1612,7 @@ export async function getHiddenTunesSongsPage(options?: {
         const merged =
           page === 1 ? finalizeSongs(songs) : mergeSongPages(existing, songs);
 
-        await writeCachedSongs(merged);
+        writeCachedSongs(merged);
       }
 
       logApiRefresh("catalog_page", refreshStart, {
@@ -2150,13 +2351,26 @@ function normalizeLyricsResponse(
   };
 }
 
-export async function getHiddenTunesLyrics(songId: string) {
+export async function getHiddenTunesLyrics(songId: string, signal?: AbortSignal) {
   const cacheKey = `${LYRICS_CACHE_PREFIX}${songId}`;
+  let staleCachedLyrics: HiddenTunesLyricsResponse | null = null;
 
   try {
     const cached = await AsyncStorage.getItem(cacheKey);
     if (cached) {
-      return JSON.parse(cached) as HiddenTunesLyricsResponse;
+      const parsed = JSON.parse(cached) as
+        | HiddenTunesLyricsResponse
+        | { cachedAt: number; payload: HiddenTunesLyricsResponse };
+
+      if ("payload" in parsed && parsed.payload) {
+        staleCachedLyrics = parsed.payload;
+        if (Date.now() - Number(parsed.cachedAt || 0) <= LYRICS_CACHE_MAX_AGE_MS) {
+          return parsed.payload;
+        }
+      } else {
+        // Legacy entries have no freshness metadata: retain only as offline fallback.
+        staleCachedLyrics = parsed as HiddenTunesLyricsResponse;
+      }
     }
   } catch {}
 
@@ -2169,7 +2383,7 @@ export async function getHiddenTunesLyrics(songId: string) {
 
   for (const url of urlsToTry) {
     try {
-      const response = await fetchWithTimeout(url, 1800);
+      const response = await fetchWithTimeout(url, 1800, signal);
 
       if (!response.ok) {
         throw new Error(`Lyrics API error: ${response.status}`);
@@ -2178,13 +2392,19 @@ export async function getHiddenTunesLyrics(songId: string) {
       const data = await response.json();
       const lyrics = normalizeLyricsResponse(songId, data);
 
-      await AsyncStorage.setItem(cacheKey, JSON.stringify(lyrics));
+      await AsyncStorage.setItem(
+        cacheKey,
+        JSON.stringify({ cachedAt: Date.now(), payload: lyrics })
+      );
 
       return lyrics;
     } catch (error) {
+      if (signal?.aborted) throw error;
       console.log("Lyrics endpoint failed, trying next:", url, error);
     }
   }
+
+  if (staleCachedLyrics) return staleCachedLyrics;
 
   return {
     songId,
@@ -2218,7 +2438,7 @@ export async function seedOnboardingCatalogPrewarm(
       : await hydrateHiddenTunesCatalogCache();
 
     if (!existing.length) {
-      await writeCachedSongs(slice);
+      writeCachedSongs(slice);
       return slice.length;
     }
 
@@ -2241,8 +2461,7 @@ export async function seedOnboardingCatalogPrewarm(
       return existing.length;
     }
 
-    songsMemoryCache = merged;
-    songsMemoryCacheTime = Date.now();
+    writeCachedSongs(merged);
     return merged.length;
   } catch {
     return 0;
