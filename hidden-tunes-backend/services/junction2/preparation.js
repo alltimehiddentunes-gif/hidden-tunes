@@ -118,8 +118,9 @@ function startJob(job) {
     publicPlaybackId: record.publicPlaybackId,
     timeoutMs: timeoutMs || 45_000,
     priority: priority === PRIORITY.P0_USER ? "user" : "prewarm",
-    // Force past local bridgeMediaId short-circuit so Gateway cache is refreshed.
-    force: true,
+    // Only force on STALE refresh / explicit force. Always-force starved P1
+    // slots and re-resolved tracks that were already READY for auto-next.
+    force: Boolean(force),
   });
 
   Promise.resolve(work)
