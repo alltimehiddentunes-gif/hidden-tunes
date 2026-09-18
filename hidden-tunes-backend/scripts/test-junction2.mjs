@@ -632,3 +632,82 @@ test("songs route never exposes a public bridge path", async () => {
   assert.match(media, /\/:playbackId/);
 });
 
+test("kill switches override rollout percent for public traffic", async () => {
+  const { inRollout, isJunction2SearchActive, isJunction2PlaybackActive } = await import("../services/junction2/config.js");
+  assert.equal(inRollout("user:stable-a", 0), false);
+  assert.equal(inRollout("user:stable-a", 100), true);
+  const a = inRollout("user:stable-a", 50);
+  const b = inRollout("user:stable-a", 50);
+  assert.equal(a, b);
+
+  const killed = loadJunction2Config({
+    EXTERNAL_DISCOVERY_ENABLED: "false",
+    BRIDGE_PLAYBACK_ENABLED: "false",
+    EXTERNAL_DISCOVERY_ROLLOUT_PERCENT: "100",
+    BRIDGE_PLAYBACK_ROLLOUT_PERCENT: "100",
+    MEDIA_BRIDGE_BASE_URL: "http://127.0.0.1:8788",
+    MEDIA_BRIDGE_J2_SECRET: "test-secret-value",
+    J2_OWNER_CANARY_ENABLED: "false",
+  });
+  assert.equal(isJunction2SearchActive(killed, "anything", "user:1"), false);
+  assert.equal(isJunction2PlaybackActive(killed, archiveHit({ policyState: "ELIGIBLE", rightsState: "VERIFIED" }), "user:1"), false);
+
+  const staged = loadJunction2Config({
+    EXTERNAL_DISCOVERY_ENABLED: "true",
+    BRIDGE_PLAYBACK_ENABLED: "true",
+    EXTERNAL_DISCOVERY_ROLLOUT_PERCENT: "0",
+    BRIDGE_PLAYBACK_ROLLOUT_PERCENT: "0",
+    MEDIA_BRIDGE_BASE_URL: "http://127.0.0.1:8788",
+    MEDIA_BRIDGE_J2_SECRET: "test-secret-value",
+    J2_OWNER_CANARY_ENABLED: "false",
+  });
+  assert.equal(isJunction2SearchActive(staged, "anything", "user:1"), false);
+
+  const open = enabledConfig({
+    EXTERNAL_DISCOVERY_ROLLOUT_PERCENT: "100",
+    BRIDGE_PLAYBACK_ROLLOUT_PERCENT: "100",
+  });
+  assert.equal(isJunction2SearchActive(open, "anything", "user:1"), true);
+});
+
+test("owner canary remains available while public rollout is killed", async () => {
+  const config = loadJunction2Config({
+    EXTERNAL_DISCOVERY_ENABLED: "false",
+    BRIDGE_PLAYBACK_ENABLED: "false",
+    EXTERNAL_DISCOVERY_ROLLOUT_PERCENT: "100",
+    BRIDGE_PLAYBACK_ROLLOUT_PERCENT: "100",
+    MEDIA_BRIDGE_BASE_URL: "http://127.0.0.1:8788",
+    MEDIA_BRIDGE_J2_SECRET: "test-secret-value",
+    J2_OWNER_CANARY_ENABLED: "true",
+    J2_OWNER_CANARY_MODE: "open",
+    PUBLIC_API_BASE_URL: PUBLIC_BASE,
+  });
+  assert.equal(isJunction2SearchActive(config, "generic query", "user:public"), true);
+  let searches = 0;
+  const client = {
+    search: async (q) => {
+      searches += 1;
+      return [archiveHit({ title: "generic query hit", policyState: "REVIEW_REQUIRED" })];
+    },
+  };
+  const merged = await discoverAndMerge([LOCAL_R2], {
+    query: "generic query",
+    limit: 5,
+    publicBaseUrl: PUBLIC_BASE,
+    rolloutKey: "user:public",
+  }, { config, client, store: new PlaybackStore() });
+  assert.equal(searches, 1);
+  assert.ok(merged.some((row) => row.title === "generic query hit"));
+});
+
+test("production logic has no fixture hard-codes", async () => {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const url = await import("node:url");
+  const root = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), "..");
+  for (const rel of ["services/junction2/config.js", "services/junction2/discover.js", "services/junction2/eligibility.js", "routes/media.js"]) {
+    const text = fs.readFileSync(path.join(root, rel), "utf8");
+    assert.doesNotMatch(text, /Me at the zoo|jNQXAC9IVRw|Rick Astley|Never Gonna Give You Up/i);
+  }
+});
+

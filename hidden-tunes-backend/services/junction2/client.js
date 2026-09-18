@@ -61,7 +61,7 @@ export class MediaBridgeClient {
         requestId: randomUUID(),
         query: { text: String(text || ""), limit: options.limit ?? this.config.searchLimit },
       },
-      this.config.searchTimeoutMs,
+      options.timeoutMs ?? this.config.searchTimeoutMs,
       options.signal
     );
     if (!body || !Array.isArray(body.results)) {

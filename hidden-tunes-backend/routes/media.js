@@ -1,9 +1,15 @@
 import express from "express";
-import { loadJunction2Config, isJunction2PlaybackActive, isOwnerCanarySource } from "../services/junction2/config.js";
+import {
+  loadJunction2Config,
+  isJunction2PlaybackActive,
+  isOwnerCanarySource,
+  rolloutKeyFromRequest,
+} from "../services/junction2/config.js";
 import { getMediaBridgeClient } from "../services/junction2/client.js";
 import { playbackStore } from "../services/junction2/playbackStore.js";
 import { publicPlaybackError, sanitizeStreamHeaders, containsPublicLeak } from "../services/junction2/leak.js";
 import { publicApiBaseUrl } from "../services/junction2/publicOrigin.js";
+import { recordMetric } from "../services/junction2/metrics.js";
 
 function abortFrom(res) {
   const controller = new AbortController();
@@ -27,7 +33,8 @@ export function createMediaRouter(deps = {}) {
   const handler = async (req, res, method) => {
     const config = deps.config || loadJunction2Config();
     const record = (deps.store || playbackStore).get(req.params.playbackId);
-    if (!isJunction2PlaybackActive(config, record)) {
+    const rolloutKey = deps.rolloutKey || rolloutKeyFromRequest(req);
+    if (!isJunction2PlaybackActive(config, record, rolloutKey)) {
       return sendPublicError(res, 404);
     }
 
@@ -35,6 +42,8 @@ export function createMediaRouter(deps = {}) {
 
     const signal = abortFrom(res);
     const client = deps.client || getMediaBridgeClient(config);
+    const started = Date.now();
+    recordMetric("playbackResolve", { method, ranged: Boolean(req.headers.range) });
 
     if (isOwnerCanarySource(record, config)) {
       console.log(
@@ -64,11 +73,13 @@ export function createMediaRouter(deps = {}) {
       });
 
       if (upstream.status >= 300 && upstream.status < 400) {
+        recordMetric("playbackFailure", { reason: "redirect", durationMs: Date.now() - started });
         return sendPublicError(res, 503);
       }
 
       const headers = sanitizeStreamHeaders(upstream.headers);
       if (containsPublicLeak(headers, publicApiBaseUrl(req, config))) {
+        recordMetric("playbackFailure", { reason: "leak", durationMs: Date.now() - started });
         return sendPublicError(res, 503);
       }
 
@@ -80,10 +91,12 @@ export function createMediaRouter(deps = {}) {
       res.setHeader("Cache-Control", "private, no-store");
 
       if (method === "HEAD") {
+        recordMetric("playbackSuccess", { method, durationMs: Date.now() - started });
         res.end();
         return;
       }
       if (!upstream.body) {
+        recordMetric("playbackSuccess", { method, durationMs: Date.now() - started });
         res.end();
         return;
       }
@@ -96,8 +109,10 @@ export function createMediaRouter(deps = {}) {
           await new Promise((resolve) => res.once("drain", () => resolve()));
         }
       }
+      recordMetric("playbackSuccess", { method, durationMs: Date.now() - started });
       res.end();
     } catch {
+      recordMetric("playbackFailure", { durationMs: Date.now() - started });
       return sendPublicError(res, 503);
     }
   };

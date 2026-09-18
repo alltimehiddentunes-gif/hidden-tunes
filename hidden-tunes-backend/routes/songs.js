@@ -30,7 +30,7 @@ import { handleLyricsRequest } from "./lyrics.js";
 import { resolveGenreIntent, genreTiers, genreOrClause, fetchGenrePage } from "../services/musicSearchGenres.js";
 import { discoverAndMerge } from "../services/junction2/discover.js";
 import { publicApiBaseUrl } from "../services/junction2/publicOrigin.js";
-import { loadJunction2Config } from "../services/junction2/config.js";
+import { loadJunction2Config, rolloutKeyFromRequest } from "../services/junction2/config.js";
 
 const router = express.Router();
 
@@ -683,6 +683,7 @@ router.get("/", async (req, res) => {
             limit: pagination.limit,
             publicBaseUrl: publicApiBaseUrl(req, loadJunction2Config()),
             signal: abortFrom(res),
+            rolloutKey: rolloutKeyFromRequest(req),
           })
         : normalizedSongs;
 

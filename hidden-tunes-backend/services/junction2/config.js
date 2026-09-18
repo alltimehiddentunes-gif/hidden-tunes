@@ -25,6 +25,15 @@ function asPositiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function asRolloutPercent(value, enabledDefault) {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return enabledDefault ? 100 : 0;
+  }
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(100, parsed));
+}
+
 export function foldCanaryQuery(value) {
   return String(value || "")
     .trim()
@@ -33,11 +42,28 @@ export function foldCanaryQuery(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+/** Deterministic 0..99 bucket for rollout assignment. */
+export function rolloutBucket(stableKey) {
+  const text = String(stableKey || "").trim() || "anonymous";
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 100;
+}
+
+export function inRollout(stableKey, percent) {
+  const pct = Number(percent);
+  if (!Number.isFinite(pct) || pct <= 0) return false;
+  if (pct >= 100) return true;
+  return rolloutBucket(stableKey) < pct;
+}
+
 function resolveOwnerCanaryMode(env, enabled) {
   if (!enabled) return "off";
   const raw = String(env.J2_OWNER_CANARY_MODE || "").trim().toLowerCase();
   if (raw === "open" || raw === "queries" || raw === "off") return raw;
-  // Back-compat: single query / source keys imply queries mode.
   if (String(env.J2_OWNER_CANARY_QUERY || "").trim() || String(env.J2_OWNER_CANARY_QUERIES || "").trim()) {
     return "queries";
   }
@@ -70,10 +96,13 @@ export function loadJunction2Config(env = process.env) {
   return {
     externalDiscoveryEnabled,
     bridgePlaybackEnabled,
+    externalDiscoveryRolloutPercent: asRolloutPercent(env.EXTERNAL_DISCOVERY_ROLLOUT_PERCENT, externalDiscoveryEnabled),
+    bridgePlaybackRolloutPercent: asRolloutPercent(env.BRIDGE_PLAYBACK_ROLLOUT_PERCENT, bridgePlaybackEnabled),
     baseUrl: parsedBase ? `${parsedBase.protocol}//${parsedBase.host}${parsedBase.pathname}`.replace(/\/+$/, "") : "",
     secret: parsedBase && secret.length >= 8 ? secret : "",
     ready: Boolean(parsedBase && secret.length >= 8),
     searchTimeoutMs: asPositiveInt(env.J2_SEARCH_TIMEOUT_MS, 1200),
+    ownerCanarySearchTimeoutMs: asPositiveInt(env.J2_OWNER_CANARY_SEARCH_TIMEOUT_MS, asPositiveInt(env.J2_SEARCH_TIMEOUT_MS, 12_000)),
     searchLimit: Math.min(asPositiveInt(env.J2_SEARCH_LIMIT, 5), 10),
     playbackTimeoutMs: asPositiveInt(env.J2_PLAYBACK_TIMEOUT_MS, 45_000),
     circuitOpenMs: asPositiveInt(env.J2_CIRCUIT_OPEN_MS, 30_000),
@@ -110,14 +139,44 @@ export function isOwnerCanarySource(hitOrRecord, config = loadJunction2Config())
   return Boolean(key && config.ownerCanarySourceKeys.has(key));
 }
 
-export function isJunction2SearchActive(config = loadJunction2Config(), query) {
-  if (!config.ready) return false;
-  if (config.externalDiscoveryEnabled) return true;
-  return isOwnerCanaryQuery(query, config);
+export function isPublicDiscoveryRollout(config = loadJunction2Config(), rolloutKey) {
+  if (!config.externalDiscoveryEnabled) return false;
+  return inRollout(rolloutKey, config.externalDiscoveryRolloutPercent);
 }
 
-export function isJunction2PlaybackActive(config = loadJunction2Config(), record) {
+export function isPublicPlaybackRollout(config = loadJunction2Config(), rolloutKey) {
+  if (!config.bridgePlaybackEnabled) return false;
+  return inRollout(rolloutKey, config.bridgePlaybackRolloutPercent);
+}
+
+export function isJunction2SearchActive(config = loadJunction2Config(), query, rolloutKey) {
   if (!config.ready) return false;
-  if (config.bridgePlaybackEnabled) return true;
-  return isOwnerCanarySource(record, config);
+  if (isOwnerCanaryQuery(query, config)) return true;
+  return isPublicDiscoveryRollout(config, rolloutKey);
+}
+
+export function isJunction2PlaybackActive(config = loadJunction2Config(), record, rolloutKey) {
+  if (!config.ready) return false;
+  if (isOwnerCanarySource(record, config)) return true;
+  return isPublicPlaybackRollout(config, rolloutKey);
+}
+
+/** Stable non-invasive rollout key from request context. Prefer auth subject when present. */
+export function rolloutKeyFromRequest(req) {
+  if (!req || typeof req !== "object") return "anonymous";
+  const user =
+    req.user?.id ||
+    req.user?.sub ||
+    req.auth?.userId ||
+    req.headers?.["x-user-id"] ||
+    "";
+  if (user) return `user:${String(user).trim().toLowerCase()}`;
+  const auth = String(req.headers?.authorization || "").trim();
+  if (auth) return `auth:${auth.slice(0, 48)}`;
+  const fwd = String(req.headers?.["x-forwarded-for"] || "")
+    .split(",")[0]
+    .trim();
+  const ip = fwd || String(req.ip || req.socket?.remoteAddress || "").trim() || "unknown";
+  const ua = String(req.headers?.["user-agent"] || "").slice(0, 80);
+  return `anon:${ip}|${ua}`;
 }
