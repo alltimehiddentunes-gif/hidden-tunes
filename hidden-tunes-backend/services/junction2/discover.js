@@ -8,6 +8,7 @@ import { recordMetric } from "./metrics.js";
 import { enrichSearchHit } from "./metadata/enrich.js";
 import { isKnownUnplayable, needsPlayabilityProbe } from "./playability.js";
 import { onSearchResults } from "./preparation.js";
+import { resolveHitIdentities, rememberTrackRelationships } from "./identity.js";
 
 /** Lower is better. Prefer providers that reliably resolve for tap-to-play. */
 function playbackReliabilityRank(hit) {
@@ -70,25 +71,53 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       signal: context.signal,
       timeoutMs,
     });
+    const rawCount = Array.isArray(results) ? results.length : 0;
+    const byProvider = {};
+    for (const hit of Array.isArray(results) ? results : []) {
+      const p = String(hit?.provider || "unknown").toLowerCase();
+      byProvider[p] = (byProvider[p] || 0) + 1;
+    }
     // Prefer YouTube/archive ahead of SoundCloud; known-unplayable filtered below.
     const orderedResults = orderByPlaybackReliability(results);
     const mapped = [];
     const prewarmTargets = [];
     const deepEnrichQueue = [];
     const mapStarted = Date.now();
+    let skippedPolicy = 0;
+    let skippedUnplayable = 0;
+    let skippedDedupe = 0;
+    let skippedProbe = 0;
+    let skippedEnrichIdentity = 0;
+    let skippedBudget = 0;
 
     for (const hit of orderedResults) {
-      if (Date.now() - mapStarted >= postBudgetMs) break;
-      if (!isPubliclySurfaceable(hit, config)) continue;
-      if (isKnownUnplayable(hit)) continue;
+      if (Date.now() - mapStarted >= postBudgetMs) {
+        skippedBudget += 1;
+        break;
+      }
+      if (!isPubliclySurfaceable(hit, config)) {
+        skippedPolicy += 1;
+        continue;
+      }
+      if (isKnownUnplayable(hit)) {
+        skippedUnplayable += 1;
+        continue;
+      }
       // Existing Hidden Tunes catalog match wins — do not create inferior duplicate.
-      if (local.some((song) => isConservativeDuplicate(hit, song))) continue;
+      if (local.some((song) => isConservativeDuplicate(hit, song))) {
+        skippedDedupe += 1;
+        continue;
+      }
 
       // Do NOT synchronously probe playability here — that serialized search to multi-second stalls.
-      // Trusted providers surface immediately; unknown-risk (e.g. SoundCloud) stay excluded unless
-      // already negatively cached as unplayable (handled above) or previously proven playable.
+      // Trusted providers (YouTube/archive) surface immediately.
+      // Probe-required providers (e.g. SoundCloud): in owner-canary, still surface so a YouTube
+      // miss cannot zero the whole query; prep/play validates. Public rollout stays conservative.
       if (needsPlayabilityProbe(hit) && !hit.bridgeMediaId) {
-        continue;
+        if (!canary) {
+          skippedProbe += 1;
+          continue;
+        }
       }
 
       let bridgeMediaId = hit.bridgeMediaId ? String(hit.bridgeMediaId) : null;
@@ -107,15 +136,32 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
         enriched.sourceId !== hit.sourceId ||
         enriched.canonicalSourceKey !== hit.canonicalSourceKey
       ) {
+        skippedEnrichIdentity += 1;
         continue;
       }
 
-      if (local.some((song) => isConservativeDuplicate(enriched, song))) continue;
+      if (local.some((song) => isConservativeDuplicate(enriched, song))) {
+        skippedDedupe += 1;
+        continue;
+      }
+
+      // Attach Track↔Artist↔Album identities (catalog wins when confidently matched).
+      let identities = { artistId: null, albumId: null, artistName: null, albumTitle: null };
+      try {
+        identities = await resolveHitIdentities(enriched, { lookupCatalog: true });
+      } catch {
+        /* identity is optional enhancement — never zero the candidate */
+      }
 
       const record = store.putFromSearchHit({
         ...enriched,
         bridgeMediaId: bridgeMediaId || enriched.bridgeMediaId || null,
+        artistId: identities.artistId,
+        albumId: identities.albumId,
+        artist: identities.artistName || enriched.artist,
+        album: identities.albumTitle || enriched.album,
       });
+      rememberTrackRelationships(record);
       const song = toPublicSong(record, publicBaseUrl);
       if (containsPublicLeak(song, publicBaseUrl)) continue;
       mapped.push(song);
@@ -128,9 +174,18 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       canary,
       workerRole: config.workerRole,
       surfaced: mapped.length,
-      bridgeHits: Array.isArray(results) ? results.length : 0,
+      bridgeHits: rawCount,
       durationMs,
       postProcessMs: Date.now() - mapStarted,
+      skippedPolicy,
+      skippedUnplayable,
+      skippedDedupe,
+      skippedProbe,
+      skippedEnrichIdentity,
+      skippedBudget,
+      youtubeRaw: byProvider.youtube || 0,
+      soundcloudRaw: byProvider.soundcloud || 0,
+      archiveRaw: byProvider["archive.org"] || 0,
     });
 
     if (canary) {
@@ -140,9 +195,19 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
           mode: config.ownerCanaryMode,
           workerRole: config.workerRole,
           surfaced: mapped.length,
-          bridgeHits: Array.isArray(results) ? results.length : 0,
+          bridgeHits: rawCount,
           durationMs,
           postProcessMs: Date.now() - mapStarted,
+          stages: {
+            raw: rawCount,
+            byProvider,
+            skippedPolicy,
+            skippedUnplayable,
+            skippedDedupe,
+            skippedProbe,
+            skippedBudget,
+            public: mapped.length,
+          },
           status: "success",
         }),
       );
@@ -160,12 +225,22 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       merged = mergePreferLocal(local, mapped, limit);
     }
 
+    // Register FINAL visible external order (not raw bridge order) for next/auto-next prep.
+    const byPlaybackId = new Map(prewarmTargets.map((r) => [String(r.publicPlaybackId), r]));
+    const finalPrepOrder = [];
+    for (const song of merged) {
+      const id = String(song?.id || "");
+      const rec = id ? byPlaybackId.get(id) : null;
+      if (rec) finalPrepOrder.push(rec);
+    }
+    const prepRecords = finalPrepOrder.length ? finalPrepOrder : prewarmTargets;
+
     // Search returns immediately; preparation continues in background (session + top-N).
     if (deps.schedulePlaybackPrewarm !== false) {
       if (typeof deps.schedulePlaybackPrewarm === "function") {
-        deps.schedulePlaybackPrewarm(prewarmTargets, client, store, config);
+        deps.schedulePlaybackPrewarm(prepRecords, client, store, config);
       } else {
-        onSearchResults(prewarmTargets, client, store, config, {
+        onSearchResults(prepRecords, client, store, config, {
           queryFold: String(context.query || "").trim().toLowerCase(),
         });
       }

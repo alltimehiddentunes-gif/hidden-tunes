@@ -10,6 +10,17 @@ import {
   logSupabaseError,
 } from "../services/apiDiagnostics.js";
 import { escapeIlikePattern, normalizeArtistFilters } from "../services/queryGuards.js";
+import { entityStore } from "../services/junction2/entityStore.js";
+import { hydrateArtistSongs, getOpaqueArtistPublic } from "../services/junction2/artistHydrate.js";
+import { loadJunction2Config, rolloutKeyFromRequest } from "../services/junction2/config.js";
+import { publicApiBaseUrl } from "../services/junction2/publicOrigin.js";
+
+function abortFrom(res) {
+  const controller = new AbortController();
+  const onClose = () => controller.abort();
+  res.on("close", onClose);
+  return controller.signal;
+}
 
 const router = express.Router();
 
@@ -261,6 +272,56 @@ router.get("/", async (req, res) => {
     const artistIds = artists.map((artist) => artist.id).filter(Boolean);
 
     if (artistIds.length === 0) {
+      // Catalog miss on search: surface opaque artists so Tems-style discovery navigates by UUID.
+      if (filters.search) {
+        const opaqueRows = entityStore.searchArtists(filters.search, filters.limit);
+        const publicBase = publicApiBaseUrl(req, loadJunction2Config());
+        const opaqueArtists = [];
+        for (const row of opaqueRows) {
+          const tracks = await hydrateArtistSongs(row.id, {
+            publicBaseUrl: publicBase,
+            limit: MAX_EMBEDDED_TRACKS_PER_ARTIST,
+            signal: abortFrom(res),
+            rolloutKey: rolloutKeyFromRequest(req),
+            prepare: false,
+          });
+          opaqueArtists.push(entityStore.toPublicArtist(row, tracks));
+        }
+        // If still empty, discover under the search phrase to mint opaque artist + tracks.
+        if (!opaqueArtists.length) {
+          const tracks = await hydrateArtistSongs(filters.search, {
+            artistName: filters.search,
+            publicBaseUrl: publicBase,
+            limit: MAX_EMBEDDED_TRACKS_PER_ARTIST,
+            signal: abortFrom(res),
+            rolloutKey: rolloutKeyFromRequest(req),
+          });
+          const minted = getOpaqueArtistPublic(filters.search, tracks) ||
+            (tracks.length
+              ? entityStore.toPublicArtist(
+                  entityStore.upsertArtist({
+                    name: filters.search,
+                    artwork: tracks[0]?.artwork || tracks[0]?.cover || null,
+                  }),
+                  tracks,
+                )
+              : null);
+          if (minted) opaqueArtists.push(minted);
+        }
+        logApiSuccess("GET /api/artists", {
+          durationMs: timer.durationMs(),
+          resultCount: opaqueArtists.length,
+          filters,
+          trackSelectMode: "opaque",
+          cacheState: "opaque_index",
+        });
+        return res.json({
+          success: true,
+          count: opaqueArtists.length,
+          artists: opaqueArtists,
+        });
+      }
+
       logApiSuccess("GET /api/artists", {
         durationMs: timer.durationMs(),
         resultCount: 0,
@@ -308,6 +369,52 @@ router.get("/", async (req, res) => {
       normalizeArtist(artist, songsByArtistId.get(artist.id) || [])
     );
 
+    // If search name has no confident exact catalog artist, prepend opaque artist for that name.
+    // Prevents "Tems" resolving only to "Dave ft. Tems" and leaving Popular Songs empty.
+    if (filters.search) {
+      const fold = String(filters.search)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .replace(/\s+/g, " ");
+      const exactCatalog = normalizedArtists.filter((a) => {
+        const nameFold = String(a.name || "")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim()
+          .replace(/\s+/g, " ");
+        return nameFold === fold;
+      });
+      if (!exactCatalog.length) {
+        const publicBase = publicApiBaseUrl(req, loadJunction2Config());
+        const tracks = await hydrateArtistSongs(filters.search, {
+          artistName: filters.search,
+          publicBaseUrl: publicBase,
+          limit: MAX_EMBEDDED_TRACKS_PER_ARTIST,
+          signal: abortFrom(res),
+          rolloutKey: rolloutKeyFromRequest(req),
+        });
+        const minted =
+          getOpaqueArtistPublic(filters.search, tracks) ||
+          (tracks.length
+            ? entityStore.toPublicArtist(
+                entityStore.upsertArtist({
+                  name: filters.search,
+                  artwork: tracks[0]?.artwork || tracks[0]?.cover || null,
+                }),
+                tracks,
+              )
+            : null);
+        if (minted) {
+          normalizedArtists.unshift(minted);
+        }
+      }
+    }
+
     logApiSuccess("GET /api/artists", {
       durationMs: timer.durationMs(),
       resultCount: normalizedArtists.length,
@@ -331,6 +438,81 @@ router.get("/", async (req, res) => {
       filters,
     });
 
+    return res.status(500).json({
+      error: "Server error",
+      details: error?.message || "Unknown server error",
+    });
+  }
+});
+
+/** Single artist — catalog first, then opaque acceleration (same public contract). */
+router.get("/:id", async (req, res) => {
+  const timer = createRequestTimer();
+  const id = String(req.params.id || "").trim();
+  logApiRequest("GET /api/artists/:id", { id });
+
+  try {
+    if (!id) {
+      return res.status(400).json({ error: "Artist id required" });
+    }
+
+    const { data: row, error } = await supabase
+      .from("artists")
+      .select(ARTIST_SELECT)
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!error && row) {
+      const trackResult = await fetchArtistTracks([row.id]);
+      const artist = normalizeArtist(row, trackResult.songs || []);
+      // If catalog artist has no public songs, hydrate opaque popular tracks under same id/name.
+      if (!artist.tracks.length) {
+        const publicBase = publicApiBaseUrl(req, loadJunction2Config());
+        const hydrated = await hydrateArtistSongs(row.id, {
+          artistName: row.name,
+          publicBaseUrl: publicBase,
+          limit: MAX_EMBEDDED_TRACKS_PER_ARTIST,
+          signal: abortFrom(res),
+          rolloutKey: rolloutKeyFromRequest(req),
+        });
+        if (hydrated.length) {
+          artist.tracks = hydrated;
+          artist.songCount = hydrated.length;
+        }
+      }
+      logApiSuccess("GET /api/artists/:id", {
+        durationMs: timer.durationMs(),
+        resultCount: 1,
+        songCount: artist.tracks.length,
+        origin: "catalog",
+      });
+      return res.json({ success: true, artist });
+    }
+
+    const publicBase = publicApiBaseUrl(req, loadJunction2Config());
+    const tracks = await hydrateArtistSongs(id, {
+      publicBaseUrl: publicBase,
+      limit: MAX_EMBEDDED_TRACKS_PER_ARTIST,
+      signal: abortFrom(res),
+      rolloutKey: rolloutKeyFromRequest(req),
+    });
+    const opaque = getOpaqueArtistPublic(id, tracks);
+    if (!opaque) {
+      return res.status(404).json({ error: "Artist not found" });
+    }
+    logApiSuccess("GET /api/artists/:id", {
+      durationMs: timer.durationMs(),
+      resultCount: 1,
+      songCount: tracks.length,
+      origin: "opaque",
+    });
+    return res.json({ success: true, artist: opaque });
+  } catch (error) {
+    logApiError("GET /api/artists/:id", {
+      durationMs: timer.durationMs(),
+      message: error?.message || "unknown_error",
+      id,
+    });
     return res.status(500).json({
       error: "Server error",
       details: error?.message || "Unknown server error",

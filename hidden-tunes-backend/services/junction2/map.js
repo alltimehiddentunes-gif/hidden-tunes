@@ -6,7 +6,11 @@ function publicMediaUrl(publicBaseUrl, publicPlaybackId) {
 
 export function toPublicSong(record, publicBaseUrl) {
   const streamUrl = publicMediaUrl(publicBaseUrl, record.publicPlaybackId);
-  const duration = record.durationMs ? Math.round(record.durationMs / 1000) : 0;
+  // Unknown duration stays null — never coerce null→0 (false reject downstream).
+  const duration =
+    Number.isFinite(record.durationMs) && record.durationMs > 0
+      ? Math.round(record.durationMs / 1000)
+      : null;
   const artist = record.artist || "Unknown Artist";
   const title = record.title || "Untitled";
   const album = record.album || null;

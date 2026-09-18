@@ -22,7 +22,9 @@ export class PlaybackStore {
       sourceTitle: String(enrichment.sourceTitle || hit.title || ""),
       artist: String(enrichment.primaryArtist || hit.artist || "Unknown Artist"),
       artists: Array.isArray(enrichment.artists) ? enrichment.artists : null,
+      artistId: hit.artistId || enrichment.artistId || null,
       album: enrichment.album ? String(enrichment.album) : hit.album ? String(hit.album) : null,
+      albumId: hit.albumId || enrichment.albumId || null,
       durationMs: Number.isFinite(Number(enrichment.durationMs ?? hit.durationMs))
         ? Number(enrichment.durationMs ?? hit.durationMs)
         : 0,

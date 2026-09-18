@@ -676,16 +676,36 @@ router.get("/", async (req, res) => {
       .map(normalizeSong)
       .filter(Boolean);
 
-    const payload =
-      filters.search && !genreIntent
+    // Always fan out external discovery for text search — including genre-intent queries.
+    // Genre local catalog is merged with external; catalog precedence still wins on duplicates.
+    let payload =
+      filters.search && search.phrase
         ? await discoverAndMerge(normalizedSongs, {
             query: search.phrase,
             limit: pagination.limit,
             publicBaseUrl: publicApiBaseUrl(req, loadJunction2Config()),
             signal: abortFrom(res),
             rolloutKey: rolloutKeyFromRequest(req),
+            genreIntent: genreIntent ? String(genreIntent[0] || "") : null,
           })
         : normalizedSongs;
+
+    // Artist page contract: when catalog has no tracks for artistId, hydrate from opaque index/discovery.
+    if (
+      !filters.search &&
+      filters.artistId &&
+      payload.length === 0 &&
+      resolvedArtist.artistIds.length > 0
+    ) {
+      const { hydrateArtistSongs } = await import("../services/junction2/artistHydrate.js");
+      const opaque = await hydrateArtistSongs(resolvedArtist.artistIds[0], {
+        publicBaseUrl: publicApiBaseUrl(req, loadJunction2Config()),
+        limit: pagination.limit,
+        signal: abortFrom(res),
+        rolloutKey: rolloutKeyFromRequest(req),
+      });
+      if (opaque.length) payload = opaque;
+    }
 
     logApiSuccess("GET /api/songs", {
       durationMs: timer.durationMs(),
@@ -696,6 +716,8 @@ router.get("/", async (req, res) => {
       offset: pagination.offset,
       searchCandidateCount: filters.search ? (fetchResult.data || []).length : null,
       searchRankedCount: filters.search ? rankedRows.length : null,
+      genreIntent: genreIntent ? String(genreIntent[0] || "") : null,
+      externalFanout: Boolean(filters.search && search.phrase),
       selectMode: fetchResult.selectMode,
       albumResolvedBy: resolvedAlbum.resolvedBy,
       artistResolvedBy: resolvedArtist.resolvedBy,
