@@ -84,7 +84,7 @@ export class MediaBridgeClient {
           id: source.sourceId,
         },
       },
-      this.config.playbackTimeoutMs,
+      options.timeoutMs ?? this.config.playbackTimeoutMs,
       options.signal
     );
     const bridgeMediaId = body?.record?.bridgeMediaId;

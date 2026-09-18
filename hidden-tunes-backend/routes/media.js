@@ -10,6 +10,8 @@ import { playbackStore } from "../services/junction2/playbackStore.js";
 import { publicPlaybackError, sanitizeStreamHeaders, containsPublicLeak } from "../services/junction2/leak.js";
 import { publicApiBaseUrl } from "../services/junction2/publicOrigin.js";
 import { recordMetric } from "../services/junction2/metrics.js";
+import { markUnplayable } from "../services/junction2/playability.js";
+import { resolveBridgeMediaId } from "../services/junction2/prewarm.js";
 
 function abortFrom(res) {
   const controller = new AbortController();
@@ -42,7 +44,9 @@ export function createMediaRouter(deps = {}) {
 
     const signal = abortFrom(res);
     const client = deps.client || getMediaBridgeClient(config);
+    const store = deps.store || playbackStore;
     const started = Date.now();
+    const marks = { storeMs: 0, ingestMs: 0, streamMs: 0, firstByteMs: 0 };
     recordMetric("playbackResolve", { method, ranged: Boolean(req.headers.range) });
 
     if (isOwnerCanarySource(record, config)) {
@@ -56,24 +60,44 @@ export function createMediaRouter(deps = {}) {
     }
 
     try {
+      const tStore = Date.now();
       let bridgeMediaId = record.bridgeMediaId;
+      marks.storeMs = Date.now() - tStore;
+
       if (!bridgeMediaId) {
         if (!record.provider || !record.sourceId) return sendPublicError(res, 404);
-        bridgeMediaId = await client.ingest(
-          { provider: record.provider, sourceId: record.sourceId },
-          { signal }
+        const tIngest = Date.now();
+        // Join in-flight prewarm if the same source is already resolving.
+        bridgeMediaId = await (deps.resolveBridgeMediaId || resolveBridgeMediaId)(
+          record,
+          client,
+          store,
+          { publicPlaybackId: record.publicPlaybackId, signal },
         );
-        (deps.store || playbackStore).rememberBridgeMediaId(record.publicPlaybackId, bridgeMediaId);
+        marks.ingestMs = Date.now() - tIngest;
       }
 
+      const tStream = Date.now();
       const upstream = await client.stream(bridgeMediaId, {
         method,
         range: req.headers.range,
         signal,
       });
+      marks.streamMs = Date.now() - tStream;
 
       if (upstream.status >= 300 && upstream.status < 400) {
         recordMetric("playbackFailure", { reason: "redirect", durationMs: Date.now() - started });
+        return sendPublicError(res, 503);
+      }
+      if (upstream.status >= 400) {
+        recordMetric("playbackFailure", { reason: "upstream", status: upstream.status, durationMs: Date.now() - started });
+        if (upstream.body?.cancel) {
+          try {
+            await upstream.body.cancel();
+          } catch {
+            /* ignore */
+          }
+        }
         return sendPublicError(res, 503);
       }
 
@@ -89,29 +113,50 @@ export function createMediaRouter(deps = {}) {
       }
       if (!res.getHeader("Accept-Ranges")) res.setHeader("Accept-Ranges", "bytes");
       res.setHeader("Cache-Control", "private, no-store");
+      marks.firstByteMs = Date.now() - started;
 
       if (method === "HEAD") {
-        recordMetric("playbackSuccess", { method, durationMs: Date.now() - started });
+        recordMetric("playbackSuccess", { method, durationMs: marks.firstByteMs, ...marks, cache: Boolean(record.bridgeMediaId) });
+        console.log(JSON.stringify({ event: "j2_playback_timing", method, ...marks, cacheHit: Boolean(record.bridgeMediaId && marks.ingestMs === 0) }));
         res.end();
         return;
       }
       if (!upstream.body) {
-        recordMetric("playbackSuccess", { method, durationMs: Date.now() - started });
+        recordMetric("playbackSuccess", { method, durationMs: marks.firstByteMs, ...marks });
         res.end();
         return;
       }
 
       const reader = upstream.body.getReader();
+      let logged = false;
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (!logged) {
+          marks.firstByteMs = Date.now() - started;
+          logged = true;
+          console.log(
+            JSON.stringify({
+              event: "j2_playback_timing",
+              method,
+              ...marks,
+              cacheHit: Boolean(marks.ingestMs === 0),
+            }),
+          );
+        }
         if (!res.write(Buffer.from(value))) {
           await new Promise((resolve) => res.once("drain", () => resolve()));
         }
       }
-      recordMetric("playbackSuccess", { method, durationMs: Date.now() - started });
+      recordMetric("playbackSuccess", { method, durationMs: Date.now() - started, ...marks });
       res.end();
-    } catch {
+    } catch (err) {
+      if (record?.canonicalSourceKey || (record?.provider && record?.sourceId)) {
+        const code = String(err?.code || "");
+        if (code === "BRIDGE_HTTP" || code === "UNAUTHORIZED" || code === "MALFORMED") {
+          markUnplayable(record, code || "PLAYBACK_FAILURE");
+        }
+      }
       recordMetric("playbackFailure", { durationMs: Date.now() - started });
       return sendPublicError(res, 503);
     }
