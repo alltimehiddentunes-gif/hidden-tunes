@@ -539,8 +539,10 @@ test("valid bridge playback streams Range/206/HEAD without leaking headers", asy
   const url = `http://127.0.0.1:${port}/api/media/${record.publicPlaybackId}`;
   try {
     const head = await fetch(url, { method: "HEAD" });
-    assert.equal(head.status, 200);
-    assert.equal(seenMethod, "HEAD");
+    // Upstream media CDNs often reject HEAD; J2 probes with ranged GET and returns headers only.
+    assert.ok([200, 206].includes(head.status));
+    assert.equal(seenMethod, "GET");
+    assert.equal(seenRange, "bytes=0-0");
     assert.equal(head.headers.get("content-type"), "audio/mpeg");
     assert.equal(head.headers.get("server"), null);
     assert.equal(head.headers.get("location"), null);
