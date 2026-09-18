@@ -1,3 +1,5 @@
+import { isOwnerCanarySource } from "./config.js";
+
 const PLAYABLE_RIGHTS = new Set(["VERIFIED", "NOT_REQUIRED"]);
 
 export function isStrictlyEligible(hit) {
@@ -20,5 +22,10 @@ export function isTestFixtureSurfaceable(hit, config) {
 }
 
 export function isPubliclySurfaceable(hit, config) {
-  return isStrictlyEligible(hit) || isTestFixtureSurfaceable(hit, config);
+  if (isStrictlyEligible(hit)) return true;
+  if (isTestFixtureSurfaceable(hit, config)) return true;
+  if (isOwnerCanarySource(hit, config) && hit?.playbackCapability === true && hit?.policyState !== "DENIED") {
+    return true;
+  }
+  return false;
 }

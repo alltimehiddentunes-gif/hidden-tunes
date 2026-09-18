@@ -157,6 +157,194 @@ test("production ignores test fixture allowlist", () => {
   assert.equal(isPubliclySurfaceable(archiveHit(), config), false);
 });
 
+test("owner canary is query+source gated and does not rewrite REVIEW_REQUIRED", async () => {
+  const config = loadJunction2Config({
+    EXTERNAL_DISCOVERY_ENABLED: "false",
+    BRIDGE_PLAYBACK_ENABLED: "false",
+    MEDIA_BRIDGE_BASE_URL: "http://127.0.0.1:8788",
+    MEDIA_BRIDGE_J2_SECRET: "test-secret-value",
+    PUBLIC_API_BASE_URL: PUBLIC_BASE,
+    NODE_ENV: "production",
+    J2_OWNER_CANARY_ENABLED: "true",
+    J2_OWNER_CANARY_QUERY: "HT-CANARY-ZOO",
+    J2_OWNER_CANARY_UPSTREAM_QUERY: "Me at the zoo",
+    J2_OWNER_CANARY_SOURCE_KEYS: "youtube:jnqxac9ivrw",
+  });
+  const ytHit = {
+    provider: "youtube",
+    sourceId: "jNQXAC9IVRw",
+    canonicalSourceKey: "youtube:jnqxac9ivrw",
+    title: "Me at the zoo",
+    artist: "jawed",
+    durationMs: 19_000,
+    playbackCapability: true,
+    policyState: "REVIEW_REQUIRED",
+    rightsState: "UNVERIFIED",
+  };
+  const otherHit = { ...ytHit, canonicalSourceKey: "youtube:otherid", sourceId: "otherid", title: "Other" };
+  assert.equal(isJunction2SearchActive(config, "dance"), false);
+  assert.equal(isJunction2SearchActive(config, "HT-CANARY-ZOO"), true);
+  assert.equal(isStrictlyEligible(ytHit), false);
+  assert.equal(isPubliclySurfaceable(ytHit, config), true);
+  assert.equal(isPubliclySurfaceable(otherHit, config), false);
+
+  let searched = [];
+  const store = new PlaybackStore();
+  const client = {
+    search: async (text) => {
+      searched.push(text);
+      return [ytHit, otherHit];
+    },
+  };
+  const offPath = await discoverAndMerge([LOCAL_R2], { query: "dance", limit: 30, publicBaseUrl: PUBLIC_BASE }, { config, client, store });
+  assert.deepEqual(searched, []);
+  assert.equal(offPath[0].id, LOCAL_R2.id);
+
+  const merged = await discoverAndMerge([LOCAL_R2], { query: "HT-CANARY-ZOO", limit: 30, publicBaseUrl: PUBLIC_BASE }, { config, client, store });
+  assert.deepEqual(searched, ["Me at the zoo"]);
+  assert.equal(merged.length, 2);
+  const canarySong = merged.find((row) => row.title === "Me at the zoo");
+  assert.ok(canarySong);
+  assert.equal(canarySong.sourceName, "Hidden Tunes");
+  assert.equal(canarySong.type, "r2");
+  assert.match(canarySong.streamUrl, /^http:\/\/127\.0\.0\.1:4010\/api\/media\/[0-9a-f-]+$/i);
+  assert.equal(containsPublicLeak(canarySong, PUBLIC_BASE), false);
+  assert.doesNotMatch(JSON.stringify(canarySong), /youtube\.com|youtu\.be|googlevideo|yt-dlp/i);
+  const internal = store.get(canarySong.id);
+  assert.equal(internal.policyState, "REVIEW_REQUIRED");
+  assert.notEqual(internal.policyState, "ELIGIBLE");
+});
+
+test("owner canary open mode allows generic search without global flags", async () => {
+  const config = loadJunction2Config({
+    EXTERNAL_DISCOVERY_ENABLED: "false",
+    BRIDGE_PLAYBACK_ENABLED: "false",
+    MEDIA_BRIDGE_BASE_URL: "http://127.0.0.1:8788",
+    MEDIA_BRIDGE_J2_SECRET: "test-secret-value",
+    PUBLIC_API_BASE_URL: PUBLIC_BASE,
+    NODE_ENV: "production",
+    J2_OWNER_CANARY_ENABLED: "true",
+    J2_OWNER_CANARY_MODE: "open",
+  });
+  assert.equal(config.ownerCanaryMode, "open");
+  assert.equal(isJunction2SearchActive(config, "Rick Astley"), true);
+  assert.equal(isJunction2SearchActive(config, "never gonna give you up"), true);
+  assert.equal(isJunction2SearchActive(config, ""), false);
+
+  const ytHit = {
+    provider: "youtube",
+    sourceId: "dQw4w9WgXcQ",
+    canonicalSourceKey: "youtube:dqw4w9wgxcq",
+    title: "Never Gonna Give You Up",
+    artist: "Rick Astley",
+    durationMs: 213_000,
+    playbackCapability: true,
+    policyState: "REVIEW_REQUIRED",
+    rightsState: "UNVERIFIED",
+  };
+  assert.equal(isPubliclySurfaceable(ytHit, config), true);
+
+  let searched = [];
+  const store = new PlaybackStore();
+  const client = {
+    search: async (text) => {
+      searched.push(text);
+      return [ytHit];
+    },
+  };
+  const merged = await discoverAndMerge([LOCAL_R2], { query: "Rick Astley", limit: 5, publicBaseUrl: PUBLIC_BASE }, {
+    config,
+    client,
+    store,
+  });
+  assert.deepEqual(searched, ["Rick Astley"]);
+  assert.equal(merged[0].title, "Never Gonna Give You Up");
+  assert.match(merged[0].streamUrl, /^http:\/\/127\.0\.0\.1:4010\/api\/media\//);
+  assert.equal(containsPublicLeak(merged[0], PUBLIC_BASE), false);
+});
+
+test("owner canary playback is allowed only for allowlisted records while global playback stays off", async () => {
+  const config = loadJunction2Config({
+    EXTERNAL_DISCOVERY_ENABLED: "false",
+    BRIDGE_PLAYBACK_ENABLED: "false",
+    MEDIA_BRIDGE_BASE_URL: "http://127.0.0.1:8788",
+    MEDIA_BRIDGE_J2_SECRET: "test-secret-value",
+    PUBLIC_API_BASE_URL: PUBLIC_BASE,
+    NODE_ENV: "production",
+    J2_OWNER_CANARY_ENABLED: "true",
+    J2_OWNER_CANARY_QUERY: "HT-CANARY-ZOO",
+    J2_OWNER_CANARY_SOURCE_KEYS: "youtube:jnqxac9ivrw",
+  });
+  const store = new PlaybackStore();
+  const allowed = store.putFromSearchHit({
+    provider: "youtube",
+    sourceId: "jNQXAC9IVRw",
+    canonicalSourceKey: "youtube:jnqxac9ivrw",
+    title: "Me at the zoo",
+    artist: "jawed",
+    durationMs: 19_000,
+    playbackCapability: true,
+    policyState: "REVIEW_REQUIRED",
+    rightsState: "UNVERIFIED",
+    bridgeMediaId: "bmd_zoo",
+  });
+  const denied = store.putFromSearchHit({
+    provider: "youtube",
+    sourceId: "other",
+    canonicalSourceKey: "youtube:other",
+    title: "Other",
+    playbackCapability: true,
+    policyState: "REVIEW_REQUIRED",
+    rightsState: "UNVERIFIED",
+    bridgeMediaId: "bmd_other",
+  });
+  const audio = Buffer.from("ID3canary");
+  const client = {
+    stream: async (_id, options = {}) => {
+      const ranged = Boolean(options.range);
+      return {
+        status: ranged ? 206 : 200,
+        headers: {
+          get: (name) => {
+            const headers = {
+              "content-type": "audio/mpeg",
+              "accept-ranges": "bytes",
+              "content-range": ranged ? "bytes 0-8/9" : null,
+            };
+            return headers[String(name).toLowerCase()] ?? null;
+          },
+        },
+        body: {
+          getReader() {
+            let sent = false;
+            return {
+              async read() {
+                if (sent) return { done: true, value: undefined };
+                sent = true;
+                return { done: false, value: audio };
+              },
+            };
+          },
+        },
+      };
+    },
+  };
+  const app = express();
+  app.use("/api/media", createMediaRouter({ config, store, client }));
+  const server = app.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const port = server.address().port;
+  const blocked = await fetch(`http://127.0.0.1:${port}/api/media/${denied.publicPlaybackId}`);
+  assert.equal(blocked.status, 404);
+  const play = await fetch(`http://127.0.0.1:${port}/api/media/${allowed.publicPlaybackId}`, {
+    headers: { range: "bytes=0-8" },
+  });
+  assert.equal(play.status, 206);
+  const body = Buffer.from(await play.arrayBuffer());
+  assert.ok(body.length > 0);
+  await new Promise((resolve) => server.close(resolve));
+});
+
 test("eligible Bridge result merges; local duplicate wins; variants do not collapse", async () => {
   const config = enabledConfig();
   const store = new PlaybackStore();

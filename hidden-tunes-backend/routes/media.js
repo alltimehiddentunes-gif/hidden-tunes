@@ -1,5 +1,5 @@
 import express from "express";
-import { loadJunction2Config, isJunction2PlaybackActive } from "../services/junction2/config.js";
+import { loadJunction2Config, isJunction2PlaybackActive, isOwnerCanarySource } from "../services/junction2/config.js";
 import { getMediaBridgeClient } from "../services/junction2/client.js";
 import { playbackStore } from "../services/junction2/playbackStore.js";
 import { publicPlaybackError, sanitizeStreamHeaders, containsPublicLeak } from "../services/junction2/leak.js";
@@ -26,15 +26,25 @@ export function createMediaRouter(deps = {}) {
 
   const handler = async (req, res, method) => {
     const config = deps.config || loadJunction2Config();
-    if (!isJunction2PlaybackActive(config)) {
+    const record = (deps.store || playbackStore).get(req.params.playbackId);
+    if (!isJunction2PlaybackActive(config, record)) {
       return sendPublicError(res, 404);
     }
 
-    const record = (deps.store || playbackStore).get(req.params.playbackId);
     if (!record) return sendPublicError(res, 404);
 
     const signal = abortFrom(res);
     const client = deps.client || getMediaBridgeClient(config);
+
+    if (isOwnerCanarySource(record, config)) {
+      console.log(
+        JSON.stringify({
+          event: "j2_owner_canary_playback",
+          method,
+          ranged: Boolean(req.headers.range),
+        }),
+      );
+    }
 
     try {
       let bridgeMediaId = record.bridgeMediaId;
