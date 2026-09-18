@@ -38,8 +38,6 @@ const HIDDEN_TUNES_API_BASE_URL = "https://api.hiddentunes.com";
 const HIDDEN_TUNES_LYRICS_API_BASE_URL =
   "https://api.hiddentunes.com";
 
-export { HIDDEN_TUNES_API_BASE_URL };
-
 const CACHE_KEY_V4 = "hidden_tunes_cloud_songs_cache_v4";
 const CACHE_TIME_KEY_V4 = "hidden_tunes_cloud_songs_cache_time_v4";
 const CACHE_KEY_V5 = "hidden_tunes_cloud_songs_cache_v5";
