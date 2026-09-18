@@ -28,13 +28,19 @@ import {
 import {
   extractHiddenTunesArtists,
   getHiddenTunesArtists,
+  getHiddenTunesArtistsPage,
   getHiddenTunesCatalogSnapshot,
+  getHiddenTunesSongsPage,
 } from "../services/hiddenTunesApi";
 import {
   canOpenArtistProfileById,
+  isArtistUuid,
   resolveArtistFromList,
 } from "../utils/artistIdentity";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
+import {
+  usePlayerActions,
+} from "../context/PlayerContext";
 
 type AlbumPreview = {
   id: string;
@@ -46,6 +52,7 @@ type AlbumPreview = {
 
 export default function ArtistScreen() {
   const params = useLocalSearchParams();
+  const { playSong } = usePlayerActions();
 
   const artist = String(params.artist || "Unknown Artist");
   const query = String(params.query || `${artist} songs`);
@@ -60,6 +67,26 @@ export default function ArtistScreen() {
     async function resolveCanonicalArtist() {
       setResolvingCatalog(true);
       try {
+        // Prefer opaque/catalog artist UUID so we land on the real Artist contract page.
+        try {
+          const page = await getHiddenTunesArtistsPage({
+            page: 1,
+            limit: 10,
+            query: artist,
+          });
+          if (cancelled) return;
+          const match = resolveArtistFromList(page.artists || [], artist);
+          if (match?.id && isArtistUuid(match.id) && canOpenArtistProfileById(match.id)) {
+            router.replace({
+              pathname: "/artist/[id]",
+              params: { id: String(match.id) },
+            } as any);
+            return;
+          }
+        } catch {
+          // Fall through to memory / list resolve.
+        }
+
         const memorySongs = getHiddenTunesCatalogSnapshot();
         const memoryArtists = memorySongs.length
           ? extractHiddenTunesArtists(memorySongs)
@@ -78,6 +105,55 @@ export default function ArtistScreen() {
           } as any);
           return;
         }
+
+        // Last attempt: song search may mint opaque artist ids on the backend.
+        try {
+          const songsPage = await getHiddenTunesSongsPage({
+            page: 1,
+            limit: 20,
+            query: artist,
+          });
+          if (cancelled) return;
+          const extracted = extractHiddenTunesArtists(songsPage.songs || []);
+          const fromSongs = resolveArtistFromList(extracted, artist);
+          if (
+            fromSongs?.id &&
+            isArtistUuid(fromSongs.id) &&
+            canOpenArtistProfileById(fromSongs.id)
+          ) {
+            router.replace({
+              pathname: "/artist/[id]",
+              params: { id: String(fromSongs.id) },
+            } as any);
+            return;
+          }
+          // Populate legacy list with HT songs (not YouTube) if redirect failed.
+          if (songsPage.songs?.length) {
+            setTracks(
+              songsPage.songs.map((song: any) => ({
+                id: String(song.id),
+                videoId: "",
+                title: String(song.title || "Untitled"),
+                artist: String(song.artist || artist),
+                channelTitle: String(song.artist || artist),
+                thumbnail: String(song.artwork || song.cover || FALLBACK_ARTWORK),
+                artwork: String(song.artwork || song.cover || FALLBACK_ARTWORK),
+                cover: String(song.artwork || song.cover || FALLBACK_ARTWORK),
+                sourceName: "YouTube" as const,
+                source: "youtube" as const,
+                type: "youtube_video" as const,
+                isYouTube: true as const,
+                isOnline: true as const,
+                streamUrl: song.streamUrl || song.url,
+                url: song.streamUrl || song.url,
+                __htSong: song,
+              })),
+            );
+            setLoading(false);
+          }
+        } catch {
+          // Keep YouTube legacy profile when HT resolve fails.
+        }
       } catch {
         // Keep YouTube legacy profile when catalog resolve fails or is ambiguous.
       } finally {
@@ -93,12 +169,47 @@ export default function ArtistScreen() {
 
   useEffect(() => {
     if (resolvingCatalog) return;
+    if (tracks.length > 0) return;
     loadArtistTracks();
   }, [query, resolvingCatalog]);
 
   async function loadArtistTracks() {
     try {
       setLoading(true);
+
+      // Prefer Hidden Tunes song search (local + external) over raw YouTube Data API.
+      try {
+        const songsPage = await getHiddenTunesSongsPage({
+          page: 1,
+          limit: 40,
+          query: artist,
+        });
+        if (songsPage.songs?.length) {
+          setTracks(
+            songsPage.songs.map((song: any) => ({
+              id: String(song.id),
+              videoId: "",
+              title: String(song.title || "Untitled"),
+              artist: String(song.artist || artist),
+              channelTitle: String(song.artist || artist),
+              thumbnail: String(song.artwork || song.cover || FALLBACK_ARTWORK),
+              artwork: String(song.artwork || song.cover || FALLBACK_ARTWORK),
+              cover: String(song.artwork || song.cover || FALLBACK_ARTWORK),
+              sourceName: "YouTube" as const,
+              source: "youtube" as const,
+              type: "youtube_video" as const,
+              isYouTube: true as const,
+              isOnline: true as const,
+              streamUrl: song.streamUrl || song.url,
+              url: song.streamUrl || song.url,
+              __htSong: song,
+            })),
+          );
+          return;
+        }
+      } catch {
+        // Fall through to YouTube.
+      }
 
       const results = await searchYouTubeBackend(query);
       setTracks(Array.isArray(results) ? results : []);
@@ -135,6 +246,20 @@ export default function ArtistScreen() {
   );
 
   function openTrack(track: BackendYouTubeTrack) {
+    const htSong = (track as any).__htSong;
+    if (htSong?.streamUrl || htSong?.url) {
+      const queue = tracks
+        .map((t) => (t as any).__htSong)
+        .filter(Boolean);
+      const startIndex = Math.max(
+        0,
+        queue.findIndex((s: any) => String(s.id) === String(htSong.id)),
+      );
+      void playSong(htSong as any, queue as any, startIndex).catch((error) => {
+        if (__DEV__) console.log("Artist HT play error:", error);
+      });
+      return;
+    }
     router.push({
       pathname: "/youtube-player",
       params: {
