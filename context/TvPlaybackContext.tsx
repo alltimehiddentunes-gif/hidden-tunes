@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
 import WebView, { type WebViewMessageEvent } from "react-native-webview";
 
 import TvPlayerHost from "../components/tv/TvPlayerHost";
@@ -62,6 +63,11 @@ import {
   subscribeNowPlaying,
 } from "../utils/nowPlayingStore";
 import { releaseTvPlayerRuntime } from "../utils/tvPlayerLifecycle";
+import {
+  getAutomotiveSafetyState,
+  isAutomotiveParkedVideoBuild,
+  subscribeAutomotiveSafety,
+} from "../services/automotiveSafety";
 
 type TvPlaybackResult = TvSessionStartResult;
 
@@ -281,6 +287,7 @@ function seedPlayback(channel: TVChannel): HiddenTunesTvPlayback {
 }
 
 export function TvPlaybackProvider({ children }: { children: ReactNode }) {
+  const automotiveVideoAllowedRef = useRef(!isAutomotiveParkedVideoBuild());
   const webViewRef = useRef<WebView | null>(null);
   const nativePlayerRef = useRef<TvNativeVideoHandle | null>(null);
   const sessionIdRef = useRef(0);
@@ -389,6 +396,38 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     noteTvMediaOwnerIfChanged("stopTv");
   }, [unloadSurface]);
 
+  const ensureVideoAllowed = useCallback(async () => {
+    if (!isAutomotiveParkedVideoBuild()) return true;
+    const state = await getAutomotiveSafetyState();
+    automotiveVideoAllowedRef.current = state.videoAllowed;
+    return state.videoAllowed;
+  }, []);
+
+  useEffect(() => {
+    if (!isAutomotiveParkedVideoBuild()) return;
+
+    let mounted = true;
+    void getAutomotiveSafetyState().then((state) => {
+      if (!mounted) return;
+      automotiveVideoAllowedRef.current = state.videoAllowed;
+      if (!state.videoAllowed) stopTv();
+    });
+    const unsubscribeSafety = subscribeAutomotiveSafety((state) => {
+      automotiveVideoAllowedRef.current = state.videoAllowed;
+      if (!state.videoAllowed) stopTv();
+    });
+    const appStateSubscription = AppState.addEventListener("change", (state) => {
+      // AAOS obscures parked activities when driving restrictions engage.
+      // Stop both picture and sound; never resume from lifecycle alone.
+      if (state !== "active") stopTv();
+    });
+    return () => {
+      mounted = false;
+      unsubscribeSafety();
+      appStateSubscription.remove();
+    };
+  }, [stopTv]);
+
   const setPresentationMode = useCallback((mode: TvPresentationMode) => {
     if (mode === "closed") return;
     setPresentationModeState(mode);
@@ -438,6 +477,12 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
     async (
       input: StartResolvedTvSessionInput
     ): Promise<TvSessionStartResult> => {
+      if (!(await ensureVideoAllowed())) {
+        return {
+          ok: false,
+          error: "Video is available only while this vehicle is safely parked.",
+        };
+      }
       const { transitionId } = beginTvMediaTransition();
       const sessionId = ++sessionIdRef.current;
       const presentation =
@@ -525,13 +570,19 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
       return { ok: true };
     },
-    [applyResolvedSession]
+    [applyResolvedSession, ensureVideoAllowed]
   );
 
   const startCatalogSession = useCallback(
     async (
       input: StartCatalogTvSessionInput
     ): Promise<TvSessionStartResult> => {
+      if (!(await ensureVideoAllowed())) {
+        return {
+          ok: false,
+          error: "Video is available only while this vehicle is safely parked.",
+        };
+      }
       const { transitionId } = beginTvMediaTransition();
       const sessionId = ++sessionIdRef.current;
       const presentation =
@@ -650,7 +701,7 @@ export function TvPlaybackProvider({ children }: { children: ReactNode }) {
 
       return { ok: true };
     },
-    [applyResolvedSession]
+    [applyResolvedSession, ensureVideoAllowed]
   );
 
   const startSeedSession = useCallback(

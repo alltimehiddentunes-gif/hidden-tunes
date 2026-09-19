@@ -93,7 +93,6 @@ export const HomeHeroCard = memo(function HomeHeroCard({
                 style={styles.heroArtworkImage}
                 contentFit="cover"
                 contentPosition="center"
-                prefetch
               />
               <LinearGradient
                 pointerEvents="none"

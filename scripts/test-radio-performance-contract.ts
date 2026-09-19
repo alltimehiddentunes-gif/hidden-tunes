@@ -41,7 +41,8 @@ assert.match(
 assert.match(hook, /seenListIdsRef/);
 assert.match(hook, /current\.concat\(added\)/);
 assert.match(hook, /isCatalogAbortError/);
-assert.match(hook, /cancelRadioBrowseRequest\(requestKey\)/);
+assert.match(hook, /cancelRadioBrowseRequest\(ownedRequestKey\)/);
+assert.match(hook, /requestKey: ownedRequestKey/);
 assert.match(hook, /loaded of/);
 
 assert.match(cache, /catalog-search/);

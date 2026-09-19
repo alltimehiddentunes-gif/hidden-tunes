@@ -30,7 +30,6 @@ import {
   DISCOVERY_CATALOG_PAGE_LIMIT,
   fetchHiddenTunesDiscoveryCatalog,
   hydrateCachedHiddenTunesCatalog,
-  isDerivedCatalogTrusted,
   getCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
@@ -301,6 +300,7 @@ export default function WorldsIndexScreen() {
   const mountedRef = useRef(true);
   const loadGenerationRef = useRef(0);
   const loadInFlightRef = useRef<Promise<void> | null>(null);
+  const loadInFlightForceRef = useRef(false);
   const [exploreArtists, setExploreArtists] = useState<HiddenTunesArtist[]>([]);
   const [artistNextPage, setArtistNextPage] = useState(1);
   const [artistHasMore, setArtistHasMore] = useState(true);
@@ -324,7 +324,10 @@ export default function WorldsIndexScreen() {
   }, []);
 
   const loadExplore = useCallback((forceRefresh = false) => {
-    if (loadInFlightRef.current) {
+    if (
+      loadInFlightRef.current &&
+      (!forceRefresh || loadInFlightForceRef.current)
+    ) {
       return loadInFlightRef.current;
     }
 
@@ -338,6 +341,7 @@ export default function WorldsIndexScreen() {
     if (!catalogRef.current.songs.length) setLoading(true);
 
     const run = (async () => {
+      let usableNetworkCommitted = false;
       const preferencesTask = hydrateDiscoveryPreferredGenres().then((hydratedGenres) => {
         if (!mountedRef.current || generation !== loadGenerationRef.current) return;
         setPreferredGenres((current) =>
@@ -348,35 +352,60 @@ export default function WorldsIndexScreen() {
         );
       });
 
-      const catalogTask = (async () => {
-        if (!forceRefresh) {
-          const hydrated = await hydrateCachedHiddenTunesCatalog();
-          if (generation !== loadGenerationRef.current || !mountedRef.current) return;
-          const boundedHydrated = boundHiddenTunesCatalog(
-            hydrated,
-            DISCOVERY_CATALOG_PAGE_LIMIT
-          );
-          if (boundedHydrated?.songs.length) applyCatalog(boundedHydrated);
-          if (hydrated && isDerivedCatalogTrusted(hydrated)) return;
-        }
-
-        const data = await fetchHiddenTunesDiscoveryCatalog({ forceRefresh });
+      // Start the bounded refresh before yielding to disk hydration. A usable
+      // refresh is authoritative and prevents a later cache read from regressing it.
+      const networkTask = (async () => {
+        // The service otherwise returns any trusted derived cache without a request.
+        // Force only this bounded first page; visible screen state remains untouched.
+        const data = await fetchHiddenTunesDiscoveryCatalog({ forceRefresh: true });
         if (generation !== loadGenerationRef.current || !mountedRef.current) return;
-        applyCatalog(
-          boundHiddenTunesCatalog(data, DISCOVERY_CATALOG_PAGE_LIMIT) ||
-            EMPTY_CATALOG
+        const boundedNetwork = boundHiddenTunesCatalog(
+          data,
+          DISCOVERY_CATALOG_PAGE_LIMIT
         );
+        if (!boundedNetwork?.songs.length) return;
+        usableNetworkCommitted = true;
+        applyCatalog(boundedNetwork);
       })();
+
+      const hydrationTask = forceRefresh
+        ? Promise.resolve()
+        : (async () => {
+            const hydrated = await hydrateCachedHiddenTunesCatalog();
+            if (
+              generation !== loadGenerationRef.current ||
+              !mountedRef.current ||
+              usableNetworkCommitted
+            ) return;
+            const boundedHydrated = boundHiddenTunesCatalog(
+              hydrated,
+              DISCOVERY_CATALOG_PAGE_LIMIT
+            );
+            if (boundedHydrated?.songs.length) applyCatalog(boundedHydrated);
+          })();
+
+      const catalogTask = forceRefresh
+        ? networkTask
+        : Promise.allSettled([hydrationTask, networkTask]).then(() => undefined);
 
       await Promise.allSettled([preferencesTask, catalogTask]);
     })().finally(() => {
-      if (mountedRef.current) {
+      const ownsCurrentRun = loadInFlightRef.current === run;
+      if (
+        mountedRef.current &&
+        generation === loadGenerationRef.current &&
+        ownsCurrentRun
+      ) {
         setLoading(false);
       }
-      if (loadInFlightRef.current === run) loadInFlightRef.current = null;
+      if (ownsCurrentRun) {
+        loadInFlightRef.current = null;
+        loadInFlightForceRef.current = false;
+      }
     });
 
     loadInFlightRef.current = run;
+    loadInFlightForceRef.current = forceRefresh;
     return run;
   }, [applyCatalog]);
 
@@ -388,6 +417,7 @@ export default function WorldsIndexScreen() {
       mountedRef.current = false;
       loadGenerationRef.current += 1;
       loadInFlightRef.current = null;
+      loadInFlightForceRef.current = false;
     };
   }, [loadExplore]);
 

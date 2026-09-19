@@ -175,22 +175,13 @@ export default function PodcastShowScreen() {
   const [resolvingEpisodeId, setResolvingEpisodeId] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const backendFollowRequestRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
   const inflightPageRef = useRef<number | null>(null);
+  const backendRequestGenerationRef = useRef(0);
   const catalogCountRef = useRef(0);
   const showRef = useRef<PodcastShow | null>(staticShow);
   const rssEpisodeCountRef = useRef(0);
-
-  useFocusEffect(
-    useCallback(
-      () => () => {
-        // Native stack blur retains this screen; cancel metadata pagination promptly.
-        abortRef.current?.abort();
-        inflightPageRef.current = null;
-      },
-      []
-    )
-  );
 
   useEffect(() => {
     catalogCountRef.current = catalogEpisodes.length;
@@ -242,12 +233,31 @@ export default function PodcastShowScreen() {
   const loadBackendShow = useCallback(
     async (nextPage = 1, mode: "replace" | "append" = "replace") => {
       if (!showId) return;
-      if (inflightPageRef.current === nextPage) return;
+      if (
+        inflightPageRef.current === nextPage &&
+        abortRef.current &&
+        !abortRef.current.signal.aborted
+      ) {
+        return;
+      }
 
       abortRef.current?.abort();
+      backendFollowRequestRef.current?.abort();
+      backendFollowRequestRef.current = null;
       const controller = new AbortController();
+      const requestGeneration = ++backendRequestGenerationRef.current;
       abortRef.current = controller;
       inflightPageRef.current = nextPage;
+      const ownsRequest = () =>
+        mountedRef.current &&
+        backendRequestGenerationRef.current === requestGeneration &&
+        abortRef.current === controller;
+      const canCommit = () => ownsRequest() && !controller.signal.aborted;
+      const ownsFollowRequest = () =>
+        mountedRef.current &&
+        backendRequestGenerationRef.current === requestGeneration &&
+        backendFollowRequestRef.current === controller;
+      const canCommitFollow = () => ownsFollowRequest() && !controller.signal.aborted;
 
       const hasExisting = catalogCountRef.current > 0 || Boolean(showRef.current);
       if (mode === "replace") {
@@ -272,14 +282,14 @@ export default function PodcastShowScreen() {
           }),
         ]);
 
-        if (!mountedRef.current || controller.signal.aborted) return;
+        if (!canCommit()) return;
 
         if (mode === "replace") {
           if (!showResult.success || !showResult.show) {
             if (!hasExisting) setShow(null);
             if (!hasExisting) setCatalogEpisodes([]);
             setEpisodesError("This feed could not be loaded");
-            setHasMore(false);
+            if (!hasExisting) setHasMore(false);
             return;
           }
 
@@ -300,6 +310,7 @@ export default function PodcastShowScreen() {
           });
         }
 
+        if (!canCommit()) return;
         if (!episodeResult.success) {
           if (episodeResult.error === "Aborted") return;
           const mapped =
@@ -313,11 +324,13 @@ export default function PodcastShowScreen() {
           return;
         }
 
-        setCatalogEpisodes((current) =>
-          mode === "append"
+        setCatalogEpisodes((current) => {
+          if (!canCommit()) return current;
+          return mode === "append"
             ? dedupeCatalogEpisodes(current, episodeResult.episodes)
-            : dedupeCatalogEpisodes([], episodeResult.episodes)
-        );
+            : dedupeCatalogEpisodes([], episodeResult.episodes);
+        });
+        if (!canCommit()) return;
         setPage(episodeResult.pagination.page);
         setHasMore(Boolean(episodeResult.pagination.hasMore));
 
@@ -327,7 +340,7 @@ export default function PodcastShowScreen() {
           setEpisodesError(null);
         }
       } catch (error) {
-        if (!mountedRef.current) return;
+        if (!canCommit()) return;
         if (error instanceof Error && error.name === "AbortError") return;
         const mapped =
           describeEpisodeLoadError(error, "Episodes failed to load") || "Episodes failed to load";
@@ -337,15 +350,26 @@ export default function PodcastShowScreen() {
           setCatalogEpisodes([]);
         }
       } finally {
-        if (inflightPageRef.current === nextPage) inflightPageRef.current = null;
-        if (mountedRef.current) {
+        if (ownsRequest()) {
           setEpisodesLoading(false);
           setLoadingMore(false);
-        }
-        if (mode === "replace" && mountedRef.current) {
-          const followed = await getFollowedPodcastShows();
-          if (mountedRef.current) {
-            setFollowing(followed.some((item) => item.id === showId));
+          abortRef.current = null;
+          inflightPageRef.current = null;
+
+          if (mode === "replace") {
+            backendFollowRequestRef.current = controller;
+            try {
+              const followed = await getFollowedPodcastShows();
+              if (canCommitFollow()) {
+                setFollowing(followed.some((item) => item.id === showId));
+              }
+            } catch {
+              // Follow storage is auxiliary; retain the last known state.
+            } finally {
+              if (ownsFollowRequest()) {
+                backendFollowRequestRef.current = null;
+              }
+            }
           }
         }
       }
@@ -424,21 +448,46 @@ export default function PodcastShowScreen() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      backendRequestGenerationRef.current += 1;
       abortRef.current?.abort();
+      backendFollowRequestRef.current?.abort();
+      abortRef.current = null;
+      backendFollowRequestRef.current = null;
       inflightPageRef.current = null;
     };
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!isBackendShow) return undefined;
+
+      const timer = setTimeout(() => {
+        void loadBackendShow(1, "replace");
+      }, 0);
+
+      return () => {
+        // The native stack retains show routes after blur. Invalidate before
+        // aborting so stale data, finalizers, and follow reads cannot affect refocus.
+        clearTimeout(timer);
+        backendRequestGenerationRef.current += 1;
+        abortRef.current?.abort();
+        backendFollowRequestRef.current?.abort();
+        abortRef.current = null;
+        backendFollowRequestRef.current = null;
+        inflightPageRef.current = null;
+      };
+    }, [isBackendShow, loadBackendShow])
+  );
+
   useEffect(() => {
+    if (isBackendShow) return undefined;
+
     const timer = setTimeout(() => {
-      void loadEpisodes();
+      void loadRssShow();
     }, 0);
-    return () => {
-      clearTimeout(timer);
-      abortRef.current?.abort();
-      inflightPageRef.current = null;
-    };
-  }, [loadEpisodes]);
+
+    return () => clearTimeout(timer);
+  }, [isBackendShow, loadRssShow]);
 
   const loadMoreEpisodes = useCallback(() => {
     if (!isBackendShow || loadingMore || episodesLoading || !hasMore) return;

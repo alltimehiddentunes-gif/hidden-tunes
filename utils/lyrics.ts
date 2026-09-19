@@ -11,17 +11,35 @@ export type LyricsPayload = {
 
 export type LyricsDisplayMode = "synced" | "plain" | "none";
 
-export const LYRICS_SYNC_OFFSET_MS = -350;
+export type LyricsRequestIdentity = {
+  activeSongId: string;
+  requestedSongId: string;
+  requestGeneration: number;
+  latestGeneration: number;
+};
+
+export function canCommitLyricsResult(identity: LyricsRequestIdentity) {
+  return (
+    Boolean(identity.requestedSongId) &&
+    identity.requestedSongId === identity.activeSongId &&
+    identity.requestGeneration === identity.latestGeneration
+  );
+}
+
+export const LYRICS_SYNC_OFFSET_MS = 0;
 export const LYRICS_ITEM_HEIGHT = 64;
 export const LYRICS_MAX_CHARS = 34;
 export const PLAIN_LINE_MS = 4000;
 export const PLAIN_CHUNK_MS = 250;
 
-const lyricsPayloadCache = new Map<string, LyricsPayload>();
+type LyricsMemoryCacheEntry = LyricsPayload & { cachedAt: number };
+
+const lyricsPayloadCache = new Map<string, LyricsMemoryCacheEntry>();
 const parsedLrcCache = new Map<string, LyricLine[]>();
 const plainLinesCache = new Map<string, LyricLine[]>();
 const MAX_PARSE_CACHE = 64;
 const MAX_LYRICS_PAYLOAD_CACHE = 64;
+const LYRICS_MEMORY_CACHE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
 function trimParseCache(cache: Map<string, LyricLine[]>) {
   if (cache.size <= MAX_PARSE_CACHE) return;
@@ -39,12 +57,18 @@ function trimLyricsPayloadCache() {
 }
 
 export function getLyricsMemoryCache(songId: string) {
-  return lyricsPayloadCache.get(songId);
+  const cached = lyricsPayloadCache.get(songId);
+  if (!cached) return undefined;
+  if (Date.now() - cached.cachedAt > LYRICS_MEMORY_CACHE_MAX_AGE_MS) {
+    lyricsPayloadCache.delete(songId);
+    return undefined;
+  }
+  return { synced: cached.synced, plain: cached.plain };
 }
 
 export function setLyricsMemoryCache(songId: string, payload: LyricsPayload) {
   if (!songId) return;
-  lyricsPayloadCache.set(songId, payload);
+  lyricsPayloadCache.set(songId, { ...payload, cachedAt: Date.now() });
   trimLyricsPayloadCache();
 }
 
@@ -79,6 +103,8 @@ function parseLrcInternal(lrc: string): LyricLine[] {
   if (!lrc) return [];
 
   const lines: LyricLine[] = [];
+  const offsetMatch = lrc.match(/\[offset:\s*([+-]?\d+)\s*\]/i);
+  const globalOffsetMs = Number(offsetMatch?.[1] || 0);
 
   lrc.split(/\r?\n/).forEach((row, rowIndex) => {
     const timeMatches = [
@@ -107,7 +133,7 @@ function parseLrcInternal(lrc: string): LyricLine[] {
       chunks.forEach((chunk, chunkIndex) => {
         lines.push({
           id: `${rowIndex}-${matchIndex}-${chunkIndex}-${baseTime}`,
-          timeMs: baseTime + chunkIndex * 120,
+          timeMs: Math.max(0, baseTime + globalOffsetMs),
           text: chunk,
         });
       });
@@ -237,7 +263,7 @@ export function findActiveLyricIndex(lines: LyricLine[], activePosition: number)
 
   let low = 0;
   let high = lines.length - 1;
-  let answer = 0;
+  let answer = -1;
 
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);

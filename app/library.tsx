@@ -10,7 +10,7 @@ import { FlatList,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -52,16 +52,19 @@ type LibraryGroup = {
 
 const LibraryHeroGlow = memo(function LibraryHeroGlow() {
   const appActive = useAppActiveState();
+  const isFocused = useIsFocused();
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
   useEffect(() => {
-    if (!appActive) {
+    if (!appActive || !isFocused) {
       cancelAnimation(opacity);
       cancelAnimation(scale);
-      opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
-      scale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
-      logPerformanceOffscreenWorkPaused("library_hero_glow", { reason: "app_inactive" });
+      opacity.value = LUXURY_GLOW.opacityMin;
+      scale.value = LUXURY_GLOW.scaleMin;
+      logPerformanceOffscreenWorkPaused("library_hero_glow", {
+        reason: appActive ? "route_unfocused" : "app_inactive",
+      });
       return;
     }
 
@@ -98,7 +101,7 @@ const LibraryHeroGlow = memo(function LibraryHeroGlow() {
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [appActive, opacity, scale]);
+  }, [appActive, isFocused, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

@@ -28,6 +28,7 @@ import {
 import { fetchRadioCatalogSearchPage } from "./radioCatalogApi";
 import {
   countCachedRadioStations,
+  deleteRadioStationInflight,
   getRadioStationInflight,
   hydrateCachedRadioStations,
   normalizeRadioSearchCacheKey,
@@ -59,10 +60,46 @@ const STATION_FETCH_TIMEOUT_MS = 12000;
 
 export const RADIO_STATION_PAGE_SIZE = MEDIA_DISCOVERY_PAGE_SIZE;
 const browseAbortControllers = new Map<string, AbortController>();
+const browseInflightOwners = new Map<
+  string,
+  { inflightKey: string; promise: Promise<unknown> }
+>();
+
+function ownBrowseInflight<T>(
+  requestKey: string,
+  inflightKey: string,
+  promise: Promise<T>
+) {
+  setRadioStationInflight(inflightKey, promise);
+  const owner = { inflightKey, promise };
+  browseInflightOwners.set(requestKey, owner);
+  void promise.then(
+    () => {
+      if (browseInflightOwners.get(requestKey) === owner) {
+        browseInflightOwners.delete(requestKey);
+      }
+    },
+    () => {
+      if (browseInflightOwners.get(requestKey) === owner) {
+        browseInflightOwners.delete(requestKey);
+      }
+    }
+  );
+  return promise;
+}
 
 export function cancelRadioBrowseRequest(requestKey: string) {
   const key = String(requestKey || "").trim();
   if (!key) return;
+
+  const inflightOwner = browseInflightOwners.get(key);
+  if (inflightOwner) {
+    // Evict before abort so an immediate refocus cannot join this doomed promise.
+    deleteRadioStationInflight(inflightOwner.inflightKey, inflightOwner.promise);
+    if (browseInflightOwners.get(key) === inflightOwner) {
+      browseInflightOwners.delete(key);
+    }
+  }
 
   const controller = browseAbortControllers.get(key);
   if (!controller) return;
@@ -443,8 +480,10 @@ async function loadRadioPage(
   const limit = Math.max(1, Math.min(Number(options?.limit) || RADIO_STATION_PAGE_SIZE, 40));
   const append = Boolean(options?.append);
   const requestKey = options?.requestKey || safeKey;
-  const signal = beginBrowseRequest(requestKey);
   const catalogSearch = isCatalogRadioSearchCacheKey(safeKey);
+  const firstPageRequest = offset === 0 && !append;
+  const inflightKey = `${safeKey}-request-${requestKey}`;
+  let ownedSignal: AbortSignal | null = null;
 
   try {
     if (!options?.forceRefresh) {
@@ -505,19 +544,15 @@ async function loadRadioPage(
         }
       }
 
-      if (offset === 0 && !append) {
-        const inflight = getRadioStationInflight(safeKey);
-        if (inflight) {
-          const stations = await inflight;
-          return {
-            stations: filterMatureStations(stations.slice(0, limit)),
-            hasMore: stations.length >= limit,
-            fromCache: true,
-            stopReason: "inflight",
-          };
-        }
-      }
     }
+
+    if (firstPageRequest) {
+      const inflight = getRadioStationInflight<LoadRadioPageResult>(inflightKey);
+      if (inflight) return await inflight;
+    }
+
+    const signal = beginBrowseRequest(requestKey);
+    ownedSignal = signal;
 
     const fetchPromise = fetchPage(offset, limit, signal)
       .then(async (page) => {
@@ -663,73 +698,67 @@ async function loadRadioPage(
         };
       });
 
-    if (offset === 0 && !append && !options?.forceRefresh) {
-      setRadioStationInflight(
-        safeKey,
-        fetchPromise
-          .then((result) => result.stations)
-          .catch((error) => {
-            // Prevent unhandled rejection on abort / expected catalog timeout.
-            if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
-              return [] as HiddenTunesStation[];
-            }
-            if (isCatalogTimeoutError(error)) {
-              return [] as HiddenTunesStation[];
-            }
-            throw error;
-          })
-      );
+    const loadPromise = (async (): Promise<LoadRadioPageResult> => {
+      try {
+        const result = await fetchPromise;
+
+        return {
+          stations: filterMatureStations(result.stations),
+          hasMore: result.hasMore,
+          fromCache: Boolean(
+            result.source === "cache-timeout" || result.source === "cache-fallback"
+          ),
+          backendTotal: result.backendTotal,
+          backendPageRowCount: result.backendPageRowCount,
+          backendNextOffset: result.backendNextOffset,
+          rawBackendRowsReturned: result.rawBackendRowsReturned,
+          source: result.source,
+          stopReason: result.stopReason,
+          catalogError:
+            "catalogError" in result ? result.catalogError : undefined,
+        };
+      } catch (error) {
+        // External cancellation (unmount / query replace) — silent empty page.
+        if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
+          return {
+            stations: [],
+            hasMore: false,
+            fromCache: false,
+            stopReason: "aborted",
+          };
+        }
+        // Timeout should already be settled above; swallow as last resort (no LogBox).
+        if (isCatalogTimeoutError(error)) {
+          const fallback =
+            readCachedRadioStations(safeKey) ||
+            (await hydrateCachedRadioStations(safeKey)) ||
+            [];
+          const stations = filterMatureStations(fallback.slice(offset, offset + limit));
+          const meta = readRadioCachePaginationMeta(safeKey);
+          return {
+            stations,
+            hasMore: catalogSearch
+              ? meta?.backendHasMore !== false
+              : stations.length >= limit,
+            fromCache: true,
+            backendTotal: meta?.backendTotal,
+            backendPageRowCount: stations.length,
+            rawBackendRowsReturned: stations.length,
+            stopReason: "catalog-timeout-cache-preserved",
+            source: "cache-timeout",
+          };
+        }
+        throw error;
+      }
+    })();
+
+    if (firstPageRequest) {
+      ownBrowseInflight(requestKey, inflightKey, loadPromise);
     }
 
-    try {
-      const result = await fetchPromise;
-
-      return {
-        stations: filterMatureStations(result.stations),
-        hasMore: result.hasMore,
-        fromCache: Boolean(
-          result.source === "cache-timeout" || result.source === "cache-fallback"
-        ),
-        backendTotal: result.backendTotal,
-        backendPageRowCount: result.backendPageRowCount,
-        backendNextOffset: result.backendNextOffset,
-        rawBackendRowsReturned: result.rawBackendRowsReturned,
-        source: result.source,
-        stopReason: result.stopReason,
-        catalogError:
-          "catalogError" in result ? result.catalogError : undefined,
-      };
-    } catch (error) {
-      // External cancellation (unmount / query replace) — silent empty page.
-      if (isCatalogAbortError(error) || (error as Error)?.name === "AbortError") {
-        return {
-          stations: [],
-          hasMore: false,
-          fromCache: false,
-          stopReason: "aborted",
-        };
-      }
-      // Timeout should already be settled above; swallow as last resort (no LogBox).
-      if (isCatalogTimeoutError(error)) {
-        const fallback =
-          readCachedRadioStations(safeKey) || (await hydrateCachedRadioStations(safeKey)) || [];
-        const stations = filterMatureStations(fallback.slice(offset, offset + limit));
-        const meta = readRadioCachePaginationMeta(safeKey);
-        return {
-          stations,
-          hasMore: catalogSearch ? meta?.backendHasMore !== false : stations.length >= limit,
-          fromCache: true,
-          backendTotal: meta?.backendTotal,
-          backendPageRowCount: stations.length,
-          rawBackendRowsReturned: stations.length,
-          stopReason: "catalog-timeout-cache-preserved",
-          source: "cache-timeout",
-        };
-      }
-      throw error;
-    }
+    return await loadPromise;
   } finally {
-    endBrowseRequest(requestKey, signal);
+    if (ownedSignal) endBrowseRequest(requestKey, ownedSignal);
   }
 }
 
@@ -757,7 +786,7 @@ export async function loadRadioCategoryPage(
     (offset, limit, signal) => fetchRadioStationsPage(resolvedId, offset, limit, signal),
     {
       ...options,
-      requestKey: `category:${resolvedId}`,
+      requestKey: options?.requestKey || `category:${resolvedId}`,
     }
   );
 }
@@ -784,7 +813,7 @@ export async function loadRadioSearchPage(query: string, options?: LoadRadioPage
     },
     {
       ...options,
-      requestKey: `search:${cacheKey}`,
+      requestKey: options?.requestKey || `search:${cacheKey}`,
     }
   );
 }

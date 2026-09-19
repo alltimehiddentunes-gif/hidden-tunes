@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { HiddenTunesStation, RadioStationListItem } from "../types/radio";
 import { toRadioStationListItem } from "../services/radio/radioNormalizer";
@@ -38,7 +38,7 @@ type UseLazyRadioStationListOptions = {
   enabled?: boolean;
   loadPage: (
     offset: number,
-    options: { append: boolean; forceRefresh: boolean }
+    options: { append: boolean; forceRefresh: boolean; requestKey: string }
   ) => Promise<LoadPageResult>;
 };
 
@@ -61,6 +61,8 @@ export function useLazyRadioStationList({
   enabled = true,
   loadPage,
 }: UseLazyRadioStationListOptions) {
+  const requestOwnerId = useId();
+  const ownedRequestKey = `${requestKey}:owner:${requestOwnerId}`;
   const stationStoreRef = useRef(new Map<string, HiddenTunesStation>());
   const requestGenerationRef = useRef(0);
   const loadPageRef = useRef(loadPage);
@@ -204,7 +206,11 @@ export function useLazyRadioStationList({
       try {
         pagesRequestedRef.current += 1;
         const hasMoreBefore = true;
-        const result = await loadPageRef.current(offset, { append, forceRefresh });
+        const result = await loadPageRef.current(offset, {
+          append,
+          forceRefresh,
+          requestKey: ownedRequestKey,
+        });
         if (generation !== requestGenerationRef.current) return;
 
         // Stale/bounded timeout must not clobber a newer successful paint.
@@ -302,13 +308,13 @@ export function useLazyRadioStationList({
         return;
       }
     },
-    [applyPage, cacheKey]
+    [applyPage, cacheKey, ownedRequestKey]
   );
 
   useEffect(() => {
     if (!enabled || !cacheKey) {
       requestGenerationRef.current += 1;
-      cancelRadioBrowseRequest(requestKey);
+      cancelRadioBrowseRequest(ownedRequestKey);
       stationStoreRef.current.clear();
       nextOffsetRef.current = 0;
       consecutiveEmptyPagesRef.current = 0;
@@ -379,6 +385,12 @@ export function useLazyRadioStationList({
     }
 
     const run = async () => {
+      // On a process-cold memory miss, start transport before AsyncStorage settles.
+      // The revisioned cache guarantees a late disk read cannot replace fresh rows.
+      const coldRefreshPromise = !cachedPage.length
+        ? fetchPage(0, false, true)
+        : null;
+
       try {
         if (!cachedPage.length) {
           const hydrated = await hydrateCachedRadioStations(cacheKey);
@@ -410,9 +422,7 @@ export function useLazyRadioStationList({
             setLoading(false);
             setHasLoadedOnce(true);
 
-            if (isRadioCacheFresh(cacheKey) && !hydratedNeedsRevalidate) return;
-
-            await fetchPage(0, false, hydratedNeedsRevalidate);
+            await coldRefreshPromise;
             if (generation === requestGenerationRef.current) {
               setLoading(false);
               setRefreshing(false);
@@ -423,7 +433,11 @@ export function useLazyRadioStationList({
 
         if (hasFreshCache) return;
 
-        await fetchPage(0, false, needsShortRevalidate);
+        if (coldRefreshPromise) {
+          await coldRefreshPromise;
+        } else {
+          await fetchPage(0, false, needsShortRevalidate);
+        }
         if (generation === requestGenerationRef.current) {
           setLoading(false);
           setRefreshing(false);
@@ -454,14 +468,14 @@ export function useLazyRadioStationList({
     return () => {
       cancelled = true;
       requestGenerationRef.current += 1;
-      cancelRadioBrowseRequest(requestKey);
+      cancelRadioBrowseRequest(ownedRequestKey);
       loadingMoreRef.current = false;
     };
-  }, [cacheKey, enabled, fetchPage, rememberStations, requestKey]);
+  }, [cacheKey, enabled, fetchPage, ownedRequestKey, rememberStations]);
 
   const onRefresh = useCallback(() => {
     requestGenerationRef.current += 1;
-    cancelRadioBrowseRequest(requestKey);
+    cancelRadioBrowseRequest(ownedRequestKey);
     loadingMoreRef.current = false;
     consecutiveEmptyPagesRef.current = 0;
     pagesRequestedRef.current = 0;
@@ -474,7 +488,7 @@ export function useLazyRadioStationList({
         setRefreshing(false);
       }
     });
-  }, [fetchPage, requestKey]);
+  }, [fetchPage, ownedRequestKey]);
 
   const loadMore = useCallback(() => {
     if (

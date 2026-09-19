@@ -9,7 +9,7 @@ import React, {
 
 import {
   ActivityIndicator,
-  Animated,
+  AppState,
   FlatList,
   Image,
   Platform,
@@ -23,9 +23,8 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
 import { createScopedActionLock } from "../utils/scopedActionLock";
 
@@ -39,6 +38,7 @@ import {
   setLyricsMemoryCache,
   findActiveLyricIndex,
   formatLyricsTime,
+  canCommitLyricsResult,
   type LyricLine,
 } from "../utils/lyrics";
 
@@ -51,8 +51,10 @@ import {
   usePlayerProgress,
 } from "../context/playerContextSlices";
 import { getHiddenTunesLyrics } from "../services/hiddenTunesApi";
+import { bridgeGetProgress } from "../services/playbackBridge";
 
 const MANUAL_SCROLL_RESUME_MS = 4000;
+const LYRICS_PRECISION_INTERVAL_MS = 250;
 
 function getArtwork(song: any, params: any) {
   return (
@@ -71,11 +73,112 @@ function findActiveIndex(lines: LyricLine[], activePosition: number) {
   return findActiveLyricIndex(lines, activePosition);
 }
 
+const LyricsPlaybackObserver = memo(function LyricsPlaybackObserver({
+  onPosition,
+}: {
+  onPosition: (positionMs: number) => void;
+}) {
+  const { positionMillis } = usePlayerProgress();
+
+  useEffect(() => {
+    onPosition(Number(positionMillis || 0));
+  }, [onPosition, positionMillis]);
+
+  return null;
+});
+
+const LyricsPrecisionObserver = memo(function LyricsPrecisionObserver({
+  enabled,
+  songId,
+  onPosition,
+}: {
+  enabled: boolean;
+  songId: string;
+  onPosition: (positionMs: number) => void;
+}) {
+  useFocusEffect(
+    useCallback(() => {
+      if (!enabled || !songId || Platform.OS === "web") return undefined;
+
+      let cancelled = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let foreground = AppState.currentState === "active";
+
+      const clearTimer = () => {
+        if (timer) clearTimeout(timer);
+        timer = null;
+      };
+
+      const schedule = (delayMs: number) => {
+        if (cancelled || !foreground) return;
+        clearTimer();
+        timer = setTimeout(() => {
+          timer = null;
+          void observe();
+        }, delayMs);
+      };
+
+      const observe = async () => {
+        if (cancelled || !foreground) return;
+        try {
+          const progress = await bridgeGetProgress();
+          if (!cancelled && foreground) {
+            onPosition(Number(progress.positionMillis || 0));
+          }
+        } catch {
+          // The public Player progress observer remains the safe fallback.
+        } finally {
+          schedule(LYRICS_PRECISION_INTERVAL_MS);
+        }
+      };
+
+      const appStateSubscription = AppState.addEventListener(
+        "change",
+        (nextState) => {
+          foreground = nextState === "active";
+          if (foreground) schedule(0);
+          else clearTimer();
+        }
+      );
+
+      schedule(0);
+
+      return () => {
+        cancelled = true;
+        clearTimer();
+        appStateSubscription.remove();
+      };
+    }, [enabled, onPosition, songId])
+  );
+
+  return null;
+});
+
+const LyricsProgress = memo(function LyricsProgress() {
+  const { positionMillis, durationMillis } = usePlayerProgress();
+  const positionMs = Number(positionMillis || 0);
+  const durationMs = Number(durationMillis || 0);
+  const progress =
+    durationMs > 0 ? Math.min(1, Math.max(0, positionMs / durationMs)) : 0;
+
+  return (
+    <View style={styles.progressWrap}>
+      <View style={styles.progressBar}>
+        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+      </View>
+      <View style={styles.timeRow}>
+        <Text style={styles.timeText}>{formatLyricsTime(positionMs)}</Text>
+        <Text style={styles.timeText}>
+          {durationMs ? formatLyricsTime(durationMs) : "--:--"}
+        </Text>
+      </View>
+    </View>
+  );
+});
+
 type LyricRowProps = {
   item: LyricLine;
   active: boolean;
-  passed: boolean;
-  upcoming: boolean;
   seekable: boolean;
   onPressLine?: (line: LyricLine) => void;
 };
@@ -84,58 +187,26 @@ const LyricRow = memo(
   function LyricRow({
     item,
     active,
-    passed,
-    upcoming,
     seekable,
     onPressLine,
   }: LyricRowProps) {
-    const scaleAnim = useRef(new Animated.Value(active ? 1.04 : 1)).current;
-    const glowAnim = useRef(new Animated.Value(active ? 1 : 0)).current;
-
-    useEffect(() => {
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: active ? 1.04 : 1,
-          friction: 9,
-          tension: 70,
-          useNativeDriver: true,
-        }),
-        Animated.timing(glowAnim, {
-          toValue: active ? 1 : 0,
-          duration: active ? 280 : 180,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, [active, glowAnim, scaleAnim]);
-
     const content = (
-      <Animated.View
+      <View
         style={[
           styles.lineWrap,
           active && styles.activeLineWrap,
-          { transform: [{ scale: scaleAnim }] },
         ]}
       >
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.activeGlow,
-            {
-              opacity: glowAnim,
-            },
-          ]}
-        />
+        {active ? <View pointerEvents="none" style={styles.activeGlow} /> : null}
         <Text
           style={[
             styles.lineText,
-            upcoming && styles.upcomingLineText,
-            passed && styles.passedLineText,
             active && styles.activeLineText,
           ]}
         >
           {item.text}
         </Text>
-      </Animated.View>
+      </View>
     );
 
     if (!seekable || !onPressLine) {
@@ -154,9 +225,8 @@ const LyricRow = memo(
   },
   (prev, next) =>
     prev.item.id === next.item.id &&
+    prev.item.text === next.item.text &&
     prev.active === next.active &&
-    prev.passed === next.passed &&
-    prev.upcoming === next.upcoming &&
     prev.seekable === next.seekable
 );
 
@@ -167,7 +237,6 @@ function CinematicBackground({ artwork }: { artwork?: string }) {
         <Image
           source={{ uri: String(artwork) }}
           style={styles.backgroundArt}
-          blurRadius={Platform.OS === "android" ? 28 : 0}
         />
       ) : (
         <LinearGradient
@@ -175,10 +244,6 @@ function CinematicBackground({ artwork }: { artwork?: string }) {
           style={StyleSheet.absoluteFill}
         />
       )}
-
-      {Platform.OS === "ios" && artwork ? (
-        <BlurView intensity={72} tint="dark" style={StyleSheet.absoluteFill} />
-      ) : null}
 
       <LinearGradient
         colors={[
@@ -212,33 +277,28 @@ export default function LyricsScreen() {
   const closeActionLockRef = useRef(createScopedActionLock());
   const params = useLocalSearchParams();
   const { seekTo } = usePlayerActions();
-  const { currentSong } = usePlayerNowPlaying();
-  const { positionMillis, durationMillis } = usePlayerProgress();
+  const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
 
   const { height: screenHeight } = useWindowDimensions();
 
-  const songId = String(
-    params.songId ||
-      params.id ||
-      currentSong?.id ||
-      (currentSong as any)?.songId ||
-      ""
+  const routeSongId = String(params.songId || params.id || "");
+  const activeSongId = String(
+    currentSong?.id || (currentSong as any)?.songId || ""
   );
+  const songId = activeSongId || routeSongId;
+  const routeMatchesActiveSong = !activeSongId || routeSongId === activeSongId;
 
-  const title = String(params.title || currentSong?.title || "Lyrics");
+  const title = String(currentSong?.title || (routeMatchesActiveSong && params.title) || "Lyrics");
 
   const artist = String(
-    params.artist ||
-      currentSong?.artist ||
+    currentSong?.artist ||
       (currentSong as any)?.artist_name ||
       (currentSong as any)?.artistName ||
+      (routeMatchesActiveSong && params.artist) ||
       "Hidden Tunes"
   );
 
-  const artwork = getArtwork(currentSong, params);
-
-  const playbackPositionMs = Number(positionMillis || 0);
-  const durationMs = Number(durationMillis || 0);
+  const artwork = getArtwork(currentSong, routeMatchesActiveSong ? params : {});
 
   const centerPadding = useMemo(
     () => Math.max(140, screenHeight * 0.28 - LYRICS_ITEM_HEIGHT / 2),
@@ -249,10 +309,12 @@ export default function LyricsScreen() {
     const fromCache = songId ? getLyricsMemoryCache(songId) : null;
     if (fromCache) return fromCache;
 
-    const fromParams = getBestLyricsPayload({
-      synced_lrc: params.syncedLyrics,
-      plain_lyrics: params.plainLyrics || params.lyrics,
-    });
+    const fromParams = routeMatchesActiveSong
+      ? getBestLyricsPayload({
+          synced_lrc: params.syncedLyrics,
+          plain_lyrics: params.plainLyrics || params.lyrics,
+        })
+      : { synced: "", plain: "" };
 
     if (fromParams.synced || fromParams.plain) return fromParams;
 
@@ -263,7 +325,7 @@ export default function LyricsScreen() {
         (currentSong as any)?.lrc,
       plain_lyrics: (currentSong as any)?.lyrics,
     });
-  }, [currentSong, params.lyrics, params.plainLyrics, params.syncedLyrics, songId]);
+  }, [currentSong, params.lyrics, params.plainLyrics, params.syncedLyrics, routeMatchesActiveSong, songId]);
 
   const [loading, setLoading] = useState(
     !initialLyrics.synced && !initialLyrics.plain
@@ -271,6 +333,7 @@ export default function LyricsScreen() {
   const [error, setError] = useState("");
   const [syncedLrc, setSyncedLrc] = useState(initialLyrics.synced);
   const [plainLyrics, setPlainLyrics] = useState(initialLyrics.plain);
+  const [lyricsSongId, setLyricsSongId] = useState(songId);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [userScrolledAway, setUserScrolledAway] = useState(false);
 
@@ -280,6 +343,14 @@ export default function LyricsScreen() {
   const userScrolledRef = useRef(false);
   const resumeSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollAnimFrameRef = useRef<number | null>(null);
+  const activeSongIdRef = useRef(songId);
+  const requestGenerationRef = useRef(0);
+  const precisionHoldUntilRef = useRef(0);
+
+  useEffect(() => {
+    activeSongIdRef.current = songId;
+    precisionHoldUntilRef.current = 0;
+  }, [songId]);
 
   const clearResumeSyncTimer = useCallback(() => {
     if (resumeSyncTimerRef.current) {
@@ -322,6 +393,9 @@ export default function LyricsScreen() {
     const cached = songId ? getLyricsMemoryCache(songId) : null;
     const best = cached || initialLyrics;
 
+    requestGenerationRef.current += 1;
+    // Identity invalidation must be synchronous with the committed track change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSyncedLrc(best.synced);
     setPlainLyrics(best.plain);
     setError("");
@@ -349,44 +423,63 @@ export default function LyricsScreen() {
 
   useEffect(() => {
     let mounted = true;
+    const controller = new AbortController();
+    const requestedSongId = songId;
+    const requestGeneration = ++requestGenerationRef.current;
+
+    const canCommit = () =>
+      mounted &&
+      canCommitLyricsResult({
+        activeSongId: activeSongIdRef.current,
+        requestedSongId,
+        requestGeneration,
+        latestGeneration: requestGenerationRef.current,
+      });
 
     async function loadLyrics() {
       if (!songId) {
-        setLoading(false);
-        setError("Missing song ID.");
+        if (canCommit()) {
+          setLyricsSongId("");
+          setLoading(false);
+          setError("Missing song ID.");
+        }
         return;
       }
 
       const cached = getLyricsMemoryCache(songId);
 
       if (cached?.synced || cached?.plain) {
-        setSyncedLrc(cached.synced);
-        setPlainLyrics(cached.plain);
-        setLoading(false);
+        if (canCommit()) {
+          setLyricsSongId(requestedSongId);
+          setSyncedLrc(cached.synced);
+          setPlainLyrics(cached.plain);
+          setLoading(false);
+        }
         return;
       }
 
       try {
         setError("");
 
-        const data = await getHiddenTunesLyrics(songId);
+        const data = await getHiddenTunesLyrics(songId, controller.signal);
         const best = getBestLyricsPayload(data);
 
         setLyricsMemoryCache(songId, best);
 
-        if (!mounted) return;
+        if (!canCommit()) return;
 
+        setLyricsSongId(requestedSongId);
         setSyncedLrc(best.synced);
         setPlainLyrics(best.plain);
 
         if (data.fetchFailed && !best.synced && !best.plain) {
           setError(TESTER_COPY.lyricsLoadFailed);
         }
-      } catch (err: any) {
-        if (!mounted) return;
+      } catch {
+        if (!canCommit()) return;
         setError(TESTER_COPY.lyricsLoadFailed);
       } finally {
-        if (mounted) setLoading(false);
+        if (canCommit()) setLoading(false);
       }
     }
 
@@ -394,12 +487,14 @@ export default function LyricsScreen() {
 
     return () => {
       mounted = false;
+      controller.abort();
     };
   }, [songId]);
 
   useEffect(() => {
+    const closeActionLock = closeActionLockRef.current;
     return () => {
-      closeActionLockRef.current.dispose();
+      closeActionLock.dispose();
       clearResumeSyncTimer();
       if (scrollAnimFrameRef.current !== null) {
         cancelAnimationFrame(scrollAnimFrameRef.current);
@@ -413,37 +508,39 @@ export default function LyricsScreen() {
   }, []);
 
   const lyricsDisplay = useMemo(
-    () => resolveLyricsDisplay(syncedLrc, plainLyrics),
-    [plainLyrics, syncedLrc]
+    () =>
+      lyricsSongId === songId
+        ? resolveLyricsDisplay(syncedLrc, plainLyrics)
+        : resolveLyricsDisplay("", ""),
+    [lyricsSongId, plainLyrics, songId, syncedLrc]
   );
 
   const { mode: lyricsMode, lines, hasSyncedLyrics } = lyricsDisplay;
   const isSeekable = lyricsMode === "synced";
-  const hasTimedLyrics = lyricsMode !== "none";
+  const hasTimedLyrics = hasSyncedLyrics;
 
-  useEffect(() => {
+  const handlePlaybackPosition = useCallback((playbackPositionMs: number) => {
     if (!hasTimedLyrics || !lines.length) return;
 
-    const activePosition =
-      playbackPositionMs + getLyricsSyncOffset(lyricsMode);
+    const activePosition = playbackPositionMs + getLyricsSyncOffset(lyricsMode);
     const nextIndex = findActiveIndex(lines, activePosition);
 
     if (nextIndex === activeIndexRef.current) return;
 
     activeIndexRef.current = nextIndex;
     setActiveIndex(nextIndex);
-  }, [hasTimedLyrics, lines, lyricsMode, playbackPositionMs]);
+  }, [hasTimedLyrics, lines, lyricsMode]);
+
+  const handlePrecisionPosition = useCallback(
+    (playbackPositionMs: number) => {
+      if (Date.now() < precisionHoldUntilRef.current) return;
+      handlePlaybackPosition(playbackPositionMs);
+    },
+    [handlePlaybackPosition]
+  );
 
   useEffect(() => {
     if (!hasTimedLyrics) return;
-
-    if (hasSyncedLyrics && playbackPositionMs < 900) {
-      lastScrolledIndexRef.current = -1;
-      activeIndexRef.current = 0;
-      setActiveIndex(0);
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
-      return;
-    }
 
     if (userScrolledRef.current) return;
     if (activeIndex < 0) return;
@@ -455,7 +552,6 @@ export default function LyricsScreen() {
     activeIndex,
     hasSyncedLyrics,
     hasTimedLyrics,
-    playbackPositionMs,
     scrollToActiveLine,
   ]);
 
@@ -464,10 +560,12 @@ export default function LyricsScreen() {
       if (!isSeekable) return;
 
       const targetMs = Math.max(0, line.timeMs - LYRICS_SYNC_OFFSET_MS);
+      precisionHoldUntilRef.current = Date.now() + 1000;
+      handlePlaybackPosition(targetMs);
       void seekTo(targetMs);
       resumeLiveSync();
     },
-    [isSeekable, resumeLiveSync, seekTo]
+    [handlePlaybackPosition, isSeekable, resumeLiveSync, seekTo]
   );
 
   const handleScrollBeginDrag = useCallback(() => {
@@ -483,11 +581,6 @@ export default function LyricsScreen() {
     }, MANUAL_SCROLL_RESUME_MS);
   }, [clearResumeSyncTimer, resumeLiveSync]);
 
-  const progress =
-    durationMs > 0
-      ? Math.min(1, Math.max(0, playbackPositionMs / durationMs))
-      : 0;
-
   const listExtraData = useMemo(
     () => ({
       activeIndex,
@@ -500,15 +593,11 @@ export default function LyricsScreen() {
   const renderItem = useCallback(
     ({ item, index }: { item: LyricLine; index: number }) => {
       const active = hasTimedLyrics && index === activeIndex;
-      const passed = hasTimedLyrics && index < activeIndex;
-      const upcoming = hasTimedLyrics && index > activeIndex;
 
       return (
         <LyricRow
           item={item}
           active={active}
-          passed={passed}
-          upcoming={upcoming}
           seekable={isSeekable}
           onPressLine={handleLinePress}
         />
@@ -531,6 +620,12 @@ export default function LyricsScreen() {
   return (
     <AppShell>
       <View style={styles.root}>
+      <LyricsPlaybackObserver onPosition={handlePlaybackPosition} />
+      <LyricsPrecisionObserver
+        enabled={hasTimedLyrics && isPlaying && !isLoading}
+        songId={songId}
+        onPosition={handlePrecisionPosition}
+      />
       <CinematicBackground artwork={artwork} />
 
       <SafeAreaView style={styles.safe}>
@@ -582,21 +677,7 @@ export default function LyricsScreen() {
             </View>
           ) : null}
 
-          <View style={styles.progressWrap}>
-            <View style={styles.progressBar}>
-              <View
-                style={[styles.progressFill, { width: `${progress * 100}%` }]}
-              />
-            </View>
-            <View style={styles.timeRow}>
-              <Text style={styles.timeText}>
-                {formatLyricsTime(playbackPositionMs)}
-              </Text>
-              <Text style={styles.timeText}>
-                {durationMs ? formatLyricsTime(durationMs) : "--:--"}
-              </Text>
-            </View>
-          </View>
+          <LyricsProgress />
         </View>
 
         <View style={styles.lyricsPanel}>

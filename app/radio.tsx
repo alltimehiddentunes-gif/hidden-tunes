@@ -91,6 +91,99 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
   });
 }
 
+const PERSONAL_RADIO_SEARCH_CACHE_TTL_MS = 120_000;
+const PERSONAL_RADIO_SEARCH_CACHE_MAX_ENTRIES = 24;
+const PERSONAL_RADIO_EXPANSION_BATCH_SIZE = 2;
+
+type PersonalRadioSearchCacheEntry = {
+  cachedAt: number;
+  tracks: HiddenTunesNormalizedSong[];
+};
+
+const personalRadioSearchCache = new Map<string, PersonalRadioSearchCacheEntry>();
+const personalRadioSearchInFlight = new Map<
+  string,
+  Promise<HiddenTunesNormalizedSong[]>
+>();
+
+function normalizePersonalRadioSearchKey(value: string) {
+  return cleanQuery(String(value || "").trim()).toLowerCase();
+}
+
+function readPersonalRadioSearchCache(key: string) {
+  const cached = personalRadioSearchCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt >= PERSONAL_RADIO_SEARCH_CACHE_TTL_MS) {
+    personalRadioSearchCache.delete(key);
+    return null;
+  }
+  return cached.tracks.slice();
+}
+
+function writePersonalRadioSearchCache(
+  key: string,
+  tracks: HiddenTunesNormalizedSong[]
+) {
+  personalRadioSearchCache.delete(key);
+  personalRadioSearchCache.set(key, {
+    cachedAt: Date.now(),
+    tracks: tracks.slice(),
+  });
+  while (personalRadioSearchCache.size > PERSONAL_RADIO_SEARCH_CACHE_MAX_ENTRIES) {
+    const oldestKey = personalRadioSearchCache.keys().next().value;
+    if (!oldestKey) break;
+    personalRadioSearchCache.delete(oldestKey);
+  }
+}
+
+function throwIfPersonalRadioAborted(signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
+}
+
+function isPersonalRadioAbortError(error: unknown) {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+async function searchPersonalRadioCloudTerm(
+  searchTerm: string,
+  options?: { signal?: AbortSignal; force?: boolean }
+) {
+  const key = normalizePersonalRadioSearchKey(searchTerm);
+  if (!key) return [] as HiddenTunesNormalizedSong[];
+  throwIfPersonalRadioAborted(options?.signal);
+
+  if (!options?.force) {
+    const cached = readPersonalRadioSearchCache(key);
+    if (cached) return cached;
+  }
+
+  let task = personalRadioSearchInFlight.get(key);
+  if (!task) {
+    task = searchHiddenTunesSongs(searchTerm).then((tracks) =>
+      Array.isArray(tracks) ? tracks : []
+    );
+    personalRadioSearchInFlight.set(key, task);
+    const clearOwnedTask = () => {
+      if (personalRadioSearchInFlight.get(key) === task) {
+        personalRadioSearchInFlight.delete(key);
+      }
+    };
+    void task.then(
+      (tracks) => {
+        writePersonalRadioSearchCache(key, tracks);
+        clearOwnedTask();
+      },
+      clearOwnedTask
+    );
+  }
+
+  const tracks = await task;
+  throwIfPersonalRadioAborted(options?.signal);
+  return tracks.slice();
+}
+
 function sanitizeYouTubeVideoId(value: any) {
   const text = String(value || "").replace("youtube-", "").trim();
   if (/^[a-zA-Z0-9_-]{11}$/.test(text)) return text;
@@ -186,14 +279,22 @@ export default function RadioScreen() {
   }, [mood, title, artist, query]);
 
   const radioLoadRequestRef = useRef(0);
+  const radioLoadAbortRef = useRef<AbortController | null>(null);
+  const visibleRadioTrackCountRef = useRef(0);
 
-  const loadRadio = useCallback(async () => {
+  const loadRadio = useCallback(async (options?: { force?: boolean }) => {
+    radioLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    radioLoadAbortRef.current = controller;
     const requestId = radioLoadRequestRef.current + 1;
     radioLoadRequestRef.current = requestId;
-    const isCurrentRequest = () => radioLoadRequestRef.current === requestId;
+    const isCurrentRequest = () =>
+      radioLoadRequestRef.current === requestId && !controller.signal.aborted;
+    const hadVisibleTracks = visibleRadioTrackCountRef.current > 0;
+    let publishedCloudCount = 0;
 
     try {
-      setLoading(true);
+      if (!hadVisibleTracks) setLoading(true);
       setStatusText("Finding tracks for you...");
 
       const searchQueries = Array.from(
@@ -215,23 +316,39 @@ export default function RadioScreen() {
 
       let combinedCloudSongs: HiddenTunesNormalizedSong[] = [];
 
-      for (const searchTerm of searchQueries) {
-        const results = await searchHiddenTunesSongs(searchTerm);
+      for (let index = 0; index < searchQueries.length; ) {
+        const batchSize = index === 0 ? 1 : PERSONAL_RADIO_EXPANSION_BATCH_SIZE;
+        const batch = searchQueries.slice(index, index + batchSize);
+        const responses = await Promise.all(
+          batch.map((searchTerm) =>
+            searchPersonalRadioCloudTerm(searchTerm, {
+              signal: controller.signal,
+              force: options?.force,
+            })
+          )
+        );
         if (!isCurrentRequest()) return;
 
-        if (Array.isArray(results)) {
-          combinedCloudSongs = [...combinedCloudSongs, ...results.map(safeSong)];
+        for (const results of responses) {
+          if (Array.isArray(results)) {
+            combinedCloudSongs = [...combinedCloudSongs, ...results.map(safeSong)];
+          }
         }
+
+        const uniqueCloudSongs = dedupeSongs(combinedCloudSongs);
+        if (uniqueCloudSongs.length > publishedCloudCount) {
+          publishedCloudCount = uniqueCloudSongs.length;
+          visibleRadioTrackCountRef.current = uniqueCloudSongs.length;
+          setCloudTracks(uniqueCloudSongs);
+          setYoutubeTracks([]);
+          setStatusText(`${uniqueCloudSongs.length} tracks ready`);
+          setLoading(false);
+        }
+
+        index += batch.length;
       }
 
-      const uniqueCloudSongs = dedupeSongs(combinedCloudSongs);
-      if (!isCurrentRequest()) return;
-
-      setCloudTracks(uniqueCloudSongs);
-
-      if (uniqueCloudSongs.length > 0) {
-        setYoutubeTracks([]);
-        setStatusText(`${uniqueCloudSongs.length} tracks ready`);
+      if (publishedCloudCount > 0) {
         return;
       }
 
@@ -252,17 +369,29 @@ export default function RadioScreen() {
       const merged = responses.flat().filter(Boolean);
       const uniqueYouTube = dedupeYouTubeTracks(merged);
 
-      setYoutubeTracks(uniqueYouTube);
+      if (uniqueYouTube.length > 0) {
+        visibleRadioTrackCountRef.current = uniqueYouTube.length;
+        setCloudTracks([]);
+        setYoutubeTracks(uniqueYouTube);
+      } else if (!hadVisibleTracks) {
+        visibleRadioTrackCountRef.current = 0;
+        setCloudTracks([]);
+        setYoutubeTracks([]);
+      }
       setStatusText(
         uniqueYouTube.length > 0
           ? `${uniqueYouTube.length} TV videos ready`
-          : "No tracks found for this vibe"
+          : hadVisibleTracks
+            ? `${visibleRadioTrackCountRef.current} tracks ready`
+            : "No tracks found for this vibe"
       );
-    } catch {
-      if (!isCurrentRequest()) return;
-      setCloudTracks([]);
-      setYoutubeTracks([]);
-      setStatusText(TESTER_COPY.radioLoadFailed);
+    } catch (error) {
+      if (!isCurrentRequest() || isPersonalRadioAbortError(error)) return;
+      setStatusText(
+        publishedCloudCount > 0
+          ? `${publishedCloudCount} tracks ready`
+          : TESTER_COPY.radioLoadFailed
+      );
     } finally {
       if (isCurrentRequest()) setLoading(false);
     }
@@ -275,6 +404,7 @@ export default function RadioScreen() {
 
     return () => {
       clearTimeout(timer);
+      radioLoadAbortRef.current?.abort();
       radioLoadRequestRef.current += 1;
     };
   }, [loadRadio]);
@@ -434,7 +564,7 @@ export default function RadioScreen() {
 
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={loadRadio}
+          onPress={() => void loadRadio({ force: true })}
           activeOpacity={0.85}
         >
           <Ionicons name="refresh" size={21} color={COLORS.text} />
@@ -489,7 +619,7 @@ export default function RadioScreen() {
         </TouchableOpacity>
       </View>
 
-      {loading ? (
+      {loading && activeTracks.length === 0 ? (
         <View style={styles.loader}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Curating your station...</Text>
@@ -519,7 +649,7 @@ export default function RadioScreen() {
 
               <TouchableOpacity
                 style={styles.smallRefresh}
-                onPress={loadRadio}
+                onPress={() => void loadRadio({ force: true })}
                 activeOpacity={0.85}
               >
                 <Ionicons name="shuffle" size={17} color={COLORS.primary} />

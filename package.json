@@ -30,7 +30,8 @@
     "test:sports-frontend": "npx tsx scripts/test-sports-frontend.ts",
     "test:localization": "npx tsx scripts/test-localization.mjs",
     "test:mature-podcast-device-lock": "node scripts/test-mature-podcast-device-lock.mjs",
-    "validate:localization": "npx tsx scripts/validate-localization.mjs"
+    "validate:localization": "npx tsx scripts/validate-localization.mjs",
+    "test:parked-tv-config": "node scripts/test-parked-tv-config.mjs"
   },
   "dependencies": {
     "@expo/config": "^57.0.0",

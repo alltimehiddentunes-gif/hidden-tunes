@@ -27,6 +27,8 @@ import {
   filterEducationalBrowseItems,
   formatEducationalDuration,
   LECTURES_DEFAULT_PAGE_LIMIT,
+  peekCachedEducationalCategories,
+  peekCachedEducationalCategoryPage,
   searchEducationalPrograms,
   type HiddenTunesLectureItem,
 } from "@/services/lecturesCatalogApi";
@@ -35,10 +37,7 @@ import { listEducationalRecentlyPlayed } from "@/services/educationalRecentlyPla
 import type { EducationalCategory } from "@/types/education";
 import { openEducationalProgramDetail } from "@/utils/educationalVideoPlayback";
 import { goBackWithinLectures } from "@/utils/lectureNavigation";
-import {
-  joinLectureRequest,
-  lecturePageTrace,
-} from "@/utils/lectureRequestJoin";
+import { lecturePageTrace } from "@/utils/lectureRequestJoin";
 import { getPremiumGridLayout } from "@/utils/premiumGridLayout";
 import { getListPerformanceSettings } from "@/utils/performanceMode";
 import { createTapGuardState, shouldIgnoreDuplicateTap } from "@/utils/tapPressGuard";
@@ -148,12 +147,27 @@ export default function LecturesHomeScreen() {
   );
   const cardWidth = gridLayout.itemWidth;
 
-  const [categories, setCategories] = useState<EducationalCategory[]>([]);
+  const initialBrowsePage = useMemo(
+    () =>
+      peekCachedEducationalCategoryPage(LECTURES_DEFAULT_CATEGORY_SLUG, {
+        page: 1,
+        limit: LECTURES_DEFAULT_PAGE_LIMIT,
+      }),
+    []
+  );
+  const initialBrowseItems = useMemo(
+    () => filterEducationalBrowseItems(initialBrowsePage?.items || []),
+    [initialBrowsePage]
+  );
+
+  const [categories, setCategories] = useState<EducationalCategory[]>(
+    () => peekCachedEducationalCategories() || []
+  );
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string>(LECTURES_DEFAULT_CATEGORY_SLUG);
-  const [items, setItems] = useState<HiddenTunesLectureItem[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<HiddenTunesLectureItem[]>(initialBrowseItems);
+  const [page, setPage] = useState(initialBrowsePage?.pagination.page || 1);
+  const [hasMore, setHasMore] = useState(initialBrowsePage?.pagination.hasMore || false);
+  const [loading, setLoading] = useState(!initialBrowsePage);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -162,7 +176,12 @@ export default function LecturesHomeScreen() {
   const [searchPage, setSearchPage] = useState(1);
   const [searchHasMore, setSearchHasMore] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [featuredItems, setFeaturedItems] = useState<HiddenTunesLectureItem[]>([]);
+  const [featuredItems, setFeaturedItems] = useState<HiddenTunesLectureItem[]>(() =>
+    dedupeLectureItemsById(
+      initialBrowseItems.filter((item) => item.is_featured).slice(0, LANE_LIMIT),
+      "home:featured-cache"
+    )
+  );
   const [continueItems, setContinueItems] = useState<HiddenTunesLectureItem[]>([]);
   const [recentItems, setRecentItems] = useState<HiddenTunesLectureItem[]>([]);
 
@@ -171,8 +190,12 @@ export default function LecturesHomeScreen() {
   const searchPagingRequestRef = useRef(0);
   const browseAbortRef = useRef<AbortController | null>(null);
   const searchPagingAbortRef = useRef<AbortController | null>(null);
-  const hasBrowseContentRef = useRef(false);
+  const hasBrowseContentRef = useRef(Boolean(initialBrowsePage));
   const browseKeyRef = useRef<string | null>(null);
+  const visibleBrowseCategoryRef = useRef<string | null>(
+    initialBrowsePage ? LECTURES_DEFAULT_CATEGORY_SLUG : null
+  );
+  const selectedCategorySlugRef = useRef(LECTURES_DEFAULT_CATEGORY_SLUG);
   const landingGenerationRef = useRef(0);
   const focusedRef = useRef(false);
 
@@ -180,6 +203,10 @@ export default function LecturesHomeScreen() {
   const listItems = isSearching ? searchItems : items;
   const canLoadMore = isSearching ? searchHasMore : hasMore;
   const bottomPad = 120 + Math.max(insets.bottom, 8);
+
+  useEffect(() => {
+    selectedCategorySlugRef.current = selectedCategorySlug;
+  }, [selectedCategorySlug]);
 
   useEffect(() => {
     lecturePageTrace("landing_mount", {
@@ -194,9 +221,14 @@ export default function LecturesHomeScreen() {
   }, []);
 
   const loadBrowsePage = useCallback(
-    async (options?: { page?: number; reset?: boolean; categorySlug?: string }) => {
+    async (options?: {
+      page?: number;
+      reset?: boolean;
+      categorySlug?: string;
+      bypassCache?: boolean;
+    }) => {
       const reset = options?.reset === true;
-      const categorySlug = options?.categorySlug ?? selectedCategorySlug;
+      const categorySlug = options?.categorySlug ?? selectedCategorySlugRef.current;
       const nextPage = reset ? 1 : options?.page ?? 1;
       const requestId = ++categoryRequestRef.current;
       const requestKey = `lecture-category:${categorySlug}:${nextPage}`;
@@ -210,42 +242,84 @@ export default function LecturesHomeScreen() {
       const controller = new AbortController();
       browseAbortRef.current = controller;
 
+      const requestIsCurrent = () =>
+        mountedRef.current &&
+        focusedRef.current &&
+        !controller.signal.aborted &&
+        requestId === categoryRequestRef.current &&
+        generation === landingGenerationRef.current;
+
       try {
         setLoadError(null);
-        // Keep cached cards visible during refresh; skeleton only on first paint.
-        if (reset && !hasBrowseContentRef.current) {
-          setLoading(true);
-        }
 
-        const result = await joinLectureRequest(
-          requestKey,
-          () =>
-            fetchEducationalCategoryPage(categorySlug, {
+        const cachedPage = reset
+          ? peekCachedEducationalCategoryPage(categorySlug, {
               page: nextPage,
               limit: LECTURES_DEFAULT_PAGE_LIMIT,
-              signal: controller.signal,
-            }),
-          {
-            tracePrefix: "landing_fetch",
-            payload: {
-              route: "/lectures",
-              categoryId: categorySlug,
-              generation,
-              hasCachedData: hasBrowseContentRef.current,
-            },
+            })
+          : null;
+
+        if (cachedPage && requestIsCurrent()) {
+          const cachedItems = filterEducationalBrowseItems(cachedPage.items);
+          setItems(dedupeLectureItemsById(cachedItems, "browse:cache"));
+          setPage(cachedPage.pagination.page);
+          setHasMore(cachedPage.pagination.hasMore);
+          hasBrowseContentRef.current = true;
+          visibleBrowseCategoryRef.current = categorySlug;
+          setLoading(false);
+
+          if (categorySlug === LECTURES_DEFAULT_CATEGORY_SLUG) {
+            setFeaturedItems(
+              dedupeLectureItemsById(
+                cachedItems.filter((item) => item.is_featured).slice(0, LANE_LIMIT),
+                "home:featured-cache"
+              )
+            );
           }
-        );
+
+          if (options?.bypassCache !== true) {
+            setRefreshing(false);
+            setLoadingMore(false);
+            return;
+          }
+        } else if (reset) {
+          const hasExactVisibleContent =
+            hasBrowseContentRef.current && visibleBrowseCategoryRef.current === categorySlug;
+          if (!hasExactVisibleContent) {
+            // Never label rows from a previous category as the newly selected one.
+            setItems([]);
+            setPage(1);
+            setHasMore(false);
+            hasBrowseContentRef.current = false;
+            visibleBrowseCategoryRef.current = categorySlug;
+            setLoading(true);
+          }
+        }
+
+        lecturePageTrace("landing_fetch_start", {
+          key: requestKey,
+          route: "/lectures",
+          categoryId: categorySlug,
+          generation,
+          hasCachedData: hasBrowseContentRef.current,
+        });
+        const result = await fetchEducationalCategoryPage(categorySlug, {
+          page: nextPage,
+          limit: LECTURES_DEFAULT_PAGE_LIMIT,
+          signal: controller.signal,
+          bypassCache: options?.bypassCache === true,
+        });
         // Preserve API order — only drop duplicate ids, never shuffle.
         const responseItems = filterEducationalBrowseItems(result.items);
 
-        if (
-          !mountedRef.current ||
-          !focusedRef.current ||
-          requestId !== categoryRequestRef.current ||
-          generation !== landingGenerationRef.current
-        ) {
-          return;
-        }
+        if (!requestIsCurrent()) return;
+        lecturePageTrace("landing_fetch_success", {
+          key: requestKey,
+          route: "/lectures",
+          categoryId: categorySlug,
+          generation,
+          itemCount: responseItems.length,
+        });
         setItems((current) =>
           dedupeLectureItemsById(
             reset ? responseItems : [...current, ...responseItems],
@@ -253,6 +327,7 @@ export default function LecturesHomeScreen() {
           )
         );
         hasBrowseContentRef.current = true;
+        visibleBrowseCategoryRef.current = categorySlug;
         setPage(result.pagination.page);
         setHasMore(result.pagination.hasMore);
 
@@ -269,49 +344,26 @@ export default function LecturesHomeScreen() {
           lecturePageTrace("landing_fetch_aborted", { key: requestKey, generation });
           return;
         }
-        if (
-          !mountedRef.current ||
-          !focusedRef.current ||
-          requestId !== categoryRequestRef.current ||
-          generation !== landingGenerationRef.current
-        ) {
-          return;
-        }
+        if (!requestIsCurrent()) return;
         setLoadError("Lectures could not be loaded right now.");
       } finally {
-        if (
-          !mountedRef.current ||
-          !focusedRef.current ||
-          requestId !== categoryRequestRef.current ||
-          generation !== landingGenerationRef.current
-        ) {
-          return;
-        }
+        if (browseAbortRef.current === controller) browseAbortRef.current = null;
+        if (!requestIsCurrent()) return;
         setLoading(false);
         setRefreshing(false);
         setLoadingMore(false);
       }
     },
-    [mountedRef, selectedCategorySlug]
+    [mountedRef]
   );
 
-  const loadHomeRails = useCallback(async () => {
+  const loadHomeRails = useCallback(async (options?: { bypassCache?: boolean }) => {
     const generation = landingGenerationRef.current;
     try {
-      // Join shared category request — do not abort on remount; local lists are cheap.
       const [categoriesResult, continueResult, recentResult] = await Promise.all([
-        joinLectureRequest(
-          "lecture:categories",
-          () => fetchEducationalCategories(),
-          {
-            tracePrefix: "landing_fetch",
-            payload: {
-              route: "/lectures",
-              generation,
-              hasCachedData: hasBrowseContentRef.current,
-            },
-          }
-        ),
+        fetchEducationalCategories({
+          bypassCache: options?.bypassCache === true,
+        }),
         listContinueLearningEntries(8),
         listEducationalRecentlyPlayed(8),
       ]);
@@ -403,8 +455,8 @@ export default function LecturesHomeScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    void loadHomeRails();
-    void loadBrowsePage({ reset: true });
+    void loadHomeRails({ bypassCache: true });
+    void loadBrowsePage({ reset: true, bypassCache: true });
   }, [loadBrowsePage, loadHomeRails]);
 
   const onEndReached = useCallback(() => {
@@ -446,6 +498,7 @@ export default function LecturesHomeScreen() {
   const onSelectCategory = useCallback(
     (slug: string) => {
       if (slug === selectedCategorySlug && !isSearching) return;
+      selectedCategorySlugRef.current = slug;
       setSelectedCategorySlug(slug);
       setSearchQuery("");
       setPage(1);

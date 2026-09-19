@@ -12,7 +12,7 @@ import { ActivityIndicator,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect, useIsFocused } from "expo-router";
 import { safeRouterBack } from "../../utils/safeNavigation";
 
 import HTImage from "../../components/HTImage";
@@ -104,6 +104,7 @@ const AudiobookRow = memo(function AudiobookRow({ item }: { item: AudiobookItem 
 });
 
 export default function AudiobooksHomeScreen() {
+  const isFocused = useIsFocused();
   const [categories, setCategories] = useState<AudiobookCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(
     AUDIOBOOK_ALL_CATEGORY_SLUG
@@ -133,16 +134,22 @@ export default function AudiobooksHomeScreen() {
   const searchAbortRef = useRef<AbortController | null>(null);
 
   useFocusEffect(
-    useCallback(
-      () => () => {
+    useCallback(() => {
+      setLoadingMore(false);
+      setSearchLoadingMore(false);
+
+      return () => {
         // Stack blur retains the browse screen; cancel all catalog work.
+        categoryRequestRef.current += 1;
+        searchRequestRef.current += 1;
+        categoryPaginationRequestRef.current += 1;
+        searchPaginationRequestRef.current += 1;
         treeAbortRef.current?.abort();
         browseAbortRef.current?.abort();
         searchAbortRef.current?.abort();
         paginationAbortRef.current?.abort();
-      },
-      []
-    )
+      };
+    }, [])
   );
 
   const isSearching = searchQuery.trim().length > 0;
@@ -169,11 +176,14 @@ export default function AudiobooksHomeScreen() {
   }, []);
 
   useEffect(() => {
+    if (!isFocused) return undefined;
+
     const controller = new AbortController();
     treeAbortRef.current = controller;
 
     void fetchAudiobookTree(controller.signal)
       .then((nextCategories) => {
+        if (controller.signal.aborted) return;
         setCategories(nextCategories);
         if (nextCategories.length === 0) return;
 
@@ -191,15 +201,15 @@ export default function AudiobooksHomeScreen() {
         });
       })
       .catch((error) => {
-        if (hasAbortError(error)) return;
+        if (controller.signal.aborted || hasAbortError(error)) return;
         setCategories([]);
       });
 
     return () => controller.abort();
-  }, []);
+  }, [isFocused]);
 
   useEffect(() => {
-    if (!selectedCategory || searchQuery.trim()) return undefined;
+    if (!isFocused || !selectedCategory || searchQuery.trim()) return undefined;
     const controller = new AbortController();
     browseAbortRef.current = controller;
     const requestId = ++categoryRequestRef.current;
@@ -225,28 +235,36 @@ export default function AudiobooksHomeScreen() {
       signal: controller.signal,
     })
       .then((result) => {
-        if (requestId !== categoryRequestRef.current) return;
+        if (controller.signal.aborted || requestId !== categoryRequestRef.current) return;
         setItems(result.items);
         setHasMore(result.pagination.hasMore);
         setPage(result.pagination.page);
         setLoadError(false);
       })
       .catch((error) => {
-        if (hasAbortError(error) || requestId !== categoryRequestRef.current) return;
+        if (
+          controller.signal.aborted ||
+          hasAbortError(error) ||
+          requestId !== categoryRequestRef.current
+        ) {
+          return;
+        }
         setItems([]);
         setHasMore(false);
         setLoadError(true);
       })
       .finally(() => {
-        if (requestId === categoryRequestRef.current) {
+        if (!controller.signal.aborted && requestId === categoryRequestRef.current) {
           setLoadingItems(false);
         }
       });
 
     return () => controller.abort();
-  }, [selectedCategory, searchQuery]);
+  }, [isFocused, selectedCategory, searchQuery]);
 
   useEffect(() => {
+    if (!isFocused) return undefined;
+
     const query = searchQuery.trim();
     if (!query) {
       setSearchItems([]);
@@ -280,20 +298,26 @@ export default function AudiobooksHomeScreen() {
         signal: controller.signal,
       })
         .then((result) => {
-          if (requestId !== searchRequestRef.current) return;
+          if (controller.signal.aborted || requestId !== searchRequestRef.current) return;
           setSearchItems(result.items);
           setSearchHasMore(result.pagination.hasMore);
           setSearchPage(result.pagination.page);
           setSearchError(false);
         })
         .catch((error) => {
-          if (hasAbortError(error) || requestId !== searchRequestRef.current) return;
+          if (
+            controller.signal.aborted ||
+            hasAbortError(error) ||
+            requestId !== searchRequestRef.current
+          ) {
+            return;
+          }
           setSearchItems([]);
           setSearchHasMore(false);
           setSearchError(true);
         })
         .finally(() => {
-          if (requestId === searchRequestRef.current) {
+          if (!controller.signal.aborted && requestId === searchRequestRef.current) {
             setSearchLoading(false);
           }
         });
@@ -303,7 +327,7 @@ export default function AudiobooksHomeScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [searchQuery]);
+  }, [isFocused, searchQuery]);
 
   const selectedCategoryTitle = useMemo(
     () =>

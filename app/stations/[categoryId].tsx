@@ -45,11 +45,15 @@ export default function RadioCategoryScreen() {
   const category = useMemo(() => getRadioCategory(categoryId), [categoryId]);
 
   const loadPage = useCallback(
-    (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
+    (
+      offset: number,
+      options: { append: boolean; forceRefresh: boolean; requestKey: string }
+    ) =>
       loadRadioCategoryPage(categoryId, {
         offset,
         append: options.append,
         forceRefresh: options.forceRefresh,
+        requestKey: options.requestKey,
       }),
     [categoryId]
   );

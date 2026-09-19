@@ -20,7 +20,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hiddentunes.app",
-      "buildNumber": "1.0.215",
+      "buildNumber": "1.0.213",
       "icon": "./assets/images/icon.png",
       "entitlements": {
         "com.apple.developer.carplay-audio": true
@@ -82,7 +82,8 @@
           "audioSessionCategory": "playback"
         }
       ],
-      "./plugins/hidden-audio"
+      "./plugins/hidden-audio",
+      "./plugins/parked-tv"
     ],
     "experiments": {
       "typedRoutes": true

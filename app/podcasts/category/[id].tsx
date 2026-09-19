@@ -257,17 +257,7 @@ export default function PodcastCategoryScreen() {
   const [playingEpisodeId, setPlayingEpisodeId] = useState<string | null>(null);
   const episodeRequestRef = useRef<AbortController | null>(null);
   const inflightEpisodePageRef = useRef<number | null>(null);
-
-  useFocusEffect(
-    useCallback(
-      () => () => {
-        // Category routes remain mounted in the stack after blur.
-        episodeRequestRef.current?.abort();
-        inflightEpisodePageRef.current = null;
-      },
-      []
-    )
-  );
+  const episodeRequestGenerationRef = useRef(0);
 
   useEffect(() => {
     const unsubscribe = subscribeMaturePodcastSettings(() => {
@@ -275,7 +265,6 @@ export default function PodcastCategoryScreen() {
     });
     return () => {
       unsubscribe();
-      episodeRequestRef.current?.abort();
     };
   }, []);
 
@@ -302,12 +291,23 @@ export default function PodcastCategoryScreen() {
   const loadEpisodes = useCallback(
     async (nextPage = 1, mode: "replace" | "append" = "replace") => {
       if (!backendSlug) return;
-      if (inflightEpisodePageRef.current === nextPage) return;
+      if (
+        inflightEpisodePageRef.current === nextPage &&
+        episodeRequestRef.current &&
+        !episodeRequestRef.current.signal.aborted
+      ) {
+        return;
+      }
 
       episodeRequestRef.current?.abort();
       const controller = new AbortController();
+      const requestGeneration = ++episodeRequestGenerationRef.current;
       episodeRequestRef.current = controller;
       inflightEpisodePageRef.current = nextPage;
+      const ownsRequest = () =>
+        episodeRequestGenerationRef.current === requestGeneration &&
+        episodeRequestRef.current === controller;
+      const canCommit = () => ownsRequest() && !controller.signal.aborted;
 
       try {
         setLoadError(null);
@@ -324,17 +324,16 @@ export default function PodcastCategoryScreen() {
           }
         );
 
-        if (controller.signal.aborted) return;
+        if (!canCommit()) return;
 
         if (!response.success) {
           if (response.error === "Aborted") return;
           setLoadError(response.error || "Podcasts could not be loaded right now.");
-          if (mode === "replace") setEpisodes([]);
-          setHasMore(false);
           return;
         }
 
         setEpisodes((current) => {
+          if (!canCommit()) return current;
           if (mode !== "append") return response.episodes;
           const seen = new Set(current.map((entry) => entry.id));
           const merged = [...current];
@@ -345,36 +344,44 @@ export default function PodcastCategoryScreen() {
           }
           return merged;
         });
+        if (!canCommit()) return;
         setPage(response.pagination.page);
         setHasMore(response.pagination.hasMore);
       } catch {
-        if (controller.signal.aborted) return;
+        if (!canCommit()) return;
         setLoadError("Podcasts could not be loaded right now.");
-        if (mode === "replace") setEpisodes([]);
-        setHasMore(false);
       } finally {
-        if (inflightEpisodePageRef.current === nextPage) {
+        if (ownsRequest()) {
+          episodeRequestRef.current = null;
           inflightEpisodePageRef.current = null;
+          setLoading(false);
+          setLoadingMore(false);
+          setRefreshing(false);
         }
-        setLoading(false);
-        setLoadingMore(false);
-        setRefreshing(false);
       }
     },
     [backendSlug, matureEnabled]
   );
 
-  useEffect(() => {
-    if (!backendSlug) return;
-    const timer = setTimeout(() => {
-      void loadEpisodes(1, "replace");
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      episodeRequestRef.current?.abort();
-      inflightEpisodePageRef.current = null;
-    };
-  }, [backendSlug, loadEpisodes]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!backendSlug) return undefined;
+
+      const timer = setTimeout(() => {
+        void loadEpisodes(1, "replace");
+      }, 0);
+
+      return () => {
+        // Category routes remain mounted in the stack after blur. Invalidate
+        // before aborting so a late result/finalizer cannot affect refocus work.
+        clearTimeout(timer);
+        episodeRequestGenerationRef.current += 1;
+        episodeRequestRef.current?.abort();
+        episodeRequestRef.current = null;
+        inflightEpisodePageRef.current = null;
+      };
+    }, [backendSlug, loadEpisodes])
+  );
 
   useEffect(() => {
     if (category?.matureOnly && !shouldIncludeMaturePodcasts()) {

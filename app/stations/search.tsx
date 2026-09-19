@@ -61,11 +61,15 @@ export default function RadioSearchScreen() {
   const [pendingStationId, setPendingStationId] = useState<string | null>(null);
 
   const loadPage = useCallback(
-    (offset: number, options: { append: boolean; forceRefresh: boolean }) =>
+    (
+      offset: number,
+      options: { append: boolean; forceRefresh: boolean; requestKey: string }
+    ) =>
       loadRadioSearchPage(debouncedQuery, {
         offset,
         append: options.append,
         forceRefresh: options.forceRefresh,
+        requestKey: options.requestKey,
       }),
     [debouncedQuery]
   );

@@ -401,21 +401,26 @@ export default function MotivationHomeScreen() {
     async (signal?: AbortSignal, force = false) => {
       const now = Date.now();
       if (!force && homeCache && now - homeCache.at < HOME_CACHE_TTL_MS) {
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
         applyHomeCache(homeCache, { schedule: true });
         return homeCache;
       }
 
-      if (!force && homeInFlight) {
+      if (homeInFlight) {
         const cached = await homeInFlight;
-        if (!signal?.aborted) applyHomeCache(cached, { schedule: true });
+        if (signal?.aborted) {
+          throw new DOMException("Aborted", "AbortError");
+        }
+        applyHomeCache(cached, { schedule: true });
         return cached;
       }
 
       const task = (async (): Promise<HomeCache> => {
-        const home = await fetchMotivationHome(signal);
-        if (signal?.aborted) {
-          throw new DOMException("Aborted", "AbortError");
-        }
+        // The module request is subscriber-safe: screen focus signals only
+        // govern each caller's state publication, not the shared fetch owner.
+        const home = await fetchMotivationHome();
         const primaryItems = dedupeItems([
           ...(home.popular || []).slice(0, 12),
           ...(home.recommended || []).slice(0, 8),
@@ -441,19 +446,21 @@ export default function MotivationHomeScreen() {
           programGroups: primaryGroups,
           secondaryGroups: secondaryGroupsNext,
         };
-        if (signal?.aborted) {
-          throw new DOMException("Aborted", "AbortError");
-        }
         homeCache = payload;
         return payload;
       })();
 
-      homeInFlight = task.finally(() => {
-        homeInFlight = null;
-      });
+      homeInFlight = task;
+      const clearOwnedTask = () => {
+        if (homeInFlight === task) homeInFlight = null;
+      };
+      void task.then(clearOwnedTask, clearOwnedTask);
 
       const payload = await task;
-      if (!signal?.aborted) applyHomeCache(payload, { schedule: true });
+      if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+      }
+      applyHomeCache(payload, { schedule: true });
       return payload;
     },
     [applyHomeCache]

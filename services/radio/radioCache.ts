@@ -32,9 +32,15 @@ export type RadioCachePaginationMeta = {
 };
 
 const memoryCache = new Map<string, CachedStationPayload>();
-const inflight = new Map<string, Promise<HiddenTunesStation[]>>();
+const memoryRevisions = new Map<string, number>();
+const hydrationInflight = new Map<
+  string,
+  Promise<HiddenTunesStation[] | null>
+>();
+const inflight = new Map<string, Promise<unknown>>();
 const pendingStorageWrites = new Map<string, CachedStationPayload>();
 const storageWriteTimers = new Map<string, ReturnType<typeof setTimeout>>();
+let radioCacheGlobalRevision = 0;
 
 export function normalizeRadioCategoryCacheKey(categoryId: string) {
   return String(categoryId || "global")
@@ -56,6 +62,31 @@ export function normalizeRadioSearchCacheKey(query: string) {
   return `catalog-search:${safeQuery.replace(/[^a-z0-9 _-]+/g, "")}`;
 }
 
+function getMemoryRevision(key: string) {
+  return memoryRevisions.get(key) || 0;
+}
+
+function publishRadioMemoryEntry(key: string, payload: CachedStationPayload) {
+  memoryRevisions.set(key, getMemoryRevision(key) + 1);
+  memoryCache.set(key, payload);
+}
+
+function deleteRadioMemoryEntry(key: string) {
+  memoryRevisions.set(key, getMemoryRevision(key) + 1);
+  memoryCache.delete(key);
+}
+
+function isHydrationRevisionCurrent(
+  key: string,
+  expectedMemoryRevision: number,
+  expectedGlobalRevision: number
+) {
+  return (
+    getMemoryRevision(key) === expectedMemoryRevision &&
+    radioCacheGlobalRevision === expectedGlobalRevision
+  );
+}
+
 function isFresh(cachedAt: number) {
   return Date.now() - cachedAt < CACHE_TTL_MS;
 }
@@ -63,7 +94,7 @@ function isFresh(cachedAt: number) {
 function trimMemoryCache() {
   if (memoryCache.size <= MAX_MEMORY_ENTRIES) return;
   const oldestKey = memoryCache.keys().next().value;
-  if (oldestKey) memoryCache.delete(oldestKey);
+  if (oldestKey) deleteRadioMemoryEntry(oldestKey);
 }
 
 function schedulePersistStationCache(key: string, payload: CachedStationPayload) {
@@ -148,29 +179,79 @@ export async function hydrateCachedRadioStations(cacheKey: string) {
   const memoryEntry = getMemoryEntry(key);
   if (memoryEntry) return memoryEntry.stations;
 
-  try {
-    const raw = await AsyncStorage.getItem(`${STORAGE_PREFIX}:${key}`);
-    if (!raw) return null;
+  const existingHydration = hydrationInflight.get(key);
+  if (existingHydration) return existingHydration;
 
-    const parsed = JSON.parse(raw) as CachedStationPayload;
-    if (!Array.isArray(parsed?.stations) || !isFresh(parsed.cachedAt)) {
-      await AsyncStorage.removeItem(`${STORAGE_PREFIX}:${key}`);
-      return null;
+  const expectedMemoryRevision = getMemoryRevision(key);
+  const expectedGlobalRevision = radioCacheGlobalRevision;
+
+  const hydratePromise = (async () => {
+    try {
+      const raw = await AsyncStorage.getItem(`${STORAGE_PREFIX}:${key}`);
+      if (
+        !isHydrationRevisionCurrent(
+          key,
+          expectedMemoryRevision,
+          expectedGlobalRevision
+        )
+      ) {
+        return getMemoryEntry(key)?.stations || null;
+      }
+      if (!raw) return null;
+
+      const parsed = JSON.parse(raw) as CachedStationPayload;
+      if (!Array.isArray(parsed?.stations) || !isFresh(parsed.cachedAt)) {
+        // Leave stale disk data inert. Removing it asynchronously can race a newer
+        // debounced write; the next successful network publication replaces it.
+        return null;
+      }
+
+      const payload: CachedStationPayload = {
+        stations: dedupeRadioStations(parsed.stations),
+        cachedAt: parsed.cachedAt,
+        backendTotal: parsed.backendTotal,
+        backendHasMore: parsed.backendHasMore,
+        nextBackendOffset: parsed.nextBackendOffset,
+      };
+
+      if (
+        !isHydrationRevisionCurrent(
+          key,
+          expectedMemoryRevision,
+          expectedGlobalRevision
+        )
+      ) {
+        return getMemoryEntry(key)?.stations || null;
+      }
+
+      publishRadioMemoryEntry(key, payload);
+      return payload.stations;
+    } catch {
+      return isHydrationRevisionCurrent(
+        key,
+        expectedMemoryRevision,
+        expectedGlobalRevision
+      )
+        ? null
+        : getMemoryEntry(key)?.stations || null;
     }
+  })();
 
-    const payload: CachedStationPayload = {
-      stations: dedupeRadioStations(parsed.stations),
-      cachedAt: parsed.cachedAt,
-      backendTotal: parsed.backendTotal,
-      backendHasMore: parsed.backendHasMore,
-      nextBackendOffset: parsed.nextBackendOffset,
-    };
+  hydrationInflight.set(key, hydratePromise);
+  void hydratePromise.then(
+    () => {
+      if (hydrationInflight.get(key) === hydratePromise) {
+        hydrationInflight.delete(key);
+      }
+    },
+    () => {
+      if (hydrationInflight.get(key) === hydratePromise) {
+        hydrationInflight.delete(key);
+      }
+    }
+  );
 
-    memoryCache.set(key, payload);
-    return payload.stations;
-  } catch {
-    return null;
-  }
+  return hydratePromise;
 }
 
 export function writeCachedRadioStations(
@@ -227,27 +308,41 @@ export function writeCachedRadioStations(
         : existingEntry?.nextBackendOffset,
   };
 
-  memoryCache.set(key, payload);
+  publishRadioMemoryEntry(key, payload);
   trimMemoryCache();
   schedulePersistStationCache(key, payload);
 
   return merged;
 }
 
-export function getRadioStationInflight(cacheKey: string) {
-  return inflight.get(normalizeRadioCategoryCacheKey(cacheKey));
+export function getRadioStationInflight<T = HiddenTunesStation[]>(cacheKey: string) {
+  return inflight.get(normalizeRadioCategoryCacheKey(cacheKey)) as Promise<T> | undefined;
 }
 
-export function setRadioStationInflight(
+export function setRadioStationInflight<T>(
   cacheKey: string,
-  promise: Promise<HiddenTunesStation[]>
+  promise: Promise<T>
 ) {
   const key = normalizeRadioCategoryCacheKey(cacheKey);
   inflight.set(key, promise);
-  promise.finally(() => {
-    if (inflight.get(key) === promise) inflight.delete(key);
-  });
+  void promise.then(
+    () => {
+      if (inflight.get(key) === promise) inflight.delete(key);
+    },
+    () => {
+      if (inflight.get(key) === promise) inflight.delete(key);
+    }
+  );
   return promise;
+}
+
+export function deleteRadioStationInflight<T>(
+  cacheKey: string,
+  expectedPromise?: Promise<T>
+) {
+  const key = normalizeRadioCategoryCacheKey(cacheKey);
+  if (expectedPromise && inflight.get(key) !== expectedPromise) return false;
+  return inflight.delete(key);
 }
 
 export function countCachedRadioStations(cacheKey: string) {
@@ -275,19 +370,20 @@ function stripMatureStations(stations: HiddenTunesStation[]) {
 function purgeMatureFromMemoryCache() {
   for (const [key, entry] of memoryCache.entries()) {
     if (key === "mature") {
-      memoryCache.delete(key);
+      deleteRadioMemoryEntry(key);
       continue;
     }
 
     const filtered = stripMatureStations(entry.stations);
     if (filtered.length !== entry.stations.length) {
-      memoryCache.set(key, { ...entry, stations: filtered });
+      publishRadioMemoryEntry(key, { ...entry, stations: filtered });
     }
   }
 }
 
 export function clearMatureRadioCache() {
-  memoryCache.delete("mature");
+  radioCacheGlobalRevision += 1;
+  deleteRadioMemoryEntry("mature");
   purgeMatureFromMemoryCache();
 
   for (const timer of storageWriteTimers.values()) {

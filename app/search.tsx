@@ -42,7 +42,7 @@ import {
 import {
   fetchHiddenTunesDiscoveryCatalog,
   getCachedHiddenTunesCatalog,
-  isDerivedCatalogTrusted,
+  hydrateCachedHiddenTunesCatalog,
   type HiddenTunesAlbumCatalogItem,
   type HiddenTunesArtistCatalogItem,
   type HiddenTunesDerivedCatalog,
@@ -401,8 +401,11 @@ export default function SearchScreen() {
   const searchUiRef = useRef(searchUi);
   searchUiRef.current = searchUi;
 
-  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [initialCatalog] = useState(() => getCachedHiddenTunesCatalog());
+  const [catalog, setCatalog] = useState<HiddenTunesDerivedCatalog | null>(
+    () => initialCatalog
+  );
+  const [loading, setLoading] = useState(() => !initialCatalog?.songs.length);
   const initialQuery = String(params.q || "").trim();
 
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -442,26 +445,36 @@ export default function SearchScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    let freshCommitted = false;
 
-    void (async () => {
-      const cached = getCachedHiddenTunesCatalog();
-      if (cached && isDerivedCatalogTrusted(cached) && !cancelled) {
-        setCatalog(cached);
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
+    const cacheTask = (async () => {
       try {
-        const data = await fetchHiddenTunesDiscoveryCatalog();
-        if (!cancelled) setCatalog(data);
+        const hydrated = await hydrateCachedHiddenTunesCatalog();
+        if (cancelled || freshCommitted) return;
+        if (hydrated?.songs.length) {
+          setCatalog(hydrated);
+          setLoading(false);
+        }
       } catch (error) {
-        console.log("Search catalog load error:", error);
-        if (!cancelled) setCatalog(null);
-      } finally {
-        if (!cancelled) setLoading(false);
+        console.log("Search catalog cache hydration error:", error);
       }
     })();
+
+    const refreshTask = (async () => {
+      try {
+        const data = await fetchHiddenTunesDiscoveryCatalog({ forceRefresh: true });
+        if (cancelled || !data.songs.length) return;
+        freshCommitted = true;
+        setCatalog(data);
+        setLoading(false);
+      } catch (error) {
+        console.log("Search catalog load error:", error);
+      }
+    })();
+
+    void Promise.allSettled([cacheTask, refreshTask]).then(() => {
+      if (!cancelled) setLoading(false);
+    });
 
     return () => {
       cancelled = true;

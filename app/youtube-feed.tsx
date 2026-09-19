@@ -272,62 +272,77 @@ export default function YouTubeFeedScreen() {
       setLoadError(null);
 
       try {
-        const cached = options?.refresh ? null : await loadTvHomeCache();
-        const hasFreshCache = Boolean(cached?.lanes?.length);
-
-        if (hasFreshCache && mountedRef.current) {
-          setLanes(filterAdminHomeLanes(cached!.lanes));
-          setLanesLoading(false);
-          setShellReady(true);
-        } else if (mountedRef.current) {
-          setShellReady(true);
-        }
-
+        let networkContentPublished = false;
+        const cachePromise = options?.refresh
+          ? Promise.resolve(null)
+          : loadTvHomeCache();
         const categoriesPromise = fetchTvCategories({ signal: controller.signal });
 
         const applyHome = (home: Awaited<ReturnType<typeof fetchTvHomeLanes>>) => {
           if (!mountedRef.current || controller.signal.aborted) return;
-          if (home.hasAnyVideos) {
-            setLanes(filterAdminHomeLanes(home.lanes));
+          const filteredHome = filterAdminHomeLanes(home.lanes);
+          const hasUsableNetworkContent = filteredHome.some(
+            (lane) => lane.videos.length > 0
+          );
+          if (home.hasAnyVideos && hasUsableNetworkContent) {
+            networkContentPublished = true;
+            setLanes(filteredHome);
             setLoadError(null);
           } else if (home.transportError) {
-            setLanes((current) => (current.length ? current : []));
             setLoadError(home.transportError);
           } else {
-            setLanes((current) => (current.length ? current : []));
             setLoadError(null);
           }
           setLanesLoading(false);
+          setShellReady(true);
         };
 
-        if (!hasFreshCache) {
-          const home = await fetchTvHomeLanes({
-            signal: controller.signal,
-            onPriorityLanes: (priority) => {
-              if (!mountedRef.current || controller.signal.aborted) return;
-              if (priority.some((lane) => lane.videos.length > 0)) {
-                setLanes(filterAdminHomeLanes(priority));
-                setLanesLoading(false);
-              }
-            },
-          });
-          applyHome(home);
-        } else {
-          void fetchTvHomeLanes({
-            signal: controller.signal,
-            onPriorityLanes: (priority) => {
-              if (!mountedRef.current || controller.signal.aborted) return;
-              if (priority.some((lane) => lane.videos.length > 0)) {
-                setLanes(filterAdminHomeLanes(priority));
-              }
-            },
-          }).then(applyHome);
-        }
+        const homePromise = fetchTvHomeLanes({
+          signal: controller.signal,
+          onPriorityLanes: (priority) => {
+            if (!mountedRef.current || controller.signal.aborted) return;
+            const filteredPriority = filterAdminHomeLanes(priority);
+            if (filteredPriority.some((lane) => lane.videos.length > 0)) {
+              networkContentPublished = true;
+              setLanes(filteredPriority);
+              setLoadError(null);
+              setLanesLoading(false);
+              setShellReady(true);
+            }
+          },
+        });
 
-        const categories = await categoriesPromise;
-        if (mountedRef.current && !controller.signal.aborted) {
-          setBrowseCategories(categories);
-        }
+        const cacheTask = cachePromise.then((cached) => {
+          if (!mountedRef.current || controller.signal.aborted) return;
+          const filteredCache = filterAdminHomeLanes(cached?.lanes || []);
+          const hasUsableCache = filteredCache.some((lane) => lane.videos.length > 0);
+          if (hasUsableCache && !networkContentPublished) {
+            setLanes(filteredCache);
+            setLoadError(null);
+            setLanesLoading(false);
+          }
+          setShellReady(true);
+        });
+
+        const categoriesTask = categoriesPromise.then((categories) => {
+          if (mountedRef.current && !controller.signal.aborted) {
+            setBrowseCategories(categories);
+          }
+        });
+
+        const homeTask = homePromise
+          .then(applyHome)
+          .catch(() => {
+            if (mountedRef.current && !controller.signal.aborted) {
+              setLoadError(
+                (current) => current || "TV catalog could not be loaded right now."
+              );
+              setLanesLoading(false);
+              setShellReady(true);
+            }
+          });
+
+        await Promise.allSettled([cacheTask, categoriesTask, homeTask]);
       } catch {
         if (mountedRef.current && !controller.signal.aborted) {
           setLoadError((current) => current || "TV catalog could not be loaded right now.");
@@ -335,7 +350,7 @@ export default function YouTubeFeedScreen() {
           setShellReady(true);
         }
       } finally {
-        if (mountedRef.current) {
+        if (mountedRef.current && !controller.signal.aborted) {
           setRefreshing(false);
           setShellReady(true);
         }

@@ -24,6 +24,9 @@ export const LECTURES_SEARCH_API_PATH = "/api/lectures/search";
 export const LECTURES_DEFAULT_PAGE_LIMIT = 40;
 export const LECTURES_MAX_PAGE_LIMIT = 40;
 
+const LECTURES_MEMORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const LECTURES_PAGE_CACHE_LIMIT = 24;
+
 const BLOCKED_BROWSE_KEYS = new Set([
   "audioUrl",
   "audio_url",
@@ -76,6 +79,95 @@ export type HiddenTunesLectureLesson = {
   is_primary?: boolean;
   created_at?: string | null;
 };
+
+export type HiddenTunesLecturePage = {
+  programs: EducationalProgram[];
+  items: HiddenTunesLectureItem[];
+  pagination: EducationalOffsetPagination;
+};
+
+type LecturePageCacheEntry = {
+  value: HiddenTunesLecturePage;
+  cachedAt: number;
+};
+
+let categoriesMemoryCache: { value: EducationalCategory[]; cachedAt: number } | null = null;
+let categoriesInFlight: Promise<EducationalCategory[]> | null = null;
+const categoryPageMemoryCache = new Map<string, LecturePageCacheEntry>();
+const categoryPageInFlight = new Map<string, Promise<HiddenTunesLecturePage>>();
+
+function lectureAbortError() {
+  const error = new Error("Aborted");
+  error.name = "AbortError";
+  return error;
+}
+
+function clampLecturePage(value?: number) {
+  return Math.max(1, Number(value || 1));
+}
+
+function clampLectureLimit(value?: number) {
+  return Math.min(
+    LECTURES_MAX_PAGE_LIMIT,
+    Math.max(1, Number(value || LECTURES_DEFAULT_PAGE_LIMIT))
+  );
+}
+
+function lectureCategoryPageCacheKey(slug: string, page: number, limit: number) {
+  return `${String(slug || "").trim()}:${page}:${limit}`;
+}
+
+function pruneLecturePageCache(now = Date.now()) {
+  for (const [key, entry] of categoryPageMemoryCache) {
+    if (now - entry.cachedAt > LECTURES_MEMORY_CACHE_TTL_MS) {
+      categoryPageMemoryCache.delete(key);
+    }
+  }
+  while (categoryPageMemoryCache.size > LECTURES_PAGE_CACHE_LIMIT) {
+    const oldestKey = categoryPageMemoryCache.keys().next().value;
+    if (!oldestKey) break;
+    categoryPageMemoryCache.delete(oldestKey);
+  }
+}
+
+function readCachedLecturePage(cacheKey: string): HiddenTunesLecturePage | null {
+  pruneLecturePageCache();
+  const entry = categoryPageMemoryCache.get(cacheKey);
+  if (!entry) return null;
+
+  // Refresh insertion order so the bounded map behaves as a small LRU cache.
+  categoryPageMemoryCache.delete(cacheKey);
+  categoryPageMemoryCache.set(cacheKey, entry);
+  return entry.value;
+}
+
+function writeCachedLecturePage(cacheKey: string, value: HiddenTunesLecturePage) {
+  categoryPageMemoryCache.delete(cacheKey);
+  categoryPageMemoryCache.set(cacheKey, { value, cachedAt: Date.now() });
+  pruneLecturePageCache();
+}
+
+function waitForLectureSubscriber<T>(request: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return request;
+  if (signal.aborted) return Promise.reject(lectureAbortError());
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      callback();
+    };
+    const onAbort = () => finish(() => reject(lectureAbortError()));
+
+    signal.addEventListener("abort", onAbort, { once: true });
+    request.then(
+      (value) => finish(() => resolve(value)),
+      (error) => finish(() => reject(error))
+    );
+  });
+}
 
 function cleanText(value: unknown, maxLength = 800) {
   if (typeof value !== "string") return null;
@@ -278,36 +370,105 @@ async function fetchLectureJson<T>(url: string, signal?: AbortSignal): Promise<T
   }
 }
 
-export async function fetchEducationalCategories(options?: { signal?: AbortSignal }) {
-  const body = await fetchLectureJson<{ categories: EducationalCategory[] }>(
-    `${LECTURES_CATALOG_BASE_URL}${LECTURES_CATEGORIES_API_PATH}`,
-    options?.signal
-  );
-  return body.categories || [];
+export function peekCachedEducationalCategories(): EducationalCategory[] | null {
+  if (
+    !categoriesMemoryCache ||
+    Date.now() - categoriesMemoryCache.cachedAt > LECTURES_MEMORY_CACHE_TTL_MS
+  ) {
+    categoriesMemoryCache = null;
+    return null;
+  }
+  return categoriesMemoryCache.value;
+}
+
+export async function fetchEducationalCategories(options?: {
+  signal?: AbortSignal;
+  bypassCache?: boolean;
+}) {
+  if (options?.signal?.aborted) throw lectureAbortError();
+
+  if (options?.bypassCache !== true) {
+    const cached = peekCachedEducationalCategories();
+    if (cached) return cached;
+  }
+
+  let request = categoriesInFlight;
+  if (!request) {
+    request = fetchLectureJson<{ categories: EducationalCategory[] }>(
+      `${LECTURES_CATALOG_BASE_URL}${LECTURES_CATEGORIES_API_PATH}`
+    )
+      .then((body) => {
+        const categories = body.categories || [];
+        categoriesMemoryCache = { value: categories, cachedAt: Date.now() };
+        return categories;
+      })
+      .finally(() => {
+        if (categoriesInFlight === request) categoriesInFlight = null;
+      });
+    categoriesInFlight = request;
+  }
+
+  return waitForLectureSubscriber(request, options?.signal);
+}
+
+export function peekCachedEducationalCategoryPage(
+  slug: string,
+  options?: { page?: number; limit?: number }
+): HiddenTunesLecturePage | null {
+  const page = clampLecturePage(options?.page);
+  const limit = clampLectureLimit(options?.limit);
+  return readCachedLecturePage(lectureCategoryPageCacheKey(slug, page, limit));
 }
 
 export async function fetchEducationalCategoryPage(
   slug: string,
-  options?: { page?: number; limit?: number; signal?: AbortSignal }
-) {
-  const page = Math.max(1, Number(options?.page || 1));
-  const limit = Math.min(LECTURES_MAX_PAGE_LIMIT, Number(options?.limit || LECTURES_DEFAULT_PAGE_LIMIT));
-  const body = await fetchLectureJson<{
-    lectures: HiddenTunesLectureItem[];
-    pagination: EducationalOffsetPagination;
-  }>(
-    `${LECTURES_CATALOG_BASE_URL}${LECTURES_CATEGORY_API_PATH}/${encodeURIComponent(slug)}?page=${page}&limit=${limit}`,
-    options?.signal
-  );
+  options?: { page?: number; limit?: number; signal?: AbortSignal; bypassCache?: boolean }
+): Promise<HiddenTunesLecturePage> {
+  const page = clampLecturePage(options?.page);
+  const limit = clampLectureLimit(options?.limit);
+  const cacheKey = lectureCategoryPageCacheKey(slug, page, limit);
 
-  const lectures = dedupePrograms(
-    (body.lectures || [])
-      .map((entry) => normalizeLectureItem(entry as unknown as Record<string, unknown>))
-      .filter((entry): entry is HiddenTunesLectureItem => Boolean(entry))
-  );
-  assertMetadataOnly(lectures as unknown as Record<string, unknown>[]);
+  if (options?.signal?.aborted) throw lectureAbortError();
+  if (options?.bypassCache !== true) {
+    const cached = readCachedLecturePage(cacheKey);
+    if (cached) return cached;
+  }
 
-  return { programs: lectures.map(lectureToEducationalProgram), items: lectures, pagination: body.pagination };
+  let request = categoryPageInFlight.get(cacheKey);
+  if (!request) {
+    // The shared transport owns only its bounded catalog timeout. A route blur
+    // cancels that screen subscriber, never the request another focus may join.
+    request = fetchLectureJson<{
+      lectures: HiddenTunesLectureItem[];
+      pagination: EducationalOffsetPagination;
+    }>(
+      `${LECTURES_CATALOG_BASE_URL}${LECTURES_CATEGORY_API_PATH}/${encodeURIComponent(slug)}?page=${page}&limit=${limit}`
+    )
+      .then((body) => {
+        const lectures = dedupePrograms(
+          (body.lectures || [])
+            .map((entry) => normalizeLectureItem(entry as unknown as Record<string, unknown>))
+            .filter((entry): entry is HiddenTunesLectureItem => Boolean(entry))
+        );
+        assertMetadataOnly(lectures as unknown as Record<string, unknown>[]);
+
+        const value: HiddenTunesLecturePage = {
+          programs: lectures.map(lectureToEducationalProgram),
+          items: lectures,
+          pagination: body.pagination,
+        };
+        writeCachedLecturePage(cacheKey, value);
+        return value;
+      })
+      .finally(() => {
+        if (categoryPageInFlight.get(cacheKey) === request) {
+          categoryPageInFlight.delete(cacheKey);
+        }
+      });
+    categoryPageInFlight.set(cacheKey, request);
+  }
+
+  return waitForLectureSubscriber(request, options?.signal);
 }
 
 export async function searchEducationalPrograms(

@@ -283,12 +283,231 @@ async function testSearchWorkYieldsToPlayback() {
   assert.equal(order[1], "search_work");
 }
 
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+  return { promise, resolve, reject };
+}
+
+async function runConcurrentCatalogLoadForTest({
+  hydrate,
+  refresh,
+  publish,
+  isCancelled,
+  setLoading,
+}) {
+  let freshCommitted = false;
+
+  const cacheTask = (async () => {
+    try {
+      const cached = await hydrate();
+      if (isCancelled() || freshCommitted) return;
+      if (cached?.songs.length) {
+        publish(cached, "cache");
+        setLoading(false);
+      }
+    } catch {}
+  })();
+
+  const refreshTask = (async () => {
+    try {
+      const fresh = await refresh();
+      if (isCancelled() || !fresh.songs.length) return;
+      freshCommitted = true;
+      publish(fresh, "network");
+      setLoading(false);
+    } catch {}
+  })();
+
+  await Promise.allSettled([cacheTask, refreshTask]);
+  if (!isCancelled()) setLoading(false);
+}
+
+async function flushMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
+async function testPersistedCatalogPaintsBeforeNetworkAndFreshWins() {
+  {
+    const network = createDeferred();
+    const commits = [];
+    const loading = [];
+    let visible = null;
+
+    const load = runConcurrentCatalogLoadForTest({
+      hydrate: async () => ({ id: "cached", songs: [{ id: "cached-song" }] }),
+      refresh: () => network.promise,
+      publish: (catalog, source) => {
+        visible = catalog;
+        commits.push(source);
+      },
+      isCancelled: () => false,
+      setLoading: (value) => loading.push(value),
+    });
+
+    await flushMicrotasks();
+    assert.equal(visible?.id, "cached", "persisted cache paints while network is pending");
+    assert.deepEqual(commits, ["cache"], "cache can win the first-usable race");
+    assert.equal(loading.at(-1), false, "first usable cache clears loading");
+
+    network.resolve({ id: "fresh", songs: [{ id: "fresh-song" }] });
+    await load;
+    assert.equal(visible?.id, "fresh", "latest network catalog wins after cache paint");
+    assert.deepEqual(commits, ["cache", "network"]);
+  }
+
+  {
+    const cache = createDeferred();
+    const commits = [];
+    let visible = null;
+    const load = runConcurrentCatalogLoadForTest({
+      hydrate: () => cache.promise,
+      refresh: async () => ({ id: "fresh-first", songs: [{ id: "fresh-first-song" }] }),
+      publish: (catalog, source) => {
+        visible = catalog;
+        commits.push(source);
+      },
+      isCancelled: () => false,
+      setLoading: () => {},
+    });
+
+    await flushMicrotasks();
+    assert.equal(visible?.id, "fresh-first", "network may win the first-usable race");
+    cache.resolve({ id: "late-cache", songs: [{ id: "late-cache-song" }] });
+    await load;
+    assert.equal(visible?.id, "fresh-first", "late cache cannot overwrite fresh network data");
+    assert.deepEqual(commits, ["network"]);
+  }
+
+  {
+    const cache = createDeferred();
+    const commits = [];
+    let visible = null;
+    const load = runConcurrentCatalogLoadForTest({
+      hydrate: () => cache.promise,
+      refresh: async () => ({ id: "empty-network", songs: [] }),
+      publish: (catalog, source) => {
+        visible = catalog;
+        commits.push(source);
+      },
+      isCancelled: () => false,
+      setLoading: () => {},
+    });
+
+    await flushMicrotasks();
+    cache.resolve({ id: "cache-after-empty", songs: [{ id: "cached-song" }] });
+    await load;
+    assert.equal(visible?.id, "cache-after-empty", "empty refresh preserves usable cache");
+    assert.deepEqual(commits, ["cache"]);
+  }
+
+  {
+    const commits = [];
+    let visible = null;
+    const loading = [];
+    await runConcurrentCatalogLoadForTest({
+      hydrate: async () => ({ id: "cache-before-error", songs: [{ id: "cached-song" }] }),
+      refresh: async () => {
+        throw new Error("network failed");
+      },
+      publish: (catalog, source) => {
+        visible = catalog;
+        commits.push(source);
+      },
+      isCancelled: () => false,
+      setLoading: (value) => loading.push(value),
+    });
+    assert.equal(visible?.id, "cache-before-error", "refresh error preserves cache");
+    assert.deepEqual(commits, ["cache"]);
+    assert.equal(loading.at(-1), false, "settled cache/error phases clear loading");
+  }
+
+  {
+    const network = createDeferred();
+    const commits = [];
+    let cancelled = false;
+    const load = runConcurrentCatalogLoadForTest({
+      hydrate: async () => ({ id: "cached-before-unmount", songs: [{ id: "cached-song" }] }),
+      refresh: () => network.promise,
+      publish: (catalog, source) => commits.push(`${source}:${catalog.id}`),
+      isCancelled: () => cancelled,
+      setLoading: () => {},
+    });
+
+    await flushMicrotasks();
+    assert.deepEqual(commits, ["cache:cached-before-unmount"]);
+    cancelled = true;
+    network.resolve({ id: "fresh-after-unmount", songs: [{ id: "fresh-song" }] });
+    await load;
+    assert.deepEqual(
+      commits,
+      ["cache:cached-before-unmount"],
+      "network response cannot commit after cancellation"
+    );
+  }
+}
+
 function testSourceGuards() {
   const fs = require("node:fs");
   const searchSrc = fs.readFileSync(path.join(root, "app", "search.tsx"), "utf8");
   assert.ok(searchSrc.includes("buildSearchReactKey"));
   assert.ok(searchSrc.includes("albumSearchCanonicalId"));
   assert.ok(searchSrc.includes("runSearchWorkAfterPlaybackYield"));
+  assert.match(
+    searchSrc,
+    /const \[initialCatalog\] = useState\(\(\) => getCachedHiddenTunesCatalog\(\)\)/,
+    "warm memory catalog must seed Search's first render"
+  );
+  assert.match(
+    searchSrc,
+    /const \[loading, setLoading\] = useState\(\(\) => !initialCatalog\?\.songs\.length\)/,
+    "warm Search must not enter a blank loading state"
+  );
+
+  const catalogLoadStart = searchSrc.indexOf(
+    "useEffect(() => {",
+    searchSrc.indexOf("const catalogSignature")
+  );
+  const catalogLoadEnd = searchSrc.indexOf("const searchCatalog", catalogLoadStart);
+  const catalogLoadSource = searchSrc.slice(catalogLoadStart, catalogLoadEnd);
+  const hydrationIndex = catalogLoadSource.indexOf("await hydrateCachedHiddenTunesCatalog()");
+  const refreshIndex = catalogLoadSource.indexOf(
+    "fetchHiddenTunesDiscoveryCatalog({ forceRefresh: true })"
+  );
+  const allSettledIndex = catalogLoadSource.indexOf(
+    "Promise.allSettled([cacheTask, refreshTask])"
+  );
+  assert.ok(hydrationIndex >= 0, "cold Search must hydrate persisted catalog data");
+  assert.ok(refreshIndex >= 0, "cold Search must start a bounded forced refresh");
+  assert.ok(
+    allSettledIndex > hydrationIndex && allSettledIndex > refreshIndex,
+    "cache hydration and network refresh must start without a serial waterfall"
+  );
+  assert.doesNotMatch(
+    catalogLoadSource,
+    /setCatalog\(null\)/,
+    "refresh failures must preserve visible cached content"
+  );
+  assert.match(
+    catalogLoadSource,
+    /if \(cancelled \|\| freshCommitted\) return;/,
+    "late cache must not overwrite committed network data"
+  );
+  assert.match(
+    catalogLoadSource,
+    /if \(cancelled \|\| !data\.songs\.length\) return;[\s\S]*?freshCommitted = true;[\s\S]*?setCatalog\(data\)/,
+    "only current non-empty network data may take precedence"
+  );
+  assert.match(
+    catalogLoadSource,
+    /Promise\.allSettled\(\[cacheTask, refreshTask\]\)\.then\(\(\) => \{\s*if \(!cancelled\) setLoading\(false\)/,
+    "loading must clear after both concurrent phases settle"
+  );
   // Local results must not wait on backend pending.
   assert.ok(
     /showSearchResults\s*=\s*[\s\S]*!searchDebouncePending/.test(searchSrc)
@@ -325,6 +544,7 @@ async function main() {
   testArtistNameVariantsDoNotDuplicateRows();
   testStaleSearchResponsesCannotReplaceNewer();
   testLocalResultsBeforeRemote();
+  await testPersistedCatalogPaintsBeforeNetworkAndFreshWins();
   await testSearchWorkYieldsToPlayback();
   testSourceGuards();
   console.log("test-search-keys-and-stale: PASS");

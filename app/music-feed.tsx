@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Image,
   InteractionManager,
   useWindowDimensions,
@@ -12,6 +13,7 @@ import {
   Pressable,
   TouchableOpacity,
   View,
+  type AppStateStatus,
 } from "react-native";
 
 import { router, useFocusEffect } from "expo-router";
@@ -136,6 +138,34 @@ type CatalogGroup = {
   songs: HiddenTunesSong[];
   type: "mood" | "genre";
 };
+
+type HomeSectionId =
+  | "emotional-worlds"
+  | "mood-rooms"
+  | "recently-added"
+  | "because-you-listened"
+  | "smart-queue"
+  | "creators"
+  | "albums"
+  | "open-rooms"
+  | "genres"
+  | "catalog-header";
+
+type HomeFeedItem =
+  | { kind: "section"; id: HomeSectionId }
+  | { kind: "song"; song: HiddenTunesSong };
+
+const DEFERRED_HOME_SECTION_IDS: readonly HomeSectionId[] = [
+  "emotional-worlds",
+  "mood-rooms",
+  "recently-added",
+  "because-you-listened",
+  "smart-queue",
+  "creators",
+  "albums",
+  "open-rooms",
+  "genres",
+];
 
 function getArtwork(song?: HiddenTunesSong | null) {
   return getArtworkUri(song);
@@ -639,6 +669,11 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
         data={cards}
         keyExtractor={(item) => item.key}
         renderItem={renderHeroCard}
+        initialNumToRender={1}
+        maxToRenderPerBatch={1}
+        windowSize={2}
+        updateCellsBatchingPeriod={100}
+        removeClippedSubviews
         showsHorizontalScrollIndicator={false}
         snapToInterval={heroCardWidth}
         decelerationRate="fast"
@@ -964,77 +999,113 @@ export default function MusicFeedScreen() {
       return catalogRequestRef.current;
     }
 
-    void hydrateDiscoveryPreferredGenres().then(() => {
-      if (mountedRef.current) setHomePreferences(getDiscoveryPreferenceSnapshot());
-    });
-
-    const request = (async () => {
+    let request!: Promise<void>;
+    request = (async () => {
       const startedAt = Date.now();
       const generation = ++loadGenerationRef.current;
-      try {
-        // 1) Disk cache first — paint immediately when anything is available.
-        const hydratedStarted = Date.now();
-        const hydrated = await hydrateCachedHiddenTunesCatalog();
-        logHomeLoad("disk_hydrate", {
-          ms: Date.now() - hydratedStarted,
-          songs: hydrated?.songs.length || 0,
-        });
-        if (hydrated) {
-          const boundedHydrated = boundHiddenTunesCatalog(
-            hydrated,
-            HOME_BOUNDED_CATALOG_LIMIT
-          );
-          applyCatalog(boundedHydrated, generation);
-          setCatalogStatus("cached");
-          logHomeLoad("cached_content", {
-            ms: Date.now() - homeMountAtRef.current,
-            songs: boundedHydrated?.songs.length || 0,
-          });
-        }
+      const isCurrentLoad = () =>
+        mountedRef.current &&
+        focusedRef.current &&
+        generation === loadGenerationRef.current;
+      let networkContentPublished = false;
+      let terminalNetworkStatus: HomeCatalogStatus | null = null;
 
-        // 2) Refresh Home from only the first catalog page. This screen must
-        // never start a complete catalog walk.
+      void hydrateDiscoveryPreferredGenres()
+        .then(() => {
+          if (isCurrentLoad()) {
+            setHomePreferences(getDiscoveryPreferenceSnapshot());
+          }
+        })
+        .catch(() => {});
+
+      try {
+        const hydratedStarted = Date.now();
         const networkStarted = Date.now();
-        try {
-          const pageResult = await getHiddenTunesSongsPage({
-            page: 1,
-            limit: HOME_FIRST_PAGE_LIMIT,
-          });
-          const firstPageCatalog = boundHiddenTunesCatalog(
-            getCachedHiddenTunesCatalog(),
-            HOME_BOUNDED_CATALOG_LIMIT
-          );
-          if (firstPageCatalog?.songs.length) {
-            applyCatalog(firstPageCatalog, generation);
-            setCatalogStatus(
-              pageResult.source === "network" ? "fresh" : "cached"
-            );
-            logHomeLoad("first_page", {
-              ms: Date.now() - networkStarted,
-              songs: firstPageCatalog.songs.length,
+        const hydratedPromise = hydrateCachedHiddenTunesCatalog();
+        const firstPagePromise = getHiddenTunesSongsPage({
+          page: 1,
+          limit: HOME_FIRST_PAGE_LIMIT,
+        });
+
+        const hydratedTask = hydratedPromise
+          .then((hydrated) => {
+            logHomeLoad("disk_hydrate", {
+              ms: Date.now() - hydratedStarted,
+              songs: hydrated?.songs.length || 0,
             });
-          }
-          if (!hasUsableCatalogRef.current) {
-            if (pageResult.authoritativeEmpty) setCatalogStatus("empty");
-            else if (pageResult.errorCode) setCatalogStatus("error");
-          }
-        } catch (error) {
-          if (!hasUsableCatalogRef.current) setCatalogStatus("error");
-          logHomeLoad("first_page_error", {
-            error: error instanceof Error ? error.message : String(error),
+            if (!hydrated || networkContentPublished || !isCurrentLoad()) return;
+
+            const boundedHydrated = boundHiddenTunesCatalog(
+              hydrated,
+              HOME_BOUNDED_CATALOG_LIMIT
+            );
+            if (!boundedHydrated?.songs.length || networkContentPublished) return;
+
+            applyCatalog(boundedHydrated, generation);
+            if (isCurrentLoad() && !networkContentPublished) {
+              setCatalogStatus("cached");
+            }
+            logHomeLoad("cached_content", {
+              ms: Date.now() - homeMountAtRef.current,
+              songs: boundedHydrated.songs.length,
+            });
+          })
+          .catch((error) => {
+            logHomeLoad("disk_hydrate_error", {
+              error: error instanceof Error ? error.message : String(error),
+            });
           });
+
+        const firstPageTask = firstPagePromise
+          .then((pageResult) => {
+            if (!isCurrentLoad()) return;
+
+            const firstPageCatalog = boundHiddenTunesCatalog(
+              getCachedHiddenTunesCatalog(),
+              HOME_BOUNDED_CATALOG_LIMIT
+            );
+            if (pageResult.songs.length > 0 && firstPageCatalog?.songs.length) {
+              networkContentPublished = true;
+              applyCatalog(firstPageCatalog, generation);
+              if (isCurrentLoad()) {
+                setCatalogStatus(
+                  pageResult.source === "network" ? "fresh" : "cached"
+                );
+              }
+              logHomeLoad("first_page", {
+                ms: Date.now() - networkStarted,
+                songs: firstPageCatalog.songs.length,
+              });
+              return;
+            }
+
+            terminalNetworkStatus = pageResult.errorCode ? "error" : "empty";
+          })
+          .catch((error) => {
+            terminalNetworkStatus = "error";
+            logHomeLoad("first_page_error", {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
+
+        await Promise.allSettled([hydratedTask, firstPageTask]);
+
+        if (
+          isCurrentLoad() &&
+          !hasUsableCatalogRef.current &&
+          terminalNetworkStatus
+        ) {
+          setCatalogStatus(terminalNetworkStatus);
         }
       } catch (error) {
         logHomeLoad("load_error", {
           error: error instanceof Error ? error.message : String(error),
         });
       } finally {
-        catalogRequestRef.current = null;
-        if (
-          mountedRef.current &&
-          focusedRef.current &&
-          generation === loadGenerationRef.current
-        ) {
+        if (catalogRequestRef.current === request) {
+          catalogRequestRef.current = null;
+        }
+        if (isCurrentLoad()) {
           setLoading(false);
         }
         logHomeLoad("load_finally", {
@@ -1233,6 +1304,16 @@ export default function MusicFeedScreen() {
     void refreshGenreSpotlightSignals();
   }, [refreshGenreSpotlightSignals, showDeferredHomeSections]);
 
+  useEffect(() => {
+    const onAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === "active") {
+        void refreshGenreSpotlightSignals();
+      }
+    };
+    const subscription = AppState.addEventListener("change", onAppStateChange);
+    return () => subscription.remove();
+  }, [refreshGenreSpotlightSignals]);
+
   const genreSpotlightLimit = useMemo(
     () => resolveGenreSpotlightLimit(viewportWidth),
     [viewportWidth]
@@ -1256,10 +1337,28 @@ export default function MusicFeedScreen() {
     () => personalizedHomeSongs.slice(0, visibleCatalogCount),
     [personalizedHomeSongs, visibleCatalogCount]
   );
+  const homeFeedItems = useMemo<HomeFeedItem[]>(() => {
+    const sectionItems: HomeFeedItem[] = showDeferredHomeSections
+      ? DEFERRED_HOME_SECTION_IDS.map((id) => ({ kind: "section", id }))
+      : [];
+    return [
+      ...sectionItems,
+      { kind: "section", id: "catalog-header" },
+      ...visibleCatalogSongs.map((song) => ({ kind: "song" as const, song })),
+    ];
+  }, [showDeferredHomeSections, visibleCatalogSongs]);
   const canLoadMore = visibleCatalogCount < songs.length;
   const catalogListPerf = useMemo(
-    () => getListPerformanceSettings(visibleCatalogSongs.length),
-    [visibleCatalogSongs.length]
+    () => ({
+      ...getListPerformanceSettings(homeFeedItems.length),
+      // Section cells can each contain a premium grid. Rendering the generic
+      // list default of 8-10 rows eagerly recreates the old monolithic header.
+      initialNumToRender: 1,
+      maxToRenderPerBatch: 1,
+      windowSize: 2,
+      updateCellsBatchingPeriod: 100,
+    }),
+    [homeFeedItems.length]
   );
 
   const becauseYouListened = useMemo(() => {
@@ -1477,18 +1576,11 @@ export default function MusicFeedScreen() {
   );
 
   const keyExtractor = useCallback(
-    (item: HiddenTunesSong, index: number) => String(item.id || index),
+    (item: HomeFeedItem, index: number) =>
+      item.kind === "section"
+        ? `home-section:${item.id}`
+        : `home-song:${String(item.song.id || index)}`,
     []
-  );
-
-  const renderSongItem = useCallback(
-    ({ item }: { item: HiddenTunesSong; index: number }) => (
-      <HomeCatalogSongRow
-        song={item as unknown as HiddenTunesNormalizedSong}
-        onPress={playCatalogSong as (song: HiddenTunesNormalizedSong) => void}
-      />
-    ),
-    [playCatalogSong]
   );
 
   const renderMoodRoomGridItem = useCallback(
@@ -1639,6 +1731,92 @@ export default function MusicFeedScreen() {
     [openGenre]
   );
 
+  const renderHomeFeedItem = useCallback(
+    ({ item }: { item: HomeFeedItem; index: number }) => {
+      if (item.kind === "song") {
+        return (
+          <HomeCatalogSongRow
+            song={item.song as unknown as HiddenTunesNormalizedSong}
+            onPress={playCatalogSong as (song: HiddenTunesNormalizedSong) => void}
+          />
+        );
+      }
+
+      switch (item.id) {
+        case "emotional-worlds":
+          return (
+            <EmotionalDiscoveryChips
+              style={styles.emotionalWorldsSection}
+              showGatewayRows={false}
+              title={homeUi.emotionalWorldsTitle}
+              subtitle={homeUi.emotionalWorldsSubtitle}
+            />
+          );
+        case "mood-rooms":
+          return moodRooms.length ? (
+            <View style={styles.cinematicSection}>
+              <Text style={styles.sectionEyebrow}>{homeUi.sections.forYourMood}</Text>
+              <Text style={styles.sectionTitle}>{homeUi.sections.moodRooms}</Text>
+              <PremiumContentGrid data={moodRooms} keyExtractor={(room) => room.id} renderItem={renderMoodRoomGridItem} maxItems={HOME_SECTION_PREVIEW_LIMIT} scrollEnabled={false} horizontalPadding={0} listKey="home-mood-rooms" />
+            </View>
+          ) : null;
+        case "recently-added":
+          return (
+            <View style={styles.cinematicSection}>
+              <LinearGradient pointerEvents="none" colors={["rgba(168,85,247,0.22)", "rgba(34,211,238,0.08)"]} style={styles.sectionAura} />
+              <View style={styles.sectionHeaderRow}>
+                <View><Text style={styles.sectionEyebrow}>{homeUi.sections.new}</Text><Text style={styles.sectionTitle}>{homeUi.sections.recentlyAdded}</Text></View>
+                {recentlyAddedSongs.length ? <Text style={styles.sectionMeta}>{homeUi.sections.play}</Text> : null}
+              </View>
+              {recentlyAddedSongs.length ? (
+                <PremiumContentGrid data={recentlyAddedSongs} keyExtractor={(song) => `recently-${song.id}`} renderItem={renderRecentlyAddedGridItem} maxItems={HOME_SECTION_PREVIEW_LIMIT} scrollEnabled={false} horizontalPadding={0} listKey="home-recently-added" />
+              ) : <Text style={styles.sectionEmptyMeta}>{homeUi.recentlyAddedEmpty}</Text>}
+            </View>
+          );
+        case "because-you-listened":
+          return becauseYouListened.length ? (
+            <View style={styles.cinematicSection}>
+              <Text style={styles.sectionEyebrow}>{homeUi.sections.listener}</Text><Text style={styles.sectionTitle}>{homeUi.sections.becauseYouListened}</Text>
+              <PremiumContentGrid data={becauseYouListened} keyExtractor={(song) => `because-${song.id}`} renderItem={renderBecauseYouListenedGridItem} maxItems={HOME_SECTION_PREVIEW_LIMIT} scrollEnabled={false} horizontalPadding={0} listKey="home-because-you-listened" />
+            </View>
+          ) : null;
+        case "smart-queue":
+          return smartQueueSongs.length ? (
+            <View style={styles.cinematicSection}>
+              <Text style={styles.sectionEyebrow}>{homeUi.sections.next}</Text><Text style={styles.sectionTitle}>{homeUi.sections.smartMusicQueue}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
+                {smartQueueSongs.map((song, index) => <HomeFeaturedCard key={`smart-${song.id}`} item={song as unknown as HiddenTunesNormalizedSong} index={index} onPress={(selected) => playSongFromList(selected as HiddenTunesSong, smartQueueSongs, { source: "smart_queue", label: homeUiRef.current.queueLabels.smartMusicQueue, railId: "smart_queue" })} />)}
+              </ScrollView>
+            </View>
+          ) : null;
+        case "creators":
+          return visibleArtists.length ? (
+            <View style={styles.cinematicSection}><Text style={styles.sectionEyebrow}>{homeUi.sections.creators}</Text><Text style={styles.sectionTitle}>{homeUi.sections.creatorsInOrbit}</Text><PremiumContentGrid data={visibleArtists} keyExtractor={(artist) => artist.id} renderItem={renderCreatorGridItem} maxItems={HOME_SECTION_PREVIEW_LIMIT} scrollEnabled={false} horizontalPadding={0} listKey="home-creators" /></View>
+          ) : null;
+        case "albums":
+          return visibleAlbums.length ? (
+            <View style={styles.cinematicSection}><Text style={styles.sectionEyebrow}>{homeUi.sections.collections}</Text><Text style={styles.sectionTitle}>{homeUi.sections.albumsWorthStaying}</Text><PremiumContentGrid data={visibleAlbums} keyExtractor={(album) => String(album.id || `album:${album.artist}:${album.title}`)} renderItem={renderAlbumGridItem} maxItems={HOME_SECTION_PREVIEW_LIMIT} scrollEnabled={false} horizontalPadding={0} listKey="home-albums" /></View>
+          ) : null;
+        case "open-rooms":
+          return openRooms.length ? (
+            <View style={styles.cinematicSection}><Text style={styles.sectionEyebrow}>{homeUi.sections.rooms}</Text><Text style={styles.sectionTitle}>{homeUi.sections.openRooms}</Text><PremiumContentGrid data={openRooms} keyExtractor={(room) => room.id} renderItem={renderOpenRoomGridItem} maxItems={HOME_SECTION_PREVIEW_LIMIT} scrollEnabled={false} horizontalPadding={0} listKey="home-open-rooms" /></View>
+          ) : null;
+        case "genres":
+          return visibleGenres.length ? (
+            <View style={styles.cinematicSection}>
+              <View style={styles.sectionHeaderRow}><View style={styles.genreSpotlightHeaderCopy}><Text style={styles.sectionEyebrow}>{homeUi.sections.genres}</Text><Text style={styles.sectionTitle}>{genreSpotlightsPersonalized ? homeUi.sections.madeForYou : homeUi.sections.moodGenreSpotlights}</Text></View><TouchableOpacity activeOpacity={0.86} onPress={openGenreSeeAll} accessibilityRole="button" accessibilityLabel="See all genres" hitSlop={8}><Text style={styles.sectionSeeAll}>See all</Text></TouchableOpacity></View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} scrollEnabled={visibleGenres.length > 2} nestedScrollEnabled style={styles.genreSpotlightRail} contentContainerStyle={styles.genreSpotlightRailContent}>
+                {visibleGenres.map((genre, index) => <View key={genre.id} style={index === visibleGenres.length - 1 ? undefined : styles.genreSpotlightItem}>{renderGenreSpotlightItem({ item: genre })}</View>)}
+              </ScrollView>
+            </View>
+          ) : null;
+        case "catalog-header":
+          return <View style={styles.catalogHeaderRow}><View><Text style={styles.sectionEyebrow}>{homeUi.sections.fullCatalog}</Text><Text style={[styles.sectionTitle, styles.songsSectionTitle]}>{homeUi.sections.allSongs}</Text></View><Text style={styles.catalogCount}>{Math.min(visibleCatalogCount, songs.length)}/{songs.length}</Text></View>;
+      }
+    },
+    [becauseYouListened, genreSpotlightsPersonalized, homeUi, moodRooms, openGenreSeeAll, openRooms, playCatalogSong, playSongFromList, recentlyAddedSongs, renderAlbumGridItem, renderBecauseYouListenedGridItem, renderCreatorGridItem, renderGenreSpotlightItem, renderMoodRoomGridItem, renderOpenRoomGridItem, renderRecentlyAddedGridItem, smartQueueSongs, songs.length, visibleAlbums, visibleArtists, visibleCatalogCount, visibleGenres]
+  );
+
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -1667,8 +1845,8 @@ export default function MusicFeedScreen() {
           </TouchableOpacity>
         </View>
 
-        <FlatList
-            data={visibleCatalogSongs}
+        <FlatList<HomeFeedItem>
+            data={homeFeedItems}
             keyExtractor={keyExtractor}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.list}
@@ -1806,203 +1984,6 @@ export default function MusicFeedScreen() {
                     </View>
                 </>
 
-                {showDeferredHomeSections ? (
-                <>
-                    <EmotionalDiscoveryChips
-                      style={styles.emotionalWorldsSection}
-                      showGatewayRows={false}
-                      title={homeUi.emotionalWorldsTitle}
-                      subtitle={homeUi.emotionalWorldsSubtitle}
-                    />
-
-                    {moodRooms.length > 0 ? (
-                      <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>{homeUi.sections.forYourMood}</Text>
-                        <Text style={styles.sectionTitle}>{homeUi.sections.moodRooms}</Text>
-                        <PremiumContentGrid
-                          data={moodRooms}
-                          keyExtractor={(room) => room.id}
-                          renderItem={renderMoodRoomGridItem}
-                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
-                          scrollEnabled={false}
-                          horizontalPadding={0}
-                          listKey="home-mood-rooms"
-                        />
-                      </View>
-                    ) : null}
-                    {showDeferredHomeSections ? (
-                      <View style={styles.cinematicSection}>
-                        <LinearGradient
-                          pointerEvents="none"
-                          colors={["rgba(168,85,247,0.22)", "rgba(34,211,238,0.08)"]}
-                          style={styles.sectionAura}
-                        />
-                        <View style={styles.sectionHeaderRow}>
-                          <View>
-                            <Text style={styles.sectionEyebrow}>{homeUi.sections.new}</Text>
-                            <Text style={styles.sectionTitle}>{homeUi.sections.recentlyAdded}</Text>
-                          </View>
-                          {recentlyAddedSongs.length > 0 ? (
-                            <Text style={styles.sectionMeta}>{homeUi.sections.play}</Text>
-                          ) : null}
-                        </View>
-                        {recentlyAddedSongs.length > 0 ? (
-                          <PremiumContentGrid
-                            data={recentlyAddedSongs}
-                            keyExtractor={(item) => `recently-${item.id}`}
-                            renderItem={renderRecentlyAddedGridItem}
-                            maxItems={HOME_SECTION_PREVIEW_LIMIT}
-                            scrollEnabled={false}
-                            horizontalPadding={0}
-                            listKey="home-recently-added"
-                          />
-                        ) : (
-                          <Text style={styles.sectionEmptyMeta}>
-                            {homeUi.recentlyAddedEmpty}
-                          </Text>
-                        )}
-                      </View>
-                    ) : null}
-
-                    {becauseYouListened.length > 0 ? (
-                      <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>{homeUi.sections.listener}</Text>
-                        <Text style={styles.sectionTitle}>{homeUi.sections.becauseYouListened}</Text>
-                        <PremiumContentGrid
-                          data={becauseYouListened}
-                          keyExtractor={(item) => `because-${item.id}`}
-                          renderItem={renderBecauseYouListenedGridItem}
-                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
-                          scrollEnabled={false}
-                          horizontalPadding={0}
-                          listKey="home-because-you-listened"
-                        />
-                      </View>
-                    ) : null}
-
-                    {smartQueueSongs.length > 0 ? (
-                      <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>{homeUi.sections.next}</Text>
-                        <Text style={styles.sectionTitle}>{homeUi.sections.smartMusicQueue}</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
-                          {smartQueueSongs.map((item, index) => (
-                            <HomeFeaturedCard
-                              key={`smart-${item.id}`}
-                              item={item as unknown as HiddenTunesNormalizedSong}
-                              index={index}
-                              onPress={(song) => playSongFromList(song as HiddenTunesSong, smartQueueSongs, {
-                                source: "smart_queue",
-                                label: homeUiRef.current.queueLabels.smartMusicQueue,
-                                railId: "smart_queue",
-                              })}
-                            />
-                          ))}
-                        </ScrollView>
-                      </View>
-                    ) : null}
-
-                    {visibleArtists.length > 0 ? (
-                      <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>{homeUi.sections.creators}</Text>
-                        <Text style={styles.sectionTitle}>{homeUi.sections.creatorsInOrbit}</Text>
-                        <PremiumContentGrid
-                          data={visibleArtists}
-                          keyExtractor={(artist) => artist.id}
-                          renderItem={renderCreatorGridItem}
-                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
-                          scrollEnabled={false}
-                          horizontalPadding={0}
-                          listKey="home-creators"
-                        />
-                      </View>
-                    ) : null}
-
-                    {visibleAlbums.length > 0 ? (
-                      <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>{homeUi.sections.collections}</Text>
-                        <Text style={styles.sectionTitle}>{homeUi.sections.albumsWorthStaying}</Text>
-                        <PremiumContentGrid
-                          data={visibleAlbums}
-                          keyExtractor={(album) => {
-                            const id = String(album.id || "").trim();
-                            if (id) return id;
-                            return `album:${String(album.artist || "").trim()}:${String(album.title || "").trim()}`;
-                          }}
-                          renderItem={renderAlbumGridItem}
-                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
-                          scrollEnabled={false}
-                          horizontalPadding={0}
-                          listKey="home-albums"
-                        />
-                      </View>
-                    ) : null}
-
-                    {openRooms.length > 0 ? (
-                      <View style={styles.cinematicSection}>
-                        <Text style={styles.sectionEyebrow}>{homeUi.sections.rooms}</Text>
-                        <Text style={styles.sectionTitle}>{homeUi.sections.openRooms}</Text>
-                        <PremiumContentGrid
-                          data={openRooms}
-                          keyExtractor={(room) => room.id}
-                          renderItem={renderOpenRoomGridItem}
-                          maxItems={HOME_SECTION_PREVIEW_LIMIT}
-                          scrollEnabled={false}
-                          horizontalPadding={0}
-                          listKey="home-open-rooms"
-                        />
-                      </View>
-                    ) : null}
-
-                    {visibleGenres.length > 0 ? (
-                      <View style={styles.cinematicSection}>
-                        <View style={styles.sectionHeaderRow}>
-                          <View style={styles.genreSpotlightHeaderCopy}>
-                            <Text style={styles.sectionEyebrow}>{homeUi.sections.genres}</Text>
-                            <Text style={styles.sectionTitle}>
-                              {genreSpotlightsPersonalized
-                                ? homeUi.sections.madeForYou
-                                : homeUi.sections.moodGenreSpotlights}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            activeOpacity={0.86}
-                            onPress={openGenreSeeAll}
-                            accessibilityRole="button"
-                            accessibilityLabel="See all genres"
-                            hitSlop={8}
-                          >
-                            <Text style={styles.sectionSeeAll}>See all</Text>
-                          </TouchableOpacity>
-                        </View>
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          scrollEnabled={visibleGenres.length > 2}
-                          nestedScrollEnabled
-                          style={styles.genreSpotlightRail}
-                          contentContainerStyle={styles.genreSpotlightRailContent}
-                        >
-                          {visibleGenres.map((genre, index) => (
-                            <View
-                              key={genre.id}
-                              style={index === visibleGenres.length - 1 ? undefined : styles.genreSpotlightItem}
-                            >
-                              {renderGenreSpotlightItem({ item: genre })}
-                            </View>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    ) : null}
-                </>
-                ) : null}
-
-                <View style={styles.catalogHeaderRow}>
-                  <View>
-                    <Text style={styles.sectionEyebrow}>{homeUi.sections.fullCatalog}</Text>
-                    <Text style={[styles.sectionTitle, styles.songsSectionTitle]}>{homeUi.sections.allSongs}</Text>
-                  </View>
-                  <Text style={styles.catalogCount}>{Math.min(visibleCatalogCount, songs.length)}/{songs.length}</Text>
-                </View>
               </View>
             }
             ListFooterComponent={
@@ -2021,7 +2002,7 @@ export default function MusicFeedScreen() {
                 </TouchableOpacity>
               ) : null
             }
-            renderItem={renderSongItem}
+            renderItem={renderHomeFeedItem}
           />
       </LinearGradient>
     </AppShell>
