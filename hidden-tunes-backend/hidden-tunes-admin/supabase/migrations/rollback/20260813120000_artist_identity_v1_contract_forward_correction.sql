@@ -1,0 +1,4 @@
+-- Forward-correction guidance, intentionally non-destructive.
+-- The v1 migration is additive. Rollback is performed by disabling /api/v1 routes.
+-- Do not drop populated columns/tables automatically. Correct constraints or fields
+-- in a later additive migration after production collision review.

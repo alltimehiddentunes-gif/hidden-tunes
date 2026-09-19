@@ -1,0 +1,465 @@
+{
+  "batch": 29,
+  "lane": "PRIOR_RESEARCH_FINGERPRINT_TRIAGE",
+  "startedAt": "2026-08-11T22:49:05.921Z",
+  "completedAt": "2026-08-11T22:49:05.921Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 57,
+  "wrongSourceRejected": 0,
+  "identityUnresolved": 0,
+  "broadcasterResearchRequired": 50,
+  "remainingPending": 1410,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "66abefe5d2d50d00082c7d12",
+      "canonicalName": "VH1 Queens of Reality",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "663b9dc7cb3ea10008f1a0ce",
+      "canonicalName": "Pluto TV Bang Bang",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6452c77ed3fdde00080eb3a8",
+      "canonicalName": "90s Kids TV 2",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6720bc6cdaad7f000872a6e2",
+      "canonicalName": "2900 Happiness",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62da7159ca8f220008032730",
+      "canonicalName": "Auction Hunters",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5ff768b6a4c8b80008498610",
+      "canonicalName": "BET Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 2,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62545c0b002f4b0007688b61",
+      "canonicalName": "Bob Esponja Calca Quadrada",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c091343bf4940007803e03",
+      "canonicalName": "Pimp My Ride",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f4d86f519358a00072b978e",
+      "canonicalName": "90s Throwback",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5cabdf1437b88b26947346b2",
+      "canonicalName": "Pluto TV Backcountry",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6109a9f5531b840007a4a187",
+      "canonicalName": "Cazador de Homicidas",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6759eeb1bd523200083b4f29",
+      "canonicalName": "Avatar: A lenda de Aang",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5e66968a70f34c0007d050be",
+      "canonicalName": "MLB",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f7790b3ed0c88000720b241",
+      "canonicalName": "One Piece",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60faf9ddfcc1f200070a5932",
+      "canonicalName": "Garfield and Friends",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61a52615cbef2500072876e2",
+      "canonicalName": "Acapulco Shore",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61d4c2817a823d00070ba53e",
+      "canonicalName": "Vevo True School Hip-Hop",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60e4573c9f963e00077ecf25",
+      "canonicalName": "Mi Extrana Obsesion",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6452c814939a590008567a3b",
+      "canonicalName": "90's Kids",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f4d878d3d19b30007d2e782",
+      "canonicalName": "70s Cinema",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "687fea9a4fa995eff284a1c8",
+      "canonicalName": "Mas adrenalina",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "653bdb0fbdf3cf00089cc395",
+      "canonicalName": "Pluto TV Adventure",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65004605110545000842035d",
+      "canonicalName": "Pluto TV Action",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 1,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "608181d420fc8500075f612a",
+      "canonicalName": "Pluto TV Anime",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5db0ad56edc89300090d2ebb",
+      "canonicalName": "Kids Movie Club",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c19edbf535220007075c4e",
+      "canonicalName": "MasterChef Danmarks storste madtalenter",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5c665db3e6c01b72c4977bc2",
+      "canonicalName": "Pluto TV Cult Films",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6047fbdbbb776a0007e7f2ff",
+      "canonicalName": "MTV Biggest Pop",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "611e7811eb9daf000764cbfd",
+      "canonicalName": "Pluto TV Aventure",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62ea3d24b8e02600071fa296",
+      "canonicalName": "Pluto TV Comedy Movies",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62e91c3add66e00007eeb24c",
+      "canonicalName": "More Pluto TV Comedy",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5ddc266f80e3550009136843",
+      "canonicalName": "Pluto TV Aventura",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5ca525b650be2571e3943c63",
+      "canonicalName": "80s Rewind",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "677d93f37bffa600080795e7",
+      "canonicalName": "Popeye",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "639b558c73423d00071ce624",
+      "canonicalName": "More TV Crime",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f6108d8cc331900075e98e4",
+      "canonicalName": "MTV Are you the One?",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "580e87ff497c73ba2f321dd3",
+      "canonicalName": "Funny AF",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62ea45010d0611000839868c",
+      "canonicalName": "Gordon Ramsay's Hell's Kitchen",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69afee7a3bd16a4ed071080d",
+      "canonicalName": "From Dusk Till Dawn: The Series",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61b790b985706b00072cb797",
+      "canonicalName": "Adrenalina Pura TV",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6996f0335452cb4f0a2c4153",
+      "canonicalName": "The Nanny & Mr Sheffield - A Fine Romance",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "681111be5e0764e297fb200e",
+      "canonicalName": "Mais MasterChef Brasil",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "693ae62a43fe00a023e76e0d",
+      "canonicalName": "House of Lies",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61922be835f3910007fc58f6",
+      "canonicalName": "En el punto de mira",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68c01785b3900870ec7480e4",
+      "canonicalName": "Pluto TV Wild West",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f8edad922b10b000753bc37",
+      "canonicalName": "Dossiers FBI",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "620fdc7d8a36fc000710e3ba",
+      "canonicalName": "MTV Jovens e Maes",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "685140bd21f49d1b9d177e21",
+      "canonicalName": "MTV Ink Master",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62fb6cd97b90e60007bc318a",
+      "canonicalName": "Romance 365",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "638e11951177840007fdd6b2",
+      "canonicalName": "British Comedy",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    }
+  ]
+}

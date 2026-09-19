@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T07:16:44.927Z",
+  "scope": "Batch 16 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 1,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Azteca Internacional used a TV Azteca/OTTera-linked host and passed 124.22 seconds of 1920x1080 Desktop playback with one video owner, but all evidence frames showed unbranded drama footage and did not prove exact channel identity; it remains quarantined.",
+    "Pluto TV Fútbol pointed to an unrelated teleradiocom.tj service and was rejected as wrong-channel.",
+    "Nosey and America’s Funniest Home Videos used rejected jmp2.uk. Christmas in July used rejected i.mjh.nz.",
+    "Previously completed Barbie & Friends and Hell’s Kitchen and exhausted On the Case were skipped rather than repeated."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 45,
+  "cumulativeTerminalAliases": 169,
+  "batch16Target": 25,
+  "batch16Researched": 20,
+  "batch16Remaining": 5
+}

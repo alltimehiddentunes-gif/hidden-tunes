@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Image } from "expo-image";
@@ -32,6 +32,11 @@ function TvVideoCard({
     (video.source_id
       ? `https://i.ytimg.com/vi/${video.source_id}/hqdefault.jpg`
       : undefined);
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
+
+  useEffect(() => {
+    setThumbnailFailed(false);
+  }, [thumbnail]);
 
   const subtitle =
     video.categories?.[0] ||
@@ -47,16 +52,22 @@ function TvVideoCard({
       style={[styles.card, { width }, disabled && styles.cardDisabled]}
     >
       <View style={styles.thumbWrap}>
-        {thumbnail ? (
+        {thumbnail && !thumbnailFailed ? (
           <Image
             source={{ uri: thumbnail }}
             style={styles.thumb}
-            contentFit="cover"
+            contentFit="contain"
             transition={120}
             recyclingKey={video.id}
+            onError={() => setThumbnailFailed(true)}
           />
         ) : (
-          <View style={[styles.thumb, styles.thumbFallback]} />
+          <View style={[styles.thumb, styles.thumbFallback]}>
+            <Ionicons name="tv-outline" size={24} color={COLORS.textMuted} />
+            <Text style={styles.fallbackInitial}>
+              {(video.channel_name || video.title).trim().charAt(0).toUpperCase() || "TV"}
+            </Text>
+          </View>
         )}
         {loading ? (
           <View style={styles.loadingOverlay}>
@@ -121,6 +132,15 @@ const styles = StyleSheet.create({
 
   thumbFallback: {
     backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+
+  fallbackInitial: {
+    color: COLORS.textMuted,
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   loadingOverlay: {

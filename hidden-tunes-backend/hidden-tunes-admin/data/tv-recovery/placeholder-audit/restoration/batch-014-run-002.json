@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T01:16:30.000Z",
+  "scope": "Batch 14 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "CNN officially confirms CNN Headlines as its domestic FAST channel, but the candidate's generic CloudFront endpoint lacked complete direct CNN/distributor ownership linkage in this run.",
+    "Newsmax confirms Newsmax2 as a distributed service, but its generic CloudFront candidate likewise lacked complete direct ownership linkage.",
+    "Dance Moms, Supermarket Sweep, and UnXplained Zone used rejected jmp2.uk sources.",
+    "No candidate met the provenance threshold for expensive validation. All five remain quarantined; no production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 39,
+  "cumulativeTerminalAliases": 136,
+  "batch14Target": 25,
+  "batch14Researched": 10,
+  "batch14Remaining": 15
+}

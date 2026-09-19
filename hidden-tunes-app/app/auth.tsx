@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   View,
   Text,
   StyleSheet,
@@ -15,9 +16,87 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import {
+  getCurrentSupabaseSessionSummary,
+  requestPasswordReset,
+  signInWithPassword,
+  signUpWithPassword,
+} from "../services/mobileSupabaseAuth";
 
 export default function AuthScreen() {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<"error" | "success">("error");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    void getCurrentSupabaseSessionSummary().then((session) => {
+      if (active && session.isSignedIn) router.replace("/(tabs)");
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function submit() {
+    setMessage("");
+
+    if (mode === "reset") {
+      setBusy(true);
+      const result = await requestPasswordReset(email);
+      setBusy(false);
+      setMessageTone(result.error ? "error" : "success");
+      setMessage(result.error || "If an account exists for that email, a reset link is on its way.");
+      return;
+    }
+
+    if (mode === "signup" && password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      return;
+    }
+
+    setBusy(true);
+    if (mode === "login") {
+      const result = await signInWithPassword(email, password);
+      setBusy(false);
+      if (result.error) {
+        setMessageTone("error");
+        setMessage(result.error);
+        return;
+      }
+      router.replace("/(tabs)");
+      return;
+    }
+
+    const result = await signUpWithPassword(email, password, displayName);
+    setBusy(false);
+
+    if (result.error) {
+      setMessageTone("error");
+      setMessage(result.error);
+      return;
+    }
+
+    if (mode === "signup" && result.needsEmailConfirmation) {
+      setMessageTone("success");
+      setMessage("Account created. Check your email to confirm it, then sign in.");
+      setMode("login");
+      setPassword("");
+      setConfirmPassword("");
+      return;
+    }
+
+    router.replace("/(tabs)");
+  }
+
+  const isReset = mode === "reset";
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
@@ -40,11 +119,13 @@ export default function AuthScreen() {
 
         <View style={styles.card}>
           <Text style={styles.title}>
-            {mode === "login" ? "Welcome back" : "Create account"}
+            {isReset ? "Reset password" : mode === "login" ? "Welcome back" : "Create account"}
           </Text>
 
           <Text style={styles.subtitle}>
-            {mode === "login"
+            {isReset
+              ? "Enter your email and we will send a secure reset link."
+              : mode === "login"
               ? "Sign in to continue your listening world."
               : "Join Hidden Tunes and save your music journey."}
           </Text>
@@ -52,6 +133,8 @@ export default function AuthScreen() {
           <View style={styles.inputBox}>
             <Ionicons name="mail-outline" size={20} color={COLORS.textMuted} />
             <TextInput
+              value={email}
+              onChangeText={setEmail}
               placeholder="Email address"
               placeholderTextColor={COLORS.textMuted}
               style={styles.input}
@@ -63,6 +146,8 @@ export default function AuthScreen() {
           <View style={styles.inputBox}>
             <Ionicons name="lock-closed-outline" size={20} color={COLORS.textMuted} />
             <TextInput
+              value={password}
+              onChangeText={setPassword}
               placeholder="Password"
               placeholderTextColor={COLORS.textMuted}
               style={styles.input}
@@ -74,6 +159,8 @@ export default function AuthScreen() {
             <View style={styles.inputBox}>
               <Ionicons name="person-outline" size={20} color={COLORS.textMuted} />
               <TextInput
+                value={displayName}
+                onChangeText={setDisplayName}
                 placeholder="Display name"
                 placeholderTextColor={COLORS.textMuted}
                 style={styles.input}
@@ -81,22 +168,51 @@ export default function AuthScreen() {
             </View>
           )}
 
+          {mode === "signup" && (
+            <View style={styles.inputBox}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.textMuted} />
+              <TextInput
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Confirm password"
+                placeholderTextColor={COLORS.textMuted}
+                style={styles.input}
+                secureTextEntry
+              />
+            </View>
+          )}
+
+          {message ? (
+            <Text style={[styles.message, messageTone === "success" ? styles.successMessage : null]}>
+              {message}
+            </Text>
+          ) : null}
+
           <TouchableOpacity
             activeOpacity={0.85}
-            style={styles.mainButton}
-            onPress={() => router.replace("/(tabs)")}
+            style={[styles.mainButton, busy && styles.mainButtonDisabled]}
+            onPress={submit}
+            disabled={busy}
           >
-            <Text style={styles.mainButtonText}>
-              {mode === "login" ? "Sign In" : "Create Account"}
-            </Text>
+            {busy ? <ActivityIndicator color="#000" /> : <Text style={styles.mainButtonText}>
+              {isReset ? "Send Reset Link" : mode === "login" ? "Sign In" : "Create Account"}
+            </Text>}
           </TouchableOpacity>
+
+          {mode === "login" ? (
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => { setMessage(""); setMode("reset"); }}>
+              <Text style={styles.secondaryText}>Forgot password?</Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             style={styles.switchButton}
-            onPress={() => setMode(mode === "login" ? "signup" : "login")}
+            onPress={() => { setMessage(""); setMode(isReset || mode === "signup" ? "login" : "signup"); }}
           >
             <Text style={styles.switchText}>
-              {mode === "login"
+              {isReset
+                ? "Back to sign in"
+                : mode === "login"
                 ? "New here? Create an account"
                 : "Already have an account? Sign in"}
             </Text>
@@ -192,6 +308,29 @@ const styles = StyleSheet.create({
     color: "#000",
     fontSize: 16,
     fontWeight: "900",
+  },
+  mainButtonDisabled: {
+    opacity: 0.72,
+  },
+  message: {
+    color: "#fca5a5",
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "700",
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  successMessage: {
+    color: "#86efac",
+  },
+  secondaryButton: {
+    alignItems: "center",
+    marginTop: 16,
+  },
+  secondaryText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: "800",
   },
   switchButton: {
     marginTop: 18,

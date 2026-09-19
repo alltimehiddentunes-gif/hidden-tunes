@@ -1,5 +1,5 @@
 /**
- * Minimal desktop Supabase auth â€” same Hidden Tunes user identity as mobile.
+ * Minimal desktop Supabase auth — same Hidden Tunes user identity as mobile.
  * Uses public anon key only; never service-role.
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
@@ -66,6 +66,11 @@ function getDesktopSupabaseClient() {
     })
   }
   return cachedClient
+}
+
+/** Public-anon authenticated client for user-scoped Cross Play RPCs/RLS reads. */
+export function getDesktopAccountClient() {
+  return getDesktopSupabaseClient()
 }
 
 export function isDesktopAuthConfigured() {
@@ -289,6 +294,7 @@ export function subscribeDesktopAuth(onChange: (event: string) => void) {
   const supabase = getDesktopSupabaseClient()
   if (!supabase) return () => {}
   const { data } = supabase.auth.onAuthStateChange((event) => {
+    sessionStorage.removeItem('hidden-tunes.crossplay.continue.v1')
     onChange(event)
   })
   return () => {

@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T10:01:34.924Z",
+  "scope": "Batch 27 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 5,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 2,
+  "productionWrites": 0,
+  "notes": [
+    "Vevo Country passed 121.59 seconds of 1920x1080 existing-Desktop playback with one video owner from its directly named Vevo/Samsung NZ Amagi candidate.",
+    "Sustained official country music-video programming with Kacey Musgraves artist/title metadata supports EXACT identity. Normal search and production resolver passed.",
+    "Two quarantined aliases were terminally merged from their prior Roku candidate to the distinct authoritative Samsung NZ candidate without creating a duplicate.",
+    "Vevo 90s retained a directly named Vevo/Samsung NZ candidate. Survivor retained a Banijay/Samsung UK candidate. America's Test Kitchen retained Roku delivery. Top Gear retained Tubi and Samsung alternatives; none were full-tested after the stronger exact Vevo proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 67,
+  "cumulativeTerminalAliases": 207,
+  "batch27Target": 25,
+  "batch27Researched": 5,
+  "batch27Remaining": 20
+}

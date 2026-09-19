@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-15T22:23:25.437Z",
+  "identity": "Universal Crime",
+  "candidateRecordId": "672a2129-2fff-480e-aded-5c2f3073833c",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 123.57,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

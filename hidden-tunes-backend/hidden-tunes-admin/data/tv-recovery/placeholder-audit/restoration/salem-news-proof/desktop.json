@@ -1,0 +1,15 @@
+{
+  "candidateId": "ac16952b-0c95-4079-afa7-5d2c4667500a",
+  "streamHost": "amg00732-salemmediagroup-snc-ono-ekp8j.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 161.893447,
+    "advancedSeconds": 119.88534700000001,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

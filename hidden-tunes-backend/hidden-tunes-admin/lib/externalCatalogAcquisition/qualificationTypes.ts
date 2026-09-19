@@ -1,0 +1,15 @@
+export type CompositionRightsStatus = "PUBLIC_DOMAIN_VERIFIED" | "ORIGINAL_BY_RECORDING_ARTIST" | "LICENSE_COVERS_COMPOSITION" | "COMPOSITION_LICENSE_VERIFIED" | "UNKNOWN" | "CONFLICT" | "REJECTED";
+export type DownloadStatus = "DOWNLOAD_PASS" | "DOWNLOAD_FAIL";
+export type MediaFailureClass = "HTTP_NOT_FOUND" | "HTTP_FORBIDDEN" | "REDIRECT_FAILURE" | "TIMEOUT" | "INVALID_MIME" | "HTML_RESPONSE" | "CORRUPT_AUDIO" | "ZERO_LENGTH" | "DECODE_FAILURE" | "SOURCE_REMOVED" | "API_METADATA_STALE" | "OTHER";
+export type AudioQualityVerdict = "AUDIO_PASS" | "AUDIO_WARN" | "AUDIO_FAIL";
+export type DuplicateVerdict = "UNIQUE" | "EXACT_DUPLICATE" | "LIKELY_AUDIO_DUPLICATE" | "METADATA_COLLISION" | "REVIEW_REQUIRED";
+export type TaxonomyStatus = "TAXONOMY_PASS" | "TAXONOMY_REVIEW" | "TAXONOMY_FAIL";
+export type TaxonomyConfidence = "HIGH" | "MEDIUM" | "LOW";
+export type FinalQualificationVerdict = "GREEN / INGEST_ELIGIBLE" | "AMBER / RIGHTS_REVIEW" | "AMBER / METADATA_REVIEW" | "AMBER / DUPLICATE_REVIEW" | "AMBER / QUALITY_REVIEW" | "RED / RIGHTS_REJECTED" | "RED / MEDIA_INVALID" | "RED / DUPLICATE" | "RED / UNSUPPORTED_LICENSE";
+export type CompositionRightsEvidence = { sourceUrl?: string | null; statement?: string | null; capturedAt: string; evidenceHash?: string | null; reliable: boolean };
+export type CompositionRightsResult = { status: CompositionRightsStatus; reason: string; evidence: CompositionRightsEvidence[] };
+export type FingerprintResult = { status: "AVAILABLE" | "UNAVAILABLE" | "FAILED"; fingerprint: string | null; durationSeconds: number | null; tool: string | null; error: string | null };
+export type DownloadValidation = { fingerprint?: FingerprintResult; failureClass?: MediaFailureClass | null; status: DownloadStatus; attempts: number; httpStatus: number | null; contentType: string | null; bytes: number | null; sha256: string | null; container: string | null; durationSeconds: number | null; codec: string | null; bitrate: number | null; sampleRate: number | null; channels: number | null; redirects: number; error: string | null; temporaryPath: string | null };
+export type AudioQualityResult = { verdict: AudioQualityVerdict; reasons: string[]; durationSeconds: number | null; codec: string | null; bitrate: number | null; sampleRate: number | null; channels: number | null; clipping: { detectable: boolean; detected: boolean | null }; silencePercentage: number | null; corruptDecodeErrors: string[] };
+export type DuplicateResult = { verdict: DuplicateVerdict; reasons: string[]; sourceIdentity: string; normalizedMetadata: string; fileHash: string | null; fingerprint: FingerprintResult; comparedWith: string[] };
+export type TaxonomyResult = { status: TaxonomyStatus; confidenceBand: TaxonomyConfidence; providerGenres: string[]; normalizedGenres: string[]; canonicalGenre: string | null; subgenre: string | null; mood: string | null; language: string | null; confidence: number; reasons: string[] };

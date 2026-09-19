@@ -1,0 +1,75 @@
+{
+  "createdAt": "2026-08-10T03:18:18.499Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "providerChannelId": "5e7cf6c7b156d500078c5f44",
+      "existingCatalogRecordId": "2a2e5730-7429-4638-b3e0-1ef279d2db52",
+      "sourceHost": "oan-plus-tcl.amagi.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelId": "5bb1ad55268cae539bcedb08",
+      "existingCatalogRecordId": "154914d7-6a45-4b95-b482-0cd01d051fec",
+      "sourceHost": "6ec8627d.wurl.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelId": "601a0342dcf4370007566891",
+      "existingCatalogRecordId": "0b127b68-2901-439a-9d01-7894ea00851d",
+      "sourceHost": "adf47c43.wurl.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelId": "6440f8ba939a5900082bddc8",
+      "existingCatalogRecordId": "117fb222-5ae8-4525-a011-ff0bdf870e52",
+      "sourceHost": "worldofloveisland-rakuten.amagi.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    }
+  ],
+  "rejected": [
+    [
+      "61f9597e78607000074f6c2a",
+      "Anonymous-IP source is unauthorized and ineligible for Pluto TV Sci-Fi."
+    ]
+  ],
+  "unresolved": [
+    [
+      "62724c8465731f0007b6cd86",
+      "Project Runway content observed, but eligible source provenance was not established."
+    ],
+    [
+      "6909fc4b74601d957a380613",
+      "Legitimate distribution host, but sampled frames did not establish actual Hardcore Pawn content."
+    ],
+    [
+      "63d2c140c111bc0008cb890b",
+      "Sample decoded without visible content; TeleFormula identity was not established."
+    ],
+    [
+      "6a205abba7b5a6c560b8ac25",
+      "Actual reality content observed, but opaque CloudFront provenance is insufficient."
+    ]
+  ]
+}

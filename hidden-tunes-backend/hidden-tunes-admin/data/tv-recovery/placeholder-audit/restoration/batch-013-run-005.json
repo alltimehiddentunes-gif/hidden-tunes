@@ -1,0 +1,31 @@
+{
+  "completedAt": "2026-08-15T00:16:30.000Z",
+  "scope": "Batch 13 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 4,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Come Dine With Me and The NBA Channel have legitimate official programming identities, but their generic CloudFront candidates lacked complete direct distributor ownership linkage in this run.",
+    "Crimen used a Local Now delivery endpoint, but exact channel identity and source ownership linkage were not proven. Hunter x Hunter used an unassigned generic CloudFront endpoint without authoritative candidate provenance.",
+    "Forensic Files used a rejected jmp2.uk source.",
+    "All five remain quarantined. No expensive validation, production write, or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 39,
+  "cumulativeTerminalAliases": 136,
+  "batch13Target": 25,
+  "batch13Researched": 25,
+  "batch13Remaining": 0,
+  "batch13Complete": true
+}

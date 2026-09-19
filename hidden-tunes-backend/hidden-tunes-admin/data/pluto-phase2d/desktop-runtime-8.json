@@ -1,0 +1,182 @@
+{
+  "testedAt": "2026-08-09T07:37:29.500Z",
+  "actualHiddenTunesShell": true,
+  "productionWrites": 0,
+  "results": [
+    {
+      "id": "62b976b93279cb000772c6f9",
+      "name": "Bloomberg TV+",
+      "clicked": true,
+      "passed": true,
+      "state": {
+        "title": "Bloomberg TV+",
+        "videoCount": 1,
+        "readyState": 4,
+        "width": 480,
+        "height": 272,
+        "paused": false,
+        "muted": false,
+        "volume": 1,
+        "currentTime": 1.832789,
+        "audioBytes": 3839,
+        "error": null,
+        "playerError": null
+      }
+    },
+    {
+      "id": "5a6b92f6e22a617379789618",
+      "name": "CBS News 24/7",
+      "clicked": true,
+      "passed": true,
+      "state": {
+        "title": "CBS News 24/7",
+        "videoCount": 1,
+        "readyState": 4,
+        "width": 480,
+        "height": 270,
+        "paused": false,
+        "muted": false,
+        "volume": 1,
+        "currentTime": 3.032232,
+        "audioBytes": 20175,
+        "error": null,
+        "playerError": null
+      }
+    },
+    {
+      "id": "5dc9b875e280c80009a8a44a",
+      "name": "CBS News Los Angeles (720p)",
+      "clicked": true,
+      "passed": true,
+      "state": {
+        "title": "CBS News Los Angeles",
+        "videoCount": 1,
+        "readyState": 4,
+        "width": 400,
+        "height": 224,
+        "paused": false,
+        "muted": false,
+        "volume": 1,
+        "currentTime": 88.014824,
+        "audioBytes": 36181,
+        "error": null,
+        "playerError": null
+      }
+    },
+    {
+      "id": "60fb299b79498900070b29e0",
+      "name": "CBS News Miami (720p)",
+      "clicked": true,
+      "passed": true,
+      "state": {
+        "title": "CBS News Miami",
+        "videoCount": 1,
+        "readyState": 4,
+        "width": 320,
+        "height": 180,
+        "paused": false,
+        "muted": false,
+        "volume": 1,
+        "currentTime": 1.597506,
+        "audioBytes": 32256,
+        "error": null,
+        "playerError": null
+      }
+    },
+    {
+      "id": "60cb6df2b2ad610008cd5bea",
+      "name": "CBS News Sacramento (720p)",
+      "clicked": true,
+      "passed": true,
+      "state": {
+        "title": "CBS News Sacramento",
+        "videoCount": 1,
+        "readyState": 4,
+        "width": 320,
+        "height": 180,
+        "paused": false,
+        "muted": false,
+        "volume": 1,
+        "currentTime": 2.14831,
+        "audioBytes": 34816,
+        "error": null,
+        "playerError": null
+      }
+    },
+    {
+      "id": "60492e6d7f3f560007ab0f62",
+      "name": "Estrella News (720p)",
+      "clicked": true,
+      "passed": true,
+      "state": {
+        "title": "Estrella News",
+        "videoCount": 1,
+        "readyState": 4,
+        "width": 426,
+        "height": 240,
+        "paused": false,
+        "muted": false,
+        "volume": 1,
+        "currentTime": 2.229713,
+        "audioBytes": 11106,
+        "error": null,
+        "playerError": null
+      }
+    },
+    {
+      "id": "61de8e502c8e9400077e5de7",
+      "name": "Euronews",
+      "clicked": true,
+      "passed": true,
+      "state": {
+        "title": "Euronews",
+        "videoCount": 1,
+        "readyState": 4,
+        "width": 428,
+        "height": 241,
+        "paused": false,
+        "muted": false,
+        "volume": 1,
+        "currentTime": 1.760252,
+        "audioBytes": 13753,
+        "error": null,
+        "playerError": null
+      }
+    },
+    {
+      "id": "61de90a47365340007f77c27",
+      "name": "Euronews English (720p)",
+      "clicked": true,
+      "passed": true,
+      "state": {
+        "title": "Euronews English",
+        "videoCount": 1,
+        "readyState": 4,
+        "width": 428,
+        "height": 241,
+        "paused": false,
+        "muted": false,
+        "volume": 1,
+        "currentTime": 1.819694,
+        "audioBytes": 13333,
+        "error": null,
+        "playerError": null
+      }
+    }
+  ],
+  "desktopPassed": 8,
+  "controls": {
+    "mute": true,
+    "unmute": true,
+    "fullscreen": true,
+    "fullscreenEntered": true,
+    "pipSupported": true,
+    "pip": true,
+    "previous": true,
+    "next": true,
+    "home": true,
+    "floatingPlayer": true,
+    "returnTv": true,
+    "reentered": true
+  }
+}

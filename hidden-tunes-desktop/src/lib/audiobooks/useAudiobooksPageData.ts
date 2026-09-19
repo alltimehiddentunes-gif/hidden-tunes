@@ -14,9 +14,51 @@ import type {
 const SEARCH_DEBOUNCE_MS = 280
 const FEATURED_LIMIT = 12
 const BROWSE_LIMIT = 40
+const AUDIOBOOKS_PAGE_SNAPSHOT_TTL_MS = 5 * 60 * 1000
+const AUDIOBOOKS_PAGE_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+type AudiobooksPageSnapshot = {
+  categories: AudiobookCategoryMeta[]
+  browseBooks: AudiobookBookMeta[]
+  pagination: AudiobookPagination | null
+  browseCursor: string | null
+  cachedAt: number
+}
+
+let audiobooksPageSnapshot: AudiobooksPageSnapshot | null = null
+
+function readAudiobooksPageSnapshot() {
+  if (!audiobooksPageSnapshot) return null
+  const ageMs = Date.now() - audiobooksPageSnapshot.cachedAt
+  if (ageMs > AUDIOBOOKS_PAGE_SNAPSHOT_MAX_AGE_MS) {
+    audiobooksPageSnapshot = null
+    return null
+  }
+  return {
+    snapshot: audiobooksPageSnapshot,
+    fresh: ageMs <= AUDIOBOOKS_PAGE_SNAPSHOT_TTL_MS,
+  }
+}
 
 function readError(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback
+}
+
+function isCancelledError(reason: unknown) {
+  return (
+    (reason instanceof DOMException && reason.name === 'AbortError')
+    || (reason instanceof Error && reason.name === 'AbortError')
+    || (reason instanceof Error && /cancelled|canceled|aborted/i.test(reason.message))
+  )
+}
+
+function deriveFeaturedBooks(books: AudiobookBookMeta[]) {
+  const explicitlyFeatured = books
+    .filter((book) => book.isFeatured)
+    .slice(0, FEATURED_LIMIT)
+  return explicitlyFeatured.length > 0
+    ? explicitlyFeatured
+    : books.slice(0, FEATURED_LIMIT)
 }
 
 function dedupeBooks(previous: AudiobookBookMeta[], incoming: AudiobookBookMeta[]) {
@@ -35,128 +77,242 @@ export function useAudiobooksPageData(
   categorySlug: string | null,
   languageFilter: string | null = null,
 ) {
-  const [categories, setCategories] = useState<AudiobookCategoryMeta[]>([])
-  const [featuredBooks, setFeaturedBooks] = useState<AudiobookBookMeta[]>([])
-  const [browseBooks, setBrowseBooks] = useState<AudiobookBookMeta[]>([])
+  const trimmedSearch = searchQuery.trim()
+  const effectiveCategorySlug = trimmedSearch ? null : categorySlug
+  const effectiveLanguageFilter = trimmedSearch || effectiveCategorySlug
+    ? null
+    : languageFilter
+  const filteredView =
+    trimmedSearch.length > 0
+    || Boolean(effectiveCategorySlug)
+    || Boolean(effectiveLanguageFilter)
+  const contentQueryKey = filteredView
+    ? [trimmedSearch, effectiveCategorySlug ?? '', effectiveLanguageFilter ?? ''].join('|')
+    : 'default'
+
+  const [initialSnapshot] = useState(() => readAudiobooksPageSnapshot())
+  const [categories, setCategories] = useState<AudiobookCategoryMeta[]>(
+    () => initialSnapshot?.snapshot.categories ?? [],
+  )
+  const [browseBooks, setBrowseBooks] = useState<AudiobookBookMeta[]>(
+    () => initialSnapshot?.snapshot.browseBooks ?? [],
+  )
   const [searchBooks, setSearchBooks] = useState<AudiobookBookMeta[]>([])
-  const [pagination, setPagination] = useState<AudiobookPagination | null>(null)
-  const [browseCursor, setBrowseCursor] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [contentLoading, setContentLoading] = useState(false)
+  const [browsePagination, setBrowsePagination] = useState<AudiobookPagination | null>(
+    () => initialSnapshot?.snapshot.pagination ?? null,
+  )
+  const [filteredPagination, setFilteredPagination] = useState<AudiobookPagination | null>(null)
+  const [browseCursor, setBrowseCursor] = useState<string | null>(
+    () => initialSnapshot?.snapshot.browseCursor ?? null,
+  )
+  const [filteredCursor, setFilteredCursor] = useState<string | null>(null)
+  const [loading, setLoading] = useState(() => !initialSnapshot)
+  const [contentLoading, setContentLoading] = useState(filteredView)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [contentError, setContentError] = useState<string | null>(null)
+
   const bootstrapRef = useRef(0)
-  const browseRef = useRef(0)
-  const browseAbortRef = useRef<AbortController | null>(null)
+  const contentRef = useRef(0)
   const loadMoreRef = useRef(0)
-
-  const trimmedSearch = searchQuery.trim()
-  const filteredView = trimmedSearch.length > 0 || Boolean(categorySlug) || Boolean(languageFilter)
-  const [prevFilteredView, setPrevFilteredView] = useState(filteredView)
-
-  if (filteredView !== prevFilteredView) {
-    setPrevFilteredView(filteredView)
-    if (!filteredView) {
-      setSearchBooks([])
-      setContentError(null)
-      setContentLoading(false)
-    }
-  }
+  const contentAbortRef = useRef<AbortController | null>(null)
+  const loadMoreAbortRef = useRef<AbortController | null>(null)
+  const loadMorePendingRef = useRef(false)
+  const browseBooksRef = useRef(initialSnapshot?.snapshot.browseBooks ?? [])
+  const searchBooksRef = useRef<AudiobookBookMeta[]>([])
+  const contentQueryKeyRef = useRef(contentQueryKey)
 
   useEffect(() => {
+    const controller = new AbortController()
     const requestId = ++bootstrapRef.current
-    const controller = new AbortController()
 
-    void (async () => {
-      await Promise.resolve()
-      if (requestId !== bootstrapRef.current) return
-      setLoading(true)
-      setError(null)
+    if (!initialSnapshot?.fresh) {
+      void (async () => {
+        await Promise.resolve()
+        if (controller.signal.aborted || requestId !== bootstrapRef.current) return
+        setLoading(true)
+        setError(null)
 
-      try {
-        const [nextCategories, featuredResponse, browseResponse] = await Promise.all([
-          fetchAudiobookCategories(controller.signal),
-          fetchAudiobookBooks({ page: 1, limit: FEATURED_LIMIT }, controller.signal),
-          fetchAudiobookBooks({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
-        ])
-        if (requestId !== bootstrapRef.current) return
-        setCategories(nextCategories)
-        setFeaturedBooks(
-          featuredResponse.books.filter((book) => book.isFeatured).slice(0, FEATURED_LIMIT).length > 0
-            ? featuredResponse.books.filter((book) => book.isFeatured).slice(0, FEATURED_LIMIT)
-            : featuredResponse.books.slice(0, FEATURED_LIMIT),
-        )
-        setBrowseBooks(browseResponse.books)
-        setBrowseCursor(browseResponse.pagination.nextCursor ?? null)
-        setPagination(browseResponse.pagination)
-      } catch (reason) {
-        if (requestId !== bootstrapRef.current) return
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
-        setError(readError(reason, 'Could not load audiobooks.'))
-      } finally {
-        if (requestId === bootstrapRef.current) setLoading(false)
-      }
-    })()
+        try {
+          const [categoriesResult, browseResult] = await Promise.allSettled([
+            fetchAudiobookCategories(controller.signal),
+            fetchAudiobookBooks({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
+          ])
 
-    return () => controller.abort()
-  }, [])
+          if (controller.signal.aborted || requestId !== bootstrapRef.current) return
+
+          if (categoriesResult.status === 'fulfilled') {
+            setCategories(categoriesResult.value)
+          }
+
+          if (browseResult.status === 'fulfilled') {
+            const response = browseResult.value
+            browseBooksRef.current = response.books
+            setBrowseBooks(response.books)
+            setBrowseCursor(response.pagination.nextCursor ?? null)
+            setBrowsePagination(response.pagination)
+            setError(null)
+          } else if (!isCancelledError(browseResult.reason) && browseBooksRef.current.length === 0) {
+            setError(readError(browseResult.reason, 'Could not load audiobooks.'))
+          }
+
+          if (
+            categoriesResult.status === 'fulfilled'
+            && browseResult.status === 'fulfilled'
+            && browseResult.value.books.length > 0
+          ) {
+            audiobooksPageSnapshot = {
+              categories: categoriesResult.value,
+              browseBooks: browseResult.value.books,
+              pagination: browseResult.value.pagination,
+              browseCursor: browseResult.value.pagination.nextCursor ?? null,
+              cachedAt: Date.now(),
+            }
+          }
+        } catch (reason) {
+          if (
+            controller.signal.aborted
+            || requestId !== bootstrapRef.current
+            || isCancelledError(reason)
+          ) return
+          if (browseBooksRef.current.length === 0) {
+            setError(readError(reason, 'Could not load audiobooks.'))
+          }
+        } finally {
+          if (!controller.signal.aborted && requestId === bootstrapRef.current) {
+            setLoading(false)
+          }
+        }
+      })()
+    }
+
+    return () => {
+      bootstrapRef.current += 1
+      controller.abort()
+    }
+  }, [initialSnapshot])
 
   useEffect(() => {
-    browseAbortRef.current?.abort()
+    if (contentQueryKeyRef.current === contentQueryKey) return
+    contentQueryKeyRef.current = contentQueryKey
+    searchBooksRef.current = []
+    contentAbortRef.current?.abort()
+    loadMoreAbortRef.current?.abort()
+    loadMoreRef.current += 1
+    loadMorePendingRef.current = false
+
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setSearchBooks([])
+      setFilteredPagination(null)
+      setFilteredCursor(null)
+      setContentError(null)
+      setContentLoading(filteredView)
+      setLoadingMore(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [contentQueryKey, filteredView])
+
+  useEffect(() => {
+    contentAbortRef.current?.abort()
     const controller = new AbortController()
-    browseAbortRef.current = controller
-    const requestId = ++browseRef.current
+    contentAbortRef.current = controller
+    const requestId = ++contentRef.current
+    const requestQueryKey = contentQueryKey
 
     if (!filteredView) {
       return () => controller.abort()
     }
 
-    const timer = window.setTimeout(() => {
-      void (async () => {
-        await Promise.resolve()
-        if (requestId !== browseRef.current) return
-        setContentLoading(true)
-        setContentError(null)
+    const timer = globalThis.setTimeout(() => {
+      setContentLoading(true)
+      setContentError(null)
 
+      void (async () => {
         try {
           const response = await (trimmedSearch
             ? searchAudiobooks(trimmedSearch, { page: 1, limit: BROWSE_LIMIT }, controller.signal)
-            : categorySlug
-              ? fetchAudiobookCategory(categorySlug, { page: 1, limit: BROWSE_LIMIT }, controller.signal)
+            : effectiveCategorySlug
+              ? fetchAudiobookCategory(
+                  effectiveCategorySlug,
+                  { page: 1, limit: BROWSE_LIMIT },
+                  controller.signal,
+                )
               : fetchAudiobookBooks(
                   {
                     page: 1,
                     limit: BROWSE_LIMIT,
-                    language: languageFilter,
+                    language: effectiveLanguageFilter,
                   },
                   controller.signal,
                 ))
-          if (requestId !== browseRef.current) return
+
+          if (
+            controller.signal.aborted
+            || requestId !== contentRef.current
+            || requestQueryKey !== contentQueryKeyRef.current
+          ) return
+
+          searchBooksRef.current = response.books
           setSearchBooks(response.books)
-          setPagination(response.pagination)
-          setBrowseCursor(response.pagination.nextCursor ?? null)
+          setFilteredPagination(response.pagination)
+          setFilteredCursor(response.pagination.nextCursor ?? null)
+          setContentError(null)
         } catch (reason) {
-          if (requestId !== browseRef.current) return
-          if (reason instanceof DOMException && reason.name === 'AbortError') return
+          if (
+            controller.signal.aborted
+            || requestId !== contentRef.current
+            || requestQueryKey !== contentQueryKeyRef.current
+            || isCancelledError(reason)
+          ) return
           setContentError(readError(reason, 'Could not load audiobook results.'))
-          setSearchBooks([])
         } finally {
-          if (requestId === browseRef.current) setContentLoading(false)
+          if (
+            !controller.signal.aborted
+            && requestId === contentRef.current
+            && requestQueryKey === contentQueryKeyRef.current
+          ) {
+            setContentLoading(false)
+          }
         }
       })()
     }, trimmedSearch ? SEARCH_DEBOUNCE_MS : 0)
 
     return () => {
-      window.clearTimeout(timer)
+      globalThis.clearTimeout(timer)
       controller.abort()
     }
-  }, [categorySlug, filteredView, languageFilter, trimmedSearch])
+  }, [
+    contentQueryKey,
+    effectiveCategorySlug,
+    effectiveLanguageFilter,
+    filteredView,
+    trimmedSearch,
+  ])
+
+  useEffect(() => {
+    return () => {
+      loadMoreRef.current += 1
+      loadMorePendingRef.current = false
+      loadMoreAbortRef.current?.abort()
+    }
+  }, [])
+
+  const pagination = filteredView ? filteredPagination : browsePagination
+  const currentCursor = filteredView ? filteredCursor : browseCursor
 
   const loadMore = useCallback(() => {
-    if (!pagination?.hasMore || loadingMore) return
-    const requestId = ++loadMoreRef.current
+    if (!pagination?.hasMore || loading || loadMorePendingRef.current) return
+
+    loadMorePendingRef.current = true
+    loadMoreAbortRef.current?.abort()
     const controller = new AbortController()
+    loadMoreAbortRef.current = controller
+    const requestId = ++loadMoreRef.current
+    const requestQueryKey = contentQueryKey
     setLoadingMore(true)
 
     const request = trimmedSearch
@@ -165,9 +321,9 @@ export function useAudiobooksPageData(
           { page: (pagination.page || 1) + 1, limit: BROWSE_LIMIT },
           controller.signal,
         )
-      : categorySlug
+      : effectiveCategorySlug
         ? fetchAudiobookCategory(
-            categorySlug,
+            effectiveCategorySlug,
             { page: (pagination.page || 1) + 1, limit: BROWSE_LIMIT },
             controller.signal,
           )
@@ -175,36 +331,70 @@ export function useAudiobooksPageData(
             {
               page: (pagination.page || 1) + 1,
               limit: BROWSE_LIMIT,
-              cursor: browseCursor,
-              language: languageFilter,
+              cursor: currentCursor,
+              language: effectiveLanguageFilter,
             },
             controller.signal,
           )
 
-    request
+    void request
       .then((response) => {
-        if (requestId !== loadMoreRef.current) return
-        setPagination(response.pagination)
-        setBrowseCursor(response.pagination.nextCursor ?? null)
+        if (
+          controller.signal.aborted
+          || requestId !== loadMoreRef.current
+          || requestQueryKey !== contentQueryKeyRef.current
+        ) return
+
         if (filteredView) {
-          setSearchBooks((previous) => dedupeBooks(previous, response.books))
+          const nextBooks = dedupeBooks(searchBooksRef.current, response.books)
+          searchBooksRef.current = nextBooks
+          setSearchBooks(nextBooks)
+          setFilteredPagination(response.pagination)
+          setFilteredCursor(response.pagination.nextCursor ?? null)
         } else {
-          setBrowseBooks((previous) => dedupeBooks(previous, response.books))
+          const nextBooks = dedupeBooks(browseBooksRef.current, response.books)
+          browseBooksRef.current = nextBooks
+          setBrowseBooks(nextBooks)
+          setBrowsePagination(response.pagination)
+          setBrowseCursor(response.pagination.nextCursor ?? null)
         }
       })
-      .catch(() => undefined)
+      .catch((reason) => {
+        if (!isCancelledError(reason)) return undefined
+        return undefined
+      })
       .finally(() => {
-        if (requestId === loadMoreRef.current) setLoadingMore(false)
+        if (
+          !controller.signal.aborted
+          && requestId === loadMoreRef.current
+          && requestQueryKey === contentQueryKeyRef.current
+        ) {
+          loadMorePendingRef.current = false
+          setLoadingMore(false)
+        }
       })
   }, [
-    browseCursor,
-    categorySlug,
+    contentQueryKey,
+    currentCursor,
+    effectiveCategorySlug,
+    effectiveLanguageFilter,
     filteredView,
-    languageFilter,
-    loadingMore,
+    loading,
     pagination,
+    setBrowseBooks,
+    setBrowseCursor,
+    setBrowsePagination,
+    setFilteredCursor,
+    setFilteredPagination,
+    setLoadingMore,
+    setSearchBooks,
     trimmedSearch,
   ])
+
+  const featuredBooks = useMemo(
+    () => deriveFeaturedBooks(browseBooks),
+    [browseBooks],
+  )
 
   const visibleBooks = useMemo(
     () => (filteredView ? searchBooks : browseBooks),
@@ -225,11 +415,6 @@ export function useAudiobooksPageData(
     [browseBooks],
   )
 
-  const heroBook = useMemo(
-    () => featuredBooks[0] ?? browseBooks[0] ?? null,
-    [browseBooks, featuredBooks],
-  )
-
   const languageOptions = useMemo(() => {
     const values = new Set<string>()
     for (const book of browseBooks) {
@@ -245,7 +430,6 @@ export function useAudiobooksPageData(
     visibleBooks,
     newBooks,
     popularBooks,
-    heroBook,
     pagination,
     loading,
     contentLoading,

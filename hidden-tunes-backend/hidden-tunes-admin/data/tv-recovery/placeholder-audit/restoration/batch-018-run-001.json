@@ -1,0 +1,29 @@
+{
+  "completedAt": "2026-08-15T10:43:35.610Z",
+  "scope": "Batch 18 prioritized retest bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "TikTok Radio, Dating hinter Gittern, 21 Jump Street, and American Pickers used rejected jmp2.uk sources.",
+    "The Twilight Zone used rejected i.mjh.nz.",
+    "No candidate was sent to media validation; all five remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 47,
+  "cumulativeTerminalAliases": 172,
+  "batch18Target": 25,
+  "batch18Researched": 5,
+  "batch18Remaining": 20
+}

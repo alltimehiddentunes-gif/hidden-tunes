@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T17:59:39.283Z",
+  "identity": "RCN Mas",
+  "candidateRecordId": "d49f26ca-2050-4c75-9906-9907f2f851fe",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.09,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

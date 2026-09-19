@@ -1,0 +1,734 @@
+{
+  "batch": 3,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH",
+  "startedAt": "2026-08-10T22:38:40.154Z",
+  "completedAt": "2026-08-10T22:51:26.081Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 64,
+  "healthyCandidates": 34,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 34,
+  "stillUnresolved": 16,
+  "remainingQueue": 3116,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "62e7fc8c0d061100083946a9",
+      "requestedTitles": [
+        "Teen Mom – Pluto TV",
+        "Teen Mom"
+      ],
+      "normalizedIdentity": [
+        "teen mom"
+      ],
+      "candidateRecordId": "e8b74080-d63c-4a40-a071-a8d7e5bdf99b",
+      "candidateTitle": "Teen Mom",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66166989635c7500084105a2",
+      "requestedTitles": [
+        "Bondi Rescue"
+      ],
+      "normalizedIdentity": [
+        "bondi rescue"
+      ],
+      "candidateRecordId": "9d2a11e0-9dc6-41a6-97c7-6db7e58990fb",
+      "candidateTitle": "Bondi Rescue",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "67d9b0ebc290c9499046e88f",
+      "requestedTitles": [
+        "Noticias RCN"
+      ],
+      "normalizedIdentity": [
+        "noticias rcn"
+      ],
+      "candidateRecordId": "7d27ebfc-d346-44ac-afb2-558b9debbbb6",
+      "candidateTitle": "Noticias RCN",
+      "sourceHost": "aka-live1050.delivery.roku.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6093f7b5bb49b90007cecaad",
+      "requestedTitles": [
+        "Super! Pop",
+        "Super! POP – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "super pop"
+      ],
+      "candidateRecordId": "d1a82cfb-3cf7-4e08-8871-c75eb3e7d63f",
+      "candidateTitle": "Super! Pop",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63eb9fdda995710008991c54",
+      "requestedTitles": [
+        "NCIS"
+      ],
+      "normalizedIdentity": [
+        "ncis"
+      ],
+      "candidateRecordId": "37a2b053-942d-4d1b-a146-82a7874852db",
+      "candidateTitle": "NCIS",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5d8d08395f39465da6fb3ec4",
+      "requestedTitles": [
+        "Nickelodeon en espanol",
+        "Nick en Espanol"
+      ],
+      "normalizedIdentity": [
+        "nickelodeon en espanol",
+        "nick en espanol"
+      ],
+      "candidateRecordId": "dcdcf6a8-2559-49b9-84dc-0478fae0b5c9",
+      "candidateTitle": "Nick en Espanol",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "619e21b213ef6b0007d8c17a",
+      "requestedTitles": [
+        "Homicide Hunter"
+      ],
+      "normalizedIdentity": [
+        "homicide hunter"
+      ],
+      "candidateRecordId": "914b4734-92fc-4a55-98e0-3898e7f07a6e",
+      "candidateTitle": "Homicide Hunter",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63f7e3f9dff38e00082a57af",
+      "requestedTitles": [
+        "ITV Deportes (720p)",
+        "ITV Deportes"
+      ],
+      "normalizedIdentity": [
+        "itv deportes"
+      ],
+      "candidateRecordId": "92de2b31-2252-4ba4-8b97-86274b66780e",
+      "candidateTitle": "ITV Deportes",
+      "sourceHost": "thm-it-roku.otteravision.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "68bff9a63efb41cd97562e46",
+      "requestedTitles": [
+        "Highway to Heaven"
+      ],
+      "normalizedIdentity": [
+        "highway to heaven"
+      ],
+      "candidateRecordId": "dd216ddb-2a5a-4764-ac39-f97ee2382a2b",
+      "candidateTitle": "Highway To Heaven",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "685137f4a1e091e16f2dd471",
+      "requestedTitles": [
+        "MTV Reality"
+      ],
+      "normalizedIdentity": [
+        "mtv reality"
+      ],
+      "candidateRecordId": "cbf726a4-676b-4c23-b06d-8acaefdada2d",
+      "candidateTitle": "MTV Reality",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62790dc1c733e8000733ba4d",
+      "requestedTitles": [
+        "Pixel TV"
+      ],
+      "normalizedIdentity": [
+        "pixel tv"
+      ],
+      "candidateRecordId": "65bb4ced-4442-48e3-a724-542d12d61e65",
+      "candidateTitle": "Pixel TV",
+      "sourceHost": "cdn15.live-tv.cloud",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "672e157d7d5da5000812872d",
+      "requestedTitles": [
+        "Becker"
+      ],
+      "normalizedIdentity": [
+        "becker"
+      ],
+      "candidateRecordId": "eff29fc4-1852-4c00-95eb-657d9d847654",
+      "candidateTitle": "Becker",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6864e8f264d94c1425fb4563",
+      "requestedTitles": [
+        "Merhaba Türkische Serien (720p)",
+        "Merhaba Türkische Serien (720p)"
+      ],
+      "normalizedIdentity": [
+        "merhaba turkische serien"
+      ],
+      "candidateRecordId": "71a3fc38-9f3e-4a09-8ffa-0c09fd9ed4aa",
+      "candidateTitle": "Merhaba Türkische Serien",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5e9f2c05172a0f0007db4786",
+      "requestedTitles": [
+        "CBS Sports HQ"
+      ],
+      "normalizedIdentity": [
+        "cbs sports hq"
+      ],
+      "candidateRecordId": "37d7e6d7-9862-4c46-a506-add481f0d62d",
+      "candidateTitle": "CBS Sports HQ",
+      "sourceHost": "dai.google.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "63934c218ef524000757b122",
+      "requestedTitles": [
+        "HauntTV"
+      ],
+      "normalizedIdentity": [
+        "haunttv"
+      ],
+      "candidateRecordId": "bf41d136-9cc8-419f-ac5b-87432369a603",
+      "candidateTitle": "HauntTV",
+      "sourceHost": "live-manifest.production-public.tubi.io",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5d51ddf0369acdb278dfb05e",
+      "requestedTitles": [
+        "Love & Hip Hop"
+      ],
+      "normalizedIdentity": [
+        "love and hip hop"
+      ],
+      "candidateRecordId": "634cd51c-f151-4c91-a910-f2222f5a24e2",
+      "candidateTitle": "Love & Hip Hop",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6971fc6dca441014e4600f2c",
+      "requestedTitles": [
+        "Automoto",
+        "Automoto"
+      ],
+      "normalizedIdentity": [
+        "automoto"
+      ],
+      "candidateRecordId": "f32c63a5-ecb2-4d21-a26d-1d88774922e8",
+      "candidateTitle": "Automoto",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60c343007bcabe0007242aa6",
+      "requestedTitles": [
+        "El Comisario"
+      ],
+      "normalizedIdentity": [
+        "el comisario"
+      ],
+      "candidateRecordId": "6646920b-8210-4794-8ce8-4b36e2e3ae12",
+      "candidateTitle": "El Comisario",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66bb374ba4ee27000841a62c",
+      "requestedTitles": [
+        "Pixel.tv (720p)",
+        "Pixel.tv",
+        "Pixel.tv (720p)"
+      ],
+      "normalizedIdentity": [
+        "pixel tv"
+      ],
+      "candidateRecordId": "65bb4ced-4442-48e3-a724-542d12d61e65",
+      "candidateTitle": "Pixel TV",
+      "sourceHost": "cdn15.live-tv.cloud",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5ca6748a37b88b269472dad9",
+      "requestedTitles": [
+        "Nick Jr. Pluto TV (720p)",
+        "Nick Jr. Pluto TV (720p)"
+      ],
+      "normalizedIdentity": [
+        "nick jr"
+      ],
+      "candidateRecordId": "fa2e29ce-54db-47eb-b51c-bdd8cad1208b",
+      "candidateTitle": "Nick Jr.",
+      "sourceHost": "stream8.cinerama.uz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63c6e37e636b7e0007ccb635",
+      "requestedTitles": [
+        "Pluto TV Futbol"
+      ],
+      "normalizedIdentity": [
+        "futbol"
+      ],
+      "candidateRecordId": "bc3f22ee-57a5-4531-9ee2-52fd3f9281e9",
+      "candidateTitle": "Futbol",
+      "sourceHost": "live.teleradiocom.tj",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5c2d64ffbdf11b71587184b8",
+      "requestedTitles": [
+        "TV Land Sitcoms"
+      ],
+      "normalizedIdentity": [
+        "tv land sitcoms"
+      ],
+      "candidateRecordId": "fbdbb0f4-1054-4f96-bb8f-220e05d90fa2",
+      "candidateTitle": "TV Land Sitcoms",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64d626ac9b414d000820e2fc",
+      "requestedTitles": [
+        "DAZN Ringside"
+      ],
+      "normalizedIdentity": [
+        "dazn ringside"
+      ],
+      "candidateRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+      "candidateTitle": "Dazn Ringside (1080p)",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "648056f0f77b61000828f1ba",
+      "requestedTitles": [
+        "DAZN Combat (R0cHM6Ly)",
+        "DAZN Ringside",
+        "DAZN Combat (684p)"
+      ],
+      "normalizedIdentity": [
+        "dazn combat r0chm6ly",
+        "dazn ringside",
+        "dazn combat 684p"
+      ],
+      "candidateRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+      "candidateTitle": "Dazn Ringside (1080p)",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62cd9641393d8400076f34db",
+      "requestedTitles": [
+        "MTV Ridiculousness"
+      ],
+      "normalizedIdentity": [
+        "mtv ridiculousness"
+      ],
+      "candidateRecordId": "5fc2cdf3-756e-4987-95ca-1242d9449a5e",
+      "candidateTitle": "MTV Ridiculousness",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5ebc8688f3697d00072f7cf8",
+      "requestedTitles": [
+        "Bellator MMA"
+      ],
+      "normalizedIdentity": [
+        "bellator mma"
+      ],
+      "candidateRecordId": "9ca5eb00-4e8f-44c8-9590-cb29b9c80e44",
+      "candidateTitle": "Bellator MMA",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5812b3a4249444e05d09cc46",
+      "requestedTitles": [
+        "Pluto TV Cars",
+        "Pluto TV Cars"
+      ],
+      "normalizedIdentity": [
+        "cars"
+      ],
+      "candidateRecordId": "65aa04dc-1c7b-4271-a54d-cabcc869161a",
+      "candidateTitle": "Cars",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "696e024a7e92438c27a425a8",
+      "requestedTitles": [
+        "Rally TV"
+      ],
+      "normalizedIdentity": [
+        "rally tv"
+      ],
+      "candidateRecordId": "8a0534f5-a3cd-4b08-883f-cf12471dee76",
+      "candidateTitle": "Rally TV (1080p)",
+      "sourceHost": "rally-tv-live.akamaized.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6283d51144ad8f0007fa382d",
+      "requestedTitles": [
+        "The Judge Judy Channel (720p)",
+        "The Judge Judy Channel (720p)"
+      ],
+      "normalizedIdentity": [
+        "the judge judy"
+      ],
+      "candidateRecordId": "dc4b4ee9-9857-4e2d-9244-9eced69af6eb",
+      "candidateTitle": "The Judge Judy Channel",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61c098df897b9d00070375c8",
+      "requestedTitles": [
+        "South Park"
+      ],
+      "normalizedIdentity": [
+        "south park"
+      ],
+      "candidateRecordId": "a0b911ac-6fc2-4032-9e22-e68a07dfb6de",
+      "candidateTitle": "South Park",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "68757c45759366af05b3b199",
+      "requestedTitles": [
+        "America's Next Top Model"
+      ],
+      "normalizedIdentity": [
+        "america s next top model"
+      ],
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "candidateTitle": "America's Next Top Model",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6319ec31c62c3f00075c90b1",
+      "requestedTitles": [
+        "NCIS"
+      ],
+      "normalizedIdentity": [
+        "ncis"
+      ],
+      "candidateRecordId": "37a2b053-942d-4d1b-a146-82a7874852db",
+      "candidateTitle": "NCIS",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5d40bebc5e3d2750a2239d7e",
+      "requestedTitles": [
+        "TV Land Drama"
+      ],
+      "normalizedIdentity": [
+        "tv land drama"
+      ],
+      "candidateRecordId": "7b517d71-564d-4377-a370-2752dd1061e5",
+      "candidateTitle": "TV Land Drama",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c097ec8bb1830008e3f962",
+      "requestedTitles": [
+        "Pluto TV True Crime"
+      ],
+      "normalizedIdentity": [
+        "true crime"
+      ],
+      "candidateRecordId": "ec870763-b855-4ce8-b238-ce6ba3c20e77",
+      "candidateTitle": "True Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "683df56f5195c2a60a3f5559",
+      "requestedTitles": [
+        "Swerve Women’s Sports"
+      ],
+      "normalizedIdentity": [
+        "swerve women s sports"
+      ],
+      "candidateRecordId": "d75f0856-d477-4e33-aa2a-ddda4228b06e",
+      "candidateTitle": "Swerve Women’s Sports",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60e452730e76f20007598de8",
+      "requestedTitles": [
+        "Homicide Hunter"
+      ],
+      "normalizedIdentity": [
+        "homicide hunter"
+      ],
+      "candidateRecordId": "914b4734-92fc-4a55-98e0-3898e7f07a6e",
+      "candidateTitle": "Homicide Hunter",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "612e044c970e6f00083bcf3b",
+      "requestedTitles": [
+        "Y'a que la verite qui compte"
+      ],
+      "normalizedIdentity": [
+        "y a que la verite qui compte"
+      ],
+      "candidateRecordId": "d473cd51-9be6-4877-a8a6-7ecd2e2adc9d",
+      "candidateTitle": "Y'a que la vérité qui compte",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "688a44cf5d73ec0a3f49718b",
+      "requestedTitles": [
+        "Weeds & Nurse Jackie"
+      ],
+      "normalizedIdentity": [
+        "weeds and nurse jackie"
+      ],
+      "candidateRecordId": "80892693-738b-4956-a6b5-0f0726404dd0",
+      "candidateTitle": "Weeds & Nurse Jackie",
+      "sourceHost": "d38d8jwr5u7ckx.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "654102ed770cf1000866c307",
+      "requestedTitles": [
+        "Yo! MTV"
+      ],
+      "normalizedIdentity": [
+        "yo mtv"
+      ],
+      "candidateRecordId": "f2542c3f-fac6-454c-a1c2-7c629953ab50",
+      "candidateTitle": "Yo! MTV",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f4fb4cf605ddf000748e16f",
+      "requestedTitles": [
+        "BabyFirst"
+      ],
+      "normalizedIdentity": [
+        "babyfirst"
+      ],
+      "candidateRecordId": "8c246ff7-7af8-43c1-8d56-425f0da3c718",
+      "candidateTitle": "BabyFirst (720p)",
+      "sourceHost": "cdn.fast.jwp.services",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5dc481cda1d430000948a1b4",
+      "requestedTitles": [
+        "CBS News Los Angeles"
+      ],
+      "normalizedIdentity": [
+        "cbs news los angeles"
+      ],
+      "candidateRecordId": "8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+      "candidateTitle": "CBS News Los Angeles",
+      "sourceHost": "dai.google.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6683cd0f63a5f20008fb84a3",
+      "requestedTitles": [
+        "Un Si Grand Soleil",
+        "Un Si Grand Soleil"
+      ],
+      "normalizedIdentity": [
+        "un si grand soleil"
+      ],
+      "candidateRecordId": "d7bbed43-37fb-4e28-8078-b7bdb86e18f7",
+      "candidateTitle": "Un si grand soleil",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "68487fb3f212bedacf5a53e3",
+      "requestedTitles": [
+        "50 Cent Action"
+      ],
+      "normalizedIdentity": [
+        "50 cent action"
+      ],
+      "candidateRecordId": "9a699f41-c05b-491c-9538-895d22d5197d",
+      "candidateTitle": "50 Cent Action",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5d48678d34ceb37d3c458a55",
+      "requestedTitles": [
+        "Wild 'N Out"
+      ],
+      "normalizedIdentity": [
+        "wild n out"
+      ],
+      "candidateRecordId": "e1cd5290-8ae4-400b-833f-ac532040e67a",
+      "candidateTitle": "Wild 'N Out",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f610042272f68000867685b",
+      "requestedTitles": [
+        "Misterios sin resolver"
+      ],
+      "normalizedIdentity": [
+        "misterios sin resolver"
+      ],
+      "candidateRecordId": "7078e2bd-8129-4641-af97-23ed0672426c",
+      "candidateTitle": "Misterios sin resolver",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5d2c571faeb3e2738ae27933",
+      "requestedTitles": [
+        "5 Cops"
+      ],
+      "normalizedIdentity": [
+        "5 cops"
+      ],
+      "candidateRecordId": "6bd9d66f-7dbb-4f5d-a206-d71c2328c55e",
+      "candidateTitle": "5 Cops",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "696e02423b9ce349c90edef9",
+      "requestedTitles": [
+        "Rally TV"
+      ],
+      "normalizedIdentity": [
+        "rally tv"
+      ],
+      "candidateRecordId": "8a0534f5-a3cd-4b08-883f-cf12471dee76",
+      "candidateTitle": "Rally TV (1080p)",
+      "sourceHost": "rally-tv-live.akamaized.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6851bdfc9ac48fde5e07f5ae",
+      "requestedTitles": [
+        "MTV Reality"
+      ],
+      "normalizedIdentity": [
+        "mtv reality"
+      ],
+      "candidateRecordId": "cbf726a4-676b-4c23-b06d-8acaefdada2d",
+      "candidateTitle": "MTV Reality",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "696e0fe49ba4ac18057433ac",
+      "requestedTitles": [
+        "Rally TV"
+      ],
+      "normalizedIdentity": [
+        "rally tv"
+      ],
+      "candidateRecordId": "8a0534f5-a3cd-4b08-883f-cf12471dee76",
+      "candidateTitle": "Rally TV (1080p)",
+      "sourceHost": "rally-tv-live.akamaized.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6077045b6031bd00078de127",
+      "requestedTitles": [
+        "MasterChef"
+      ],
+      "normalizedIdentity": [
+        "masterchef"
+      ],
+      "candidateRecordId": "17965610-4217-4213-84e4-2cda1897bbbe",
+      "candidateTitle": "MasterChef",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    }
+  ]
+}

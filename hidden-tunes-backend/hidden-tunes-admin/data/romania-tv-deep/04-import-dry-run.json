@@ -1,0 +1,20 @@
+{
+  "wouldImport": 3,
+  "sample": [
+    {
+      "title": "HD365 TV",
+      "url": "https://s2.netstreaming.eu/hd365.m3u8",
+      "protocol": "hls"
+    },
+    {
+      "title": "PROFI 24 TV",
+      "url": "https://live.ro24tv.ro/hls/stream.m3u8",
+      "protocol": "hls"
+    },
+    {
+      "title": "Speranța TV",
+      "url": "https://jstre.am/live/jsl:2gNjpghXRLE.m3u8",
+      "protocol": "hls"
+    }
+  ]
+}

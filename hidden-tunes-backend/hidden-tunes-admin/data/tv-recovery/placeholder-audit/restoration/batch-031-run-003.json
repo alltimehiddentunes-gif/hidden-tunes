@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T21:28:53.502Z",
+  "scope": "Batch 31 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Pluto TV Star Trek: Direct Pluto-owned candidate advanced 124.77 seconds at 1216x684 with one video owner, but every evidence frame showed only a static Pluto Are you still watching slate, not real programming.",
+    "Antiques Road Trip: Queued generic CloudFront PBSART_GB candidate lacked complete direct authoritative candidate-to-channel ownership linkage.",
+    "Bounce XL: Tubi-owned delivery was authoritative at distributor level, but the opaque candidate lacked complete primary exact-channel linkage.",
+    "Unsolved Mysteries: Queued generic CloudFront candidate lacked complete direct authoritative candidate-to-channel ownership linkage.",
+    "Midsomer Murders: Queued opaque Roku delivery lacked complete primary exact-channel linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 72,
+  "cumulativeTerminalAliases": 215,
+  "batch31Target": 25,
+  "batch31Researched": 15,
+  "batch31Remaining": 10,
+  "batch31Complete": false
+}

@@ -33,3 +33,303 @@ html[data-hidden-tunes-tv] .page-view[data-page="home"] :is(img,.art-frame) { ma
 html[data-hidden-tunes-tv] .page-view[data-page="home"] img:not(.tv-primary-player-artwork) { content-visibility: auto; }
 @media (max-width: 1400px), (max-height: 800px) { html[data-hidden-tunes-tv] .page-view[data-page="home"] .music-home-reference-top { min-height: 340px; grid-template-columns: minmax(0,1fr) 300px; } html[data-hidden-tunes-tv] .page-view[data-page="home"] .music-home-listening-hero { grid-template-columns: .72fr 1.28fr; } html[data-hidden-tunes-tv] .page-view[data-page="home"] .music-home-product-hero-copy { padding: 28px; } html[data-hidden-tunes-tv] .page-view[data-page="home"] :is(.music-home-song-rail,.music-home-release-rail,.music-home-world-rail,.music-home-mood-rail) { grid-auto-columns: 240px; } }
 @media (min-width: 3000px) { html[data-hidden-tunes-tv] .page-view[data-page="home"] .music-home-reference-top { max-height: 1050px; } html[data-hidden-tunes-tv] .page-view[data-page="home"] :is(.music-home-song-rail,.music-home-release-rail,.music-home-world-rail,.music-home-mood-rail) { grid-auto-columns: 520px; } }
+
+/* Physical-Hisense correction: the supplied violet night Home reference is binding. */
+html[data-hidden-tunes-tv][data-tv-route="home"] {
+  --sidebar-width: clamp(176px, 13.2vw, 300px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .sidebar {
+  padding: clamp(18px, 1.5vw, 34px) clamp(12px, 1vw, 24px);
+  background: linear-gradient(180deg, rgba(4, 5, 14, .98), rgba(5, 5, 13, .96));
+  border-right-color: rgba(167, 126, 255, .12);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .sidebar-brand {
+  min-height: clamp(48px, 5vh, 76px);
+  margin-bottom: clamp(10px, 1vh, 18px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .nav-item {
+  min-height: clamp(46px, 4.8vh, 70px);
+  font-size: clamp(18px, 1.15vw, 28px);
+  background: transparent;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .nav-item.is-active,
+html[data-hidden-tunes-tv][data-tv-route="home"] .nav-item[aria-current="page"] {
+  background: linear-gradient(100deg, rgba(92, 62, 231, .88), rgba(209, 49, 176, .76));
+  border-color: rgba(198, 154, 255, .42);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .sidebar :is(button,a):focus-visible {
+  outline: none !important;
+  border-color: rgba(132, 224, 255, .9) !important;
+  box-shadow: 0 0 0 3px rgba(155, 92, 255, .72), 0 0 24px rgba(67, 217, 255, .32) !important;
+  transform: scale(1.018) translateZ(0);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .sidebar.tv-spatial-suspended .nav-item:disabled {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .tv-home-sidebar-proxy {
+  position: fixed;
+  z-index: 80;
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  opacity: .01;
+  background: transparent;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .tv-home-sidebar-proxy:disabled { display: none; }
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .main-scroll--home {
+  box-sizing: border-box;
+  height: 100vh;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scroll-behavior: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .main-scroll--home::-webkit-scrollbar { display: none; }
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .page-frame {
+  padding: 0 var(--tv-safe-x) clamp(100px, 12vh, 180px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home {
+  gap: clamp(34px, 4vh, 72px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-reference-top {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: clamp(430px, 50vh, 540px);
+  min-height: 0;
+  max-height: 560px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: clamp(20px, 1.7vw, 32px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-reference-top::before {
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(4, 3, 13, .95) 0%, rgba(7, 5, 20, .78) 32%, rgba(8, 6, 21, .2) 68%, rgba(5, 4, 14, .04) 100%),
+    linear-gradient(0deg, rgba(4, 4, 12, .94), transparent 45%);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 560px;
+  border: 1px solid rgba(154, 104, 255, .28);
+  border-radius: inherit;
+  overflow: hidden;
+  box-shadow: none;
+  background:
+    linear-gradient(90deg, rgba(4, 3, 13, .94), rgba(7, 5, 20, .28) 68%),
+    var(--music-home-hero-background) 72% center / cover no-repeat;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-listening-hero {
+  display: flex;
+  align-items: stretch;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-art {
+  display: none;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-art .music-home-art {
+  left: auto;
+  width: 58%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 32%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 32%);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-art::after,
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-art-copy {
+  display: none;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-copy {
+  width: min(52%, 820px);
+  height: 100%;
+  min-height: 0;
+  padding: clamp(32px, 4vh, 56px);
+  justify-content: center;
+  background: linear-gradient(90deg, rgba(4,3,13,.72), rgba(4,3,13,.08));
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-kicker {
+  color: #cf68ff;
+  font-size: clamp(17px, 1vw, 24px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-copy h1 {
+  max-width: 14ch;
+  margin: clamp(10px, 1vh, 18px) 0;
+  font-size: clamp(46px, 4.2vw, 86px);
+  line-height: 1.02;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-copy p {
+  max-width: 30ch;
+  font-size: clamp(21px, 1.35vw, 32px);
+  line-height: 1.4;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-actions {
+  margin-top: clamp(22px, 2.4vh, 38px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] :is(.music-home-product-hero-primary,.music-home-product-hero-secondary) {
+  min-height: clamp(54px, 6vh, 76px);
+  padding: .75em 1.5em;
+  font-size: clamp(20px, 1.25vw, 30px);
+  border-radius: 999px;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-primary {
+  color: #fff;
+  background: linear-gradient(110deg, #6039e9, #ee3f99);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] :is(.music-home-mix-column,.music-home-active-quick-access) {
+  display: none !important;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-section {
+  content-visibility: visible;
+  contain-intrinsic-size: auto 340px;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-section-header {
+  margin-bottom: clamp(16px, 1.8vh, 28px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-section-header h2 {
+  font-size: clamp(28px, 2vw, 44px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-section-eyebrow {
+  font-size: clamp(15px, .9vw, 21px);
+  color: #c75dff;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] :is(.music-home-song-rail,.music-home-release-rail,.music-home-world-rail,.music-home-mood-rail) {
+  grid-auto-columns: clamp(270px, 21vw, 440px);
+  gap: clamp(18px, 1.5vw, 30px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] :is(.music-home-song-rail,.music-home-release-rail,.music-home-world-rail,.music-home-mood-rail)::-webkit-scrollbar { display: none; }
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] :is(button,a,[role="button"]) {
+  -webkit-appearance: none;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-focus-ring-color: transparent;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] :is(button,a,[role="button"]):is(:focus,:focus-visible,[data-tv-focused="true"]) {
+  outline: none !important;
+  outline-offset: 0 !important;
+  border-color: rgba(132, 224, 255, .9) !important;
+  box-shadow: 0 0 0 3px rgba(155, 92, 255, .72), 0 0 26px rgba(67, 217, 255, .38) !important;
+  transform: scale(1.025) translateZ(0);
+  filter: none !important;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .conditional-player-rail {
+  position: fixed;
+  z-index: 70;
+  right: var(--tv-safe-x);
+  top: clamp(118px, 13vh, 156px);
+  bottom: clamp(124px, 14vh, 166px);
+  left: auto;
+  width: clamp(300px, 20vw, 380px);
+  height: auto !important;
+  min-height: 0 !important;
+  border: 1px solid rgba(154, 104, 255, .28);
+  border-radius: 24px;
+  overflow: hidden !important;
+  background: rgba(9, 7, 18, .92);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, .48);
+  backdrop-filter: blur(16px);
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .conditional-player-rail[data-presence="entering"] {
+  visibility: visible;
+  opacity: 0;
+  transform: translateX(10px);
+  animation: tv-home-player-reveal 220ms ease-out both;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .conditional-player-rail[data-presence="visible"] {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  animation: none;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .conditional-player-rail[data-presence="exiting"] {
+  opacity: 0;
+  transform: translateX(10px);
+  transition: opacity 200ms ease, transform 220ms ease;
+}
+
+@keyframes tv-home-player-reveal {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"] .conditional-player-rail .ht-persistent-player {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+}
+
+html[data-hidden-tunes-tv][data-tv-route="home"][data-tv-player-active="true"] .main-scroll--home .page-frame {
+  padding-right: calc(clamp(300px, 20vw, 380px) + var(--tv-safe-x) + 28px);
+}
+
+@media (max-width: 1400px), (max-height: 800px) {
+  html[data-hidden-tunes-tv][data-tv-route="home"] { --sidebar-width: 176px; }
+  html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-reference-top { height: clamp(330px, 48vh, 390px); max-height: 390px; }
+  html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-copy { width: 58%; padding: 28px 32px; }
+  html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-copy h1 { font-size: clamp(38px, 4vw, 56px); }
+  html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] .music-home-product-hero-copy p { font-size: clamp(18px, 1.5vw, 22px); }
+  html[data-hidden-tunes-tv][data-tv-route="home"] .page-view[data-page="home"] :is(.music-home-song-rail,.music-home-release-rail,.music-home-world-rail,.music-home-mood-rail) { grid-auto-columns: 270px; }
+  html[data-hidden-tunes-tv][data-tv-route="home"] .conditional-player-rail { display: none !important; }
+  html[data-hidden-tunes-tv][data-tv-route="home"][data-tv-player-active="true"] .main-scroll--home .page-frame { padding-right: var(--tv-safe-x); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-hidden-tunes-tv][data-tv-route="home"] .conditional-player-rail[data-presence] {
+    animation: none !important;
+    transition: opacity 120ms linear !important;
+    transform: none !important;
+  }
+}
+
+html[data-hidden-tunes-tv][data-low-memory="true"][data-tv-route="home"] .conditional-player-rail[data-presence] {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}

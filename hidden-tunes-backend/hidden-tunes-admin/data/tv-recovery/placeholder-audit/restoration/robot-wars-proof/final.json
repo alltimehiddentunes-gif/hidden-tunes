@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T11:26:15.069Z",
+  "identity": "Robot Wars by MECH+",
+  "candidateRecordId": "4950cbb2-813a-4271-a4f6-949a11c57651",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 123.54,
+  "resolution": "1280x720",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

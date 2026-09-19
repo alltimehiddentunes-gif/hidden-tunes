@@ -1,0 +1,29 @@
+{
+  "completedAt": "2026-08-15T17:15:07.234Z",
+  "scope": "Batch 20 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "CBC News Toronto, Automoto, SPIEGEL TV Konflikte, and Squadra Speciale Cobra 11 used rejected jmp2.uk sources.",
+    "Pixel TV used an uncertain live-tv.cloud CDN with no authoritative broadcaster linkage and was rejected before media validation.",
+    "All five remain quarantined; no production writes or duplicates were created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 49,
+  "cumulativeTerminalAliases": 174,
+  "batch20Target": 25,
+  "batch20Researched": 20,
+  "batch20Remaining": 5
+}

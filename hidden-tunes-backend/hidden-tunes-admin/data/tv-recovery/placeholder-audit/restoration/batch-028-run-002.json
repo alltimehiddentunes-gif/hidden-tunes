@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T13:23:18.964Z",
+  "scope": "Batch 28 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "CBS News Pittsburgh and CBS News Colorado used unverified mediator endpoints without complete direct CBS candidate ownership linkage.",
+    "Misterios sin resolver, Bob l’éponge, and Nickelodeon Toons used rejected jmp2.uk sources.",
+    "No candidate passed the provenance gate, so none was sent to expensive Desktop validation; all remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch28Target": 25,
+  "batch28Researched": 10,
+  "batch28Remaining": 15
+}

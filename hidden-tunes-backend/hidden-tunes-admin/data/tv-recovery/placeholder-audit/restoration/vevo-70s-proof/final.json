@@ -1,0 +1,12 @@
+{
+  "completedAt": "2026-08-14T05:43:58.233Z",
+  "identity": "Vevo 70s",
+  "candidateRecordId": "fe7ee88b-a7b4-4efb-9c7e-5f70430623a1",
+  "aliasesTerminal": 2,
+  "terminalState": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "runtimeStorage": "D_DRIVE_ONLY",
+  "cumulativeVerifiedSearchableDesktopPlayable": 19,
+  "cumulativeTerminalAliases": 91
+}

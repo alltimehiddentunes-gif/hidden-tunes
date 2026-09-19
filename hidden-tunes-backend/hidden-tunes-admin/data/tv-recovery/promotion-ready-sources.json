@@ -1,0 +1,478 @@
+{
+  "generatedAt": "2026-08-10T04:54:26.150Z",
+  "count": 8,
+  "sources": [
+    {
+      "canonicalChannelId": "pluto:62b976b93279cb000772c6f9",
+      "existingHiddenTunesRecordIds": [
+        "9907cc2d-e1ea-4c62-89a3-2dc8ec0af8b9",
+        "435c1c43-08a7-4282-abe4-9f92a38cf71b",
+        "a6a2887f-7c12-44dc-b060-125aff310d6f",
+        "0f481c1b-2503-4359-81c1-2d8622a3ba77",
+        "8eaa14f4-d532-487b-b351-74975726483c"
+      ],
+      "canonicalName": "Bloomberg TV+",
+      "broadcaster": "Bloomberg L.P.",
+      "language": "en",
+      "region": "US",
+      "category": "News",
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "playbackSources": [
+        {
+          "sourceId": "5e3a4456dff427fc",
+          "provider": "broadcaster_direct",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "bloomberg.com",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": "2026-08-09T08:58:39.433Z",
+          "continuityResult": {
+            "targetSeconds": 3600,
+            "elapsedSeconds": 3586,
+            "passed": true,
+            "warningLines": null
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        },
+        {
+          "sourceId": "b8b94ef366ad4780",
+          "provider": "official_fast",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "86ebec83.wurl.com",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": null,
+          "continuityResult": {
+            "targetSeconds": 900,
+            "elapsedSeconds": 893,
+            "passed": true,
+            "warningLines": 0
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        }
+      ],
+      "preferredSourceId": "5e3a4456dff427fc",
+      "fallbackSourceIds": [
+        "b8b94ef366ad4780"
+      ],
+      "redundancy": 2,
+      "actualContentVerified": true,
+      "identityVerified": "HIGH",
+      "desktopRuntime": "PASS",
+      "promotionReady": true
+    },
+    {
+      "canonicalChannelId": "pluto:5a6b92f6e22a617379789618",
+      "existingHiddenTunesRecordIds": [
+        "a835f417-5c4f-4395-9de3-342420c488cb",
+        "5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+      ],
+      "canonicalName": "CBS News 24/7",
+      "broadcaster": "CBS News",
+      "language": "en",
+      "region": "US",
+      "category": "News",
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "playbackSources": [
+        {
+          "sourceId": "897dfa5728e0fd77",
+          "provider": "broadcaster_direct",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": "2026-08-09T10:28:04.252Z",
+          "continuityResult": {
+            "targetSeconds": 3600,
+            "elapsedSeconds": 3585,
+            "passed": true,
+            "warningLines": 1
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        },
+        {
+          "sourceId": "e30050e5efdb2e9b",
+          "provider": "broadcaster_public_api",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "dai.google.com",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": null,
+          "continuityResult": {
+            "targetSeconds": 900,
+            "elapsedSeconds": 1136,
+            "passed": true,
+            "warningLines": 44428
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        }
+      ],
+      "preferredSourceId": "897dfa5728e0fd77",
+      "fallbackSourceIds": [
+        "e30050e5efdb2e9b"
+      ],
+      "redundancy": 2,
+      "actualContentVerified": true,
+      "identityVerified": "HIGH",
+      "desktopRuntime": "PASS",
+      "promotionReady": true
+    },
+    {
+      "canonicalChannelId": "pluto:5dc9b875e280c80009a8a44a",
+      "existingHiddenTunesRecordIds": [
+        "8e639b8c-3dac-4eec-bf5d-daa28e22f80c"
+      ],
+      "canonicalName": "CBS News Los Angeles (720p)",
+      "broadcaster": "CBS News and Stations",
+      "language": "en",
+      "region": "US-CA",
+      "category": "News",
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "playbackSources": [
+        {
+          "sourceId": "6b2a23489339b607",
+          "provider": "broadcaster_public_api",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "dai.google.com",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": "2026-08-09T08:18:38.929Z",
+          "continuityResult": {
+            "targetSeconds": 900,
+            "elapsedSeconds": 1185,
+            "passed": true,
+            "warningLines": null
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        }
+      ],
+      "preferredSourceId": "6b2a23489339b607",
+      "fallbackSourceIds": [],
+      "redundancy": 1,
+      "actualContentVerified": true,
+      "identityVerified": "HIGH",
+      "desktopRuntime": "PASS",
+      "promotionReady": true
+    },
+    {
+      "canonicalChannelId": "pluto:60fb299b79498900070b29e0",
+      "existingHiddenTunesRecordIds": [
+        "bd76bef3-9bd3-4771-b0ba-dbc553a880e2",
+        "a9b5d7f3-2ccb-4da9-ba7f-a05fbbacdbd6",
+        "8a99f880-ab56-4cfe-87cf-d5b2cb2d5080"
+      ],
+      "canonicalName": "CBS News Miami (720p)",
+      "broadcaster": "CBS News and Stations",
+      "language": "en",
+      "region": "US-FL",
+      "category": "News",
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "playbackSources": [
+        {
+          "sourceId": "356e1f394c1bb177",
+          "provider": "broadcaster_direct",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "cbsn-mia.cbsnstream.cbsnews.com",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:bd76bef3-9bd3-4771-b0ba-dbc553a880e2",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": "2026-08-09T08:13:38.079Z",
+          "continuityResult": {
+            "targetSeconds": 900,
+            "elapsedSeconds": 884,
+            "passed": true,
+            "warningLines": null
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        }
+      ],
+      "preferredSourceId": "356e1f394c1bb177",
+      "fallbackSourceIds": [],
+      "redundancy": 1,
+      "actualContentVerified": true,
+      "identityVerified": "HIGH",
+      "desktopRuntime": "PASS",
+      "promotionReady": true
+    },
+    {
+      "canonicalChannelId": "pluto:60cb6df2b2ad610008cd5bea",
+      "existingHiddenTunesRecordIds": [
+        "2dec6400-a7e8-494c-8a1e-1fd8144fea83",
+        "d41a48f2-70bb-4e89-809d-aa6aae283abf"
+      ],
+      "canonicalName": "CBS News Sacramento (720p)",
+      "broadcaster": "CBS News and Stations",
+      "language": "en",
+      "region": "US-CA",
+      "category": "News",
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "playbackSources": [
+        {
+          "sourceId": "1b3911e97045ee3f",
+          "provider": "broadcaster_public_api",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "lineup.cbsivideo.com",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:2dec6400-a7e8-494c-8a1e-1fd8144fea83",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": "2026-08-09T08:13:40.939Z",
+          "continuityResult": {
+            "targetSeconds": 900,
+            "elapsedSeconds": 887,
+            "passed": true,
+            "warningLines": null
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        }
+      ],
+      "preferredSourceId": "1b3911e97045ee3f",
+      "fallbackSourceIds": [],
+      "redundancy": 1,
+      "actualContentVerified": true,
+      "identityVerified": "HIGH",
+      "desktopRuntime": "PASS",
+      "promotionReady": true
+    },
+    {
+      "canonicalChannelId": "pluto:60492e6d7f3f560007ab0f62",
+      "existingHiddenTunesRecordIds": [
+        "8ba50421-5727-4215-89b7-aec81048d3a2",
+        "60522caa-ec67-4dc6-acec-7c29a83cb8c3",
+        "aa863d0e-5da9-4970-876c-aa249f6234bd",
+        "eff5fbb9-40a0-4f86-be02-2d23ab40b12b",
+        "90ae6e5a-79cd-4ca0-b286-7565ea4d17b3"
+      ],
+      "canonicalName": "Estrella News (720p)",
+      "broadcaster": "Estrella Media",
+      "language": "es",
+      "region": "US",
+      "category": "News",
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "playbackSources": [
+        {
+          "sourceId": "1c3ee1b6d0684694",
+          "provider": "official_fast",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "estrellanews-glewed.amagi.tv",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:8ba50421-5727-4215-89b7-aec81048d3a2",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": "2026-08-09T10:21:28.490Z",
+          "continuityResult": {
+            "targetSeconds": 3600,
+            "elapsedSeconds": 3595,
+            "passed": true,
+            "warningLines": 0
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        },
+        {
+          "sourceId": "c5640eaa4c36b89d",
+          "provider": "official_fast",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "estrella-news-oando.amagi.tv",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:aa863d0e-5da9-4970-876c-aa249f6234bd",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": null,
+          "continuityResult": {
+            "targetSeconds": 900,
+            "elapsedSeconds": 893,
+            "passed": true,
+            "warningLines": 0
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        }
+      ],
+      "preferredSourceId": "1c3ee1b6d0684694",
+      "fallbackSourceIds": [
+        "c5640eaa4c36b89d"
+      ],
+      "redundancy": 2,
+      "actualContentVerified": true,
+      "identityVerified": "HIGH",
+      "desktopRuntime": "PASS",
+      "promotionReady": true
+    },
+    {
+      "canonicalChannelId": "pluto:61de8e502c8e9400077e5de7",
+      "existingHiddenTunesRecordIds": [
+        "3199322d-3bb9-442e-887e-8dd8b2ade03a",
+        "34b59bb0-eace-440d-bac4-91372e18c986",
+        "033dc1cb-d4cd-4798-af66-3f3eed735deb"
+      ],
+      "canonicalName": "Euronews",
+      "broadcaster": "Euronews",
+      "language": "es",
+      "region": "ES",
+      "category": "News",
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "playbackSources": [
+        {
+          "sourceId": "0a73dad1ddbfdfe5",
+          "provider": "broadcaster_direct",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "cdn-euronews.akamaized.net",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:34b59bb0-eace-440d-bac4-91372e18c986",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": "2026-08-09T08:28:40.537Z",
+          "continuityResult": {
+            "targetSeconds": 1800,
+            "elapsedSeconds": 1788,
+            "passed": true,
+            "warningLines": null
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        }
+      ],
+      "preferredSourceId": "0a73dad1ddbfdfe5",
+      "fallbackSourceIds": [],
+      "redundancy": 1,
+      "actualContentVerified": true,
+      "identityVerified": "HIGH",
+      "desktopRuntime": "PASS",
+      "promotionReady": true
+    },
+    {
+      "canonicalChannelId": "pluto:61de90a47365340007f77c27",
+      "existingHiddenTunesRecordIds": [
+        "f972dcea-89bf-4c39-99bc-32ed43496851",
+        "45efb295-b8ae-4650-b944-ebcd45d2d96b",
+        "b2dbb9de-2663-46c0-a716-d223b29de7b6",
+        "9b8bd266-a38f-4366-ac0d-9c12a7378d46",
+        "3a6f664a-7baf-483b-9015-57c096075b69"
+      ],
+      "canonicalName": "Euronews English (720p)",
+      "broadcaster": "Euronews",
+      "language": "en",
+      "region": "GB",
+      "category": "News",
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "playbackSources": [
+        {
+          "sourceId": "0fadd6db25107c6b",
+          "provider": "broadcaster_direct",
+          "sourceType": "hls_stream",
+          "resolver": "verified_source_registry",
+          "sourceHost": "cdn-euronews.akamaized.net",
+          "rawUrlPersisted": false,
+          "provenance": "existing_tv_record:3a6f664a-7baf-483b-9015-57c096075b69",
+          "confidence": "HIGH",
+          "protocol": "hls",
+          "health": "VERIFIED_HEALTHY",
+          "verifiedAt": "2026-08-09T08:13:37.880Z",
+          "continuityResult": {
+            "targetSeconds": 900,
+            "elapsedSeconds": 884,
+            "passed": true,
+            "warningLines": null
+          },
+          "platformCompatibility": {
+            "desktop": "runtime_verified",
+            "mobile": "protocol_compatible_runtime_unverified",
+            "smartTv": "protocol_compatible_runtime_unverified"
+          }
+        }
+      ],
+      "preferredSourceId": "0fadd6db25107c6b",
+      "fallbackSourceIds": [],
+      "redundancy": 1,
+      "actualContentVerified": true,
+      "identityVerified": "HIGH",
+      "desktopRuntime": "PASS",
+      "promotionReady": true
+    }
+  ]
+}

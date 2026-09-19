@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T19:15:16.299Z",
+  "identity": "Court TV",
+  "candidateRecordId": "3e4c36a2-fbf7-4d32-8506-f4f6a7451800",
+  "aliasesTerminal": 2,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.94,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

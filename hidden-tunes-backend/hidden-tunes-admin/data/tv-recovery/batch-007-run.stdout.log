@@ -1,0 +1,23 @@
+{
+  "runId": "pluto-autonomous-recovery",
+  "checkpointVersion": 15,
+  "batchNumber": 7,
+  "phase": "BATCH_7_COMPLETE",
+  "createdAt": "2026-08-10T03:32:17.147Z",
+  "baselineHead": "0b01836e44ff869d1520b494b8ccb04c5f73f727",
+  "identitiesAttempted": 432,
+  "identitiesCompleted": 0,
+  "candidatesDiscovered": 133,
+  "candidatesTested": 25,
+  "decoded": 11,
+  "verified": 0,
+  "rejected": 0,
+  "unresolved": 11,
+  "noSource": 337,
+  "errors": [],
+  "nextBatch": 8,
+  "nextBatchSize": 1,
+  "nextCursor": 1732,
+  "remainingUnattempted": 0,
+  "productionWrites": 0
+}

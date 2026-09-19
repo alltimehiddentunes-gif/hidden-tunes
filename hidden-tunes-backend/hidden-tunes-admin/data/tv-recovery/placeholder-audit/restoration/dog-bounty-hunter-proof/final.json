@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T18:16:44.567Z",
+  "identity": "Dog the Bounty Hunter",
+  "candidateRecordId": "736ccc24-d1e3-4699-b8e0-a22d5982fa0d",
+  "aliasesTerminal": 10,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.12,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

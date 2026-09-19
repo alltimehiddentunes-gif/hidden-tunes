@@ -1,0 +1,742 @@
+{
+  "batch": 5,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH",
+  "startedAt": "2026-08-11T09:36:11.445Z",
+  "completedAt": "2026-08-11T09:44:31.145Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 73,
+  "healthyCandidates": 38,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 38,
+  "stillUnresolved": 12,
+  "remainingQueue": 2973,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "5d4ae94ef1a1bbb350ca41bb",
+      "requestedTitles": [
+        "Pluto TV Conspiracy"
+      ],
+      "normalizedIdentity": [
+        "conspiracy"
+      ],
+      "candidateRecordId": "0d2c090e-004f-44ee-9671-ce7a848fbdaa",
+      "candidateTitle": "Pluto TV Conspiracy",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "608aa4a4cc92820007b663af",
+      "requestedTitles": [
+        "Pluto TV Film Romantici",
+        "Film Romantici – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "film romantici"
+      ],
+      "candidateRecordId": "9cfe3f94-3ed4-4664-b423-3eab7729e48a",
+      "candidateTitle": "Pluto TV Film Romantici",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6102e04e9ab1db0007a980a1",
+      "requestedTitles": [
+        "Pluto TV Record News"
+      ],
+      "normalizedIdentity": [
+        "record news"
+      ],
+      "candidateRecordId": "2ef12a9d-514a-4a79-837f-eac7c5e124d6",
+      "candidateTitle": "Record News",
+      "sourceHost": "rnw-rn.otteravision.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65788076b228b7000843fc9a",
+      "requestedTitles": [
+        "Celeb Reality (684p)",
+        "Celeb Reality",
+        "Celeb Reality (684p)"
+      ],
+      "normalizedIdentity": [
+        "celeb reality 684p",
+        "celeb reality"
+      ],
+      "candidateRecordId": "aa5b1c4b-99e1-4ec7-856f-6a8d0dc77b61",
+      "candidateTitle": "Celeb Reality (720p)",
+      "sourceHost": "d3453fcf.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5cb5d043a461406ffe3fb2de",
+      "requestedTitles": [
+        "Telenovela ZDF",
+        "Telenovela ZDF"
+      ],
+      "normalizedIdentity": [
+        "telenovela zdf"
+      ],
+      "candidateRecordId": "d17a1770-fa32-445f-beaf-669486815d13",
+      "candidateTitle": "Telenovela ZDF",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5f8ed48146ba9e00078424b6",
+      "requestedTitles": [
+        "Pluto TV Cuisine"
+      ],
+      "normalizedIdentity": [
+        "cuisine"
+      ],
+      "candidateRecordId": "0a5147b8-7ee8-478a-9a9f-ff20eb054140",
+      "candidateTitle": "Pluto TV Cuisine",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67f68bd2135aeda9ddf0ef54",
+      "requestedTitles": [
+        "Pluto TV Adult Animation"
+      ],
+      "normalizedIdentity": [
+        "adult animation"
+      ],
+      "candidateRecordId": "9bd1a6b5-989e-4110-9442-ac940f68bfd0",
+      "candidateTitle": "Adult Animation",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65652f7fc0fc88000883537a",
+      "requestedTitles": [
+        "Crunchyroll"
+      ],
+      "normalizedIdentity": [
+        "crunchyroll"
+      ],
+      "candidateRecordId": "a5d217fd-55fe-45e3-8c19-8e707ee05745",
+      "candidateTitle": "Crunchyroll",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "671b4e47daad7f000868b840",
+      "requestedTitles": [
+        "Horse & Country",
+        "Horse & Country (720p)",
+        "Horse & Country (720p)"
+      ],
+      "normalizedIdentity": [
+        "horse and country"
+      ],
+      "candidateRecordId": "a60cdd21-b540-49c4-b55c-16cdf1025c4b",
+      "candidateTitle": "Horse and Country (720p)",
+      "sourceHost": "hncfree-samsung-uk.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f1acdaa8ba90f0007d5e760",
+      "requestedTitles": [
+        "Pluto TV Cocina"
+      ],
+      "normalizedIdentity": [
+        "cocina"
+      ],
+      "candidateRecordId": "23a61ca9-b966-4529-aed5-3ba7c5674337",
+      "candidateTitle": "Pluto TV Cocina",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f1ac1f1b66c76000790ef27",
+      "requestedTitles": [
+        "Pluto TV Cine Estelar"
+      ],
+      "normalizedIdentity": [
+        "cine estelar"
+      ],
+      "candidateRecordId": "3cc28c5c-4a39-409c-97ec-a61286785e44",
+      "candidateTitle": "Pluto TV Cine Estelar",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f8ed3892ed7bb000741a1d2",
+      "requestedTitles": [
+        "Pluto TV Inside"
+      ],
+      "normalizedIdentity": [
+        "inside"
+      ],
+      "candidateRecordId": "f0eccaf6-51fb-4cf9-ad6f-4f1816187e17",
+      "candidateTitle": "Pluto TV Inside",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f8ed4dbf6bb0800071ffbcb",
+      "requestedTitles": [
+        "Pluto TV Polar"
+      ],
+      "normalizedIdentity": [
+        "polar"
+      ],
+      "candidateRecordId": "d6c3d3c1-4da2-4aa5-8e17-5d4d6c39a523",
+      "candidateTitle": "Pluto TV Polar",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69fca7fadf0b6d462c0a0ac3",
+      "requestedTitles": [
+        "Sobrevivi"
+      ],
+      "normalizedIdentity": [
+        "sobrevivi"
+      ],
+      "candidateRecordId": "4fa2bbbe-fea5-4ea8-a56c-74b6f46b9b52",
+      "candidateTitle": "Sobreviví",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "608aa777b907770007e5d05d",
+      "requestedTitles": [
+        "Pluto TV Serie Crime",
+        "Crime – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "serie crime",
+        "crime"
+      ],
+      "candidateRecordId": "dcb6bfac-7729-4e4c-95a4-d33c38343773",
+      "candidateTitle": "Pluto TV Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60dc6937b450ad0007377e48",
+      "requestedTitles": [
+        "Charlotte aux Fraises",
+        "Charlotte aux Fraises"
+      ],
+      "normalizedIdentity": [
+        "charlotte aux fraises"
+      ],
+      "candidateRecordId": "4bb3a53d-3877-4ba7-9a12-26d9cce28b14",
+      "candidateTitle": "Charlotte aux Fraises",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5f1aab1d29b39600073e243f",
+      "requestedTitles": [
+        "Pluto TV Kids"
+      ],
+      "normalizedIdentity": [
+        "kids"
+      ],
+      "candidateRecordId": "4a41893c-8a41-4648-a7b8-6f4462ba067f",
+      "candidateTitle": "Pluto TV Kids",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "68c015dc6523408b14f54dee",
+      "requestedTitles": [
+        "Highway to Heaven",
+        "Highway to Heaven"
+      ],
+      "normalizedIdentity": [
+        "highway to heaven"
+      ],
+      "candidateRecordId": "dd216ddb-2a5a-4764-ac39-f97ee2382a2b",
+      "candidateTitle": "Highway To Heaven",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e9289f8d467f0007fbc701",
+      "requestedTitles": [
+        "Pluto TV True Crime"
+      ],
+      "normalizedIdentity": [
+        "true crime"
+      ],
+      "candidateRecordId": "ec870763-b855-4ce8-b238-ce6ba3c20e77",
+      "candidateTitle": "True Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f8eba14a4ffb8000764e950",
+      "requestedTitles": [
+        "Pluto TV Toons"
+      ],
+      "normalizedIdentity": [
+        "toons"
+      ],
+      "candidateRecordId": "3ac55543-ba1f-400e-8872-119e050892d5",
+      "candidateTitle": "Pluto TV Toons",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60801976f92a750007a0699c",
+      "requestedTitles": [
+        "Pluto TV Real Life",
+        "Real life – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "real life"
+      ],
+      "candidateRecordId": "ace662ff-7dfd-4ab2-a2ba-5dd73ff6bc19",
+      "candidateTitle": "Pluto TV Real Life",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "615333098185f00008715a56",
+      "requestedTitles": [
+        "Pluto TV True Crime"
+      ],
+      "normalizedIdentity": [
+        "true crime"
+      ],
+      "candidateRecordId": "ec870763-b855-4ce8-b238-ce6ba3c20e77",
+      "candidateTitle": "True Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67352ed93a61d4000881f9fa",
+      "requestedTitles": [
+        "Pluto TV The Twilight Zone"
+      ],
+      "normalizedIdentity": [
+        "the twilight zone"
+      ],
+      "candidateRecordId": "81c4968d-4945-42d4-b29e-7d9c17e2d2cd",
+      "candidateTitle": "The Twilight Zone",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "628751bb7154a40007168843",
+      "requestedTitles": [
+        "South Park"
+      ],
+      "normalizedIdentity": [
+        "south park"
+      ],
+      "candidateRecordId": "a0b911ac-6fc2-4032-9e22-e68a07dfb6de",
+      "candidateTitle": "South Park",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "619e4a3518d6970008bebc95",
+      "requestedTitles": [
+        "Homicide Hunter",
+        "Homicide Hunter"
+      ],
+      "normalizedIdentity": [
+        "homicide hunter"
+      ],
+      "candidateRecordId": "914b4734-92fc-4a55-98e0-3898e7f07a6e",
+      "candidateTitle": "Homicide Hunter",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66f55c3955567d0008ef9b68",
+      "requestedTitles": [
+        "Turbo"
+      ],
+      "normalizedIdentity": [
+        "turbo"
+      ],
+      "candidateRecordId": "6c9f094b-8780-48ce-bd96-de92112cb407",
+      "candidateTitle": "Turbo",
+      "sourceHost": "streaming.aurora.enhanced.live",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62f3f05505e621000783df2f",
+      "requestedTitles": [
+        "Teen Mom"
+      ],
+      "normalizedIdentity": [
+        "teen mom"
+      ],
+      "candidateRecordId": "e8b74080-d63c-4a40-a071-a8d7e5bdf99b",
+      "candidateTitle": "Teen Mom",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65cce23bdc10a400080645ad",
+      "requestedTitles": [
+        "Les Routes du Paradis",
+        "Les Routes du Paradis"
+      ],
+      "normalizedIdentity": [
+        "les routes du paradis"
+      ],
+      "candidateRecordId": "18fdbfcd-b4c4-49dc-8154-dd9ccdf39285",
+      "candidateTitle": "Les Routes du Paradis",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "610c09219fc0430007a3fce6",
+      "requestedTitles": [
+        "Rugrats"
+      ],
+      "normalizedIdentity": [
+        "rugrats"
+      ],
+      "candidateRecordId": "f13c0735-bef4-4348-a384-d976216eeb5e",
+      "candidateTitle": "Rugrats",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6618e3037bcd8600089b62a8",
+      "requestedTitles": [
+        "Allociné (720p)",
+        "Allociné (720p)"
+      ],
+      "normalizedIdentity": [
+        "allocine"
+      ],
+      "candidateRecordId": "a74002e1-48b7-4138-b449-57d68fff135d",
+      "candidateTitle": "Allociné",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "68513950f212bedacf8ec48f",
+      "requestedTitles": [
+        "MTV Reality",
+        "MTV Reality",
+        "MTV Reality"
+      ],
+      "normalizedIdentity": [
+        "mtv reality"
+      ],
+      "candidateRecordId": "cbf726a4-676b-4c23-b06d-8acaefdada2d",
+      "candidateTitle": "MTV Reality",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6127e12ed140e900077e7b6f",
+      "requestedTitles": [
+        "Teen Mom"
+      ],
+      "normalizedIdentity": [
+        "teen mom"
+      ],
+      "candidateRecordId": "e8b74080-d63c-4a40-a071-a8d7e5bdf99b",
+      "candidateTitle": "Teen Mom",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62f2ce24f328e00007e7f55a",
+      "requestedTitles": [
+        "Stories by AMC"
+      ],
+      "normalizedIdentity": [
+        "stories by amc"
+      ],
+      "candidateRecordId": "b8853832-6808-4637-aa35-d6c41d1d0164",
+      "candidateTitle": "Stories by AMC",
+      "sourceHost": "amc-amcpresents-1-us.xumo.wurl.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "673f7446030a2c0008231bc3",
+      "requestedTitles": [
+        "C4 en Alerta"
+      ],
+      "normalizedIdentity": [
+        "c4 en alerta"
+      ],
+      "candidateRecordId": "271f2b73-92ee-4d41-b135-552e81d2341d",
+      "candidateTitle": "C4 en Alerta",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e92e536f28870007fa9b3a",
+      "requestedTitles": [
+        "The Judge Judy Channel"
+      ],
+      "normalizedIdentity": [
+        "the judge judy"
+      ],
+      "candidateRecordId": "dc4b4ee9-9857-4e2d-9244-9eced69af6eb",
+      "candidateTitle": "The Judge Judy Channel",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6565fefdc917a50008485cc6",
+      "requestedTitles": [
+        "The Beverly Hillbillies"
+      ],
+      "normalizedIdentity": [
+        "the beverly hillbillies"
+      ],
+      "candidateRecordId": "c3a6a610-5a42-42bf-903a-8d5f5efdfb19",
+      "candidateTitle": "The Beverly Hillbillies",
+      "sourceHost": "wurllg.global.transmit.live",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6093f9ed2c75660007322bb7",
+      "requestedTitles": [
+        "Catfish",
+        "Catfish – Pluto TV",
+        "Catfish"
+      ],
+      "normalizedIdentity": [
+        "catfish"
+      ],
+      "candidateRecordId": "cb884d46-64b4-4cf0-996d-eb2e57f8bd70",
+      "candidateTitle": "Catfish",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f36d726234ce10007784f2a",
+      "requestedTitles": [
+        "The Bob Ross Channel"
+      ],
+      "normalizedIdentity": [
+        "the bob ross"
+      ],
+      "candidateRecordId": "56836c65-18b7-4dfd-aba9-f646c3e3b804",
+      "candidateTitle": "The Bob Ross Channel",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5e825550e758c700077b0aef",
+      "requestedTitles": [
+        "The Rifleman"
+      ],
+      "normalizedIdentity": [
+        "the rifleman"
+      ],
+      "candidateRecordId": "aef7c5c5-7eb9-48c1-bd9e-2bed80032111",
+      "candidateTitle": "The Rifleman",
+      "sourceHost": "live-content.xumo.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "638f286445264d00084ec6dc",
+      "requestedTitles": [
+        "Autostop per il cielo",
+        "Autostop per il cielo – Pluto TV",
+        "Autostop per il cielo"
+      ],
+      "normalizedIdentity": [
+        "autostop per il cielo"
+      ],
+      "candidateRecordId": "800ebbce-f90c-46c4-bac6-3b7a667c0d4a",
+      "candidateTitle": "Autostop per il Cielo",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5f21e8a6e2f12b000755afdb",
+      "requestedTitles": [
+        "The Amazing Race"
+      ],
+      "normalizedIdentity": [
+        "the amazing race"
+      ],
+      "candidateRecordId": "c197c861-0203-454d-a120-057856853501",
+      "candidateTitle": "The Amazing Race",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62bc1f502b70e3000706298e",
+      "requestedTitles": [
+        "South Park",
+        "South Park",
+        "South Park – Pluto TV",
+        "South Park"
+      ],
+      "normalizedIdentity": [
+        "south park"
+      ],
+      "candidateRecordId": "a0b911ac-6fc2-4032-9e22-e68a07dfb6de",
+      "candidateTitle": "South Park",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62bdb1c5e25122000798ac79",
+      "requestedTitles": [
+        "South Park"
+      ],
+      "normalizedIdentity": [
+        "south park"
+      ],
+      "candidateRecordId": "a0b911ac-6fc2-4032-9e22-e68a07dfb6de",
+      "candidateTitle": "South Park",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "63f87d057533d80008ab9549",
+      "requestedTitles": [
+        "SpongeBob SquarePants"
+      ],
+      "normalizedIdentity": [
+        "spongebob squarepants"
+      ],
+      "candidateRecordId": "2f8f9b59-f947-48af-8812-254299e57ceb",
+      "candidateTitle": "SpongeBob SquarePants",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64c220e15dc1660008a79c96",
+      "requestedTitles": [
+        "The Price Is Right: The Barker Era"
+      ],
+      "normalizedIdentity": [
+        "the price is right the barker era"
+      ],
+      "candidateRecordId": "6358bf3d-aadf-4c0f-8b6d-09f5e7f7e1ba",
+      "candidateTitle": "The Price Is Right: The Barker Era",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c1e88cd168ea0007068133",
+      "requestedTitles": [
+        "South Park",
+        "South Park"
+      ],
+      "normalizedIdentity": [
+        "south park"
+      ],
+      "candidateRecordId": "a0b911ac-6fc2-4032-9e22-e68a07dfb6de",
+      "candidateTitle": "South Park",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "68c8202f5ec82769fdfcd0a2",
+      "requestedTitles": [
+        "Chaos on Cam"
+      ],
+      "normalizedIdentity": [
+        "chaos on cam"
+      ],
+      "candidateRecordId": "9c604f2d-6424-4c2e-b508-06cc6250b38b",
+      "candidateTitle": "Chaos on Cam",
+      "sourceHost": "amg00276-amg00276c31-rakuten-gb-9769.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "634ee8f95aa9870007248333",
+      "requestedTitles": [
+        "Confess by Nosey"
+      ],
+      "normalizedIdentity": [
+        "confess by nosey"
+      ],
+      "candidateRecordId": "549b1c55-6d14-458d-9102-8e0d48d8ed1f",
+      "candidateTitle": "Confess by Nosey",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "686cd713e48af72bc250efb8",
+      "requestedTitles": [
+        "America's Next Top Model"
+      ],
+      "normalizedIdentity": [
+        "america s next top model"
+      ],
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "candidateTitle": "America's Next Top Model",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "63335df531a7590007c226b9",
+      "requestedTitles": [
+        "Pluto TV Christmas in July"
+      ],
+      "normalizedIdentity": [
+        "christmas in july"
+      ],
+      "candidateRecordId": "777db5ea-a477-4979-9416-1bd42ffb0c7f",
+      "candidateTitle": "Christmas In July",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    }
+  ]
+}

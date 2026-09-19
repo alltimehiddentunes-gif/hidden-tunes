@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-14T19:15:16.299Z",
+  "scope": "Batch 11 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Court TV passed 124.94 seconds of 1920x1080 existing-Desktop playback with one video owner through Tubi video delivery.",
+    "Tubi has an official exact-title Court TV live channel page. Evidence frames showed changing real courtroom programming; normal TV search and resolver passed.",
+    "Two quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED. No production write or duplicate was needed.",
+    "World of Love Island and CBC News Toronto used jmp2.uk. Pluto TV Historia lacked a sufficiently direct source link; Dateline 24/7 had official channel evidence but the catalog source was not directly attributable to Peacock, so all remained quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 35,
+  "cumulativeTerminalAliases": 132,
+  "batch11Target": 25,
+  "batch11Researched": 25,
+  "batch11Remaining": 0
+}

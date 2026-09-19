@@ -394,8 +394,16 @@ export const MotivationalsPage = memo(function MotivationalsPage({
           <p>{error}</p>
         </section>
       ) : loading ? (
-        <section className="motivationals-status" aria-busy="true">
-          <p>Loading Motivationals…</p>
+        <section className="motivationals-section" aria-busy="true" aria-label="Loading Motivationals">
+          <div className="skeleton-grid skeleton-grid--card" aria-hidden="true">
+            {Array.from({ length: 8 }, (_, index) => (
+              <article key={index} className="skeleton-card">
+                <div className="skeleton-card-art" />
+                <div className="skeleton-card-line skeleton-card-line--wide" />
+                <div className="skeleton-card-line" />
+              </article>
+            ))}
+          </div>
         </section>
       ) : null}
 
@@ -508,7 +516,11 @@ export const MotivationalsPage = memo(function MotivationalsPage({
               </h2>
               {contentLoading ? <span>Updating…</span> : null}
             </div>
-            {contentError && visiblePrograms.length === 0 ? (
+            {contentLoading && visiblePrograms.length === 0 ? (
+              <div className="motivationals-status" aria-busy="true">
+                <p>Loading results…</p>
+              </div>
+            ) : contentError && visiblePrograms.length === 0 ? (
               <div className="motivationals-status motivationals-status--error" role="alert">
                 <p>{contentError}</p>
               </div>

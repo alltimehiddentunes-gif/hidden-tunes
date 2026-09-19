@@ -1,0 +1,1497 @@
+{
+  "runId": "pluto-autonomous-recovery",
+  "checkpointVersion": 4,
+  "batchNumber": 2,
+  "phase": "BATCH_2_COMPLETE",
+  "createdAt": "2026-08-09T21:56:30.636Z",
+  "baselineHead": "0b01836e44ff869d1520b494b8ccb04c5f73f727",
+  "identitiesAttempted": 150,
+  "identitiesCompleted": 0,
+  "candidatesDiscovered": 72,
+  "candidatesTested": 25,
+  "decoded": 19,
+  "verified": 0,
+  "rejected": 0,
+  "unresolved": 19,
+  "noSource": 100,
+  "errors": [],
+  "nextBatch": 3,
+  "nextBatchSize": 200,
+  "nextCursor": 250,
+  "remainingUnattempted": 1482,
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "selection": [
+    {
+      "providerChannelId": "6972546cc62833833a187f50",
+      "canonicalName": "Willow Sports (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "610a9ebe8c2ac2000734776e",
+      "canonicalName": "Naturescape – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Documentari"
+      ]
+    },
+    {
+      "providerChannelId": "671b4e8bc7626f00089b7194",
+      "canonicalName": "Horse & Country",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "67a23b899a300a00086f3371",
+      "canonicalName": "Dominance FC TV",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "625e8cb585ef320007806caf",
+      "canonicalName": "Pluto TV Britain at War",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "5dcde07af1c85b0009b18651",
+      "canonicalName": "Pluto TV Deportes",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "5f32d2db0af67400077f29c4",
+      "canonicalName": "Pluto TV Esportes",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69b1489b5828e7c242d83064",
+      "canonicalName": "Space Live (720p)",
+      "categories": [
+        "Documentary"
+      ]
+    },
+    {
+      "providerChannelId": "6462190b7cb4b1000862dd60",
+      "canonicalName": "Pluto TV Alien Invasion",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "60925a44f0350600075a1fdc",
+      "canonicalName": "Pluto TV Animaux",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "5cb5d043a461406ffe3fb2de",
+      "canonicalName": "Telenovela ZDF",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5d767b1c126c65d0a307355f",
+      "canonicalName": "Pluto TV History",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "5d4ae94ef1a1bbb350ca41bb",
+      "canonicalName": "Pluto TV Conspiracy",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "5f32cf37c9ff2b00082adbc8",
+      "canonicalName": "Pluto TV Investigacao",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "608aa8a5709d6b0007b132fe",
+      "canonicalName": "Pluto TV Documentari",
+      "categories": [
+        "documentary",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "65c340383a116800078c8454",
+      "canonicalName": "Monster Jam (720p)",
+      "categories": [
+        "Entertainment",
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "671b4e47daad7f000868b840",
+      "canonicalName": "Horse & Country",
+      "categories": [
+        "Sports",
+        "Country"
+      ]
+    },
+    {
+      "providerChannelId": "62e92a58f3e4290007290c96",
+      "canonicalName": "Pluto TV Paranormal",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "611e771e2f5f180007002224",
+      "canonicalName": "Pluto TV Histoire",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "678fdf9e3de7c8cf948e8824",
+      "canonicalName": "Pluto TV Policial",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "61cd7b49543066000713b620",
+      "canonicalName": "Pluto TV Historia",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "68ada3edf84960586ad31c7d",
+      "canonicalName": "Pluto TV Reportagen",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "666fe4768768aa0008c31ddf",
+      "canonicalName": "Saving Hope",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5be1c3f9851dd5632e2c91b2",
+      "canonicalName": "Pluto TV Nature",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "65a7b0814a10d800085ff2df",
+      "canonicalName": "Pluto TV PetrolHeads",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "66461eb33d173b000805ecd3",
+      "canonicalName": "DFB Play TV (720p)",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "68ac5543a1ac0c90f2c8943e",
+      "canonicalName": "Pluto TV Snooker 900",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "65253fdf3fd33c00080214a3",
+      "canonicalName": "Pluto TV Storia",
+      "categories": [
+        "documentary",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "677d3ad04bd63600082f7c54",
+      "canonicalName": "Pluto TV Varldskrigen",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "679203d4bc03978b9b4b79a6",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6870c9ca759366af055fe891",
+      "canonicalName": "Tennis Channel (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "660d714719ca71000849cc1f",
+      "canonicalName": "Realmadrid TV (720p)",
+      "categories": [
+        "Entertainment",
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68ac51dede4a734954b5a67a",
+      "canonicalName": "Pluto TV Motor",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6109ab25b84d6a0007504886",
+      "canonicalName": "Pluto TV Mi Obsesion Favorita",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "617aad99b68ef100072608cd",
+      "canonicalName": "Pluto TV Mystery",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "60802b37709d6b0007b0c549",
+      "canonicalName": "Pluto TV Natura",
+      "categories": [
+        "documentary",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5dd85eac039bba0009e86d1d",
+      "canonicalName": "Pluto TV Naturaleza",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "671656dfdaad7f00085d2133",
+      "canonicalName": "MODUS Super Series Darts",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "67a52c8397782f00081879aa",
+      "canonicalName": "Top Barça",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68ac55fe3efb41cd979a6877",
+      "canonicalName": "Pluto TV Snooker 900",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "65cf60d166eec80008724e6f",
+      "canonicalName": "Azteca Deportes Premium",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66bb374ba4ee27000841a62c",
+      "canonicalName": "Pixel.tv",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "64f6163a30ab3300083d870e",
+      "canonicalName": "PFL MMA",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66c86fff9ba9e800080d8ebe",
+      "canonicalName": "PGA TOUR",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "68ac52b05190a45dc990ee39",
+      "canonicalName": "Pluto TV Motor",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "69ef5682980899a9edf1a884",
+      "canonicalName": "That's Rock (720p)",
+      "categories": [
+        "Rock",
+        "Musica"
+      ]
+    },
+    {
+      "providerChannelId": "6334a574605f140007e233c4",
+      "canonicalName": "PFL MMA",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69d7a0d0f57dc59a5f928fb2",
+      "canonicalName": "Best of Magnus Midtbø",
+      "categories": [
+        "Nytt på Pluto TV",
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "69b16df6ed2a2444365e7ff1",
+      "canonicalName": "Space Live",
+      "categories": [
+        "Nytt på Pluto TV",
+        "Documentary"
+      ]
+    },
+    {
+      "providerChannelId": "60807fd5db701400078219c2",
+      "canonicalName": "Ink Master",
+      "categories": [
+        "Documentary"
+      ]
+    },
+    {
+      "providerChannelId": "660d71e2aec9680008f8f18a",
+      "canonicalName": "Realmadrid TV",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "649b6898f2ec0000081a9460",
+      "canonicalName": "DAZN Ringside",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "61d4b38226b8a50007fe03a6",
+      "canonicalName": "Vevo Rock",
+      "categories": [
+        "Music Videos"
+      ]
+    },
+    {
+      "providerChannelId": "5ddf901280e3550009139c86",
+      "canonicalName": "5 Exploring Britain",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "69b16dc543d0f313203b714c",
+      "canonicalName": "Space Live (720p)",
+      "categories": [
+        "Documentary"
+      ]
+    },
+    {
+      "providerChannelId": "69a164f76c0414a7ec68de54",
+      "canonicalName": "Retake E-sport Live",
+      "categories": [
+        "Sport",
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69b3db536c0414a7ecf564fb",
+      "canonicalName": "Space Live",
+      "categories": [
+        "Documentary"
+      ]
+    },
+    {
+      "providerChannelId": "685aa802fb6023de7cc56357",
+      "canonicalName": "Dominance FC TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "660e7488aec9680008fabcf1",
+      "canonicalName": "AWSN",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "671655b2daad7f00085d202d",
+      "canonicalName": "MODUS Super Series Darts",
+      "categories": [
+        "Entertainment",
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68c82005be767928b4a8ef0c",
+      "canonicalName": "I Survived...",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "69ef55c3b80e144b55d74e36",
+      "canonicalName": "That's 90s/00s (720p)",
+      "categories": [
+        "Entertainment",
+        "Musica"
+      ]
+    },
+    {
+      "providerChannelId": "6852811933a52de120f8b89d",
+      "canonicalName": "Mayday Air Disaster",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "6660b636cb3ea10008429c6a",
+      "canonicalName": "SFT Combat",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6549306c83595c000815a696",
+      "canonicalName": "NBC Sports NOW (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "67063e78b2ffb10008195d08",
+      "canonicalName": "MODUS Super Series Darts",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66d885aef0f17500084b6750",
+      "canonicalName": "PGA TOUR",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69d7a0c04b31808da262933f",
+      "canonicalName": "Best of Magnus Midtbø",
+      "categories": [
+        "Sports",
+        "Nyt på Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "66fd1338ec9d6d00081e0443",
+      "canonicalName": "Retake E-sport Live",
+      "categories": [
+        "Dansk reality & underholdning"
+      ]
+    },
+    {
+      "providerChannelId": "5ddf8ea0d000120009bcad83",
+      "canonicalName": "Pluto TV Animals",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "655b7cbb2c46f300086f0afa",
+      "canonicalName": "Pluto TV Snooker 900",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "5dbc2f98777f2e0009934ae7",
+      "canonicalName": "Pluto TV Space",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "6981cc6a644861a57c3bd8ad",
+      "canonicalName": "Shockwave",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "6490254fd2c47c00083a5743",
+      "canonicalName": "That's 80s",
+      "categories": [
+        "Music TV"
+      ]
+    },
+    {
+      "providerChannelId": "660c209e19ca71000846cf38",
+      "canonicalName": "That's 90s00s",
+      "categories": [
+        "Music TV"
+      ]
+    },
+    {
+      "providerChannelId": "62e8cc10ca869f00078efca8",
+      "canonicalName": "VH1+ Music Legends – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "64c37e710e086a0009e824ab",
+      "canonicalName": "That's 70s",
+      "categories": [
+        "Music TV"
+      ]
+    },
+    {
+      "providerChannelId": "66ed3e9d5e4a6e0008b346e0",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68c820525ec82769fdfcd104",
+      "canonicalName": "Wrestling Legends TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68e3c37c19f32ffa27bae948",
+      "canonicalName": "Unsolved Mysteries with Dennis Farina",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "639b54404cfdf7000729b3c1",
+      "canonicalName": "INA 70",
+      "categories": [
+        "Documentaire"
+      ]
+    },
+    {
+      "providerChannelId": "671643fc5534bb00089187ad",
+      "canonicalName": "MODUS Super Series Darts",
+      "categories": [
+        "Sports & Auto"
+      ]
+    },
+    {
+      "providerChannelId": "61fc0df14159c40007250432",
+      "canonicalName": "Nature Time",
+      "categories": [
+        "Documentaire"
+      ]
+    },
+    {
+      "providerChannelId": "67921b78b83355184c667770",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports & Auto"
+      ]
+    },
+    {
+      "providerChannelId": "64c3b106dac71b00080a26d2",
+      "canonicalName": "Unbeaten Sports – Pluto TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "5f8ecfb9db6c180007a6d1b0",
+      "canonicalName": "WPT",
+      "categories": [
+        "Sports & Auto"
+      ]
+    },
+    {
+      "providerChannelId": "677d3a424bd63600082f7baf",
+      "canonicalName": "Pluto TV Verdenskrigene",
+      "categories": [
+        "Entertainment",
+        "Dokumentarer",
+        "Documentary"
+      ]
+    },
+    {
+      "providerChannelId": "69a162eb762ae48b4302fb7c",
+      "canonicalName": "Retake E-sport Live (720p)",
+      "categories": [
+        "Sports",
+        "Sport"
+      ]
+    },
+    {
+      "providerChannelId": "65493029ab052400089e9d2f",
+      "canonicalName": "GolfPass",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "677d9adfa9a51b0008497fa0",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "64d160f53c785e0008df525e",
+      "canonicalName": "Top Rank Classics",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6400f731d200410008f9b339",
+      "canonicalName": "Discovery Turbo TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "696998915a0ae9e1b563f0c6",
+      "canonicalName": "Qello Concerts",
+      "categories": [
+        "Music Videos"
+      ]
+    },
+    {
+      "providerChannelId": "66fd37885049580008d295b6",
+      "canonicalName": "AWSN",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6792c30abc03978b9b8bb832",
+      "canonicalName": "The NBA Channel",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "59b722526996084038c01e1b",
+      "canonicalName": "TNA Wrestling",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "5d9492c77ea6f99188738ff1",
+      "canonicalName": "Pluto TV Science",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "64c0d697b0cf5c000824e5d9",
+      "canonicalName": "U&The Past",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "64c0d6765dc1660008a3e033",
+      "canonicalName": "U&Transport",
+      "categories": [
+        "Real Life Adventure"
+      ]
+    },
+    {
+      "providerChannelId": "64240d3d466225000827412b",
+      "canonicalName": "Qello Concerts",
+      "categories": [
+        "Music TV"
+      ]
+    },
+    {
+      "providerChannelId": "647f07e74cfc2c0008a2e557",
+      "canonicalName": "DAZN TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6870c9333ffa5e0c914e9205",
+      "canonicalName": "Tennis Channel",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "67b481cc1a5ca760801c6c5e",
+      "canonicalName": "The Last Flight",
+      "categories": [
+        "Live Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66fd394e9269330008413302",
+      "canonicalName": "AWSN",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "60dd6b1da79e4d0007309455",
+      "canonicalName": "Nature Time",
+      "categories": [
+        "Documentales"
+      ]
+    },
+    {
+      "providerChannelId": "69b3db5d61e8e298254c7108",
+      "canonicalName": "Space Live",
+      "categories": [
+        "Documentales"
+      ]
+    },
+    {
+      "providerChannelId": "69b16e2b65c1df7564fc750b",
+      "canonicalName": "Space Live (720p)",
+      "categories": [
+        "Documentary"
+      ]
+    },
+    {
+      "providerChannelId": "671645c4529ac900080c9a0b",
+      "canonicalName": "MODUS Super Series Darts",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "64a28c62d609b60008ca4933",
+      "canonicalName": "Rock Channel",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "62fb9844db5a4a0007ebc2a3",
+      "canonicalName": "Beyond History",
+      "categories": [
+        "Documentary + Science"
+      ]
+    },
+    {
+      "providerChannelId": "5c12ba66eae03059cbdc77f2",
+      "canonicalName": "Cars",
+      "categories": [
+        "Motor Sports"
+      ]
+    },
+    {
+      "providerChannelId": "64e89cfc9c1e3900084ca663",
+      "canonicalName": "Mayday: Air Disaster",
+      "categories": [
+        "Documentary + Science"
+      ]
+    },
+    {
+      "providerChannelId": "650b68bc2ce8e40008ac9c14",
+      "canonicalName": "FanDuel TV Extra",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "65ea8b928145cb0008509426",
+      "canonicalName": "UEFA Champions League",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "63b48016d9dd51000828fa37",
+      "canonicalName": "POWERNATION",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "682e43b21295f98347710917",
+      "canonicalName": "AWSN",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "696689d13b9ce349c9be3a18",
+      "canonicalName": "Stingray DJAZZ",
+      "categories": [
+        "Music Videos"
+      ]
+    },
+    {
+      "providerChannelId": "69445a9a78c0c45b6c9aa8b9",
+      "canonicalName": "TikTok Radio",
+      "categories": [
+        "Music Videos"
+      ]
+    },
+    {
+      "providerChannelId": "5d4af1803e7983b391d73b13",
+      "canonicalName": "Pluto TV History",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "6319ee0cf78bb10007ee5e6b",
+      "canonicalName": "World War TV",
+      "categories": [
+        "Documentaries"
+      ]
+    },
+    {
+      "providerChannelId": "6568a78d635c3c0008765f41",
+      "canonicalName": "That's Rock",
+      "categories": [
+        "Music TV"
+      ]
+    },
+    {
+      "providerChannelId": "6320d80a66666000086712d7",
+      "canonicalName": "Claro Sports",
+      "categories": [
+        "Deportes"
+      ]
+    },
+    {
+      "providerChannelId": "660c29b5aec9680008f5b4a4",
+      "canonicalName": "FIFA+ (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68e38aaf8082ad3760def7bc",
+      "canonicalName": "Hercules: The Legendary Journeys",
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ]
+    },
+    {
+      "providerChannelId": "5fb5844bf5514d0007945bda",
+      "canonicalName": "BBC Food",
+      "categories": [
+        "USA"
+      ]
+    },
+    {
+      "providerChannelId": "69143e7b0d121b44adfa1ff9",
+      "canonicalName": "America's Funniest Home Videos (720p)",
+      "categories": [
+        "Entertainment",
+        "Komedi"
+      ]
+    },
+    {
+      "providerChannelId": "5f1abce155a03d0007718834",
+      "canonicalName": "Pluto TV Comedia made in Spain",
+      "categories": [
+        "comedy"
+      ]
+    },
+    {
+      "providerChannelId": "68adc697116b783a33f99e6c",
+      "canonicalName": "Pluto TV Impacto",
+      "categories": [
+        "entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5f1ac8f49205650007bc15f1",
+      "canonicalName": "Pluto TV Series",
+      "categories": [
+        "series"
+      ]
+    },
+    {
+      "providerChannelId": "6334a4d7ae975100073994a2",
+      "canonicalName": "Cine navideño en Julio",
+      "categories": [
+        "Christmas In July"
+      ]
+    },
+    {
+      "providerChannelId": "614501c653ceee000772b0ca",
+      "canonicalName": "Festive Fireplace",
+      "categories": [
+        "Christmas In July"
+      ]
+    },
+    {
+      "providerChannelId": "68f690e7a25ba0aab32bed92",
+      "canonicalName": "BET Holiday Movies",
+      "categories": [
+        "Christmas In July"
+      ]
+    },
+    {
+      "providerChannelId": "62b1e4189f5db20007ff03be",
+      "canonicalName": "Pluto TV Paranormal",
+      "categories": [
+        "Entertainment",
+        "Movies"
+      ]
+    },
+    {
+      "providerChannelId": "61c0b7eb8929e40007ff5125",
+      "canonicalName": "Pluto TV Juniorklubben (720p)",
+      "categories": [
+        "Entertainment",
+        "Barn"
+      ]
+    },
+    {
+      "providerChannelId": "60d393e5579a420007ee553c",
+      "canonicalName": "Casos de la Dra. Polo",
+      "categories": [
+        "En Español"
+      ]
+    },
+    {
+      "providerChannelId": "63a19da6847a090007f230da",
+      "canonicalName": "Pluto TV Romantik",
+      "categories": [
+        "Movies",
+        "Entertainment",
+        "Filmer"
+      ]
+    },
+    {
+      "providerChannelId": "62052d3b4eeb740007fbe125",
+      "canonicalName": "O Homem que veio do Céu",
+      "categories": [
+        "Retrô"
+      ]
+    },
+    {
+      "providerChannelId": "61c0b0688a80a4000703fbcb",
+      "canonicalName": "Pluto TV Action",
+      "categories": [
+        "Entertainment",
+        "Filmer"
+      ]
+    },
+    {
+      "providerChannelId": "61c0afa0a09bbe00078f8378",
+      "canonicalName": "Pluto TV Film",
+      "categories": [
+        "Movies",
+        "Filmer"
+      ]
+    },
+    {
+      "providerChannelId": "68c01bed508ba507f0d0dd60",
+      "canonicalName": "Pluto TV Harlequin",
+      "categories": [
+        "Entertainment",
+        "Filmer"
+      ]
+    },
+    {
+      "providerChannelId": "5b4e99f4423e067bd6df6903",
+      "canonicalName": "Gordon Ramsay's Hell's Kitchen",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "63dbe8c8a9957100087798a3",
+      "canonicalName": "Pluto TV Kultfilmer",
+      "categories": [
+        "Entertainment",
+        "Filmer",
+        "Movies"
+      ]
+    },
+    {
+      "providerChannelId": "69afee52684d0f30872ca43a",
+      "canonicalName": "From Dusk Till Dawn: The Series",
+      "categories": [
+        "Entertainment",
+        "Nytt på Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "666b38a5efa2a10008b15b3a",
+      "canonicalName": "BET x Tyler Perry Drama",
+      "categories": [
+        "Drama"
+      ]
+    },
+    {
+      "providerChannelId": "666b265722acab000885c6aa",
+      "canonicalName": "BET x Tyler Perry Comedy",
+      "categories": [
+        "Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "68c017bf337652ee75db201f",
+      "canonicalName": "Pluto TV Wild West",
+      "categories": [
+        "Entertainment",
+        "Gamla godingar"
+      ]
+    },
+    {
+      "providerChannelId": "5d40855b3fb0855028c99b6f",
+      "canonicalName": "Dallas Cowboys Cheer",
+      "categories": [
+        "Reality Competition"
+      ]
+    },
+    {
+      "providerChannelId": "67f3fc1707d2ba4121bd34a8",
+      "canonicalName": "Pluto TV Ungdomsserier (720p)",
+      "categories": [
+        "Entertainment",
+        "Barn"
+      ]
+    },
+    {
+      "providerChannelId": "6178156e54712100072d6b2b",
+      "canonicalName": "Andromeda",
+      "categories": [
+        "Sci-Fi + Fantasy",
+        "Sci-Fi",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5e7b6c60fd20c50007910bf5",
+      "canonicalName": "Pluto TV Crime",
+      "categories": [
+        "series"
+      ]
+    }
+  ],
+  "validations": [
+    {
+      "providerChannelId": "6972546cc62833833a187f50",
+      "canonicalName": "Willow Sports (720p)",
+      "existingCatalogRecordId": "e2ce65f8-f7fb-4932-b85f-b7adbc24e3bf",
+      "sourceHost": "d36r8jifhgsk5j.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "6972546cc62833833a187f50",
+      "canonicalName": "Willow Sports (720p)",
+      "existingCatalogRecordId": "f08488eb-b8d8-4822-90a8-be647a61f04f",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "69b1489b5828e7c242d83064",
+      "canonicalName": "Space Live (720p)",
+      "existingCatalogRecordId": "e753c000-0095-4690-9fa7-e97c3057f4ff",
+      "sourceHost": "d111bsx9oooqoh.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\003-69b1489b5828e7c242d83064-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\003-69b1489b5828e7c242d83064-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\003-69b1489b5828e7c242d83064-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "5d767b1c126c65d0a307355f",
+      "canonicalName": "Pluto TV History",
+      "existingCatalogRecordId": "f57cc33f-e5e2-4606-bec8-d5973109f9b7",
+      "sourceHost": "88.212.15.19",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "5d767b1c126c65d0a307355f",
+      "canonicalName": "Pluto TV History",
+      "existingCatalogRecordId": "aa7c2882-55e3-4f26-bfd9-bf8ac7deab19",
+      "sourceHost": "177.52.24.163",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\005-5d767b1c126c65d0a307355f-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\005-5d767b1c126c65d0a307355f-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\005-5d767b1c126c65d0a307355f-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "65c340383a116800078c8454",
+      "canonicalName": "Monster Jam (720p)",
+      "existingCatalogRecordId": "3f30e76d-2e35-40c3-8975-3bef145fbf11",
+      "sourceHost": "4b9627c7.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\006-65c340383a116800078c8454-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\006-65c340383a116800078c8454-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\006-65c340383a116800078c8454-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "61cd7b49543066000713b620",
+      "canonicalName": "Pluto TV Historia",
+      "existingCatalogRecordId": "6bf874a3-032c-4dbf-ba5b-371ae2ea0e2a",
+      "sourceHost": "d1k3vzh2ivy22k.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\007-61cd7b49543066000713b620-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\007-61cd7b49543066000713b620-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\007-61cd7b49543066000713b620-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "679203d4bc03978b9b4b79a6",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "c5a8b5b9-5993-4001-925e-2e01f0aec3c3",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\008-679203d4bc03978b9b4b79a6-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\008-679203d4bc03978b9b4b79a6-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\008-679203d4bc03978b9b4b79a6-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "679203d4bc03978b9b4b79a6",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\009-679203d4bc03978b9b4b79a6-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\009-679203d4bc03978b9b4b79a6-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\009-679203d4bc03978b9b4b79a6-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6870c9ca759366af055fe891",
+      "canonicalName": "Tennis Channel (720p)",
+      "existingCatalogRecordId": "8c394b9f-3dc2-4694-934e-8a10505ec4bf",
+      "sourceHost": "messi.damitv.st",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "6870c9ca759366af055fe891",
+      "canonicalName": "Tennis Channel (720p)",
+      "existingCatalogRecordId": "81f563b1-9ecf-489c-9159-5a9e45376635",
+      "sourceHost": "amg01444-tennischannelth-tennischnlintl-lggb-mr3r5.amagi.tv",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "67a52c8397782f00081879aa",
+      "canonicalName": "Top Barça",
+      "existingCatalogRecordId": "944447c0-f6ef-4747-bda4-b16b986a34be",
+      "sourceHost": "amg17560-fcb-amg17560c1-rakuten-uk-4891.playouts.now.amagi.tv",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "66bb374ba4ee27000841a62c",
+      "canonicalName": "Pixel.tv",
+      "existingCatalogRecordId": "65bb4ced-4442-48e3-a724-542d12d61e65",
+      "sourceHost": "cdn15.live-tv.cloud",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\013-66bb374ba4ee27000841a62c-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\013-66bb374ba4ee27000841a62c-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\013-66bb374ba4ee27000841a62c-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "64f6163a30ab3300083d870e",
+      "canonicalName": "PFL MMA",
+      "existingCatalogRecordId": "5a6fa90f-35d7-49c8-9ee1-5c6f2a1806dd",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\014-64f6163a30ab3300083d870e-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\014-64f6163a30ab3300083d870e-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\014-64f6163a30ab3300083d870e-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "64f6163a30ab3300083d870e",
+      "canonicalName": "PFL MMA",
+      "existingCatalogRecordId": "eb6ab20d-24b7-4f83-b925-1eacbcb26489",
+      "sourceHost": "a883593c.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\015-64f6163a30ab3300083d870e-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\015-64f6163a30ab3300083d870e-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\015-64f6163a30ab3300083d870e-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "66c86fff9ba9e800080d8ebe",
+      "canonicalName": "PGA TOUR",
+      "existingCatalogRecordId": "4691fb91-0e5e-475f-96a1-4dd0afcb9e50",
+      "sourceHost": "d1195tnygmyfvk.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\016-66c86fff9ba9e800080d8ebe-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\016-66c86fff9ba9e800080d8ebe-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\016-66c86fff9ba9e800080d8ebe-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "66c86fff9ba9e800080d8ebe",
+      "canonicalName": "PGA TOUR",
+      "existingCatalogRecordId": "e5adac7c-991e-4ee2-bcd9-0002b03ea40f",
+      "sourceHost": "d11k1mnrgfposz.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\017-66c86fff9ba9e800080d8ebe-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\017-66c86fff9ba9e800080d8ebe-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\017-66c86fff9ba9e800080d8ebe-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "69ef5682980899a9edf1a884",
+      "canonicalName": "That's Rock (720p)",
+      "existingCatalogRecordId": "53a581d9-7094-4587-a1d3-37c2a3ffbe72",
+      "sourceHost": "s7host5.localnow.api.cms.amdvids.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\018-69ef5682980899a9edf1a884-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\018-69ef5682980899a9edf1a884-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\018-69ef5682980899a9edf1a884-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6334a574605f140007e233c4",
+      "canonicalName": "PFL MMA",
+      "existingCatalogRecordId": "5a6fa90f-35d7-49c8-9ee1-5c6f2a1806dd",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\019-6334a574605f140007e233c4-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\019-6334a574605f140007e233c4-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\019-6334a574605f140007e233c4-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6334a574605f140007e233c4",
+      "canonicalName": "PFL MMA",
+      "existingCatalogRecordId": "eb6ab20d-24b7-4f83-b925-1eacbcb26489",
+      "sourceHost": "a883593c.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\020-6334a574605f140007e233c4-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\020-6334a574605f140007e233c4-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\020-6334a574605f140007e233c4-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "69b16df6ed2a2444365e7ff1",
+      "canonicalName": "Space Live",
+      "existingCatalogRecordId": "e753c000-0095-4690-9fa7-e97c3057f4ff",
+      "sourceHost": "d111bsx9oooqoh.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\021-69b16df6ed2a2444365e7ff1-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\021-69b16df6ed2a2444365e7ff1-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\021-69b16df6ed2a2444365e7ff1-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "649b6898f2ec0000081a9460",
+      "canonicalName": "DAZN Ringside",
+      "existingCatalogRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\022-649b6898f2ec0000081a9460-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\022-649b6898f2ec0000081a9460-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\022-649b6898f2ec0000081a9460-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "649b6898f2ec0000081a9460",
+      "canonicalName": "DAZN Ringside",
+      "existingCatalogRecordId": "a02d741c-b551-4bdf-b9f9-c8bc6b2a42b7",
+      "sourceHost": "live-manifest.production-public.tubi.io",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\023-649b6898f2ec0000081a9460-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\023-649b6898f2ec0000081a9460-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\023-649b6898f2ec0000081a9460-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "69b16dc543d0f313203b714c",
+      "canonicalName": "Space Live (720p)",
+      "existingCatalogRecordId": "e753c000-0095-4690-9fa7-e97c3057f4ff",
+      "sourceHost": "d111bsx9oooqoh.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\024-69b16dc543d0f313203b714c-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\024-69b16dc543d0f313203b714c-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\024-69b16dc543d0f313203b714c-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "69b3db536c0414a7ecf564fb",
+      "canonicalName": "Space Live",
+      "existingCatalogRecordId": "e753c000-0095-4690-9fa7-e97c3057f4ff",
+      "sourceHost": "d111bsx9oooqoh.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\025-69b3db536c0414a7ecf564fb-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\025-69b3db536c0414a7ecf564fb-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-2\\025-69b3db536c0414a7ecf564fb-03.jpg"
+      ]
+    }
+  ]
+}

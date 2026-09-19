@@ -24,12 +24,24 @@ const app = read('src/App.tsx')
 const offline = read('src/components/shell/DesktopOfflineBanner.tsx')
 const session = read('src/components/shell/DesktopSessionStatusBanner.tsx')
 const phase9 = read('scripts/verify-phase9-product-honesty.mjs')
+const localizationProvider = read('src/localization/LocalizationProvider.tsx')
+const localePreference = read('src/localization/preference.ts')
+const supportedLocales = read('src/localization/supportedLocales.ts')
 
 check('settings-phase-marker', app.includes("data-settings-phase=\"13\"") || app.includes("data-settings-phase='13'"))
 check('settings-section-nav', app.includes("id: 'playback'") && app.includes("id: 'shortcuts'") && app.includes("id: 'diagnostics'"))
 check('playback-quality-persists', app.includes('AudioQualitySelector') && app.includes('setAudioQualityMode'))
 check('autoplay-honest-fixed-off', app.includes('Autoplay after restart') && app.includes('Fixed off'))
-check('appearance-language-honest', app.includes('English only') && app.includes('Cinematic dark theme'))
+check(
+  'appearance-language-localized',
+  app.includes('settings-language-select')
+    && app.includes('PRODUCTION_LOCALES.map')
+    && localizationProvider.includes('setLocale')
+    && localizationProvider.includes('persistLocale')
+    && localePreference.includes("hiddenTunes.selectedLocale")
+    && (supportedLocales.match(/productionEnabled: true/g) ?? []).length === 20
+    && !app.includes('English only'),
+)
 check('notifications-settings-honest', app.includes('Push and in-app alerts are not available'))
 check('downloads-prefs-route-real', app.includes("onNavigateNav('downloads')") && app.includes('Download manager'))
 check('storage-disk-usage', app.includes('getDesktopDownloadDiskUsage'))

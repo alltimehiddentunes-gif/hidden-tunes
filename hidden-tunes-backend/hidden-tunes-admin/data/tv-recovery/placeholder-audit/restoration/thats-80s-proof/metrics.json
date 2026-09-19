@@ -1,0 +1,15 @@
+{
+  "candidateId": "59a70856-93c2-4dc7-aae5-4963a51be630",
+  "streamHost": "rakutenaa-lightning-now80s-rakuten-mkrxt.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 165.311246,
+    "advancedSeconds": 123.29658600000002,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

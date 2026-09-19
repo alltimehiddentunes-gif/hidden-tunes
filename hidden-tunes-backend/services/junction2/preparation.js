@@ -163,11 +163,13 @@ function startJob(job) {
       }
       scheduleRefresh(job);
     })
-    .catch(() => {
+    .catch((err) => {
       setState(key, { state: "FAILED", priority });
+      const code = String(err?.code || err?.message || "unknown").slice(0, 80);
       recordMetric("playbackPreparationFailed", {
         durationMs: Date.now() - started,
         priority,
+        code,
       });
       console.log(
         JSON.stringify({
@@ -175,6 +177,7 @@ function startJob(job) {
           status: "failed",
           priority,
           durationMs: Date.now() - started,
+          code,
         }),
       );
     })

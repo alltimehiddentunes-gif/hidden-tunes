@@ -1,0 +1,19 @@
+{
+  "completedAt": "2026-08-14T19:15:16.299Z",
+  "batch": 11,
+  "identitiesResearched": 25,
+  "newlyVerifiedIdentities": [
+    "Red Bull TV",
+    "XITE Rock x Metal",
+    "Dog the Bounty Hunter",
+    "Court TV"
+  ],
+  "newlyVerifiedIdentityCount": 4,
+  "newlyTerminalAliases": 15,
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 35,
+  "cumulativeTerminalAliases": 132,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "safetyRegressions": 0,
+  "result": "COMPLETE"
+}

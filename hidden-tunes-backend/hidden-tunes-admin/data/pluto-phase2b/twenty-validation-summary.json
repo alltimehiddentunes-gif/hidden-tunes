@@ -1,0 +1,28 @@
+{
+  "validatedAt": "2026-08-09T06:29:00.000Z",
+  "method": "fresh official-guide resolution, bounded FFmpeg decode, 64-bit end-slate perceptual hash, visual sample review",
+  "productionWrites": 0,
+  "selected": 20,
+  "identityExact": 20,
+  "decoded": 20,
+  "playingContentCorrectChannel": 0,
+  "endOfAvailability": 20,
+  "placeholder": 0,
+  "geoBlocked": 0,
+  "wrongChannel": 0,
+  "dead": 0,
+  "unknown": 0,
+  "extendedPlaybackSkipped": "All candidates failed the initial actual-content gate",
+  "providerChannelIds": [
+    "66c45b1803e3b20008d8c200", "5e7cb84a172a0f0007da69e4",
+    "660bfc032433010008def35a", "5caf325764025859afdd6c4d",
+    "65b923f90cb1a100088a03ab", "65b9268fc798e800085add89",
+    "6870c9333ffa5e0c914e9205", "64b67f0424ade50008a3be17",
+    "64afe50c5dc16600087f3227", "66337ea1307fa300082c28a0",
+    "685aaec481c345899e4458bb", "6866525c8a412a0e95c438b4",
+    "66337e6ba0a74e000889563b", "5f760c3d41aa2d0007bfde19",
+    "663a15d7cb3ea10008edac88", "62a0b2aff4cf470007e47e29",
+    "66a10384d5125900089dfd04", "663a163f8ea5560008a3f234",
+    "6305ca798bd95300072d2f93", "5cb5cfe5caf83414128f209e"
+  ]
+}

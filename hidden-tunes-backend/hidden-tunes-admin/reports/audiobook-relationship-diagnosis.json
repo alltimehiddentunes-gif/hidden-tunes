@@ -1,0 +1,411 @@
+{
+  "generatedAt": "2026-08-07T12:45:47.782Z",
+  "target": {
+    "id": "fe0dd05b-caf5-4214-8910-34456c182e41",
+    "slug": "faerie-queene-book-4-3251",
+    "title": "Faerie Queene Book  4",
+    "author_name": "Edmund Spenser",
+    "source_type": "librivox",
+    "source_id": "3251",
+    "source_key": "librivox:book:3251",
+    "chapter_count": 13,
+    "status": "approved",
+    "is_active": true,
+    "playback_status": "playable"
+  },
+  "targetRelationshipRows": 0,
+  "sourceIdentity": {
+    "sourceId": "3251",
+    "sourceKey": "librivox:book:3251"
+  },
+  "similarBooks": [
+    {
+      "id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "slug": "faerie-queene-book-1-310",
+      "title": "Faerie Queene  Book 1",
+      "source_type": "librivox",
+      "source_id": "310",
+      "source_key": "librivox:book:310",
+      "chapter_count": 13
+    },
+    {
+      "id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "slug": "faerie-queene-book-5-3250",
+      "title": "Faerie Queene Book 5",
+      "source_type": "librivox",
+      "source_id": "3250",
+      "source_key": "librivox:book:3250",
+      "chapter_count": 14
+    },
+    {
+      "id": "fe0dd05b-caf5-4214-8910-34456c182e41",
+      "slug": "faerie-queene-book-4-3251",
+      "title": "Faerie Queene Book  4",
+      "source_type": "librivox",
+      "source_id": "3251",
+      "source_key": "librivox:book:3251",
+      "chapter_count": 13
+    },
+    {
+      "id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "slug": "faerie-queene-books-6-and-7-3249",
+      "title": "Faerie Queene Books 6 & 7",
+      "source_type": "librivox",
+      "source_id": "3249",
+      "source_key": "librivox:book:3249",
+      "chapter_count": 16
+    }
+  ],
+  "chapterCountsByBook": {
+    "319bca4b-61af-44db-ad69-7a4353952dd5": 13,
+    "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5": 14,
+    "fe0dd05b-caf5-4214-8910-34456c182e41": 0,
+    "8b55f906-23f4-491e-a793-b342d69d6bf0": 16
+  },
+  "candidateChapterSamples": [
+    {
+      "id": "60c2c475-09e0-4eaf-ba79-d62baf3bafa9",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_00 - The Legende of the Knight of Redcrosse - Prologue",
+      "chapter_number": 1,
+      "source_key": "librivox:book:310:chapter:125065",
+      "is_active": true
+    },
+    {
+      "id": "dac8082d-80c6-44ec-b6a3-90d0f54893ac",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_01 - The Legende of the Knight of Redcrosse - Canto 01",
+      "chapter_number": 2,
+      "source_key": "librivox:book:310:chapter:125066",
+      "is_active": true
+    },
+    {
+      "id": "cc542a1c-5c27-4c21-8d5e-e58e94d714f5",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_02 - The Legende of the Knight of Redcrosse - Canto 02",
+      "chapter_number": 3,
+      "source_key": "librivox:book:310:chapter:125067",
+      "is_active": true
+    },
+    {
+      "id": "8c37ce0a-373f-4c9f-8127-8598bb94e1a1",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_03 - The Legende of the Knight of Redcrosse - Canto 03",
+      "chapter_number": 4,
+      "source_key": "librivox:book:310:chapter:125068",
+      "is_active": true
+    },
+    {
+      "id": "bdc0facf-6567-40fe-b2eb-e46ac5cfbcc6",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_04 - The Legende of the Knight of Redcrosse - Canto 04",
+      "chapter_number": 5,
+      "source_key": "librivox:book:310:chapter:125069",
+      "is_active": true
+    },
+    {
+      "id": "37b0bc99-5627-4eb1-af16-63cff8050de5",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_05 - The Legende of the Knight of Redcrosse - Canto 05",
+      "chapter_number": 6,
+      "source_key": "librivox:book:310:chapter:125070",
+      "is_active": true
+    },
+    {
+      "id": "3363fddc-e310-4462-aaf7-cddebcadc341",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_06 - The Legende of the Knight of Redcrosse - Canto 06",
+      "chapter_number": 7,
+      "source_key": "librivox:book:310:chapter:125071",
+      "is_active": true
+    },
+    {
+      "id": "53b2778a-1b24-474b-b21f-844ab473344f",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_07 - The Legende of the Knight of Redcrosse - Canto 07",
+      "chapter_number": 8,
+      "source_key": "librivox:book:310:chapter:125072",
+      "is_active": true
+    },
+    {
+      "id": "82209044-a63f-454a-9e68-01049ebd3270",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_08 - The Legende of the Knight of Redcrosse - Canto 08",
+      "chapter_number": 9,
+      "source_key": "librivox:book:310:chapter:125073",
+      "is_active": true
+    },
+    {
+      "id": "d2cb0c5b-cd6b-49c1-a019-c29d62652728",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_09 - The Legende of the Knight of Redcrosse - Canto 09",
+      "chapter_number": 10,
+      "source_key": "librivox:book:310:chapter:125074",
+      "is_active": true
+    },
+    {
+      "id": "36767ba3-20f4-496b-9d12-b8a2a7b66ecd",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_10 - The Legende of the Knight of Redcrosse - Canto 10",
+      "chapter_number": 11,
+      "source_key": "librivox:book:310:chapter:125075",
+      "is_active": true
+    },
+    {
+      "id": "c9d935c7-cfb1-4458-b2da-5aa4d74662ac",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_11 - The Legende of the Knight of Redcrosse - Canto 11",
+      "chapter_number": 12,
+      "source_key": "librivox:book:310:chapter:125076",
+      "is_active": true
+    },
+    {
+      "id": "2e20bfee-351d-497e-90de-310e9ab34453",
+      "audiobook_id": "319bca4b-61af-44db-ad69-7a4353952dd5",
+      "title": "bk1_12 - The Legende of the Knight of Redcrosse - Canto 12",
+      "chapter_number": 13,
+      "source_key": "librivox:book:310:chapter:125077",
+      "is_active": true
+    },
+    {
+      "id": "4e57b700-19dc-436b-8522-2e7ab3af8627",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_00- The Legende of Artegal - Prologue",
+      "chapter_number": 1,
+      "source_key": "librivox:book:3250:chapter:182643",
+      "is_active": true
+    },
+    {
+      "id": "d9c09ff6-62f8-430c-b5ad-cf8ae82eb169",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_01 - The Legende of Artegal - Canto 01",
+      "chapter_number": 2,
+      "source_key": "librivox:book:3250:chapter:182644",
+      "is_active": true
+    },
+    {
+      "id": "fb385a5c-ef62-46ab-a67d-206925344ab9",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_02 - The Legende of Artegal - Canto 02",
+      "chapter_number": 3,
+      "source_key": "librivox:book:3250:chapter:182645",
+      "is_active": true
+    },
+    {
+      "id": "04918ad0-07b0-4ef3-b2a8-850059a0bfbb",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_03 - The Legende of Artegal - Canto 03",
+      "chapter_number": 4,
+      "source_key": "librivox:book:3250:chapter:182646",
+      "is_active": true
+    },
+    {
+      "id": "40985660-0162-4f58-b44c-5eaa30cc30bb",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_04 - The Legende of Artegal - Canto 04",
+      "chapter_number": 5,
+      "source_key": "librivox:book:3250:chapter:182647",
+      "is_active": true
+    },
+    {
+      "id": "8bd7a715-3aed-4d9e-9bf8-31f4f442f52a",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_05 - The Legende of Artegal - Canto 05",
+      "chapter_number": 6,
+      "source_key": "librivox:book:3250:chapter:182648",
+      "is_active": true
+    },
+    {
+      "id": "fb61009e-316e-432b-b18c-9e309e2d016f",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_06 - The Legende of Artegal - Canto 06",
+      "chapter_number": 7,
+      "source_key": "librivox:book:3250:chapter:182649",
+      "is_active": true
+    },
+    {
+      "id": "2e12ba2e-1ac9-4d24-b7ee-b2f51bcaa040",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_07 - The Legende of Artegal - Canto 07",
+      "chapter_number": 8,
+      "source_key": "librivox:book:3250:chapter:182650",
+      "is_active": true
+    },
+    {
+      "id": "e440328a-2122-49ac-b18c-323f481fb163",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_08 - The Legende of Artegal - Canto 08",
+      "chapter_number": 9,
+      "source_key": "librivox:book:3250:chapter:182651",
+      "is_active": true
+    },
+    {
+      "id": "72349817-183c-493c-8aec-1793fa778ccc",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_09 - The Legende of Artegal - Canto 09",
+      "chapter_number": 10,
+      "source_key": "librivox:book:3250:chapter:182652",
+      "is_active": true
+    },
+    {
+      "id": "3aa1b492-a5fb-44d2-90c6-f1125dc16095",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_10 - The Legende of Artegal - Canto 10",
+      "chapter_number": 11,
+      "source_key": "librivox:book:3250:chapter:182653",
+      "is_active": true
+    },
+    {
+      "id": "937de50e-2320-4a82-af02-61b6f0142446",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_11 - The Legende of Artegal - Canto 11",
+      "chapter_number": 12,
+      "source_key": "librivox:book:3250:chapter:182654",
+      "is_active": true
+    },
+    {
+      "id": "acaae033-6c4d-400d-ad79-d8d6319cf297",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_12 - The Legende of Artegal - Canto 12",
+      "chapter_number": 13,
+      "source_key": "librivox:book:3250:chapter:182655",
+      "is_active": true
+    },
+    {
+      "id": "21f77493-0d73-4a6c-9fa6-66dfcfea7d7c",
+      "audiobook_id": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "bk5_12 - The Legende of Artegal - Canto 12a",
+      "chapter_number": 14,
+      "source_key": "librivox:book:3250:chapter:182656",
+      "is_active": true
+    },
+    {
+      "id": "62770862-bc29-4036-bf47-c6657343d1c4",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_00 - The Legende of Calidore - Prologue",
+      "chapter_number": 1,
+      "source_key": "librivox:book:3249:chapter:182627",
+      "is_active": true
+    },
+    {
+      "id": "cb41cad8-8e6f-4ff6-b150-786bfd2d3ab9",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_01 - The Legende of Calidore - Canto 01",
+      "chapter_number": 2,
+      "source_key": "librivox:book:3249:chapter:182628",
+      "is_active": true
+    },
+    {
+      "id": "013013c1-ae74-46c4-9080-b5a92c277ff0",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_02 - The Legende of Calidore - Canto 02",
+      "chapter_number": 3,
+      "source_key": "librivox:book:3249:chapter:182629",
+      "is_active": true
+    },
+    {
+      "id": "1059e095-6238-44a4-88cc-94a9c0c30f55",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_03 - The Legende of Calidore - Canto 03",
+      "chapter_number": 4,
+      "source_key": "librivox:book:3249:chapter:182630",
+      "is_active": true
+    },
+    {
+      "id": "2a18ce53-abff-4364-b81d-b60e6f03f090",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_04 - The Legende of Calidore - Canto 04",
+      "chapter_number": 5,
+      "source_key": "librivox:book:3249:chapter:182631",
+      "is_active": true
+    },
+    {
+      "id": "733f59f4-b375-4c32-8e3f-2c874b794fdc",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_05 - The Legende of Calidore - Canto 05",
+      "chapter_number": 6,
+      "source_key": "librivox:book:3249:chapter:182632",
+      "is_active": true
+    },
+    {
+      "id": "c229d52a-842f-449d-bb3f-45cee6d67e21",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_06 - The Legende of Calidore - Canto 06",
+      "chapter_number": 7,
+      "source_key": "librivox:book:3249:chapter:182633",
+      "is_active": true
+    },
+    {
+      "id": "8fb8778d-0270-40eb-bd9d-2c88bfb2a078",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_07 - The Legende of Calidore - Canto 07",
+      "chapter_number": 8,
+      "source_key": "librivox:book:3249:chapter:182634",
+      "is_active": true
+    },
+    {
+      "id": "64b3460d-6c0d-4177-9613-24d9975d8dea",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_08 - The Legende of Calidore - Canto 08",
+      "chapter_number": 9,
+      "source_key": "librivox:book:3249:chapter:182635",
+      "is_active": true
+    },
+    {
+      "id": "5649f011-48fb-413c-ac87-c23c59ed4e86",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_09 - The Legende of Calidore - Canto 09",
+      "chapter_number": 10,
+      "source_key": "librivox:book:3249:chapter:182636",
+      "is_active": true
+    },
+    {
+      "id": "c7b52ad2-1761-4f70-8b9b-5a0e23b1f763",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_10 - The Legende of Calidore - Canto 10",
+      "chapter_number": 11,
+      "source_key": "librivox:book:3249:chapter:182637",
+      "is_active": true
+    },
+    {
+      "id": "48c11bdf-b06c-4d54-bf49-b18e741f1634",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_11 - The Legende of Calidore - Canto 11",
+      "chapter_number": 12,
+      "source_key": "librivox:book:3249:chapter:182638",
+      "is_active": true
+    },
+    {
+      "id": "5a5a6788-9e74-4a1d-9744-a3e338db1148",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk6_12 - The Legende of Calidore - Canto 12",
+      "chapter_number": 13,
+      "source_key": "librivox:book:3249:chapter:182639",
+      "is_active": true
+    },
+    {
+      "id": "3cd75f81-5e6b-4af7-bf6c-305fd1bf5caf",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk7_06 - The Cantos of Mutabilitie - Canto 6",
+      "chapter_number": 14,
+      "source_key": "librivox:book:3249:chapter:182640",
+      "is_active": true
+    },
+    {
+      "id": "94cffcd1-1e86-48f3-ae84-25dcb340708b",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk7_07 - The Cantos of Mutabilitie - Canto 7",
+      "chapter_number": 15,
+      "source_key": "librivox:book:3249:chapter:182641",
+      "is_active": true
+    },
+    {
+      "id": "aefa00eb-7455-4345-833b-7963d2df073e",
+      "audiobook_id": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "bk7_08 - The Cantos of Mutabilitie - Canto 8, unperfite",
+      "chapter_number": 16,
+      "source_key": "librivox:book:3249:chapter:182642",
+      "is_active": true
+    }
+  ]
+}

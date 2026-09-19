@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T13:47:52.248Z",
+  "scope": "Batch 19 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Love Nature passed 124.06 seconds of 1920x1080 existing-Desktop playback with one video owner from a Tubi-owned candidate.",
+    "Tubi officially lists Love Nature; continuous evidence showed real premium wildlife documentary production content, supporting HIGH identity.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "GrowthDay Network, Best of Dr. Phil, and Homicide Hunter used rejected jmp2.uk. FanDuel TV Extra used generic CloudFront without complete exact authoritative linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 48,
+  "cumulativeTerminalAliases": 173,
+  "batch19Target": 25,
+  "batch19Researched": 10,
+  "batch19Remaining": 15
+}

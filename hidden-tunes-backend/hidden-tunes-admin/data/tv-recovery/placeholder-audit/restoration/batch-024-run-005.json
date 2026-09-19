@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-16T04:24:01.233Z",
+  "scope": "Batch 24 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "The Walking Dead Universe passed 124.45 seconds of 1920x1080 existing-Desktop playback with one video owner from its direct Xumo/Wurl candidate.",
+    "Xumo officially lists the dedicated 24-hour channel and the evidence showed sustained real Walking Dead Universe programming, supporting HIGH identity. Normal search and production resolver passed.",
+    "One quarantined generic-CloudFront alias was terminally merged to the distinct authoritative Xumo candidate without creating a duplicate.",
+    "CBS Sports HQ used Google DAI without complete direct broadcaster linkage. Motorvision TV had only a rejected jmp2.uk canonical candidate and a distinct Spanish CloudFront service. Women's Sports Network candidates lacked complete direct candidate ownership linkage. CBS News Philadelphia used an unverified mediator endpoint."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 62,
+  "cumulativeTerminalAliases": 198,
+  "batch24Target": 25,
+  "batch24Researched": 25,
+  "batch24Remaining": 0,
+  "batch24Complete": true
+}

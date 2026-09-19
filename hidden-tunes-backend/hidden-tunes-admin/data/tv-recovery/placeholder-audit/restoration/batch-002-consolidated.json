@@ -1,0 +1,38 @@
+{
+  "completedAt": "2026-08-13T19:08:00.000Z",
+  "status": "COMPLETE",
+  "boundary": "At least 25 highest-probability identities investigated; subsequent heartbeat runs brought the checkpointed total to 35.",
+  "checkpointedIdentitiesResearched": 35,
+  "checkpointedAuthoritativeCandidatesFound": 19,
+  "checkpointedSourcesTested": 9,
+  "checkpointedDesktopVerified": 5,
+  "verifiedDuringCampaign": [
+    "Horse & Country",
+    "Inside Crime",
+    "World Poker Tour",
+    "PGA TOUR",
+    "Rally TV",
+    "Wicked Tuna",
+    "Just for Laughs Gags",
+    "Crime 360",
+    "Unsolved Mysteries",
+    "Hot Ones",
+    "Ice Road Truckers",
+    "TNA Wrestling Channel",
+    "Z Nation"
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 13,
+  "cumulativeTerminalAliases": 80,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "remainingSourceFoundNeedsRetest": 317,
+  "remainingSourceFoundNeedsIdentityReview": 792,
+  "safety": {
+    "knownGoodPlutoProtected": 2140,
+    "nonPlutoTouched": 0,
+    "untrustedWrappersAccepted": 0,
+    "uncertainSourcesPublished": 0,
+    "storage": "D_DRIVE_ONLY"
+  },
+  "nextPhase": "Begin Batch 3 as a fresh bounded 25-identity batch, excluding every completed or materially exhausted identity and retaining provenance-first validation."
+}

@@ -1,0 +1,433 @@
+{
+  "batch": 19,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH:AMBIGUOUS_EXACT_TITLE",
+  "startedAt": "2026-08-11T17:48:27.777Z",
+  "completedAt": "2026-08-11T17:55:23.325Z",
+  "processedIdentities": 26,
+  "queueRowsClassified": 26,
+  "healthyCandidates": 18,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 18,
+  "stillUnresolved": 8,
+  "remainingQueue": 2063,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "6549337183595c000815ad05",
+      "requestedTitles": [
+        "Murder, She Wrote"
+      ],
+      "normalizedIdentity": [
+        "murder she wrote"
+      ],
+      "candidateRecordId": "116ce2be-d296-4bc5-9209-b77c657b43f9",
+      "candidateTitle": "Murder, She Wrote",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d3f4oii5n0oeqi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65a9b20f0c7ff50008d3a3b6",
+      "requestedTitles": [
+        "Universal Monsters"
+      ],
+      "normalizedIdentity": [
+        "universal monsters"
+      ],
+      "candidateRecordId": "97429e57-9bda-4274-8168-5cad59acd223",
+      "candidateTitle": "Universal Monsters",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d4whmvwm0rdvi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64c2222fb0cf5c0008288c4f",
+      "requestedTitles": [
+        "Family Feud Classic"
+      ],
+      "normalizedIdentity": [
+        "family feud classic"
+      ],
+      "candidateRecordId": "8cdebedd-2f1d-4eb1-a790-db5b2434dd92",
+      "candidateTitle": "Family Feud Classic",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65367e724f123d000877cfe5",
+      "requestedTitles": [
+        "Come Dine with Me"
+      ],
+      "normalizedIdentity": [
+        "come dine with me"
+      ],
+      "candidateRecordId": "1db2e662-48bd-41f8-8ee5-ff39d964e092",
+      "candidateTitle": "Come Dine With Me",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "65492fc7056b9700088560b5",
+      "requestedTitles": [
+        "American Crimes"
+      ],
+      "normalizedIdentity": [
+        "american crimes"
+      ],
+      "candidateRecordId": "0daa0ac3-483b-4618-afec-6343037b88a2",
+      "candidateTitle": "American Crimes",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d4whmvwm0rdvi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6319f06067a3ee000708af95",
+      "requestedTitles": [
+        "Haunt TV"
+      ],
+      "normalizedIdentity": [
+        "haunt tv"
+      ],
+      "candidateRecordId": "992ebb29-1db9-4632-8f19-5c66b066f01d",
+      "candidateTitle": "Haunt TV (1080p)",
+      "exactCandidateCount": 8,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "bamcahaunttvrakuten.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66e06576abec540008cc17a9",
+      "requestedTitles": [
+        "The Graham Norton Show"
+      ],
+      "normalizedIdentity": [
+        "the graham norton show"
+      ],
+      "candidateRecordId": "3347b4e8-f87e-4909-a4b9-2a66fe5986fe",
+      "candidateTitle": "The Graham Norton Show",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "650b68bc2ce8e40008ac9c14",
+      "requestedTitles": [
+        "FanDuel TV Extra"
+      ],
+      "normalizedIdentity": [
+        "fanduel tv extra"
+      ],
+      "candidateRecordId": "0f3eb441-55c1-4a10-b3a5-2e18102f73d6",
+      "candidateTitle": "FanDuel TV Extra",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5ad8d3a31b95267e225e4e09",
+      "requestedTitles": [
+        "Pluto TV Movies"
+      ],
+      "normalizedIdentity": [
+        "movies"
+      ],
+      "candidateRecordId": "e0d9553c-0a45-4560-ab22-d890a85a43be",
+      "candidateTitle": "Pluto TV Movies",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "656535fc2c46f30008870fae",
+      "requestedTitles": [
+        "BBC Earth"
+      ],
+      "normalizedIdentity": [
+        "bbc earth"
+      ],
+      "candidateRecordId": "7c63bf39-9710-432d-9dd1-661af4ecd27c",
+      "candidateTitle": "BBC Earth (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "amg00793-amg00793c6-xumo-us-2669.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63b48016d9dd51000828fa37",
+      "requestedTitles": [
+        "POWERNATION"
+      ],
+      "normalizedIdentity": [
+        "powernation"
+      ],
+      "candidateRecordId": "db8efbe6-cd0a-43cb-95f3-633fe3dfe9bb",
+      "candidateTitle": "POWERNATION",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "66df8a29b25d2b0008fc5fe0",
+      "requestedTitles": [
+        "Love Nature"
+      ],
+      "normalizedIdentity": [
+        "love nature"
+      ],
+      "candidateRecordId": "38d77286-6093-43f2-8bd9-49690225559a",
+      "candidateTitle": "Love Nature (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5e6f38792075160007d85823",
+      "requestedTitles": [
+        "Hell's Kitchen"
+      ],
+      "normalizedIdentity": [
+        "hell s kitchen"
+      ],
+      "candidateRecordId": "85778084-d6f1-4331-921c-6658e98fb7ee",
+      "candidateTitle": "Hell's Kitchen",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "63fe2ec4dff38e000835f786",
+      "requestedTitles": [
+        "Rookie Blue"
+      ],
+      "normalizedIdentity": [
+        "rookie blue"
+      ],
+      "candidateRecordId": "ebe9fbd5-8f4b-4953-9d0e-97387f4bc785",
+      "candidateTitle": "rookie-blue",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6319ee0cf78bb10007ee5e6b",
+      "requestedTitles": [
+        "World War TV"
+      ],
+      "normalizedIdentity": [
+        "world war tv"
+      ],
+      "candidateRecordId": "03a25d60-6b93-4b04-a8fa-0e490e3ab545",
+      "candidateTitle": "World War TV (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "amg00841-aenetworksukane-worldwartv-samsunguk-fiod1.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64c37e47dac71b000809abab",
+      "requestedTitles": [
+        "Evidence of Evil"
+      ],
+      "normalizedIdentity": [
+        "evidence of evil"
+      ],
+      "candidateRecordId": "51fbf945-a568-4c13-b3d9-d675a63f7bc1",
+      "candidateTitle": "Evidence of Evil (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "9e7adb64.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "696689d13b9ce349c9be3a18",
+      "requestedTitles": [
+        "Stingray DJAZZ"
+      ],
+      "normalizedIdentity": [
+        "stingray djazz"
+      ],
+      "candidateRecordId": "89035e31-0474-4fc3-b00d-e456311b3c2a",
+      "candidateTitle": "Stingray DJAZZ",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "lotus.stingray.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "68c8203efef6d8a2a6f13906",
+      "requestedTitles": [
+        "60 Days in Jail"
+      ],
+      "normalizedIdentity": [
+        "60 days in jail"
+      ],
+      "candidateRecordId": "814c28ad-825b-4230-a7dd-34a4944e9c61",
+      "candidateTitle": "60 Days in Jail (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "39328386.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64d2b6bf9b414d0008187d83",
+      "requestedTitles": [
+        "Mayday: Air Disaster"
+      ],
+      "normalizedIdentity": [
+        "mayday air disaster"
+      ],
+      "candidateRecordId": "19494e7b-5d84-4d30-a2d5-f6c40ba30397",
+      "candidateTitle": "Mayday: Air Disaster",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "54ff7ba69222cb1c2624c584",
+      "requestedTitles": [
+        "Bloomberg TV+"
+      ],
+      "normalizedIdentity": [
+        "bloomberg tv"
+      ],
+      "candidateRecordId": "9907cc2d-e1ea-4c62-89a3-2dc8ec0af8b9",
+      "candidateTitle": "Bloomberg TV",
+      "exactCandidateCount": 16,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5cf0622da00ca1e2f6fac712",
+      "requestedTitles": [
+        "EstrellaTV"
+      ],
+      "normalizedIdentity": [
+        "estrellatv"
+      ],
+      "candidateRecordId": "c0154c14-454f-43f7-9639-4de1b511e32d",
+      "candidateTitle": "EstrellaTV (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "amg00567-estrellamedia-estrellatv-distrotv-6p8tu.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "643f03b9d8436e0008edf021",
+      "requestedTitles": [
+        "Family Feud Classic"
+      ],
+      "normalizedIdentity": [
+        "family feud classic"
+      ],
+      "candidateRecordId": "8cdebedd-2f1d-4eb1-a790-db5b2434dd92",
+      "candidateTitle": "Family Feud Classic",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "698a040b48d98175cb870fc5",
+      "requestedTitles": [
+        "Hoarders"
+      ],
+      "normalizedIdentity": [
+        "hoarders"
+      ],
+      "candidateRecordId": "30254138-2ca9-4446-a813-8142fa97d8d9",
+      "candidateTitle": "Hoarders (720p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "8f2546fe.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67c832cc9b53325ee16fb899",
+      "requestedTitles": [
+        "Wicked Tuna"
+      ],
+      "normalizedIdentity": [
+        "wicked tuna"
+      ],
+      "candidateRecordId": "b7605689-ad12-4d0a-8898-ea7269700756",
+      "candidateTitle": "Wicked Tuna (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "amg00353-lionsgatestudio-wickedtunanl-samsungnl-l67j0.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "66d712fdabec540008ba66cd",
+      "requestedTitles": [
+        "Escape to the Country"
+      ],
+      "normalizedIdentity": [
+        "escape to the country"
+      ],
+      "candidateRecordId": "e636ec05-e276-42e3-ab4c-5823e7f1bd67",
+      "candidateTitle": "Escape to the Country",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6578812b12d5ee000884c5c6",
+      "requestedTitles": [
+        "Modern Marvels"
+      ],
+      "normalizedIdentity": [
+        "modern marvels"
+      ],
+      "candidateRecordId": "a5620eda-3b7b-431c-a68d-d970bfaa1f29",
+      "candidateTitle": "Modern Marvels",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    }
+  ]
+}

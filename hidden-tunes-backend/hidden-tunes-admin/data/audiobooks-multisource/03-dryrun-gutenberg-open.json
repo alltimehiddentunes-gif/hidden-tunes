@@ -1,0 +1,869 @@
+{
+  "provider": "project_gutenberg_open_audiobook",
+  "requested": 200,
+  "usedQuery": "https://archive.org/advancedsearch.php?q=(collection%3Agutenberg%20OR%20collection%3Aopensource_audio)%20AND%20(subject%3Aaudiobook%20OR%20title%3Aaudiobook%20OR%20description%3A%22neural%20text%20to%20speech%22%20OR%20description%3A%22AI-generated%22)%20AND%20mediatype%3Aaudio&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=licenseurl&rows=100&page=1&output=json",
+  "iaDocsFound": 100,
+  "collectionLandingOk": true,
+  "claimedInventoryApprox": 5000,
+  "normalizedOk": 45,
+  "rejected": 15,
+  "discovered": [
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "saskarcaudiobook_201812",
+      "title": "Saskarc Audiobook",
+      "author": "Saskarc Industries Inc",
+      "sourceUrl": "https://archive.org/details/saskarcaudiobook_201812",
+      "audioSampleUrl": "https://archive.org/download/saskarcaudiobook_201812/00%20Introducing.mp3",
+      "narrationType": "synthetic",
+      "licence": "http://creativecommons.org/licenses/by-nd/4.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "BonjourTristesse53Parte",
+      "title": "Bonjour tristesse 5 (3 Âª parte)",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/BonjourTristesse53Parte",
+      "audioSampleUrl": "https://archive.org/download/BonjourTristesse53Parte/Cd3_05.Piste5.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "mwp-ep0620-zfs-hardware-recovery-guide",
+      "title": "My Weird Prompts #620: ZFS Decoded: Recovering Data After Hardware Failure",
+      "author": "My Weird Prompts Podcast",
+      "sourceUrl": "https://archive.org/details/mwp-ep0620-zfs-hardware-recovery-guide",
+      "audioSampleUrl": "https://archive.org/download/mwp-ep0620-zfs-hardware-recovery-guide/mwp-ep0620.mp3",
+      "narrationType": "synthetic",
+      "licence": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "AudiobookReadByComputervoiceHeatherascendeMaimaPermaAndMaryThe",
+      "title": "audiobook ( read by computervoice heather ) \"ascende, maima, perma and mary the lifeship\"",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/AudiobookReadByComputervoiceHeatherascendeMaimaPermaAndMaryThe",
+      "audioSampleUrl": "https://archive.org/download/AudiobookReadByComputervoiceHeatherascendeMaimaPermaAndMaryThe/AscendeMaimaPermaAndMaryreadbyheathertempo30.mp3",
+      "narrationType": "synthetic",
+      "licence": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "going-to-the-places-that-scare-you-pema-chodron",
+      "title": "Going To The Places That Scare You - Pema Chodron",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/going-to-the-places-that-scare-you-pema-chodron",
+      "audioSampleUrl": "https://archive.org/download/going-to-the-places-that-scare-you-pema-chodron/Pema%20Chodron.%202001.%20Going%20To%20The%20Places%20That%20Scare%20You%2F01%20Going%20To%20THe%20Places%20That%20Scare%20You%20CD%201A.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "audiobook-70-bua-yeu",
+      "title": "TrạmRadio.com - Audiobook 70 Bùa Yêu",
+      "author": "TrạmRadio.com",
+      "sourceUrl": "https://archive.org/details/audiobook-70-bua-yeu",
+      "audioSampleUrl": "https://archive.org/download/audiobook-70-bua-yeu/Audiobook%2070%20-%20Bu%CC%80a%20Ye%CC%82u.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "audiobook-the-power-of-the-i-am",
+      "title": "Audiobook The Power Of The I Am",
+      "author": "Milco Baute",
+      "sourceUrl": "https://archive.org/details/audiobook-the-power-of-the-i-am",
+      "audioSampleUrl": "https://archive.org/download/audiobook-the-power-of-the-i-am/Audiobook%20The%20power%20of%20the%20I%20am.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "glava1_202602",
+      "title": "glava1",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/glava1_202602",
+      "audioSampleUrl": "https://archive.org/download/glava1_202602/glava1.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "le-comte-de-monte-cristo_202606",
+      "title": "Alexandre Dumas – Le Comte De Monte-Cristo",
+      "author": "DjTazio",
+      "sourceUrl": "https://archive.org/details/le-comte-de-monte-cristo_202606",
+      "audioSampleUrl": "https://archive.org/download/le-comte-de-monte-cristo_202606/Le%20Comte%20De%20Monte-Cristo.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "MindAmongstTheSpindles",
+      "title": "Mind Amongst the Spindles",
+      "author": "MaryAnn Spiegel",
+      "sourceUrl": "https://archive.org/details/MindAmongstTheSpindles",
+      "audioSampleUrl": "https://archive.org/download/MindAmongstTheSpindles/mind_amongst_the_spindles_64kpbs.mp3",
+      "narrationType": "synthetic",
+      "licence": "http://creativecommons.org/publicdomain/mark/1.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "filip-dik-polzuny-fantastika-mutanty-audiokniga-slushat-besplatno",
+      "title": "Philip Dick Crawlers Science Fiction Mutants Audiobook asculta gratuit",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/filip-dik-polzuny-fantastika-mutanty-audiokniga-slushat-besplatno",
+      "audioSampleUrl": "https://archive.org/download/filip-dik-polzuny-fantastika-mutanty-audiokniga-slushat-besplatno/Filip%20Dik%20%20Polzuny%20%20Fantastika%20Mutanty%20%20Audiokniga%20slushat%20besplatno.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "BecomingCigaretteFreeWhatAreTheHealthEffectsOfCigarettesSmoking_201807",
+      "title": "02 Becoming Cigarette Free What Are The Health Effects Of Cigarettes Smoking",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/BecomingCigaretteFreeWhatAreTheHealthEffectsOfCigarettesSmoking_201807",
+      "audioSampleUrl": "https://archive.org/download/BecomingCigaretteFreeWhatAreTheHealthEffectsOfCigarettesSmoking_201807/Becoming%20Cigarette%20Free%20What%20are%20the%20Health%20Effects%20of%20%20Cigarettes%20Smoking.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "gutter-road-audiobook-m-c-neuffer",
+      "title": "Gutter Road - Audiobook - M C Neuffer",
+      "author": "M C Neuffer",
+      "sourceUrl": "https://archive.org/details/gutter-road-audiobook-m-c-neuffer",
+      "audioSampleUrl": "https://archive.org/download/gutter-road-audiobook-m-c-neuffer/Gutter%20Road%20-%20%20Audiobook%20-%20M%20C%20Neuffer.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "LearnToRelaxAudiobook-Part1",
+      "title": "Learn To Relax AudioBook - Part 1",
+      "author": "Gordon Rosenberg",
+      "sourceUrl": "https://archive.org/details/LearnToRelaxAudiobook-Part1",
+      "audioSampleUrl": "https://archive.org/download/LearnToRelaxAudiobook-Part1/LearnToRelaxEpisode01_SW_mono.mp3",
+      "narrationType": "synthetic",
+      "licence": "http://creativecommons.org/publicdomain/zero/1.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "PiperI_201603",
+      "title": "Lost *__s recording audio",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/PiperI_201603",
+      "audioSampleUrl": "https://archive.org/download/PiperI_201603/Piper%20Iargonaughts.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "Chapter34",
+      "title": "Chapter 34",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/Chapter34",
+      "audioSampleUrl": "https://archive.org/download/Chapter34/chapter%2034.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "Chapter38",
+      "title": "Chapter 38",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/Chapter38",
+      "audioSampleUrl": "https://archive.org/download/Chapter38/chapter%2038.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "Chapter39",
+      "title": "Chapter 39",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/Chapter39",
+      "audioSampleUrl": "https://archive.org/download/Chapter39/chapter%2039.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "Chapter15_rpo",
+      "title": "Chapter 15_RPO",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/Chapter15_rpo",
+      "audioSampleUrl": "https://archive.org/download/Chapter15_rpo/Chapter15.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "Chapter43",
+      "title": "Chapter 43",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/Chapter43",
+      "audioSampleUrl": "https://archive.org/download/Chapter43/chapter%2043.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 206,
+        "contentType": "audio/mpeg",
+        "method": "GET_RANGE"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "21-7-25_202602",
+      "title": "Глеб Соколов \"Души войны\"",
+      "author": "Adam and Adam",
+      "sourceUrl": "https://archive.org/details/21-7-25_202602",
+      "audioSampleUrl": "https://archive.org/download/21-7-25_202602/%D0%93%20%D0%A1%D0%BE%D0%BA%D0%BE%D0%BB%D0%BE%D0%B2%20%D0%94%D1%83%D1%88%D0%B8%20%D0%B2%D0%BE%D0%B9%D0%BD%D1%8B%20(21%207%2025).mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "TheReturnOfTheOrangeVirgin",
+      "title": "The Return of the Orange Virgin",
+      "author": "Rob Hunter",
+      "sourceUrl": "https://archive.org/details/TheReturnOfTheOrangeVirgin",
+      "audioSampleUrl": "https://archive.org/download/TheReturnOfTheOrangeVirgin/TheReturnOfTheOrangeVirginPart1.mp3",
+      "narrationType": "synthetic",
+      "licence": "http://creativecommons.org/licenses/by-nc-nd/3.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "the-last-trail-1929",
+      "title": "The Last Trail (1929) Zane Grey",
+      "author": "Zane Grey",
+      "sourceUrl": "https://archive.org/details/the-last-trail-1929",
+      "audioSampleUrl": "https://archive.org/download/the-last-trail-1929/The%20Last%20Trail%201929%20Zane%20Grey%20Zane%20Grey%20Free%20Download%20Borrow%20and.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "dzheff-strehnd-obrubok",
+      "title": "dzheff-strehnd-obrubok",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/dzheff-strehnd-obrubok",
+      "audioSampleUrl": "https://archive.org/download/dzheff-strehnd-obrubok/dzheff-strehnd-obrubok.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "marrow-of-modern-divinity-edward-fisher-audiobook",
+      "title": "The Marrow of Modern Divinity - Complete Audiobook",
+      "author": "Edward Fisher",
+      "sourceUrl": "https://archive.org/details/marrow-of-modern-divinity-edward-fisher-audiobook",
+      "audioSampleUrl": "https://archive.org/download/marrow-of-modern-divinity-edward-fisher-audiobook/001%20-%20Title%20Page.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "in-hoch-signo-vinces-1960-by-george-lincoln-rockwell-ai-audiobook-with-orato",
+      "title": "In Hoch Signo Vinces (1960) by George Lincoln Rockwell - AI-Audiobook with Oratory Speeches By Ben Klassen [AI] - Each chapter an oratory speech by Ben Klassen [AI]!",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/in-hoch-signo-vinces-1960-by-george-lincoln-rockwell-ai-audiobook-with-orato",
+      "audioSampleUrl": "https://archive.org/download/in-hoch-signo-vinces-1960-by-george-lincoln-rockwell-ai-audiobook-with-orato/1960-IHSV%5BGeorgeLincolnRockwell%5D-FULLAUDIOBOOK-OratorySpeechByBenKlassen%5BAI%5D.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "kissvk.com_20230120",
+      "title": "Владимир Князев Эдвард Брайант Пока Её Небыло Дома Kissvk.com",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/kissvk.com_20230120",
+      "audioSampleUrl": "https://archive.org/download/kissvk.com_20230120/%D0%92%D0%BB%D0%B0%D0%B4%D0%B8%D0%BC%D0%B8%D1%80%20%D0%9A%D0%BD%D1%8F%D0%B7%D0%B5%D0%B2-%D0%AD%D0%B4%D0%B2%D0%B0%D1%80%D0%B4%20%D0%91%D1%80%D0%B0%D0%B9%D0%B0%D0%BD%D1%82%20-%20%D0%9F%D0%BE%D0%BA%D0%B0%20%D0%B5%D1%91%20%D0%BD%D0%B5%D0%B1%D1%8B%D0%BB%D0%BE%20%D0%B4%D0%BE%D0%BC%D0%B0-kissvk.com.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "vp_UpperBerth",
+      "title": "The Upper Berth",
+      "author": "verkaro.org",
+      "sourceUrl": "https://archive.org/details/vp_UpperBerth",
+      "audioSampleUrl": "https://archive.org/download/vp_UpperBerth/vp_UpperBerth.mp3",
+      "narrationType": "synthetic",
+      "licence": "https://creativecommons.org/licenses/by-nc-nd/4.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "JimMorrisonIndoorsOutdoors",
+      "title": "Jim Morrison Indoors Outdoors",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/JimMorrisonIndoorsOutdoors",
+      "audioSampleUrl": "https://archive.org/download/JimMorrisonIndoorsOutdoors/Jim%20Morrison%20Indoors_Outdoors%201_5.mp3",
+      "narrationType": "synthetic",
+      "licence": "http://creativecommons.org/licenses/by-nc-nd/3.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "Instrumentum-laboris-2-audiobook",
+      "title": "Instrumentum laboris na II sesję synodalną",
+      "author": "Synod.org.pl - Serwis Synodu o synodalności w Polsce",
+      "sourceUrl": "https://archive.org/details/Instrumentum-laboris-2-audiobook",
+      "audioSampleUrl": "https://archive.org/download/Instrumentum-laboris-2-audiobook/KatarzynaMajda_Synod_rozdzial1.mp3",
+      "narrationType": "synthetic",
+      "licence": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 206,
+        "contentType": "audio/mpeg",
+        "method": "GET_RANGE"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "ImitChrist5",
+      "title": "The Imitation of Christ, Book 3, Part 2",
+      "author": "Thomas a Kempis",
+      "sourceUrl": "https://archive.org/details/ImitChrist5",
+      "audioSampleUrl": "https://archive.org/download/ImitChrist5/imitchrist15.mp3",
+      "narrationType": "synthetic",
+      "licence": "http://creativecommons.org/licenses/publicdomain/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "dzhanni-rodari-robot-kotoromu-zahotelos-spat-fantastika-roboty-audiokniga-slushat-besplatno",
+      "title": "Gianni Rodari Robhoti leyi a yi lava ku etlela Fiction Robots Audiobook yingisela mahala",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/dzhanni-rodari-robot-kotoromu-zahotelos-spat-fantastika-roboty-audiokniga-slushat-besplatno",
+      "audioSampleUrl": "https://archive.org/download/dzhanni-rodari-robot-kotoromu-zahotelos-spat-fantastika-roboty-audiokniga-slushat-besplatno/Dzhanni%20Rodari%20%20Robot%20kotoromu%20zahotelos%20spat%20%20Fantastika%20Roboty%20%20Audiokniga%20slushat%20besplatno.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "apchehov-dva-gazetchika-audiokniga",
+      "title": "Audiobook APChekhov Two Newsboys",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/apchehov-dva-gazetchika-audiokniga",
+      "audioSampleUrl": "https://archive.org/download/apchehov-dva-gazetchika-audiokniga/APChehov%20Dva%20gazetchika%20Audiokniga.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "dzheffri-ford-sotvorenie-cheloveka-audiokniga-fantastika-rasskaz-audiospektakl-slushat-audiobook",
+      "title": "Jeffrey Ford The Creation of Eniyan audiobook itan itan audioplay gbọ audiobook",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/dzheffri-ford-sotvorenie-cheloveka-audiokniga-fantastika-rasskaz-audiospektakl-slushat-audiobook",
+      "audioSampleUrl": "https://archive.org/download/dzheffri-ford-sotvorenie-cheloveka-audiokniga-fantastika-rasskaz-audiospektakl-slushat-audiobook/Dzheffri%20FordSotvorenie%20cheloveka%20audiokniga%20fantastika%20rasskaz%20audiospektakl%20slushat%20audiobook.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "DiamondLens",
+      "title": "\"The Diamond Lens\"",
+      "author": "Fitz-James O'Brien",
+      "sourceUrl": "https://archive.org/details/DiamondLens",
+      "audioSampleUrl": "https://archive.org/download/DiamondLens/diamondlens1.mp3",
+      "narrationType": "synthetic",
+      "licence": "http://creativecommons.org/licenses/publicdomain/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "6.-1865-24-wrzesnia-poswietne-list-do-karola-dobrskiego-6",
+      "title": "6. Henryk Sienkiewicz, list Do Karola Dobrskiego 6, 1865",
+      "author": "Fundacja WSPAK",
+      "sourceUrl": "https://archive.org/details/6.-1865-24-wrzesnia-poswietne-list-do-karola-dobrskiego-6",
+      "audioSampleUrl": "https://archive.org/download/6.-1865-24-wrzesnia-poswietne-list-do-karola-dobrskiego-6/6.%201865%2024%20wrze%C5%9Bnia%20Po%C5%9Bwi%C4%99tne%20%20list%20do%20Karola%20Dobrskiego%206.mp3",
+      "narrationType": "synthetic",
+      "licence": "https://creativecommons.org/licenses/by-nc-nd/4.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "20230228_20230228_0937",
+      "title": "Эдвард Ли Шипе",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/20230228_20230228_0937",
+      "audioSampleUrl": "https://archive.org/download/20230228_20230228_0937/%D0%AD%D0%B4%D0%B2%D0%B0%D1%80%D0%B4%20%D0%9B%D0%B8-%D0%A8%D0%B8%D0%BF%D0%B5.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "midshipman-bolitho-by-alexander-kent-read-by-michael-jayston",
+      "title": "Midshipman Bolitho - by Alexander Kent - Read by Michael Jayston",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/midshipman-bolitho-by-alexander-kent-read-by-michael-jayston",
+      "audioSampleUrl": "https://archive.org/download/midshipman-bolitho-by-alexander-kent-read-by-michael-jayston/Midshipman%20Bolitho%20-%20by%20Alexander%20Kent%20-%20Read%20by%20Michael%20Jayston.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "yasamak",
+      "title": "YASAMAK",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/yasamak",
+      "audioSampleUrl": "https://archive.org/download/yasamak/0001.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "deviant-arts-star-wars-ai-voice-parody",
+      "title": "DeviantArt's STAR WARS (AI Voice Parody)",
+      "author": "Alex Fischer",
+      "sourceUrl": "https://archive.org/details/deviant-arts-star-wars-ai-voice-parody",
+      "audioSampleUrl": "https://archive.org/download/deviant-arts-star-wars-ai-voice-parody/DeviantArt's%20STAR%20WARS%20(AI%20Voice%20Parody).mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "the-blue-carbuncle",
+      "title": "The Blue Carbuncle, read by Edward Raleigh",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/the-blue-carbuncle",
+      "audioSampleUrl": "https://archive.org/download/the-blue-carbuncle/The%20Blue%20Carbuncle.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "the-great-adventures-of-sherlock-holmes",
+      "title": "The Great Adventures Of Sherlock Holmes - Pocket Classics",
+      "author": "Arthur Conan Doyle - 1892",
+      "sourceUrl": "https://archive.org/details/the-great-adventures-of-sherlock-holmes",
+      "audioSampleUrl": "https://archive.org/download/the-great-adventures-of-sherlock-holmes/The%20Great%20Adventures%20of%20Sherlock%20Holmes.mp3",
+      "narrationType": "synthetic",
+      "licence": "https://creativecommons.org/publicdomain/mark/1.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "the-blue-hotel-stephen-crane",
+      "title": "The Blue Hotel | Stephen Crane | A study in isolation and collective guilt",
+      "author": "The Dupin Files",
+      "sourceUrl": "https://archive.org/details/the-blue-hotel-stephen-crane",
+      "audioSampleUrl": "https://archive.org/download/the-blue-hotel-stephen-crane/The%20Blue%20Hotel%20(Stephen%20Crane).mp3",
+      "narrationType": "synthetic",
+      "licence": "https://creativecommons.org/licenses/by-nc-nd/4.0/",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "the-highwayman-stage-play",
+      "title": "The Highwayman (Audio Drama) by Mark DK Berry",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/the-highwayman-stage-play",
+      "audioSampleUrl": "https://archive.org/download/the-highwayman-stage-play/TheHighwayman_E_4_2024-09-15.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "the-hopeling-maggie-master",
+      "title": "THE HOPELING - IMMERSIVE AUDIOBOOK by MAGGIE MASTER",
+      "author": "Maggie Master",
+      "sourceUrl": "https://archive.org/details/the-hopeling-maggie-master",
+      "audioSampleUrl": "https://archive.org/download/the-hopeling-maggie-master/THE%20HOPELING_MAGGIE%20MASTER.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    }
+  ],
+  "rejectedSample": [
+    {
+      "identifier": "PioneersOfFranceInTheNewWorldPart2M4b",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "05_20240804_20240804",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "casais-inteligentes-enriquecem-juntos-gustavo-cerbasi-audiobook-completo",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "siren-song",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "gita-chapter4",
+      "reason": "no_mp3"
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "kfe04",
+      "title": "kfe#04",
+      "author": "dlrandrade",
+      "sourceUrl": "https://archive.org/details/kfe04",
+      "audioSampleUrl": "https://archive.org/download/kfe04/kfe04.mp3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": false,
+        "status": 500,
+        "contentType": null,
+        "method": "GET_RANGE"
+      },
+      "reason": "probe_failed"
+    },
+    {
+      "identifier": "g-1-my-little-pony-lost-in-the-clouds",
+      "reason": "no_mp3"
+    },
+    {
+      "provider": "project_gutenberg_open_audiobook",
+      "providerBookId": "Ch50FeministEconomics",
+      "title": "degrowth audiobook contribution sruti bala",
+      "author": null,
+      "sourceUrl": "https://archive.org/details/Ch50FeministEconomics",
+      "audioSampleUrl": "https://archive.org/download/Ch50FeministEconomics/Ch11_Care.MP3",
+      "narrationType": "synthetic",
+      "licence": "verify_per_item_open_licence",
+      "rightsTerritory": "US_PD_source_text; confirm mirror redistribution",
+      "probe": {
+        "ok": false,
+        "status": 0,
+        "contentType": null,
+        "method": "ERROR",
+        "error": "The operation was aborted due to timeout"
+      },
+      "reason": "probe_failed"
+    },
+    {
+      "identifier": "busted-edmund-l.-andrews",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "horreur-cosmique-by-horreur-cosmique",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "vremya-iskanij-2021-pavel-vinogradov-fantastika-kosmoopera-audiokniga-rasskaz-samizdat",
+      "reason": "fetch failed"
+    },
+    {
+      "identifier": "HistoryOfEnglandFromTheAccessionOfJamesIiVolume1Chapter3M4b",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "what-is-metaphysics-what-is-philosophy-a",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "yeeeeeeeeeeee",
+      "reason": "no_mp3"
+    },
+    {
+      "identifier": "the-holy-bible-king-james-version-dramatized-audio-all-66-books.html",
+      "reason": "fetch failed"
+    }
+  ],
+  "note": "Always label narration_type=synthetic. Prefer official PG/Microsoft mirrors with clear terms."
+}

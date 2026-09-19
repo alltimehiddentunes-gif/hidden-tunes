@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-12T17:56:04.364Z",
+  "identity": "Inside Crime",
+  "aliasesTerminal": 1,
+  "terminalState": "VERIFIED_DUPLICATE_MERGED",
+  "candidateRecordId": "de3f77fc-888f-4706-9a3e-f45eaeabaccb",
+  "realContent": "PASS",
+  "identityConfidence": "HIGH",
+  "continuitySeconds": 120,
+  "desktopRuntime": "PASS",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "restoredCanonicalRecords": 0,
+  "duplicatesCreated": 0,
+  "productionWrites": 0,
+  "cumulativeVerifiedSearchableDesktopPlayable": 2
+}

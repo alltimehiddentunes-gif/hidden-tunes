@@ -1,0 +1,126 @@
+{
+  "roChannelIdentities": 209,
+  "streamCandidates": 79,
+  "sample": [
+    {
+      "title": "A7TV",
+      "iptvOrgId": "A7TV.ro",
+      "category": "general",
+      "url": "https://a7tvlive.ro/A7TV/A7TV/playlist.m3u8"
+    },
+    {
+      "title": "Agro TV",
+      "iptvOrgId": "AgroTV.ro",
+      "category": "outdoor",
+      "url": "https://agrotv.streamnet.ro/mobile_tv/agrotv.m3u8"
+    },
+    {
+      "title": "Aleph Business",
+      "iptvOrgId": "AlephBusiness.ro",
+      "category": "business",
+      "url": "https://streamw.m.ro/Aleph/ngrp:Alephbiz.stream_all/playlist.m3u8"
+    },
+    {
+      "title": "Aleph News",
+      "iptvOrgId": "AlephNews.ro",
+      "category": "news",
+      "url": "https://stream-aleph.m.ro/Aleph/ngrp:Alephnewsmain.stream_all/playlist.m3u8"
+    },
+    {
+      "title": "Alfa Omega TV",
+      "iptvOrgId": "AlfaOmegaTV.ro",
+      "category": "religious",
+      "url": "https://aom-live.maghost.ro/aomTV/streams/OOztu5o9Fx6dh9mD1711027803849.m3u8"
+    },
+    {
+      "title": "Alfa Omega TV",
+      "iptvOrgId": "AlfaOmegaTV.ro",
+      "category": "religious",
+      "url": "http://s5.alfaomega.tv:1935/alfaomega/smil:alfaomegatv/playlist.m3u8"
+    },
+    {
+      "title": "Angelus TV",
+      "iptvOrgId": "AngelusTV.ro",
+      "category": "religious",
+      "url": "https://video.angelustv.ro/hls/angelustv.m3u8"
+    },
+    {
+      "title": "Antena Monden",
+      "iptvOrgId": "AntenaMonden.ro",
+      "category": "lifestyle",
+      "url": "https://stream1.antenaplay.ro/live/AntenaMonden/playlist.m3u8"
+    },
+    {
+      "title": "Atomic Academy TV",
+      "iptvOrgId": "AtomicAcademyTV.ro",
+      "category": "music",
+      "url": "https://atomic.streamnet.ro/academia.m3u8"
+    },
+    {
+      "title": "Atomic TV",
+      "iptvOrgId": "AtomicTV.ro",
+      "category": "music",
+      "url": "https://atomic.streamnet.ro/atomictv.m3u8"
+    },
+    {
+      "title": "Banat TV",
+      "iptvOrgId": "BanatTV.ro",
+      "category": "general",
+      "url": "https://www.btv.ro/hls/banat-tv.m3u8"
+    },
+    {
+      "title": "Bollywood Classic",
+      "iptvOrgId": "BollywoodClassic.ro",
+      "category": "movies",
+      "url": "http://103.213.31.109:90/BollywoodClassic/playlist.m3u8"
+    },
+    {
+      "title": "Bollywood",
+      "iptvOrgId": "BollywoodHD.ro",
+      "category": "movies",
+      "url": "https://xykt-fix.github.io/cinerama_edge01/hls/BOLLYWOOD_RU/Movie009.m3u8"
+    },
+    {
+      "title": "Bollywood",
+      "iptvOrgId": "BollywoodHD.ro",
+      "category": "movies",
+      "url": "http://103.213.31.109:90/BollywoodHD/playlist.m3u8"
+    },
+    {
+      "title": "Bucovina TV",
+      "iptvOrgId": "BucovinaTV.ro",
+      "category": null,
+      "url": "https://www.bucovinatv.ro/proxy/video/playlist.m3u8"
+    },
+    {
+      "title": "Columna TV",
+      "iptvOrgId": "ColumnaTV.ro",
+      "category": "general",
+      "url": "https://cdn.streamnet.pro/columnatv/live/playlist.m3u8"
+    },
+    {
+      "title": "Credo TV",
+      "iptvOrgId": "CredoTV.ro",
+      "category": "religious",
+      "url": "http://cdn.credonet.tv:1935/ctv/livecredo/playlist.m3u8"
+    },
+    {
+      "title": "Credo TV",
+      "iptvOrgId": "CredoTV.ro",
+      "category": "religious",
+      "url": "https://5bb3298db4821.streamlock.net/ctv/livecredo/playlist.m3u8"
+    },
+    {
+      "title": "Credo TV",
+      "iptvOrgId": "CredoTV.ro",
+      "category": "religious",
+      "url": "https://651c69fa2ff4e.streamlock.net/ctv/_definst_/livecredo/playlist.m3u8"
+    },
+    {
+      "title": "Digi 24",
+      "iptvOrgId": "Digi24.ro",
+      "category": "news",
+      "url": "https://edge-ar.rcs-rds.ro/digi24ar/index.m3u8"
+    }
+  ]
+}

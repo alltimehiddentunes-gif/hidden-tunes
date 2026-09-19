@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld('hiddenTunesDesktop', {
      */
     openExternalUrl: (url) => ipcRenderer.invoke('ht-shell-open-external', url),
   },
+  authStorage: {
+    getItem: () => ipcRenderer.invoke('ht-auth-storage-get'),
+    setItem: (value) => ipcRenderer.invoke('ht-auth-storage-set', value),
+    removeItem: () => ipcRenderer.invoke('ht-auth-storage-remove'),
+  },
+  artistProfile: {
+    request: (options) => ipcRenderer.invoke('ht-artist-profile-request', options),
+  },
   window: {
     minimize: () => ipcRenderer.invoke('ht-window-minimize'),
     toggleMaximize: () => ipcRenderer.invoke('ht-window-toggle-maximize'),

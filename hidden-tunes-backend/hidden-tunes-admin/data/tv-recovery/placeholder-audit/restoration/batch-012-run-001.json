@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-14T19:44:57.299Z",
+  "scope": "Batch 12 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Space Live powered by Sen passed 122.90 seconds of 1920x1080 existing-Desktop playback with one video owner.",
+    "Sen and ITV Studios provide authoritative FAST provenance. Frequency channel 1224 delivered a continuously changing branded ISS Earth feed; normal TV search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED. No production write or duplicate was needed.",
+    "PBS Nature used jmp2.uk. TODAY All Day and The Graham Norton Show retained plausible official sources but lacked complete source-to-identity evidence; The Addams Family also remained unresolved. All stay quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 36,
+  "cumulativeTerminalAliases": 133,
+  "batch12Target": 25,
+  "batch12Researched": 5,
+  "batch12Remaining": 20
+}

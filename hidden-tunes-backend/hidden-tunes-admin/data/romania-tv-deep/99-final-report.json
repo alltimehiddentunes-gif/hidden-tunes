@@ -1,0 +1,2933 @@
+{
+  "verdict": "ROMANIA TV DEEP IMPORT PARTIALLY COMPLETED",
+  "generatedAt": "2026-08-02T11:39:26.559Z",
+  "workspace": {
+    "backendWorkspace": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin",
+    "gitTopLevel": "D:/HiddenTunes/Active/HiddenTunes-Desktop",
+    "branch": "desktop/integrate-home-music-split"
+  },
+  "checkpoint": {
+    "startedAt": "2026-08-02T11:37:20.715Z",
+    "updatedAt": "2026-08-02T11:39:09.578Z",
+    "phasesCompleted": [
+      "audit",
+      "discover",
+      "verify",
+      "repair",
+      "play",
+      "search",
+      "import"
+    ],
+    "verifiedKeys": [
+      "5893c3b13a0ff29b39a8",
+      "3c34507f33759881152d",
+      "b0db8a04f96b392cea8b"
+    ],
+    "rejectedKeys": {
+      "078a7304f456de61d06a": "duplicate_existing_url",
+      "50dd73fb3c4c7a74dee4": "duplicate_existing_url",
+      "606e832fb1111721a8a7": "duplicate_existing_url",
+      "a574bbed6214c17a7ee4": "duplicate_existing_url",
+      "ba8693df60439ddc7f77": "duplicate_existing_url",
+      "66efe6cfe9d1936a2e31": "legal_source_unverified",
+      "8b2fb19e54717a4867e4": "legal_source_unverified",
+      "5b051628374d27650794": "duplicate_existing_url",
+      "a6063fb3267ddd208f84": "duplicate_existing_url",
+      "352f074184cdfc9a6d46": "duplicate_existing_url",
+      "2d88995cc795b53b7405": "duplicate_existing_url",
+      "1ac36c5a39f63c55a9b2": "duplicate_existing_url",
+      "3a79a6cd2a699fcd4729": "duplicate_existing_url",
+      "ec3ec91fd414cfff4ac5": "duplicate_existing_url",
+      "2625f6c13f39d4c28e3c": "duplicate_existing_url",
+      "891c0a927570e6cc94db": "legal_source_unverified",
+      "3276d44afde86c1a139d": "duplicate_existing_url",
+      "627f5beba95703b45117": "duplicate_existing_url",
+      "06dfa49e6f0060a3be82": "duplicate_existing_url",
+      "262a59c991007794f6f6": "duplicate_existing_url",
+      "071edb70764005109fd0": "duplicate_existing_url",
+      "99287e8bcc1d8cf70a54": "legal_source_unverified",
+      "a2c1d24b70b6e8fa0c49": "duplicate_existing_url",
+      "16fe2de6b8ae2670c69c": "legal_source_unverified",
+      "7ae696f68eb217cd7c52": "duplicate_existing_url",
+      "2e7382265fa8adfaa712": "duplicate_existing_url",
+      "9fe53bbf9c377303821f": "duplicate_existing_url",
+      "7ffa36e3eb0036204f95": "duplicate_existing_url",
+      "f2e78fef221426ef68aa": "duplicate_existing_url",
+      "d2063d9e15f325ecb52e": "duplicate_existing_url",
+      "7bbcb3c31d38142da7ac": "duplicate_existing_url",
+      "915756209107b37d06e6": "duplicate_existing_url",
+      "a8a1b5670f3a584fc46c": "duplicate_existing_url",
+      "b442b6c5cee2e3854447": "duplicate_existing_url",
+      "eae42d43897e76709934": "legal_source_unverified",
+      "7e2e70cfc76c66df668a": "duplicate_existing_url",
+      "0059b166578ca270d904": "duplicate_existing_url",
+      "c6be34aa7fb795ffaebc": "duplicate_existing_url",
+      "ce2a3e8800f21f1f58ad": "duplicate_existing_url",
+      "cc2ddc94c49c3e491efb": "duplicate_existing_url",
+      "5a3eb1fa4661aeb892dc": "duplicate_existing_url",
+      "4fd3e0e3458ef6bca402": "duplicate_existing_url",
+      "18d4d2e5c1a46a38e6a9": "legal_source_unverified",
+      "0d8fb48260eef3111244": "audio_only",
+      "076949d9ff7b2f56fc94": "duplicate_existing_url",
+      "2a338f7d4674a1209598": "duplicate_existing_url",
+      "61e284fa5fd9617182c7": "duplicate_existing_url",
+      "d49c864829291a3e6aaa": "duplicate_existing_url",
+      "c381e772d2d8716d1ba4": "legal_source_unverified",
+      "981590471d95119dbb47": "duplicate_existing_url",
+      "4b16d4a7fed6f24ac9dd": "duplicate_existing_url",
+      "80f625603ee6baf23895": "duplicate_existing_url",
+      "eeafb035ce96d92c5e93": "duplicate_existing_url",
+      "ad23f195cb477759504d": "duplicate_existing_url",
+      "bdc603a27ddea51997cd": "duplicate_existing_url",
+      "cf61ffd52b6dd44f3c5c": "duplicate_existing_url",
+      "e33c2f727f1ed3b60b41": "duplicate_existing_url",
+      "1751b5f0a4ed954d1e96": "duplicate_existing_url",
+      "6fc5df66fde508846da6": "duplicate_existing_url",
+      "bcafc47bcd561fc9a898": "duplicate_existing_url",
+      "82ef4e7557be80e1499f": "duplicate_existing_url",
+      "0d7cea13354e4c36e862": "legal_source_unverified",
+      "275ae8210cdabb77b901": "duplicate_existing_url",
+      "bb59d698bda09019f851": "duplicate_existing_url",
+      "1e5079a6c1f32840d1f8": "duplicate_existing_url",
+      "ed2facd71b4c59196c6c": "duplicate_existing_url",
+      "b4537541cfc42c30dbfb": "duplicate_existing_url",
+      "10aa10265a0debffb829": "duplicate_existing_url",
+      "3def9bb20b1015d584c0": "legal_source_unverified",
+      "21a94f119378128f3875": "dead_or_unreachable",
+      "2e8a166005284526b7a0": "audio_only",
+      "b361b292aba97573c516": "duplicate_existing_url",
+      "1357ce41c390ef245914": "duplicate_existing_url",
+      "ef12c43a5f76b4621758": "legal_source_unverified",
+      "e6d5ab1743fab9986d31": "legal_source_unverified",
+      "7d97bb166af533d3bc9f": "duplicate_existing_url",
+      "026dec974d92b8d36657": "legal_source_unverified",
+      "bd246b131da044940e72": "legal_source_unverified",
+      "19d185fb28b8299f97c6": "legal_source_unverified",
+      "f086d7151c3e54bb0012": "legal_source_unverified",
+      "0cc59ed9c898d8b8401c": "legal_source_unverified",
+      "b7b22d27fc83eda67606": "probe_failed",
+      "ce5f773b93ec03a3bfec": "legal_source_unverified",
+      "5662e69cc6420779c368": "legal_source_unverified",
+      "bc2765dd56f5f8f6751c": "legal_source_unverified",
+      "9fa6b7946b68fa6ac813": "legal_source_unverified",
+      "4cf3a51b82119e81fa08": "legal_source_unverified"
+    },
+    "importedIds": [
+      "9b4f89ef-6432-47d6-930c-51a4fe0fe82a",
+      "655ce25e-dab4-44c6-a423-239f88a716c1"
+    ],
+    "repairedIds": [
+      "e10c4145-0607-464c-9b4d-20e1041de914"
+    ],
+    "pendingKeys": [],
+    "stats": {
+      "existingRows": 128,
+      "existingVerifiedPlayable": 67,
+      "existingPublic": 67,
+      "existingDead": 61,
+      "existingQuarantined": 22,
+      "existingDuplicateUrlGroups": 0,
+      "discovered": 90,
+      "sourceFamilies": 4,
+      "probed": 90,
+      "accepted": 3,
+      "rejected": 87,
+      "repaired": 1,
+      "playTested": 12,
+      "playOk": 12,
+      "imported": 2,
+      "importRejected": 1
+    },
+    "existingAuditPath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\romania-tv-deep\\01-existing-catalog-audit.json",
+    "discoveryPath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\romania-tv-deep\\02-discovery.json",
+    "verificationPath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\romania-tv-deep\\03-verification-results.json",
+    "playPath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\romania-tv-deep\\05-play-verification.json",
+    "importPath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\romania-tv-deep\\04-import-report.json"
+  },
+  "existingCatalog": {
+    "auditedAt": "2026-08-02T11:37:23.959Z",
+    "uniqueRows": 128,
+    "byRegionRO": 128,
+    "verifiedPlayable": 67,
+    "publicRows": 67,
+    "dead": 61,
+    "quarantined": 22,
+    "disabled": 12,
+    "missingStreamUrl": 0,
+    "webpageUrls": 0,
+    "blockedSocial": 0,
+    "audioOnlySuspect": 1,
+    "publicUnverified": 0,
+    "duplicateUrlGroups": 0,
+    "duplicateTitleGroups": 13,
+    "playbackStatus": {
+      "failed": 49,
+      "playable": 67,
+      "blocked": 12
+    },
+    "regionBreakdown": {
+      "RO": 128
+    },
+    "duplicates": {
+      "url": [],
+      "title": [
+        {
+          "title": "nickelodeon",
+          "ids": [
+            "b3642490-3690-496e-9dbe-7fb3cf5c60c5",
+            "1bcd39d4-0ffd-4d86-a56f-804a20947337"
+          ]
+        },
+        {
+          "title": "kanald2",
+          "ids": [
+            "8e259a36-547c-4488-932a-6384be87ebcf",
+            "8a940a63-399b-4824-892d-5c2e431d3d71"
+          ]
+        },
+        {
+          "title": "comedycentral",
+          "ids": [
+            "3db6dbf3-1049-4fe4-9e4d-506e71b49a65",
+            "53f711ab-b421-48c2-ba8d-6986456a32ed"
+          ]
+        },
+        {
+          "title": "bollywoodclassic",
+          "ids": [
+            "78661bdf-7711-4dba-8c47-a1a42a392186",
+            "2ff20e30-7c94-4c56-92ff-bfc763d22444"
+          ]
+        },
+        {
+          "title": "kanald",
+          "ids": [
+            "30ec5b07-d882-4ef0-8ec2-43de3ca1959c",
+            "47f1c343-2ef2-418b-9006-520b143bac09"
+          ]
+        },
+        {
+          "title": "disneychannel",
+          "ids": [
+            "542c1cd1-9aa7-4957-a5ea-4b9b2b975583",
+            "eb090ae7-263e-47e4-9ce6-adb05044408e"
+          ]
+        },
+        {
+          "title": "realitateaplus",
+          "ids": [
+            "27daccc0-9cc3-46a6-a8e1-4f9a08c62420",
+            "dfb87dc7-9ef2-412f-b5eb-da64b912fb36"
+          ]
+        },
+        {
+          "title": "romaniatv",
+          "ids": [
+            "b9070294-13bb-41a1-8c1c-44421566a1f7",
+            "ce21bd11-169f-445b-84bd-6ddc31ef92f7"
+          ]
+        },
+        {
+          "title": "tv1000",
+          "ids": [
+            "df0883ef-26c0-445b-98ad-d4f3cd177ec3",
+            "8f2bb255-70ab-4d75-930e-a2f9ce2b86f4"
+          ]
+        },
+        {
+          "title": "history",
+          "ids": [
+            "e5d6ad5b-e562-4b2f-b062-0838aecaee8d",
+            "9beb409f-4791-4003-bb7b-41eca1e77ad5"
+          ]
+        },
+        {
+          "title": "digisport3",
+          "ids": [
+            "a59b3719-71bd-4a12-a30d-d3b029d8967e",
+            "fbb7e5bd-7211-4b79-bbd8-fe6e1389f916"
+          ]
+        },
+        {
+          "title": "digisport4",
+          "ids": [
+            "54c53528-2687-4cb6-ac69-57397f445d11",
+            "01214b97-dee1-4394-a053-be1702f52c67"
+          ]
+        },
+        {
+          "title": "zutv",
+          "ids": [
+            "49d61fd9-e3ae-409c-9787-f75f3f48bc9c",
+            "7dd76a11-984d-4b73-9a75-ea1d1791c82c"
+          ]
+        }
+      ]
+    },
+    "rows": [
+      {
+        "id": "68eb330e-bf94-44a3-a4cd-4727d156430c",
+        "title": "National 24 Plus",
+        "region": "RO",
+        "language": "Romanian",
+        "category": "general",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/nationalplus/index.m3u8",
+        "source_key": "europe-deep:RO:iptv-org-National24Plus.ro"
+      },
+      {
+        "id": "78aa19c9-5c7a-4ec7-ab72-8605d2126bc3",
+        "title": "TVPlus Suceava",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 36,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "http://85.186.22.140/testing/pl5/playlist/ram/playlist.m3u8",
+        "source_key": "iptv-org:TVPlusSuceava.ro"
+      },
+      {
+        "id": "1cfe57bd-d7a2-41bf-a8e8-564657dc7236",
+        "title": "Arges TV",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 62,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://btutzctahuf0wjoq.cdn.streamingserver.io/hls/yjvam8hlp2g3u08z02tv0yz66rq3cy.m3u8",
+        "source_key": "iptv-org:ArgesTV.ro"
+      },
+      {
+        "id": "a93d5893-3daa-4403-b759-84bde9d5d5ce",
+        "title": "MediCOOL TV",
+        "region": "RO",
+        "language": null,
+        "category": "lifestyle",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://stream1.antenaplay.ro/live/MediCOOLTV/chunklist.m3u8",
+        "source_key": "iptv-org:MediCOOLTV.ro"
+      },
+      {
+        "id": "aa3695eb-7466-44a1-bbf0-97d1f37b7733",
+        "title": "Muscel TV",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://cdn.streamnet.pro/musceltv/live/playlist.m3u8",
+        "source_key": "iptv-org:MuscelTV.ro"
+      },
+      {
+        "id": "5dc8a20b-3aee-4be1-971a-72857242fb11",
+        "title": "TVR 1",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-1.lg.mncdn.com/tvr1/smil:tvr1.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVR1.ro"
+      },
+      {
+        "id": "f4222a0c-68f8-465e-86b1-5ca62db3b1d9",
+        "title": "Alfa Omega TV",
+        "region": "RO",
+        "language": null,
+        "category": "religious",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aom-live.maghost.ro/aomTV/streams/OOztu5o9Fx6dh9mD1711027803849.m3u8",
+        "source_key": "iptv-org:AlfaOmegaTV.ro"
+      },
+      {
+        "id": "34436a96-04ea-477e-85cc-43ecd1b38d3d",
+        "title": "Pro Cinema (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Movies",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/procinema/index.m3u8",
+        "source_key": "iptv-org-live:ProCinema.ro@SD"
+      },
+      {
+        "id": "b3642490-3690-496e-9dbe-7fb3cf5c60c5",
+        "title": "Nickelodeon (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/nickelodeon/index.m3u8",
+        "source_key": "iptv-org-live:Nickelodeon.ro@SD"
+      },
+      {
+        "id": "3b248e62-cee8-4bac-9c53-47716fcaeae1",
+        "title": "Film Now (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Movies",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/filmnow/index.m3u8",
+        "source_key": "iptv-org-live:FilmNow.ro@SD"
+      },
+      {
+        "id": "8e259a36-547c-4488-932a-6384be87ebcf",
+        "title": "Kanal D2 (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/kanald2/index.m3u8",
+        "source_key": "iptv-org-live:KanalD2.ro@SD"
+      },
+      {
+        "id": "088cabdf-3375-486c-a627-e54fe36f5eb4",
+        "title": "PRO TV (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/protv/index.m3u8",
+        "source_key": "iptv-org-live:PROTV.ro@SD"
+      },
+      {
+        "id": "f7086831-758d-4c69-b635-32e67769679e",
+        "title": "Antena Stars (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/antenastars/index.m3u8",
+        "source_key": "iptv-org-live:AntenaStars.ro@SD"
+      },
+      {
+        "id": "878aa407-8262-4966-93b4-f606bd62592a",
+        "title": "Favorit TV",
+        "region": "RO",
+        "language": null,
+        "category": "General",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/favorit/index.m3u8",
+        "source_key": "ww-deep2:iptv-lang:ron:iptv-lang-FavoritTV.ro"
+      },
+      {
+        "id": "a8e4b819-f2ca-4d9f-9da5-96408c5e01ee",
+        "title": "Etno TV",
+        "region": "RO",
+        "language": null,
+        "category": "General",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/etno/index.m3u8",
+        "source_key": "ww-deep2:iptv-lang:ron:iptv-lang-EtnoTV.ro"
+      },
+      {
+        "id": "d88acb1b-3492-4f4c-9648-afc242053610",
+        "title": "National TV",
+        "region": "RO",
+        "language": null,
+        "category": "General",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/nationaltv/index.m3u8",
+        "source_key": "ww-deep2:iptv-lang:ron:iptv-lang-NationalTV.ro"
+      },
+      {
+        "id": "c5552d20-9aa1-4f0f-9d30-a74b3ea93568",
+        "title": "Hunedoara 1",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://netstreaming.eu/hd1.m3u8",
+        "source_key": "iptv-org:Hunedoara1.ro"
+      },
+      {
+        "id": "81bcb461-4d8b-4b48-af80-58ad61b9b183",
+        "title": "TVR Craiova",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-craiova.lg.mncdn.com/tvrcraiova/smil:tvrcraiova.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRCraiova.ro"
+      },
+      {
+        "id": "edb188d1-18ad-4c91-bf3e-13da690fed52",
+        "title": "TVR Targu-Mures",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-tgmures.lg.mncdn.com/tvrtgmures/smil:tvrtgmures.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRTarguMures.ro"
+      },
+      {
+        "id": "e10c4145-0607-464c-9b4d-20e1041de914",
+        "title": "SperantaTV",
+        "region": "RO",
+        "language": null,
+        "category": "religious",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://cdn-ro-otp.b-cdn.net/hcorg_71rJgMo5bcg/s/jsl_2gNjpghXRLE/master.m3u8",
+        "source_key": "iptv-org:SperantaTV.ro"
+      },
+      {
+        "id": "e4c8a5a4-e980-49ab-8967-d7f41b3c8e13",
+        "title": "TVR Info",
+        "region": "RO",
+        "language": null,
+        "category": "news",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-info.lg.mncdn.com/tvrinfo/smil:tvrinfo.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRInfo.ro"
+      },
+      {
+        "id": "7b507a6d-7ed8-431a-ada1-29682e3e6f31",
+        "title": "Credo TV (R0cHM6Ly)",
+        "region": "RO",
+        "language": null,
+        "category": "religious",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://651c69fa2ff4e.streamlock.net/ctv/_definst_/livecredo/playlist.m3u8",
+        "source_key": "ww-playable:streams:RO:0:iptv-stream-CredoTV.ro-aHR0cHM6Ly"
+      },
+      {
+        "id": "f7449fc5-de3a-4117-9a2e-0e2d4fcbf27d",
+        "title": "TVR Iasi (R0cHM6Ly)",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-iasi.lg.mncdn.com/tvriasi/smil:tvriasi.smil/playlist.m3u8",
+        "source_key": "ww-playable:streams:RO:0:iptv-stream-TVRIasi.ro-aHR0cHM6Ly"
+      },
+      {
+        "id": "3ee24333-d0c9-4745-9a93-657ba1b2cf70",
+        "title": "A7TV",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://a7tvlive.ro/A7TV/A7TV/playlist.m3u8",
+        "source_key": "iptv-org:A7TV.ro"
+      },
+      {
+        "id": "df515530-86e2-4b8a-983f-acb3f9f84275",
+        "title": "Columna TV",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://cdn.streamnet.pro/columnatv/live/playlist.m3u8",
+        "source_key": "iptv-org:ColumnaTV.ro"
+      },
+      {
+        "id": "b3b6c495-14b5-40b0-ba1b-5eebd97f6bed",
+        "title": "Agro TV",
+        "region": "RO",
+        "language": null,
+        "category": "outdoor",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://agrotv.streamnet.ro/mobile_tv/agrotv.m3u8",
+        "source_key": "iptv-org:AgroTV.ro"
+      },
+      {
+        "id": "7af77df8-5842-4618-8415-15dc2679b2cc",
+        "title": "Aleph Business",
+        "region": "RO",
+        "language": null,
+        "category": "business",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://streamw.m.ro/Aleph/ngrp:Alephbiz.stream_all/playlist.m3u8",
+        "source_key": "iptv-org:AlephBusiness.ro"
+      },
+      {
+        "id": "5884c695-ea02-4108-8ba4-70860ec31ac2",
+        "title": "Comedy Play",
+        "region": "RO",
+        "language": null,
+        "category": "comedy",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream1.antenaplay.ro/live/ComedyPlay/playlist.m3u8",
+        "source_key": "iptv-org:ComedyPlay.ro"
+      },
+      {
+        "id": "3db6dbf3-1049-4fe4-9e4d-506e71b49a65",
+        "title": "Comedy Central",
+        "region": "RO",
+        "language": null,
+        "category": "comedy",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://82.78.243.219:45739/play/a00f/index.m3u8",
+        "source_key": "iptv-org:ComedyCentral.ro"
+      },
+      {
+        "id": "5e36e8e1-681e-4db4-8b5c-0dcc5c9f8bba",
+        "title": "Credo TV",
+        "region": "RO",
+        "language": null,
+        "category": "religious",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://cdn.credonet.tv:1935/ctv/livecredo/playlist.m3u8",
+        "source_key": "iptv-org:CredoTV.ro"
+      },
+      {
+        "id": "336ee1b0-07af-4a55-9260-39db26493d29",
+        "title": "Antena Monden",
+        "region": "RO",
+        "language": null,
+        "category": "lifestyle",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream1.antenaplay.ro/live/AntenaMonden/playlist.m3u8",
+        "source_key": "iptv-org:AntenaMonden.ro"
+      },
+      {
+        "id": "bdd95a7d-8d7e-4a67-8fc3-8836b9cf81d2",
+        "title": "Atomic TV",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://atomic.streamnet.ro/atomictv.m3u8",
+        "source_key": "iptv-org:AtomicTV.ro"
+      },
+      {
+        "id": "594debe2-b12f-4ad3-819a-d841d518d2ec",
+        "title": "Banat TV",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://www.btv.ro/hls/banat-tv.m3u8",
+        "source_key": "iptv-org:BanatTV.ro"
+      },
+      {
+        "id": "78661bdf-7711-4dba-8c47-a1a42a392186",
+        "title": "Bollywood Classic",
+        "region": "RO",
+        "language": null,
+        "category": "movies",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "https://dokagents.site/live/bollyc/mono.m3u8",
+        "source_key": "iptv-org:BollywoodClassic.ro"
+      },
+      {
+        "id": "568243bb-4aef-4040-9371-501e440535e6",
+        "title": "Bucovina TV",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://www.bucovinatv.ro/proxy/video/playlist.m3u8",
+        "source_key": "iptv-org:BucovinaTV.ro"
+      },
+      {
+        "id": "30ec5b07-d882-4ef0-8ec2-43de3ca1959c",
+        "title": "Kanal D",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream1.kanald.ro/iphone/knd-live.m3u8",
+        "source_key": "iptv-org:KanalD.ro"
+      },
+      {
+        "id": "8a940a63-399b-4824-892d-5c2e431d3d71",
+        "title": "Kanal D2",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream2.kanald.ro/iphone/knd2-live.m3u8",
+        "source_key": "iptv-org:KanalD2.ro"
+      },
+      {
+        "id": "542c1cd1-9aa7-4957-a5ea-4b9b2b975583",
+        "title": "Disney Channel",
+        "region": "RO",
+        "language": null,
+        "category": "kids",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://82.78.243.219:45739/play/a00y/index.m3u8",
+        "source_key": "iptv-org:DisneyChannel.ro"
+      },
+      {
+        "id": "555305d9-5dfa-44ec-b909-c65ae338030e",
+        "title": "Kiss TV",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tv.broadcasting.ro/kisstv/a629c031-2170-4ee9-a36d-87a891aa3131.m3u8",
+        "source_key": "iptv-org:KissTV.ro"
+      },
+      {
+        "id": "9f1a0b74-58ed-4a34-a62c-b9256870f14b",
+        "title": "Impact TV Manele",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://online.tvimpact.live/hls/impact_tv.m3u8",
+        "source_key": "iptv-org:ImpactTVManele.ro"
+      },
+      {
+        "id": "0368ea9b-e61e-4232-bcb1-f34cc58abf61",
+        "title": "Bollywood HD",
+        "region": "RO",
+        "language": null,
+        "category": "movies",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://xykt-fix.github.io/cinerama_edge01/hls/BOLLYWOOD_RU/Movie009.m3u8",
+        "source_key": "iptv-org:BollywoodHD.ro"
+      },
+      {
+        "id": "488d58a0-8f44-44a7-8dc7-58c5bc2b12da",
+        "title": "Informatia TV",
+        "region": "RO",
+        "language": null,
+        "category": "news",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://informatia.streamnet.ro/mobile_tv/informatiatv.m3u8",
+        "source_key": "iptv-org:InformatiaTV.ro"
+      },
+      {
+        "id": "bc7066bc-4289-4115-8fb0-cccf75386703",
+        "title": "Light Channel",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://streamer1.streamhost.org:1935/salive/GMIlcbgM/playlist.m3u8",
+        "source_key": "iptv-org:LightChannel.ro"
+      },
+      {
+        "id": "3d58b6d0-a87f-48c4-834d-1a5399309034",
+        "title": "Magic TV",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tv.broadcasting.ro/magictv/925f90db-5c88-4190-a53d-5163cdffe6f4.m3u8",
+        "source_key": "iptv-org:MagicTV.ro"
+      },
+      {
+        "id": "aabad676-f182-4a09-ae34-50bce9aa994e",
+        "title": "MISA TV",
+        "region": "RO",
+        "language": null,
+        "category": "religious",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://vidl.misatv.ro:5050/MSTV/romanian_720p_baseline/playlist.m3u8",
+        "source_key": "iptv-org:MISATV.ro"
+      },
+      {
+        "id": "1f5c58ab-3e9e-4574-995f-60cbab638341",
+        "title": "Metropola TV",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://www.livemetropolatv.ro/MetropolaTV/Metro/playlist.m3u8",
+        "source_key": "iptv-org:MetropolaTV.ro"
+      },
+      {
+        "id": "c51118d0-0e8f-4264-ba65-2bdada8ecb7d",
+        "title": "Mireasa",
+        "region": "RO",
+        "language": null,
+        "category": "series",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream1.antenaplay.ro/live/MireasaExtra/playlist.m3u8",
+        "source_key": "iptv-org:Mireasa.ro"
+      },
+      {
+        "id": "b6623829-b69d-42c7-8e34-c4731d9898c9",
+        "title": "Nasul TV",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://live.nasul.tv/live/stream.m3u8",
+        "source_key": "iptv-org:NasulTV.ro"
+      },
+      {
+        "id": "1bcd39d4-0ffd-4d86-a56f-804a20947337",
+        "title": "Nickelodeon",
+        "region": "RO",
+        "language": null,
+        "category": "kids",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://82.78.243.219:45739/play/a00o/index.m3u8",
+        "source_key": "iptv-org:Nickelodeon.ro"
+      },
+      {
+        "id": "b60c0ec9-b9b8-42e4-8324-9872f862783a",
+        "title": "Nova TV Brasov",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://novapress.ro:2022/live/nova/playlist.m3u8",
+        "source_key": "iptv-org:NovaTVBrasov.ro"
+      },
+      {
+        "id": "b9ab2a8c-27ae-4f08-858e-eb563e18ca1e",
+        "title": "PROTV News",
+        "region": "RO",
+        "language": null,
+        "category": "news",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://cmero-ott-live.ssl.cdn.cra.cz/channels/cme-ro-voyo-news/playlist.m3u8?offsetSeconds=0&url=0",
+        "source_key": "iptv-org:PROTVNews.ro"
+      },
+      {
+        "id": "6e6e1c09-e0d5-4ba7-81ec-4c85b36cd71f",
+        "title": "Radio Fx Net",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public",
+          "audio_only_suspect"
+        ],
+        "sanitizedUrl": "https://streamlov.alsolnet.com/radiofxnet/live/playlist.m3u8",
+        "source_key": "iptv-org:RadioFxNet.ro"
+      },
+      {
+        "id": "bb7a7a24-155d-4298-bd12-95450337ae0b",
+        "title": "Rapsodia TV",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 16,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://92.86.248.141:8080/ram/playlist.m3u8",
+        "source_key": "iptv-org:RapsodiaTV.ro"
+      },
+      {
+        "id": "27daccc0-9cc3-46a6-a8e1-4f9a08c62420",
+        "title": "Realitatea Plus",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream.realitatea.net/realitatea/plus_md/ts:playlist.m3u8",
+        "source_key": "iptv-org:RealitateaPlus.ro"
+      },
+      {
+        "id": "7978fd30-c420-4726-bff9-84ef6b9e28f9",
+        "title": "Realitatea Sportiva",
+        "region": "RO",
+        "language": null,
+        "category": "sports",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream.realitatea.net/realitatea/sportiva_md/ts:playlist.m3u8",
+        "source_key": "iptv-org:RealitateaSportiva.ro"
+      },
+      {
+        "id": "b6df725c-806c-4c77-b9ca-d483d320b04a",
+        "title": "Realitatea Star",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream.realitatea.net/realitatea/star_md/ts:playlist.m3u8",
+        "source_key": "iptv-org:RealitateaStar.ro"
+      },
+      {
+        "id": "3f4e9298-5e4e-40d4-bb35-e48381574357",
+        "title": "Rock TV",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tv.broadcasting.ro/rocktv/85c83a80-4f71-4f2d-a8d6-43f676896bcb.m3u8",
+        "source_key": "iptv-org:RockTV.ro"
+      },
+      {
+        "id": "b9070294-13bb-41a1-8c1c-44421566a1f7",
+        "title": "Romania TV",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 68,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://dokagents.site/live/romaniatv/mono.m3u8",
+        "source_key": "iptv-org:RomaniaTV.ro"
+      },
+      {
+        "id": "c782e03e-49af-40fa-bba9-1db972f402a4",
+        "title": "Super TV",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 36,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "http://iptv.supertv.ro:8000/play/a001/index.m3u8",
+        "source_key": "iptv-org:SuperTV.ro"
+      },
+      {
+        "id": "8631a3d3-5974-41d7-bd62-f9c13491454a",
+        "title": "TeleMoldova +",
+        "region": "RO",
+        "language": null,
+        "category": "news",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://vdo.ssl-stream.com:3247/stream/play.m3u8",
+        "source_key": "iptv-org:TeleMoldovaPlus.ro"
+      },
+      {
+        "id": "7ea6bbf8-2e71-442e-a5ce-560e72cf44e8",
+        "title": "TeleM Botosani",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 36,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "http://89.137.197.15:8080/testing/pl5/playlist/ram/playlist.m3u8",
+        "source_key": "iptv-org:TeleMBotosani.ro"
+      },
+      {
+        "id": "df0883ef-26c0-445b-98ad-d4f3cd177ec3",
+        "title": "TV1000",
+        "region": "RO",
+        "language": null,
+        "category": "movies",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 36,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "http://82.78.243.219:45739/play/a01b/index.m3u8",
+        "source_key": "iptv-org:TV1000.ro"
+      },
+      {
+        "id": "e76583ff-74d9-4226-b9cb-4721858ee21f",
+        "title": "TVR Timisoara",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-timisoara.lg.mncdn.com/tvrtimisoara/smil:tvrtimisoara.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRTimisoara.ro"
+      },
+      {
+        "id": "0276eedd-2615-4ec3-9842-dc7612e41bf1",
+        "title": "TVR Cultural",
+        "region": "RO",
+        "language": null,
+        "category": "culture",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-cultural.lg.mncdn.com/tvrcultural/smil:tvrcultural.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRCultural.ro"
+      },
+      {
+        "id": "9c63c6b8-4b0a-4fce-a004-7a63f200ed10",
+        "title": "TVR International",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-international.lg.mncdn.com/tvrinternational/smil:tvrinternational.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRInternational.ro"
+      },
+      {
+        "id": "bb3e3c0a-7c99-44c1-8ead-eb1463831f10",
+        "title": "TVR Sport",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-sport.lg.mncdn.com/tvrsport/smil:tvrsport.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRSport.ro"
+      },
+      {
+        "id": "c5287f44-bc45-4f83-982c-9f0067cbc140",
+        "title": "TVR 2",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-2.lg.mncdn.com/tvr2/smil:tvr2.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVR2.ro"
+      },
+      {
+        "id": "6b47178e-3e3e-4d47-9013-7192aa5c5c52",
+        "title": "TVR Cluj",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-cluj.lg.mncdn.com/tvrcluj/smil:tvrcluj.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRCluj.ro"
+      },
+      {
+        "id": "50036d9d-3bc4-42e1-81e0-2c26b68f8237",
+        "title": "TVR Folclor",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-folclor.lg.mncdn.com/tvrfolclor/smil:tvrfolclor.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVRFolclor.ro"
+      },
+      {
+        "id": "e8345e53-9dcf-4bb3-ad33-07f76ba7a96a",
+        "title": "TVR 3",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://tvr-3.lg.mncdn.com/tvr3/smil:tvr3.smil/playlist.m3u8",
+        "source_key": "iptv-org:TVR3.ro"
+      },
+      {
+        "id": "9ebe8879-3def-4144-9cf7-035868801d63",
+        "title": "TVR Iasi",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 36,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "http://82.208.141.70:8778/1.m3u8",
+        "source_key": "iptv-org:TVRIasi.ro"
+      },
+      {
+        "id": "9e24890e-48a6-4de9-abab-f5e099a4fc56",
+        "title": "Telestar1",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://dvb.tennet.ro/mobile_tv/telestar.m3u8",
+        "source_key": "iptv-org:Telestar1.ro"
+      },
+      {
+        "id": "5c047aa7-9965-458b-bafb-89372b558c50",
+        "title": "Dotto TV",
+        "region": "RO",
+        "language": null,
+        "category": "news",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://live.dottotv.ro/index.m3u8",
+        "source_key": "iptv-org:DottoTV.ro"
+      },
+      {
+        "id": "ae32711c-400e-4610-b654-ea2955acf234",
+        "title": "Atomic Academy TV",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://atomic.streamnet.ro/academia.m3u8",
+        "source_key": "iptv-org:AtomicAcademyTV.ro"
+      },
+      {
+        "id": "e5d6ad5b-e562-4b2f-b062-0838aecaee8d",
+        "title": "History",
+        "region": "RO",
+        "language": null,
+        "category": "documentary",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://82.78.243.219:45739/play/a01f/index.m3u8",
+        "source_key": "iptv-org:History.ro"
+      },
+      {
+        "id": "6f093dda-554b-40a6-b425-663c1749b0c4",
+        "title": "Impact TV Dance",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://online.tvimpact.live/hls/dancetv.m3u8",
+        "source_key": "iptv-org:ImpactTVDance.ro"
+      },
+      {
+        "id": "fa5fea5e-1716-45fb-96e4-547656eba844",
+        "title": "Observator News",
+        "region": "RO",
+        "language": null,
+        "category": "news",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 16,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "https://live1ag.antenaplay.ro/live_ObservatorNews/live_ObservatorNews.m3u8",
+        "source_key": "iptv-org:ObservatorNews.ro"
+      },
+      {
+        "id": "96b94d5d-e599-4436-9b9f-80e94263a366",
+        "title": "JOB TV",
+        "region": "RO",
+        "language": null,
+        "category": "business",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://jobtvserver.eu/hls/stream.m3u8",
+        "source_key": "iptv-org:JOBTV.ro"
+      },
+      {
+        "id": "725ff6e4-14f9-448e-897b-9d5d527514c0",
+        "title": "Digi Sport 2",
+        "region": "RO",
+        "language": null,
+        "category": "Sports",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/digi2/index.m3u8",
+        "source_key": "ww-sports-deep:iptv-api-sports:0:iptv-api-DigiSport2.ro"
+      },
+      {
+        "id": "a59b3719-71bd-4a12-a30d-d3b029d8967e",
+        "title": "Digi Sport 3",
+        "region": "RO",
+        "language": null,
+        "category": "sports",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://82.78.243.219:45739/play/a01m/index.m3u8",
+        "source_key": "iptv-org:DigiSport3.ro"
+      },
+      {
+        "id": "54c53528-2687-4cb6-ac69-57397f445d11",
+        "title": "Digi Sport 4",
+        "region": "RO",
+        "language": null,
+        "category": "sports",
+        "status": "approved",
+        "playback_status": "blocked",
+        "reliability_score": 0,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "disabled",
+          "dead"
+        ],
+        "sanitizedUrl": "http://82.78.243.219:45739/play/a00v/index.m3u8",
+        "source_key": "iptv-org:DigiSport4.ro"
+      },
+      {
+        "id": "01f279bd-a525-440c-b97f-dc245ac12aeb",
+        "title": "Digi 24",
+        "region": "RO",
+        "language": null,
+        "category": "news",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://edge-ar.rcs-rds.ro/digi24ar/index.m3u8",
+        "source_key": "iptv-org:Digi24.ro"
+      },
+      {
+        "id": "243bcd82-adff-454e-acd2-d9e5cf59df59",
+        "title": "Aleph News",
+        "region": "RO",
+        "language": null,
+        "category": "news",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream-aleph.m.ro/Aleph/ngrp:Alephnewsmain.stream_all/playlist.m3u8",
+        "source_key": "iptv-org:AlephNews.ro"
+      },
+      {
+        "id": "26fb27e6-dfd0-4f6b-9d7c-543d91813544",
+        "title": "Hello Taste",
+        "region": "RO",
+        "language": null,
+        "category": "cooking",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://stream1.antenaplay.ro/live/HelloTaste/playlist.m3u8",
+        "source_key": "iptv-org:HelloTaste.ro"
+      },
+      {
+        "id": "da3dc647-869d-47bf-ad8d-e477cb4c6d51",
+        "title": "Tele7music",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://live.tele7music.ro/hls/stream/index.m3u8",
+        "source_key": "music-tv:Tele7music.ro"
+      },
+      {
+        "id": "2a91285a-eafb-4184-8971-49da67ad3e73",
+        "title": "Tele7ABC HD",
+        "region": "RO",
+        "language": null,
+        "category": "general",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://live.tele7abc.ro/hls/stream/index.m3u8",
+        "source_key": "iptv-org:Tele7ABCHD.ro"
+      },
+      {
+        "id": "212f5385-7255-4359-9643-a6c21f3a1a5c",
+        "title": "Prima TV (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/primatv/index.m3u8",
+        "source_key": "iptv-org-live:PrimaTV.ro@SD"
+      },
+      {
+        "id": "f24a2e66-5c50-4d79-89b3-74c7dd163e7b",
+        "title": "CineMaraton (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Movies",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 88,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/cinemaraton/index.m3u8",
+        "source_key": "iptv-org-live:CineMaraton.ro@SD"
+      },
+      {
+        "id": "32cadf25-0119-4845-934b-c5397a448288",
+        "title": "Diva (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/diva/index.m3u8",
+        "source_key": "iptv-org-live:Diva.ro@SD"
+      },
+      {
+        "id": "7bd41d33-295e-49ec-9217-9a585896fa1e",
+        "title": "Acasa (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 88,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/acasa/index.m3u8",
+        "source_key": "iptv-org-live:Acasa.ro@SD"
+      },
+      {
+        "id": "8fbd4ef3-6e77-42b7-9bd1-90f9826d3d0d",
+        "title": "National Geographic (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/natgeo/index.m3u8",
+        "source_key": "iptv-org-live:NationalGeographic.ro@SD"
+      },
+      {
+        "id": "01214b97-dee1-4394-a053-be1702f52c67",
+        "title": "Digi Sport 4 (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Sports",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/digi4/index.m3u8",
+        "source_key": "iptv-org-live:DigiSport4.ro@SD"
+      },
+      {
+        "id": "d1bd920c-2901-4a41-b347-7a3f171377e4",
+        "title": "Music Channel (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/musicchannel/index.m3u8",
+        "source_key": "iptv-org-live:MusicChannel.ro@SD"
+      },
+      {
+        "id": "768e054e-e286-46a5-8347-f83fb5a3e1be",
+        "title": "EMI TV",
+        "region": "RO",
+        "language": null,
+        "category": "music",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://astra.emitv.ro/hls/emi/index.m3u8",
+        "source_key": "music-tv:EMITV.ro"
+      },
+      {
+        "id": "88429d91-0cc7-43e1-ace9-9546ffdd4f4c",
+        "title": "Prima News (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "News",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/primanews/index.m3u8",
+        "source_key": "iptv-org-live:PrimaNews.ro@SD"
+      },
+      {
+        "id": "49d61fd9-e3ae-409c-9787-f75f3f48bc9c",
+        "title": "ZU TV (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/zutv/index.m3u8",
+        "source_key": "iptv-org-live:ZUTV.ro@SD"
+      },
+      {
+        "id": "702bd8b0-5328-4941-9f97-8f421c35e39c",
+        "title": "B1 (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/b1/index.m3u8",
+        "source_key": "iptv-org-live:B1.ro@SD"
+      },
+      {
+        "id": "93ee1670-a0b2-4771-814a-ce1ed92cb51f",
+        "title": "Antena 1 (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/antena1/index.m3u8",
+        "source_key": "iptv-org-live:Antena1.ro@SD"
+      },
+      {
+        "id": "8f2bb255-70ab-4d75-930e-a2f9ce2b86f4",
+        "title": "TV1000 (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/viasatkino/index.m3u8",
+        "source_key": "iptv-org-live:TV1000.ro@SD"
+      },
+      {
+        "id": "3c39408b-a84c-4fad-8bad-d5d69e34cb06",
+        "title": "Nicktoons (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/nicktoons/index.m3u8",
+        "source_key": "iptv-org-live:Nicktoons.ro@SD"
+      },
+      {
+        "id": "d24ccfc1-72da-4e23-86bf-ecd3ec6f738e",
+        "title": "PRO TV International (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/protvint/index.m3u8",
+        "source_key": "iptv-org-live:PROTVInternational.ro@SD"
+      },
+      {
+        "id": "d5b3b5bc-0b29-48ba-8ecf-969d91220bab",
+        "title": "Disney Junior (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/disneyjunior/index.m3u8",
+        "source_key": "iptv-org-live:DisneyJunior.ro@SD"
+      },
+      {
+        "id": "dfb87dc7-9ef2-412f-b5eb-da64b912fb36",
+        "title": "Realitatea Plus (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/realitateaplus/index.m3u8",
+        "source_key": "iptv-org-live:RealitateaPlus.ro@SD"
+      },
+      {
+        "id": "eb090ae7-263e-47e4-9ce6-adb05044408e",
+        "title": "Disney Channel (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/disneychannel/index.m3u8",
+        "source_key": "iptv-org-live:DisneyChannel.ro@SD"
+      },
+      {
+        "id": "1641dbf4-434a-4966-97bd-bc0b113a8a6c",
+        "title": "National Geographic Wild (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/natgeowild/index.m3u8",
+        "source_key": "iptv-org-live:NationalGeographicWild.ro@SD"
+      },
+      {
+        "id": "59cee0e3-105c-463c-bf4d-4b882d4259ac",
+        "title": "Prima Sport 5 (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Sports",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/primasp5/index.m3u8",
+        "source_key": "iptv-org-live:PrimaSport5.ro@SD"
+      },
+      {
+        "id": "5ec2fbdc-216b-4a71-9a64-a6c7d3b8e14e",
+        "title": "Prima 4K (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/prima4kk/index.m3u8",
+        "source_key": "iptv-org-live:Prima4K.ro@SD"
+      },
+      {
+        "id": "9b459490-e009-499c-9949-05a4ecdb72cd",
+        "title": "Sport Extra (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Sports",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/sportextra/index.m3u8",
+        "source_key": "iptv-org-live:SportExtra.ro@SD"
+      },
+      {
+        "id": "9beb409f-4791-4003-bb7b-41eca1e77ad5",
+        "title": "History (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Documentary",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/history/index.m3u8",
+        "source_key": "iptv-org-live:History.ro@SD"
+      },
+      {
+        "id": "c0ac7bc6-d479-4760-8ad1-6510885855a5",
+        "title": "JimJam (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/jimjam/index.m3u8",
+        "source_key": "iptv-org-live:JimJam.ro@SD"
+      },
+      {
+        "id": "c07fbbcb-b266-496c-8319-be3b7e91570e",
+        "title": "Digi Animal World (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/digianimalworld/index.m3u8",
+        "source_key": "iptv-org-live:DigiAnimalWorld.ro@SD"
+      },
+      {
+        "id": "c2ec7278-cb88-4a54-af3f-289a266692ad",
+        "title": "Euronews Romania (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 88,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/euronews/index.m3u8",
+        "source_key": "iptv-org-live:EuronewsRomania.ro@SD"
+      },
+      {
+        "id": "cc34150d-1289-4fba-859b-c83069660273",
+        "title": "Digi World (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/digiworld/index.m3u8",
+        "source_key": "iptv-org-live:DigiWorld.ro@SD"
+      },
+      {
+        "id": "ce21bd11-169f-445b-84bd-6ddc31ef92f7",
+        "title": "Romania TV (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/romaniatv/index.m3u8",
+        "source_key": "iptv-org-live:RomaniaTV.ro@SD"
+      },
+      {
+        "id": "fbb7e5bd-7211-4b79-bbd8-fe6e1389f916",
+        "title": "Digi Sport 3 (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Sports",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/digi3/index.m3u8",
+        "source_key": "iptv-org-live:DigiSport3.ro@SD"
+      },
+      {
+        "id": "47f1c343-2ef2-418b-9006-520b143bac09",
+        "title": "Kanal D (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/kanald/index.m3u8",
+        "source_key": "iptv-org-live:KanalD.ro@SD"
+      },
+      {
+        "id": "710e7bd1-bef2-4d69-8e22-aad01c842973",
+        "title": "Acasa Gold (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 88,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/acasagold/index.m3u8",
+        "source_key": "iptv-org-live:AcasaGold.ro@SD"
+      },
+      {
+        "id": "7dd76a11-984d-4b73-9a75-ea1d1791c82c",
+        "title": "ZU TV HD (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/chefi/index.m3u8",
+        "source_key": "iptv-org-live:ZUTV.ro@HD"
+      },
+      {
+        "id": "b4c30f71-8caa-42f0-8168-a9927316e491",
+        "title": "Timeless Dizi Channel (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/dizi/index.m3u8",
+        "source_key": "iptv-org-live:TimelessDiziChannel.ro@SD"
+      },
+      {
+        "id": "b347c75a-8eaf-4678-9a3e-eb9a09790de3",
+        "title": "Antena International (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/antenaint/index.m3u8",
+        "source_key": "iptv-org-live:AntenaInternational.ro@SD"
+      },
+      {
+        "id": "b3afbe4d-72df-4b3e-8e2a-95be3f654740",
+        "title": "Happy Channel (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/happy/index.m3u8",
+        "source_key": "iptv-org-live:HappyChannel.ro@SD"
+      },
+      {
+        "id": "2ff20e30-7c94-4c56-92ff-bfc763d22444",
+        "title": "Bollywood Classic (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/bollywood/index.m3u8",
+        "source_key": "iptv-org-live:BollywoodClassic.ro@HD"
+      },
+      {
+        "id": "56803fda-26f5-4d35-9c57-bc9abe34db3d",
+        "title": "UTV (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "playable",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": true,
+        "android_playable": true,
+        "classes": [
+          "verified_playable",
+          "public"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/utv/index.m3u8",
+        "source_key": "iptv-org-live:UTV.ro@SD"
+      },
+      {
+        "id": "47a47cc3-3343-4f8f-b436-76109e532929",
+        "title": "Digi Life (720p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/digilife/index.m3u8",
+        "source_key": "iptv-org-live:DigiLife.ro@SD"
+      },
+      {
+        "id": "53f711ab-b421-48c2-ba8d-6986456a32ed",
+        "title": "Comedy Central (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/comedycentral/index.m3u8",
+        "source_key": "iptv-org-live:ComedyCentral.ro@SD"
+      },
+      {
+        "id": "b5e25adc-44b4-4e0c-9a16-265eb9900180",
+        "title": "Pro Arena (1080p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 88,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "quarantined",
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/proarena/index.m3u8",
+        "source_key": "iptv-org-live:ProArena.ro@SD"
+      },
+      {
+        "id": "b81f66cb-d224-45b6-b1a8-0204b6523cdf",
+        "title": "Nick Jr. (576p)",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/nickjr/index.m3u8",
+        "source_key": "iptv-org-live:NickJr.ro@SD"
+      },
+      {
+        "id": "e2bb4def-b475-435f-bca1-cc70149d94b6",
+        "title": "AntenaSport",
+        "region": "RO",
+        "language": null,
+        "category": "Entertainment",
+        "status": "approved",
+        "playback_status": "failed",
+        "reliability_score": 100,
+        "stream_protocol": "hls",
+        "ios_playable": false,
+        "android_playable": false,
+        "classes": [
+          "dead"
+        ],
+        "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/antneassport/index.m3u8",
+        "source_key": "iptv-org-live:AntenaSport.ro@SD"
+      }
+    ]
+  },
+  "discoverySummary": {
+    "sourceFamilies": {
+      "iptv_org": 79,
+      "official_broadcaster_page": 6,
+      "local_seed_json": 59,
+      "official_static": 11
+    },
+    "officialPagesSearched": 27,
+    "countiesListed": 42,
+    "uniqueStreamCandidates": 90,
+    "hlsCandidates": 90,
+    "dashCandidates": 0,
+    "otherCandidates": 0
+  },
+  "verificationSummary": {
+    "verifiedAt": "2026-08-02T11:38:00.084Z",
+    "probed": 90,
+    "accepted": 3,
+    "rejected": 87,
+    "manifestsValid": 3,
+    "sustainedOk": 3,
+    "nativeCompatible": 3,
+    "geoRestricted": 0,
+    "authRequired": 0,
+    "drm": 0,
+    "dead": 2,
+    "audioOnly": 2,
+    "htmlPage": 0,
+    "rejectReasons": {
+      "duplicate_existing_url": 61,
+      "legal_source_unverified": 22,
+      "audio_only": 2,
+      "dead_or_unreachable": 1,
+      "probe_failed": 1
+    },
+    "acceptedSample": [
+      {
+        "title": "HD365 TV",
+        "protocol": "hls",
+        "url": "https://s2.netstreaming.eu/hd365.m3u8",
+        "sourceFamily": "authorized_distributor_manifest"
+      },
+      {
+        "title": "PROFI 24 TV",
+        "protocol": "hls",
+        "url": "https://live.ro24tv.ro/hls/stream.m3u8",
+        "sourceFamily": "official_manifest"
+      },
+      {
+        "title": "Speranța TV",
+        "protocol": "hls",
+        "url": "https://jstre.am/live/jsl:2gNjpghXRLE.m3u8",
+        "sourceFamily": "authorized_distributor_manifest"
+      }
+    ]
+  },
+  "importSummary": {
+    "newlyImportedIds": [
+      "9b4f89ef-6432-47d6-930c-51a4fe0fe82a",
+      "655ce25e-dab4-44c6-a423-239f88a716c1"
+    ],
+    "newlyImportedCount": 2,
+    "repairedIds": [
+      "e10c4145-0607-464c-9b4d-20e1041de914"
+    ],
+    "pending": 0
+  },
+  "playSummary": {
+    "testedAt": "2026-08-02T11:38:58.592Z",
+    "tested": 12,
+    "successful": 12,
+    "failed": 0,
+    "results": [
+      {
+        "id": "9b4f89ef-6432-47d6-930c-51a4fe0fe82a",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://s2.netstreaming.eu/hd365.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "655ce25e-dab4-44c6-a423-239f88a716c1",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://live.ro24tv.ro/hls/stream.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "1cfe57bd-d7a2-41bf-a8e8-564657dc7236",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://btutzctahuf0wjoq.cdn.streamingserver.io/hls/yjvam8hlp2g3u08z02tv0yz66rq3cy.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "aa3695eb-7466-44a1-bbf0-97d1f37b7733",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://cdn.streamnet.pro/musceltv/live/playlist.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "5dc8a20b-3aee-4be1-971a-72857242fb11",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://tvr-1.lg.mncdn.com/tvr1/smil:tvr1.smil/playlist.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "f4222a0c-68f8-465e-86b1-5ca62db3b1d9",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://aom-live.maghost.ro/aomTV/streams/OOztu5o9Fx6dh9mD1711027803849.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "c5552d20-9aa1-4f0f-9d30-a74b3ea93568",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://netstreaming.eu/hd1.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "81bcb461-4d8b-4b48-af80-58ad61b9b183",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://tvr-craiova.lg.mncdn.com/tvrcraiova/smil:tvrcraiova.smil/playlist.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "edb188d1-18ad-4c91-bf3e-13da690fed52",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://tvr-tgmures.lg.mncdn.com/tvrtgmures/smil:tvrtgmures.smil/playlist.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "e10c4145-0607-464c-9b4d-20e1041de914",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://cdn-ro-otp.b-cdn.net/hcorg_71rJgMo5bcg/s/jsl_2gNjpghXRLE/master.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "e4c8a5a4-e980-49ab-8967-d7f41b3c8e13",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://tvr-info.lg.mncdn.com/tvrinfo/smil:tvrinfo.smil/playlist.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      },
+      {
+        "id": "7b507a6d-7ed8-431a-ada1-29682e3e6f31",
+        "httpStatus": 200,
+        "ok": true,
+        "deliveryMode": null,
+        "protocol": null,
+        "playUrl": "https://651c69fa2ff4e.streamlock.net/ctv/_definst_/livecredo/playlist.m3u8",
+        "looksHtml": false,
+        "isMedia": true,
+        "error": null
+      }
+    ],
+    "confirmations": {
+      "noBrowserWebViewSubstitute": true,
+      "noYouTubeOrSocialVideoSource": true,
+      "noMobileCodeChanged": true
+    }
+  },
+  "finalTotals": {
+    "totalRomanianRows": 130,
+    "verifiedPlayable": 69,
+    "publicPlayable": 69,
+    "byCategory": {
+      "general": 25,
+      "Entertainment": 47,
+      "lifestyle": 2,
+      "religious": 5,
+      "Movies": 3,
+      "General": 3,
+      "news": 8,
+      "outdoor": 1,
+      "business": 2,
+      "comedy": 2,
+      "music": 11,
+      "movies": 3,
+      "kids": 2,
+      "series": 1,
+      "sports": 3,
+      "culture": 1,
+      "documentary": 1,
+      "Sports": 5,
+      "Local": 1,
+      "News": 2,
+      "cooking": 1,
+      "Documentary": 1
+    },
+    "byProtocol": {
+      "hls": 130
+    }
+  },
+  "safety": {
+    "noBranchSwitch": true,
+    "noReset": true,
+    "noClean": true,
+    "noStash": true,
+    "noRebase": true,
+    "noUnrelatedOverwrite": true,
+    "noCommit": true,
+    "noPush": true,
+    "noDeployment": true,
+    "noBuild": true,
+    "noMobileCodeChanged": true
+  }
+}

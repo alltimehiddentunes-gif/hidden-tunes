@@ -1,0 +1,133 @@
+{
+  "testedAt": "2026-08-09T08:01:03.023Z",
+  "productionWrites": 0,
+  "sourcesTested": 3,
+  "observationWindowSeconds": 65,
+  "expirationObserved": false,
+  "cachedUrlReusePassed": true,
+  "averageRefreshLatencyMs": 399,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "id": "5a6b92f6e22a617379789618",
+      "name": "CBS News 24/7",
+      "urlPersisted": false,
+      "first": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 410,
+        "finalHost": "dai.google.com",
+        "redirected": true,
+        "queryKeys": [
+          "imafw__fw_app_bundle",
+          "imafw__fw_did",
+          "imafw__fw_is_lat",
+          "imafw__fw_vcid2",
+          "imafw_csid",
+          "imafw_is_lat"
+        ],
+        "cacheControl": "no-cache, no-store, max-age=0, must-revalidate",
+        "expires": "Mon, 01 Jan 1990 00:00:00 GMT",
+        "manifest": true,
+        "manifestHash": "17e49adc80e89f55"
+      },
+      "after65Seconds": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 352,
+        "finalHost": "dai.google.com",
+        "redirected": true,
+        "queryKeys": [
+          "imafw__fw_app_bundle",
+          "imafw__fw_did",
+          "imafw__fw_is_lat",
+          "imafw__fw_vcid2",
+          "imafw_csid",
+          "imafw_is_lat"
+        ],
+        "cacheControl": "no-cache, no-store, max-age=0, must-revalidate",
+        "expires": "Mon, 01 Jan 1990 00:00:00 GMT",
+        "manifest": true,
+        "manifestHash": "31ee95f6a6eeb86f"
+      },
+      "cachedUrlStillValid": true,
+      "manifestChanged": true
+    },
+    {
+      "id": "5dc9b875e280c80009a8a44a",
+      "name": "CBS News Los Angeles (720p)",
+      "urlPersisted": false,
+      "first": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 356,
+        "finalHost": "dai.google.com",
+        "redirected": true,
+        "queryKeys": [
+          "imafw__fw_app_bundle",
+          "imafw__fw_did",
+          "imafw__fw_is_lat",
+          "imafw__fw_vcid2",
+          "imafw_csid",
+          "imafw_is_lat"
+        ],
+        "cacheControl": "no-cache, no-store, max-age=0, must-revalidate",
+        "expires": "Mon, 01 Jan 1990 00:00:00 GMT",
+        "manifest": true,
+        "manifestHash": "d80c944d10825094"
+      },
+      "after65Seconds": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 646,
+        "finalHost": "dai.google.com",
+        "redirected": true,
+        "queryKeys": [
+          "imafw__fw_app_bundle",
+          "imafw__fw_did",
+          "imafw__fw_is_lat",
+          "imafw__fw_vcid2",
+          "imafw_csid",
+          "imafw_is_lat"
+        ],
+        "cacheControl": "no-cache, no-store, max-age=0, must-revalidate",
+        "expires": "Mon, 01 Jan 1990 00:00:00 GMT",
+        "manifest": true,
+        "manifestHash": "3839272501aa59dc"
+      },
+      "cachedUrlStillValid": true,
+      "manifestChanged": true
+    },
+    {
+      "id": "60cb6df2b2ad610008cd5bea",
+      "name": "CBS News Sacramento (720p)",
+      "urlPersisted": false,
+      "first": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 197,
+        "finalHost": "lineup.cbsivideo.com",
+        "redirected": false,
+        "queryKeys": [],
+        "cacheControl": "max-age=0, no-cache",
+        "expires": null,
+        "manifest": true,
+        "manifestHash": "0a23c3505550dabd"
+      },
+      "after65Seconds": {
+        "ok": true,
+        "status": 200,
+        "latencyMs": 198,
+        "finalHost": "lineup.cbsivideo.com",
+        "redirected": false,
+        "queryKeys": [],
+        "cacheControl": "max-age=0, no-cache",
+        "expires": null,
+        "manifest": true,
+        "manifestHash": "0a23c3505550dabd"
+      },
+      "cachedUrlStillValid": true,
+      "manifestChanged": false
+    }
+  ]
+}

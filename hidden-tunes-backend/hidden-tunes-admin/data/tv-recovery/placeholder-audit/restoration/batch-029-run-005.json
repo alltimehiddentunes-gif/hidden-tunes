@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T17:24:56.544Z",
+  "scope": "Batch 29 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "MovieSphere by Lionsgate, Metal Rocks, Pluto TV Kids, Rugrats, and Pluto TV Film Azione all used rejected jmp2.uk sources.",
+    "No candidate passed provenance, so none was sent to expensive Desktop validation; all remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch29Target": 25,
+  "batch29Researched": 25,
+  "batch29Remaining": 0,
+  "batch29Complete": true
+}

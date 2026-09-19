@@ -1,0 +1,15 @@
+{
+  "candidateId": "ded04191-f391-4751-a39f-8c5d287cb51e",
+  "streamHost": "amg00056-vevotv-vevo90saunz-samsungnz-mpus0.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 156.399776,
+    "advancedSeconds": 123.376776,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "completedAt": "2026-08-13T19:42:00.000Z",
+  "scope": "Batch 3 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "oneVideoOwner": 1,
+  "exactHighIdentityPassed": 0,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "That's 70s has authoritative Local Now and Freeview carriage evidence and passed 118.74 seconds of 720p Desktop playback with one video owner.",
+    "Frame inspection could not be completed because the Windows sandbox helper reported insufficient C: system space despite all Hidden Tunes evidence and runtime being D:-resident; the candidate therefore remains identity-unresolved and quarantined.",
+    "Autostop per il Cielo and Homicide use jmp2.uk; MTV Ridiculousness uses i.mjh.nz. All were rejected before media validation.",
+    "Hit Sitcoms has carriage evidence but its CloudFront host family previously failed multiple Desktop decoding attempts; it was not accepted without a complete fresh proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 13,
+  "cumulativeTerminalAliases": 80,
+  "batch3Target": 25,
+  "batch3Remaining": 20
+}

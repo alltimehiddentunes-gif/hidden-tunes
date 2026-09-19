@@ -1,0 +1,153 @@
+{
+  "createdAt": "2026-08-09T23:40:35.402Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "providerChannelIds": [
+        "6400be67219c4c00081755d3"
+      ],
+      "existingCatalogRecordId": "03713d00-7fb7-4626-acd4-4ab3d196467e",
+      "sourceHost": "langleyproductions-cops-2-eu.rakuten.wurl.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "618124b2e53c8d00077b37f8"
+      ],
+      "existingCatalogRecordId": "80df77d8-0eac-4b1a-8d8d-b236111681b1",
+      "sourceHost": "live-content.xumo.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "68ad90673efb41cd97c95825"
+      ],
+      "existingCatalogRecordId": "5ea85b66-0787-4db6-803b-390fa899115d",
+      "sourceHost": "linear-1145.frequency.stream",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "633560bfa693390008b99cf0"
+      ],
+      "existingCatalogRecordId": "15062aad-f8ff-4a9d-be42-3139a7c0b10d",
+      "sourceHost": "7aac8d7e.wurl.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "63921a1bf76e7d0007c998a6"
+      ],
+      "existingCatalogRecordId": "e651666c-0675-455e-830a-8666b9c9b5d2",
+      "sourceHost": "fastmedia-enquetesdechoc-rakuten.amagi.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "61780ce4c215ad0007a66ab2"
+      ],
+      "existingCatalogRecordId": "3c0cb98a-7f4b-43d2-9a2f-e4c54f8921a6",
+      "sourceHost": "streams2.sofast.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "6176f39e709f160007ec61c3"
+      ],
+      "existingCatalogRecordId": "1fac7105-ef17-46e9-a3dd-9519b7ea1036",
+      "sourceHost": "dai.google.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "5c5c2e9d8002db3c3e0b1c72"
+      ],
+      "existingCatalogRecordId": "844b1b7f-c3f5-49d7-8d2a-82187eece1c7",
+      "sourceHost": "all3media-homes-under-the-hammer-1-gb.rakuten.wurl.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "5bee1a7359ee03633e780238"
+      ],
+      "existingCatalogRecordId": "736ccc24-d1e3-4699-b8e0-a22d5982fa0d",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "65788611a620e30008fe36ff"
+      ],
+      "existingCatalogRecordId": "e8c053a1-7eff-4f70-a8b6-c27bf644fb2a",
+      "sourceHost": "amg00276-amg00276c2-rakuten-uk-3449.playouts.now.amagi.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    }
+  ],
+  "rejected": [
+    [
+      "60ed498c4248a400077c0b9d",
+      "Anonymous-IP source is unauthorized and ineligible for Pluto TV Sci-Fi."
+    ]
+  ],
+  "unresolved": [
+    [
+      "615b8ec39e878900073f419a",
+      "Actual Antiques Road Trip content observed, but opaque CloudFront provenance is insufficient."
+    ],
+    [
+      "66f135b45e4a6e0008b80606",
+      "Actual Antiques Road Trip content observed, but opaque CloudFront provenance is insufficient."
+    ]
+  ]
+}

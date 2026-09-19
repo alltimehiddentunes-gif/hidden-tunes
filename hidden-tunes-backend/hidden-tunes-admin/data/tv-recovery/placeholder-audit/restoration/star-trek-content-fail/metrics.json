@@ -1,0 +1,15 @@
+{
+  "candidateId": "07d73774-c12c-49d1-83c8-b8f61f5dd9e3",
+  "streamHost": "cfd-v4-service-channel-stitcher-use1-1.prd.pluto.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1216,
+    "height": 684,
+    "paused": false,
+    "currentTime": 134.833533,
+    "advancedSeconds": 124.77219999999998,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

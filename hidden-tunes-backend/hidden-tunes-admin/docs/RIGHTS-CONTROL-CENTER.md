@@ -83,12 +83,14 @@ The Content console combines server filters, shows exact counts, creates immutab
 
 The proposed review groups are visible but unassigned. Music provenance is based on the owner's final authoritative declaration dated 2026-09-04:
 
-- MUREKA ORIGINAL: 1,245 → proposed GREEN / iOS ON
-- DJCITY: 3,498 → proposed RED / iOS OFF
+- MUREKA ORIGINAL: 1,276 → proposed GREEN / iOS ON
+- DJCITY: 3,467 → proposed RED / iOS OFF
 - UNKNOWN MUSIC: 0
 - IPTV DMCA: 2 → proposed RED / iOS OFF
 
-For this catalog only, the owner defines the original 1,245 tracks ingested on or before 24 July 2026 as Mureka and every remaining music record as DJcity. This supersedes the earlier evidentiary 1,225/2,273 split. The classification prepares reviewable provider groups only; it does not attach a rights status or change availability.
+For this catalog only, the owner defines 1,276 tracks as Mureka: the original 1,245 tracks ingested on or before 24 July 2026, 13 post-cutoff Chicago Blues tracks, and the 18-track Hidden Tunes Afrobeats cohort from 16 August 2026 anchored by `PUSANA PENE`. The remaining 3,467 music records are DJcity. Unknown and other music remain zero. This supersedes the earlier evidentiary 1,225/2,273 split and the former 1,245/3,498 proposed cohorts. The classification prepares reviewable provider groups only; it does not attach a rights status or change availability.
+
+The 69 other Hidden Tunes records posted on 16 August 2026 are not part of the Afrobeats correction and remain unchanged. Future Original Music Factory legacy import planning must use 1,276 Mureka originals and preserve the existing production ID for each record.
 
 ## Public enforcement integration
 

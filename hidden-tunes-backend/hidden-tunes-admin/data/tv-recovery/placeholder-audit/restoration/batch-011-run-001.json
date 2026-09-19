@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T17:15:21.991Z",
+  "scope": "Batch 11 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Red Bull TV passed 124.35 seconds of 1920x1080 Desktop playback through the broadcaster-owned rbmn-live service.",
+    "Continuous outdoor/action programming and direct Red Bull Media Network provenance support HIGH identity. Search and resolver passed.",
+    "Two quarantined aliases remain hidden and terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Tiny House Nation used jmp2.uk. Heartland lacked rights-holder linkage; HauntTV and NBC Sports NOW retained lawful candidates but were not promoted without complete exact-identity proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 32,
+  "cumulativeTerminalAliases": 119,
+  "batch11Target": 25,
+  "batch11Researched": 5,
+  "batch11Remaining": 20
+}

@@ -6,6 +6,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 import { isEligibleForReadyPlayback } from "./healthScore";
+import { resolveKnownFootballStreamListing } from "../providers/footballStream/resolver";
 import { normalizePlaybackKind } from "./allowlist";
 import { hashPlaybackToken, mintPlaybackToken } from "./tokens";
 
@@ -132,7 +133,7 @@ export async function resolveSportsPlaybackSession(
   const { data: broadcast } = await supabaseAdmin
     .from("sports_broadcasts")
     .select(
-      "id, title, fixture_id, playback_kind, validation_status, health_score, validation_expires_at, provider_id, metadata, published_at, unpublished_at, quarantined_at"
+      "id, title, fixture_id, playback_kind, validation_status, health_score, validation_expires_at, provider_id, provider_asset_id, metadata, published_at, unpublished_at, quarantined_at"
     )
     .eq("id", session.broadcast_id)
     .maybeSingle();
@@ -161,11 +162,12 @@ export async function resolveSportsPlaybackSession(
   }
 
   let providerLabel = "Official broadcaster";
+  let providerSlug = "";
   let providerHealthy = true;
   if (broadcast.provider_id) {
     const { data: provider } = await supabaseAdmin
       .from("sports_providers")
-      .select("name, is_enabled, kill_switch, health_status")
+      .select("slug, name, is_enabled, kill_switch, health_status")
       .eq("id", broadcast.provider_id)
       .maybeSingle();
     if (
@@ -181,6 +183,7 @@ export async function resolveSportsPlaybackSession(
       };
     }
     providerLabel = provider.name || providerLabel;
+    providerSlug = String(provider.slug || "");
     providerHealthy = ["healthy", "degraded", "unknown"].includes(
       String(provider.health_status)
     );
@@ -192,6 +195,14 @@ export async function resolveSportsPlaybackSession(
       reason: "provider_disabled",
       message: "This broadcast is no longer available.",
     };
+  }
+
+  if (providerSlug === "football_stream_api") {
+    const validatedIds = Array.isArray((broadcast.metadata as { validatedSourceIds?: unknown } | null)?.validatedSourceIds) ? (broadcast.metadata as { validatedSourceIds: string[] }).validatedSourceIds : [];
+    const resolved = await resolveKnownFootballStreamListing(String(broadcast.provider_asset_id || ""), validatedIds);
+    if (!resolved) return { ok: false, reason: "validation_failed", message: "Live playback could not be validated." };
+    await supabaseAdmin.from("sports_playback_sessions").update({ resolved_at: now.toISOString(), started_at: session.started_at || now.toISOString() }).eq("id", session.id);
+    return { ok: true, fixtureId: session.fixture_id, broadcastId: broadcast.id, playbackKind: "hls", title: broadcast.title, providerLabel, embedUrl: resolved.url, expiresAt: new Date(Math.min(Date.parse(session.expires_at), Date.now() + resolved.expiresInSeconds * 1000)).toISOString() };
   }
 
   const { data: source } = await supabaseAdmin

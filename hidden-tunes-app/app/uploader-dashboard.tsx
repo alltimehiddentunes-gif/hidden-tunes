@@ -9,7 +9,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 
@@ -70,6 +70,10 @@ export default function UploaderDashboardScreen() {
     }),
     []
   );
+
+  if (typeof __DEV__ === "undefined" || !__DEV__) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>

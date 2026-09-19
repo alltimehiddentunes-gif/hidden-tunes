@@ -1,0 +1,15 @@
+{
+  "candidateId": "bc4ad193-f447-4067-b05e-f01891c70c32",
+  "streamHost": "d3f4oii5n0oeqi.cloudfront.net",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 158.569989,
+    "advancedSeconds": 119.54298899999999,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T20:25:48.511Z",
+  "scope": "Batch 31 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "CBS News New York: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined.",
+    "Fox Sports: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined.",
+    "Anime x HIDIVE: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined.",
+    "Nick Jr. Pluto TV: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined.",
+    "CBS News Miami: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 72,
+  "cumulativeTerminalAliases": 215,
+  "batch31Target": 25,
+  "batch31Researched": 5,
+  "batch31Remaining": 20,
+  "batch31Complete": false
+}

@@ -1,0 +1,465 @@
+{
+  "batch": 26,
+  "lane": "PRIOR_RESEARCH_FINGERPRINT_TRIAGE",
+  "startedAt": "2026-08-11T21:18:33.388Z",
+  "completedAt": "2026-08-11T21:18:33.388Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 61,
+  "wrongSourceRejected": 0,
+  "identityUnresolved": 0,
+  "broadcasterResearchRequired": 50,
+  "remainingPending": 1593,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "65ba4e7bdc10a40008da084a",
+      "canonicalName": "Rock Channel",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6825eeeeb19ce6d4a34ebb2a",
+      "canonicalName": "Man with a Plan",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62a0b070d4566c0007a0d1bd",
+      "canonicalName": "Melrose Place",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "654a59d483595c0008187514",
+      "canonicalName": "MacGyver",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "625463563b8ddc0007134aeb",
+      "canonicalName": "MTV Shore",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "699c1b4c9c3b075ecd513139",
+      "canonicalName": "Farscape",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "618147d2a814250007b42916",
+      "canonicalName": "The New Detectives",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65cba73611ced700082123bc",
+      "canonicalName": "Broad City",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6272511cb389bb0007b30b09",
+      "canonicalName": "For laekker til love",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c1d66518447e000717e4c2",
+      "canonicalName": "Ex On The Beach",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c19c8c9863900007acaa57",
+      "canonicalName": "Familien fra Bryggen",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64afe50c5dc16600087f3227",
+      "canonicalName": "DAZN Heldinnen x Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62cebd7302478b00073a6b71",
+      "canonicalName": "Der Denver-Clan",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5ffcc5130fd98c0007f2e216",
+      "canonicalName": "Kenan & Kel",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60e4507a06171800072339a3",
+      "canonicalName": "Il banco dei pugni – Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65a6818c7bdc8d0008457b21",
+      "canonicalName": "RACER Brasil",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65b915780cb1a1000889b837",
+      "canonicalName": "3point.dk",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "639b4f75d3d35c0007d37b30",
+      "canonicalName": "Pluto TV Snooker 900",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62beb692cda2b10007d5fd76",
+      "canonicalName": "Best of The Drew Barrymore Show",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62f4f90e39183b000769f12b",
+      "canonicalName": "Frasier",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62e917b5e354cf0007b97a67",
+      "canonicalName": "Happy Days",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "652516fb7971630008a58e74",
+      "canonicalName": "Ultimate Classic Wrestling – Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "688734b9035d6ef9c34aac16",
+      "canonicalName": "Die fliegenden Ärzte",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c19dcefbb4b50007d242e1",
+      "canonicalName": "Forsidefruer",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f77939a630f530007dde654",
+      "canonicalName": "Family Ties",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "66952e1ed512590008867b5a",
+      "canonicalName": "Mediano TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65a67dd13af63d0008257f17",
+      "canonicalName": "90210",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "66c79221b1a34600087e264d",
+      "canonicalName": "Hey Arnold!",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5ced7d5df64be98e07ed47b6",
+      "canonicalName": "NFL Channel",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6442512cee6a2f0008d3351f",
+      "canonicalName": "Geordie Shore",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f8edb6df1ebb800072edf10",
+      "canonicalName": "Les Nouveaux Detectives",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c1e0f1d6d97900076ea16f",
+      "canonicalName": "Luksusfellen Sverige",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5e393d5c696b3b0009775c8b",
+      "canonicalName": "The New Detectives",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62bdabbc5611f2000761ca30",
+      "canonicalName": "The New Detectives",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "609bfa51fbecc1000733152e",
+      "canonicalName": "Jersey Shore",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6582f002a620e3000813b329",
+      "canonicalName": "Azteca Deportes Network",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6728c9c85534bb0008b320a4",
+      "canonicalName": "7th Heaven",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "675c0762f433320008707f68",
+      "canonicalName": "BET25 Live+",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "632c6df43d2bc5000751f621",
+      "canonicalName": "Inazuma Eleven",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62e951258a26d40007b3034c",
+      "canonicalName": "Dora TV",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69d7a0dc805a68fcc92037b7",
+      "canonicalName": "Best of Magnus Midtbø",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69b0167477cdde1f05c8a625",
+      "canonicalName": "Der Bergdoktor",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64ca723a2bc49300081a8966",
+      "canonicalName": "Three's Company",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68ada3395190a45dc9c445cf",
+      "canonicalName": "Pluto TV Historische Serien",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69148c470155f9b136b5d856",
+      "canonicalName": "Pluto TV Snooker 900",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64c2214c2a7f2200089a0c4b",
+      "canonicalName": "The Price Is Right",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "58e55b14ad8e9c364d55f717",
+      "canonicalName": "Flicks of Fury",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5873fc21cad696fb37aa9054",
+      "canonicalName": "Live Music",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60a2837f8154ab0007c4dcdf",
+      "canonicalName": "Le sorelle mcleod – Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68939e206727ec919bb39061",
+      "canonicalName": "Hogan's Heroes",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    }
+  ]
+}

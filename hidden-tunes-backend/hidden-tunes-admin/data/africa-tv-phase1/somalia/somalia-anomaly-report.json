@@ -1,0 +1,3433 @@
+{
+  "at": "2026-08-04T09:44:32.425Z",
+  "mode": "APPLIED_COUNTRY_FIX",
+  "recordsBefore": 162,
+  "publicPlayableBefore": 162,
+  "probed": 162,
+  "unprocessed": 0,
+  "uniqueChannelIdentities": 162,
+  "exactDuplicateNameGroups": [],
+  "probableDuplicateGroups": [],
+  "duplicateStreamUrlGroups": [],
+  "radioOrVodSuspects": [
+    {
+      "id": "1ddf88dc-d71b-4805-a121-3e4bdf7c93e3",
+      "title": "CJ ENM MOVIE",
+      "category": "영화"
+    },
+    {
+      "id": "7868b8a0-fc30-4c18-a9fa-44b1dd37a0bb",
+      "title": "SBS HOT CLIP 예능",
+      "category": "예능"
+    },
+    {
+      "id": "5976028b-850b-4a29-b16d-7d1046721d03",
+      "title": "KBS HOT CLIP 예능",
+      "category": "예능"
+    },
+    {
+      "id": "f2cb4730-f18b-4a18-b876-cf2667f94b17",
+      "title": "SBS HOT CLIP 드라마",
+      "category": "드라마"
+    },
+    {
+      "id": "e172acbf-3ac5-4630-9589-8c2aaf8b573b",
+      "title": "MBC HOT CLIP 예능",
+      "category": "예능"
+    },
+    {
+      "id": "cacd5b44-64e3-423f-ba47-a1dc9b1ff37f",
+      "title": "Genie Movie",
+      "category": "영화"
+    },
+    {
+      "id": "bef85b0a-be84-406d-85ae-96660a3e6d64",
+      "title": "KBS HOT CLIP 음악",
+      "category": "음악"
+    },
+    {
+      "id": "e1193ba8-2cb0-4de5-9939-27cf26dc0a76",
+      "title": "MBC HOT CLIP 드라마",
+      "category": "드라마"
+    }
+  ],
+  "unclearProvenanceSuspects": [],
+  "playback": {
+    "playable": 162,
+    "failed": 0,
+    "failures": []
+  },
+  "countryAssignment": {
+    "existingKoreaRows": 63,
+    "highConfidenceKoreaCount": 162,
+    "destinationConflicts": [],
+    "safeMoveCount": 162,
+    "evidence": [
+      {
+        "id": "1ddf88dc-d71b-4805-a121-3e4bdf7c93e3",
+        "title": "CJ ENM MOVIE",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC32000191N",
+        "urlHost": "cc-24pt4d35tmny8.akamaized.net"
+      },
+      {
+        "id": "edf9cbc5-7a7b-4dbf-a36b-f073110eae91",
+        "title": "JTBC 냉장고를 부탁해 2",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC46000014A",
+        "urlHost": "cc-km3ezg3coq1e0.akamaized.net"
+      },
+      {
+        "id": "e94a2148-5035-45fc-a411-f9716141e075",
+        "title": "OGN 스타리그",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200005SH",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "1146401f-dccc-4855-95d8-33d07b615451",
+        "title": "SBS 내 남자의 여자",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200005CK",
+        "urlHost": "d1ye6lj5le5dh0.cloudfront.net"
+      },
+      {
+        "id": "37b8118e-3a17-4dac-ab58-105af69779b5",
+        "title": "SBS 백종원의 골목식당",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200011RB",
+        "urlHost": "d2riuzghn0kt92.cloudfront.net"
+      },
+      {
+        "id": "e8ecbcd8-f79d-4aac-87f0-1ffef4c3377f",
+        "title": "SBS 순간포착 세상에 이런일이",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200013L5",
+        "urlHost": "dp3r8qzh7xgdp.cloudfront.net"
+      },
+      {
+        "id": "7121a94b-6140-4898-a15e-2eb041f76428",
+        "title": "tvN 삼시세끼 어촌편 5",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC32000156C",
+        "urlHost": "cc-6s1dnzwpptpsj.akamaized.net"
+      },
+      {
+        "id": "61f54bd9-0ddd-4bde-bddb-95ed1f792c34",
+        "title": "tvN 어느날 우리집 현관으로 멸망이 들어왔다 4K",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4500001A5",
+        "urlHost": "cc-tv2tyvkmf8099.akamaized.net"
+      },
+      {
+        "id": "2bc835e8-7407-4c08-a313-aeed383295f9",
+        "title": "신병 3",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000007LI",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "e35b1642-1f7d-4780-857e-ee007bec1cb3",
+        "title": "용감한 형사들",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3500015BN",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "af9c3b66-464a-42bc-8a09-c4b9ceab761d",
+        "title": "현대홈쇼핑",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRAH1801500A",
+        "urlHost": "livestreaming.hyundaihmall.com"
+      },
+      {
+        "id": "ea6bb60b-d5ac-4fc6-80fb-3f4a09780e15",
+        "title": "할명수",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR480000234",
+        "urlHost": "cc-lsy1nloik3va1.akamaized.net"
+      },
+      {
+        "id": "31803286-fd1e-467f-8730-12a05b20d693",
+        "title": "JTBC 한문철의 블랙박스리뷰",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC5000020AF",
+        "urlHost": "cc-zcpnceqfwj64i.akamaized.net"
+      },
+      {
+        "id": "1d63e0dc-9927-46bd-987c-e65ce98c9d48",
+        "title": "tvN 신서유기 7~8 이어보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC32000248R",
+        "urlHost": "cc-vpy9coqhh217y.akamaized.net"
+      },
+      {
+        "id": "1f819350-cfdf-422d-8a42-fa8ae1f7b134",
+        "title": "tvN 슬기로운 의사생활 1~2 이어보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4500003W6",
+        "urlHost": "cc-91iwp4l4a8qj3.akamaized.net"
+      },
+      {
+        "id": "9b0b91b7-f3c2-4570-8fa5-a6e98b3d8315",
+        "title": "JTBC 이혼숙려캠프",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC5000019FB",
+        "urlHost": "cc-4tfos3rpb4k0g.akamaized.net"
+      },
+      {
+        "id": "4789a7c4-fa0d-41d1-9e0e-58295b98c768",
+        "title": "TED",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD370000134",
+        "urlHost": "cc-4ifc7p5zqmky9.akamaized.net"
+      },
+      {
+        "id": "ce459d2f-9d3b-4be4-81ab-86db4332c250",
+        "title": "Animax 요리왕 비룡 더 마스터",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200001VC",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "b5f02579-5ad7-40be-8e65-9428cb7ea3e2",
+        "title": "tvN 스트리트푸드파이터 1~2 이어보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200029C4",
+        "urlHost": "cc-yrndhd2m66m8q.akamaized.net"
+      },
+      {
+        "id": "0088121d-ccac-400b-a25c-1a4b8016e951",
+        "title": "ch.핑크퐁",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC32000126M",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "cca134e7-d181-4d9d-9d2f-45b132df2b60",
+        "title": "tvN 인급동",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200031KO",
+        "urlHost": "d2hbbjdi2lggii.cloudfront.net"
+      },
+      {
+        "id": "353bdf77-070c-49d3-9b8c-f20f4fadb6f8",
+        "title": "E채널 토요일은 밥이 좋아",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4100008Z6",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "d97e832d-0cde-4373-81f0-38762cdbf57b",
+        "title": "SBS 궁금한 이야기 Y",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200016TZ",
+        "urlHost": "d9elvao5pl5dr.cloudfront.net"
+      },
+      {
+        "id": "b7d79a89-c757-47bf-8f89-0bfc799aa2d6",
+        "title": "SBS 생활의 달인",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200018FT",
+        "urlHost": "dgjj0tcconmvk.cloudfront.net"
+      },
+      {
+        "id": "4a6714ca-7cfe-4d20-b66c-e75b697160cf",
+        "title": "JTBC 골프",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD5200002XY",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "5b32b088-38c4-42da-ae5f-3f95c9a431c0",
+        "title": "Genie 액션 특선",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000012AI",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "5fdf110a-a0aa-48f9-a3c6-c8b8332f3286",
+        "title": "iHQ 돈쭐내러 왔습니다",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4000002ME",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "dab4d6c4-983a-4408-b245-34726863ba3a",
+        "title": "essential; by Bugs",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR410000247",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "eb81e3cd-2a32-4aba-8529-80a4a7b9afc4",
+        "title": "Bloomberg Originals",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB500044GP",
+        "urlHost": "cc-vciaslqqwvdlr.akamaized.net"
+      },
+      {
+        "id": "ec431eb0-3c4c-40a4-826f-cfc3c8760433",
+        "title": "JTBC 보좌관",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4000020F",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "900e9e3d-6e5e-4a03-bc9c-84185d14a1d2",
+        "title": "PGA Tour",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD3100007WB",
+        "urlHost": "cc-1ez45wju99hdq.akamaized.net"
+      },
+      {
+        "id": "0e9f5fa2-1c6a-4485-b48c-96af74d5b5be",
+        "title": "MBC 지붕뚫고 하이킥",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC200005H6",
+        "urlHost": "cc-pw3udyzqhfim2.akamaized.net"
+      },
+      {
+        "id": "2481f856-fa75-4762-860b-fe80abf13a4d",
+        "title": "K-ASMR",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC41000021C",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "26912a07-7d6c-45ea-b866-6bd8069a0dc0",
+        "title": "JTBC 뭉쳐야 찬다3",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD5200003O2",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "2f355369-e4a0-4f51-be0d-d9ad9d4aaa7b",
+        "title": "JTBC 크라임씬3",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD4300003MW",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "3713c3fe-ccf7-40b4-bc0f-63ec29c459c0",
+        "title": "MBC 무한도전",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB5000069BS",
+        "urlHost": "cc-eblhtcukkvhf1.akamaized.net"
+      },
+      {
+        "id": "5c151e1a-959d-4a87-a183-f28f97429e16",
+        "title": "JTBC 비긴어게인 - 오픈마이크",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD43000023M",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "6d955690-1ea8-4550-abd8-93a5e6dddeca",
+        "title": "M2",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200023BG",
+        "urlHost": "cc-rc3dzkm6l1xpq.akamaized.net"
+      },
+      {
+        "id": "73a59b71-af52-4537-8c33-e937de671791",
+        "title": "MBC 밤에 피는 꽃",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB5000070U4",
+        "urlHost": "cc-yno8qrd81gegs.akamaized.net"
+      },
+      {
+        "id": "76ef15f1-16db-4f07-890b-4d809727ada6",
+        "title": "SBS 모범택시",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB420000180",
+        "urlHost": "d3qf0zy79zrp4j.cloudfront.net"
+      },
+      {
+        "id": "7868b8a0-fc30-4c18-a9fa-44b1dd37a0bb",
+        "title": "SBS HOT CLIP 예능",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4500004XC",
+        "urlHost": "cc-27uo6qh088v11.akamaized.net"
+      },
+      {
+        "id": "7d4c5577-11f4-4a2c-9110-18206e7b5bd1",
+        "title": "MBC every1 별순검",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB500037T3",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "8509ad24-9968-444b-8c52-4ca3bc8f2516",
+        "title": "MBC 안싸우면 다행이야",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC20000347",
+        "urlHost": "cc-74hakgowfqw4k.akamaized.net"
+      },
+      {
+        "id": "8633d7c7-1509-4e75-bb48-d8a1915449df",
+        "title": "KBS 개그콘서트",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR700003L9",
+        "urlHost": "cc-h5wex8n6k77wl.akamaized.net"
+      },
+      {
+        "id": "89b932b1-918c-4643-90bf-9c2b7ed4c1ff",
+        "title": "JTBC 효리네 민박1&2",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD5200001G8",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "92ad8432-c912-4d0d-8f57-37e82278eb89",
+        "title": "JTBC 트래블러",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR40000410",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "96736c24-93bd-4b97-bbc3-ddbf155f528d",
+        "title": "KBS 신사와 아가씨",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4400001TZ",
+        "urlHost": "cc-ti96sp38bb5vq.akamaized.net"
+      },
+      {
+        "id": "a26022f2-baea-44df-ab81-9ca236633adb",
+        "title": "KBS Joy 연애의 참견",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4000005EP",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "a5c46a05-74a1-4f48-980a-6ed4af4318a5",
+        "title": "KBS 최고다 이순신",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4400002AO",
+        "urlHost": "cc-1si06izt21fag.akamaized.net"
+      },
+      {
+        "id": "a7e0316f-0034-491a-b0ba-4a2115f283f0",
+        "title": "MBN 휴먼다큐 사노라면",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3500018J9",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "b07d3427-5bed-4efe-ba90-39baea4edfd2",
+        "title": "KBS 태조 왕건",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4600012CR",
+        "urlHost": "cc-p6jn2jfspt0xw.akamaized.net"
+      },
+      {
+        "id": "b74d0470-1d45-4045-b98a-a574583b3530",
+        "title": "JTBC 재벌집 막내아들",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR400003IP",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "c04a0964-1156-4ec4-baaf-968b9cbfd593",
+        "title": "MBN 속풀이쇼 동치미",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3500019CD",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "c64fc12a-a2dc-47a4-b4bf-160fc1216260",
+        "title": "KBS Joy 무엇이든 물어보살",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200009M7",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "d49ca48e-1b1b-48be-872a-9ac509361a11",
+        "title": "SBS TV 동물농장",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB420000769",
+        "urlHost": "d2a2z5wd1u31lp.cloudfront.net"
+      },
+      {
+        "id": "dfc5d412-0f42-414b-acad-5519dbbfc76f",
+        "title": "SBS 미운 우리 새끼",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200003ZL",
+        "urlHost": "d2h2h4q3zieeav.cloudfront.net"
+      },
+      {
+        "id": "e17e541f-5ebb-4266-97b5-0300ccd88c3e",
+        "title": "MBC 라디오스타",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR48000047I",
+        "urlHost": "cc-llmn60n8nzeqa.akamaized.net"
+      },
+      {
+        "id": "f7f72420-f8e0-4b60-ac8d-6d590b4b0afa",
+        "title": "SBS No.1 뉴스라이브",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4500008DI",
+        "urlHost": "cc-0o3qqw2a7hb1t.akamaized.net"
+      },
+      {
+        "id": "066ddf0d-2b3a-448a-8606-41d02c3d8d4e",
+        "title": "tvN 응답하라 전 시즌 모아보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200013UR",
+        "urlHost": "cc-dkq8y312sckj2.akamaized.net"
+      },
+      {
+        "id": "0899216c-eb4c-4ab4-b42e-8cb27326b481",
+        "title": "tvN 정년이",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4500002Q4",
+        "urlHost": "cc-t760tuubm5zcm.akamaized.net"
+      },
+      {
+        "id": "0cf3c4ff-d78a-4793-930e-005986c522b3",
+        "title": "tvN SPORTS",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC800015MH",
+        "urlHost": "cc-xl857kyeay03y.akamaized.net"
+      },
+      {
+        "id": "12993e82-7758-44d2-b8c8-d23e2ef22ea1",
+        "title": "TV조선 사랑의 콜센타",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD27000069Q",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "5976028b-850b-4a29-b16d-7d1046721d03",
+        "title": "KBS HOT CLIP 예능",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR45000060I",
+        "urlHost": "cc-clkvi3vyxm33h.akamaized.net"
+      },
+      {
+        "id": "33908558-8e9e-41f5-9c3a-9b99ed5e6d59",
+        "title": "TV CHOSUN 식객 허영만의 백반기행",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200008M6",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "36298b3a-6479-4051-82a6-ca1b821560bf",
+        "title": "TV조선 미스트롯4",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD2700002IV",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "394ccef1-141f-44e8-9014-f7236ed7358a",
+        "title": "TV조선 생존왕",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD2700001QR",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "3d427992-9926-47f4-8082-cdd650fbabb0",
+        "title": "tvN 미지의 서울",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200018FU",
+        "urlHost": "cc-kdsh2j5qh0h9n.akamaized.net"
+      },
+      {
+        "id": "3e485071-4055-4314-973b-ae6c782c735c",
+        "title": "tvN 뿅뿅 지구오락실 전 시즌 모아보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200032ZM",
+        "urlHost": "cc-89hr2moq31o2e.akamaized.net"
+      },
+      {
+        "id": "5899af0f-ae4a-448d-a689-ab0705ef17d9",
+        "title": "SBS 패밀리가 떴다",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200014MY",
+        "urlHost": "d1rio2j9o2hqtj.cloudfront.net"
+      },
+      {
+        "id": "5b7d8ce7-a77b-4f5b-8e70-3724ffe26299",
+        "title": "TV조선 나의 해피엔드",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC35000169K",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "03961bbc-8681-43fd-b2f4-dcdca40df997",
+        "title": "스크린골프존",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR44000010Y",
+        "urlHost": "cc-sfbzcx9z2aynh.akamaized.net"
+      },
+      {
+        "id": "69eeb974-0cf2-44a0-8ee1-86ad9d26ef70",
+        "title": "SBS 야인시대",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB42000061Z",
+        "urlHost": "d2yx6lvhcftzo5.cloudfront.net"
+      },
+      {
+        "id": "6fdda998-b08d-442f-97c1-a6d9f30c2b00",
+        "title": "SBS 정글의 법칙",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200012PV",
+        "urlHost": "d1qhklddeqjbtp.cloudfront.net"
+      },
+      {
+        "id": "720de4a9-58d9-4176-9edc-4ed91521d21f",
+        "title": "SBS 신발 벗고 돌싱포맨",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200008PR",
+        "urlHost": "d303zg8wpbocww.cloudfront.net"
+      },
+      {
+        "id": "9135a9c4-62c2-46d6-a31a-3cb3f596d70c",
+        "title": "tvN 언젠가는 슬기로울 전공의생활",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200016H1",
+        "urlHost": "cc-i7i071jpk29wv.akamaized.net"
+      },
+      {
+        "id": "badd17f5-e703-4fc8-bd45-011aef2e3d67",
+        "title": "tvN 간 떨어지는 동거",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC800013YF",
+        "urlHost": "cc-v69ifyrbui1yv.akamaized.net"
+      },
+      {
+        "id": "d065be9c-57f8-40e7-a807-bd21e087cedd",
+        "title": "tvN 삼시세끼 고창편",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200030BO",
+        "urlHost": "cc-xsspsplqhwfbp.akamaized.net"
+      },
+      {
+        "id": "db6ee3db-50d7-40ee-8ba0-dc708fe1368c",
+        "title": "SBS 올인",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB420001572",
+        "urlHost": "dklmpoftme5ly.cloudfront.net"
+      },
+      {
+        "id": "f17a21fc-ced1-4d8c-9ff3-7d077a2ec927",
+        "title": "tvN 바퀴달린 집 전시즌 몰아보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC8000128W",
+        "urlHost": "cc-r5xb2phjzcku4.akamaized.net"
+      },
+      {
+        "id": "0769dbdd-25f8-419f-bb82-573dbc68ea66",
+        "title": "나의 해리에게",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000010K7",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "0e44e87a-3c35-4338-8c11-f2d659734b35",
+        "title": "로보카폴리 TV",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3500013VH",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "104448b1-3a5c-4d1b-812d-535ce89524a3",
+        "title": "서울경제TV",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR7000044K",
+        "urlHost": "d3khn1u90mfw7c.cloudfront.net"
+      },
+      {
+        "id": "1362a944-b800-467a-9348-8203add7f5d8",
+        "title": "야한 사진관",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000008LX",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "30e644ab-4361-4317-9e0c-76bd813e8f72",
+        "title": "바오패밀리",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2900001RN",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "31acf10f-7b82-494d-adc2-99407b21a92b",
+        "title": "유병재",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR1400009B8",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "20a13da2-d031-4d9f-893a-74f035723427",
+        "title": "tvN 벌거벗은 세계사 요약.zip",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200021ZA",
+        "urlHost": "cc-zl8tt493cjf5g.akamaized.net"
+      },
+      {
+        "id": "48faa8d2-91d0-4fa7-b5ba-bc0da14f0246",
+        "title": "나는 솔로",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200009C3",
+        "urlHost": "d2c6t9pg1qq2i.cloudfront.net"
+      },
+      {
+        "id": "429982ce-fe95-41c1-9c2d-d8d4f66817a0",
+        "title": "마당이 있는 집",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000006NC",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "4c6cb0ea-c5cd-4d79-92f1-7ec1e8dadf27",
+        "title": "요가소년",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR39000030H",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "5e91685f-21b4-4748-b3d4-0d6252e4ae9a",
+        "title": "빠니보틀",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR140000508",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "659c5a71-f50f-4869-bce6-d8df104081e7",
+        "title": "살롱드립",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4100001LW",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "6e12a184-0e9f-46b1-a5a4-21c6a913dd54",
+        "title": "우리의식탁",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD2200001QD",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "84c939c9-2c5d-4e69-9221-325408bb96da",
+        "title": "맛있는 녀석들",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200007D1",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "a908d628-64c1-4f43-acfa-1acb5e233fec",
+        "title": "라이딩 인생",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000003T6",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "bd3a8cb6-70b1-4e17-90bc-b4c442d30ee5",
+        "title": "비보티비",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR1800002Q7",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "c3381f91-bd76-418a-8f06-8dbb5f7234e6",
+        "title": "씨네21+",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD26000011V",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "c89e20ad-e414-482f-8785-0b674d53121a",
+        "title": "뽀요TV",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR900001U5",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "d0140cbd-a06d-4e1c-9daf-e532a4f7565b",
+        "title": "쯔양",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR5000002QW",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "07aa8812-c102-4806-9234-3f7be7aaba9b",
+        "title": "채널A 이제 만나러 갑니다",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4100005N5",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "9090dc8f-cb0b-45a9-9a7a-6d7f8339b855",
+        "title": "신병 1, 2 몰아보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR1200002QR",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "a595b966-4c9a-48c2-a0cd-7785a3414c22",
+        "title": "투니버스 흔한남매의 안흔한일기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200017JQ",
+        "urlHost": "cc-czlqe5bh8do25.akamaized.net"
+      },
+      {
+        "id": "764ce6fe-cf92-4494-be90-aa8cd8ffb6de",
+        "title": "힙으뜸",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR260000274",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "a3cd6623-c65c-4740-b572-11f425f0bfd6",
+        "title": "행복배틀",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR200000503",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "27b02ce7-4670-4574-91cf-ccacc77a6619",
+        "title": "글로벌 뉴스 by LeadStory",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD3100006X4",
+        "urlHost": "amg02703-leadstory-leadstoryasia-samsungkr-i5odd.amagi.tv"
+      },
+      {
+        "id": "bc50c46a-4ff0-40ef-9603-207f2d61e37d",
+        "title": "코코비TV",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB500035VF",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "c6dea8a1-fc03-4dd7-8b97-14eb0cdbb857",
+        "title": "초록뱀미디어 K-STAR 골프",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB5000364M",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "9c3be963-4660-4209-967a-0fbe6327570b",
+        "title": "KBS 구르미 그린 달빛",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR7000023Z",
+        "urlHost": "cc-cda5phqllafir.akamaized.net"
+      },
+      {
+        "id": "ca872b11-4b97-4dc4-97c8-2a9ab4377da5",
+        "title": "tvN 놀라운 토요일 하이라이트",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC32000261J",
+        "urlHost": "d21dxaer0ypwk1.cloudfront.net"
+      },
+      {
+        "id": "1e1b4d5a-f0ca-423b-ab62-bcd5005bf42d",
+        "title": "구필수는 없다",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000004DJ",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "291ead61-ef0c-4479-bafc-7f92ea194dd8",
+        "title": "나미브",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000011GA",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "f2cb4730-f18b-4a18-b876-cf2667f94b17",
+        "title": "SBS HOT CLIP 드라마",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4500003V9",
+        "urlHost": "cc-fy79bg9uhgg5u.akamaized.net"
+      },
+      {
+        "id": "38f6fe9e-bb43-4f73-b4fa-5f38a00d4547",
+        "title": "투니버스 짱구는 못말려",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR10000017U",
+        "urlHost": "cc-v7nnv61o1taua.akamaized.net"
+      },
+      {
+        "id": "2cd4a96a-cdfe-40fb-a9c5-01b1f776c76c",
+        "title": "tvN STORY 이호선 상담소",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD3100002JL",
+        "urlHost": "dbsgrvxg3lb8l.cloudfront.net"
+      },
+      {
+        "id": "4090f754-210f-46e4-b925-0ff2c299f0ba",
+        "title": "베베핀",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3500020AF",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "327d5cb6-5a05-46ea-ac18-ee7793fc8394",
+        "title": "JTBC 뉴스",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC46000173Y",
+        "urlHost": "cc-k8vqdb7zen3j9.akamaized.net"
+      },
+      {
+        "id": "d4829a1b-71e5-40fb-b790-fb511d2afb9c",
+        "title": "Bloomberg TV+ UHD",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB500039Y5",
+        "urlHost": "cc-gws4pd7sbzkn2.akamaized.net"
+      },
+      {
+        "id": "727389da-566d-4805-a02d-d206a0e5f016",
+        "title": "tvN STORY",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200014XZ",
+        "urlHost": "d2zyqoz1zsj2mq.cloudfront.net"
+      },
+      {
+        "id": "4e367e4f-bb01-456b-802e-5b12d17260a5",
+        "title": "KBS 1박2일 시즌1",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4400003SD",
+        "urlHost": "cc-6t71prhkkcyow.akamaized.net"
+      },
+      {
+        "id": "78276f7b-b441-4eb9-aa71-0a1456a6bcca",
+        "title": "투니버스 명탐정 코난 (자막)",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC32000200B",
+        "urlHost": "cc-qy3bd3dkwwk4x.akamaized.net"
+      },
+      {
+        "id": "b05684ef-ef00-4341-b5a5-4c6f0aa4ca69",
+        "title": "Fireplace 4K",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD44000025L",
+        "urlHost": "cc-0eowrlibr9f50.akamaized.net"
+      },
+      {
+        "id": "f3f788a5-1cb1-407b-8978-980edebba438",
+        "title": "SAMSUNG UHD",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRAH2201403A",
+        "urlHost": "d2qi7qmhorbt6s.cloudfront.net"
+      },
+      {
+        "id": "2b698d89-9960-4932-9c40-c4cbbdb56488",
+        "title": "현대홈쇼핑+Shop",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRAH4602000A",
+        "urlHost": "dtvstreaming.hyundaihmall.com"
+      },
+      {
+        "id": "be028041-54d2-4fb1-8cf4-237028501852",
+        "title": "TV조선",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR3700002JT",
+        "urlHost": "cc-rcwls9v85g7qx.akamaized.net"
+      },
+      {
+        "id": "cadf0ec1-1288-4b90-acee-97b0597209ab",
+        "title": "MBC 전지적 참견 시점",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC20000418",
+        "urlHost": "cc-e3m9xxj7pti7t.akamaized.net"
+      },
+      {
+        "id": "efb3b4f0-75f9-47df-84d4-c253ed9e5df2",
+        "title": "JTBC 냉장고를 부탁해",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR400006MW",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "87ec9120-4b05-470d-9aec-91e9823402bc",
+        "title": "EBS 극한 직업",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC40000010R",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "15b8c32b-8d26-4b31-b727-1b1e27db8e19",
+        "title": "MBN 나는 자연인이다",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3500017PO",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "34046a7a-fbd8-4715-b32e-814d2b83cfbc",
+        "title": "채널A 나만 믿고 따라와 도시어부",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4100001LY",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "f92b57a8-fea0-4f9a-a910-23c1d7799f75",
+        "title": "JTBC 톡파원 25시",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC50000218R",
+        "urlHost": "cc-lzp3dz98hvxcn.akamaized.net"
+      },
+      {
+        "id": "0f78c51a-4ddd-4138-ae34-1d693869946d",
+        "title": "SBS 순풍산부인과",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200004RA",
+        "urlHost": "d2ji8bbykh38sd.cloudfront.net"
+      },
+      {
+        "id": "f2eaccac-0e97-4ba1-80ca-05e2c161676a",
+        "title": "MBC 심야괴담회",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB50000711L",
+        "urlHost": "cc-mg8ly2mtr3ge4.akamaized.net"
+      },
+      {
+        "id": "05ccf8c1-728f-4026-97c1-9754b27f6fa2",
+        "title": "MBC 거침없이 하이킥",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC2000010X",
+        "urlHost": "cc-30mj2jzmf5el6.akamaized.net"
+      },
+      {
+        "id": "c5fefa05-b325-48ea-803a-83eae5552ea4",
+        "title": "MBC 나혼자산다",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC200002I0",
+        "urlHost": "cc-km4e2p9rk7ro5.akamaized.net"
+      },
+      {
+        "id": "d44198d5-41de-43c4-b656-1ab6ced613af",
+        "title": "MBC 구해줘홈즈",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4800003H0",
+        "urlHost": "cc-ceds16cvcwd7y.akamaized.net"
+      },
+      {
+        "id": "e172acbf-3ac5-4630-9589-8c2aaf8b573b",
+        "title": "MBC HOT CLIP 예능",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4500002GS",
+        "urlHost": "cc-8opyre5bdh0rv.akamaized.net"
+      },
+      {
+        "id": "2a14c49a-6348-4863-a580-79cfaec108f3",
+        "title": "tvN 콩콩팥팥 & 콩콩밥밥",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC8000144F",
+        "urlHost": "cc-5oe9bl9b0lu1r.akamaized.net"
+      },
+      {
+        "id": "50b31d52-60de-4a69-b208-dbc162b5f55b",
+        "title": "tvN STORY 김창옥쇼 3-4 이어보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC320002200",
+        "urlHost": "cc-7fqc1lniljfqo.akamaized.net"
+      },
+      {
+        "id": "993f5ca7-85da-4ba3-ab81-98c6593dcb27",
+        "title": "KBS 뉴스24",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR5100001TH",
+        "urlHost": "cc-gkv83mrf5e6z1.akamaized.net"
+      },
+      {
+        "id": "bcb5ca3b-5d5d-460c-a1cb-9bf5b762d1c5",
+        "title": "SBS 런닝맨",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200002MM",
+        "urlHost": "d3ctbhz5tcf42v.cloudfront.net"
+      },
+      {
+        "id": "87998c19-3a86-424b-9ca9-e7e655ef0eaf",
+        "title": "지구마불 세계여행",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR400049VH",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "e61ba548-12fd-491a-8490-2a553f6a4bcc",
+        "title": "World Billiards TV",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200011N3",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "0da7a38b-a268-4907-8982-0289ed0107e9",
+        "title": "자취남",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR16000047N",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "457b1804-dce6-4bcd-8dc2-8bde56d48acc",
+        "title": "tvN 윤식당&윤스테이 몰아보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200028P2",
+        "urlHost": "cc-2uk2pfwo4wqaw.akamaized.net"
+      },
+      {
+        "id": "49640ee1-fbba-4539-bac9-7d52a6df0a0a",
+        "title": "tvN 언더커버셰프",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR700006WZ",
+        "urlHost": "cc-3zgpnedu45hw2.akamaized.net"
+      },
+      {
+        "id": "cacd5b44-64e3-423f-ba47-a1dc9b1ff37f",
+        "title": "Genie Movie",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR12000017G",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "4ba8583a-dc03-49c9-b1c4-ba890eaa4650",
+        "title": "YTN",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBD2400001XD",
+        "urlHost": "cc-yjex7rgns02ux.akamaized.net"
+      },
+      {
+        "id": "bef85b0a-be84-406d-85ae-96660a3e6d64",
+        "title": "KBS HOT CLIP 음악",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR45000052W",
+        "urlHost": "cc-ctp689jis2dnq.akamaized.net"
+      },
+      {
+        "id": "288722a1-c935-45b2-918f-9ef94a616d33",
+        "title": "고독한 미식가",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3500014ZH",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "8103f68f-b82c-4990-8b34-06ee7f19ad1d",
+        "title": "코난 오브라이언 쇼",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR3200003RR",
+        "urlHost": "cc-920m91ievvt11.akamaized.net"
+      },
+      {
+        "id": "0e9c6f95-5143-49cc-9d5f-49462c80870f",
+        "title": "SBS 그것이 알고싶다",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB4200017HA",
+        "urlHost": "dm72lx2w7znja.cloudfront.net"
+      },
+      {
+        "id": "1969df6d-dfcf-482d-9ebd-53d923794f8a",
+        "title": "MBN 뉴스",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC4000003J2",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "4ad1c6cf-4c4d-4012-804f-c9c7d71160cf",
+        "title": "FIFA+",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2900002NO",
+        "urlHost": "afa7d3ea.wurl.com"
+      },
+      {
+        "id": "53cb1d44-7bf1-475f-9dc7-d2a5c14bdf8e",
+        "title": "tvN 대탈출 전 시즌",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC800016YS",
+        "urlHost": "cc-dleuxxop58c3x.akamaized.net"
+      },
+      {
+        "id": "5b0d690c-7306-4f52-9461-ea1dfe2b2cd9",
+        "title": "JTBC 최강야구",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR400005KB",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "7841a409-4004-4392-a1d7-482eb1cdb45e",
+        "title": "MBC 오은영리포트 결혼지옥",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB50000721W",
+        "urlHost": "cc-7rumyuc8sak8p.akamaized.net"
+      },
+      {
+        "id": "86cf44b0-f553-40af-b830-a2a0e75b261d",
+        "title": "낮에 뜨는 달",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR2000009EC",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "9402b928-76aa-427d-a49a-45459b3900a0",
+        "title": "SBS 불타는 청춘",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB42000100V",
+        "urlHost": "d3ev7kkpknycu4.cloudfront.net"
+      },
+      {
+        "id": "bf315803-d5a4-4f94-bbed-cb832d9f4166",
+        "title": "PLAYGRAM MOVIES",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200004D1",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "e1193ba8-2cb0-4de5-9939-27cf26dc0a76",
+        "title": "MBC HOT CLIP 드라마",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KR4500001KZ",
+        "urlHost": "cc-5nc55lbz7umuf.akamaized.net"
+      },
+      {
+        "id": "ec50767f-79fc-4c44-9aa2-2b5217c22361",
+        "title": "MBC 놀면 뭐하니",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB5000073UD",
+        "urlHost": "cc-4r7kzqtzuagch.akamaized.net"
+      },
+      {
+        "id": "f1579b5c-4ae0-489a-98af-bda4e752cbc2",
+        "title": "MBC every1 어서와 한국은 처음이지?",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBB500034DY",
+        "urlHost": "ads.its-newid.net"
+      },
+      {
+        "id": "f8f14747-53dd-469f-b2a5-f5e8b5cb1c25",
+        "title": "tvN 서진이네 1~2 이어보기",
+        "currentRegion": "SO",
+        "signals": [
+          "korean_script",
+          "korean_service_id",
+          "korea_path_or_metadata",
+          "korean_broadcaster_or_distributor"
+        ],
+        "sourceType": "hls_stream",
+        "sourceId": "KRBC3200025QG",
+        "urlHost": "cc-a9lfiih8bvwb6.akamaized.net"
+      }
+    ]
+  },
+  "appliedWrites": 162,
+  "proposedWrites": [
+    {
+      "id": "1ddf88dc-d71b-4805-a121-3e4bdf7c93e3",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "edf9cbc5-7a7b-4dbf-a36b-f073110eae91",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "e94a2148-5035-45fc-a411-f9716141e075",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "1146401f-dccc-4855-95d8-33d07b615451",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "37b8118e-3a17-4dac-ab58-105af69779b5",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "e8ecbcd8-f79d-4aac-87f0-1ffef4c3377f",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "7121a94b-6140-4898-a15e-2eb041f76428",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "61f54bd9-0ddd-4bde-bddb-95ed1f792c34",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "2bc835e8-7407-4c08-a313-aeed383295f9",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "e35b1642-1f7d-4780-857e-ee007bec1cb3",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "af9c3b66-464a-42bc-8a09-c4b9ceab761d",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "ea6bb60b-d5ac-4fc6-80fb-3f4a09780e15",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "31803286-fd1e-467f-8730-12a05b20d693",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "1d63e0dc-9927-46bd-987c-e65ce98c9d48",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "1f819350-cfdf-422d-8a42-fa8ae1f7b134",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "9b0b91b7-f3c2-4570-8fa5-a6e98b3d8315",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "4789a7c4-fa0d-41d1-9e0e-58295b98c768",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "ce459d2f-9d3b-4be4-81ab-86db4332c250",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "b5f02579-5ad7-40be-8e65-9428cb7ea3e2",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "0088121d-ccac-400b-a25c-1a4b8016e951",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "cca134e7-d181-4d9d-9d2f-45b132df2b60",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "353bdf77-070c-49d3-9b8c-f20f4fadb6f8",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "d97e832d-0cde-4373-81f0-38762cdbf57b",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "b7d79a89-c757-47bf-8f89-0bfc799aa2d6",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "4a6714ca-7cfe-4d20-b66c-e75b697160cf",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "5b32b088-38c4-42da-ae5f-3f95c9a431c0",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "5fdf110a-a0aa-48f9-a3c6-c8b8332f3286",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "dab4d6c4-983a-4408-b245-34726863ba3a",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "eb81e3cd-2a32-4aba-8529-80a4a7b9afc4",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "ec431eb0-3c4c-40a4-826f-cfc3c8760433",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "900e9e3d-6e5e-4a03-bc9c-84185d14a1d2",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "0e9f5fa2-1c6a-4485-b48c-96af74d5b5be",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "2481f856-fa75-4762-860b-fe80abf13a4d",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "26912a07-7d6c-45ea-b866-6bd8069a0dc0",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "2f355369-e4a0-4f51-be0d-d9ad9d4aaa7b",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "3713c3fe-ccf7-40b4-bc0f-63ec29c459c0",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "5c151e1a-959d-4a87-a183-f28f97429e16",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "6d955690-1ea8-4550-abd8-93a5e6dddeca",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "73a59b71-af52-4537-8c33-e937de671791",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "76ef15f1-16db-4f07-890b-4d809727ada6",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "7868b8a0-fc30-4c18-a9fa-44b1dd37a0bb",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "7d4c5577-11f4-4a2c-9110-18206e7b5bd1",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "8509ad24-9968-444b-8c52-4ca3bc8f2516",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "8633d7c7-1509-4e75-bb48-d8a1915449df",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "89b932b1-918c-4643-90bf-9c2b7ed4c1ff",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "92ad8432-c912-4d0d-8f57-37e82278eb89",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "96736c24-93bd-4b97-bbc3-ddbf155f528d",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "a26022f2-baea-44df-ab81-9ca236633adb",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "a5c46a05-74a1-4f48-980a-6ed4af4318a5",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "a7e0316f-0034-491a-b0ba-4a2115f283f0",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "b07d3427-5bed-4efe-ba90-39baea4edfd2",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "b74d0470-1d45-4045-b98a-a574583b3530",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "c04a0964-1156-4ec4-baaf-968b9cbfd593",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "c64fc12a-a2dc-47a4-b4bf-160fc1216260",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "d49ca48e-1b1b-48be-872a-9ac509361a11",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "dfc5d412-0f42-414b-acad-5519dbbfc76f",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "e17e541f-5ebb-4266-97b5-0300ccd88c3e",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "f7f72420-f8e0-4b60-ac8d-6d590b4b0afa",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "066ddf0d-2b3a-448a-8606-41d02c3d8d4e",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "0899216c-eb4c-4ab4-b42e-8cb27326b481",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "0cf3c4ff-d78a-4793-930e-005986c522b3",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "12993e82-7758-44d2-b8c8-d23e2ef22ea1",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "5976028b-850b-4a29-b16d-7d1046721d03",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "33908558-8e9e-41f5-9c3a-9b99ed5e6d59",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "36298b3a-6479-4051-82a6-ca1b821560bf",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "394ccef1-141f-44e8-9014-f7236ed7358a",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "3d427992-9926-47f4-8082-cdd650fbabb0",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "3e485071-4055-4314-973b-ae6c782c735c",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "5899af0f-ae4a-448d-a689-ab0705ef17d9",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "5b7d8ce7-a77b-4f5b-8e70-3724ffe26299",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "03961bbc-8681-43fd-b2f4-dcdca40df997",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "69eeb974-0cf2-44a0-8ee1-86ad9d26ef70",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "6fdda998-b08d-442f-97c1-a6d9f30c2b00",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "720de4a9-58d9-4176-9edc-4ed91521d21f",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "9135a9c4-62c2-46d6-a31a-3cb3f596d70c",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "badd17f5-e703-4fc8-bd45-011aef2e3d67",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "d065be9c-57f8-40e7-a807-bd21e087cedd",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "db6ee3db-50d7-40ee-8ba0-dc708fe1368c",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "f17a21fc-ced1-4d8c-9ff3-7d077a2ec927",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "0769dbdd-25f8-419f-bb82-573dbc68ea66",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "0e44e87a-3c35-4338-8c11-f2d659734b35",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "104448b1-3a5c-4d1b-812d-535ce89524a3",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "1362a944-b800-467a-9348-8203add7f5d8",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "30e644ab-4361-4317-9e0c-76bd813e8f72",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "31acf10f-7b82-494d-adc2-99407b21a92b",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "20a13da2-d031-4d9f-893a-74f035723427",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "48faa8d2-91d0-4fa7-b5ba-bc0da14f0246",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "429982ce-fe95-41c1-9c2d-d8d4f66817a0",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "4c6cb0ea-c5cd-4d79-92f1-7ec1e8dadf27",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "5e91685f-21b4-4748-b3d4-0d6252e4ae9a",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "659c5a71-f50f-4869-bce6-d8df104081e7",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "6e12a184-0e9f-46b1-a5a4-21c6a913dd54",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "84c939c9-2c5d-4e69-9221-325408bb96da",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "a908d628-64c1-4f43-acfa-1acb5e233fec",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "bd3a8cb6-70b1-4e17-90bc-b4c442d30ee5",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "c3381f91-bd76-418a-8f06-8dbb5f7234e6",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "c89e20ad-e414-482f-8785-0b674d53121a",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "d0140cbd-a06d-4e1c-9daf-e532a4f7565b",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "07aa8812-c102-4806-9234-3f7be7aaba9b",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "9090dc8f-cb0b-45a9-9a7a-6d7f8339b855",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "a595b966-4c9a-48c2-a0cd-7785a3414c22",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "764ce6fe-cf92-4494-be90-aa8cd8ffb6de",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "a3cd6623-c65c-4740-b572-11f425f0bfd6",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "27b02ce7-4670-4574-91cf-ccacc77a6619",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "bc50c46a-4ff0-40ef-9603-207f2d61e37d",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "c6dea8a1-fc03-4dd7-8b97-14eb0cdbb857",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "9c3be963-4660-4209-967a-0fbe6327570b",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "ca872b11-4b97-4dc4-97c8-2a9ab4377da5",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "1e1b4d5a-f0ca-423b-ab62-bcd5005bf42d",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "291ead61-ef0c-4479-bafc-7f92ea194dd8",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "f2cb4730-f18b-4a18-b876-cf2667f94b17",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "38f6fe9e-bb43-4f73-b4fa-5f38a00d4547",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "2cd4a96a-cdfe-40fb-a9c5-01b1f776c76c",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "4090f754-210f-46e4-b925-0ff2c299f0ba",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "327d5cb6-5a05-46ea-ac18-ee7793fc8394",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "d4829a1b-71e5-40fb-b790-fb511d2afb9c",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "727389da-566d-4805-a02d-d206a0e5f016",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "4e367e4f-bb01-456b-802e-5b12d17260a5",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "78276f7b-b441-4eb9-aa71-0a1456a6bcca",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "b05684ef-ef00-4341-b5a5-4c6f0aa4ca69",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "f3f788a5-1cb1-407b-8978-980edebba438",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "2b698d89-9960-4932-9c40-c4cbbdb56488",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "be028041-54d2-4fb1-8cf4-237028501852",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "cadf0ec1-1288-4b90-acee-97b0597209ab",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "efb3b4f0-75f9-47df-84d4-c253ed9e5df2",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "87ec9120-4b05-470d-9aec-91e9823402bc",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "15b8c32b-8d26-4b31-b727-1b1e27db8e19",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "34046a7a-fbd8-4715-b32e-814d2b83cfbc",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "f92b57a8-fea0-4f9a-a910-23c1d7799f75",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "0f78c51a-4ddd-4138-ae34-1d693869946d",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "f2eaccac-0e97-4ba1-80ca-05e2c161676a",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "05ccf8c1-728f-4026-97c1-9754b27f6fa2",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "c5fefa05-b325-48ea-803a-83eae5552ea4",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "d44198d5-41de-43c4-b656-1ab6ced613af",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "e172acbf-3ac5-4630-9589-8c2aaf8b573b",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "2a14c49a-6348-4863-a580-79cfaec108f3",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "50b31d52-60de-4a69-b208-dbc162b5f55b",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "993f5ca7-85da-4ba3-ab81-98c6593dcb27",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "bcb5ca3b-5d5d-460c-a1cb-9bf5b762d1c5",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "87998c19-3a86-424b-9ca9-e7e655ef0eaf",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "e61ba548-12fd-491a-8490-2a553f6a4bcc",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "0da7a38b-a268-4907-8982-0289ed0107e9",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "457b1804-dce6-4bcd-8dc2-8bde56d48acc",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "49640ee1-fbba-4539-bac9-7d52a6df0a0a",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "cacd5b44-64e3-423f-ba47-a1dc9b1ff37f",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "4ba8583a-dc03-49c9-b1c4-ba890eaa4650",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korea_path_or_metadata"
+    },
+    {
+      "id": "bef85b0a-be84-406d-85ae-96660a3e6d64",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "288722a1-c935-45b2-918f-9ef94a616d33",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "8103f68f-b82c-4990-8b34-06ee7f19ad1d",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "0e9c6f95-5143-49cc-9d5f-49462c80870f",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "1969df6d-dfcf-482d-9ebd-53d923794f8a",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "4ad1c6cf-4c4d-4012-804f-c9c7d71160cf",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata"
+    },
+    {
+      "id": "53cb1d44-7bf1-475f-9dc7-d2a5c14bdf8e",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "5b0d690c-7306-4f52-9461-ea1dfe2b2cd9",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "7841a409-4004-4392-a1d7-482eb1cdb45e",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "86cf44b0-f553-40af-b830-a2a0e75b261d",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "9402b928-76aa-427d-a49a-45459b3900a0",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "bf315803-d5a4-4f94-bbed-cb832d9f4166",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "e1193ba8-2cb0-4de5-9939-27cf26dc0a76",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "ec50767f-79fc-4c44-9aa2-2b5217c22361",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "f1579b5c-4ae0-489a-98af-bda4e752cbc2",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    },
+    {
+      "id": "f8f14747-53dd-469f-b2a5-f5e8b5cb1c25",
+      "operation": "move_region",
+      "from": "SO",
+      "to": "KR",
+      "reason": "korean_script,korean_service_id,korea_path_or_metadata,korean_broadcaster_or_distributor"
+    }
+  ],
+  "note": "Dry-run only. Proposed SO→KR moves require review; no database rows were changed."
+}

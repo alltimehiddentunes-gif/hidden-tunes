@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T19:25:08.638Z",
+  "scope": "Batch 30 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Crunchyroll: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined.",
+    "Pluto TV Cocina: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined.",
+    "Pluto TV Historia: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined.",
+    "Pluto TV Paranormal: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined.",
+    "Pluto TV Cine Estelar: production playback resolver returned HTTP 500 before media validation; candidate remains quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 72,
+  "cumulativeTerminalAliases": 215,
+  "batch30Target": 25,
+  "batch30Researched": 20,
+  "batch30Remaining": 5,
+  "batch30Complete": false
+}

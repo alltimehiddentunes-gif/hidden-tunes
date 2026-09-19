@@ -1,0 +1,15 @@
+{
+  "candidateId": "8ad3f2ae-75e3-4d31-bb47-bbd492bda88c",
+  "streamHost": "amg00627-banijaygroup-surviour-uk-samsunguk-uyz22.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 164.975681,
+    "advancedSeconds": 122.95968100000002,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T03:58:07.127Z",
+  "scope": "Batch 24 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 3,
+  "productionWrites": 0,
+  "notes": [
+    "MythBusters passed 124.56 seconds of 1920x1080 existing-Desktop playback with one video owner from Rakuten UK-named Amagi delivery.",
+    "Sustained real MythBusters programming visibly included Adam Savage and Jamie Hyneman, supporting HIGH identity. Normal search and production resolver passed.",
+    "Rejected i.mjh.nz and jmp2.uk matches were not used; three quarantined aliases were terminally merged to the distinct Rakuten UK candidate without creating a duplicate.",
+    "Anthony Bourdain: Parts Unknown and Nick Jr. Pluto TV had no usable exact catalog candidate. FOX Sports alternatives did not establish the queued canonical identity. Anime x HIDIVE retained a rejected jmp2.uk source and a geo-blocked generic CloudFront alternative."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 61,
+  "cumulativeTerminalAliases": 197,
+  "batch24Target": 25,
+  "batch24Researched": 20,
+  "batch24Remaining": 5
+}

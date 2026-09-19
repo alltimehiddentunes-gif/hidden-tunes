@@ -1,0 +1,13 @@
+{
+  "testedAt": "2026-08-09T10:28:04.252Z",
+  "productionWrites": 0,
+  "name": "CBS News 24/7",
+  "family": "broadcaster_direct",
+  "targetSeconds": 3600,
+  "elapsedSeconds": 3585,
+  "exitCode": 0,
+  "warningLines": 1,
+  "audioFailure": false,
+  "rawPlaybackUrlsEmitted": 0,
+  "passed": true
+}

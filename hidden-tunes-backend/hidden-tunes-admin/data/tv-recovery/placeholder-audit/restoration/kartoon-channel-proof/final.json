@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T22:16:09.463Z",
+  "identity": "Kartoon Channel!",
+  "candidateRecordId": "f1c9b95c-ac1a-4a34-9cad-e14db87993ba",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.38,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

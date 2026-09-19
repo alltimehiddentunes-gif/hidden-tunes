@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T08:44:06.269Z",
+  "scope": "Batch 17 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 3,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Hardcore Pawn had a Rakuten UK Amagi candidate and official Rakuten evidence that the series airs within the Deal Masters FAST channel, but no authoritative evidence proved this candidate is a distinct exact Hardcore Pawn channel rather than Deal Masters; it remains identity-unresolved.",
+    "Matched Married Meet by Lifetime and The Lone Ranger used generic CloudFront candidates without complete authoritative linkage.",
+    "America’s Next Top Model used rejected i.mjh.nz and Nick en Español used rejected jmp2.uk.",
+    "No candidate was sent to expensive validation; all five remain quarantined. Previously exhausted Project Runway, FIFA+, Forensic Files, and Cheaters were skipped."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 47,
+  "cumulativeTerminalAliases": 172,
+  "batch17Target": 25,
+  "batch17Researched": 10,
+  "batch17Remaining": 15
+}

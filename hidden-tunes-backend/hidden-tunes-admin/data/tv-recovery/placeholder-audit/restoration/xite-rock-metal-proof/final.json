@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T17:50:01.710Z",
+  "identity": "XITE Rock x Metal",
+  "candidateRecordId": "8453ffb2-86f6-4b80-a464-b0292551db0e",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.04,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

@@ -1,0 +1,13 @@
+{
+  "testedAt": "2026-08-09T10:21:28.490Z",
+  "productionWrites": 0,
+  "name": "Estrella News (720p)",
+  "family": "legitimate_fast",
+  "targetSeconds": 3600,
+  "elapsedSeconds": 3595,
+  "exitCode": 0,
+  "warningLines": 0,
+  "audioFailure": false,
+  "rawPlaybackUrlsEmitted": 0,
+  "passed": true
+}

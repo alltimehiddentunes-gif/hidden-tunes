@@ -1,0 +1,19 @@
+{
+  "completedAt": "2026-08-14T08:43:35.726Z",
+  "batch": 7,
+  "identitiesResearched": 25,
+  "newVerifiedSearchableDesktopPlayableIdentities": 4,
+  "newTerminalAliases": 10,
+  "verifiedIdentities": [
+    "Baby Shark TV",
+    "FOX Weather",
+    "BUZZR",
+    "ABC News Live"
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 23,
+  "cumulativeTerminalAliases": 101,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "safetyRegressions": 0,
+  "nextBatch": 8
+}

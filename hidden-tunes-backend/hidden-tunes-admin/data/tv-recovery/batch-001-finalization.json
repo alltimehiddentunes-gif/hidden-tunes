@@ -1,0 +1,63 @@
+{
+  "createdAt": "2026-08-09T21:48:23.773Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "providerChannelIds": [
+        "660bfca524e1d000085b6007"
+      ],
+      "existingCatalogRecordId": "a5b004de-0b14-4b13-a76b-cfe6b9069eb5",
+      "sourceHost": "ba3e2e93.wurl.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "6792066f3de7c8cf941e7ce3",
+        "67a52cd4ec91870008a62164",
+        "679205a13de7c8cf941e7857",
+        "6792044b680721c77c5b9ba2",
+        "69a20556814d27f4ae630a92"
+      ],
+      "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "65c340983ba51e00083988e8"
+      ],
+      "existingCatalogRecordId": "3f30e76d-2e35-40c3-8975-3bef145fbf11",
+      "sourceHost": "4b9627c7.wurl.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "64805755536e0c0008a19fa1"
+      ],
+      "existingCatalogRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    }
+  ]
+}

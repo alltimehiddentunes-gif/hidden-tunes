@@ -1,0 +1,26 @@
+{
+  "completedAt": "2026-08-14T09:44:30.000Z",
+  "scope": "Batch 8 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 4,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "BabyFirst decoded real 1280x720 children's animation but stalled at 118.997 seconds with readyState 1; repeated evidence frames were identical. It failed the strict 120-second continuity gate and remains quarantined.",
+    "The Judge Judy Channel was rejected before media validation because its candidate uses jmp2.uk.",
+    "Noticias RCN, PokerGO, and Willow Sports retain plausible official Roku, Frequency, and Xumo-linked delivery candidates for later bounded proof; none were promoted or reclassified."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 24,
+  "cumulativeTerminalAliases": 103,
+  "batch8Target": 25,
+  "batch8Researched": 10,
+  "batch8Remaining": 15
+}

@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T01:47:19.083Z",
+  "scope": "Batch 14 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 6,
+  "productionWrites": 0,
+  "notes": [
+    "Duck Dynasty passed 124.95 seconds of 1920x1080 existing-Desktop playback with one video owner through its Rakuten UK Amagi feed.",
+    "Visual evidence included an explicit Best of Duck Dynasty title card and continuous programme content; normal Hidden Tunes search and resolver passed.",
+    "Nine quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED. No production write or duplicate was needed.",
+    "Pluto TV True Crime, Top Rank Classics, and Dog Whisperer used rejected jmp2.uk sources. Euronews Spanish was not repeated without materially new exact-identity evidence."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 40,
+  "cumulativeTerminalAliases": 145,
+  "batch14Target": 25,
+  "batch14Researched": 15,
+  "batch14Remaining": 10
+}

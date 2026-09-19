@@ -40,6 +40,20 @@ export const SPORTS_PLAYBACK_ALLOWLIST = {
     inAppPlaybackAllowed: true,
     contentClass: "unknown" as const,
   },
+  football_stream_api: {
+    hosts: [
+      "cds78y11d.org",
+      "flv.lauthaitv.cc",
+      "hls.lauthaitv.cc",
+      "hls.live123.fans",
+      "live2.jxa76.com",
+      "pull.niues.live",
+      "pull.niur.live",
+    ],
+    playbackKinds: ["hls"] as const,
+    inAppPlaybackAllowed: true,
+    contentClass: "live" as const,
+  },
 } as const satisfies Record<string, SportsProviderAllowlistEntry>;
 
 export type SportsAllowlistProviderId = keyof typeof SPORTS_PLAYBACK_ALLOWLIST;

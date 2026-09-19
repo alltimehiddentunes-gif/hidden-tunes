@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T10:15:45.000Z",
+  "scope": "Batch 8 provenance-first bounded retest investigation",
+  "identitiesResearched": 4,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 2,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "PokerGO's Frequency candidate failed immediately at the production playback resolver with HTTP 404 and remains quarantined.",
+    "50 Cent Action retained Xumo-linked provenance but failed to decode: after 200 seconds it remained readyState 0 at 0x0 and remains quarantined.",
+    "Merhaba Türkische Serien was rejected before media validation because it uses jmp2.uk.",
+    "Pluto TV Futbol resolves to an unrelated Tajik television host and was rejected as wrong/uncertain provenance. Weeds & Nurse Jackie retains a plausible FAST candidate but was not promoted or reclassified."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 24,
+  "cumulativeTerminalAliases": 103,
+  "batch8Target": 25,
+  "batch8Researched": 14,
+  "batch8Remaining": 11
+}

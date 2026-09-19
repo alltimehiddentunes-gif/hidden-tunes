@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-08-14T02:06:57.880Z",
+  "scope": "Batch 5 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Are We There Yet? candidate 86a19d86-83a3-4217-add8-155704248f32 uses an official Tubi FAST host and passed 124.36 seconds of 1920x1080 playback in the existing Desktop player with one video owner and no fatal HLS errors.",
+    "Sampled frames showed sustained family-sitcom content followed by a generic return slate, but no title card, stable channel bug, uniquely identifiable cast, or other exact/high identity marker. It remains quarantined.",
+    "Runtime, Pluto TV Paranormal, and Dallas Cowboys Cheer use jmp2.uk; Becker uses i.mjh.nz. They were rejected before media validation.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "batch5Target": 25,
+  "batch5Researched": 10,
+  "batch5Remaining": 15
+}

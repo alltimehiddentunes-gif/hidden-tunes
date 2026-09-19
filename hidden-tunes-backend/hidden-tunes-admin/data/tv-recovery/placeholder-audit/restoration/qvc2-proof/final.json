@@ -1,0 +1,12 @@
+{
+  "completedAt": "2026-08-14T04:12:00.691Z",
+  "identity": "QVC2",
+  "candidateRecordId": "3f7fce59-9b85-402e-934e-d4a3b4d72b77",
+  "aliasesTerminal": 2,
+  "terminalState": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "runtimeStorage": "D_DRIVE_ONLY",
+  "cumulativeVerifiedSearchableDesktopPlayable": 16,
+  "cumulativeTerminalAliases": 84
+}

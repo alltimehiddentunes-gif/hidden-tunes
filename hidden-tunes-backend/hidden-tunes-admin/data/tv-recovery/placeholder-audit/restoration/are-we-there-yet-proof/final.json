@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-15T18:53:33.136Z",
+  "identity": "Are We There Yet?",
+  "candidateRecordId": "86a19d86-83a3-4217-add8-155704248f32",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 122.08,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

@@ -1,0 +1,465 @@
+{
+  "batch": 39,
+  "lane": "PRIOR_RESEARCH_FINGERPRINT_TRIAGE",
+  "startedAt": "2026-08-12T08:39:37.132Z",
+  "completedAt": "2026-08-12T08:39:37.133Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 68,
+  "wrongSourceRejected": 0,
+  "identityUnresolved": 0,
+  "broadcasterResearchRequired": 50,
+  "remainingPending": 779,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "6245d4511358320007029cdf",
+      "canonicalName": "MacGyver – Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "690dd10a37b131228d76d5b1",
+      "canonicalName": "El Mueble",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "655208ff53fc9700084a834e",
+      "canonicalName": "VH1+ Girl Power! – Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6576c20fb3801200084786c9",
+      "canonicalName": "Curiosity Channel",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5e46e64dc73db400094b5f0b",
+      "canonicalName": "Pluto TV Minuto Para Ganar",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62e91af00c43540007f2bb43",
+      "canonicalName": "Classic TV: Families",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f15e3cccf49290007053c67",
+      "canonicalName": "Classic TV Drama",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64be745340962900080b55e7",
+      "canonicalName": "Melrose Place",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65787f2eb228b7000843fa5c",
+      "canonicalName": "Star Trek: Voyager",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f15e32b297f96000768f928",
+      "canonicalName": "Classic TV Comedy",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f8ed2d1c34c2300073bf02c",
+      "canonicalName": "Series by Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6109ab25b84d6a0007504886",
+      "canonicalName": "Pluto TV Mi Obsesion Favorita",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68f0f602a362b63a8df4efb4",
+      "canonicalName": "Medium",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64e87c6b28cec700088ceb55",
+      "canonicalName": "Dallas Cowboys Cheerleaders",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "617aad99b68ef100072608cd",
+      "canonicalName": "Pluto TV Mystery",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6911c92b4316999535eb1e08",
+      "canonicalName": "Pluto TV Notti di Sangue",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "63e3b2cba99571000887a6ce",
+      "canonicalName": "Sams Bar",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "604928d54a4f730007ff76bc",
+      "canonicalName": "CSI en espanol",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5dd85eac039bba0009e86d1d",
+      "canonicalName": "Pluto TV Naturaleza",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6380c428dd0f47000799907c",
+      "canonicalName": "Judge Judy",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6474a86917f5e100089a0c1c",
+      "canonicalName": "Pluto TV Novelas de Venezuela",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "646b1438e94c3800082a8cff",
+      "canonicalName": "South Park: Stan Collection",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6054a9f4bc8a5f000771504c",
+      "canonicalName": "Takeshi's Castle",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62619405c733e8000732d1fe",
+      "canonicalName": "Teenage Mutant Ninja Turtles – Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "646b14a0e94c3800082a8d3a",
+      "canonicalName": "South Park: Butters Collection",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f230e416b68ff00075b0139",
+      "canonicalName": "Pluto TV Misterios Medicos",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "67517fae5534bb0008187997",
+      "canonicalName": "Actualidad 360",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6874ad2f3484d60732267ba8",
+      "canonicalName": "Scare Tactics",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c09ac98a80a4000703f992",
+      "canonicalName": "SvampeBob Firkant",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "63dbe8a1c111bc0008dec8b8",
+      "canonicalName": "Numb3rs",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62bdb919d36cbd0007e6ab8a",
+      "canonicalName": "South Park En Francais",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "654a515f986ad20008a4593b",
+      "canonicalName": "JAG",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69776ce979545c21a1220bff",
+      "canonicalName": "Star Trek: The Next Generation",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5cf96cc422df39f1a338d165",
+      "canonicalName": "Telemundo Telenovelas Clasicas",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6996296087742204bff43147",
+      "canonicalName": "Ridiculousness",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "663115d923e24f000843b49c",
+      "canonicalName": "South Park: Welcome to Canada!",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65df4934f7f0af0008c32545",
+      "canonicalName": "South Park: Cartman Collection",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65d88004ec9fda0008a5b8b3",
+      "canonicalName": "South Park: Kyle Collection",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62b1e5e77d15410007f798c6",
+      "canonicalName": "Doc Martin",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65df48ba28730900089f8480",
+      "canonicalName": "South Park: Stan Collection",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65c69bbfd77d450008c7ffee",
+      "canonicalName": "Star Trek: Deep Space Nine",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "63c1384e829c850007922ca4",
+      "canonicalName": "5 Emergency Rescue",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "633354b63df9700007f6a1b7",
+      "canonicalName": "Sitcom Legends",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6391cef9edb23c0008598cee",
+      "canonicalName": "The Nanny",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "680291e38e1ff89c2427aefd",
+      "canonicalName": "Voyages & Saveurs",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "660bff5724e1d000085b7c07",
+      "canonicalName": "South Park Armageddon",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "646b14747cb4b1000875724d",
+      "canonicalName": "South Park: Cartman Collection",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64d1606b4c5ed80008e3b8b9",
+      "canonicalName": "Dynasty",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65b916ec3af63d00084c5841",
+      "canonicalName": "Pluto TV Bud & Terence",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69d7a0d0f57dc59a5f928fb2",
+      "canonicalName": "Best of Magnus Midtbø",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    }
+  ]
+}

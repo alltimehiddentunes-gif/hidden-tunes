@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { assertIngestionAllowed, assertValidTransition, createEvidenceSnapshot, createFeatureFlags, createProvenance, createSourceRegistry, evaluateRights, resolveStoragePolicy, sha256Hex, SOURCE_REGISTRY, transitionAsset, type ExternalCatalogSourceAdapter } from "../lib/externalCatalogAcquisition/index";
+
+const greenLayer = (layer: "recording" | "composition") => ({ layer, licenseName: "CC BY 4.0", licenseIdentifier: "CC-BY-4.0", evidencePresent: true, commercialUseAllowed: true, redistributionAllowed: true, jurisdiction: "worldwide", attributionRequired: true, attributionText: "Credit the creator" });
+assert.doesNotThrow(() => { assertValidTransition("DISCOVERED", "RIGHTS_PENDING"); assertValidTransition("READY_FOR_REVIEW", "APPROVED_FOR_INGESTION"); });
+assert.throws(() => assertValidTransition("DISCOVERED", "INGESTED"), /Invalid external acquisition transition/);
+assert.throws(() => assertValidTransition("RIGHTS_APPROVED", "AUDIO_VALIDATED"), /Invalid external acquisition transition/);
+const asset = { id: "asset-1", providerId: "dogmazic" as const, sourceItemId: "track-1", state: "DISCOVERED" as const, contentFamily: "MUSIC" as const, metadata: {}, stateChangedAt: "2026-09-10T00:00:00.000Z" };
+assert.equal(transitionAsset(asset, "RIGHTS_PENDING").state, "RIGHTS_PENDING");
+assert.equal(evaluateRights({ recording: greenLayer("recording"), composition: greenLayer("composition") }).nextState, "RIGHTS_APPROVED");
+assert.equal(evaluateRights({ recording: { ...greenLayer("recording"), licenseName: "CC BY-NC 4.0" }, composition: greenLayer("composition") }).nextState, "RIGHTS_BLOCKED");
+assert.equal(evaluateRights({ recording: { ...greenLayer("recording"), licenseName: "CC BY-SA 4.0" }, composition: greenLayer("composition") }).nextState, "RIGHTS_REVIEW");
+assert.equal(evaluateRights({ recording: { layer: "recording", evidencePresent: false }, composition: greenLayer("composition") }).nextState, "RIGHTS_BLOCKED");
+assert.equal(evaluateRights({ recording: greenLayer("recording"), composition: greenLayer("composition"), conflictingEvidence: true }).nextState, "RIGHTS_REVIEW");
+assert.equal(evaluateRights({ recording: greenLayer("recording"), composition: { ...greenLayer("composition"), licenseName: "Public Domain", jurisdiction: "US" } }).nextState, "RIGHTS_APPROVED");
+assert.equal(evaluateRights({ recording: greenLayer("recording"), composition: { ...greenLayer("composition"), licenseName: "Public Domain", jurisdiction: null } }).nextState, "RIGHTS_REVIEW");
+const evidence = createEvidenceSnapshot({ evidenceUrl: "https://example.test/license", content: "license evidence" });
+assert.equal(evidence.evidenceHash, sha256Hex("license evidence"));
+assert.equal(createProvenance({ source: { providerId: "dogmazic", sourceItemId: "1", sourceUrl: "https://example.test/1" }, evidence: [evidence] }).evidence.length, 1);
+assert.throws(() => createProvenance({ source: { providerId: "dogmazic", sourceItemId: "1", sourceUrl: "https://example.test/1" }, evidence: [] }), /evidence snapshot/);
+assert.equal(createSourceRegistry().get("dogmazic"), undefined);
+assert.throws(() => createSourceRegistry([{ providerId: "internet_archive" } as unknown as ExternalCatalogSourceAdapter]), /not eligible/);
+assert.equal(SOURCE_REGISTRY.find((source) => source.providerId === "internet_archive")?.ingestionStatus, "EXISTING");
+assert.equal(SOURCE_REGISTRY.find((source) => source.providerId === "internet_archive")?.reingestPolicy, "DO_NOT_REINGEST");
+const flags = createFeatureFlags({} as NodeJS.ProcessEnv);
+assert.equal(flags.externalAcquisition, false); assert.equal(flags.downloads, false); assert.equal(flags.ingestion, false); assert.equal(flags.publishing, false); assert.equal(flags.providers.dogmazic, false);
+const policy = resolveStoragePolicy({} as NodeJS.ProcessEnv); assert.match(policy.root, /^D:/i); assert.match(policy.validated, /validated$/);
+assert.throws(() => resolveStoragePolicy({ EXTERNAL_CATALOG_STORAGE_ROOT: "C:\\temp" } as NodeJS.ProcessEnv), /non-C:/);
+assert.throws(() => assertIngestionAllowed(asset, flags), /APPROVED_FOR_INGESTION/);
+const migration = fs.readFileSync(path.resolve("supabase/migrations/20260910150000_external_catalog_acquisition_phase1.sql"), "utf8");
+const rollback = fs.readFileSync(path.resolve("supabase/migrations/rollback/20260910150000_external_catalog_acquisition_phase1_rollback.sql"), "utf8");
+for (const table of ["external_catalog_sources", "external_catalog_assets", "external_catalog_rights", "external_catalog_evidence", "external_catalog_files", "external_catalog_batches", "external_catalog_jobs", "external_catalog_events", "external_catalog_duplicates", "external_catalog_taxonomy"]) { assert.match(migration, new RegExp(`create table if not exists public\\.${table}`)); assert.match(rollback, new RegExp(`drop table if exists public\\.${table}`)); }
+assert.doesNotMatch(migration, /alter table public\.(songs|artists|albums|rights_|music_taxonomy_)/);
+console.log("external-catalog-acquisition-phase1: PASS");

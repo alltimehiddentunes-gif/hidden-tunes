@@ -1,0 +1,15 @@
+{
+  "candidateId": "e99be7ba-59c0-4570-bed2-5b2575cb701b",
+  "streamHost": "vs-hls-push-ww-live.akamaized.net",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 960,
+    "height": 540,
+    "paused": false,
+    "currentTime": 7312.064897,
+    "advancedSeconds": 124.0436980000004,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

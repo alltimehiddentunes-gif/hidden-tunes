@@ -1,0 +1,15 @@
+{
+  "candidateId": "4950cbb2-813a-4271-a4f6-949a11c57651",
+  "streamHost": "mechtvltd-mechplus-1-gb.samsung.wurl.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 165.699253,
+    "advancedSeconds": 123.539253,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

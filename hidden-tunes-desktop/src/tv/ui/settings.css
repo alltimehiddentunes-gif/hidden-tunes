@@ -1,0 +1,71 @@
+/* Smart TV Settings fidelity layer; settings state and account truth remain shared. */
+html[data-tv-platform] .page-view[data-page='settings'] {
+  background: radial-gradient(circle at 82% 12%, rgb(91 54 255 / 16%), transparent 34rem), #06040a;
+}
+
+html[data-tv-platform] .settings-page-header h1,
+html[data-tv-platform] .settings-header h1 {
+  font-size: clamp(3rem, 4.2vw, 5.4rem);
+  line-height: .96;
+  letter-spacing: -.05em;
+}
+
+html[data-tv-platform] .settings-layout {
+  grid-template-columns: clamp(14rem, 17vw, 21rem) minmax(0, 1fr);
+  gap: clamp(1.3rem, 2vw, 2.5rem);
+  min-width: 0;
+}
+
+html[data-tv-platform] .settings-nav {
+  gap: .5rem;
+  padding: .75rem;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 1.2rem;
+  background: linear-gradient(160deg, rgb(25 14 35 / 95%), rgb(10 7 15 / 98%));
+}
+
+html[data-tv-platform] .settings-nav-item {
+  min-height: 3.2rem;
+  padding: .75rem 1rem;
+  border: 1px solid transparent;
+  border-radius: .75rem;
+  font-size: clamp(.95rem, 1vw, 1.2rem);
+}
+
+html[data-tv-platform] .settings-nav-item:is(.active,:focus-visible) {
+  border-color: #d85dff;
+  outline: 3px solid rgb(216 93 255 / 80%);
+  outline-offset: 2px;
+  background: linear-gradient(100deg, rgb(130 41 180 / 72%), rgb(55 25 91 / 78%));
+  box-shadow: 0 0 2rem rgb(190 61 255 / 20%);
+  color: #fff;
+}
+
+html[data-tv-platform] .settings-panels { min-width: 0; }
+
+html[data-tv-platform] .settings-panel {
+  min-height: clamp(24rem, 48vh, 38rem);
+  padding: clamp(1.5rem, 2.2vw, 2.8rem);
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 1.25rem;
+  background: linear-gradient(145deg, rgb(25 25 37 / 97%), rgb(12 9 18 / 98%));
+  box-shadow: inset 0 0 4rem rgb(111 40 169 / 8%);
+}
+
+html[data-tv-platform] .settings-panel h2 {
+  color: #fff;
+  font-size: clamp(1.7rem, 2vw, 2.5rem);
+}
+
+html[data-tv-platform] .settings-panel :is(button,input,select):focus-visible {
+  outline: 3px solid #5ce7ff;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 .4rem rgb(92 231 255 / 13%);
+}
+
+@media (max-width: 1366px) {
+  html[data-tv-platform] .settings-layout { grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem; }
+  html[data-tv-platform] .settings-nav { padding: .55rem; }
+  html[data-tv-platform] .settings-nav-item { min-height: 2.65rem; padding: .55rem .75rem; }
+  html[data-tv-platform] .settings-panel { min-height: 22rem; padding: 1.35rem; }
+}

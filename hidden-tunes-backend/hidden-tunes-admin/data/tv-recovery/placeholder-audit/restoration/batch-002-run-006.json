@@ -1,0 +1,23 @@
+{
+  "completedAt": "2026-08-13T16:38:00.000Z",
+  "scope": "provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "resolverRejected": 1,
+  "identityUnresolved": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "21 Jump Street has authoritative FAST distribution evidence from FilmRise/Shout, Tubi, Samsung, and Rakuten, and its candidate uses a Wurl host.",
+    "The existing production playback resolver returned HTTP 404 for the 21 Jump Street candidate, so it was not marked playable or merged.",
+    "Dinos 24/7 and Forensic Files alternatives resolve through jmp2.uk and were rejected before media validation.",
+    "KIRO Seattle uses CloudFront and Most Haunted uses an Amagi Rakuten UK playout host, but exact lawful source-to-canonical provenance remains to be established before full testing."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 12,
+  "cumulativeTerminalAliases": 79
+}

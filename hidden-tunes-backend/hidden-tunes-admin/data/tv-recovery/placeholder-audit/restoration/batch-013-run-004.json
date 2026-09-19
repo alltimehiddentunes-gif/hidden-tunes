@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-14T23:47:30.000Z",
+  "scope": "Batch 13 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 3,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "KIRO Seattle has an official broadcaster-owned public KIRO 24/7 service, but the candidate's generic CloudFront endpoint lacked complete direct ownership linkage in this run.",
+    "Beyblade used a Rakuten France Amagi endpoint and Rakuten is an official FAST platform, but no primary Rakuten listing tying this exact candidate to the Beyblade channel was found; it was not sent to expensive validation.",
+    "48 Hours and Dinos 24/7 used rejected jmp2.uk sources. Telemundo Noticias California lacked complete exact candidate provenance.",
+    "All five remain quarantined. No production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 39,
+  "cumulativeTerminalAliases": 136,
+  "batch13Target": 25,
+  "batch13Researched": 20,
+  "batch13Remaining": 5
+}

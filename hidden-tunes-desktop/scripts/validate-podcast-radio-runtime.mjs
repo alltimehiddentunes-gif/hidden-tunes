@@ -136,10 +136,19 @@ async function waitForSelector(win, selector, ms = 20000) {
 
 async function capture(win, name) {
   fs.mkdirSync(EVIDENCE_DIR, { recursive: true })
-  const image = await win.webContents.capturePage()
-  const file = `${name}.png`
-  fs.writeFileSync(path.join(EVIDENCE_DIR, file), image.toPNG())
-  out.screenshots.push(file)
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const image = await win.webContents.capturePage()
+      const file = `${name}.png`
+      fs.writeFileSync(path.join(EVIDENCE_DIR, file), image.toPNG())
+      out.screenshots.push(file)
+      return file
+    } catch (error) {
+      if (attempt === 2) console.warn(`Screenshot skipped (${name}): ${error?.message || error}`)
+      await sleep(400)
+    }
+  }
+  return null
 }
 
 async function main() {
@@ -175,6 +184,17 @@ async function main() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  })
+  const readWindowState = () => ({
+    isMaximized: win.isMaximized(),
+    isMinimized: win.isMinimized(),
+    isFullScreen: win.isFullScreen(),
+  })
+  ipcMain.handle('ht-window-get-state', () => readWindowState())
+  ipcMain.handle('ht-window-is-full-screen', () => win.isFullScreen())
+  ipcMain.handle('ht-window-set-full-screen', (_event, enabled) => {
+    win.setFullScreen(Boolean(enabled))
+    return { ok: true, isFullScreen: win.isFullScreen() }
   })
 
   await win.loadURL(RENDERER_URL)
@@ -260,12 +280,85 @@ async function main() {
       })`,
     )
     record('podcast-play-attempt', played, JSON.stringify(playing))
+
+    const podcastInitial = await evalPage(win, `() => ({
+      active: Boolean(document.querySelector('.player-bar[data-idle="false"]')),
+      paused: document.querySelector('audio')?.paused ?? null,
+      time: document.querySelector('audio')?.currentTime ?? null,
+      rate: document.querySelector('audio')?.playbackRate ?? null,
+      playerText: (document.querySelector('.player-bar[data-idle="false"]')?.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 180),
+    })`)
+    record('podcast-playing', podcastInitial.active && podcastInitial.paused === false, JSON.stringify(podcastInitial))
+
+    const podcastPaused = await evalPage(win, `() => {
+      const button = document.querySelector('.player-bar[data-idle="false"] .transport-controls button.play')
+      button?.click(); return Boolean(button)
+    }`)
+    await sleep(500)
+    const podcastPauseState = await evalPage(win, `() => document.querySelector('audio')?.paused ?? null`)
+    record('podcast-pause', podcastPaused && podcastPauseState === true, `paused=${podcastPauseState}`)
+
+    const podcastResumed = await evalPage(win, `() => {
+      const button = document.querySelector('.player-bar[data-idle="false"] .transport-controls button.play')
+      button?.click(); return Boolean(button)
+    }`)
+    await sleep(800)
+    const podcastResumeState = await evalPage(win, `() => document.querySelector('audio')?.paused ?? null`)
+    record('podcast-resume', podcastResumed && podcastResumeState === false, `paused=${podcastResumeState}`)
+
+    const podcastSeek = await evalPage(win, `() => {
+      const slider = document.querySelector('.player-bar [role="slider"][aria-label="Seek position"]')
+      if (!slider) return null
+      const r = slider.getBoundingClientRect()
+      slider.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + r.width * 0.2, clientY: r.top + r.height / 2 }))
+      return Number(slider.getAttribute('aria-valuemax') || 0)
+    }`)
+    await sleep(800)
+    const podcastSeekTime = await evalPage(win, `() => document.querySelector('audio')?.currentTime ?? null`)
+    record('podcast-seek', Number(podcastSeek) > 0 && Number(podcastSeekTime) > 1, `max=${podcastSeek} time=${podcastSeekTime}`)
+
+    const openedPodcastPlayer = await evalPage(win, `() => {
+      const button = document.querySelector('button[aria-label="Open full-screen player"]')
+      button?.click(); return Boolean(button)
+    }`)
+    await sleep(700)
+    const podcastFullPlayer = await evalPage(win, `() => Boolean(document.querySelector('[aria-label="Fullscreen player"]'))`)
+    record('podcast-full-player', openedPodcastPlayer && podcastFullPlayer)
+
+    const podcastRateChanged = await evalPage(win, `() => {
+      const select = document.querySelector('select[aria-label="Playback speed"]')
+      if (!select) return false
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set
+      setter?.call(select, '1.5')
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+      return true
+    }`)
+    await sleep(500)
+    const podcastRate = await evalPage(win, `() => document.querySelector('audio')?.playbackRate ?? null`)
+    record('podcast-speed', podcastRateChanged && Math.abs(Number(podcastRate) - 1.5) < 0.01, `rate=${podcastRate}`)
+
+    const podcastNext = await evalPage(win, `() => {
+      const button = document.querySelector('.psd-player-transport button[aria-label="Next track"]')
+      button?.click(); return Boolean(button)
+    }`)
+    await sleep(1800)
+    const podcastAfterNext = await evalPage(win, `() => (document.querySelector('.premium-shell-title')?.textContent || '').trim()`)
+    record('podcast-manual-next', podcastNext && Boolean(podcastAfterNext), podcastAfterNext)
+    const podcastPrevious = await evalPage(win, `() => {
+      const button = document.querySelector('.psd-player-transport button[aria-label="Previous track"]')
+      button?.click(); return Boolean(button)
+    }`)
+    await sleep(1500)
+    record('podcast-previous', podcastPrevious)
+
+    await evalPage(win, `() => document.querySelector('button[aria-label="Exit fullscreen player"]')?.click()`)
+    await sleep(500)
   } else {
     record('podcast-show-detail', false, 'no show card to open')
   }
 
   // Radio
-  record('nav-radio', await clickNav(win, 'Radio'))
+  record('nav-radio', await clickNav(win, 'Personal Radio'))
   const radioReady = await waitForSelector(win, '.radio-destination', 25000)
   await sleep(2000)
   const radio = await evalPage(
@@ -294,6 +387,33 @@ async function main() {
     })`,
   )
   record('radio-search-jazz', radioSearch.cards > 0, JSON.stringify(radioSearch))
+
+  const tunedAac = await evalPage(
+    win,
+    `() => {
+      const card = [...document.querySelectorAll('.radio-station-card-v2')]
+        .find((entry) => /fip jazz/i.test(entry.textContent || ''))
+      const hit = card?.querySelector('.radio-station-card-v2-hit')
+      hit?.click()
+      return Boolean(hit)
+    }`,
+  )
+  await sleep(4000)
+  const aacPlay = await evalPage(
+    win,
+    `() => ({
+      playerText: (document.querySelector('.player-bar[data-idle="false"]')?.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 240),
+      activePlayer: Boolean(document.querySelector('.player-bar[data-idle="false"]')),
+      playLabel: document.querySelector('.player-bar[data-idle="false"] .transport-controls button.play')?.getAttribute('aria-label') || null,
+      audioPlaying: [...document.querySelectorAll('audio')].some((a) => !a.paused),
+      err: (document.querySelector('.player-error, [class*="playback-error"]')?.textContent || '').trim(),
+    })`,
+  )
+  record(
+    'radio-aac-play-attempt',
+    tunedAac && !aacPlay.err && aacPlay.activePlayer && aacPlay.audioPlaying && aacPlay.playLabel === 'Pause',
+    JSON.stringify(aacPlay),
+  )
 
   await typeGlobalSearch(win, 'Sex Sound Radio')
   await sleep(2000)
@@ -324,18 +444,81 @@ async function main() {
   const radioPlay = await evalPage(
     win,
     `() => ({
-      title: (document.querySelector('.player-bar .track-title, .now-playing-title')?.textContent || '').trim(),
+      title: (document.querySelector('.player-bar .player-track-title, .player-bar .track-title, .now-playing-title')?.textContent || '').trim(),
+      playerText: (document.querySelector('.player-bar[data-idle="false"]')?.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 240),
+      activePlayer: Boolean(document.querySelector('.player-bar[data-idle="false"]')),
+      tunedHint: Boolean(document.querySelector('.radio-now-playing-hint')),
+      playLabel: document.querySelector('.player-bar[data-idle="false"] .transport-controls button.play')?.getAttribute('aria-label') || null,
       audioPlaying: [...document.querySelectorAll('audio')].some((a) => !a.paused),
       err: (document.querySelector('.player-error, [class*="playback-error"]')?.textContent || '').trim(),
     })`,
   )
-  record('radio-play-attempt', tuned && (Boolean(radioPlay.title) || radioPlay.audioPlaying), JSON.stringify(radioPlay))
+  record(
+    'radio-play-attempt',
+    tuned && !radioPlay.err && (radioPlay.activePlayer || radioPlay.tunedHint || Boolean(radioPlay.title) || radioPlay.audioPlaying),
+    JSON.stringify(radioPlay),
+  )
   await capture(win, 'radio-playing')
 
+  await typeGlobalSearch(win, '')
+  await sleep(600)
+  record('nav-audiobooks', await clickNav(win, 'Audiobooks'))
+  const audiobookReady = await waitForSelector(win, '.audiobook-book-card', 30000)
+  record('audiobook-catalog', audiobookReady)
+  const openedBook = await evalPage(win, `() => {
+    const hit = [...document.querySelectorAll('.audiobook-book-card-hit')]
+      .find((entry) => { const r = entry.getBoundingClientRect(); return r.width > 0 && r.height > 0 })
+    hit?.click()
+    return { clicked: Boolean(hit), label: (hit?.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 140) }
+  }`)
+  const chapterReady = await waitForSelector(win, '.audiobook-chapter-row-play', 60000)
+  const audiobookDetailState = await evalPage(win, `() => ({
+    page: Boolean(document.querySelector('.audiobook-book-page')),
+    chapters: document.querySelectorAll('.audiobook-chapter-row').length,
+    error: (document.querySelector('.audiobooks-status--error, [role="alert"]')?.textContent || '').trim(),
+  })`)
+  record('audiobook-details', openedBook.clicked && chapterReady, JSON.stringify({ openedBook, audiobookDetailState }))
+  const startedChapter = await evalPage(win, `() => { const button = document.querySelector('.audiobook-chapter-row-play'); button?.click(); return Boolean(button) }`)
+  await sleep(3500)
+  const chapterInitial = await evalPage(win, `() => ({ active: Boolean(document.querySelector('.player-bar[data-idle="false"]')), paused: document.querySelector('audio')?.paused ?? null, title: (document.querySelector('.player-bar[data-idle="false"]')?.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 180) })`)
+  record('audiobook-chapter-start', startedChapter && chapterInitial.active && chapterInitial.paused === false, JSON.stringify(chapterInitial))
+  const audiobookPause = await evalPage(win, `() => { const button = document.querySelector('.player-bar[data-idle="false"] .transport-controls button.play'); button?.click(); return Boolean(button) }`)
+  await sleep(400)
+  record('audiobook-pause', audiobookPause && await evalPage(win, `() => document.querySelector('audio')?.paused === true`))
+  const audiobookResume = await evalPage(win, `() => { const button = document.querySelector('.player-bar[data-idle="false"] .transport-controls button.play'); button?.click(); return Boolean(button) }`)
+  await sleep(700)
+  record('audiobook-resume', audiobookResume && await evalPage(win, `() => document.querySelector('audio')?.paused === false`))
+  const audiobookSeek = await evalPage(win, `() => { const slider = document.querySelector('.player-bar [role="slider"][aria-label="Seek position"]'); if (!slider) return false; const r = slider.getBoundingClientRect(); slider.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + r.width * 0.15, clientY: r.top + r.height / 2 })); return true }`)
+  await sleep(800)
+  const audiobookSeekTime = await evalPage(win, `() => document.querySelector('audio')?.currentTime ?? 0`)
+  record('audiobook-seek', audiobookSeek && audiobookSeekTime > 1, `time=${audiobookSeekTime}`)
+  const openedAudiobookPlayer = await evalPage(win, `() => { const button = document.querySelector('button[aria-label="Open full-screen player"]'); button?.click(); return Boolean(button) }`)
+  await sleep(600)
+  record('audiobook-full-player', openedAudiobookPlayer && await evalPage(win, `() => Boolean(document.querySelector('[aria-label="Fullscreen player"]'))`))
+  const audiobookSpeed = await evalPage(win, `() => { const select = document.querySelector('select[aria-label="Playback speed"]'); if (!select) return false; const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set; setter?.call(select, '1.25'); select.dispatchEvent(new Event('change', { bubbles: true })); return true }`)
+  await sleep(400)
+  const audiobookRate = await evalPage(win, `() => document.querySelector('audio')?.playbackRate ?? null`)
+  record('audiobook-speed', audiobookSpeed && Math.abs(Number(audiobookRate) - 1.25) < 0.01, `rate=${audiobookRate}`)
+  const audiobookNext = await evalPage(win, `() => { const button = document.querySelector('.psd-player-transport button[aria-label="Next track"]'); button?.click(); return Boolean(button) }`)
+  await sleep(1600)
+  record('audiobook-next-chapter', audiobookNext)
+  const audiobookPrevious = await evalPage(win, `() => { const button = document.querySelector('.psd-player-transport button[aria-label="Previous track"]'); button?.click(); return Boolean(button) }`)
+  await sleep(1600)
+  const audiobookResumeTime = await evalPage(win, `() => document.querySelector('audio')?.currentTime ?? 0`)
+  record('audiobook-previous-chapter', audiobookPrevious)
+  record('audiobook-progress-resume', audiobookResumeTime > 1, `time=${audiobookResumeTime}`)
+  const beforeAutoNext = await evalPage(win, `() => (document.querySelector('.premium-shell-title')?.textContent || '').trim()`)
+  await evalPage(win, `() => document.querySelector('audio')?.dispatchEvent(new Event('ended'))`)
+  await sleep(1800)
+  const afterAutoNext = await evalPage(win, `() => (document.querySelector('.premium-shell-title')?.textContent || '').trim()`)
+  record('audiobook-auto-next', Boolean(beforeAutoNext && afterAutoNext && beforeAutoNext !== afterAutoNext), `${beforeAutoNext} -> ${afterAutoNext}`)
+  await evalPage(win, `() => document.querySelector('button[aria-label="Exit fullscreen player"]')?.click()`)
+  await sleep(400)
+
   // Cross-family switch
-  record('nav-music', await clickNav(win, 'Music'))
+  record('nav-music', await clickNav(win, 'Explore'))
   await sleep(1000)
-  record('nav-back-radio', await clickNav(win, 'Radio'))
+  record('nav-back-radio', await clickNav(win, 'Personal Radio'))
   await waitForSelector(win, '.radio-destination', 15000)
   record('nav-podcasts-again', await clickNav(win, 'Podcasts'))
   await waitForSelector(win, '.podcast-featured-card, .podcast-destination', 15000)

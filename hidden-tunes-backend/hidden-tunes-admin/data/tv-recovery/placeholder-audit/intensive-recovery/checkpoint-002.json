@@ -1,0 +1,744 @@
+{
+  "batch": 2,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH",
+  "startedAt": "2026-08-10T22:10:59.054Z",
+  "completedAt": "2026-08-10T22:23:52.188Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 72,
+  "healthyCandidates": 27,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 27,
+  "stillUnresolved": 23,
+  "remainingQueue": 3180,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "5f1aca0b4e448e00075e7c5e",
+      "requestedTitles": [
+        "Bob Esponja"
+      ],
+      "normalizedIdentity": [
+        "bob esponja"
+      ],
+      "candidateRecordId": "206cb466-6ee2-4c6e-890f-49208692bbcf",
+      "candidateTitle": "Bob Esponja",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65a93be02fac9c00083cbac4",
+      "requestedTitles": [
+        "Car Chase (720p)",
+        "Car Chase"
+      ],
+      "normalizedIdentity": [
+        "car chase"
+      ],
+      "candidateRecordId": "6199c25f-bf6c-4a68-8ec0-b672d150f429",
+      "candidateTitle": "Car Chase",
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "667f2c7b22acab0008b7072b",
+      "requestedTitles": [
+        "FOX LOCAL Los Angeles"
+      ],
+      "normalizedIdentity": [
+        "fox local los angeles"
+      ],
+      "candidateRecordId": "47c51bbf-2e10-429e-a76f-f5b70c99724f",
+      "candidateTitle": "FOX LOCAL Los Angeles",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "69173ce8abd4703b27f71d44",
+      "requestedTitles": [
+        "Anthony Bourdain: Parts Unknown"
+      ],
+      "normalizedIdentity": [
+        "anthony bourdain parts unknown"
+      ],
+      "candidateRecordId": "44175685-7715-412f-81a2-455faa6820fe",
+      "candidateTitle": "Anthony Bourdain: Parts Unknown",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6464cdcaee6a2f000822a7a8",
+      "requestedTitles": [
+        "America's Next Top Model",
+        "America's Next Top Model"
+      ],
+      "normalizedIdentity": [
+        "america s next top model"
+      ],
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "candidateTitle": "America's Next Top Model",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5d40855b3fb0855028c99b6f",
+      "requestedTitles": [
+        "Dallas Cowboys Cheer",
+        "DCC: Making the Team"
+      ],
+      "normalizedIdentity": [
+        "dallas cowboys cheer",
+        "dcc making the team"
+      ],
+      "candidateRecordId": "c0170a56-fce7-4da2-8857-7c1a30e0b72b",
+      "candidateTitle": "Dallas Cowboys Cheer",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "660d66be7bcd8600087cfee5",
+      "requestedTitles": [
+        "Bondi Rescue"
+      ],
+      "normalizedIdentity": [
+        "bondi rescue"
+      ],
+      "candidateRecordId": "9d2a11e0-9dc6-41a6-97c7-6db7e58990fb",
+      "candidateTitle": "Bondi Rescue",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61c0afa0a09bbe00078f8378",
+      "requestedTitles": [
+        "Pluto TV Film",
+        "Pluto TV Film"
+      ],
+      "normalizedIdentity": [
+        "film"
+      ],
+      "candidateRecordId": "16a5b46c-751a-4a7c-9ea3-ec58fb2f32d4",
+      "candidateTitle": "Pluto TV Film",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "672e16f5daad7f0008929a0d",
+      "requestedTitles": [
+        "Becker",
+        "Becker"
+      ],
+      "normalizedIdentity": [
+        "becker"
+      ],
+      "candidateRecordId": "eff29fc4-1852-4c00-95eb-657d9d847654",
+      "candidateTitle": "Becker",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1b05ea168cc000767ba67",
+      "requestedTitles": [
+        "CBS News Philadelphia"
+      ],
+      "normalizedIdentity": [
+        "cbs news philadelphia"
+      ],
+      "candidateRecordId": "26a9fa3f-eec5-45e6-bd6b-88606fa714b4",
+      "candidateTitle": "CBS News Philadelphia",
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f1abce155a03d0007718834",
+      "requestedTitles": [
+        "Pluto TV Comedia made in Spain"
+      ],
+      "normalizedIdentity": [
+        "comedia made in spain"
+      ],
+      "candidateRecordId": "09d1de2d-1a4a-4290-b736-b407f7a917e3",
+      "candidateTitle": "Comedia Made in Spain",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "666021cccb3ea10008406866",
+      "requestedTitles": [
+        "Nash Bridges"
+      ],
+      "normalizedIdentity": [
+        "nash bridges"
+      ],
+      "candidateRecordId": "f782a563-2eb6-4192-83a3-cc629b2eb8c9",
+      "candidateTitle": "Nash Bridges",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "68e38aaf8082ad3760def7bc",
+      "requestedTitles": [
+        "Hercules: The Legendary Journeys"
+      ],
+      "normalizedIdentity": [
+        "hercules the legendary journeys"
+      ],
+      "candidateRecordId": "bb8d8d88-48e9-471f-b942-d7c2dfc8c42f",
+      "candidateTitle": "Hercules: The Legendary Journeys",
+      "sourceHost": "d39g1vxj2ef6in.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5fff49cfb5cd4f0007c2b0dc",
+      "requestedTitles": [
+        "News12 New York"
+      ],
+      "normalizedIdentity": [
+        "news12 new york"
+      ],
+      "candidateRecordId": "6aa96962-41b1-4320-9990-3d31db2c82fb",
+      "candidateTitle": "News12+ New York",
+      "sourceHost": "mdc.ott.alticeusa.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61c0b627e3ed94000793c18a",
+      "requestedTitles": [
+        "South Park",
+        "South Park"
+      ],
+      "normalizedIdentity": [
+        "south park"
+      ],
+      "candidateRecordId": "a0b911ac-6fc2-4032-9e22-e68a07dfb6de",
+      "candidateTitle": "South Park",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "67f3eb1c443f0671bc03ece8",
+      "requestedTitles": [
+        "Nick Jr. Club"
+      ],
+      "normalizedIdentity": [
+        "nick jr club"
+      ],
+      "candidateRecordId": "9eda5b09-7d8d-46a0-beb8-9266c4d2eaed",
+      "candidateTitle": "Nick Jr Club",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5e7b6c60fd20c50007910bf5",
+      "requestedTitles": [
+        "Pluto TV Crime"
+      ],
+      "normalizedIdentity": [
+        "crime"
+      ],
+      "candidateRecordId": "dcb6bfac-7729-4e4c-95a4-d33c38343773",
+      "candidateTitle": "Pluto TV Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5dc48170e280c80009a861ab",
+      "requestedTitles": [
+        "CBS News New York"
+      ],
+      "normalizedIdentity": [
+        "cbs news new york"
+      ],
+      "candidateRecordId": "e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+      "candidateTitle": "CBS News New York",
+      "sourceHost": "dai.google.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6793eaa4bc03978b9bc63db1",
+      "requestedTitles": [
+        "Anime x HIDIVE"
+      ],
+      "normalizedIdentity": [
+        "anime x hidive"
+      ],
+      "candidateRecordId": "8a026fb3-12e8-4846-937f-30b0122cf1cc",
+      "candidateTitle": "Anime X HiDive",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62bdb75c3afd1200079146a6",
+      "requestedTitles": [
+        "Nick Jr. Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "nick jr"
+      ],
+      "candidateRecordId": "fa2e29ce-54db-47eb-b51c-bdd8cad1208b",
+      "candidateTitle": "Nick Jr.",
+      "sourceHost": "stream8.cinerama.uz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6824ce95f09106f4b18f4114",
+      "requestedTitles": [
+        "Nick Jr. Club"
+      ],
+      "normalizedIdentity": [
+        "nick jr club"
+      ],
+      "candidateRecordId": "9eda5b09-7d8d-46a0-beb8-9266c4d2eaed",
+      "candidateTitle": "Nick Jr Club",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f9847fd513250000728a9a5",
+      "requestedTitles": [
+        "MTV Ridiculousness"
+      ],
+      "normalizedIdentity": [
+        "mtv ridiculousness"
+      ],
+      "candidateRecordId": "5fc2cdf3-756e-4987-95ca-1242d9449a5e",
+      "candidateTitle": "MTV Ridiculousness",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "68679fc6bb46d0bdd38ac9a4",
+      "requestedTitles": [
+        "America's Next Top Model"
+      ],
+      "normalizedIdentity": [
+        "america s next top model"
+      ],
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "candidateTitle": "America's Next Top Model",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "63da370e2e477400081cf8b6",
+      "requestedTitles": [
+        "The Weather Network"
+      ],
+      "normalizedIdentity": [
+        "the weather network"
+      ],
+      "candidateRecordId": "7cdd2b98-c8f0-425f-99a8-049dccff2a95",
+      "candidateTitle": "The Weather Network",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "666815f24b9fb400083f7e31",
+      "requestedTitles": [
+        "Best of Dr Phil"
+      ],
+      "normalizedIdentity": [
+        "best of dr phil"
+      ],
+      "candidateRecordId": "74832df2-16bc-4a51-9cf8-2b60ef5f5808",
+      "candidateTitle": "Best of Dr. Phil",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6464cc595a0cd500088c7749",
+      "requestedTitles": [
+        "America's Next Top Model"
+      ],
+      "normalizedIdentity": [
+        "america s next top model"
+      ],
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "candidateTitle": "America's Next Top Model",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "60e4519e6873180007d3cddb",
+      "requestedTitles": [
+        "BBC Travel"
+      ],
+      "normalizedIdentity": [
+        "bbc travel"
+      ],
+      "candidateRecordId": "40e3a88c-7079-4a94-a84f-c040b96a439f",
+      "candidateTitle": "BBC Travel",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6512ec9f3a0d700008db4f0c",
+      "requestedTitles": [
+        "The Twilight Zone"
+      ],
+      "normalizedIdentity": [
+        "the twilight zone"
+      ],
+      "candidateRecordId": "81c4968d-4945-42d4-b29e-7d9c17e2d2cd",
+      "candidateTitle": "The Twilight Zone",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "686cd84603ad75cfd132d672",
+      "requestedTitles": [
+        "America's Next Top Model"
+      ],
+      "normalizedIdentity": [
+        "america s next top model"
+      ],
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "candidateTitle": "America's Next Top Model",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61c09515fbb4b50007d221f5",
+      "requestedTitles": [
+        "Pluto TV Film"
+      ],
+      "normalizedIdentity": [
+        "film"
+      ],
+      "candidateRecordId": "16a5b46c-751a-4a7c-9ea3-ec58fb2f32d4",
+      "candidateTitle": "Pluto TV Film",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66e2a94d167a8b000813485d",
+      "requestedTitles": [
+        "The Conners"
+      ],
+      "normalizedIdentity": [
+        "the conners"
+      ],
+      "candidateRecordId": "9f1a138b-b79e-4c2f-bb0c-192ba206eb8d",
+      "candidateTitle": "The Conners",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6093f9281db477000759fce0",
+      "requestedTitles": [
+        "Super! SpongeBob",
+        "Super! Spongebob – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "super spongebob"
+      ],
+      "candidateRecordId": "231f5cfa-475f-406e-b35e-718cf4ea8c6c",
+      "candidateTitle": "Super! Spongebob",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5e84f54a82f05300080e6746",
+      "requestedTitles": [
+        "America's Test Kitchen"
+      ],
+      "normalizedIdentity": [
+        "america s test kitchen"
+      ],
+      "candidateRecordId": "7012bdc2-e860-4b07-8375-07dd849f5ce8",
+      "candidateTitle": "America's Test Kitchen",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "611f85396abc84000738417b",
+      "requestedTitles": [
+        "Beyond Belief: Fact or Fiction"
+      ],
+      "normalizedIdentity": [
+        "beyond belief fact or fiction"
+      ],
+      "candidateRecordId": "c3e74bb9-74db-4502-bc08-f2213270e8da",
+      "candidateTitle": "Beyond Belief: Fact or Fiction!",
+      "sourceHost": "d3f4oii5n0oeqi.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "68c014ee337652ee75dab43b",
+      "requestedTitles": [
+        "Highway to Heaven",
+        "Highway to Heaven",
+        "Highway to Heaven"
+      ],
+      "normalizedIdentity": [
+        "highway to heaven"
+      ],
+      "candidateRecordId": "dd216ddb-2a5a-4764-ac39-f97ee2382a2b",
+      "candidateTitle": "Highway To Heaven",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "619e286e093e7c0007489e6a",
+      "requestedTitles": [
+        "Homicide Hunter",
+        "Homicide Hunter",
+        "Homicide Hunter"
+      ],
+      "normalizedIdentity": [
+        "homicide hunter"
+      ],
+      "candidateRecordId": "914b4734-92fc-4a55-98e0-3898e7f07a6e",
+      "candidateTitle": "Homicide Hunter",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62cd9f1cda044a00077b8f41",
+      "requestedTitles": [
+        "On The Case",
+        "On the Case",
+        "On the Case"
+      ],
+      "normalizedIdentity": [
+        "on the case"
+      ],
+      "candidateRecordId": "4d583e2a-9b6a-4cf1-bfb1-69af22c350c6",
+      "candidateTitle": "On The Case",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6675c742ca74680008566b88",
+      "requestedTitles": [
+        "Nash Bridges (R0cHM6Ly)",
+        "Nash Bridges"
+      ],
+      "normalizedIdentity": [
+        "nash bridges r0chm6ly",
+        "nash bridges"
+      ],
+      "candidateRecordId": "f782a563-2eb6-4192-83a3-cc629b2eb8c9",
+      "candidateTitle": "Nash Bridges",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5eb1afb21486df0007abc57c",
+      "requestedTitles": [
+        "CBS News Bay Area (R0cHM6Ly)",
+        "CBS News Bay Area (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news bay area r0chm6ly",
+        "cbs news bay area"
+      ],
+      "candidateRecordId": "e783ff21-bfca-47b4-918b-9766d42baa16",
+      "candidateTitle": "CBS News Bay Area",
+      "sourceHost": "cbsn-sf.cbsnstream.cbsnews.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5dc9b8223687ff000936ed79",
+      "requestedTitles": [
+        "CBS News New York (R0cHM6Ly)",
+        "CBS News New York (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news new york r0chm6ly",
+        "cbs news new york"
+      ],
+      "candidateRecordId": "e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+      "candidateTitle": "CBS News New York",
+      "sourceHost": "dai.google.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5f7791b8372da90007fd45e6",
+      "requestedTitles": [
+        "The Price Is Right: The Barker Era",
+        "The Price Is Right: The Barker Era (720p)"
+      ],
+      "normalizedIdentity": [
+        "the price is right the barker era"
+      ],
+      "candidateRecordId": "6358bf3d-aadf-4c0f-8b6d-09f5e7f7e1ba",
+      "candidateTitle": "The Price Is Right: The Barker Era",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f4d882d5233170007ee880e",
+      "requestedTitles": [
+        "Misterios sin resolver",
+        "Misterios sin resolver"
+      ],
+      "normalizedIdentity": [
+        "misterios sin resolver"
+      ],
+      "candidateRecordId": "7078e2bd-8129-4641-af97-23ed0672426c",
+      "candidateTitle": "Misterios sin resolver",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66588931a3865300085ca800",
+      "requestedTitles": [
+        "Bob l'eponge"
+      ],
+      "normalizedIdentity": [
+        "bob l eponge"
+      ],
+      "candidateRecordId": "ab6c8b0c-956a-4480-b56c-2205c3037252",
+      "candidateTitle": "Bob l’éponge",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5dc9b875e280c80009a8a44a",
+      "requestedTitles": [
+        "CBS News Los Angeles (R0cHM6Ly)",
+        "CBS News Los Angeles (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news los angeles r0chm6ly",
+        "cbs news los angeles"
+      ],
+      "candidateRecordId": "8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+      "candidateTitle": "CBS News Los Angeles",
+      "sourceHost": "dai.google.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65b14aae0cb1a100087a216e",
+      "requestedTitles": [
+        "DAZN Ringside"
+      ],
+      "normalizedIdentity": [
+        "dazn ringside"
+      ],
+      "candidateRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+      "candidateTitle": "Dazn Ringside (1080p)",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66bb36e03a4ad200082bb8fe",
+      "requestedTitles": [
+        "Pixel.tv",
+        "Pixel.tv",
+        "Pixel.tv (720p)"
+      ],
+      "normalizedIdentity": [
+        "pixel tv"
+      ],
+      "candidateRecordId": "65bb4ced-4442-48e3-a724-542d12d61e65",
+      "candidateTitle": "Pixel TV",
+      "sourceHost": "cdn15.live-tv.cloud",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62cd971cec90c20007081050",
+      "requestedTitles": [
+        "On The Case"
+      ],
+      "normalizedIdentity": [
+        "on the case"
+      ],
+      "candidateRecordId": "4d583e2a-9b6a-4cf1-bfb1-69af22c350c6",
+      "candidateTitle": "On The Case",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "609401db8cf51c00084b592e",
+      "requestedTitles": [
+        "Super! iCarly",
+        "Super! Icarly – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "super icarly"
+      ],
+      "candidateRecordId": "01db66cc-c444-4a21-bf84-67635c0a920c",
+      "candidateTitle": "Super! iCarly",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5cb0cae7a461406ffe3f5213",
+      "requestedTitles": [
+        "Paramount Movie Channel"
+      ],
+      "normalizedIdentity": [
+        "paramount movie"
+      ],
+      "candidateRecordId": "a7e674ed-f90a-4463-9ffc-e9f045b0b61f",
+      "candidateTitle": "Paramount Movie Channel",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "671b4dc049c4060008f91d3a",
+      "requestedTitles": [
+        "Horse & Country"
+      ],
+      "normalizedIdentity": [
+        "horse and country"
+      ],
+      "candidateRecordId": "a60cdd21-b540-49c4-b55c-16cdf1025c4b",
+      "candidateTitle": "Horse and Country (720p)",
+      "sourceHost": "hncfree-samsung-uk.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    }
+  ]
+}

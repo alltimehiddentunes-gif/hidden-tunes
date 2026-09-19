@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T22:28:47.774Z",
+  "identity": "FailArmy",
+  "candidateRecordId": "5632ecc3-a277-423b-936d-59d0fee82133",
+  "aliasesTerminal": 13,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.9,
+  "resolution": "1280x720",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

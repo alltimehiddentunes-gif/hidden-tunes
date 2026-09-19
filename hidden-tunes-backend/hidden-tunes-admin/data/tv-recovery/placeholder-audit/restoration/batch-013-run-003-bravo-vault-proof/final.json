@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T23:16:33.877Z",
+  "identity": "Bravo Vault",
+  "candidateRecordId": "d55ecd03-8f48-4f30-a4da-f02518af9cdd",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.47,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

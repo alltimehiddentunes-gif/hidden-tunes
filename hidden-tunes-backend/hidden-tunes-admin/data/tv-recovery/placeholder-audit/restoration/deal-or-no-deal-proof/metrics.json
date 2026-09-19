@@ -1,0 +1,15 @@
+{
+  "candidateId": "f203b42f-8262-409e-aba9-50903e1d220f",
+  "streamHost": "amg00627-banijaygroup-dealornodeal-samsungau-si7xg.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 165.968126,
+    "advancedSeconds": 123.94680100000002,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

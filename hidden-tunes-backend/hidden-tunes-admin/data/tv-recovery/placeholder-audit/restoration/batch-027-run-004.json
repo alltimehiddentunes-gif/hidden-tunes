@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T11:26:15.069Z",
+  "scope": "Batch 27 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 5,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Robot Wars by MECH+ passed 123.54 seconds of 1280x720 existing-Desktop playback with one video owner from directly named MECH+/Samsung Wurl delivery.",
+    "Samsung officially lists the exact channel; sustained real Robot Wars arena combat and presenters support HIGH identity. Normal search and production resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was created.",
+    "Hallmark Movies & More retained direct Xumo delivery. Home.Made.Nation retained Wurl and Samsung alternatives. The Boat Show retained directly named Rakuten Italy delivery. People Are Awesome retained directly named Jukin/Samsung Wurl alternatives; none were full-tested after the stronger Robot Wars proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 70,
+  "cumulativeTerminalAliases": 213,
+  "batch27Target": 25,
+  "batch27Researched": 20,
+  "batch27Remaining": 5
+}

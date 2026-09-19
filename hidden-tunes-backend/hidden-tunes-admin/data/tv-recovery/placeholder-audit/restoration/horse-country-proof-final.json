@@ -1,0 +1,19 @@
+{
+  "completedAt": "2026-08-12T14:20:09.822Z",
+  "identity": "Horse & Country",
+  "aliasesTerminal": 6,
+  "terminalState": "VERIFIED_DUPLICATE_MERGED",
+  "candidateRecordId": "a60cdd21-b540-49c4-b55c-16cdf1025c4b",
+  "realContent": "PASS",
+  "identityConfidence": "HIGH",
+  "continuitySeconds": 120,
+  "desktopRuntime": "PASS",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "existingPublicSearchResults": 2,
+  "restoredCanonicalRecords": 0,
+  "duplicatesCreated": 0,
+  "productionWrites": 0,
+  "cumulativeVerifiedSearchableDesktopPlayable": 1,
+  "canBatch2Begin": true
+}

@@ -28,7 +28,7 @@ type AudiobooksPageProps = {
   ArtworkImage: ComponentType<ArtworkImageProps>
 }
 
-function BookCard({
+const BookCard = memo(function BookCard({
   book,
   onOpen,
   progressPercent,
@@ -63,6 +63,16 @@ function BookCard({
           <p>{formatAudiobookBookSubtitle(book)}</p>
         </div>
       </button>
+    </article>
+  )
+})
+
+function BookSkeleton() {
+  return (
+    <article className="skeleton-card" aria-hidden="true">
+      <div className="skeleton-card-art" />
+      <div className="skeleton-card-line skeleton-card-line--wide" />
+      <div className="skeleton-card-line" />
     </article>
   )
 }
@@ -153,6 +163,23 @@ export const AudiobooksPage = memo(function AudiobooksPage({
     [onPlayAudiobookChapter],
   )
 
+  const hasRenderableData =
+    visibleBooks.length > 0
+    || featuredBooks.length > 0
+    || newBooks.length > 0
+    || popularBooks.length > 0
+    || categories.length > 0
+    || continueListening.length > 0
+    || recentlyPlayed.length > 0
+  const showFatalError = Boolean(
+    error && !hasRenderableData && !loading && !contentLoading,
+  )
+  const showBrowseSkeleton =
+    visibleBooks.length === 0
+    && (loading || contentLoading)
+    && !showFatalError
+  const browseMessage = contentError ?? (hasRenderableData ? error : null)
+
   return (
     <div className="audiobooks-destination">
       <SectionHero
@@ -161,17 +188,13 @@ export const AudiobooksPage = memo(function AudiobooksPage({
         titleId="audiobooks-hero-title"
       />
 
-      {error ? (
+      {showFatalError ? (
         <section className="audiobooks-status audiobooks-status--error" role="alert">
           <p>{error}</p>
         </section>
-      ) : loading ? (
-        <section className="audiobooks-status" aria-busy="true">
-          <p>Loading audiobook catalog…</p>
-        </section>
       ) : null}
 
-      {!loading && !error ? (
+      {!showFatalError ? (
         <>
           {continueListening.length > 0 ? (
             <section className="audiobooks-section" aria-labelledby="audiobooks-continue-heading">
@@ -347,11 +370,17 @@ export const AudiobooksPage = memo(function AudiobooksPage({
               <h2 id="audiobooks-catalog-heading">
                 {filteredView ? 'Search Results' : 'Browse Audiobooks'}
               </h2>
-              {contentLoading ? <span>Updating…</span> : null}
+              {contentLoading || (loading && visibleBooks.length > 0) ? <span>Updating…</span> : null}
             </div>
-            {contentError && visibleBooks.length === 0 ? (
+            {showBrowseSkeleton ? (
+              <div className="audiobooks-book-grid" aria-busy="true" aria-label="Loading audiobooks">
+                {Array.from({ length: 6 }, (_, index) => (
+                  <BookSkeleton key={`audiobook-skeleton-${index}`} />
+                ))}
+              </div>
+            ) : browseMessage && visibleBooks.length === 0 ? (
               <div className="audiobooks-status audiobooks-status--error" role="alert">
-                <p>{contentError}</p>
+                <p>{browseMessage}</p>
               </div>
             ) : visibleBooks.length === 0 ? (
               <div className="audiobooks-status audiobooks-status--empty" role="status">
@@ -383,7 +412,7 @@ export const AudiobooksPage = memo(function AudiobooksPage({
                     <button
                       type="button"
                       className="btn-secondary btn-sm"
-                      disabled={loadingMore}
+                      disabled={loading || loadingMore}
                       onClick={() => loadMore()}
                     >
                       {loadingMore ? 'Loading…' : 'Load more'}

@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T16:15:00.650Z",
+  "identity": "Hell's Kitchen",
+  "candidateRecordId": "ad48d7cc-520f-4e3d-87ab-38eb2407ccf9",
+  "aliasesTerminal": 6,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 122.9,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

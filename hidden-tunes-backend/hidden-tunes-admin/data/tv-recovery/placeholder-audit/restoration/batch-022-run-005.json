@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-15T23:24:12.214Z",
+  "scope": "Batch 22 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Salem News Channel passed 124.28 seconds of 1920x1080 existing-Desktop playback with one video owner from its SalemMediaGroup/SNC-named Amagi endpoint.",
+    "Official Salem News Channel provenance and explicit Salem branding support EXACT identity. Search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "BBC Travel and Barney & Friends used rejected jmp2.uk. CBS Sports HQ used generic Google DAI without complete direct candidate linkage. That's 70s used Local Now CMS without complete exact candidate linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 55,
+  "cumulativeTerminalAliases": 188,
+  "batch22Target": 25,
+  "batch22Researched": 25,
+  "batch22Remaining": 0,
+  "batch22Complete": true
+}

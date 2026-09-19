@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-16T08:24:14.438Z",
+  "scope": "Batch 26 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "identityUnresolved": 1,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Euronews Portuguese used a broadcaster-owned Euronews Akamai candidate and technically passed 124.34 seconds at 1280x720 with one video owner.",
+    "Every evidence frame showed only unbranded marine-documentary footage, so exact Portuguese news-channel identity remained unresolved. It stays quarantined and must not be repeated without materially new identity evidence.",
+    "Newsmax2 used generic CloudFront without complete direct ownership linkage. Swerve Women’s Sports returned no exact catalog candidate. CBC News used rejected jmp2.uk for the queued generic identity; distinct CBC regional/network alternatives were not treated as equivalent. Euronews German retained a broadcaster-owned candidate but was not full-tested after the Portuguese identity failure.",
+    "No production writes or duplicates were created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 65,
+  "cumulativeTerminalAliases": 203,
+  "batch26Target": 25,
+  "batch26Researched": 15,
+  "batch26Remaining": 10
+}

@@ -72,6 +72,11 @@ async function waitReady(win) {
 }
 
 async function clickNav(win, label) {
+  const visibleLabel = label === 'Music'
+    ? 'Explore'
+    : label === 'Radio'
+      ? 'Personal Radio'
+      : label
   const clicked = await evalPage(win, `() => {
     const el = [...document.querySelectorAll('.sidebar .nav-item, .global-top-nav-link')]
       .find((n) => {
@@ -79,7 +84,7 @@ async function clickNav(win, label) {
           .replace(/\\s+/g, ' ')
           .trim()
           .toLowerCase()
-        return text === '${label}'.toLowerCase()
+        return text === '${visibleLabel}'.toLowerCase()
       })
     el?.click()
     return Boolean(el)
@@ -209,6 +214,30 @@ async function main() {
       sandbox: true,
       preload: path.join(ROOT, 'electron', 'preload.js'),
     },
+  })
+  const readWindowState = () => ({
+    isMaximized: win.isMaximized(),
+    isMinimized: win.isMinimized(),
+    isFullScreen: win.isFullScreen(),
+  })
+  ipcMain.handle('ht-window-get-state', () => readWindowState())
+  ipcMain.handle('ht-window-is-full-screen', () => win.isFullScreen())
+  ipcMain.handle('ht-window-set-full-screen', (_event, enabled) => {
+    win.setFullScreen(Boolean(enabled))
+    return { ok: true, isFullScreen: win.isFullScreen() }
+  })
+  ipcMain.handle('ht-window-minimize', () => {
+    win.minimize()
+    return { ok: true }
+  })
+  ipcMain.handle('ht-window-toggle-maximize', () => {
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
+    return { ok: true, isMaximized: win.isMaximized() }
+  })
+  ipcMain.handle('ht-window-close', () => {
+    win.close()
+    return { ok: true }
   })
   await win.loadURL(URL)
   await waitReady(win)
@@ -346,17 +375,17 @@ async function main() {
   }
 
   // Player visibility is a separate conditional-player assertion, not readiness.
-  await clickNav(win, 'Music')
+  await clickNav(win, 'Home')
   await sleep(600)
   await evalPage(win, `() => {
-    document.querySelector('.music-discover-featured-release-hit, .music-discover-release-hit, .music-discover-chart-hit, .music-home-song-card, .music-home-mix-hit')?.click()
+    document.querySelector('.music-home-release-card, .music-home-song-card, .music-home-all-songs-row')?.click()
     return true
   }`)
   await sleep(1800)
   const playing = await evalPage(win, `() => ({
     audio: document.querySelectorAll('audio').length,
     video: document.querySelectorAll('video').length,
-    player: Boolean(document.querySelector('[data-ht-persistent-player="true"]')),
+    player: Boolean(document.querySelector('.player-bar[data-idle="false"]')),
   })`)
   record('active-player-visible', playing.player)
   record('playback-single-audio', playing.audio <= 1, `audio=${playing.audio}`)
@@ -368,7 +397,7 @@ async function main() {
   await clickNav(win, 'Home')
   const narrow = await evalPage(win, `() => ({
     overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 2,
-    player: Boolean(document.querySelector('[data-ht-persistent-player="true"]')),
+    player: Boolean(document.querySelector('.player-bar[data-idle="false"]')),
   })`)
   record('1024-no-overflow', !narrow.overflow)
   record('1024-active-player-visible', narrow.player)

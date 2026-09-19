@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T01:03:55.122Z",
+  "scope": "Batch 23 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Criminal Confessions passed 124.31 seconds of 1920x1080 existing-Desktop playback with one video owner from its ITV/Rakuten UK-named Amagi endpoint.",
+    "ITV Studios/Rakuten provenance and matching interrogation, CCTV, and confession-focused programming support HIGH identity. Search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Hit Sitcoms used generic CloudFront without complete authoritative linkage. Mutant X and River Monsters used rejected jmp2.uk/i.mjh.nz. Vidas Extremas used Local Now CMS without complete exact candidate linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 57,
+  "cumulativeTerminalAliases": 190,
+  "batch23Target": 25,
+  "batch23Researched": 15,
+  "batch23Remaining": 10
+}

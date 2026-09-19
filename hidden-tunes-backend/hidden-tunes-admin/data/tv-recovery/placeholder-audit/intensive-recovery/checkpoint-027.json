@@ -1,0 +1,465 @@
+{
+  "batch": 27,
+  "lane": "PRIOR_RESEARCH_FINGERPRINT_TRIAGE",
+  "startedAt": "2026-08-11T21:48:40.115Z",
+  "completedAt": "2026-08-11T21:48:40.116Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 61,
+  "wrongSourceRejected": 0,
+  "identityUnresolved": 0,
+  "broadcasterResearchRequired": 50,
+  "remainingPending": 1532,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "61c1e060197fe600073c1ffb",
+      "canonicalName": "Luksusfellen",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6405d444d200410008009419",
+      "canonicalName": "BET25 LIVE",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f1aca8310a30e00074fab92",
+      "canonicalName": "Los Asesinatos de Midsomer",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69776f2b2c00406316a01945",
+      "canonicalName": "Call My Agent!",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "654a4e29ab05240008a18625",
+      "canonicalName": "Happy Days",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "660d667519ca71000849a1e1",
+      "canonicalName": "Koch'en pa toppen",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60218baa464ef900073168c1",
+      "canonicalName": "Empenos a lo bestia",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5e98b0447665f200078caded",
+      "canonicalName": "Pluto TV Peleas",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61099df8cee03b00074b2ecf",
+      "canonicalName": "O Encantador de Caes",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69162af591700f4c4c135c95",
+      "canonicalName": "Jornada nas Estrelas: Deep Space Nine",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62da73c4ec46c000070f4cb1",
+      "canonicalName": "Auction Hunters",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60549c238c3f21000753d3e0",
+      "canonicalName": "Le miracle de l'amour",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6400c095498393000878a634",
+      "canonicalName": "Frasier",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "63dd5d7a4e83e700088fbca8",
+      "canonicalName": "Las Tortugas Ninja",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6486e8984cfc2c0008b6844e",
+      "canonicalName": "Beavis and Butt-Head",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "63a0e33a45264d000850ed7e",
+      "canonicalName": "Golazo Network",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c0925c738ecd000882450a",
+      "canonicalName": "Awkward",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68d2759a59fd82da3226492d",
+      "canonicalName": "The L Word – Wenn Frauen lieben",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5e82bb378601b80007b4bd78",
+      "canonicalName": "The Walking Dead en Espanol",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "654a508d986ad20008a456a5",
+      "canonicalName": "Happy Days",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f171d3442a0500007362f22",
+      "canonicalName": "Filmes Suspense",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f1acbed25948a0007ffbe65",
+      "canonicalName": "Los archivos del FBI",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6790d6c7bc03978b9bfbfd44",
+      "canonicalName": "FBoy Island",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "678f88bb272ded16b1558c5e",
+      "canonicalName": "Man with a Plan",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69c290eeed1b1f1acb446dd8",
+      "canonicalName": "Gustav & Linse pa udebane",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f77977bd924d80007eee60c",
+      "canonicalName": "Mission Impossible",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5d14fd1a252d35decbc4080c",
+      "canonicalName": "MTV Biggest Pop (1080p)",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": true,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "686faf533ffa5e0c912688e7",
+      "canonicalName": "Pluto TV Handboll Live",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6320d2755e54db000783fd87",
+      "canonicalName": "Claro Sports",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5b4e94282d4ec87bdcbb87cd",
+      "canonicalName": "Pluto TV Westerns",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f31fd1b4c510e00071c3103",
+      "canonicalName": "Pluto TV Crime Drama",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f21ea08007a49000762d349",
+      "canonicalName": "Smithsonian Channel Selects",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5b4fc274694c027be6ed3eea",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 1,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61b793ccf571b80007b7a610",
+      "canonicalName": "Adrenalina Pura TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c095861782bd000780e0ba",
+      "canonicalName": "Pluto TV Action",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 1,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5ff3934600d4c7000733ff49",
+      "canonicalName": "Pluto TV E-Sports",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "664f132c8ea5560008ce4d86",
+      "canonicalName": "South Park Rockin' Out",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68f0fb155d6fb43948165d32",
+      "canonicalName": "Dynastin",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "66fd35e44ca31f0008060b77",
+      "canonicalName": "Pluto TV Snooker 900",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68ac5403de4a734954b5ab75",
+      "canonicalName": "FCK Lovinderne",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64dab1f835425100080e1e7b",
+      "canonicalName": "Acapulco Shore",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62b9b63d3bbe9000073c0a2d",
+      "canonicalName": "Wildfire",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "67f79fdb3481170e68c0bc38",
+      "canonicalName": "PodRadio pa Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65c69bf23ef47d0008583967",
+      "canonicalName": "Tough Jobs",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5dae084727c8af0009fe40a4",
+      "canonicalName": "Tosh.0",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "66bb3212fe11e5000883ea6b",
+      "canonicalName": "Married with Children",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5d48685da7e9f476aa8a1888",
+      "canonicalName": "The Challenge",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "634f3011f4fff20007431641",
+      "canonicalName": "I Love Lucy",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "654a3fe6986ad20008a42add",
+      "canonicalName": "Langt fra Bryggen",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6618f54baec96800081525ec",
+      "canonicalName": "Pluto TV Handbold Live",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    }
+  ]
+}

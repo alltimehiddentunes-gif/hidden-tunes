@@ -13,7 +13,7 @@
     {
       "check": "Global search groups mount",
       "ok": true,
-      "detail": "sections="
+      "detail": "sections=Radio,Podcasts,Audiobooks,TV,Sports,Motivationals,Library,Playlists"
     },
     {
       "check": "Empty query never blanked shell",
@@ -51,13 +51,13 @@
       "detail": ""
     },
     {
-      "check": "My Library still opens",
+      "check": "Library still opens",
       "ok": true,
       "detail": ""
     }
   ],
   "failures": [],
-  "finishedAt": "2026-07-22T22:29:16.997Z",
+  "finishedAt": "2026-08-07T11:10:08.481Z",
   "passed": 11,
   "failed": 0
 }

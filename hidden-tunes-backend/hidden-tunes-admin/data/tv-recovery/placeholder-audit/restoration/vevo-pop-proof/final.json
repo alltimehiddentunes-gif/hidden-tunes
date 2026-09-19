@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T05:24:20.766Z",
+  "identity": "Vevo Pop",
+  "candidateRecordId": "0d404114-554d-4f54-b5b8-c9adca1cd752",
+  "aliasesTerminal": 2,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.46,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

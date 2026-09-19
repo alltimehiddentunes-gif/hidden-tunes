@@ -1,0 +1,15 @@
+{
+  "candidateId": "1a7b0b03-dc75-46e7-b5aa-af7ec4d29313",
+  "streamHost": "rmtv.akamaized.net",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 725,
+    "height": 408,
+    "paused": false,
+    "currentTime": 166.974308,
+    "advancedSeconds": 124.23251900000001,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

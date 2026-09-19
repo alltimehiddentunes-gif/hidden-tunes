@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-14T15:14:30.000Z",
+  "scope": "Batch 10 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 0,
+  "identityUnresolved": 1,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Construcciones Asombrosas passed 123.66 seconds of 1920x1080 Desktop playback through official LocalNow delivery, but sampled content exposed no stable channel branding or exact canonical identity evidence. It remains quarantined.",
+    "La Fiebre del Jade was rejected before media validation because its candidate uses jmp2.uk.",
+    "Vidas Extremas and Crimen retain official LocalNow delivery but need exact identity evidence before validation. Unbeaten Sports retains Xumo-linked delivery without sufficiently direct rights-holder provenance.",
+    "Technical playback alone was not treated as recovery. No uncertain source was promoted or reclassified."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 28,
+  "cumulativeTerminalAliases": 108,
+  "batch10Target": 25,
+  "batch10Researched": 10,
+  "batch10Remaining": 15
+}

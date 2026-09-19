@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T14:15:23.701Z",
+  "identity": "World War TV",
+  "candidateRecordId": "03a25d60-6b93-4b04-a8fa-0e490e3ab545",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 122.94,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

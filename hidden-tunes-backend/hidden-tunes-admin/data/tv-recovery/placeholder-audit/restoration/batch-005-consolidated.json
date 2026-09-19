@@ -1,0 +1,11 @@
+{
+  "completedAt": "2026-08-14T03:37:28.911Z",
+  "batch": 5,
+  "checkpointedIdentitiesResearched": 25,
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "newCompleteProofs": [],
+  "status": "COMPLETE"
+}

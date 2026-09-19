@@ -12,9 +12,14 @@ import './ui/radio.css'
 import './ui/television.css'
 import './ui/worlds.css'
 import './ui/podcasts.css'
+import './ui/audiobooks.css'
+import './ui/motivationals.css'
+import './ui/lectures.css'
+import './ui/settings.css'
 import { installTvArtworkCompatibility } from './artwork'
 import { detectTvCapabilities } from './capabilities'
 import { installTvRemoteControls } from './remote'
+import { installPhysicalTvDiagnosticBridge } from './physicalDiagnostics'
 import { installTvSessionDiagnostics } from './session'
 import { tvPathForRoute, tvRouteFromPath } from './routes'
 
@@ -22,6 +27,8 @@ const capabilities = detectTvCapabilities()
 document.documentElement.dataset.lowMemory = String(capabilities.lowMemory)
 document.documentElement.dataset.tvPlatform = capabilities.platform
 const initialRoute = tvRouteFromPath(location.pathname)
+const tvRouteMarker = (route: typeof initialRoute) => route.kind === 'page' ? route.page : route.kind
+document.documentElement.dataset.tvRoute = tvRouteMarker(initialRoute)
 window.__HT_WEB_NAVIGATION_BOOTSTRAP__ = { enabled: true, initialRoute }
 
 if (location.pathname === '/activate') {
@@ -34,14 +41,16 @@ if (location.pathname === '/activate') {
 
 const uninstallSession = installTvSessionDiagnostics()
 const uninstallRemote = installTvRemoteControls()
+const uninstallPhysicalDiagnostics = installPhysicalTvDiagnosticBridge()
 const uninstallArtwork = installTvArtworkCompatibility()
-addEventListener('beforeunload', () => { uninstallSession(); uninstallRemote(); uninstallArtwork() }, { once: true })
+addEventListener('beforeunload', () => { uninstallSession(); uninstallRemote(); uninstallPhysicalDiagnostics(); uninstallArtwork() }, { once: true })
 
 const connectHistory = () => {
   const navigation = window.HiddenTunesNavigation
   if (!navigation) return false
   let initialPublication = true
   navigation.subscribe((route) => {
+    document.documentElement.dataset.tvRoute = tvRouteMarker(route)
     if (initialPublication) {
       initialPublication = false
       return

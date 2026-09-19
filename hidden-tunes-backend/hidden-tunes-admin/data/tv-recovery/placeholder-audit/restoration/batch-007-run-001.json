@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T06:39:01.859Z",
+  "scope": "Batch 7 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Baby Shark TV candidate c2620c09-5acc-4e4e-ae82-8669666ff37d uses an exact-name Rakuten MediaTailor service and passed 123.99 seconds of 1280x720 Desktop playback with one video owner and no fatal HLS errors.",
+    "Every sampled frame displayed the Pinkfong Baby Shark logo and matching animated programme content. Normal search and resolver passed.",
+    "The quarantined alias remains hidden and is terminal VERIFIED_DUPLICATE_MERGED locally. No production write or duplicate was needed.",
+    "Nosey uses jmp2.uk; Nash Bridges has official Xumo metadata but was not full-tested in this bounded run. Space Live and Vevo 80s lacked sufficient direct provenance in their current catalog records."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 20,
+  "cumulativeTerminalAliases": 95,
+  "batch7Target": 25,
+  "batch7Researched": 5,
+  "batch7Remaining": 20
+}

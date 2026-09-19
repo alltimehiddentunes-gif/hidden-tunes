@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-12T18:49:36.410Z",
+  "productionWrites": 0,
+  "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+  "eligibilityParityWithKnownGood": "PASS",
+  "searchQueries": [
+    { "query": "CBS News 24", "candidateReturned": true },
+    { "query": "CBS News", "candidateReturned": true },
+    { "query": "CBS News 24/7", "candidateReturned": false },
+    { "query": "CBS News 24 7", "candidateReturned": false }
+  ],
+  "diagnosis": "The candidate is in normal TV search, but slash/numeric token normalization prevents the exact display title query from matching.",
+  "remainingGate": "Capture unambiguous CBS News 24/7 branding before marking aliases terminal; search normalization repair is separate and no production mutation is authorized here."
+}

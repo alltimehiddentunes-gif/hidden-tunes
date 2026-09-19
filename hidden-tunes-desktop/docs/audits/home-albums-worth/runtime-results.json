@@ -42,13 +42,13 @@
     },
     {
       "check": "sidebar-populated",
-      "ok": false,
-      "detail": "Now PlayingHidden TunesNothing PlayingReady when you are — choose something from Home to start listening. Your Hidden Tunes player lives here.Browse HomeVolumePlayers"
+      "ok": true,
+      "detail": ""
     },
     {
       "check": "footer-sync",
       "ok": false,
-      "detail": "NPNothing playingSelect a song to begin0:00ÔÇöAutoData SaverStandardHigh Quality"
+      "detail": ""
     },
     {
       "check": "single-audio-after",
@@ -76,19 +76,15 @@
       "detail": ""
     },
     {
-      "check": "sidebar-populated",
-      "detail": "Now PlayingHidden TunesNothing PlayingReady when you are — choose something from Home to start listening. Your Hidden Tunes player lives here.Browse HomeVolumePlayers"
-    },
-    {
       "check": "footer-sync",
-      "detail": "NPNothing playingSelect a song to begin0:00ÔÇöAutoData SaverStandardHigh Quality"
+      "detail": ""
     }
   ],
   "shots": [
-    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\01-section-before-click.png",
-    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\02-click-loading-feedback.png",
-    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\03-home-while-playing.png",
-    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\04-sidebar-populated.png",
-    "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\05-after-next.png"
+    "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\01-section-before-click.png",
+    "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\02-click-loading-feedback.png",
+    "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\03-home-while-playing.png",
+    "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\04-sidebar-populated.png",
+    "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-desktop\\docs\\audits\\home-albums-worth\\05-after-next.png"
   ]
 }

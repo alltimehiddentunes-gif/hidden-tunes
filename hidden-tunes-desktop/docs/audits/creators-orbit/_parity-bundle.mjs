@@ -80,11 +80,10 @@ function formatSongCountLabel(count, options) {
 }
 
 // src/lib/config/desktopRuntimeConfig.ts
-var DEV_EXPRESS_DEFAULT = "https://hidden-tunes-api.onrender.com";
+var DEV_EXPRESS_DEFAULT = "https://api.hiddentunes.com";
 var DEV_ADMIN_DEFAULT = "https://admin.hiddentunes.com";
 var PRODUCTION_EXPRESS_ALLOWLIST = /* @__PURE__ */ new Set([
-  "api.hiddentunes.com",
-  "hidden-tunes-api.onrender.com"
+  "api.hiddentunes.com"
 ]);
 var PRODUCTION_ADMIN_ALLOWLIST = /* @__PURE__ */ new Set(["admin.hiddentunes.com"]);
 var LOCALHOST_RE = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/i;
@@ -174,15 +173,17 @@ function resolveDesktopRuntimeConfig(input = {}) {
   let expressCatalogBaseUrl = null;
   let adminCatalogBaseUrl = null;
   if (isPackaged) {
-    const expressParsed = parseHttpsUrl(expressRaw, { allowLocalhost: false });
+    const expressCandidate = expressRaw || DEV_EXPRESS_DEFAULT;
+    const expressParsed = parseHttpsUrl(expressCandidate, { allowLocalhost: false });
     if (!expressParsed.ok) {
-      errors.push(
-        expressParsed.reason === "missing" ? "Packaged build requires VITE_EXPRESS_CATALOG_API_URL." : `Express catalog URL invalid (${expressParsed.reason}).`
-      );
+      errors.push(`Express catalog URL invalid (${expressParsed.reason}).`);
     } else if (!PRODUCTION_EXPRESS_ALLOWLIST.has(expressParsed.hostname)) {
       errors.push(`Express catalog host is not allowlisted: ${expressParsed.hostname}`);
     } else {
       expressCatalogBaseUrl = expressParsed.url;
+      if (!expressRaw) {
+        warnings.push("Express catalog URL used the allowlisted production default.");
+      }
     }
     const adminCandidate = adminRaw || DEV_ADMIN_DEFAULT;
     const adminParsed = parseHttpsUrl(adminCandidate, { allowLocalhost: false });
@@ -204,7 +205,7 @@ function resolveDesktopRuntimeConfig(input = {}) {
     } else {
       expressCatalogBaseUrl = expressParsed.url;
       if (!expressRaw) {
-        warnings.push("Development Express catalog default in use (Render).");
+        warnings.push("Development Express catalog production default in use.");
       }
     }
     const adminCandidate = adminRaw || DEV_ADMIN_DEFAULT;
@@ -308,9 +309,34 @@ function logAlbumResolve(stats) {
   console.info(`${PREFIX} album resolve`, stats);
 }
 
+// src/lib/artistIdentity.ts
+function normalizeArtistIdentityName(value) {
+  return String(value ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(featuring|feat\.?|ft\.?)\b/g, ",").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+}
+function createCanonicalArtistIdentity(input) {
+  return {
+    id: input.id ? String(input.id) : null,
+    name: input.name.trim(),
+    normalizedName: normalizeArtistIdentityName(input.name),
+    aliases: input.aliases?.map(normalizeArtistIdentityName).filter(Boolean)
+  };
+}
+function artistCreditMembers(value) {
+  return String(value ?? "").replace(/\b(featuring|feat\.?|ft\.?)\b/gi, ",").split(/\s*(?:,|&|\+|\bx\b)\s*/i).map(normalizeArtistIdentityName).filter(Boolean);
+}
+function artistIdentityMatches(target, candidate) {
+  const candidateId = candidate.id ? String(candidate.id) : null;
+  if (target.id && candidateId && target.id === candidateId) return true;
+  const normalizedCandidate = normalizeArtistIdentityName(candidate.name);
+  if (!normalizedCandidate || !target.normalizedName) return false;
+  if (normalizedCandidate === target.normalizedName) return true;
+  if (target.aliases?.includes(normalizedCandidate)) return true;
+  return artistCreditMembers(candidate.name).includes(target.normalizedName);
+}
+
 // src/lib/catalogIndexes.ts
 function normalizeArtistKey(value) {
-  return value.trim().toLowerCase();
+  return normalizeArtistIdentityName(value);
 }
 function normalizeAlbumKey(value) {
   return value.trim().toLowerCase();
@@ -329,10 +355,10 @@ function dedupeSongsById(songs) {
   return result;
 }
 function songBelongsToArtist(song, artist) {
-  if (artist.id && song.artistId) {
-    return song.artistId === artist.id;
-  }
-  return normalizeArtistKey(song.artist) === normalizeArtistKey(artist.name);
+  return artistIdentityMatches(
+    createCanonicalArtistIdentity({ id: artist.id, name: artist.name }),
+    { id: song.artistId, name: song.artist }
+  );
 }
 function songBelongsToAlbum(song, album, artistNames) {
   if (album.id && song.albumId) {
@@ -817,7 +843,6 @@ function buildAlbumsWorthStayingWith(albums, indexes, artistNames, limit = HOME_
       songsByAlbumName: indexes.songsByAlbumName,
       artistNames: resolvedArtistNames
     });
-    if (playableTracks.length === 0) continue;
     const artistName = normalizeCatalogDisplayText(
       resolveAlbumDisplayArtist(album, playableTracks, resolvedArtistNames)
     ) ?? null;
@@ -844,7 +869,7 @@ function buildAlbumsWorthStayingWith(albums, indexes, artistNames, limit = HOME_
       sourceType: "album"
     });
   }
-  return cards.sort((a, b) => scoreAlbumWorthCard(b) - scoreAlbumWorthCard(a)).slice(0, limit);
+  return cards.filter((card) => card.playableTrackCount > 0).sort((a, b) => scoreAlbumWorthCard(b) - scoreAlbumWorthCard(a)).slice(0, limit);
 }
 function songsReadyLabel(count) {
   return `${count.toLocaleString()}+ songs ready`;

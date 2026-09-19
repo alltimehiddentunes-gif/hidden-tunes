@@ -26,6 +26,12 @@ export default function AdminUploadPage() {
           >
             Uploaders
           </button>
+          <button
+            onClick={() => router.push("/admin/music/taxonomy")}
+            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-black text-white/75 transition hover:border-white/25"
+          >
+            Music Taxonomy
+          </button>
         </div>
       }
     >

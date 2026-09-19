@@ -1,0 +1,465 @@
+{
+  "batch": 24,
+  "lane": "PRIOR_RESEARCH_FINGERPRINT_TRIAGE",
+  "startedAt": "2026-08-11T20:19:19.411Z",
+  "completedAt": "2026-08-11T20:19:19.420Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 70,
+  "wrongSourceRejected": 0,
+  "identityUnresolved": 0,
+  "broadcasterResearchRequired": 50,
+  "remainingPending": 1717,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "67882c1c7b11714b795c2008",
+      "canonicalName": "Sketchy AF",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "69b968ca1c36025fd0a3d92d",
+      "canonicalName": "Pluto TV Worst of Bundy",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "63a19bb5e6914b000721b5c0",
+      "canonicalName": "Pluto TV Romantikk",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61409f8d6feb30000766b675",
+      "canonicalName": "Pluto TV Space",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60f85644a9493e0007a1f035",
+      "canonicalName": "BET Classics Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61b3b8c645b45d0007a9bb8d",
+      "canonicalName": "Blue Bloods",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c0ba0816e2fd00086cb6b1",
+      "canonicalName": "SvampBob Fyrkant",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5ede45d077746000072be0fe",
+      "canonicalName": "Auction Hunters",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "604bdf4e6d0abc0007ba77ad",
+      "canonicalName": "Sin tetas no hay paraiso",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65c096d23ba51e0008305a75",
+      "canonicalName": "The Daily Show",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f7796e470510900070d4e3d",
+      "canonicalName": "Beverly Hillbillies",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c1921610d254000727eebd",
+      "canonicalName": "Svenska Hollywoodfruar",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65e97d760d456100082da660",
+      "canonicalName": "Best of Paradise Hotel: Pandoras Ask",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5de802659167b10009e7deba",
+      "canonicalName": "Pluto TV Series Retro",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61c18ec6ac860c0007684981",
+      "canonicalName": "Stugfixarna Norge",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68c32d88f56983aba40052bd",
+      "canonicalName": "BET Comedy Movies",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "65b1077e0d9ab40008245b20",
+      "canonicalName": "Best of Paradise Hotel: Kyssar & karlek",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61fb9907b1b78d000717ed9f",
+      "canonicalName": "Smithsonian Channel Selects",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "66f55a9a747bfa0008521859",
+      "canonicalName": "Blue Bloods",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5dd837642c6e9300098ad484",
+      "canonicalName": "Pluto TV Series Latinas",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62bdb0bcd707b9000739d2e5",
+      "canonicalName": "Pluto TV Drama Movies",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "655f2ee6c0fc88000877d26c",
+      "canonicalName": "Bar Rescue",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6661f11a41af6400080e90d8",
+      "canonicalName": "Big Brother",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "678029c654f43dad4b5c1ec0",
+      "canonicalName": "Bromas Gags - Just for Laughs",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62ea43aa0c43540007f2db96",
+      "canonicalName": "Mission Impossible",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62a0ae0e4e47a30007fe21bb",
+      "canonicalName": "Pluto TV Melrose Place",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "643814ef479f6400086ff043",
+      "canonicalName": "Mit plastikmareridt",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "666c9c60a7efd40008f552f0",
+      "canonicalName": "BM&C News",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "68dfa431cc3c6cd904053100",
+      "canonicalName": "Pluto TV Handbold Highlights",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64666345f3f5b1000882bfb4",
+      "canonicalName": "Captain Tsubasa",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "626baa721c279b00072cbedd",
+      "canonicalName": "#Riccanza – Pluto TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6525419dc52b3600083db9c3",
+      "canonicalName": "CSI",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5efbd29e4aa26700076c0d06",
+      "canonicalName": "CSI",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60fb01a24795a6000762fe83",
+      "canonicalName": "LEGO Kids TV",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "61814659533163000748aa04",
+      "canonicalName": "FBI Files",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "632b606e12a67b0007c9e371",
+      "canonicalName": "CSI: NY en espanol",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62e7ba25be69bc0007b77fdc",
+      "canonicalName": "Jakt är Jakt",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6254598f5083f800076d8563",
+      "canonicalName": "Bob Esponja Pantalones Cuadrados",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "64805922536e0c0008a1a1e6",
+      "canonicalName": "DAZN Combat",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "6964bb3640c8de392514a0c6",
+      "canonicalName": "Rawhide",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "699c1c633d27d6da460bbcae",
+      "canonicalName": "Farscape",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "696e647b07ea70192d49f6a5",
+      "canonicalName": "Bonanza",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5f8a02476b72230007e62b7d",
+      "canonicalName": "HSN (720p)",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 2,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "682b385876963fba9abf0f26",
+      "canonicalName": "Iron Chef",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "657c0954dfed030008d82ea1",
+      "canonicalName": "Kvart i Bold",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "5bdcdf1e851dd5632e2c11d1",
+      "canonicalName": "QVC",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 2,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "619e4726b9997a00072a4059",
+      "canonicalName": "Ghost Dimension",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "62a0b114a1c8650007e93688",
+      "canonicalName": "Walker Texas Ranger",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "60804d85858bd00007c5d591",
+      "canonicalName": "Paranormal State",
+      "priorStatus": "NO_PRIOR_REGISTRY_ENTRY",
+      "previouslyResearched": false,
+      "priorAttempts": 0,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    },
+    {
+      "providerChannelId": "66461f433d173b000805eeeb",
+      "canonicalName": "DFB Play TV",
+      "priorStatus": "RESEARCH_INCOMPLETE",
+      "previouslyResearched": false,
+      "priorAttempts": 1,
+      "exactCatalogCandidates": 0,
+      "classification": "BROADCASTER_RESEARCH_REQUIRED"
+    }
+  ]
+}

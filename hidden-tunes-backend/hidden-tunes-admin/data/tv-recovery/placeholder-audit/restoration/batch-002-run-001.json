@@ -1,0 +1,36 @@
+{
+  "completedAt": "2026-08-12T15:19:02.546Z",
+  "batch": 2,
+  "run": 1,
+  "batchTargetIdentities": 25,
+  "mode": "EVIDENCE_RESEARCH",
+  "productionWrites": 0,
+  "identitiesResearched": 1,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "searchVerified": 0,
+  "cumulativeVerifiedSearchableDesktopPlayable": 1,
+  "candidate": {
+    "identity": "HauntTV",
+    "candidateRecordId": "bf41d136-9cc8-419f-ac5b-87432369a603",
+    "provenanceConfidence": "HIGH",
+    "evidence": [
+      "Tubi's official live channel page lists HauntTV.",
+      "Tubi's official live-channel help catalog lists HauntTV.",
+      "Tubi corporate distribution material identifies HauntTV as a FAST channel.",
+      "The staged source uses Tubi's production-public live manifest infrastructure."
+    ],
+    "nextGate": "fresh multi-offset decode, HauntTV visual identity, placeholder scan, and 120-second continuity"
+  },
+  "batch2ProgressIdentities": 1,
+  "batch2RemainingIdentities": 24
+}

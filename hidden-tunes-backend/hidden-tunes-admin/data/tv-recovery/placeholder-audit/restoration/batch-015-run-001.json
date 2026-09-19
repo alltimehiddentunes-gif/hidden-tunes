@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T03:17:58.088Z",
+  "scope": "Batch 15 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Construcciones Asombrosas passed 122.54 seconds of 1920x1080 existing-Desktop playback with one video owner through Local Now.",
+    "Local Now officially launched the Warner Bros. Discovery channel, and continuous evidence showed real construction programming; normal Hidden Tunes search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED. No production write or duplicate was needed.",
+    "Pluto TV Science and Metal.Rocks used rejected jmp2.uk, Nick Jr. Club used rejected i.mjh.nz, and Vidas Extremas was not full-tested after the stronger exact Local Now candidate passed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 42,
+  "cumulativeTerminalAliases": 147,
+  "batch15Target": 25,
+  "batch15Researched": 5,
+  "batch15Remaining": 20
+}

@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-07-22T22:13:27.959Z",
+  "startedAt": "2026-08-07T12:31:59.704Z",
   "checks": [
     {
       "check": "UI ready",
@@ -24,7 +24,7 @@
     {
       "check": "No duplicate player bar",
       "ok": true,
-      "detail": "count=1"
+      "detail": "count=0"
     },
     {
       "check": "Create playlist",
@@ -92,13 +92,13 @@
       "detail": ""
     },
     {
-      "check": "My Library still opens",
+      "check": "Library still opens",
       "ok": true,
       "detail": ""
     }
   ],
   "failures": [],
-  "finishedAt": "2026-07-22T22:13:39.663Z",
+  "finishedAt": "2026-08-07T12:32:14.231Z",
   "passed": 19,
   "failed": 0
 }

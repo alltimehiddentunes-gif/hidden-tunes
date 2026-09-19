@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useDesktopPlayback } from '../../context/DesktopPlaybackProvider'
 import { dispatchSportsPlayback } from '../../lib/sports/dispatchSportsPlayback'
 import {
@@ -12,7 +12,7 @@ import { SportsFixtureDetails } from './SportsFixtureDetails'
 
 const FILTERS: { id: Exclude<SportsBrowseFilter, 'all'>; label: string }[] = [
   { id: 'today', label: 'Today' },
-  { id: 'live', label: 'Live' },
+  { id: 'live', label: 'Live Now' },
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'results', label: 'Results' },
 ]
@@ -20,10 +20,13 @@ const FILTERS: { id: Exclude<SportsBrowseFilter, 'all'>; label: string }[] = [
 export type DesktopSportsPageProps = {
   /** When false, live refresh pauses (route inactive). */
   pageActive?: boolean
+  /** Uses the existing Desktop navigation owner for the Sports TV fallback. */
+  onOpenSportsTv?: () => void
 }
 
 export const DesktopSportsPage = memo(function DesktopSportsPage({
   pageActive = true,
+  onOpenSportsTv,
 }: DesktopSportsPageProps) {
   const [filter, setFilter] = useState<Exclude<SportsBrowseFilter, 'all'>>('today')
   const [draftFilters, setDraftFilters] = useState<SportsCatalogFilters>({})
@@ -32,7 +35,7 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
   const [selectedSeed, setSelectedSeed] = useState<DesktopSportsFixture | null>(null)
   const [playingId, setPlayingId] = useState<string | null>(null)
   const [playError, setPlayError] = useState<string | null>(null)
-  const { playQueue } = useDesktopPlayback()
+  const { startMediaSession } = useDesktopPlayback()
 
   const {
     fixtures,
@@ -48,6 +51,26 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
   } = useDesktopSports({ filter, pageActive, catalogFilters })
 
   const streamsEnabled = areSportsStreamsEnabled()
+  const competitionGroups = useMemo(() => {
+    const groups = new Map<string, DesktopSportsFixture[]>()
+    for (const fixture of fixtures) {
+      const competition = fixture.league?.trim() || 'Other fixtures'
+      groups.set(competition, [...(groups.get(competition) || []), fixture])
+    }
+    return [...groups.entries()].sort(([left], [right]) => {
+      if (left === 'Other fixtures') return 1
+      if (right === 'Other fixtures') return -1
+      return left.localeCompare(right)
+    })
+  }, [fixtures])
+
+  const majorCompetitions = useMemo(
+    () => competitionGroups
+      .map(([competition]) => competition)
+      .filter((competition) => competition !== 'Other fixtures')
+      .slice(0, 10),
+    [competitionGroups],
+  )
 
   const handlePlay = useCallback(
     async (fixture: DesktopSportsFixture) => {
@@ -65,7 +88,9 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
       try {
         const result = await dispatchSportsPlayback({
           fixture,
-          playQueue,
+          playQueue: (queue, startIndex, context, queueTitle, seedMetadata) => {
+            startMediaSession({ queue, startIndex, context, queueTitle, seedMetadata })
+          },
           signal: controller.signal,
         })
         if (result.status === 'cancelled') return
@@ -76,7 +101,7 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
         setPlayingId(null)
       }
     },
-    [offline, playQueue],
+    [offline, startMediaSession],
   )
 
   const canOfferPlay = useCallback(
@@ -183,6 +208,44 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
         </button>
       </form>
 
+      {majorCompetitions.length > 0 ? (
+        <section className="sports-competition-section" aria-labelledby="sports-major-competitions">
+          <div className="sports-section-heading">
+            <div>
+              <p className="sports-section-eyebrow">Browse</p>
+              <h2 id="sports-major-competitions">Major competitions</h2>
+            </div>
+            {catalogFilters.competition ? (
+              <button
+                type="button"
+                className="sports-btn sports-btn--ghost"
+                onClick={() => {
+                  setDraftFilters((current) => ({ ...current, competition: null }))
+                  setCatalogFilters((current) => ({ ...current, competition: null }))
+                }}
+              >
+                Show all
+              </button>
+            ) : null}
+          </div>
+          <div className="sports-competition-chips">
+            {majorCompetitions.map((competition) => (
+              <button
+                key={competition}
+                type="button"
+                className={`sports-competition-chip${catalogFilters.competition === competition ? ' is-active' : ''}`}
+                onClick={() => {
+                  setDraftFilters((current) => ({ ...current, competition }))
+                  setCatalogFilters((current) => ({ ...current, competition }))
+                }}
+              >
+                {competition}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {error && fixtures.length > 0 ? (
         <div className="sports-banner sports-banner--offline" role="alert">
           Refresh failed. Showing the most recent fixtures. {error}
@@ -227,21 +290,29 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
         </div>
       ) : (
         <>
-          <div className="sports-fixture-list">
-            {fixtures.map((fixture) => (
-              <SportsFixtureCard
-                key={fixture.id}
-                fixture={fixture}
-                playing={playingId === fixture.id}
-                onViewDetails={() => {
-                  setSelectedId(fixture.id)
-                  setSelectedSeed(fixture)
-                  setPlayError(null)
-                }}
-                onPlay={
-                  canOfferPlay(fixture) ? () => void handlePlay(fixture) : undefined
-                }
-              />
+          <div className="sports-competition-groups">
+            {competitionGroups.map(([competition, competitionFixtures]) => (
+              <section key={competition} className="sports-competition-group">
+                <div className="sports-competition-group-heading">
+                  <h2>{competition}</h2>
+                  <span>{competitionFixtures.length} {competitionFixtures.length === 1 ? 'fixture' : 'fixtures'}</span>
+                </div>
+                <div className="sports-fixture-list">
+                  {competitionFixtures.map((fixture) => (
+                    <SportsFixtureCard
+                      key={fixture.id}
+                      fixture={fixture}
+                      playing={playingId === fixture.id}
+                      onViewDetails={() => {
+                        setSelectedId(fixture.id)
+                        setSelectedSeed(fixture)
+                        setPlayError(null)
+                      }}
+                      onPlay={canOfferPlay(fixture) ? () => void handlePlay(fixture) : undefined}
+                    />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
           {playError ? <p className="sports-play-error">{playError}</p> : null}
@@ -259,6 +330,19 @@ export const DesktopSportsPage = memo(function DesktopSportsPage({
           ) : null}
         </>
       )}
+
+      <section className="sports-tv-fallback" aria-labelledby="sports-tv-fallback-title">
+        <div>
+          <p className="sports-section-eyebrow">Fallback</p>
+          <h2 id="sports-tv-fallback-title">Live Sports TV</h2>
+          <p>Browse real sports channels in the existing Hidden Tunes TV catalog when a fixture-specific stream is unavailable.</p>
+        </div>
+        {onOpenSportsTv ? (
+          <button type="button" className="sports-btn sports-btn--primary" onClick={onOpenSportsTv}>
+            Browse Sports TV
+          </button>
+        ) : null}
+      </section>
     </div>
   )
 })

@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T13:14:17.390Z",
+  "scope": "Batch 9 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 4,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "That's 90s00s passed 121.88 seconds of 1920x1080 Desktop playback with one video owner and no fatal HLS errors.",
+    "The exact-name Amagi/Rakuten service showed continuous 1990s/2000s R&B and pop programming, supporting HIGH identity. Search and resolver passed.",
+    "One quarantined alias remains hidden and terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "MovieSphere was rejected for jmp2.uk. Motorvision.TV, Salem News Channel, and That's 70s retain plausible official delivery candidates but were not promoted without complete proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 27,
+  "cumulativeTerminalAliases": 107,
+  "batch9Target": 25,
+  "batch9Researched": 15,
+  "batch9Remaining": 10
+}

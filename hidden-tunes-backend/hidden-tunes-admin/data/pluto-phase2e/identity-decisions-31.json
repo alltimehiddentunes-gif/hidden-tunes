@@ -1,0 +1,1175 @@
+{
+  "reviewedAt": "2026-08-09T07:51:35.600Z",
+  "productionWrites": 0,
+  "ambiguousCandidatesReviewed": 31,
+  "counts": {
+    "VERIFIED_EXACT": 1,
+    "VERIFIED_HIGH": 24,
+    "WRONG_CHANNEL": 4,
+    "CONTENT_VALID_IDENTITY_UNKNOWN": 0,
+    "SOURCE_AMBIGUOUS": 1,
+    "REJECT": 1
+  },
+  "decisions": [
+    {
+      "reviewIndex": 1,
+      "providerChannelId": "65d92a8c8b24c80008e285c0",
+      "claimedCanonicalChannel": "BBC News",
+      "sourceProvider": "vs-hls-push-ww-live.akamaized.net",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "c6c6cf8386646363",
+          "endSlateDistance": 27
+        },
+        {
+          "hash": "79eb8a9fb9089d16",
+          "endSlateDistance": 30
+        },
+        {
+          "hash": "dccca4a2969ddc4c",
+          "endSlateDistance": 36
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Decoded Spanish-language FIFA event coverage",
+        "No BBC News logo or programme correspondence",
+        "Claimed identity conflicts with observed content"
+      ],
+      "decision": "REJECT",
+      "confidence": "LOW",
+      "language": "es",
+      "evidence": [
+        "Decoded Spanish-language FIFA event coverage",
+        "No BBC News logo or programme correspondence",
+        "Claimed identity conflicts with observed content"
+      ]
+    },
+    {
+      "reviewIndex": 2,
+      "providerChannelId": "61559552dd585f0007321eca",
+      "claimedCanonicalChannel": "Bloomberg TV+",
+      "sourceProvider": "86ebec83.wurl.com",
+      "sourceSessionFamily": "legitimate_fast",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "1f1f594ccdc5d797",
+          "endSlateDistance": 26
+        },
+        {
+          "hash": "373f395e56c5d793",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "373f395e56c5f793",
+          "endSlateDistance": 27
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ]
+    },
+    {
+      "reviewIndex": 3,
+      "providerChannelId": "61559552dd585f0007321eca",
+      "claimedCanonicalChannel": "Bloomberg TV+",
+      "sourceProvider": "bloomberg.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "1d1d1d1d0d1f2763",
+          "endSlateDistance": 21
+        },
+        {
+          "hash": "2f27373325252525",
+          "endSlateDistance": 25
+        },
+        {
+          "hash": "6327333333216121",
+          "endSlateDistance": 23
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ]
+    },
+    {
+      "reviewIndex": 4,
+      "providerChannelId": "61559552dd585f0007321eca",
+      "claimedCanonicalChannel": "Bloomberg TV+",
+      "sourceProvider": "bloomberg.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "1d1d1d1d0d1f2763",
+          "endSlateDistance": 21
+        },
+        {
+          "hash": "2f27373325252525",
+          "endSlateDistance": 25
+        },
+        {
+          "hash": "6327333333216121",
+          "endSlateDistance": 23
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ]
+    },
+    {
+      "reviewIndex": 5,
+      "providerChannelId": "54ff7ba69222cb1c2624c584",
+      "claimedCanonicalChannel": "Bloomberg TV+",
+      "sourceProvider": "86ebec83.wurl.com",
+      "sourceSessionFamily": "legitimate_fast",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "373f395e56c5d793",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "373f395e56c5d593",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "343f335d53a787b3",
+          "endSlateDistance": 25
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ]
+    },
+    {
+      "reviewIndex": 6,
+      "providerChannelId": "54ff7ba69222cb1c2624c584",
+      "claimedCanonicalChannel": "Bloomberg TV+",
+      "sourceProvider": "bloomberg.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "2f27333325252525",
+          "endSlateDistance": 24
+        },
+        {
+          "hash": "2327333333216123",
+          "endSlateDistance": 25
+        },
+        {
+          "hash": "0d0d0d0d1d0f2733",
+          "endSlateDistance": 23
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ]
+    },
+    {
+      "reviewIndex": 7,
+      "providerChannelId": "54ff7ba69222cb1c2624c584",
+      "claimedCanonicalChannel": "Bloomberg TV+",
+      "sourceProvider": "bloomberg.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "2f27333325252525",
+          "endSlateDistance": 24
+        },
+        {
+          "hash": "2327333333216123",
+          "endSlateDistance": 25
+        },
+        {
+          "hash": "0d0d0d0d1d0f2733",
+          "endSlateDistance": 23
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ]
+    },
+    {
+      "reviewIndex": 8,
+      "providerChannelId": "6231e909bc960f00075d8e7c",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "1c93428680855030",
+          "endSlateDistance": 23
+        },
+        {
+          "hash": "858d8f8e8d0c0b8b",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "85878f8f8f040b8b",
+          "endSlateDistance": 25
+        }
+      ],
+      "region": [
+        "US",
+        "NO_PLUTO",
+        "NO"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 9,
+      "providerChannelId": "6231e909bc960f00075d8e7c",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "85858f8f8f040b8b",
+          "endSlateDistance": 26
+        },
+        {
+          "hash": "3993c3b9111d0b13",
+          "endSlateDistance": 25
+        },
+        {
+          "hash": "09a98d8d9dbd8f06",
+          "endSlateDistance": 28
+        }
+      ],
+      "region": [
+        "US",
+        "NO_PLUTO",
+        "NO"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 10,
+      "providerChannelId": "6231ec93779a9d00079ba8e2",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "858d8f8e8f0c0b8b",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "efe7ef6d6fcf4372",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "09a98929293d9f86",
+          "endSlateDistance": 27
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 11,
+      "providerChannelId": "6231ec93779a9d00079ba8e2",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "3993c3b9911d0b12",
+          "endSlateDistance": 25
+        },
+        {
+          "hash": "ce9e9fbe9c9f1918",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "09898d8d8d9d8686",
+          "endSlateDistance": 27
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 12,
+      "providerChannelId": "62310d5a5dc9550007c6f580",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "3993c3b9111d0b1a",
+          "endSlateDistance": 25
+        },
+        {
+          "hash": "09a98d8db9b98f06",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "787d7f6c6e3a3038",
+          "endSlateDistance": 26
+        }
+      ],
+      "region": [
+        "MX"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 13,
+      "providerChannelId": "62310d5a5dc9550007c6f580",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "09898d8d9d9d8686",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "53130323130383c5",
+          "endSlateDistance": 27
+        },
+        {
+          "hash": "c4c6cecece0d8b8b",
+          "endSlateDistance": 29
+        }
+      ],
+      "region": [
+        "MX"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 14,
+      "providerChannelId": "6231eb3865be650007f59595",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "ce9e9cbc9d9d1818",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "09898d8d8d9d9686",
+          "endSlateDistance": 26
+        },
+        {
+          "hash": "3c2c2c0c2c6c5c48",
+          "endSlateDistance": 26
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 15,
+      "providerChannelId": "6231eb3865be650007f59595",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "09898d8d8d9d8686",
+          "endSlateDistance": 27
+        },
+        {
+          "hash": "c4c6cecece0c8b8b",
+          "endSlateDistance": 30
+        },
+        {
+          "hash": "c0cecece8e0ccb9b",
+          "endSlateDistance": 33
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 16,
+      "providerChannelId": "62310f66d5888f0007534342",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "c4c6cececf0c8b8b",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "c4c6cececf048f89",
+          "endSlateDistance": 26
+        },
+        {
+          "hash": "1f1f131134aa4ece",
+          "endSlateDistance": 24
+        }
+      ],
+      "region": [
+        "BR"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 17,
+      "providerChannelId": "62310f66d5888f0007534342",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "c4c6cecece0d8b8b",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "4959594756566626",
+          "endSlateDistance": 22
+        },
+        {
+          "hash": "9df97a7a598f369e",
+          "endSlateDistance": 28
+        }
+      ],
+      "region": [
+        "BR"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 18,
+      "providerChannelId": "61e82af27027f9000753c6e4",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "c4c6cececf0c8b8b",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "c4c6cececf048f89",
+          "endSlateDistance": 26
+        },
+        {
+          "hash": "1f1f131134aa4ece",
+          "endSlateDistance": 24
+        }
+      ],
+      "region": [
+        "DK_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 19,
+      "providerChannelId": "61e82af27027f9000753c6e4",
+      "claimedCanonicalChannel": "CBS News 24/7",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "9727ebe12969f175",
+          "endSlateDistance": 31
+        },
+        {
+          "hash": "1f597879c86cacaa",
+          "endSlateDistance": 25
+        },
+        {
+          "hash": "3210341549497f67",
+          "endSlateDistance": 27
+        }
+      ],
+      "region": [
+        "DK_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 20,
+      "providerChannelId": "6231e9b7f6deff00074674f4",
+      "claimedCanonicalChannel": "CBS News 24/7 (720p)",
+      "sourceProvider": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "a9a8181d161696e6",
+          "endSlateDistance": 26
+        },
+        {
+          "hash": "9d797a7a598f369e",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "51d89c54d458181a",
+          "endSlateDistance": 28
+        }
+      ],
+      "region": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 21,
+      "providerChannelId": "6231e9b7f6deff00074674f4",
+      "claimedCanonicalChannel": "CBS News 24/7 (720p)",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "9df97a7a599f369e",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "51589c54d45c181a",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "59592bb329b97971",
+          "endSlateDistance": 30
+        }
+      ],
+      "region": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 22,
+      "providerChannelId": "6231ec4b62cd1f0007093c7b",
+      "claimedCanonicalChannel": "CBS News 24/7 (720p)",
+      "sourceProvider": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "sourceSessionFamily": "broadcaster_direct",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "41d89c54d45c181a",
+          "endSlateDistance": 26
+        },
+        {
+          "hash": "a39bd2667a7b33b1",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "9f9195d4cc854584",
+          "endSlateDistance": 26
+        }
+      ],
+      "region": [
+        "IT_PLUTO",
+        "IT"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 23,
+      "providerChannelId": "6231ec4b62cd1f0007093c7b",
+      "claimedCanonicalChannel": "CBS News 24/7 (720p)",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "3210341549497f67",
+          "endSlateDistance": 27
+        },
+        {
+          "hash": "a125e4cad9393c24",
+          "endSlateDistance": 28
+        },
+        {
+          "hash": "4318145494989892",
+          "endSlateDistance": 29
+        }
+      ],
+      "region": [
+        "IT_PLUTO",
+        "IT"
+      ],
+      "brandingEvidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Official CBS broadcaster delivery",
+        "CBS watermark and consistent national programme across samples",
+        "Direct and public-session candidates show the same content"
+      ]
+    },
+    {
+      "reviewIndex": 24,
+      "providerChannelId": "60f75919718aed0007250d7a",
+      "claimedCanonicalChannel": "CBS News Baltimore (720p)",
+      "sourceProvider": "lineup.cbsivideo.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "3096696969549e1c",
+          "endSlateDistance": 23
+        },
+        {
+          "hash": "3096696969549e1c",
+          "endSlateDistance": 23
+        },
+        {
+          "hash": "8282c04000828282",
+          "endSlateDistance": 24
+        }
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Legitimate CBS News Local station slate",
+        "No Baltimore-specific live programme identity in the samples",
+        "Temporary slate cannot prove exact local channel"
+      ],
+      "decision": "SOURCE_AMBIGUOUS",
+      "confidence": "MEDIUM",
+      "language": "en",
+      "evidence": [
+        "Legitimate CBS News Local station slate",
+        "No Baltimore-specific live programme identity in the samples",
+        "Temporary slate cannot prove exact local channel"
+      ]
+    },
+    {
+      "reviewIndex": 25,
+      "providerChannelId": "5eb1afb21486df0007abc57c",
+      "claimedCanonicalChannel": "CBS News Bay Area (720p)",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "6ef3ebe9f9e9e92c",
+          "endSlateDistance": 31
+        },
+        {
+          "hash": "eae0624363e9e9c4",
+          "endSlateDistance": 32
+        },
+        {
+          "hash": "0d5d1f1a1b933321",
+          "endSlateDistance": 27
+        }
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Decoded content does not show claimed local station",
+        "Bay Area sample contains Paramount+ drama; Boston/Chicago samples repeat non-local national feature content",
+        "URL label rejected as identity proof"
+      ],
+      "decision": "WRONG_CHANNEL",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Decoded content does not show claimed local station",
+        "Bay Area sample contains Paramount+ drama; Boston/Chicago samples repeat non-local national feature content",
+        "URL label rejected as identity proof"
+      ]
+    },
+    {
+      "reviewIndex": 26,
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "claimedCanonicalChannel": "CBS News Boston (720p)",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [],
+      "region": [
+        "US_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Decoded content does not show claimed local station",
+        "Bay Area sample contains Paramount+ drama; Boston/Chicago samples repeat non-local national feature content",
+        "URL label rejected as identity proof"
+      ],
+      "decision": "WRONG_CHANNEL",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Decoded content does not show claimed local station",
+        "Bay Area sample contains Paramount+ drama; Boston/Chicago samples repeat non-local national feature content",
+        "URL label rejected as identity proof"
+      ]
+    },
+    {
+      "reviewIndex": 27,
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "claimedCanonicalChannel": "CBS News Boston (720p)",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [],
+      "region": [
+        "US_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Decoded content does not show claimed local station",
+        "Bay Area sample contains Paramount+ drama; Boston/Chicago samples repeat non-local national feature content",
+        "URL label rejected as identity proof"
+      ],
+      "decision": "WRONG_CHANNEL",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Decoded content does not show claimed local station",
+        "Bay Area sample contains Paramount+ drama; Boston/Chicago samples repeat non-local national feature content",
+        "URL label rejected as identity proof"
+      ]
+    },
+    {
+      "reviewIndex": 28,
+      "providerChannelId": "5eb1aeb2fd4b8a00076c2047",
+      "claimedCanonicalChannel": "CBS News Chicago (720p)",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "c4c6cececf0c8b8b",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "c4e6cec7cf048f89",
+          "endSlateDistance": 27
+        },
+        {
+          "hash": "1f1f139130884e4e",
+          "endSlateDistance": 27
+        }
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Decoded content does not show claimed local station",
+        "Bay Area sample contains Paramount+ drama; Boston/Chicago samples repeat non-local national feature content",
+        "URL label rejected as identity proof"
+      ],
+      "decision": "WRONG_CHANNEL",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Decoded content does not show claimed local station",
+        "Bay Area sample contains Paramount+ drama; Boston/Chicago samples repeat non-local national feature content",
+        "URL label rejected as identity proof"
+      ]
+    },
+    {
+      "reviewIndex": 29,
+      "providerChannelId": "5dc9b8223687ff000936ed79",
+      "claimedCanonicalChannel": "CBS News New York (720p)",
+      "sourceProvider": "dai.google.com",
+      "sourceSessionFamily": "public_session",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "9e9e969796961311",
+          "endSlateDistance": 27
+        },
+        {
+          "hash": "9c3e36adad9d3c6c",
+          "endSlateDistance": 23
+        },
+        {
+          "hash": "11018ced6f56d575",
+          "endSlateDistance": 28
+        }
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Visible CBS News New York lower-third",
+        "Official CBS DAI delivery",
+        "Local New York report branding"
+      ],
+      "decision": "VERIFIED_EXACT",
+      "confidence": "EXACT",
+      "language": "en",
+      "evidence": [
+        "Visible CBS News New York lower-third",
+        "Official CBS DAI delivery",
+        "Local New York report branding"
+      ]
+    },
+    {
+      "reviewIndex": 30,
+      "providerChannelId": "62b976b93279cb000772c6f9",
+      "claimedCanonicalChannel": "Bloomberg TV+",
+      "sourceProvider": "86ebec83.wurl.com",
+      "sourceSessionFamily": "legitimate_fast",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "343d3b5c5bc7d7b7",
+          "endSlateDistance": 29
+        },
+        {
+          "hash": "373f395f55c5e6b7",
+          "endSlateDistance": 27
+        },
+        {
+          "hash": "1f1f595acdc5f797",
+          "endSlateDistance": 26
+        }
+      ],
+      "region": [
+        "US"
+      ],
+      "brandingEvidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "en",
+      "evidence": [
+        "Bloomberg-format market data and Wall Street Week programming visible",
+        "Broadcaster-direct or legitimate Wurl distribution",
+        "Three temporally separated samples agree"
+      ]
+    },
+    {
+      "reviewIndex": 31,
+      "providerChannelId": "60492e6d7f3f560007ab0f62",
+      "claimedCanonicalChannel": "Estrella News (720p)",
+      "sourceProvider": "estrella-news-oando.amagi.tv",
+      "sourceSessionFamily": "legitimate_fast",
+      "sourceUrlPersisted": false,
+      "decodedContentEvidence": [
+        {
+          "hash": "febf1e8efaf9fabe",
+          "endSlateDistance": 33
+        },
+        {
+          "hash": "d8dcf0c05372f2ce",
+          "endSlateDistance": 31
+        },
+        {
+          "hash": "46462f2f276666e6",
+          "endSlateDistance": 25
+        }
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "brandingEvidence": [
+        "Previously verified Estrella Noticias branding",
+        "Independent legitimate FAST fallback",
+        "Same canonical identity as the control source"
+      ],
+      "decision": "VERIFIED_HIGH",
+      "confidence": "HIGH",
+      "language": "es",
+      "evidence": [
+        "Previously verified Estrella Noticias branding",
+        "Independent legitimate FAST fallback",
+        "Same canonical identity as the control source"
+      ]
+    }
+  ]
+}

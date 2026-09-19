@@ -1,0 +1,20 @@
+{
+  "completedAt": "2026-08-12T20:57:44.811Z",
+  "batch": 2,
+  "run": 4,
+  "identitiesResearched": 4,
+  "authoritativeCandidatesFound": 4,
+  "sourcesTested": 4,
+  "decoded": 4,
+  "continuityPassed": 4,
+  "desktopVerified": 4,
+  "identityUnresolved": 3,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 3,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "recoveredIdentity": "Rally TV",
+  "cumulativeVerifiedSearchableDesktopPlayable": 5,
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-14T23:16:33.877Z",
+  "scope": "Batch 13 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Bravo Vault passed 124.47 seconds of 1920x1080 existing-Desktop playback with one video owner through its NBCUniversal FAST feed.",
+    "NBCUniversal officially launched Bravo Vault with Xumo. Xumo has a current public Bravo Vault channel page, and visual evidence showed continuous Bravo series programming; normal Hidden Tunes search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED. No production write or duplicate was needed.",
+    "Family Feud retained a plausible Samsung UK Amagi candidate but lacked complete exact channel linkage. Cheaters and MTV Reality used rejected jmp2.uk/i.mjh.nz sources; Bad Girls Club lacked complete exact candidate provenance."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 39,
+  "cumulativeTerminalAliases": 136,
+  "batch13Target": 25,
+  "batch13Researched": 15,
+  "batch13Remaining": 10
+}

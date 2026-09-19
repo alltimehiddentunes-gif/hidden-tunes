@@ -1,0 +1,16 @@
+{
+  "completedAt": "2026-08-16T09:25:49.476Z",
+  "identity": "LiveNOW from FOX",
+  "candidateRecordId": "1fbac29e-900f-435a-b716-3c8737a50b0a",
+  "rejectedCandidateRecordId": "53e9a28f-7d75-45dd-bec3-a6501c2579d3",
+  "aliasesTerminal": 2,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.42,
+  "resolution": "1280x720",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

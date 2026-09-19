@@ -1,4 +1,4 @@
-import { appendFileSync, createReadStream, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
+import { appendFileSync, createReadStream, existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join, normalize } from 'node:path'
 import { spawn } from 'node:child_process'
@@ -15,6 +15,13 @@ const artworkOrigin = TV_ARTWORK_ORIGIN
 const artworkMaxBytes = 8 * 1024 * 1024
 const evidenceDir = 'D:\\HiddenTunes\\Evidence\\Universal-TV-20260814'
 const artworkLog = join(evidenceDir, 'vidaa-artwork-proxy.log')
+const physicalDiagnosticLog = join(evidenceDir, 'vidaa-physical-diagnostic.jsonl')
+const physicalDiagnosticArchive = `${physicalDiagnosticLog}.1`
+const MAX_DIAGNOSTIC_LOG_BYTES = 1024 * 1024
+const MAX_DIAGNOSTIC_BODY_BYTES = 24 * 1024
+const diagnosticSessions = new Map()
+const diagnosticEvents = []
+let snapshotRequestToken = 0
 mkdirSync(evidenceDir, { recursive: true })
 const types = { '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.webp': 'image/webp' }
 
@@ -24,6 +31,49 @@ if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Inv
 function logArtwork(pathname, method, status, duration, contentType, bytes, state) {
   appendFileSync(artworkLog, `${new Date().toISOString()} artwork path=${pathname} method=${method} status=${status} type=${contentType || '-'} bytes=${bytes} duration=${duration}ms state=${state}\n`, 'utf8')
 }
+
+function isPrivateLanAddress(address = '') {
+  const value = address.replace(/^::ffff:/, '')
+  return value === '::1' || value === '127.0.0.1' || value.startsWith('10.') || value.startsWith('192.168.')
+    || /^172\.(1[6-9]|2\d|3[01])\./.test(value)
+}
+
+function appendBoundedDiagnostic(event) {
+  if (existsSync(physicalDiagnosticLog) && statSync(physicalDiagnosticLog).size >= MAX_DIAGNOSTIC_LOG_BYTES) {
+    if (existsSync(physicalDiagnosticArchive)) unlinkSync(physicalDiagnosticArchive)
+    renameSync(physicalDiagnosticLog, physicalDiagnosticArchive)
+  }
+  appendFileSync(physicalDiagnosticLog, `${JSON.stringify(event)}\n`, 'utf8')
+}
+
+async function readBoundedJson(request) {
+  const chunks = []; let size = 0
+  for await (const chunk of request) {
+    size += chunk.length
+    if (size > MAX_DIAGNOSTIC_BODY_BYTES) throw new Error('diagnostic-body-too-large')
+    chunks.push(chunk)
+  }
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+}
+
+function sanitizeDiagnostic(value, depth = 0) {
+  if (depth > 4 || value == null) return value == null ? null : undefined
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return Number.isFinite(value) ? Math.round(value * 100) / 100 : null
+  if (typeof value === 'string') return value.replace(/[\u0000-\u001f]/g, '').slice(0, 180)
+  if (Array.isArray(value)) return value.slice(0, 24).map((item) => sanitizeDiagnostic(item, depth + 1))
+  if (typeof value === 'object') {
+    const output = {}
+    for (const [key, item] of Object.entries(value).slice(0, 80)) {
+      if (/token|credential|authorization|cookie|password|email|catalog|response|url/i.test(key)) continue
+      output[key.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 48)] = sanitizeDiagnostic(item, depth + 1)
+    }
+    return output
+  }
+  return undefined
+}
+
+const diagnosticDashboard = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Hidden Tunes VIDAA Physical Diagnostics</title><style>body{margin:0;background:#090711;color:#f3efff;font:14px system-ui;padding:24px}header{display:flex;gap:16px;align-items:center;flex-wrap:wrap}button{background:#7447ee;color:white;border:0;border-radius:10px;padding:10px 14px;font-weight:700}select{background:#171225;color:white;border:1px solid #6548a8;padding:9px;border-radius:8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:18px}.card{background:#120e1e;border:1px solid #342653;border-radius:14px;padding:14px;overflow:auto}pre{white-space:pre-wrap;word-break:break-word;margin:0;color:#cdefff}.ok{color:#7fffc3}</style><header><h1>VIDAA Physical Diagnostics</h1><select id="session"></select><button id="snapshot">Capture geometry/focus snapshot</button><span id="status"></span></header><div class="grid"><section class="card"><h2>Latest state</h2><pre id="latest"></pre></section><section class="card"><h2>Recent events</h2><pre id="events"></pre></section></div><script>const session=document.querySelector('#session'),latest=document.querySelector('#latest'),events=document.querySelector('#events'),status=document.querySelector('#status');async function refresh(){const r=await fetch('/__tv_diag/state',{cache:'no-store'}),d=await r.json(),selected=session.value;session.innerHTML=d.sessions.map(s=>'<option>'+s+'</option>').join('');if(selected&&d.sessions.includes(selected))session.value=selected;const id=session.value,record=d.latest[id]||null;latest.textContent=JSON.stringify(record,null,2);events.textContent=d.events.filter(e=>!id||e.sessionId===id).slice(-30).reverse().map(e=>JSON.stringify(e)).join('\n');status.textContent=record?'Receiving TV data':'Waiting for TV';status.className=record?'ok':''}document.querySelector('#snapshot').onclick=async()=>{await fetch('/__tv_diag/snapshot-request',{method:'POST'});status.textContent='Snapshot requested'};session.onchange=refresh;setInterval(refresh,750);refresh()</script>`
 
 function convertForVidaa(bytes, maxEdge = 720) {
   return new Promise((resolve, reject) => {
@@ -109,6 +159,46 @@ createServer(async (request, response) => {
   const started = Date.now()
   const requestUrl = new URL(request.url ?? '/', 'http://tv.local')
   const pathname = decodeURIComponent(requestUrl.pathname)
+  if (pathname.startsWith('/__tv_diag/') && !isPrivateLanAddress(request.socket.remoteAddress)) {
+    response.writeHead(403, { 'Cache-Control': 'no-store' }); response.end(); return
+  }
+  if (pathname === '/__tv_diag/event') {
+    if (request.method !== 'POST') { response.writeHead(405, { Allow: 'POST' }); response.end(); return }
+    try {
+      const sanitized = sanitizeDiagnostic(await readBoundedJson(request))
+      const sessionId = String(sanitized?.sessionId || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)
+      if (!sessionId) throw new Error('missing-session')
+      const event = { ...sanitized, sessionId, receivedAt: new Date().toISOString() }
+      diagnosticSessions.set(sessionId, event)
+      diagnosticEvents.push(event)
+      if (diagnosticEvents.length > 240) diagnosticEvents.splice(0, diagnosticEvents.length - 240)
+      appendBoundedDiagnostic(event)
+      response.writeHead(204, { 'Cache-Control': 'no-store' }); response.end()
+    } catch {
+      response.writeHead(400, { 'Cache-Control': 'no-store' }); response.end()
+    }
+    return
+  }
+  if (pathname === '/__tv_diag/state') {
+    if (request.method !== 'GET') { response.writeHead(405, { Allow: 'GET' }); response.end(); return }
+    const body = Buffer.from(JSON.stringify({ sessions: [...diagnosticSessions.keys()], latest: Object.fromEntries(diagnosticSessions), events: diagnosticEvents, snapshotRequestToken }))
+    response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': body.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }); response.end(body); return
+  }
+  if (pathname === '/__tv_diag/control') {
+    if (request.method !== 'GET') { response.writeHead(405, { Allow: 'GET' }); response.end(); return }
+    const body = Buffer.from(JSON.stringify({ snapshotRequestToken }))
+    response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': body.length, 'Cache-Control': 'no-store' }); response.end(body); return
+  }
+  if (pathname === '/__tv_diag/snapshot-request') {
+    if (request.method !== 'POST') { response.writeHead(405, { Allow: 'POST' }); response.end(); return }
+    snapshotRequestToken += 1
+    response.writeHead(204, { 'Cache-Control': 'no-store' }); response.end(); return
+  }
+  if (pathname === '/__tv_diag/dashboard') {
+    if (request.method !== 'GET') { response.writeHead(405, { Allow: 'GET' }); response.end(); return }
+    const body = Buffer.from(diagnosticDashboard)
+    response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': body.length, 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'" }); response.end(body); return
+  }
   if (pathname === '/__tv_diag') {
     const allowed = ['event', 'kind', 'keyCode', 'selected', 'owner', 'before', 'after', 'width', 'height', 'asset'].map((key) => `${key}=${String(requestUrl.searchParams.get(key) || '').replace(/[^A-Za-z0-9_. -]/g, '').slice(0, 48)}`).join(' ')
     appendFileSync(artworkLog, `${new Date().toISOString()} hisense ${allowed}\n`, 'utf8')

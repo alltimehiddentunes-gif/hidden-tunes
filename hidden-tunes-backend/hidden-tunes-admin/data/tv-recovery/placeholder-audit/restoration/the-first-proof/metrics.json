@@ -1,0 +1,15 @@
+{
+  "candidateId": "a54aec75-0fbf-4736-a775-e3150d4d6e5c",
+  "streamHost": "thefirst-oando.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 166.932822,
+    "advancedSeconds": 124.93535699999998,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

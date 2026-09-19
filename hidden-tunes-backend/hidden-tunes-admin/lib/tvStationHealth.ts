@@ -46,6 +46,7 @@ export type TvHealthRow = Pick<
 > & {
   reliability_score?: number | null;
   consecutive_failures?: number | null;
+  last_health_error?: string | null;
 };
 
 export type TvHealthUpdate = {
@@ -212,14 +213,19 @@ export function applyTvHealthProbe(
 
   const failures = currentFailures + 1;
   const nextScore = clampScore(currentScore - (failures >= 3 ? 20 : 12));
-  const autoDisabled = nextScore < TV_AUTO_DISABLE_THRESHOLD;
+  const persistentFailure = failures >= 3;
+  const autoDisabled = persistentFailure && nextScore < TV_AUTO_DISABLE_THRESHOLD;
 
   return {
-    playback_status: autoDisabled ? "blocked" : probe.playback_status || "failed",
+    playback_status: persistentFailure
+      ? autoDisabled
+        ? "blocked"
+        : probe.playback_status || "failed"
+      : row.playback_status || "playable",
     reliability_score: nextScore,
     consecutive_failures: failures,
-    is_active: false,
-    quarantined_at: nowIso,
+    is_active: persistentFailure ? false : row.is_active === true,
+    quarantined_at: persistentFailure ? nowIso : null,
     disabled_at: autoDisabled ? nowIso : null,
     last_health_checked_at: nowIso,
     last_health_error: probe.reason,
@@ -257,6 +263,19 @@ export function detectTvStreamPayload(
 }
 
 export async function probeTvStation(row: TvHealthRow): Promise<TvHealthProbeResult> {
+  if (row.last_health_error === "known_bad_content:pluto_non_channel_placeholder") {
+    return {
+      playable: false,
+      playback_status: "blocked",
+      reason: "known_bad_content:pluto_non_channel_placeholder",
+      ios_playable: false,
+      android_playable: false,
+      stream_protocol: null,
+      stream_is_https: false,
+      validated_stream_url: null,
+      last_validation_result: "identity_mismatch:pluto_placeholder_v2",
+    };
+  }
   if (String(row.source_type || "").startsWith("youtube")) {
     const metadata = await fetchYouTubeOEmbedMetadata(String(row.source_id || ""));
     const playable = Boolean(metadata);
@@ -327,7 +346,7 @@ export async function runTvStationHealthChecks(limit = TV_HEALTH_BATCH_SIZE) {
   const { data, error } = await supabaseAdmin
     .from("tv_videos")
     .select(
-      "id, source_type, source_id, source_url, embed_url, title, playback_status, status, is_active, reliability_score, consecutive_failures"
+      "id, source_type, source_id, source_url, embed_url, title, playback_status, status, is_active, reliability_score, consecutive_failures, last_health_error"
     )
     .in("status", ["approved", "pending"])
     .order("last_health_checked_at", { ascending: true, nullsFirst: true })

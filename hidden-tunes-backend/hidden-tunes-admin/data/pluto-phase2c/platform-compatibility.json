@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-08-09T06:55:00.000Z",
+  "sources": 8,
+  "protocol": "HLS",
+  "ffmpegDecoded": 8,
+  "http200": 8,
+  "corsWildcard": 7,
+  "corsMissing": 1,
+  "redirected": 2,
+  "requiresHeadersObserved": 0,
+  "requiresAccount": 0,
+  "drmObserved": 0,
+  "assessment": {
+    "desktop": "8 compatible through native/backend HLS path; direct browser playback may require normal HLS support",
+    "mobile": "8 protocol-compatible; runtime device verification not performed",
+    "smartTv": "8 protocol-compatible; runtime device verification not performed",
+    "browserCaveat": "Estrella News did not expose Access-Control-Allow-Origin on the tested manifest and may require backend delivery"
+  }
+}

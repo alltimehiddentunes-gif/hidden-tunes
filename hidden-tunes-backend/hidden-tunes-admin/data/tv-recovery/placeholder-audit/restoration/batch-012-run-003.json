@@ -1,0 +1,29 @@
+{
+  "completedAt": "2026-08-14T20:45:00.000Z",
+  "scope": "Batch 12 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Crunchyroll, Sobreviví, Saving Hope, and Stromberg all resolved through jmp2.uk and were rejected at the provenance gate before media validation.",
+    "I Survived used an unlinked CloudFront source. Rights-holder programme availability was found, but no authoritative evidence tied that exact live source to the canonical channel, so it remained identity-unresolved and quarantined.",
+    "No source entered expensive playback validation and no production write, duplicate, or cache mutation occurred."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 36,
+  "cumulativeTerminalAliases": 133,
+  "batch12Target": 25,
+  "batch12Researched": 15,
+  "batch12Remaining": 10
+}

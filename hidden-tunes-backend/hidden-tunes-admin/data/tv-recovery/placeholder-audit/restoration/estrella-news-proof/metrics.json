@@ -1,0 +1,15 @@
+{
+  "candidateId": "8ba50421-5727-4215-89b7-aec81048d3a2",
+  "streamHost": "estrellanews-glewed.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 165.535176,
+    "advancedSeconds": 123.520526,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

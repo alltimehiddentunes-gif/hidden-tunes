@@ -1,0 +1,31 @@
+{
+  "completedAt": "2026-08-15T13:14:14.010Z",
+  "scope": "Batch 19 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 3,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "HauntTV is an authoritative Blue Ant FAST identity and the queued Amagi endpoint was Rakuten-named, but no primary source directly linked this exact candidate to HauntTV on Rakuten; it remains identity-unresolved.",
+    "Universal Monsters and American Crimes used the same generic CloudFront endpoint without complete exact authoritative linkage.",
+    "Family Feud Classic used generic CloudFront without complete exact authoritative linkage.",
+    "Confess by Nosey used rejected jmp2.uk.",
+    "No candidate was sent to expensive validation; all five remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 47,
+  "cumulativeTerminalAliases": 172,
+  "batch19Target": 25,
+  "batch19Researched": 5,
+  "batch19Remaining": 20
+}

@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-14T22:16:09.463Z",
+  "scope": "Batch 13 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Kartoon Channel passed 124.38 seconds of 1920x1080 existing-Desktop playback with one video owner through its Samsung Australia Amagi feed.",
+    "Samsung Australia lists Kartoon Channel 1915. Evidence showed continuous Casper the Friendly Ghost programming, which Kartoon Channel officially carries; normal search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED. No production write or duplicate was needed.",
+    "Radio-Canada INFO used jmp2.uk. Bloodline Detectives, All Reality We TV, and Oxygen True Crime Archives retained plausible distribution candidates but lacked complete exact source-to-identity proof in this run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 38,
+  "cumulativeTerminalAliases": 135,
+  "batch13Target": 25,
+  "batch13Researched": 5,
+  "batch13Remaining": 20
+}

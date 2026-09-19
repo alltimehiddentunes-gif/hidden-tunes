@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-15T22:55:04.815Z",
+  "identity": "RiffTrax",
+  "candidateRecordId": "7c56b1f4-0bfa-4c75-a5d5-d840abb4b891",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.33,
+  "resolution": "1280x720",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

@@ -1,0 +1,15 @@
+{
+  "candidateId": "92098ee6-5c31-4919-a790-892b0b58721a",
+  "streamHost": "amg00426-lds-amg00426c17-rakuten-gb-10156.playouts.now.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 166.045008,
+    "advancedSeconds": 124.03167499999999,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

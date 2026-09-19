@@ -1,0 +1,77 @@
+{
+  "testedAt": "2026-08-09T07:35:34.792Z",
+  "pairCount": 3,
+  "urlsPersisted": 0,
+  "results": [
+    {
+      "id": "62b976b93279cb000772c6f9",
+      "name": "Bloomberg TV+",
+      "candidateCount": 2,
+      "probes": [
+        {
+          "decoded": true,
+          "exitCode": 0,
+          "timedOut": false,
+          "errorClass": null
+        },
+        {
+          "decoded": true,
+          "exitCode": 0,
+          "timedOut": false,
+          "errorClass": null
+        }
+      ],
+      "initialSelection": 1,
+      "simulatedPrimaryHealth": "INVALIDATED",
+      "fallbackSelection": 2,
+      "fallbackPassed": true
+    },
+    {
+      "id": "5a6b92f6e22a617379789618",
+      "name": "CBS News 24/7",
+      "candidateCount": 2,
+      "probes": [
+        {
+          "decoded": true,
+          "exitCode": 0,
+          "timedOut": false,
+          "errorClass": null
+        },
+        {
+          "decoded": true,
+          "exitCode": 0,
+          "timedOut": false,
+          "errorClass": null
+        }
+      ],
+      "initialSelection": 1,
+      "simulatedPrimaryHealth": "INVALIDATED",
+      "fallbackSelection": 2,
+      "fallbackPassed": true
+    },
+    {
+      "id": "60492e6d7f3f560007ab0f62",
+      "name": "Estrella News (720p)",
+      "candidateCount": 2,
+      "probes": [
+        {
+          "decoded": true,
+          "exitCode": 0,
+          "timedOut": false,
+          "errorClass": null
+        },
+        {
+          "decoded": true,
+          "exitCode": 0,
+          "timedOut": false,
+          "errorClass": null
+        }
+      ],
+      "initialSelection": 1,
+      "simulatedPrimaryHealth": "INVALIDATED",
+      "fallbackSelection": 2,
+      "fallbackPassed": true
+    }
+  ],
+  "passed": true
+}

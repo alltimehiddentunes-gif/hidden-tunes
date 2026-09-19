@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T14:23:09.766Z",
+  "scope": "Batch 28 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "ITV Deportes retained an OTTera/Roku candidate, but lacked complete primary candidate-to-channel linkage.",
+    "Super! Pop, Nickelodeon en español, Love & Hip Hop, and El Comisario used rejected jmp2.uk sources.",
+    "No candidate passed provenance, so none was sent to expensive Desktop validation; all remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch28Target": 25,
+  "batch28Researched": 20,
+  "batch28Remaining": 5
+}

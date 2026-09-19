@@ -1,0 +1,856 @@
+{
+  "batch": 12,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH:AMBIGUOUS_EXACT_TITLE",
+  "startedAt": "2026-08-11T13:06:05.896Z",
+  "completedAt": "2026-08-11T13:21:16.936Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 79,
+  "healthyCandidates": 46,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 46,
+  "stillUnresolved": 4,
+  "remainingQueue": 2490,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "6972546cc62833833a187f50",
+      "requestedTitles": [
+        "Willow Sports (R0cHM6Ly)",
+        "Willow Sports (720p)"
+      ],
+      "normalizedIdentity": [
+        "willow sports r0chm6ly",
+        "willow sports"
+      ],
+      "candidateRecordId": "f08488eb-b8d8-4822-90a8-be647a61f04f",
+      "candidateTitle": "Willow Sports",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "69c2940612e978ee4920d9b0",
+      "requestedTitles": [
+        "CNN Headlines International"
+      ],
+      "normalizedIdentity": [
+        "cnn headlines international"
+      ],
+      "candidateRecordId": "ac680b78-a9a7-41fa-aca4-cd247aa78408",
+      "candidateTitle": "CNN Headlines International",
+      "exactCandidateCount": 6,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6627621d56fc840008e47c90",
+      "requestedTitles": [
+        "Tennis Channel"
+      ],
+      "normalizedIdentity": [
+        "tennis"
+      ],
+      "candidateRecordId": "3ecfd137-e428-4a12-9705-1c7d5684eefc",
+      "candidateTitle": "Tennis+ (1080p)",
+      "exactCandidateCount": 9,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg01935-amg01935c1-amgplt0165.playout.now3.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "608016e446d73500075ea7e0",
+      "requestedTitles": [
+        "World Poker Tour (US)",
+        "World poker tour – Pluto TV",
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour us",
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "requestedTitles": [
+        "CBS News Boston",
+        "CBS News Boston (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news boston"
+      ],
+      "candidateRecordId": "7c6f48c0-c51c-4af5-829a-d7dce34de579",
+      "candidateTitle": "CBS News Boston",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dai.google.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6964b7e007ea70192df28d43",
+      "requestedTitles": [
+        "Anger Management Channel",
+        "Anger Management",
+        "Anger Management"
+      ],
+      "normalizedIdentity": [
+        "anger management"
+      ],
+      "candidateRecordId": "7fca1f68-88fb-40f6-a7e2-6fed46da940c",
+      "candidateTitle": "Anger Management",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "live-content.xumo.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5a6b92f6e22a617379789618",
+      "requestedTitles": [
+        "CBS News 24/7",
+        "CBS News 24/7 (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news 24 7"
+      ],
+      "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+      "candidateTitle": "CBS News 24/7 (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65bcc9c8d77d450008b34c6b",
+      "requestedTitles": [
+        "Monster Jam"
+      ],
+      "normalizedIdentity": [
+        "monster jam"
+      ],
+      "candidateRecordId": "5884ca41-79fd-4e14-8a7c-0cb3fc9592b9",
+      "candidateTitle": "Monster Jam",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61781254560f2e00071b78ce",
+      "requestedTitles": [
+        "World Poker Tour (US)",
+        "World Poker Tour",
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour us",
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "636c2b3c55d2e700074105c4",
+      "requestedTitles": [
+        "PBS Antiques Roadshow"
+      ],
+      "normalizedIdentity": [
+        "pbs antiques roadshow"
+      ],
+      "candidateRecordId": "39b12e29-8296-4e17-8bfe-e9a966dbf213",
+      "candidateTitle": "PBS Antiques Roadshow",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5de94dacb394a300099fa22a",
+      "requestedTitles": [
+        "PGA Tour (US)",
+        "PGA TOUR"
+      ],
+      "normalizedIdentity": [
+        "pga tour us",
+        "pga tour"
+      ],
+      "candidateRecordId": "4691fb91-0e5e-475f-96a1-4dd0afcb9e50",
+      "candidateTitle": "PGA TOUR",
+      "exactCandidateCount": 6,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d1195tnygmyfvk.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61de8fa251cca800076dde41",
+      "requestedTitles": [
+        "Bloomberg TV+",
+        "Bloomberg TV+"
+      ],
+      "normalizedIdentity": [
+        "bloomberg tv"
+      ],
+      "candidateRecordId": "9907cc2d-e1ea-4c62-89a3-2dc8ec0af8b9",
+      "candidateTitle": "Bloomberg TV",
+      "exactCandidateCount": 16,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5e7cb84a172a0f0007da69e4",
+      "requestedTitles": [
+        "Red Bull TV (R0cHM6Ly)",
+        "Red Bull TV DE (720p)"
+      ],
+      "normalizedIdentity": [
+        "red bull tv r0chm6ly",
+        "red bull tv de"
+      ],
+      "candidateRecordId": "ac62616a-e18b-4593-b920-a596a0ce2d22",
+      "candidateTitle": "Red Bull TV DE (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "46cfeb23c7f74853bba7a256655a3119.mediatailor.us-west-2.amazonaws.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231ec93779a9d00079ba8e2",
+      "requestedTitles": [
+        "CBS News 24/7"
+      ],
+      "normalizedIdentity": [
+        "cbs news 24 7"
+      ],
+      "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+      "candidateTitle": "CBS News 24/7 (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6177f8fdef21ab0007332b53",
+      "requestedTitles": [
+        "World Poker Tour (R0cHM6Ly)",
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour r0chm6ly",
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231e909bc960f00075d8e7c",
+      "requestedTitles": [
+        "CBS News 24/7",
+        "CBS News 24/7",
+        "CBS News 24/7"
+      ],
+      "normalizedIdentity": [
+        "cbs news 24 7"
+      ],
+      "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+      "candidateTitle": "CBS News 24/7 (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5fc54366b04b2300072e31af",
+      "requestedTitles": [
+        "PokerGo"
+      ],
+      "normalizedIdentity": [
+        "pokergo"
+      ],
+      "candidateRecordId": "9be531bd-b7dd-43f9-be99-70a1dc9adea4",
+      "candidateTitle": "PokerGO (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "linear-426.frequency.stream",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61c1871dac860c0007684974",
+      "requestedTitles": [
+        "Hell's Kitchen",
+        "Hell's Kitchen"
+      ],
+      "normalizedIdentity": [
+        "hell s kitchen"
+      ],
+      "candidateRecordId": "ad48d7cc-520f-4e3d-87ab-38eb2407ccf9",
+      "candidateTitle": "Hell's Kitchen (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "itv-hellskitchen-rakuten.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "660bfcd07bcd860008796ae8",
+      "requestedTitles": [
+        "FIFA+ (UK)",
+        "FIFA+"
+      ],
+      "normalizedIdentity": [
+        "fifa uk",
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231ec4b62cd1f0007093c7b",
+      "requestedTitles": [
+        "CBS News 24/7",
+        "CBS News 24/7 (720p)",
+        "CBS News – Pluto TV",
+        "CBS News 24/7"
+      ],
+      "normalizedIdentity": [
+        "cbs news 24 7",
+        "cbs news"
+      ],
+      "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+      "candidateTitle": "CBS News 24/7 (720p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e92447ea1e2a000735ed33",
+      "requestedTitles": [
+        "Midsomer Murders"
+      ],
+      "normalizedIdentity": [
+        "midsomer murders"
+      ],
+      "candidateRecordId": "7efe2f16-e744-468c-aa18-302130c53c56",
+      "candidateTitle": "Midsomer Murders",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6080381ab7c9ea00074ec64c",
+      "requestedTitles": [
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "623a1b5188ecdc0007c9ef5a",
+      "requestedTitles": [
+        "XITE Rock x Metal"
+      ],
+      "normalizedIdentity": [
+        "xite rock x metal"
+      ],
+      "candidateRecordId": "8453ffb2-86f6-4b80-a464-b0292551db0e",
+      "candidateTitle": "XITE Rock x Metal (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d198ro05q94rc4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62b976b93279cb000772c6f9",
+      "requestedTitles": [
+        "Bloomberg TV+"
+      ],
+      "normalizedIdentity": [
+        "bloomberg tv"
+      ],
+      "candidateRecordId": "9907cc2d-e1ea-4c62-89a3-2dc8ec0af8b9",
+      "candidateTitle": "Bloomberg TV",
+      "exactCandidateCount": 16,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "617805a67267650007573ffd",
+      "requestedTitles": [
+        "World Poker Tour (US)",
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour us",
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67813f893886aa863497733d",
+      "requestedTitles": [
+        "Red Bull TV"
+      ],
+      "normalizedIdentity": [
+        "red bull tv"
+      ],
+      "candidateRecordId": "c78ee841-1825-46b6-9f0d-2bd4f1c7fe4d",
+      "candidateTitle": "Red Bull TV",
+      "exactCandidateCount": 10,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "rbmn-live.akamaized.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66c870112630fc0008137ae2",
+      "requestedTitles": [
+        "PGA Tour"
+      ],
+      "normalizedIdentity": [
+        "pga tour"
+      ],
+      "candidateRecordId": "4691fb91-0e5e-475f-96a1-4dd0afcb9e50",
+      "candidateTitle": "PGA TOUR",
+      "exactCandidateCount": 6,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d1195tnygmyfvk.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "660bfc7b2433010008def3e3",
+      "requestedTitles": [
+        "FIFA+ (UK)",
+        "FIFA+ (720p)"
+      ],
+      "normalizedIdentity": [
+        "fifa uk",
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "663a163f8ea5560008a3f234",
+      "requestedTitles": [
+        "Andromeda",
+        "Andromeda"
+      ],
+      "normalizedIdentity": [
+        "andromeda"
+      ],
+      "candidateRecordId": "037f67b9-2ca4-4bb6-93af-87697b8264aa",
+      "candidateTitle": "Andromeda",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "620fd9f4afb9a80007a9c6d5",
+      "requestedTitles": [
+        "MTV Teen Mom"
+      ],
+      "normalizedIdentity": [
+        "mtv teen mom"
+      ],
+      "candidateRecordId": "e208ca39-6dda-4548-9a36-65c987621d13",
+      "candidateTitle": "MTV Teen Mom",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62beb6c0371e6c000775930f",
+      "requestedTitles": [
+        "Ice Road Truckers",
+        "Ice Road Truckers (720p)"
+      ],
+      "normalizedIdentity": [
+        "ice road truckers"
+      ],
+      "candidateRecordId": "15062aad-f8ff-4a9d-be42-3139a7c0b10d",
+      "candidateTitle": "Ice Road Truckers (720p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "7aac8d7e.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c092157e1b8b0007372a35",
+      "requestedTitles": [
+        "MTV Teen Mom"
+      ],
+      "normalizedIdentity": [
+        "mtv teen mom"
+      ],
+      "candidateRecordId": "e208ca39-6dda-4548-9a36-65c987621d13",
+      "candidateTitle": "MTV Teen Mom",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62ea4dadce395f0007086df2",
+      "requestedTitles": [
+        "TNA Wrestling (720p)",
+        "TNA Wrestling (720p)"
+      ],
+      "normalizedIdentity": [
+        "tna wrestling"
+      ],
+      "candidateRecordId": "e03108f9-5362-4c7a-b24a-6456283bc450",
+      "candidateTitle": "TNA Wrestling",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6793ea255225b515b4ba91a7",
+      "requestedTitles": [
+        "ALLBLK Gems"
+      ],
+      "normalizedIdentity": [
+        "allblk gems"
+      ],
+      "candidateRecordId": "8c007ac8-4e14-4a5b-a3e3-fe59085668ad",
+      "candidateTitle": "ALLBLK Gems",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d3pxo1qcgzxtxs.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6540fe4bbdf3cf0008aa2cdd",
+      "requestedTitles": [
+        "Ax Men (720p)",
+        "Ax Men (720p)"
+      ],
+      "normalizedIdentity": [
+        "ax men"
+      ],
+      "candidateRecordId": "480b9293-3d44-4e57-aa48-ad4d70892ff6",
+      "candidateTitle": "Ax Men",
+      "exactCandidateCount": 7,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5dc1cb279c91420009db261d",
+      "requestedTitles": [
+        "Home.Made.Nation"
+      ],
+      "normalizedIdentity": [
+        "home made nation"
+      ],
+      "candidateRecordId": "824b2818-c8ab-4a98-b90c-0f4524a9b6f5",
+      "candidateTitle": "Home. Made. Nation",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6368e15a51e9560007c592ed",
+      "requestedTitles": [
+        "OUTflix Movies (720p)",
+        "OUTflix Movies (720p)"
+      ],
+      "normalizedIdentity": [
+        "outflix movies"
+      ],
+      "candidateRecordId": "4d7a0ff3-cee7-4048-b88f-ff7d3fd8a160",
+      "candidateTitle": "OUTflix Movies",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f6b535a278bfe000799484a",
+      "requestedTitles": [
+        "Dog the Bounty Hunter"
+      ],
+      "normalizedIdentity": [
+        "dog the bounty hunter"
+      ],
+      "candidateRecordId": "736ccc24-d1e3-4699-b8e0-a22d5982fa0d",
+      "candidateTitle": "Dog the Bounty Hunter (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "619e6614c9d9650007a2b171",
+      "requestedTitles": [
+        "Euronews Portuguese"
+      ],
+      "normalizedIdentity": [
+        "euronews portuguese"
+      ],
+      "candidateRecordId": "36948f0b-139b-43d5-9268-1b8dc4712464",
+      "candidateTitle": "Euronews Portuguese (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "6e52fb8b.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62bdad934d73d50007a82472",
+      "requestedTitles": [
+        "Doctor Who Classic"
+      ],
+      "normalizedIdentity": [
+        "doctor who classic"
+      ],
+      "candidateRecordId": "ede4d348-a7d4-456e-952b-d2555ec34f73",
+      "candidateTitle": "Doctor Who Classic",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "bbc-classicdrwho-1-us.xumo.wurl.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6540fe6fbfbaec0008a583ae",
+      "requestedTitles": [
+        "Duck Dynasty"
+      ],
+      "normalizedIdentity": [
+        "duck dynasty"
+      ],
+      "candidateRecordId": "e8c053a1-7eff-4f70-a8b6-c27bf644fb2a",
+      "candidateTitle": "Duck Dynasty (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg00276-amg00276c2-rakuten-uk-3449.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5cffcf5686dfe15595fb3f56",
+      "requestedTitles": [
+        "MTV Teen Mom"
+      ],
+      "normalizedIdentity": [
+        "mtv teen mom"
+      ],
+      "candidateRecordId": "e208ca39-6dda-4548-9a36-65c987621d13",
+      "candidateTitle": "MTV Teen Mom",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f5141c1605ddf000748eb1b",
+      "requestedTitles": [
+        "FailArmy"
+      ],
+      "normalizedIdentity": [
+        "failarmy"
+      ],
+      "candidateRecordId": "5632ecc3-a277-423b-936d-59d0fee82133",
+      "candidateTitle": "FailArmy",
+      "exactCandidateCount": 10,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6177fe76691b2e000702c7fc",
+      "requestedTitles": [
+        "MTV Catfish"
+      ],
+      "normalizedIdentity": [
+        "mtv catfish"
+      ],
+      "candidateRecordId": "21399a98-b749-46f2-9c0c-b95f5695a2d6",
+      "candidateTitle": "MTV Catfish",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e92392a3e6270007f562e8",
+      "requestedTitles": [
+        "Forensic Files"
+      ],
+      "normalizedIdentity": [
+        "forensic files"
+      ],
+      "candidateRecordId": "d0b6a6bd-e230-46f0-80a9-1fdd9ea9b561",
+      "candidateTitle": "Forensic Files",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "60f5d389985a0c0007357304",
+      "requestedTitles": [
+        "BritBox Mysteries"
+      ],
+      "normalizedIdentity": [
+        "britbox mysteries"
+      ],
+      "candidateRecordId": "46824a97-b6df-476f-8b90-11c2f5e4e0f6",
+      "candidateTitle": "BritBox Mysteries (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65c33fd4dc10a40008f26af8",
+      "requestedTitles": [
+        "Monster Jam"
+      ],
+      "normalizedIdentity": [
+        "monster jam"
+      ],
+      "candidateRecordId": "5884ca41-79fd-4e14-8a7c-0cb3fc9592b9",
+      "candidateTitle": "Monster Jam",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60b9ff2722bfa400072676ef",
+      "requestedTitles": [
+        "Pluto TV Serie",
+        "Serie – Pluto TV",
+        "Pluto TV Serie"
+      ],
+      "normalizedIdentity": [
+        "serie"
+      ],
+      "candidateRecordId": "10399ebd-208c-4a8e-a575-addff42b2c6a",
+      "candidateTitle": "Pluto TV Serie",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e90e8cb05d2b0007f10a61",
+      "requestedTitles": [
+        "Game Show Central"
+      ],
+      "normalizedIdentity": [
+        "game show central"
+      ],
+      "candidateRecordId": "96d5baf7-5179-4529-83e9-dfd250d6ead9",
+      "candidateTitle": "Game Show Central",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "626c2a3502d84a0007cec817",
+      "requestedTitles": [
+        "MTV Catfish"
+      ],
+      "normalizedIdentity": [
+        "mtv catfish"
+      ],
+      "candidateRecordId": "22e1f9e7-0aa7-47a6-a2f3-d48149e376b1",
+      "candidateTitle": "MTV Catfish",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    }
+  ]
+}

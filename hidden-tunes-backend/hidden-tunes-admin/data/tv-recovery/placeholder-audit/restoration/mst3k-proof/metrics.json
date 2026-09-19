@@ -1,0 +1,15 @@
+{
+  "candidateId": "9a761230-7e61-4f65-962c-358beef8bce7",
+  "streamHost": "mst3k-roku.amagi.tv",
+  "pass": false,
+  "metrics": {
+    "readyState": 2,
+    "width": 426,
+    "height": 240,
+    "paused": false,
+    "currentTime": 56.502367,
+    "advancedSeconds": 17.943767,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

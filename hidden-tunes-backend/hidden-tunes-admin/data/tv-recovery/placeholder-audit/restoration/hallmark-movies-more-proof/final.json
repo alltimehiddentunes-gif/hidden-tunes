@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T23:30:18.443Z",
+  "identity": "Hallmark Movies & More",
+  "candidateRecordId": "4b518382-c272-431b-8fc9-ec3177d8ca44",
+  "aliasesTerminal": 2,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.89,
+  "resolution": "1280x720",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-14T21:15:00.000Z",
+  "scope": "Batch 12 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "NBC News NOW used a direct NBCUniversal FAST host and technically passed 124.30 seconds of 1920x1080 playback with one video owner.",
+    "The sampled programme consisted of unbranded social-style footage with no NBC News NOW bug, anchor, lower-third, or other exact identity evidence. Technical continuity alone was insufficient, so the record remains identity-unresolved and quarantined.",
+    "The Bob Ross Channel and This Old House used jmp2.uk and were rejected before media validation. Stories by AMC and The Beverly Hillbillies retained plausible distribution sources but lacked complete exact-source identity proof in this run.",
+    "No production write, duplicate, or cache mutation occurred."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 36,
+  "cumulativeTerminalAliases": 133,
+  "batch12Target": 25,
+  "batch12Researched": 20,
+  "batch12Remaining": 5
+}

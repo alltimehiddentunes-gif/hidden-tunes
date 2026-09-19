@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-08-13T23:06:54.542Z",
+  "scope": "Batch 4 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 4,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Antiques Roadshow UK candidate 6d0f0691-e624-4d5e-8147-b7b720f2d39b uses a BBC-branded Xumo/Wurl distribution host and passed 124.36 seconds of 1920x1080 playback in the existing Desktop player with one video owner and no fatal HLS errors.",
+    "Sampled frames showed sustained UK antiques-programme footage at a stately-home valuation setting, but no visible Antiques Roadshow title card, BBC mark, presenter, or other unique identity marker. Exact/high identity remains unresolved, so the quarantined alias was not merged or restored.",
+    "RiffTrax and Beyond Belief have plausible official FAST distribution candidates; Tennis+ does not safely establish equivalence to the queued Tennis Channel identity. Vevo Country uses jmp2.uk and was rejected before validation.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 14,
+  "cumulativeTerminalAliases": 81,
+  "batch4Target": 25,
+  "batch4Researched": 5,
+  "batch4Remaining": 20
+}

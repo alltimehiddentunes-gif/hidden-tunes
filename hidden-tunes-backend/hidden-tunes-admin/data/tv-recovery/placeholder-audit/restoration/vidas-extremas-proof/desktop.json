@@ -1,0 +1,15 @@
+{
+  "candidateId": "98b775cb-cf40-4603-9652-3a78eb8f4602",
+  "streamHost": "s10host4.localnow.api.cms.amdvids.com",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 157.674073,
+    "advancedSeconds": 118.60887399999999,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "completedAt": "2026-08-12T13:18:29.190Z",
+  "mode": "READ_ONLY_EVIDENCE_RESEARCH",
+  "productionWrites": 0,
+  "channelsGenuinelyResearched": 1,
+  "authoritativeCandidatesFound": 1,
+  "sourcesActuallyTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "restored": 0,
+  "searchVerified": 0,
+  "cumulativeVerifiedSearchableDesktopPlayable": 0,
+  "candidate": {
+    "identity": "Horse & Country",
+    "candidateRecordId": "a60cdd21-b540-49c4-b55c-16cdf1025c4b",
+    "provenanceConfidence": "HIGH",
+    "evidence": "Horse & Country's own site confirms its free 24/7 Samsung TV Plus distribution and explicitly states Amagi prepared delivery; the staged candidate uses the hncfree-samsung-uk.amagi.tv host.",
+    "nextGate": "fresh multi-offset decode, visual H&C identity confirmation, placeholder scan, and extended continuity"
+  }
+}

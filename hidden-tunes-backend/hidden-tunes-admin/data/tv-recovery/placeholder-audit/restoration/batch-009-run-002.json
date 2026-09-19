@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T12:51:47.348Z",
+  "scope": "Batch 9 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Deal or No Deal passed 123.95 seconds of 1920x1080 Desktop playback with one video owner and no fatal HLS errors.",
+    "The Banijay/Amagi/Samsung exact-name service showed persistent Deal or No Deal branding and matching game-show content, supporting EXACT identity. Search and resolver passed.",
+    "One quarantined alias remains hidden and terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "America's Funniest Home Videos, The Martha Stewart Channel, and Hell's Kitchen were rejected for jmp2.uk. Ryan and Friends retained an Amagi candidate but lacked sufficiently direct canonical provenance for validation."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 26,
+  "cumulativeTerminalAliases": 106,
+  "batch9Target": 25,
+  "batch9Researched": 10,
+  "batch9Remaining": 15
+}

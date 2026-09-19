@@ -14,32 +14,12 @@ export type CatalogJsonRequestOptions = {
   signal?: AbortSignal
 }
 
-const SPORTS_PILOT_HEADER = 'X-Hidden-Tunes-Sports-Pilot'
-
 export function hasDesktopCatalogBridge() {
   return typeof window !== 'undefined' && typeof window.hiddenTunesDesktop?.catalog?.getJson === 'function'
 }
 
 function hasCatalogRequestJson() {
   return typeof window !== 'undefined' && typeof window.hiddenTunesDesktop?.catalog?.requestJson === 'function'
-}
-
-/**
- * Browser-dev fallback only. Packaged / Electron never attaches the sports token
- * from Vite env — main-process catalogBridge owns that secret.
- */
-function resolveBrowserSportsPilotToken(): string | null {
-  try {
-    if (typeof window !== 'undefined' && window.hiddenTunesDesktop?.runtime?.getInfo) {
-      const info = window.hiddenTunesDesktop.runtime.getInfo()
-      if (info?.isPackaged) return null
-    }
-    if (import.meta.env?.PROD) return null
-    const token = String(import.meta.env?.VITE_SPORTS_PRIVATE_PILOT_TOKEN || '').trim()
-    return token.length >= 16 ? token : null
-  } catch {
-    return null
-  }
 }
 
 function buildBrowserCatalogHeaders(extra?: Record<string, string>) {
@@ -49,8 +29,6 @@ function buildBrowserCatalogHeaders(extra?: Record<string, string>) {
     'x-ht-storefront-country': 'ZZ',
     ...(extra || {}),
   }
-  const pilot = resolveBrowserSportsPilotToken()
-  if (pilot) headers[SPORTS_PILOT_HEADER] = pilot
   return headers
 }
 

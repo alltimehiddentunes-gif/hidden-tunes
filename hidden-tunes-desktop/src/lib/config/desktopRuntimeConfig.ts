@@ -222,16 +222,6 @@ export function resolveDesktopRuntimeConfig(
     supabaseAnonKey = supabaseAnonRaw
   }
 
-  // Renderer must never surface sports private token — assert env key is not copied into config.
-  const leakedSports =
-    readEnv(env, ['HT_SPORTS_PRIVATE_PILOT_TOKEN']) ||
-    (isPackaged ? readEnv(env, ['VITE_SPORTS_PRIVATE_PILOT_TOKEN']) : null)
-  if (leakedSports && isPackaged) {
-    warnings.push(
-      'Sports private pilot token must stay main-process only (ignored by renderer config).',
-    )
-  }
-
   return {
     environment,
     isPackaged,

@@ -1,0 +1,16 @@
+{
+  "completedAt": "2026-08-16T10:01:34.924Z",
+  "identity": "Vevo Country",
+  "candidateRecordId": "881e96a6-cd7b-4a2d-bdfa-b21f9e4a5375",
+  "rejectedCandidateRecordId": "7ffd10c9-ee12-4fdd-a009-62a0ac7ab4e2",
+  "aliasesTerminal": 2,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 121.59,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

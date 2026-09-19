@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T00:46:30.000Z",
+  "scope": "Batch 14 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 3,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Modern Marvels by HISTORY and GolfPass are legitimate official programming identities, but their generic CDN candidates lacked complete direct broadcaster/distributor ownership linkage in this run.",
+    "Runtime and JoJo's Bizarre Adventure used rejected jmp2.uk sources. Sky News used an unverified short-link redirect and was rejected from validation.",
+    "No candidate met the provenance threshold for expensive Desktop validation. All five remain quarantined.",
+    "No production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 39,
+  "cumulativeTerminalAliases": 136,
+  "batch14Target": 25,
+  "batch14Researched": 5,
+  "batch14Remaining": 20
+}

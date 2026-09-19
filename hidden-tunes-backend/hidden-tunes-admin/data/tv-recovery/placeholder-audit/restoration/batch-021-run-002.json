@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T19:24:00.000Z",
+  "scope": "Batch 21 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Bounce XL had authoritative Tubi live-channel provenance and Tubi-owned delivery, but advanced only 114.33 seconds in the bounded Desktop run and failed the required 120-second continuity gate; it remains quarantined.",
+    "Places & Spaces and Wrestling Legends TV used rejected jmp2.uk sources.",
+    "Women's Sports Network and Oxygen True Crime Archives used generic CloudFront candidates without complete direct authoritative candidate-to-channel ownership linkage and were not validated.",
+    "No production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 51,
+  "cumulativeTerminalAliases": 176,
+  "batch21Target": 25,
+  "batch21Researched": 10,
+  "batch21Remaining": 15
+}

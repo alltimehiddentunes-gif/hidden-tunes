@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-08-09T06:26:02.396Z",
+  "productionWrites": 0,
+  "existingRecords": 2478,
+  "uniqueCanonicalIdentities": 1882,
+  "unresolvedIdentities": 54,
+  "currentPlutoIds": 141,
+  "oldRegionalOrDiscontinued": 1741,
+  "duplicateAliases": 141,
+  "regionalVariants": 239,
+  "metadataMissing": {
+    "language": 2474,
+    "region": 390
+  },
+  "endOfAvailabilityFingerprint": {
+    "method": "64-bit perceptual dHash over 9x8 grayscale; compare by Hamming distance; visual layout/OCR remains secondary",
+    "classification": "END_OF_AVAILABILITY",
+    "samples": [
+      {
+        "file": "[sample]-608181d420fc8500075f612a.jpg",
+        "hash": "9896530d4d230e00"
+      },
+      {
+        "file": "[sample]-69492467ae33e24d916e56cf.jpg",
+        "hash": "4b9b3529c1463630"
+      },
+      {
+        "file": "[sample]-5d4947590ba40f75dc29c26b.jpg",
+        "hash": "4b9b3529c1463630"
+      },
+      {
+        "file": "[sample]-69b968ba255fecb01f602257.jpg",
+        "hash": "9c96530f2d232e00"
+      },
+      {
+        "file": "[sample]-6672f49f61a39900089db68e.jpg",
+        "hash": "4b9b3529c5463630"
+      },
+      {
+        "file": "[sample]-69b968e011fc7b9e27c0d958.jpg",
+        "hash": "9c93534d25232600"
+      },
+      {
+        "file": "[sample]-69a554179a3f3bb488c7d2be.jpg",
+        "hash": "6b8931295b443430"
+      },
+      {
+        "file": "[sample]-69b968ca1c36025fd0a3d92d.jpg",
+        "hash": "6b8931295b443430"
+      },
+      {
+        "file": "[sample]-5dc280c9aa218c0009724b4b.jpg",
+        "hash": "9c16514d6d2b2e00"
+      },
+      {
+        "file": "[sample]-5d767ae7b456c8cf265ce922.jpg",
+        "hash": "c39b3d29c6463630"
+      }
+    ]
+  }
+}

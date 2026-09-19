@@ -1,0 +1,15 @@
+{
+  "candidateId": "67f3d82f-a698-4731-8cb7-696c9e13dee9",
+  "streamHost": "amg00841-amg00841c7-rakuten-uk-2820.playouts.now.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 166.295746,
+    "advancedSeconds": 124.27976500000001,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

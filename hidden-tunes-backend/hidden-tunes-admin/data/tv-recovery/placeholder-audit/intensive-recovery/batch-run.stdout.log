@@ -1,0 +1,469 @@
+{
+  "batch": 1,
+  "startedAt": "2026-08-10T21:39:29.173Z",
+  "completedAt": "2026-08-10T21:47:19.049Z",
+  "processedIdentities": 45,
+  "queueRowsClassified": 84,
+  "verifiedPlayable": 43,
+  "promoted": 0,
+  "fallbackSources": 0,
+  "rebrands": 0,
+  "duplicates": 43,
+  "dead": 0,
+  "blocked": 0,
+  "stillUnresolved": 2,
+  "remainingQueue": 3252,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "6176f39e709f160007ec61c3",
+      "canonicalName": "48 Hours (720p)",
+      "sourceHost": "dai.google.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 0,
+      "publicEligible": false,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5bee1a7359ee03633e780238",
+      "canonicalName": "Dog the Bounty Hunter",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "5f6b54b9e67cf60007d4cef1",
+      "canonicalName": "Duck Dynasty",
+      "sourceHost": "amg00276-amg00276c2-rakuten-uk-3449.playouts.now.amagi.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "6400bdb1219c4c00081751aa",
+      "canonicalName": "COPS",
+      "sourceHost": "langleyproductions-cops-2-eu.rakuten.wurl.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "6578848a6e4f6a0008741910",
+      "canonicalName": "Crime 360",
+      "sourceHost": "94a3e237.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "5e1f7e089f23700009d66303",
+      "canonicalName": "COPS",
+      "sourceHost": "langleyproductions-cops-2-eu.rakuten.wurl.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "5ce4475cd43850831ca91ce7",
+      "canonicalName": "Doctor Who Classic",
+      "sourceHost": "bbc-classicdrwho-1-us.xumo.wurl.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "67a52cd4ec91870008a62164",
+      "canonicalName": "UFC",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "660bfca524e1d000085b6007",
+      "canonicalName": "FIFA+",
+      "sourceHost": "ba3e2e93.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "601a0342dcf4370007566891",
+      "canonicalName": "Tiny House Nation (720p)",
+      "sourceHost": "adf47c43.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "5e7cf6c7b156d500078c5f44",
+      "canonicalName": "OAN Plus (720p)",
+      "sourceHost": "oan-plus-tcl.amagi.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "62bdae69a47b6c00076af298",
+      "canonicalName": "Baywatch",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "619e1ef4f42ad90007e00a21",
+      "canonicalName": "Nosey",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "6792066f3de7c8cf941e7ce3",
+      "canonicalName": "UFC (720p)",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "6792044b680721c77c5b9ba2",
+      "canonicalName": "UFC",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "62e010e6cd663f0007e57dc8",
+      "canonicalName": "TV Cultura",
+      "sourceHost": "player-tvcultura.stream.uol.com.br",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "69a20556814d27f4ae630a92",
+      "canonicalName": "UFC",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "64805755536e0c0008a19fa1",
+      "canonicalName": "DAZN Ringside",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "64ec5cf50f73a800081310a5",
+      "canonicalName": "Forensic Files – Pluto TV",
+      "sourceHost": "live-content.xumo.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "679205a13de7c8cf941e7857",
+      "canonicalName": "UFC",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "65c340983ba51e00083988e8",
+      "canonicalName": "Monster Jam",
+      "sourceHost": "4b9627c7.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "68c8201b1e5aaf77c47d9605",
+      "canonicalName": "Ice Road Truckers",
+      "sourceHost": "7aac8d7e.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "65c340383a116800078c8454",
+      "canonicalName": "Monster Jam (720p)",
+      "sourceHost": "4b9627c7.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "6964b77dff4f2148e520fa9b",
+      "canonicalName": "Anger Management",
+      "sourceHost": "live-content.xumo.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "6915de3d74601d957afa4592",
+      "canonicalName": "The Graham Norton Show (720p)",
+      "sourceHost": "amg00654-itv-amg00654c35-rakuten-gb-7598.playouts.now.amagi.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "5ebac49ce4dc8b00078b23bc",
+      "canonicalName": "Babyfirst",
+      "sourceHost": "cdn.fast.jwp.services",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 0,
+      "publicEligible": true,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6540fee72cf13100085d5a18",
+      "canonicalName": "Dog The Bounty Hunter (720p)",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "618124b2e53c8d00077b37f8",
+      "canonicalName": "Forensic Files",
+      "sourceHost": "live-content.xumo.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "679203d4bc03978b9b4b79a6",
+      "canonicalName": "UFC",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "6400be67219c4c00081755d3",
+      "canonicalName": "COPS",
+      "sourceHost": "langleyproductions-cops-2-eu.rakuten.wurl.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "68ad90673efb41cd97c95825",
+      "canonicalName": "The Outer Limits",
+      "sourceHost": "linear-1145.frequency.stream",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "5c5c2e9d8002db3c3e0b1c72",
+      "canonicalName": "Homes Under Hammer",
+      "sourceHost": "all3media-homes-under-the-hammer-1-gb.rakuten.wurl.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "633560bfa693390008b99cf0",
+      "canonicalName": "Ice Road Truckers",
+      "sourceHost": "7aac8d7e.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "63921a1bf76e7d0007c998a6",
+      "canonicalName": "Enquêtes de Choc (720p)",
+      "sourceHost": "fastmedia-enquetesdechoc-rakuten.amagi.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "61780ce4c215ad0007a66ab2",
+      "canonicalName": "Just for Laughs GAGS (720p)",
+      "sourceHost": "streams2.sofast.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "69ef5682980899a9edf1a884",
+      "canonicalName": "That's Rock (720p)",
+      "sourceHost": "s7host5.localnow.api.cms.amdvids.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "65788611a620e30008fe36ff",
+      "canonicalName": "Duck Dynasty",
+      "sourceHost": "amg00276-amg00276c2-rakuten-uk-3449.playouts.now.amagi.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "649b6898f2ec0000081a9460",
+      "canonicalName": "DAZN Ringside",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "5bb1ad55268cae539bcedb08",
+      "canonicalName": "The Pet Collective (720p)",
+      "sourceHost": "6ec8627d.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "6440f8ba939a5900082bddc8",
+      "canonicalName": "World of Love Island",
+      "sourceHost": "worldofloveisland-rakuten.amagi.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "5f515ebac01c0f00080e8439",
+      "canonicalName": "The Pet Collective",
+      "sourceHost": "6ec8627d.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "657881c46e4f6a00087414c2",
+      "canonicalName": "I Survived",
+      "sourceHost": "8e979536.wurl.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "62a0b2aff4cf470007e47e29",
+      "canonicalName": "Fluss-Monster",
+      "sourceHost": "rivermonstergermany-rakuten.amagi.tv",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "64e35aff6b1fdb0008ea8441",
+      "canonicalName": "Imagen TV+",
+      "sourceHost": "igd-it-runtime.otteravision.com",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    },
+    {
+      "providerChannelId": "66df8aa7abec540008ca8cb6",
+      "canonicalName": "Homeful",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "priorIdentityVerified": true,
+      "priorActualContentVerified": true,
+      "freshContinuitySeconds": 35,
+      "publicEligible": true,
+      "classification": "DUPLICATE_HEALTHY_ALTERNATIVE"
+    }
+  ]
+}

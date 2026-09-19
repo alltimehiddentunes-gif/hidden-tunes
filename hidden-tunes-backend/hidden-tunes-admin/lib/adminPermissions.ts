@@ -55,6 +55,11 @@ export function canManageUploaderOwnership(role?: string | null) {
   return role === "owner" || role === "admin";
 }
 
+/** Canonical music taxonomy is a controlled catalog-management surface. */
+export function canManageMusicTaxonomy(role?: string | null) {
+  return role === "owner" || role === "admin";
+}
+
 export function canUploadMusic(role?: string | null) {
   return UPLOAD_ROLES.includes(role as AdminRole);
 }

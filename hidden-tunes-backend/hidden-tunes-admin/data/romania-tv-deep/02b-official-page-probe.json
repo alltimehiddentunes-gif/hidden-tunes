@@ -1,0 +1,261 @@
+{
+  "pagesSearched": 27,
+  "pages": [
+    {
+      "name": "TVR 1",
+      "url": "https://www.tvrplus.ro/live/tvr-1",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "TVR+ Live",
+      "url": "https://www.tvrplus.ro/live",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "TVR 2",
+      "url": "https://www.tvrplus.ro/live/tvr-2",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "TVR Cultural",
+      "url": "https://www.tvrplus.ro/live/tvr-cultural",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "TVR International",
+      "url": "https://www.tvrplus.ro/live/tvr-international",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Camera Deputaților",
+      "url": "https://www.cdep.ro/pls/dic/site.page?id=1110",
+      "status": 404,
+      "ok": false,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Senatul României",
+      "url": "https://www.senat.ro/live.aspx",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "România TV",
+      "url": "https://www.romaniatv.net/live",
+      "status": 200,
+      "ok": true,
+      "hintCount": 1,
+      "hints": [
+        "https://livestream.romaniatv.net/clients/romaniatv/playlist.m3u8"
+      ],
+      "error": null
+    },
+    {
+      "name": "Digi24",
+      "url": "https://www.digi24.ro/live/digi24",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Euronews România",
+      "url": "https://www.euronews.ro/live",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Prima TV",
+      "url": "https://www.primatv.ro/live",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Aleph News",
+      "url": "https://alephnews.ro/live/",
+      "status": 404,
+      "ok": false,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Metropola TV",
+      "url": "https://www.metropolatv.ro/live/",
+      "status": 200,
+      "ok": true,
+      "hintCount": 1,
+      "hints": [
+        "https://www.livemetropolatv.ro/MetropolaTV/Metro/playlist.m3u8"
+      ],
+      "error": null
+    },
+    {
+      "name": "Agro TV",
+      "url": "https://agro-tv.ro/live/",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Alfa Omega TV",
+      "url": "https://alfaomega.tv/live",
+      "status": 200,
+      "ok": true,
+      "hintCount": 1,
+      "hints": [
+        "https://aom-live.maghost.ro/aomTV/streams/OOztu5o9Fx6dh9mD1711027803849.m3u8"
+      ],
+      "error": null
+    },
+    {
+      "name": "A7 TV",
+      "url": "https://a7tv.ro/live/",
+      "status": 200,
+      "ok": true,
+      "hintCount": 1,
+      "hints": [
+        "https://a7tvlive.ro/A7TV/A7TV/playlist.m3u8"
+      ],
+      "error": null
+    },
+    {
+      "name": "Trinitas TV",
+      "url": "https://www.trinitas.tv/live/",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Speranța TV",
+      "url": "https://sperantatv.ro/live/",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "TVR Craiova",
+      "url": "https://craiova.tvr.ro/",
+      "status": 0,
+      "ok": false,
+      "hintCount": 0,
+      "hints": [],
+      "error": "fetch failed"
+    },
+    {
+      "name": "TVR Cluj",
+      "url": "https://cluj.tvr.ro/",
+      "status": 0,
+      "ok": false,
+      "hintCount": 0,
+      "hints": [],
+      "error": "fetch failed"
+    },
+    {
+      "name": "TVR Iași",
+      "url": "https://iasi.tvr.ro/",
+      "status": 0,
+      "ok": false,
+      "hintCount": 0,
+      "hints": [],
+      "error": "fetch failed"
+    },
+    {
+      "name": "TVR Timișoara",
+      "url": "https://timisoara.tvr.ro/",
+      "status": 0,
+      "ok": false,
+      "hintCount": 0,
+      "hints": [],
+      "error": "fetch failed"
+    },
+    {
+      "name": "TVR Târgu Mureș",
+      "url": "https://tirgumures.tvr.ro/",
+      "status": 0,
+      "ok": false,
+      "hintCount": 0,
+      "hints": [],
+      "error": "fetch failed"
+    },
+    {
+      "name": "Bucovina TV",
+      "url": "https://www.bucovinatv.ro/live/",
+      "status": 200,
+      "ok": true,
+      "hintCount": 1,
+      "hints": [
+        "https://www.bucovinatv.ro/proxy/video/playlist.m3u8"
+      ],
+      "error": null
+    },
+    {
+      "name": "Roman TV",
+      "url": "https://romantv.ro/live/",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Radio România Timișoara Video",
+      "url": "https://www.radiotimisoara.ro/video-studio",
+      "status": 200,
+      "ok": true,
+      "hintCount": 0,
+      "hints": [],
+      "error": null
+    },
+    {
+      "name": "Radio România Constanța Video",
+      "url": "https://www.radioconstanta.ro/video-studio/",
+      "status": 200,
+      "ok": true,
+      "hintCount": 1,
+      "hints": [
+        "https://stream3.srr.ro/live/1dec/playlist.m3u8"
+      ],
+      "error": null
+    }
+  ],
+  "streamsFound": 6
+}

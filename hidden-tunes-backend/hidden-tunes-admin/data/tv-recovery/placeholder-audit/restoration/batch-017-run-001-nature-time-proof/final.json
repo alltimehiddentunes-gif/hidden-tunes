@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T08:18:23.987Z",
+  "identity": "Nature Time",
+  "candidateRecordId": "e2a5facf-6bfe-45af-a1fd-c285883f4f76",
+  "aliasesTerminal": 2,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.4,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

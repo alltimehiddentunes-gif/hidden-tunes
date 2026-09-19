@@ -82,6 +82,16 @@ export function classifySportsBroadcast(
   const watchUrl = metaString(meta, "watchUrl");
   const provenance = metaString(meta, "discoveryProvenance");
 
+  if (
+    source === "football_stream_api" &&
+    ["EXACT", "HIGH"].includes(metaString(meta, "fixtureMatchConfidence")) &&
+    input.broadcastType === "live_match" &&
+    input.playbackKind === "hls"
+  ) {
+    const validated = input.validationStatus === "validated" && !(input.validationExpiresAt && Date.parse(input.validationExpiresAt) < now.getTime());
+    return { classification: validated ? "event_specific_official" : "unverified_channel_mapping", eventSpecific: true, publicStreamEligible: validated, officialAllowed: false, verifiedAllowed: validated, reasons: [validated ? "paid_provider_exact_event_hls" : "paid_provider_validation_missing_or_expired"] };
+  }
+
   if (input.quarantinedAt) {
     return {
       classification: "quarantined",

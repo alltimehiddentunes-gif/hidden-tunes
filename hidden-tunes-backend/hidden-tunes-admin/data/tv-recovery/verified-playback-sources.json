@@ -1,0 +1,1184 @@
+{
+  "generatedAt": "2026-08-10T04:52:14.593Z",
+  "count": 53,
+  "sources": [
+    {
+      "canonicalChannelId": "pluto:5e1f7e089f23700009d66303",
+      "providerChannelId": "5e1f7e089f23700009d66303",
+      "canonicalName": "COPS",
+      "regions": [
+        "US",
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Curiosidad",
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "03713d00-7fb7-4626-acd4-4ab3d196467e",
+        "sourceHost": "langleyproductions-cops-2-eu.rakuten.wurl.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6578848a6e4f6a0008741910",
+      "providerChannelId": "6578848a6e4f6a0008741910",
+      "canonicalName": "Crime 360",
+      "regions": [
+        "US",
+        "NO_PLUTO",
+        "NO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "True Crime"
+      ],
+      "source": {
+        "existingCatalogRecordId": "f6451fcf-0b46-4512-ab55-142c979129ac",
+        "sourceHost": "94a3e237.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6400bdb1219c4c00081751aa",
+      "providerChannelId": "6400bdb1219c4c00081751aa",
+      "canonicalName": "COPS",
+      "regions": [
+        "US",
+        "NO_PLUTO",
+        "NO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entretenimiento",
+        "Entertainment",
+        "True Crime"
+      ],
+      "source": {
+        "existingCatalogRecordId": "03713d00-7fb7-4626-acd4-4ab3d196467e",
+        "sourceHost": "langleyproductions-cops-2-eu.rakuten.wurl.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5ce4475cd43850831ca91ce7",
+      "providerChannelId": "5ce4475cd43850831ca91ce7",
+      "canonicalName": "Doctor Who Classic",
+      "regions": [
+        "US",
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "ede4d348-a7d4-456e-952b-d2555ec34f73",
+        "sourceHost": "bbc-classicdrwho-1-us.xumo.wurl.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5f6b54b9e67cf60007d4cef1",
+      "providerChannelId": "5f6b54b9e67cf60007d4cef1",
+      "canonicalName": "Duck Dynasty",
+      "regions": [
+        "US"
+      ],
+      "languages": [],
+      "categories": [
+        "Real Life Adventure"
+      ],
+      "source": {
+        "existingCatalogRecordId": "e8c053a1-7eff-4f70-a8b6-c27bf644fb2a",
+        "sourceHost": "amg00276-amg00276c2-rakuten-uk-3449.playouts.now.amagi.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:619e1ef4f42ad90007e00a21",
+      "providerChannelId": "619e1ef4f42ad90007e00a21",
+      "canonicalName": "Nosey",
+      "regions": [
+        "DK_PLUTO",
+        "DE"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "Talkshow"
+      ],
+      "source": {
+        "existingCatalogRecordId": "e7dc14cf-1131-4888-b6dd-92fc7b0e7606",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:660bfca524e1d000085b6007",
+      "providerChannelId": "660bfca524e1d000085b6007",
+      "canonicalName": "FIFA+",
+      "regions": [
+        "NO",
+        "NO_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "a5b004de-0b14-4b13-a76b-cfe6b9069eb5",
+        "sourceHost": "ba3e2e93.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6792066f3de7c8cf941e7ce3",
+      "providerChannelId": "6792066f3de7c8cf941e7ce3",
+      "canonicalName": "UFC (720p)",
+      "regions": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:67a52cd4ec91870008a62164",
+      "providerChannelId": "67a52cd4ec91870008a62164",
+      "canonicalName": "UFC",
+      "regions": [
+        "MX"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:679205a13de7c8cf941e7857",
+      "providerChannelId": "679205a13de7c8cf941e7857",
+      "canonicalName": "UFC",
+      "regions": [
+        "NO_PLUTO",
+        "NO"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6792044b680721c77c5b9ba2",
+      "providerChannelId": "6792044b680721c77c5b9ba2",
+      "canonicalName": "UFC",
+      "regions": [
+        "DK_PLUTO",
+        "DE"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:69a20556814d27f4ae630a92",
+      "providerChannelId": "69a20556814d27f4ae630a92",
+      "canonicalName": "UFC",
+      "regions": [
+        "BR"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:65c340983ba51e00083988e8",
+      "providerChannelId": "65c340983ba51e00083988e8",
+      "canonicalName": "Monster Jam",
+      "regions": [
+        "SW",
+        "SE_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "3f30e76d-2e35-40c3-8975-3bef145fbf11",
+        "sourceHost": "4b9627c7.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:64805755536e0c0008a19fa1",
+      "providerChannelId": "64805755536e0c0008a19fa1",
+      "canonicalName": "DAZN Ringside",
+      "regions": [
+        "SW",
+        "SE_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:64ec5cf50f73a800081310a5",
+      "providerChannelId": "64ec5cf50f73a800081310a5",
+      "canonicalName": "Forensic Files – Pluto TV",
+      "regions": [
+        "IT_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "80df77d8-0eac-4b1a-8d8d-b236111681b1",
+        "sourceHost": "live-content.xumo.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:62e010e6cd663f0007e57dc8",
+      "providerChannelId": "62e010e6cd663f0007e57dc8",
+      "canonicalName": "TV Cultura",
+      "regions": [
+        "BR",
+        "BR_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "c10573c2-7d85-4719-b746-9e15e665f9ab",
+        "sourceHost": "player-tvcultura.stream.uol.com.br",
+        "provider": "broadcaster_direct",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:68c8201b1e5aaf77c47d9605",
+      "providerChannelId": "68c8201b1e5aaf77c47d9605",
+      "canonicalName": "Ice Road Truckers",
+      "regions": [
+        "GB"
+      ],
+      "languages": [],
+      "categories": [
+        "Real Life Adventure"
+      ],
+      "source": {
+        "existingCatalogRecordId": "15062aad-f8ff-4a9d-be42-3139a7c0b10d",
+        "sourceHost": "7aac8d7e.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5a6b92f6e22a617379789618",
+      "providerChannelId": "5a6b92f6e22a617379789618",
+      "canonicalName": "CBS News 24/7",
+      "regions": [
+        "US",
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Nachrichten",
+        "News"
+      ]
+    },
+    {
+      "canonicalChannelId": "pluto:62b976b93279cb000772c6f9",
+      "providerChannelId": "62b976b93279cb000772c6f9",
+      "canonicalName": "Bloomberg TV+",
+      "regions": [
+        "US"
+      ],
+      "languages": [],
+      "categories": [
+        "News + Opinion"
+      ]
+    },
+    {
+      "canonicalChannelId": "pluto:6915de3d74601d957afa4592",
+      "providerChannelId": "6915de3d74601d957afa4592",
+      "canonicalName": "The Graham Norton Show (720p)",
+      "regions": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "Talkshow"
+      ],
+      "source": {
+        "existingCatalogRecordId": "48926810-75cb-4671-a5d8-6ebbd96333bd",
+        "sourceHost": "amg00654-itv-amg00654c35-rakuten-gb-7598.playouts.now.amagi.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6964b77dff4f2148e520fa9b",
+      "providerChannelId": "6964b77dff4f2148e520fa9b",
+      "canonicalName": "Anger Management",
+      "regions": [
+        "NO",
+        "NO_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Sitcoms",
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "7fca1f68-88fb-40f6-a7e2-6fed46da940c",
+        "sourceHost": "live-content.xumo.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:62bdae69a47b6c00076af298",
+      "providerChannelId": "62bdae69a47b6c00076af298",
+      "canonicalName": "Baywatch",
+      "regions": [
+        "CA_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "90a5693a-6c00-4464-a06d-0d3aef504c8d",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5ebac49ce4dc8b00078b23bc",
+      "providerChannelId": "5ebac49ce4dc8b00078b23bc",
+      "canonicalName": "Babyfirst",
+      "regions": [
+        "US"
+      ],
+      "languages": [],
+      "categories": [
+        "Kids"
+      ],
+      "source": {
+        "existingCatalogRecordId": "8c246ff7-7af8-43c1-8d56-425f0da3c718",
+        "sourceHost": "cdn.fast.jwp.services",
+        "provider": "broadcaster_public_api",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6540fee72cf13100085d5a18",
+      "providerChannelId": "6540fee72cf13100085d5a18",
+      "canonicalName": "Dog The Bounty Hunter (720p)",
+      "regions": [
+        "CA_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "736ccc24-d1e3-4699-b8e0-a22d5982fa0d",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:65c340383a116800078c8454",
+      "providerChannelId": "65c340383a116800078c8454",
+      "canonicalName": "Monster Jam (720p)",
+      "regions": [
+        "NO_PLUTO",
+        "NO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "3f30e76d-2e35-40c3-8975-3bef145fbf11",
+        "sourceHost": "4b9627c7.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6400be67219c4c00081755d3",
+      "providerChannelId": "6400be67219c4c00081755d3",
+      "canonicalName": "COPS",
+      "regions": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "True Crime"
+      ],
+      "source": {
+        "existingCatalogRecordId": "03713d00-7fb7-4626-acd4-4ab3d196467e",
+        "sourceHost": "langleyproductions-cops-2-eu.rakuten.wurl.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:679203d4bc03978b9b4b79a6",
+      "providerChannelId": "679203d4bc03978b9b4b79a6",
+      "canonicalName": "UFC",
+      "regions": [
+        "IT"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:61de90a47365340007f77c27",
+      "providerChannelId": "61de90a47365340007f77c27",
+      "canonicalName": "Euronews English (720p)",
+      "regions": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "Nyheter"
+      ]
+    },
+    {
+      "canonicalChannelId": "pluto:618124b2e53c8d00077b37f8",
+      "providerChannelId": "618124b2e53c8d00077b37f8",
+      "canonicalName": "Forensic Files",
+      "regions": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "True Crime"
+      ],
+      "source": {
+        "existingCatalogRecordId": "80df77d8-0eac-4b1a-8d8d-b236111681b1",
+        "sourceHost": "live-content.xumo.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:60fb299b79498900070b29e0",
+      "providerChannelId": "60fb299b79498900070b29e0",
+      "canonicalName": "CBS News Miami (720p)",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "News"
+      ]
+    },
+    {
+      "canonicalChannelId": "pluto:68ad90673efb41cd97c95825",
+      "providerChannelId": "68ad90673efb41cd97c95825",
+      "canonicalName": "The Outer Limits",
+      "regions": [
+        "DE"
+      ],
+      "languages": [],
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ],
+      "source": {
+        "existingCatalogRecordId": "5ea85b66-0787-4db6-803b-390fa899115d",
+        "sourceHost": "linear-1145.frequency.stream",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:633560bfa693390008b99cf0",
+      "providerChannelId": "633560bfa693390008b99cf0",
+      "canonicalName": "Ice Road Truckers",
+      "regions": [
+        "DK_PLUTO",
+        "DE"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "Realityserier"
+      ],
+      "source": {
+        "existingCatalogRecordId": "15062aad-f8ff-4a9d-be42-3139a7c0b10d",
+        "sourceHost": "7aac8d7e.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:63921a1bf76e7d0007c998a6",
+      "providerChannelId": "63921a1bf76e7d0007c998a6",
+      "canonicalName": "Enquêtes de Choc (720p)",
+      "regions": [
+        "FR_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "e651666c-0675-455e-830a-8666b9c9b5d2",
+        "sourceHost": "fastmedia-enquetesdechoc-rakuten.amagi.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:61780ce4c215ad0007a66ab2",
+      "providerChannelId": "61780ce4c215ad0007a66ab2",
+      "canonicalName": "Just for Laughs GAGS (720p)",
+      "regions": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "Komedi"
+      ],
+      "source": {
+        "existingCatalogRecordId": "3c0cb98a-7f4b-43d2-9a2f-e4c54f8921a6",
+        "sourceHost": "streams2.sofast.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6176f39e709f160007ec61c3",
+      "providerChannelId": "6176f39e709f160007ec61c3",
+      "canonicalName": "48 Hours (720p)",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "1fac7105-ef17-46e9-a3dd-9519b7ea1036",
+        "sourceHost": "dai.google.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5c5c2e9d8002db3c3e0b1c72",
+      "providerChannelId": "5c5c2e9d8002db3c3e0b1c72",
+      "canonicalName": "Homes Under Hammer",
+      "regions": [
+        "UK_PLUTO",
+        "GB"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "Living"
+      ],
+      "source": {
+        "existingCatalogRecordId": "844b1b7f-c3f5-49d7-8d2a-82187eece1c7",
+        "sourceHost": "all3media-homes-under-the-hammer-1-gb.rakuten.wurl.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5bee1a7359ee03633e780238",
+      "providerChannelId": "5bee1a7359ee03633e780238",
+      "canonicalName": "Dog the Bounty Hunter",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "736ccc24-d1e3-4699-b8e0-a22d5982fa0d",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:60cb6df2b2ad610008cd5bea",
+      "providerChannelId": "60cb6df2b2ad610008cd5bea",
+      "canonicalName": "CBS News Sacramento (720p)",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "News"
+      ]
+    },
+    {
+      "canonicalChannelId": "pluto:65788611a620e30008fe36ff",
+      "providerChannelId": "65788611a620e30008fe36ff",
+      "canonicalName": "Duck Dynasty",
+      "regions": [
+        "SW",
+        "SE_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Reality",
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "e8c053a1-7eff-4f70-a8b6-c27bf644fb2a",
+        "sourceHost": "amg00276-amg00276c2-rakuten-uk-3449.playouts.now.amagi.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5dc9b875e280c80009a8a44a",
+      "providerChannelId": "5dc9b875e280c80009a8a44a",
+      "canonicalName": "CBS News Los Angeles (720p)",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "News"
+      ]
+    },
+    {
+      "canonicalChannelId": "pluto:60492e6d7f3f560007ab0f62",
+      "providerChannelId": "60492e6d7f3f560007ab0f62",
+      "canonicalName": "Estrella News (720p)",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "News"
+      ]
+    },
+    {
+      "canonicalChannelId": "pluto:69ef5682980899a9edf1a884",
+      "providerChannelId": "69ef5682980899a9edf1a884",
+      "canonicalName": "That's Rock (720p)",
+      "regions": [
+        "IT_PLUTO",
+        "IT"
+      ],
+      "languages": [],
+      "categories": [
+        "Rock",
+        "Musica"
+      ],
+      "source": {
+        "existingCatalogRecordId": "53a581d9-7094-4587-a1d3-37c2a3ffbe72",
+        "sourceHost": "s7host5.localnow.api.cms.amdvids.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:649b6898f2ec0000081a9460",
+      "providerChannelId": "649b6898f2ec0000081a9460",
+      "canonicalName": "DAZN Ringside",
+      "regions": [
+        "US"
+      ],
+      "languages": [],
+      "categories": [
+        "Sports"
+      ],
+      "source": {
+        "existingCatalogRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:61de8e502c8e9400077e5de7",
+      "providerChannelId": "61de8e502c8e9400077e5de7",
+      "canonicalName": "Euronews",
+      "regions": [
+        "NO_PLUTO",
+        "NO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment",
+        "Nyheter"
+      ]
+    },
+    {
+      "canonicalChannelId": "pluto:5e7cf6c7b156d500078c5f44",
+      "providerChannelId": "5e7cf6c7b156d500078c5f44",
+      "canonicalName": "OAN Plus (720p)",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "2a2e5730-7429-4638-b3e0-1ef279d2db52",
+        "sourceHost": "oan-plus-tcl.amagi.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5bb1ad55268cae539bcedb08",
+      "providerChannelId": "5bb1ad55268cae539bcedb08",
+      "canonicalName": "The Pet Collective (720p)",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "154914d7-6a45-4b95-b482-0cd01d051fec",
+        "sourceHost": "6ec8627d.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:601a0342dcf4370007566891",
+      "providerChannelId": "601a0342dcf4370007566891",
+      "canonicalName": "Tiny House Nation (720p)",
+      "regions": [
+        "US_PLUTO"
+      ],
+      "languages": [],
+      "categories": [
+        "Entertainment"
+      ],
+      "source": {
+        "existingCatalogRecordId": "0b127b68-2901-439a-9d01-7894ea00851d",
+        "sourceHost": "adf47c43.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6440f8ba939a5900082bddc8",
+      "providerChannelId": "6440f8ba939a5900082bddc8",
+      "canonicalName": "World of Love Island",
+      "regions": [
+        "DE"
+      ],
+      "languages": [],
+      "categories": [
+        "Realityserier"
+      ],
+      "source": {
+        "existingCatalogRecordId": "117fb222-5ae8-4525-a011-ff0bdf870e52",
+        "sourceHost": "worldofloveisland-rakuten.amagi.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:62a0b2aff4cf470007e47e29",
+      "providerChannelId": "62a0b2aff4cf470007e47e29",
+      "canonicalName": "Fluss-Monster",
+      "regions": [
+        "DE"
+      ],
+      "languages": [],
+      "categories": [
+        "Dokus + Wissen"
+      ],
+      "source": {
+        "existingCatalogRecordId": "cf9fc0b8-76b4-4f45-9b1d-24d2cbf98868",
+        "sourceHost": "rivermonstergermany-rakuten.amagi.tv",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:657881c46e4f6a00087414c2",
+      "providerChannelId": "657881c46e4f6a00087414c2",
+      "canonicalName": "I Survived",
+      "regions": [
+        "DE"
+      ],
+      "languages": [],
+      "categories": [
+        "Dokumentarer"
+      ],
+      "source": {
+        "existingCatalogRecordId": "2677d15a-8bf9-4989-9bae-410311fae926",
+        "sourceHost": "8e979536.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5f515ebac01c0f00080e8439",
+      "providerChannelId": "5f515ebac01c0f00080e8439",
+      "canonicalName": "The Pet Collective",
+      "regions": [
+        "BR"
+      ],
+      "languages": [],
+      "categories": [
+        "Comédia"
+      ],
+      "source": {
+        "existingCatalogRecordId": "154914d7-6a45-4b95-b482-0cd01d051fec",
+        "sourceHost": "6ec8627d.wurl.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:66df8aa7abec540008ca8cb6",
+      "providerChannelId": "66df8aa7abec540008ca8cb6",
+      "canonicalName": "Homeful",
+      "regions": [
+        "US"
+      ],
+      "languages": [],
+      "categories": [
+        "Home + Food"
+      ],
+      "source": {
+        "existingCatalogRecordId": "57dbad06-6944-46da-bd60-9286ee3d1695",
+        "sourceHost": "aegis-cloudfront-1.tubi.video",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:64e35aff6b1fdb0008ea8441",
+      "providerChannelId": "64e35aff6b1fdb0008ea8441",
+      "canonicalName": "Imagen TV+",
+      "regions": [
+        "MX"
+      ],
+      "languages": [],
+      "categories": [
+        "Entretenimiento"
+      ],
+      "source": {
+        "existingCatalogRecordId": "b1f3ee0e-9320-4304-a3c2-2e237224922b",
+        "sourceHost": "igd-it-runtime.otteravision.com",
+        "provider": "official_fast",
+        "confidence": "EXACT",
+        "continuitySeconds": 35,
+        "actualContentVerified": true,
+        "identityVerified": true,
+        "desktopRuntimeVerified": false,
+        "rawUrlPersisted": false
+      }
+    }
+  ]
+}

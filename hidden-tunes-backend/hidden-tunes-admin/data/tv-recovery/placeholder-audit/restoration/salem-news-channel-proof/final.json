@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-15T23:24:12.214Z",
+  "identity": "Salem News Channel",
+  "candidateRecordId": "ac16952b-0c95-4079-afa7-5d2c4667500a",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.28,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

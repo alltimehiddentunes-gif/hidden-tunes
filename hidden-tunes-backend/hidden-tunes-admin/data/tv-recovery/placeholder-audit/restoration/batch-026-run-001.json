@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T07:24:03.430Z",
+  "scope": "Batch 26 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 4,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 2,
+  "productionWrites": 0,
+  "notes": [
+    "Vevo 80s passed 124.10 seconds of 1920x1080 existing-Desktop playback with one video owner from its directly named Vevo/Samsung NZ Amagi candidate.",
+    "Sustained 1980s music-video programming with artist/title metadata, including Def Leppard and Kiss, supports EXACT identity. Normal search and production resolver passed.",
+    "Two quarantined aliases were terminally merged from their rejected candidate to the distinct authoritative candidate without creating a duplicate.",
+    "Vevo Country and Vevo 90s retained directly named Vevo/Samsung Amagi candidates for later bounded proof. Vevo R&B used rejected jmp2.uk and generic CloudFront. CBS News Bay Area had a direct CBS candidate but was not full-tested after the stronger exact Vevo proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 65,
+  "cumulativeTerminalAliases": 203,
+  "batch26Target": 25,
+  "batch26Researched": 5,
+  "batch26Remaining": 20
+}

@@ -143,6 +143,7 @@ export const LecturesPage = memo(function LecturesPage({
     contentError,
     filteredView,
     loadMore,
+    retry,
   } = useLecturesPageData(query, categorySlug, mediaFilter, languageFilter)
 
   const visibleSeries = filteredView ? filteredSeries : browseSeries
@@ -275,7 +276,7 @@ export const LecturesPage = memo(function LecturesPage({
   if (error) {
     return (
       <div className="lectures-destination">
-        <LectureErrorState message={error} onRetry={() => window.location.reload()} />
+        <LectureErrorState message={error} onRetry={retry} />
       </div>
     )
   }
@@ -365,7 +366,7 @@ export const LecturesPage = memo(function LecturesPage({
       ) : null}
 
       {contentLoading ? <LectureLoadingSkeleton count={6} /> : null}
-      {contentError ? <LectureErrorState message={contentError} onRetry={loadMore} /> : null}
+      {contentError ? <LectureErrorState message={contentError} onRetry={retry} /> : null}
 
       {!contentLoading && filteredView && visibleSeries.length === 0 ? (
         <LectureEmptyState

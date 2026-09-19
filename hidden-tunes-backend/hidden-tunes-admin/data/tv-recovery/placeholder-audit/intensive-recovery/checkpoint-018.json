@@ -1,0 +1,820 @@
+{
+  "batch": 18,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH:AMBIGUOUS_EXACT_TITLE",
+  "startedAt": "2026-08-11T17:18:26.231Z",
+  "completedAt": "2026-08-11T17:28:56.180Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 53,
+  "healthyCandidates": 34,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 34,
+  "stillUnresolved": 16,
+  "remainingQueue": 2089,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "627d355aa95efd00077afcc7",
+      "requestedTitles": [
+        "Cheaters"
+      ],
+      "normalizedIdentity": [
+        "cheaters"
+      ],
+      "candidateRecordId": "b9a3c317-6349-4169-a7d8-caa8582dd850",
+      "candidateTitle": "Cheaters",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61de96114757070008d33cae",
+      "requestedTitles": [
+        "Euronews"
+      ],
+      "normalizedIdentity": [
+        "euronews"
+      ],
+      "candidateRecordId": "3199322d-3bb9-442e-887e-8dd8b2ade03a",
+      "candidateTitle": "euronews",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "euronews-live-spa-es.fast.rakuten.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "698384cb7230043f21f4a3f4",
+      "requestedTitles": [
+        "Property Brothers"
+      ],
+      "normalizedIdentity": [
+        "property brothers"
+      ],
+      "candidateRecordId": "79b61869-3b34-47eb-b5d6-08d5ae7b78bb",
+      "candidateTitle": "Property Brothers",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65d92a8c8b24c80008e285c0",
+      "requestedTitles": [
+        "BBC News"
+      ],
+      "normalizedIdentity": [
+        "bbc news"
+      ],
+      "candidateRecordId": "e99be7ba-59c0-4570-bed2-5b2575cb701b",
+      "candidateTitle": "BBC News (540p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "vs-hls-push-ww-live.akamaized.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65a7b04e7bdc8d0008488307",
+      "requestedTitles": [
+        "True Crime Now"
+      ],
+      "normalizedIdentity": [
+        "true crime now"
+      ],
+      "candidateRecordId": "b5bc02e4-40eb-4b9f-a0de-c50dc2382471",
+      "candidateTitle": "True Crime Now",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5d9492c77ea6f99188738ff1",
+      "requestedTitles": [
+        "Pluto TV Science"
+      ],
+      "normalizedIdentity": [
+        "science"
+      ],
+      "candidateRecordId": "c941f6bd-fb84-424c-8490-3daae8b23ee4",
+      "candidateTitle": "Pluto TV Science",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66a10eeb46762a0008201e85",
+      "requestedTitles": [
+        "Teletubbies"
+      ],
+      "normalizedIdentity": [
+        "teletubbies"
+      ],
+      "candidateRecordId": "d0322642-3c39-47e4-ba2c-bc5bbd380538",
+      "candidateTitle": "Teletubbies",
+      "exactCandidateCount": 8,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "59b722526996084038c01e1b",
+      "requestedTitles": [
+        "TNA Wrestling"
+      ],
+      "normalizedIdentity": [
+        "tna wrestling"
+      ],
+      "candidateRecordId": "674ee4f5-6885-48a2-aeb5-6cbd13847ea2",
+      "candidateTitle": "TNA Wrestling Channel",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d39g1vxj2ef6in.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "637e55347427a40007fac703",
+      "requestedTitles": [
+        "Sailor Moon"
+      ],
+      "normalizedIdentity": [
+        "sailor moon"
+      ],
+      "candidateRecordId": "1cf82876-b8ac-45b4-9cfb-6fc57e5583cc",
+      "candidateTitle": "Sailor Moon",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d3f4oii5n0oeqi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64a3d96f060e830008af6745",
+      "requestedTitles": [
+        "MovieSphere by Lionsgate"
+      ],
+      "normalizedIdentity": [
+        "moviesphere by lionsgate"
+      ],
+      "candidateRecordId": "fef70a86-98f5-4d8e-b6d4-22015984c8b4",
+      "candidateTitle": "Moviesphere by Lionsgate",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "67c62ac2095aea2ec805eb34",
+      "requestedTitles": [
+        "The Martha Stewart Channel"
+      ],
+      "normalizedIdentity": [
+        "the martha stewart"
+      ],
+      "candidateRecordId": "3c3f645e-7481-4bf8-8daf-7ab1e8f6d49c",
+      "candidateTitle": "The Martha Stewart Channel",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "65786abdb3801200084c593a",
+      "requestedTitles": [
+        "Homeful"
+      ],
+      "normalizedIdentity": [
+        "homeful"
+      ],
+      "candidateRecordId": "eff96a17-caea-4bde-97c7-c59452ff783c",
+      "candidateTitle": "Homeful",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62310f66d5888f0007534342",
+      "requestedTitles": [
+        "CBS News 24/7"
+      ],
+      "normalizedIdentity": [
+        "cbs news 24 7"
+      ],
+      "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+      "candidateTitle": "CBS News 24/7 (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "688892172928933015abe479",
+      "requestedTitles": [
+        "Barbie & Friends"
+      ],
+      "normalizedIdentity": [
+        "barbie and friends"
+      ],
+      "candidateRecordId": "5f71eee6-56e2-4405-bd18-1b7648610439",
+      "candidateTitle": "Barbie and Friends (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d1xqdnwy1bo05f.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60dafb9a0df1ba000758d37b",
+      "requestedTitles": [
+        "BBC Series"
+      ],
+      "normalizedIdentity": [
+        "bbc series"
+      ],
+      "candidateRecordId": "cfc2122b-a4dc-4681-abe4-fa24670d004c",
+      "candidateTitle": "BBC Series",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61b9edc4a4ca6100070bb407",
+      "requestedTitles": [
+        "Ice Pilots"
+      ],
+      "normalizedIdentity": [
+        "ice pilots"
+      ],
+      "candidateRecordId": "4e7e728f-1bcd-41eb-b94e-dc788e1936a1",
+      "candidateTitle": "Ice Pilots",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62154548a2be360007cb02f0",
+      "requestedTitles": [
+        "Ice Pilots"
+      ],
+      "normalizedIdentity": [
+        "ice pilots"
+      ],
+      "candidateRecordId": "4e7e728f-1bcd-41eb-b94e-dc788e1936a1",
+      "candidateTitle": "Ice Pilots",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "625461ef01f27a0007976ad1",
+      "requestedTitles": [
+        "MTV Catfish"
+      ],
+      "normalizedIdentity": [
+        "mtv catfish"
+      ],
+      "candidateRecordId": "21399a98-b749-46f2-9c0c-b95f5695a2d6",
+      "candidateTitle": "MTV Catfish",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "680f462556ff83bcd6ba2816",
+      "requestedTitles": [
+        "Rookie Blue"
+      ],
+      "normalizedIdentity": [
+        "rookie blue"
+      ],
+      "candidateRecordId": "ebe9fbd5-8f4b-4953-9d0e-97387f4bc785",
+      "candidateTitle": "rookie-blue",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5f8ed9461b35690007a0bc3a",
+      "requestedTitles": [
+        "Pluto TV Paranormal"
+      ],
+      "normalizedIdentity": [
+        "paranormal"
+      ],
+      "candidateRecordId": "8e25d403-b76d-4ad7-bb5b-a5dd45e67e4b",
+      "candidateTitle": "Pluto TV Paranormal",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6870c9333ffa5e0c914e9205",
+      "requestedTitles": [
+        "Tennis Channel"
+      ],
+      "normalizedIdentity": [
+        "tennis"
+      ],
+      "candidateRecordId": "3ecfd137-e428-4a12-9705-1c7d5684eefc",
+      "candidateTitle": "Tennis+ (1080p)",
+      "exactCandidateCount": 9,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "amg01935-amg01935c1-amgplt0165.playout.now3.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5de5758e1a30dc00094fcd6c",
+      "requestedTitles": [
+        "Pluto TV Historia"
+      ],
+      "normalizedIdentity": [
+        "historia"
+      ],
+      "candidateRecordId": "6bf874a3-032c-4dbf-ba5b-371ae2ea0e2a",
+      "candidateTitle": "Historia",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d1k3vzh2ivy22k.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f1abf5fafb5ee0007d4d0ca",
+      "requestedTitles": [
+        "FailArmy"
+      ],
+      "normalizedIdentity": [
+        "failarmy"
+      ],
+      "candidateRecordId": "5632ecc3-a277-423b-936d-59d0fee82133",
+      "candidateTitle": "FailArmy",
+      "exactCandidateCount": 10,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66c45c0de7f5e80008b82005",
+      "requestedTitles": [
+        "CNN Headlines International"
+      ],
+      "normalizedIdentity": [
+        "cnn headlines international"
+      ],
+      "candidateRecordId": "ac680b78-a9a7-41fa-aca4-cd247aa78408",
+      "candidateTitle": "CNN Headlines International",
+      "exactCandidateCount": 6,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69fc906b90dc413f536059a1",
+      "requestedTitles": [
+        "H2O & Friends"
+      ],
+      "normalizedIdentity": [
+        "h2o and friends"
+      ],
+      "candidateRecordId": "024792ce-2abd-45f3-a888-d60fee6ad128",
+      "candidateTitle": "H2O & Friends",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "65253d66c52b3600083d8dd2",
+      "requestedTitles": [
+        "Wicked Tuna"
+      ],
+      "normalizedIdentity": [
+        "wicked tuna"
+      ],
+      "candidateRecordId": "b7605689-ad12-4d0a-8898-ea7269700756",
+      "candidateTitle": "Wicked Tuna (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "amg00353-lionsgatestudio-wickedtunanl-samsungnl-l67j0.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "627254d6ba35210007e5d4ca",
+      "requestedTitles": [
+        "Project Runway"
+      ],
+      "normalizedIdentity": [
+        "project runway"
+      ],
+      "candidateRecordId": "e0b78c62-cb29-400b-8205-2ec56f69343f",
+      "candidateTitle": "Project Runway (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d2zkt0rpioct1v.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62022f7b9fcc3800076f8c26",
+      "requestedTitles": [
+        "Hell's Kitchen (720p)",
+        "Hell's Kitchen"
+      ],
+      "normalizedIdentity": [
+        "hell s kitchen"
+      ],
+      "candidateRecordId": "85778084-d6f1-4331-921c-6658e98fb7ee",
+      "candidateTitle": "Hell's Kitchen",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "69172f1699758a0f03459c5b",
+      "requestedTitles": [
+        "America's Funniest Home Videos"
+      ],
+      "normalizedIdentity": [
+        "america s funniest home videos"
+      ],
+      "candidateRecordId": "0ab4149b-3a4e-492b-a99a-d44bc94303e3",
+      "candidateTitle": "America’s Funniest Home Videos",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61e82af27027f9000753c6e4",
+      "requestedTitles": [
+        "CBS News 24/7"
+      ],
+      "normalizedIdentity": [
+        "cbs news 24 7"
+      ],
+      "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+      "candidateTitle": "CBS News 24/7 (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69b3db5d61e8e298254c7108",
+      "requestedTitles": [
+        "Space Live"
+      ],
+      "normalizedIdentity": [
+        "space live"
+      ],
+      "candidateRecordId": "e753c000-0095-4690-9fa7-e97c3057f4ff",
+      "candidateTitle": "Space Live (1080p)",
+      "exactCandidateCount": 8,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d111bsx9oooqoh.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6745f0643a61d40008a61510",
+      "requestedTitles": [
+        "Rookie Blue"
+      ],
+      "normalizedIdentity": [
+        "rookie blue"
+      ],
+      "candidateRecordId": "ebe9fbd5-8f4b-4953-9d0e-97387f4bc785",
+      "candidateTitle": "rookie-blue",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "69b16e2b65c1df7564fc750b",
+      "requestedTitles": [
+        "Space Live (720p)"
+      ],
+      "normalizedIdentity": [
+        "space live"
+      ],
+      "candidateRecordId": "e753c000-0095-4690-9fa7-e97c3057f4ff",
+      "candidateTitle": "Space Live (1080p)",
+      "exactCandidateCount": 8,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d111bsx9oooqoh.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "612ce5214bb5790007ad3016",
+      "requestedTitles": [
+        "Pluto TV Paranormal"
+      ],
+      "normalizedIdentity": [
+        "paranormal"
+      ],
+      "candidateRecordId": "8e25d403-b76d-4ad7-bb5b-a5dd45e67e4b",
+      "candidateTitle": "Pluto TV Paranormal",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63eb96754e83e70008ab8941",
+      "requestedTitles": [
+        "Yu-Gi-Oh!"
+      ],
+      "normalizedIdentity": [
+        "yu gi oh"
+      ],
+      "candidateRecordId": "e0df71f4-f512-4d9c-b353-125600e56ae3",
+      "candidateTitle": "Yu-Gi-Oh!",
+      "exactCandidateCount": 7,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "604f81a49ef73300070e554f",
+      "requestedTitles": [
+        "MTV Teen Mom"
+      ],
+      "normalizedIdentity": [
+        "mtv teen mom"
+      ],
+      "candidateRecordId": "e208ca39-6dda-4548-9a36-65c987621d13",
+      "candidateTitle": "MTV Teen Mom",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "677f929054f43dad4b325c1c",
+      "requestedTitles": [
+        "Just for Laughs GAGS"
+      ],
+      "normalizedIdentity": [
+        "just for laughs gags"
+      ],
+      "candidateRecordId": "3170f0b4-915a-43c7-9df8-a6ebe2b1ed07",
+      "candidateTitle": "Just for Laughs Gags",
+      "exactCandidateCount": 12,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "distributionsjustepourrire-justforlaughsgags-1-be.samsung.wurl.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6915ddcb0d121b44ad1b6bf2",
+      "requestedTitles": [
+        "The Graham Norton Show (720p)",
+        "The Graham Norton Show"
+      ],
+      "normalizedIdentity": [
+        "the graham norton show"
+      ],
+      "candidateRecordId": "3347b4e8-f87e-4909-a4b9-2a66fe5986fe",
+      "candidateTitle": "The Graham Norton Show",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60d356a534f63f000850cdd7",
+      "requestedTitles": [
+        "Top Gear"
+      ],
+      "normalizedIdentity": [
+        "top gear"
+      ],
+      "candidateRecordId": "7a396e00-584d-4772-a7ef-c1a0abe31edd",
+      "candidateTitle": "Top Gear",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6181404ef48321000797bc41",
+      "requestedTitles": [
+        "iCarly"
+      ],
+      "normalizedIdentity": [
+        "icarly"
+      ],
+      "candidateRecordId": "a600112f-fecb-44ca-b2f7-c2b351a2729c",
+      "candidateTitle": "iCarly",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60dd6b1da79e4d0007309455",
+      "requestedTitles": [
+        "Nature Time"
+      ],
+      "normalizedIdentity": [
+        "nature time"
+      ],
+      "candidateRecordId": "e2a5facf-6bfe-45af-a1fd-c285883f4f76",
+      "candidateTitle": "Nature Time (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "amg00090-amgnaturetimeemea-rakuten.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61781878a3580d0008967df8",
+      "requestedTitles": [
+        "Just for Laughs GAGS (720p)",
+        "Just for Laughs GAGS"
+      ],
+      "normalizedIdentity": [
+        "just for laughs gags"
+      ],
+      "candidateRecordId": "3170f0b4-915a-43c7-9df8-a6ebe2b1ed07",
+      "candidateTitle": "Just for Laughs Gags",
+      "exactCandidateCount": 12,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "distributionsjustepourrire-justforlaughsgags-1-be.samsung.wurl.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "691b012d1148fa1cd8a75d5c",
+      "requestedTitles": [
+        "Hardcore Pawn"
+      ],
+      "normalizedIdentity": [
+        "hardcore pawn"
+      ],
+      "candidateRecordId": "887950bf-9e2c-4cc3-b59d-6c8b3d1321e5",
+      "candidateTitle": "Hardcore Pawn (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "amg00627-amg00627c8-rakuten-uk-4801.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65a6dafb7bdc8d0008473c85",
+      "requestedTitles": [
+        "The Lone Ranger"
+      ],
+      "normalizedIdentity": [
+        "the lone ranger"
+      ],
+      "candidateRecordId": "4e8dbfd7-f66a-4d34-be8c-95c2c00688f2",
+      "candidateTitle": "The Lone Ranger",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d4whmvwm0rdvi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "681b16158f97d58ff194a3a9",
+      "requestedTitles": [
+        "Project Runway"
+      ],
+      "normalizedIdentity": [
+        "project runway"
+      ],
+      "candidateRecordId": "e0b78c62-cb29-400b-8205-2ec56f69343f",
+      "candidateTitle": "Project Runway (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "d2zkt0rpioct1v.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "667d419415f35c0008942dd1",
+      "requestedTitles": [
+        "World of Love Island"
+      ],
+      "normalizedIdentity": [
+        "world of love island"
+      ],
+      "candidateRecordId": "2c8e5a32-d93e-40e6-9c9c-cf30c0755dd3",
+      "candidateTitle": "World Of Love Island",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6601948129adfd0008a1c0ba",
+      "requestedTitles": [
+        "Crime & Justice"
+      ],
+      "normalizedIdentity": [
+        "crime and justice"
+      ],
+      "candidateRecordId": "a8124f8f-e0fa-4788-a608-bd8b71d48d3b",
+      "candidateTitle": "Crime & Justice",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "32e34bca.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66c70033b1a34600087bb09a",
+      "requestedTitles": [
+        "Pluto TV Paranormal"
+      ],
+      "normalizedIdentity": [
+        "paranormal"
+      ],
+      "candidateRecordId": "8e25d403-b76d-4ad7-bb5b-a5dd45e67e4b",
+      "candidateTitle": "Pluto TV Paranormal",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69fc903b201df02a8b0f3017",
+      "requestedTitles": [
+        "H2O & Friends"
+      ],
+      "normalizedIdentity": [
+        "h2o and friends"
+      ],
+      "candidateRecordId": "024792ce-2abd-45f3-a888-d60fee6ad128",
+      "candidateTitle": "H2O & Friends",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64e89cfc9c1e3900084ca663",
+      "requestedTitles": [
+        "Mayday: Air Disaster"
+      ],
+      "normalizedIdentity": [
+        "mayday air disaster"
+      ],
+      "candidateRecordId": "19494e7b-5d84-4d30-a2d5-f6c40ba30397",
+      "candidateTitle": "Mayday: Air Disaster",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 1,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    }
+  ]
+}

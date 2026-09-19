@@ -16,7 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 const API_BASE_URL = "https://hidden-tunes-backend.onrender.com";
 
@@ -38,6 +38,10 @@ export default function AdminUploadScreen() {
 
   const [uploading, setUploading] = useState(false);
   const [lastResult, setLastResult] = useState<any>(null);
+
+  if (typeof __DEV__ === "undefined" || !__DEV__) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   async function pickSong() {
     const result = await DocumentPicker.getDocumentAsync({

@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T08:18:23.987Z",
+  "scope": "Batch 17 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 1,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 2,
+  "productionWrites": 0,
+  "notes": [
+    "Nature Time passed 124.40 seconds of 1920x1080 existing-Desktop playback with one video owner from the exact Rakuten Amagi channel.",
+    "Rakuten/Samsung listings confirm the free natural-history FAST service; continuous evidence showed real macro nature-documentary content.",
+    "Two quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Euronews mapped to the distinct Italian service and failed exact generic identity. Graham Norton used rejected i.mjh.nz; iCarly used rejected jmp2.uk; Pixel TV lacked authoritative provenance."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 47,
+  "cumulativeTerminalAliases": 172,
+  "batch17Target": 25,
+  "batch17Researched": 5,
+  "batch17Remaining": 20
+}

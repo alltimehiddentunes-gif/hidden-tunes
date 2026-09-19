@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-16T09:25:49.476Z",
+  "scope": "Batch 26 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 2,
+  "productionWrites": 0,
+  "notes": [
+    "LiveNOW from FOX passed 124.42 seconds of 1280x720 existing-Desktop playback with one video owner from its directly named FOX/VIZIO Amagi candidate.",
+    "FOX explicitly lists LiveNOW from FOX on VIZIO WatchFree+, and sustained real breaking-news coverage supports HIGH identity. Normal search and production resolver passed.",
+    "Two quarantined aliases were terminally merged from their rejected jmp2.uk candidate to the distinct authoritative candidate without creating a duplicate.",
+    "BBC Travel and The Bob Ross Channel used rejected jmp2.uk. CNN Headlines used generic CloudFront without direct authoritative linkage. This Old House retained a distinct Roku/Wurl candidate but was not tested after the stronger LiveNOW proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 66,
+  "cumulativeTerminalAliases": 205,
+  "batch26Target": 25,
+  "batch26Researched": 25,
+  "batch26Remaining": 0,
+  "batch26Complete": true
+}

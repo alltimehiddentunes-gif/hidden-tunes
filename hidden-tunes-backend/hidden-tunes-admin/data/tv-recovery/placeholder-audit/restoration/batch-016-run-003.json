@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T06:47:12.643Z",
+  "scope": "Batch 16 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 3,
+  "productionWrites": 0,
+  "notes": [
+    "Come Dine With Me passed 124.30 seconds of 1920x1080 existing-Desktop playback with one video owner from the ITV-namespaced Rakuten UK Amagi distribution.",
+    "ITV Studios officially confirms the dedicated FAST channel and Rakuten distribution; continuous evidence showed real dining and kitchen programme content.",
+    "Three quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Águila Roja and H2O & Friends used rejected jmp2.uk. CNN Headlines International used rejected i.mjh.nz. Project Runway used generic CloudFront without exact authoritative linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 45,
+  "cumulativeTerminalAliases": 169,
+  "batch16Target": 25,
+  "batch16Researched": 15,
+  "batch16Remaining": 10
+}

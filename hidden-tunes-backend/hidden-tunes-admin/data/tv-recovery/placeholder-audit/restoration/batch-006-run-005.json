@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-08-14T06:08:34.651Z",
+  "scope": "Batch 6 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "idleSlateRejected": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "CBS News Baltimore candidate debe8a7d-76e6-4100-b4f3-4573617c8144 uses CBS's official lineup host and technically advanced for 124.58 seconds at 1280x720 with one video owner.",
+    "All sampled frames showed the same static CBS News plus Paramount+ promotional card, followed by black. It did not deliver real moving Baltimore news programming and failed the actual-content/continuity gate.",
+    "Vevo 90s and Homicide Hunter use jmp2.uk; On The Case uses i.mjh.nz. Bounce XL has an official Tubi candidate but was not full-tested after the stronger CBS candidate failed the bounded run's proof gate.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 19,
+  "cumulativeTerminalAliases": 91,
+  "batch6Target": 25,
+  "batch6Researched": 25,
+  "batch6Remaining": 0
+}

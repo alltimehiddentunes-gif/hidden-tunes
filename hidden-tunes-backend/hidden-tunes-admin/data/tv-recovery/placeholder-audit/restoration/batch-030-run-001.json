@@ -1,0 +1,29 @@
+{
+  "completedAt": "2026-08-16T17:59:39.283Z",
+  "scope": "Batch 30 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "RCN Mas passed authoritative Plex listing and directly named RCN TV / RCN Mas Plex Wurl delivery provenance.",
+    "RCN Mas passed 124.09 seconds of 1920x1080 existing-Desktop playback with one video owner and sustained real Spanish-language drama programming, supporting HIGH identity. Normal search and production resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was created.",
+    "Pluto TV Animation, N24 Doku, and Pluto TV Cinema Italiano used rejected jmp2.uk sources. Pluto TV Classic TV used an uncertain clshls.wns.live endpoint without authoritative linkage and was not full-tested."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 72,
+  "cumulativeTerminalAliases": 215,
+  "batch30Target": 25,
+  "batch30Researched": 5,
+  "batch30Remaining": 20,
+  "batch30Complete": false
+}

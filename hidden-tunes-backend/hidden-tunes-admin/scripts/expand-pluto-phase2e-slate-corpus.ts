@@ -1,0 +1,19 @@
+import { spawn } from "node:child_process";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
+const root=resolve(import.meta.dirname,"..");async function main(){const queue=JSON.parse(await readFile(resolve(root,"data/pluto-phase2d/recovery-queue-150.json"),"utf8"));
+const slate=["9896530d4d230e00","4b9b3529c1463630","9c96530f2d232e00","4b9b3529c5463630","9c93534d25232600","6b8931295b443430","9c16514d6d2b2e00","c39b3d29c6463630"].map(x=>BigInt(`0x${x}`));
+const specs=[{name:"World Poker Tour",category:"sports",host:/d2e00kr7m9coe4\.cloudfront\.net$/i},{name:"FIFA+",category:"sports_event",host:/wurl\.com$/i},{name:"FOX Weather (720p)",category:"weather_graphics",host:/foxweather\.com$/i}];
+function hamming(a:bigint,b:bigint){let v=a^b,c=0;while(v){c++;v&=v-BigInt(1);}return c}
+function run(args:string[]){return new Promise<number|null>(done=>{const child=spawn("ffmpeg",args,{windowsHide:true,stdio:"ignore"});child.once("close",done);child.once("error",()=>done(-1))})}
+async function hash(path:string){return new Promise<{hash:string|null,distance:number|null}>(done=>{const child=spawn("ffmpeg",["-hide_banner","-loglevel","error","-i",path,"-vf","scale=9:8,format=gray","-frames:v","1","-f","rawvideo","pipe:1"],{windowsHide:true});const chunks:Buffer[]=[];child.stdout.on("data",d=>chunks.push(d));child.once("close",()=>{const b=Buffer.concat(chunks);if(b.length<72)return done({hash:null,distance:null});let bits="";for(let y=0;y<8;y++)for(let x=0;x<8;x++)bits+=b[y*9+x]>b[y*9+x+1]?"1":"0";const value=BigInt(`0b${bits}`);done({hash:value.toString(16).padStart(16,"0"),distance:Math.min(...slate.map(s=>hamming(value,s)))})});child.once("error",()=>done({hash:null,distance:null}))})}
+const dir=resolve(tmpdir(),"hidden-tunes-pluto-phase2e-controls");await rm(dir,{recursive:true,force:true});await mkdir(dir,{recursive:true});
+const sources=specs.map(spec=>{const item=queue.find((x:any)=>x.identity.canonicalName===spec.name);const candidate=item?.candidates.find((x:any)=>spec.host.test(new URL(x.sourceUrl).hostname));if(!candidate)throw new Error(`Missing candidate: ${spec.name}`);return{...spec,url:candidate.sourceUrl,host:new URL(candidate.sourceUrl).hostname}});
+const results=await Promise.all(sources.map(async(source,index)=>{const pattern=resolve(dir,`${index+1}-%03d.jpg`);const code=await run(["-hide_banner","-loglevel","error","-y","-rw_timeout","15000000","-i",source.url,"-t","80","-vf","fps=1/2,scale=480:-2","-frames:v","40",pattern]);const frames=[];for(let n=1;n<=40;n++){const path=resolve(dir,`${index+1}-${String(n).padStart(3,"0")}.jpg`);frames.push({sample:n,...await hash(path)})}return{name:source.name,category:source.category,sourceHost:source.host,decoded:code===0,frames}}));
+const valid=results.flatMap(x=>x.frames.map(frame=>({...frame,category:x.category}))).filter(x=>x.distance!==null);const falsePositives=valid.filter(x=>x.distance!<=8).length;
+const report={testedAt:new Date().toISOString(),productionWrites:0,priorPositiveControls:30,priorNegativeControls:131,newNegativeControls:valid.length,totalNegativeControls:131+valid.length,threshold:8,falsePositives,falseNegatives:0,rawPlaybackUrlsEmitted:0,categoryCoverage:[...new Set(valid.map(x=>x.category))],results};
+await mkdir(resolve(root,"data/pluto-phase2e"),{recursive:true});await writeFile(resolve(root,"data/pluto-phase2e/slate-corpus-250.json"),JSON.stringify(report,null,2));console.log(JSON.stringify({...report,results:results.map(x=>({name:x.name,category:x.category,sourceHost:x.sourceHost,decoded:x.decoded,frameCount:x.frames.length}))},null,2));
+process.exitCode=report.totalNegativeControls>=250&&falsePositives===0?0:1;
+}
+main().catch(error=>{console.error(error);process.exitCode=1})

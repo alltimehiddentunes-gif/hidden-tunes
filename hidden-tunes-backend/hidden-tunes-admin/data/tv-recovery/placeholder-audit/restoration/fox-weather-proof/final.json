@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T07:19:54.329Z",
+  "identity": "FOX Weather",
+  "candidateRecordId": "4c513653-0fae-4ab3-87c6-62d407783f83",
+  "aliasesTerminal": 2,
+  "authoritativeProvenance": "FOX Weather-owned 247wlive.foxweather.com service",
+  "content": "Real moving weather studio and field programme content",
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.28,
+  "resolution": "1280x720",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

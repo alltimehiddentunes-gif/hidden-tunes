@@ -134,6 +134,40 @@ function EpisodeRow({
   )
 }
 
+function PodcastCardSkeletons({ count = 6 }: { count?: number }) {
+  return (
+    <div className="skeleton-grid skeleton-grid--card" aria-busy="true" aria-hidden="true">
+      {Array.from({ length: count }, (_, index) => (
+        <article key={`podcast-card-skeleton-${index}`} className="skeleton-card">
+          <div className="skeleton-card-art" />
+          <div className="skeleton-card-line skeleton-card-line--wide" />
+          <div className="skeleton-card-line" />
+        </article>
+      ))}
+    </div>
+  )
+}
+
+function PodcastEpisodeSkeletons() {
+  return (
+    <div className="podcasts-episode-list" aria-busy="true" aria-hidden="true">
+      {Array.from({ length: 4 }, (_, index) => (
+        <article key={`podcast-episode-skeleton-${index}`} className="podcast-episode-row">
+          <div className="podcast-episode-row-art">
+            <div className="skeleton-card-art" />
+          </div>
+          <div className="podcast-episode-row-copy">
+            <div className="skeleton-card-line skeleton-card-line--wide" />
+            <div className="skeleton-card-line" />
+          </div>
+          <div className="skeleton-card-line" />
+          <span aria-hidden="true" />
+        </article>
+      ))}
+    </div>
+  )
+}
+
 export const PodcastsPage = memo(function PodcastsPage({
   query,
   onOpenPodcastShow,
@@ -160,7 +194,6 @@ export const PodcastsPage = memo(function PodcastsPage({
     contentError,
     showsPagination,
     episodesPagination,
-    hasRenderableContent,
     loadMoreShows,
     loadMoreEpisodes,
     retry,
@@ -199,8 +232,6 @@ export const PodcastsPage = memo(function PodcastsPage({
   }, [featuredSource, query])
 
   const showPrimaryError = Boolean(error) && !loading
-  const showPrimaryLoading = loading
-  const showPageContent = !showPrimaryLoading && !(showPrimaryError && !hasRenderableContent)
 
   return (
     <div className="podcasts-destination">
@@ -213,35 +244,33 @@ export const PodcastsPage = memo(function PodcastsPage({
         titleId="podcasts-page-heading"
       />
 
-      {showPageContent ? (
-        <div className="podcasts-tabs" role="tablist" aria-label="Podcast categories">
-          {primaryTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              className={`podcasts-tab${activeTab === tab.id ? ' is-active' : ''}`}
-              onClick={() => {
-                setActiveTab(tab.id)
-                setShowOverflowTabs(false)
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-          {overflowTabs.length > 0 ? (
-            <button
-              type="button"
-              className={`podcasts-tab podcasts-tab--more${showOverflowTabs ? ' is-active' : ''}`}
-              aria-expanded={showOverflowTabs}
-              onClick={() => setShowOverflowTabs((current) => !current)}
-            >
-              More
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="podcasts-tabs" role="tablist" aria-label="Podcast categories">
+        {primaryTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={`podcasts-tab${activeTab === tab.id ? ' is-active' : ''}`}
+            onClick={() => {
+              setActiveTab(tab.id)
+              setShowOverflowTabs(false)
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+        {overflowTabs.length > 0 ? (
+          <button
+            type="button"
+            className={`podcasts-tab podcasts-tab--more${showOverflowTabs ? ' is-active' : ''}`}
+            aria-expanded={showOverflowTabs}
+            onClick={() => setShowOverflowTabs((current) => !current)}
+          >
+            More
+          </button>
+        ) : null}
+      </div>
 
       {showOverflowTabs && overflowTabs.length > 0 ? (
         <div className="podcasts-tabs podcasts-tabs--overflow" role="tablist" aria-label="More podcast categories">
@@ -270,15 +299,9 @@ export const PodcastsPage = memo(function PodcastsPage({
             Retry
           </button>
         </section>
-      ) : showPrimaryLoading ? (
-        <section className="podcasts-status" aria-busy="true">
-          <p>Loading podcast catalog…</p>
-        </section>
       ) : null}
 
-      {showPageContent ? (
-        <>
-          <section className="podcasts-section" aria-labelledby="podcasts-featured-heading">
+      <section className="podcasts-section" aria-labelledby="podcasts-featured-heading">
             <div className="podcasts-section-header">
               <div>
                 <h2 id="podcasts-featured-heading">Featured Podcasts</h2>
@@ -286,7 +309,9 @@ export const PodcastsPage = memo(function PodcastsPage({
               </div>
               {contentLoading ? <span className="podcasts-section-meta">Updating…</span> : null}
             </div>
-            {contentError && featuredSectionShows.length === 0 ? (
+            {(loading || contentLoading) && featuredSectionShows.length === 0 ? (
+              <PodcastCardSkeletons />
+            ) : contentError && featuredSectionShows.length === 0 ? (
               <div className="podcasts-status podcasts-status--error" role="alert">
                 <p>{contentError}</p>
                 <button
@@ -341,7 +366,9 @@ export const PodcastsPage = memo(function PodcastsPage({
               </div>
               {contentLoading ? <span className="podcasts-section-meta">Updating…</span> : null}
             </div>
-            {contentError && latestEpisodes.length === 0 ? (
+            {(loading || contentLoading) && latestEpisodes.length === 0 ? (
+              <PodcastEpisodeSkeletons />
+            ) : contentError && latestEpisodes.length === 0 ? (
               <div className="podcasts-status podcasts-status--error" role="alert">
                 <p>{contentError}</p>
                 <button
@@ -400,7 +427,9 @@ export const PodcastsPage = memo(function PodcastsPage({
                 <p className="podcasts-section-subtitle">Browse by genre</p>
               </div>
             </div>
-            {categoryCards.length === 0 ? (
+            {loading && categoryCards.length === 0 ? (
+              <PodcastCardSkeletons count={4} />
+            ) : categoryCards.length === 0 ? (
               <div className="podcasts-status podcasts-status--empty" role="status">
                 <p>Categories are not available right now.</p>
               </div>
@@ -529,8 +558,6 @@ export const PodcastsPage = memo(function PodcastsPage({
               </div>
             )}
           </section>
-        </>
-      ) : null}
     </div>
   )
 })

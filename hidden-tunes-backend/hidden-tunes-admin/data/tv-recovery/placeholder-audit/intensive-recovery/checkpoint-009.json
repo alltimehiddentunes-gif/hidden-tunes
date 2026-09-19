@@ -1,0 +1,864 @@
+{
+  "batch": 9,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH:AMBIGUOUS_EXACT_TITLE",
+  "startedAt": "2026-08-11T11:36:56.527Z",
+  "completedAt": "2026-08-11T11:49:57.876Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 86,
+  "healthyCandidates": 40,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 40,
+  "stillUnresolved": 10,
+  "remainingQueue": 2740,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "61c09342b3a6230007a45119",
+      "requestedTitles": [
+        "MTV Teen Mom (720p)"
+      ],
+      "normalizedIdentity": [
+        "mtv teen mom"
+      ],
+      "candidateRecordId": "e208ca39-6dda-4548-9a36-65c987621d13",
+      "candidateTitle": "MTV Teen Mom",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69143e7b0d121b44adfa1ff9",
+      "requestedTitles": [
+        "America's Funniest Home Videos (720p)",
+        "America's Funniest Home Videos"
+      ],
+      "normalizedIdentity": [
+        "america s funniest home videos"
+      ],
+      "candidateRecordId": "539ec281-0f53-43fc-83c1-33783294a210",
+      "candidateTitle": "America's Funniest Home Videos",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c0b9aab7facb0007913908",
+      "requestedTitles": [
+        "iCarly"
+      ],
+      "normalizedIdentity": [
+        "icarly"
+      ],
+      "candidateRecordId": "a600112f-fecb-44ca-b2f7-c2b351a2729c",
+      "candidateTitle": "iCarly",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5fb5844bf5514d0007945bda",
+      "requestedTitles": [
+        "BBC Food"
+      ],
+      "normalizedIdentity": [
+        "bbc food"
+      ],
+      "candidateRecordId": "c46acb0f-7ee1-432f-9ed2-3147e57d47d4",
+      "candidateTitle": "BBC Food",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5f6df5a173d7340007c559f7",
+      "requestedTitles": [
+        "Naruto"
+      ],
+      "normalizedIdentity": [
+        "naruto"
+      ],
+      "candidateRecordId": "96f89937-cfa4-4a04-bae7-9a34b2f73abc",
+      "candidateTitle": "Naruto",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62c5d32e2c48f9000715b6e9",
+      "requestedTitles": [
+        "Runtime"
+      ],
+      "normalizedIdentity": [
+        "runtime"
+      ],
+      "candidateRecordId": "1978ab4d-346d-4d81-bad5-2f53037f4243",
+      "candidateTitle": "Runtime",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65cf8b9328730900087c5324",
+      "requestedTitles": [
+        "Are We There Yet?"
+      ],
+      "normalizedIdentity": [
+        "are we there yet"
+      ],
+      "candidateRecordId": "86a19d86-83a3-4217-add8-155704248f32",
+      "candidateTitle": "Are We There Yet? (720p)",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62b1e4189f5db20007ff03be",
+      "requestedTitles": [
+        "Pluto TV Paranormal",
+        "Pluto TV Paranormal"
+      ],
+      "normalizedIdentity": [
+        "paranormal"
+      ],
+      "candidateRecordId": "8e25d403-b76d-4ad7-bb5b-a5dd45e67e4b",
+      "candidateTitle": "Pluto TV Paranormal",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c4a09d6c959f0007189c93",
+      "requestedTitles": [
+        "Mystery TV"
+      ],
+      "normalizedIdentity": [
+        "mystery tv"
+      ],
+      "candidateRecordId": "2a2750a8-ca98-400a-bd23-7074cbbf64ce",
+      "candidateTitle": "Mystery TV",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aenetworks-mysterytv-rakuten.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61c0b550e0d3a700072b6a2a",
+      "requestedTitles": [
+        "Comedy Central",
+        "Comedy Central",
+        "Comedy Central"
+      ],
+      "normalizedIdentity": [
+        "comedy central"
+      ],
+      "candidateRecordId": "812d6cd4-1eb5-4e68-9e8b-af487c8ca3f8",
+      "candidateTitle": "Comedy Central Pluto TV",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5bd833b41843b56328bac189",
+      "requestedTitles": [
+        "Mythbusters"
+      ],
+      "normalizedIdentity": [
+        "mythbusters"
+      ],
+      "candidateRecordId": "dee57717-6652-48e5-8a45-e00067748527",
+      "candidateTitle": "MythBusters",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c1df62b7672a0007b6c9ba",
+      "requestedTitles": [
+        "MTV Teen Mom (720p)",
+        "MTV Teen Mom",
+        "MTV Teen Mom (720p)"
+      ],
+      "normalizedIdentity": [
+        "mtv teen mom"
+      ],
+      "candidateRecordId": "e208ca39-6dda-4548-9a36-65c987621d13",
+      "candidateTitle": "MTV Teen Mom",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eceb0d4065c240007688ec6",
+      "requestedTitles": [
+        "CBS News Texas"
+      ],
+      "normalizedIdentity": [
+        "cbs news texas"
+      ],
+      "candidateRecordId": "a85b43a5-45a4-4d20-b25d-a9f97865e56f",
+      "candidateTitle": "CBS News Texas",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "666b265722acab000885c6aa",
+      "requestedTitles": [
+        "BET x Tyler Perry Comedy"
+      ],
+      "normalizedIdentity": [
+        "bet x tyler perry comedy"
+      ],
+      "candidateRecordId": "2b76ad04-d138-49b5-a271-b7c7da71b696",
+      "candidateTitle": "BET x Tyler Perry Comedy (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d3vmpkkd3o2grv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "666b38a5efa2a10008b15b3a",
+      "requestedTitles": [
+        "BET x Tyler Perry Drama"
+      ],
+      "normalizedIdentity": [
+        "bet x tyler perry drama"
+      ],
+      "candidateRecordId": "a93eb2dc-0f49-459c-b75d-aa821773e54a",
+      "candidateTitle": "BET x Tyler Perry Drama (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "doumbtmvnsp0z.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6364f6cd308d210007b5eee9",
+      "requestedTitles": [
+        "Antiques Road Trip"
+      ],
+      "normalizedIdentity": [
+        "antiques road trip"
+      ],
+      "candidateRecordId": "f337ff59-fd25-46fe-a6de-4d1d00dcd5a9",
+      "candidateTitle": "Antiques Road Trip (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d3v8uchko88gmi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c185049e0bde0007820039",
+      "requestedTitles": [
+        "iCarly"
+      ],
+      "normalizedIdentity": [
+        "icarly"
+      ],
+      "candidateRecordId": "a600112f-fecb-44ca-b2f7-c2b351a2729c",
+      "candidateTitle": "iCarly",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6178156e54712100072d6b2b",
+      "requestedTitles": [
+        "Andromeda",
+        "Andromeda",
+        "Andromeda"
+      ],
+      "normalizedIdentity": [
+        "andromeda"
+      ],
+      "candidateRecordId": "037f67b9-2ca4-4bb6-93af-87697b8264aa",
+      "candidateTitle": "Andromeda",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5459795fc9f133a519bc0bef",
+      "requestedTitles": [
+        "Scripps News"
+      ],
+      "normalizedIdentity": [
+        "scripps news"
+      ],
+      "candidateRecordId": "6037069e-e1aa-45c0-89cf-8885851cdb80",
+      "candidateTitle": "Scripps News (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67603668f433320008760af1",
+      "requestedTitles": [
+        "Homeful"
+      ],
+      "normalizedIdentity": [
+        "homeful"
+      ],
+      "candidateRecordId": "57dbad06-6944-46da-bd60-9286ee3d1695",
+      "candidateTitle": "Homeful (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c49f1495f417000731cef0",
+      "requestedTitles": [
+        "Inside Crime"
+      ],
+      "normalizedIdentity": [
+        "inside crime"
+      ],
+      "candidateRecordId": "de3f77fc-888f-4706-9a3e-f45eaeabaccb",
+      "candidateTitle": "Inside Crime (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg00841-aenetworksukane-insidecrime-samsunguk-o968i.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5a74b8e1e22a61737979c6bf",
+      "requestedTitles": [
+        "Fox Sports"
+      ],
+      "normalizedIdentity": [
+        "fox sports"
+      ],
+      "candidateRecordId": "a2a2d084-b509-41f5-9175-b0e666956eaf",
+      "candidateTitle": "FOX Sports (1080p)",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d1jzu95oc8fgt3.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62cdc8fdb05d2b0007ef5035",
+      "requestedTitles": [
+        "CBS News Miami"
+      ],
+      "normalizedIdentity": [
+        "cbs news miami"
+      ],
+      "candidateRecordId": "bd76bef3-9bd3-4771-b0ba-dbc553a880e2",
+      "candidateTitle": "CBS News Miami",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "cbsn-mia.cbsnstream.cbsnews.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62ea4b755e8e770007387b79",
+      "requestedTitles": [
+        "World Poker Tour",
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "620239894757070008d4812d",
+      "requestedTitles": [
+        "Top Gear",
+        "Top Gear",
+        "Top Gear"
+      ],
+      "normalizedIdentity": [
+        "top gear"
+      ],
+      "candidateRecordId": "b937008d-3a33-498a-804c-90ff6313339b",
+      "candidateTitle": "Top Gear",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6202357dea93940007d723ca",
+      "requestedTitles": [
+        "Top Gear",
+        "Top Gear",
+        "Top Gear"
+      ],
+      "normalizedIdentity": [
+        "top gear"
+      ],
+      "candidateRecordId": "b937008d-3a33-498a-804c-90ff6313339b",
+      "candidateTitle": "Top Gear",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "646cce4d1593940008a33f09",
+      "requestedTitles": [
+        "Azteca Internacional (R0cHM6Ly)",
+        "Azteca Internacional (720p)"
+      ],
+      "normalizedIdentity": [
+        "azteca internacional r0chm6ly",
+        "azteca internacional"
+      ],
+      "candidateRecordId": "0f984ed0-a2fc-4e09-ae2b-9fb978b0efb7",
+      "candidateTitle": "Azteca Internacional",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "azt-mun.otteravision.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e92967cd663f0007e604fd",
+      "requestedTitles": [
+        "Homeful (R0cHM6Ly)",
+        "Homeful (720p)"
+      ],
+      "normalizedIdentity": [
+        "homeful r0chm6ly",
+        "homeful"
+      ],
+      "candidateRecordId": "57dbad06-6944-46da-bd60-9286ee3d1695",
+      "candidateTitle": "Homeful (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64f8a408bd341e000818fcda",
+      "requestedTitles": [
+        "Comedy Central"
+      ],
+      "normalizedIdentity": [
+        "comedy central"
+      ],
+      "candidateRecordId": "812d6cd4-1eb5-4e68-9e8b-af487c8ca3f8",
+      "candidateTitle": "Comedy Central Pluto TV",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f357e91b18f0b00073583d2",
+      "requestedTitles": [
+        "Comedy Central Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "comedy central"
+      ],
+      "candidateRecordId": "812d6cd4-1eb5-4e68-9e8b-af487c8ca3f8",
+      "candidateTitle": "Comedy Central Pluto TV",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61de90a47365340007f77c27",
+      "requestedTitles": [
+        "Euronews English (R0cHM6Ly)",
+        "Euronews English (720p)",
+        "Euronews"
+      ],
+      "normalizedIdentity": [
+        "euronews english r0chm6ly",
+        "euronews english",
+        "euronews"
+      ],
+      "candidateRecordId": "f972dcea-89bf-4c39-99bc-32ed43496851",
+      "candidateTitle": "Euronews English",
+      "exactCandidateCount": 9,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dash4.antik.sk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61b86ea479a4390007c6d5fc",
+      "requestedTitles": [
+        "Euronews Italian (R0cHM6Ly)",
+        "Euronews Italian (720p)",
+        "Euronews – Pluto TV",
+        "Euronews"
+      ],
+      "normalizedIdentity": [
+        "euronews italian r0chm6ly",
+        "euronews italian",
+        "euronews"
+      ],
+      "candidateRecordId": "08b7af64-8fda-4cfa-ad7f-1e83393f6c47",
+      "candidateTitle": "Euronews Italian",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "acb6ca89.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "58d947b9e420d8656ee101ab",
+      "requestedTitles": [
+        "RiffTrax"
+      ],
+      "normalizedIdentity": [
+        "rifftrax"
+      ],
+      "candidateRecordId": "7c56b1f4-0bfa-4c75-a5d5-d840abb4b891",
+      "candidateTitle": "RiffTrax (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "wurlrifftrax.global.transmit.live",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6870c9ca759366af055fe891",
+      "requestedTitles": [
+        "Tennis Channel",
+        "Tennis Channel (720p)"
+      ],
+      "normalizedIdentity": [
+        "tennis"
+      ],
+      "candidateRecordId": "3ecfd137-e428-4a12-9705-1c7d5684eefc",
+      "candidateTitle": "Tennis+ (1080p)",
+      "exactCandidateCount": 9,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg01935-amg01935c1-amgplt0165.playout.now3.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5ce44810b421747ae467b7cd",
+      "requestedTitles": [
+        "Antiques Roadshow UK"
+      ],
+      "normalizedIdentity": [
+        "antiques roadshow uk"
+      ],
+      "candidateRecordId": "6d0f0691-e624-4d5e-8147-b7b720f2d39b",
+      "candidateTitle": "Antiques Roadshow UK",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "bbc-antiquesroadshowuk-1-us.xumo.wurl.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c1979dfa307000070bbe4d",
+      "requestedTitles": [
+        "Pluto TV Star Trek"
+      ],
+      "normalizedIdentity": [
+        "star trek"
+      ],
+      "candidateRecordId": "07d73774-c12c-49d1-83c8-b8f61f5dd9e3",
+      "candidateTitle": "Pluto TV - Star Trek",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5da0d75e84830900098a1ea0",
+      "requestedTitles": [
+        "Vevo Country",
+        "Vevo Country"
+      ],
+      "normalizedIdentity": [
+        "vevo country"
+      ],
+      "candidateRecordId": "7ffd10c9-ee12-4fdd-a009-62a0ac7ab4e2",
+      "candidateTitle": "Vevo Country",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f21e7b24744c60007c1f6fc",
+      "requestedTitles": [
+        "Survivor",
+        "Survivor"
+      ],
+      "normalizedIdentity": [
+        "survivor"
+      ],
+      "candidateRecordId": "58484fda-493c-441c-8c3a-be8e3f879ceb",
+      "candidateTitle": "Survivor",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "63d025db4e83e700086eaa96",
+      "requestedTitles": [
+        "LiveNOW from FOX (R0cHM6Ly)",
+        "LiveNOW from FOX (720p)"
+      ],
+      "normalizedIdentity": [
+        "livenow from fox r0chm6ly",
+        "livenow from fox"
+      ],
+      "candidateRecordId": "53e9a28f-7d75-45dd-bec3-a6501c2579d3",
+      "candidateTitle": "LiveNOW from FOX",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f32f26bcd8aea00071240e5",
+      "requestedTitles": [
+        "Vevo '70s",
+        "Vevo '70s"
+      ],
+      "normalizedIdentity": [
+        "vevo 70s"
+      ],
+      "candidateRecordId": "fe7ee88b-a7b4-4efb-9c7e-5f70430623a1",
+      "candidateTitle": "Vevo 70s (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg00056-vevotv-vevo70saunz-samsungnz-lmeak.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "620234d766314700075cac86",
+      "requestedTitles": [
+        "Top Gear",
+        "Top Gear"
+      ],
+      "normalizedIdentity": [
+        "top gear"
+      ],
+      "candidateRecordId": "b937008d-3a33-498a-804c-90ff6313339b",
+      "candidateTitle": "Top Gear",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6964b6f5f7f6b0334bbf6cdb",
+      "requestedTitles": [
+        "Anger Management Channel (R0cHM6Ly)",
+        "Anger Management"
+      ],
+      "normalizedIdentity": [
+        "anger management r0chm6ly",
+        "anger management"
+      ],
+      "candidateRecordId": "7fca1f68-88fb-40f6-a7e2-6fed46da940c",
+      "candidateTitle": "Anger Management",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "live-content.xumo.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5fd7bb1f86d94a000796e2c2",
+      "requestedTitles": [
+        "Vevo '90s (R0cHM6Ly)",
+        "Vevo '90s"
+      ],
+      "normalizedIdentity": [
+        "vevo 90s r0chm6ly",
+        "vevo 90s"
+      ],
+      "candidateRecordId": "8758371e-4cf7-4c73-8d9f-e0e90874cf68",
+      "candidateTitle": "Vevo '90s",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60f75919718aed0007250d7a",
+      "requestedTitles": [
+        "CBS News Baltimore",
+        "CBS News Baltimore (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news baltimore"
+      ],
+      "candidateRecordId": "debe8a7d-76e6-4100-b4f3-4573617c8144",
+      "candidateTitle": "CBS News Baltimore",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "lineup.cbsivideo.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "615b8ec39e878900073f419a",
+      "requestedTitles": [
+        "Antiques Road Trip (R0cHM6Ly)",
+        "Antiques Road Trip"
+      ],
+      "normalizedIdentity": [
+        "antiques road trip r0chm6ly",
+        "antiques road trip"
+      ],
+      "candidateRecordId": "f337ff59-fd25-46fe-a6de-4d1d00dcd5a9",
+      "candidateTitle": "Antiques Road Trip (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d3v8uchko88gmi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6176fd25e83a5f0007a464c9",
+      "requestedTitles": [
+        "Bounce XL",
+        "Bounce XL"
+      ],
+      "normalizedIdentity": [
+        "bounce xl"
+      ],
+      "candidateRecordId": "0cd23e05-5bf6-4a3d-b5c4-bcce6a43dfbd",
+      "candidateTitle": "Bounce XL (720p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6400bc50953da40008b94668",
+      "requestedTitles": [
+        "Cops (R0cHM6Ly)",
+        "COPS",
+        "COPS"
+      ],
+      "normalizedIdentity": [
+        "cops r0chm6ly",
+        "cops"
+      ],
+      "candidateRecordId": "b2079c8f-d98c-4c2e-abb9-8a0af4a53dea",
+      "candidateTitle": "Cops",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "a7d6af1c184e465db4f39316a5181c1f.mediatailor.us-east-1.amazonaws.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e924f2be69bc0007b7d53d",
+      "requestedTitles": [
+        "Unsolved Mysteries",
+        "Unsolved Mysteries"
+      ],
+      "normalizedIdentity": [
+        "unsolved mysteries"
+      ],
+      "candidateRecordId": "888e2e1f-dbc7-4797-933d-545631cd3272",
+      "candidateTitle": "Unsolved Mysteries",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "60492e6d7f3f560007ab0f62",
+      "requestedTitles": [
+        "Estrella News",
+        "Estrella News (720p)"
+      ],
+      "normalizedIdentity": [
+        "estrella news"
+      ],
+      "candidateRecordId": "8ba50421-5727-4215-89b7-aec81048d3a2",
+      "candidateTitle": "Estrella News (720p)",
+      "exactCandidateCount": 9,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "estrellanews-glewed.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5cbf6a868a1bce4a3d52a5e9",
+      "requestedTitles": [
+        "Midsomer Murders",
+        "Midsomer Murders"
+      ],
+      "normalizedIdentity": [
+        "midsomer murders"
+      ],
+      "candidateRecordId": "7efe2f16-e744-468c-aa18-302130c53c56",
+      "candidateTitle": "Midsomer Murders",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    }
+  ]
+}

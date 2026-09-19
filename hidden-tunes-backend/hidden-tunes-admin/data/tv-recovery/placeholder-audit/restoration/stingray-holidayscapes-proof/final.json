@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T21:45:45.719Z",
+  "identity": "Stingray Holidayscapes",
+  "candidateRecordId": "e39b873c-e82d-46fa-8d5d-1b082e895ada",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.27,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

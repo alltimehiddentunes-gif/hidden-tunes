@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-12T17:19:34.342Z",
+  "productionWrites": 0,
+  "identity": "Inside Crime",
+  "candidateRecordId": "de3f77fc-888f-4706-9a3e-f45eaeabaccb",
+  "authoritativeProvenance": "PASS",
+  "ffmpeg": "INCOMPATIBLE_EXTENSIONLESS_AMAGI_BEACON_SEGMENTS",
+  "desktopHlsRuntime": "PASS",
+  "normalSearch": "PASS",
+  "productionResolver": "PASS",
+  "actualContentVisualIdentity": "PENDING_FRAME_EVIDENCE_FROM_BROWSER_RUNTIME",
+  "continuity120": "NOT_PROVEN_BY_CURRENT_HARNESS",
+  "restored": 0,
+  "verifiedDuplicateMerged": 0,
+  "disposition": "KEEP_PENDING_UNTIL_VISUAL_IDENTITY_AND_120_SECOND_DESKTOP_CONTINUITY",
+  "note": "The source is compatible with the real Desktop HLS player even though the installed FFmpeg rejects its extensionless ad-beacon segment URLs. No success is claimed until visual identity and extended continuity are captured through a compatible runtime."
+}

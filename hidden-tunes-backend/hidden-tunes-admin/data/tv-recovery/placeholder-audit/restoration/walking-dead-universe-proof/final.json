@@ -1,0 +1,16 @@
+{
+  "completedAt": "2026-08-16T04:24:01.233Z",
+  "identity": "The Walking Dead Universe",
+  "candidateRecordId": "0ad780ea-0238-4d1a-88db-3fdfcedb7789",
+  "rejectedCandidateRecordId": "01196b63-47c4-43e8-b441-349a558e9665",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.45,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

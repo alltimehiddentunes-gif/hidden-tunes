@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T13:14:17.390Z",
+  "identity": "That's 90s00s",
+  "candidateRecordId": "c6cb8bee-2e44-4eed-9652-dbcc48a59b43",
+  "aliasesTerminal": 1,
+  "authoritativeProvenance": "Exact-name Amagi/Rakuten distribution",
+  "content": "Real moving 1990s/2000s music programming",
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 121.88,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

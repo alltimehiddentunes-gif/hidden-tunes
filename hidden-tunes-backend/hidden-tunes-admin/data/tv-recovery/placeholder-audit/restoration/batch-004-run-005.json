@@ -1,0 +1,24 @@
+{
+  "completedAt": "2026-08-14T01:06:56.737Z",
+  "scope": "Batch 4 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Comedy Central Pluto TV, Anime X HiDive, and Pluto TV Crime candidates use jmp2.uk and were rejected before media validation.",
+    "The Nick Jr. candidate is hosted by an unrelated cinerama.uz source and lacks authoritative lawful provenance; it was rejected before media validation.",
+    "The FOX Sports candidate uses a generic CloudFront hostname with no broadcaster-authoritative linkage in the available record. It was not tested or accepted.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "batch4Target": 25,
+  "batch4Researched": 25,
+  "batch4Remaining": 0
+}

@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T00:25:37.425Z",
+  "scope": "Batch 23 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Chaos on Cam had Rakuten GB delivery and passed 124.38 seconds of 1920x1080 existing-Desktop playback with one video owner.",
+    "Evidence showed generic vertical incident footage and a Next on: Customer Wars card, not exact Chaos on Cam identity; it remains quarantined and must not be repeated without materially new identity evidence.",
+    "Gambero Rosso Channel, TeleFórmula, and the queued Nash Bridges candidates used rejected jmp2.uk or generic CloudFront without complete authoritative linkage. The Conners queued candidate used generic CloudFront without complete direct candidate linkage.",
+    "No production writes or duplicates were created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 56,
+  "cumulativeTerminalAliases": 189,
+  "batch23Target": 25,
+  "batch23Researched": 10,
+  "batch23Remaining": 15
+}

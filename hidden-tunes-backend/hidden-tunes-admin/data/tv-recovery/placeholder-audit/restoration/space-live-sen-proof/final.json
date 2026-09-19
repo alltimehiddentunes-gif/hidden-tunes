@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T19:44:57.299Z",
+  "identity": "Space Live powered by Sen",
+  "candidateRecordId": "34ed9dc7-f88d-45c0-94ac-d62023ba5b61",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 122.9,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

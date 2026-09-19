@@ -174,7 +174,7 @@ check('TV capabilities keep previous/next', (() => {
   return /isTvQueueSong[\s\S]*previous:\s*true[\s\S]*next:\s*true/.test(caps)
 })())
 check('playTvChannel captures browse queue context',
-  /buildTvQueueSongs\(queue\)/.test(app) && /playQueue\(apiQueue,\s*safeIndex,\s*'tv'/.test(app))
+  /buildTvQueueSongs\(queue\)/.test(app) && /const playTvChannel[\s\S]*?startMediaSession\(\{[\s\S]*?context:\s*'tv'[\s\S]*?queueTitle/.test(app))
 check('TV rail mounts from active TV session (not a second owner)',
   /activePlayerSurface === 'tv'[\s\S]*TvNowPlayingPanel[\s\S]*DesktopPersistentPlayer/.test(app)
   || /resolveActivePlayerSurface[\s\S]*TvNowPlayingPanel/.test(app))

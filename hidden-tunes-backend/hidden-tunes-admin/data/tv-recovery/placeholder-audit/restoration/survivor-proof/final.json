@@ -1,0 +1,16 @@
+{
+  "completedAt": "2026-08-16T10:58:15.647Z",
+  "identity": "Survivor",
+  "candidateRecordId": "8ad3f2ae-75e3-4d31-bb47-bbd492bda88c",
+  "rejectedCandidateRecordId": "58484fda-493c-441c-8c3a-be8e3f879ceb",
+  "aliasesTerminal": 3,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 122.96,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

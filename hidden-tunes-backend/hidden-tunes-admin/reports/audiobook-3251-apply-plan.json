@@ -1,0 +1,100 @@
+{
+  "mode": "apply",
+  "bookCanonicalId": "fe0dd05b-caf5-4214-8910-34456c182e41",
+  "bookSourceId": "3251",
+  "bookTitle": "Faerie Queene Book  4",
+  "currentChapterCount": 13,
+  "expectedChapterSource": "librivox:book:3251",
+  "currentBrokenRelationship": {
+    "chapters": 0,
+    "files": 0
+  },
+  "exactCause": "aggregate book row persisted without exact-source chapter/file rows",
+  "proposedExactMutation": "insert 13 exact LibriVox chapter rows, insert 13 matching file rows, reconcile chapter_count to 13",
+  "rowsAffected": {
+    "audiobook_chapters": 13,
+    "audiobook_files": 13,
+    "audiobooks": 1,
+    "total": 27
+  },
+  "probes": [
+    {
+      "sectionId": "182657",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182658",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182659",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182660",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182661",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182662",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182663",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182664",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182665",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182666",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182667",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182668",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182669",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    }
+  ]
+}

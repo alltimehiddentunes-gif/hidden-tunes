@@ -79,11 +79,19 @@ async function clickNav(win, label) {
 
 async function capture(win, name) {
   fs.mkdirSync(outDir, { recursive: true })
-  const img = await win.webContents.capturePage()
-  const file = path.join(outDir, `${name}.png`)
-  fs.writeFileSync(file, img.toPNG())
-  console.log(`SHOT: ${file}`)
-  return file
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const img = await win.webContents.capturePage()
+      const file = path.join(outDir, `${name}.png`)
+      fs.writeFileSync(file, img.toPNG())
+      console.log(`SHOT: ${file}`)
+      return file
+    } catch (error) {
+      if (attempt === 2) console.warn(`SHOT_FAILED: ${name}: ${error?.message || error}`)
+      await sleep(400)
+    }
+  }
+  return null
 }
 
 async function captureSelector(win, selector, name) {
@@ -102,11 +110,19 @@ async function captureSelector(win, selector, name) {
     console.warn(`MISS: ${selector} for ${name}`)
     return null
   }
-  const img = await win.webContents.capturePage(clip)
-  const file = path.join(outDir, `${name}.png`)
-  fs.writeFileSync(file, img.toPNG())
-  console.log(`SHOT: ${file}`)
-  return file
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const img = await win.webContents.capturePage(clip)
+      const file = path.join(outDir, `${name}.png`)
+      fs.writeFileSync(file, img.toPNG())
+      console.log(`SHOT: ${file}`)
+      return file
+    } catch (error) {
+      if (attempt === 2) console.warn(`SHOT_FAILED: ${name}: ${error?.message || error}`)
+      await sleep(400)
+    }
+  }
+  return null
 }
 
 async function waitForTvPage(win) {
@@ -224,6 +240,41 @@ async function clickAria(win, selector) {
   }`)
 }
 
+async function readTvControlState(win) {
+  return evalPage(win, `() => {
+    const video = document.querySelector('video.ht-tv-video-element, video')
+    const shell = document.querySelector('.app-shell')
+    const toggle = document.querySelector('.player-sidebar-toggle')
+    return {
+      muted: video?.muted ?? null,
+      volume: video?.volume ?? null,
+      paused: video?.paused ?? null,
+      fullscreen: Boolean(document.fullscreenElement),
+      pictureInPicture: Boolean(document.pictureInPictureElement),
+      pictureInPictureEnabled: Boolean(document.pictureInPictureEnabled),
+      playerSidebar: shell?.getAttribute('data-player-sidebar') || null,
+      sidebarToggleExpanded: toggle?.getAttribute('aria-expanded') || null,
+      videoCount: document.querySelectorAll('video.ht-tv-video-element, video').length,
+      activePlayer: Boolean(document.querySelector('.player-bar[data-idle="false"]')),
+      activeNav: document.querySelector('.sidebar .nav-item.active')?.textContent?.replace(/\\s+/g, ' ').trim() || null,
+      title: document.querySelector('.tv-rail-meta h3')?.textContent?.trim() || null,
+    }
+  }`)
+}
+
+async function setTvVolume(win, value) {
+  return evalPage(win, `() => {
+    const input = document.querySelector('.tv-video-surface-controls input[aria-label="Volume"]')
+      || document.querySelector('input[aria-label="Volume"]')
+    if (!input) return false
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+    setter?.call(input, ${JSON.stringify(String(value))})
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    return true
+  }`)
+}
+
 async function main() {
   fs.mkdirSync(outDir, { recursive: true })
   const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'ht-tv-transport-'))
@@ -281,6 +332,19 @@ async function main() {
     },
   })
 
+  ipcMain.handle('ht-window-get-state', () => ({
+    isMaximized: win.isMaximized(),
+    isFullScreen: win.isFullScreen(),
+  }))
+  ipcMain.handle('ht-window-is-full-screen', () => win.isFullScreen())
+  ipcMain.handle('ht-window-set-full-screen', (_event, enabled) => {
+    win.setFullScreen(Boolean(enabled))
+    return win.isFullScreen()
+  })
+  ipcMain.on('ht-window-minimize', () => win.minimize())
+  ipcMain.on('ht-window-toggle-maximize', () => (win.isMaximized() ? win.unmaximize() : win.maximize()))
+  ipcMain.on('ht-window-close', () => win.close())
+
   await recoverShell(win)
 
   const navOk = await clickNav(win, 'TV')
@@ -303,6 +367,67 @@ async function main() {
   await captureSelector(win, '.tv-rail--now-playing, .tv-rail', '05-sidebar-with-transport')
   await captureSelector(win, 'footer.player-bar, footer', '06-footer-with-transport')
   fs.writeFileSync(path.join(outDir, 'state-first.json'), JSON.stringify({ play, first, state }, null, 2))
+
+  const controlChecks = {}
+  const controlStates = { initial: await readTvControlState(win) }
+
+  controlChecks.muteClicked = await clickAria(win, '.tv-video-surface button[aria-label="Mute"], button[aria-label="Mute"]')
+  await sleep(400)
+  controlStates.muted = await readTvControlState(win)
+  controlChecks.muted = controlStates.muted.muted === true || controlStates.muted.volume === 0
+  controlChecks.unmuteClicked = await clickAria(win, '.tv-video-surface button[aria-label="Unmute"], button[aria-label="Unmute"]')
+  await sleep(400)
+  controlStates.unmuted = await readTvControlState(win)
+  controlChecks.unmuted = controlStates.unmuted.muted === false && (controlStates.unmuted.volume ?? 0) > 0
+
+  controlChecks.volumeChanged = await setTvVolume(win, 0.4)
+  await sleep(400)
+  controlStates.volume = await readTvControlState(win)
+  controlChecks.volumeSynchronized = Math.abs((controlStates.volume.volume ?? -1) - 0.4) < 0.03
+
+  controlChecks.pausedViaRail = await clickAria(win, '.tv-video-surface-transport button.tv-rail-btn--gold')
+  await sleep(500)
+  controlStates.paused = await readTvControlState(win)
+  controlChecks.pauseSynchronized = controlStates.paused.paused === true
+  controlChecks.resumedViaRail = await clickAria(win, '.tv-video-surface-transport button.tv-rail-btn--gold')
+  await sleep(700)
+  controlStates.resumed = await readTvControlState(win)
+  controlChecks.resumeSynchronized = controlStates.resumed.paused === false
+
+  controlChecks.fullscreenClicked = await clickAria(win, '.tv-video-surface button[aria-label="Fullscreen"], button[aria-label="Fullscreen"]')
+  await sleep(700)
+  controlStates.fullscreen = await readTvControlState(win)
+  controlStates.fullscreen.windowFullscreen = win.isFullScreen()
+  controlChecks.fullscreenEntered = controlStates.fullscreen.fullscreen === true || controlStates.fullscreen.windowFullscreen
+  win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
+  win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
+  await sleep(700)
+  controlStates.afterEscape = await readTvControlState(win)
+  controlStates.afterEscape.windowFullscreen = win.isFullScreen()
+  controlChecks.escapeExitedFullscreen = controlStates.afterEscape.fullscreen === false && !controlStates.afterEscape.windowFullscreen
+
+  controlChecks.pictureInPictureClicked = await clickAria(win, '.tv-video-surface button[aria-label="Picture in picture"], button[aria-label="Picture in picture"]')
+  await sleep(900)
+  controlStates.pictureInPicture = await readTvControlState(win)
+  controlChecks.pictureInPictureEntered = controlStates.pictureInPicture.pictureInPicture === true
+  await evalPage(win, `async () => {
+    if (document.pictureInPictureElement) await document.exitPictureInPicture()
+    return !document.pictureInPictureElement
+  }`)
+  await sleep(400)
+  controlStates.afterPictureInPicture = await readTvControlState(win)
+  controlChecks.pictureInPictureExited = controlStates.afterPictureInPicture.pictureInPicture === false
+
+  controlChecks.sidebarHiddenClicked = await clickAria(win, '.player-sidebar-toggle')
+  await sleep(500)
+  controlStates.sidebarHidden = await readTvControlState(win)
+  controlChecks.sidebarHidden = controlStates.sidebarHidden.playerSidebar === 'hidden'
+    && controlStates.sidebarHidden.activePlayer
+    && controlStates.sidebarHidden.videoCount === 1
+  controlChecks.sidebarRestoredClicked = await clickAria(win, '.player-sidebar-toggle')
+  await sleep(500)
+  controlStates.sidebarRestored = await readTvControlState(win)
+  controlChecks.sidebarRestored = controlStates.sidebarRestored.playerSidebar === 'visible'
 
   const titleBefore = state.railTitle
   const nextRail = await clickAria(win, '.tv-video-surface-transport button[aria-label^="Next"]')
@@ -333,14 +458,30 @@ async function main() {
     state,
   }, null, 2))
 
+  const playingTitleBeforeRouteChange = state.railTitle
+  controlChecks.homeNavigation = await clickNav(win, 'Home')
+  controlStates.onHome = await readTvControlState(win)
+  controlChecks.playbackSurvivesRouteChange = controlStates.onHome.activePlayer && controlStates.onHome.videoCount === 1
+  controlChecks.tvNavigationRestored = await clickNav(win, 'TV')
+  await waitForTvPage(win)
+  state = await waitForSettledTransport(win)
+  controlStates.backOnTv = await readTvControlState(win)
+  controlChecks.sessionRestoredOnTv = controlStates.backOnTv.activePlayer
+    && controlStates.backOnTv.videoCount === 1
+    && controlStates.backOnTv.title === playingTitleBeforeRouteChange
+
+  console.log('CONTROL_CHECKS:', JSON.stringify(controlChecks))
+  fs.writeFileSync(path.join(outDir, 'state-controls.json'), JSON.stringify({ controlChecks, controlStates }, null, 2))
+
   win.setSize(1100, 820)
   await sleep(800)
   await capture(win, '10-narrow-desktop')
 
-  const summary = { navOk, tvPage, play, first, finalState: state, outDir }
+  const controlPass = Object.values(controlChecks).every(Boolean)
+  const summary = { navOk, tvPage, play, first, controlPass, controlChecks, finalState: state, outDir }
   fs.writeFileSync(path.join(outDir, 'summary.json'), JSON.stringify(summary, null, 2))
   console.log('DONE:', JSON.stringify(summary))
-  app.quit()
+  app.exit(controlPass ? 0 : 1)
 }
 
 app.whenReady().then(main).catch((error) => {

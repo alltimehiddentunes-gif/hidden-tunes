@@ -1,0 +1,26 @@
+{
+  "completedAt": "2026-08-14T14:15:23.701Z",
+  "scope": "Batch 9 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "World War TV passed 122.94 seconds of 1920x1080 Desktop playback with persistent exact branding on the A+E Networks/Amagi/Samsung service.",
+    "One quarantined alias remains hidden and terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "H2O & Friends and POWERNATION were rejected for jmp2.uk; Hells Kitchen used i.mjh.nz. EstrellaTV retains authoritative Amagi provenance but was not promoted without complete proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 28,
+  "cumulativeTerminalAliases": 108,
+  "batch9Target": 25,
+  "batch9Researched": 25,
+  "batch9Remaining": 0
+}

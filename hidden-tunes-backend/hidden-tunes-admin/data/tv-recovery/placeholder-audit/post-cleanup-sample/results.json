@@ -1,0 +1,168 @@
+{
+  "generatedAt": "2026-08-10T20:55:04.900Z",
+  "productionWrites": 0,
+  "tested": 16,
+  "decoded": 14,
+  "results": [
+    {
+      "recordId": "83f82c80-40bd-4c8c-bf7c-dc37aa89ab3c",
+      "title": "Spiegel TV action + crime",
+      "category": "Crime",
+      "region": "AU",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\01-83f82c80-40bd-4c8c-bf7c-dc37aa89ab3c.jpg"
+    },
+    {
+      "recordId": "86a69c40-d059-47e7-969e-51b866fa1cdb",
+      "title": "Green Gold TV",
+      "category": "Kids",
+      "region": "IN",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\02-86a69c40-d059-47e7-969e-51b866fa1cdb.jpg"
+    },
+    {
+      "recordId": "bfe019c5-058b-4464-a14c-69510f56172f",
+      "title": "Aaj Tak HD",
+      "category": "Hindi News",
+      "region": "IN",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\03-bfe019c5-058b-4464-a14c-69510f56172f.jpg"
+    },
+    {
+      "recordId": "0dd820d2-ce8a-4cdb-ad7d-ce1bc9e10fdc",
+      "title": "NH BollyFlix",
+      "category": "Movies",
+      "region": "IN",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\04-0dd820d2-ce8a-4cdb-ad7d-ce1bc9e10fdc.jpg"
+    },
+    {
+      "recordId": "03f8e9db-b8c2-4f19-a4ec-d1e7e54cb05e",
+      "title": "HD Travel",
+      "category": "Lifestyle",
+      "region": "IN",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\05-03f8e9db-b8c2-4f19-a4ec-d1e7e54cb05e.jpg"
+    },
+    {
+      "recordId": "0095d39e-8402-4355-af11-b89f4f9c2f65",
+      "title": "Vevo '90s & '00s",
+      "category": "Music & Ambient",
+      "region": "GB",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\06-0095d39e-8402-4355-af11-b89f4f9c2f65.jpg"
+    },
+    {
+      "recordId": "8307a39f-d5d6-412b-83d3-3273fe52d7d8",
+      "title": "K-Food by CJ ENM",
+      "category": "Food & Travel",
+      "region": "GB",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\07-8307a39f-d5d6-412b-83d3-3273fe52d7d8.jpg"
+    },
+    {
+      "recordId": "96b18450-3c69-4139-9edc-6c0e0ae39d8c",
+      "title": "Águila Roja",
+      "category": "Entertainment",
+      "region": null,
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\08-96b18450-3c69-4139-9edc-6c0e0ae39d8c.jpg"
+    },
+    {
+      "recordId": "a337e387-eeb8-463c-908d-e44b8ec60b17",
+      "title": "Talk",
+      "category": "News",
+      "region": "GB",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\09-a337e387-eeb8-463c-908d-e44b8ec60b17.jpg"
+    },
+    {
+      "recordId": "1ddf88dc-d71b-4805-a121-3e4bdf7c93e3",
+      "title": "CJ ENM MOVIE",
+      "category": "영화",
+      "region": "KR",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\10-1ddf88dc-d71b-4805-a121-3e4bdf7c93e3.jpg"
+    },
+    {
+      "recordId": "6906a0dc-adad-4b6a-8abe-f8494a29b7df",
+      "title": "Coreano by CJ ENM",
+      "category": "Latino",
+      "region": "US",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": false,
+      "framePath": null
+    },
+    {
+      "recordId": "4934439e-02ec-4ff6-b864-b4f32e86bf05",
+      "title": "CBC News BC",
+      "category": "News & Opinion",
+      "region": "CA",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\12-4934439e-02ec-4ff6-b864-b4f32e86bf05.jpg"
+    },
+    {
+      "recordId": "7cb76cb4-3e06-4bac-b0e8-cd59e0bb0965",
+      "title": "pocket.watch Game-On",
+      "category": "Kids",
+      "region": "CA",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": false,
+      "framePath": null
+    },
+    {
+      "recordId": "24e11ada-43a6-4ed7-b263-31c3d0098c4a",
+      "title": "Stingray le Palmares",
+      "category": "Music TV",
+      "region": "CA",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\14-24e11ada-43a6-4ed7-b263-31c3d0098c4a.jpg"
+    },
+    {
+      "recordId": "1146401f-dccc-4855-95d8-33d07b615451",
+      "title": "SBS 내 남자의 여자",
+      "category": "드라마",
+      "region": "KR",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\15-1146401f-dccc-4855-95d8-33d07b615451.jpg"
+    },
+    {
+      "recordId": "37b8118e-3a17-4dac-ab58-105af69779b5",
+      "title": "SBS 백종원의 골목식당",
+      "category": "예능",
+      "region": "KR",
+      "language": null,
+      "host": "jmp2.uk",
+      "decoded": true,
+      "framePath": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\post-cleanup-sample\\16-37b8118e-3a17-4dac-ab58-105af69779b5.jpg"
+    }
+  ]
+}

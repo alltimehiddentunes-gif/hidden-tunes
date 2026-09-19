@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T17:15:21.991Z",
+  "identity": "Red Bull TV",
+  "candidateRecordId": "c78ee841-1825-46b6-9f0d-2bd4f1c7fe4d",
+  "aliasesTerminal": 2,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.35,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

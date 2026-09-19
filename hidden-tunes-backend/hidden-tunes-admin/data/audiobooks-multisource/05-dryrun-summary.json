@@ -1,0 +1,47 @@
+{
+  "generatedAt": "2026-08-01T21:18:23.297Z",
+  "noProductionWrites": true,
+  "whyMostlyLibrivox": {
+    "publicApiDoesNotFilterLibrivox": true,
+    "seedImporterHardcodesLibrivox": true,
+    "adapterRegistryOnlyInternetArchiveFamilies": true,
+    "noGutenbergAdapter": true,
+    "noWikimediaAdapter": true,
+    "historicalBackfillDefaultsSourceTypeToLibrivox": true,
+    "observedPublisherTop": {
+      "Internet Archive": 1568,
+      "LibriVox": 864,
+      "Internet Archive / LibriVox": 166
+    },
+    "observedSourceType": {
+      "manual": 23,
+      "librivox": 841,
+      "internet_archive": 1734
+    },
+    "librivoxishCountApprox": 2053
+  },
+  "gutenbergHuman": {
+    "categoryIdsVisible": 576,
+    "sampled": 100,
+    "playableSample": 100,
+    "rejected": 0
+  },
+  "gutenbergOpen": {
+    "iaDocsFound": 100,
+    "playableSample": 45,
+    "rejected": 15,
+    "titleAuthorExactOverlapWithCatalog": 0,
+    "collectionLandingOk": true
+  },
+  "wikimediaCommons": {
+    "searchTotalHits": 3545,
+    "playableSample": 2,
+    "rejected": 48
+  },
+  "estimatedExpansionForecast": {
+    "gutenbergHumanReadApprox": 662,
+    "gutenbergOpenSyntheticApprox": 5000,
+    "wikimediaAudioSearchHits": 3545,
+    "realisticQualityFirstNetNew": "Human PG first (~hundreds playable complete editions), then selected Commons human editions, then staged synthetic Open titles with clear labels; target thousands over batches, not a single dump."
+  }
+}

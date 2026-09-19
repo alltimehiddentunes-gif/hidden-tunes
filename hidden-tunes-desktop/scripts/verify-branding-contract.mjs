@@ -4,6 +4,8 @@ import path from 'node:path'
 const root = path.resolve(import.meta.dirname, '..')
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8')
 const app = read('src/App.tsx')
+const brandAssets = read('src/lib/brandAssets.ts')
+const brandMark = read('src/components/HiddenTunesBrandMark.tsx')
 const launch = read('src/components/LaunchScreen.tsx')
 const persistent = read('src/components/player/DesktopPersistentPlayer.tsx')
 const fullscreen = read('src/components/player/PremiumFullscreenShell.tsx')
@@ -14,6 +16,9 @@ const pkg = JSON.parse(read('package.json'))
 const checks = [
   ['official renderer source exists', fs.existsSync(path.join(root, 'public/brand/hidden-tunes-official.png'))],
   ['official renderer mark exists', fs.existsSync(path.join(root, 'public/brand/hidden-tunes-mark.png'))],
+  ['renderer brand paths honor the Vite base', brandAssets.includes('import.meta.env.BASE_URL') && !brandAssets.includes("mark: '/brand/")],
+  ['brand mark hides native broken-image UI', brandMark.includes('onError={handleError}') && brandMark.includes('event.currentTarget.hidden = true')],
+  ['brand mark diagnoses a load failure once in development', brandMark.includes('import.meta.env.DEV') && brandMark.includes('hasLoggedBrandMarkFailure')],
   ['multi-resolution Windows icon exists', fs.existsSync(path.join(root, 'build/icon.ico'))],
   ['shared sidebar brand component', app.includes('<HiddenTunesBrandMark className="brand-logo-mark"') && !app.includes('function BrandWaveformMark')],
   ['launch brand component', launch.includes('<HiddenTunesBrandMark') && !launch.includes('>HT<')],
@@ -21,7 +26,7 @@ const checks = [
   ['fullscreen brand component', fullscreen.includes('<HiddenTunesBrandMark') && !fullscreen.includes('>HT</div>')],
   ['BrowserWindow icon configured', main.includes('icon: getBrandIconPath()') && main.includes('process.resourcesPath')],
   ['renderer favicon configured', html.includes('/brand/hidden-tunes-mark.png') && !html.includes('favicon.svg')],
-  ['Windows executable and installer configured', pkg.build?.win?.icon === 'build/icon.ico' && pkg.build?.nsis?.installerIcon === 'build/icon.ico' && pkg.build?.nsis?.uninstallerIcon === 'build/icon.ico'],
+  ['Windows executable and installer configured', pkg.build?.win?.icon === 'build/icon.ico' && pkg.build?.win?.signAndEditExecutable !== false && pkg.build?.nsis?.installerIcon === 'build/icon.ico' && pkg.build?.nsis?.uninstallerIcon === 'build/icon.ico'],
   ['packaged icon resource configured', pkg.build?.extraResources?.some((item) => item.from === 'build/icon.png' && item.to === 'brand/icon.png')],
 ]
 

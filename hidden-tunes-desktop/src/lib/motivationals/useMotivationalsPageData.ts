@@ -20,6 +20,8 @@ const BROWSE_LIMIT = 40
 export type MotivationalsMediaFilter = 'all' | 'audio' | 'video'
 
 type BrowsePagination = MotivationalPagination & { nextCursor?: string | null }
+type CatalogSource = 'programs' | 'items'
+type FilterSource = CatalogSource | 'search' | null
 
 function readError(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback
@@ -57,18 +59,22 @@ export function useMotivationalsPageData(
   const [videoPrograms, setVideoPrograms] = useState<MotivationalProgramMeta[]>([])
   const [browsePrograms, setBrowsePrograms] = useState<MotivationalProgramMeta[]>([])
   const [filteredPrograms, setFilteredPrograms] = useState<MotivationalProgramMeta[]>([])
-  const [pagination, setPagination] = useState<BrowsePagination | null>(null)
+  const [browsePagination, setBrowsePagination] = useState<BrowsePagination | null>(null)
+  const [filteredPagination, setFilteredPagination] = useState<BrowsePagination | null>(null)
   const [browseCursor, setBrowseCursor] = useState<string | null>(null)
-  const [useItemsCatalog, setUseItemsCatalog] = useState(false)
+  const [filteredCursor, setFilteredCursor] = useState<string | null>(null)
+  const [catalogSource, setCatalogSource] = useState<CatalogSource | null>(null)
   const [loading, setLoading] = useState(true)
   const [contentLoading, setContentLoading] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [contentError, setContentError] = useState<string | null>(null)
+  const categoriesRef = useRef(0)
   const bootstrapRef = useRef(0)
   const browseRef = useRef(0)
   const loadMoreRef = useRef(0)
   const browseAbortRef = useRef<AbortController | null>(null)
+  const loadMoreAbortRef = useRef<AbortController | null>(null)
 
   const trimmedSearch = searchQuery.trim()
   const filteredView =
@@ -79,6 +85,24 @@ export function useMotivationalsPageData(
     || Boolean(countryFilter)
 
   const browseMediaType = mediaFilter === 'audio' || mediaFilter === 'video' ? mediaFilter : null
+  const filterSource: FilterSource = trimmedSearch ? 'search' : catalogSource
+
+  useEffect(() => {
+    const requestId = ++categoriesRef.current
+    const controller = new AbortController()
+
+    void (async () => {
+      try {
+        const nextCategories = await fetchMotivationalCategories(controller.signal)
+        if (controller.signal.aborted || requestId !== categoriesRef.current) return
+        setCategories(nextCategories)
+      } catch {
+        // Categories are auxiliary. Their slow/error state must not block primary content.
+      }
+    })()
+
+    return () => controller.abort()
+  }, [])
 
   useEffect(() => {
     const requestId = ++bootstrapRef.current
@@ -89,67 +113,51 @@ export function useMotivationalsPageData(
       setError(null)
 
       try {
-        const [nextCategories, featuredResponse, browseResponse, itemsResponse, audioResponse, videoResponse] =
-          await Promise.all([
-            fetchMotivationalCategories(controller.signal),
-            fetchMotivationalPrograms(
-              { page: 1, limit: FEATURED_LIMIT, featuredOnly: true },
-              controller.signal,
-            ),
-            fetchMotivationalPrograms({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
-            fetchMotivationalItems({ limit: BROWSE_LIMIT }, controller.signal),
-            fetchMotivationalItems(
-              { limit: SECTION_LIMIT, mediaType: 'audio' },
-              controller.signal,
-            ),
-            fetchMotivationalItems(
-              { limit: SECTION_LIMIT, mediaType: 'video' },
-              controller.signal,
-            ),
-          ])
+        const [programsResult, itemsResult] = await Promise.allSettled([
+          fetchMotivationalPrograms({ page: 1, limit: BROWSE_LIMIT }, controller.signal),
+          fetchMotivationalItems({ limit: BROWSE_LIMIT }, controller.signal),
+        ])
 
-        if (requestId !== bootstrapRef.current) return
+        if (controller.signal.aborted || requestId !== bootstrapRef.current) return
 
-        setCategories(nextCategories)
+        let source: CatalogSource
+        let nextPrograms: MotivationalProgramMeta[]
+        let nextPagination: BrowsePagination
+        let nextCursor: string | null
 
-        const programsAvailable = browseResponse.programs.length > 0
-        setUseItemsCatalog(!programsAvailable)
-
-        if (programsAvailable) {
-          setFeaturedPrograms(
-            featuredResponse.programs.length > 0
-              ? featuredResponse.programs.slice(0, FEATURED_LIMIT)
-              : browseResponse.programs.filter((program) => program.isFeatured).slice(0, FEATURED_LIMIT),
-          )
-          setAudioPrograms(
-            browseResponse.programs.filter(isAudioProgram).slice(0, SECTION_LIMIT),
-          )
-          setVideoPrograms(
-            browseResponse.programs.filter(isVideoProgram).slice(0, SECTION_LIMIT),
-          )
-          setBrowsePrograms(browseResponse.programs)
-          setPagination(browseResponse.pagination)
-          setBrowseCursor(null)
-          return
+        if (programsResult.status === 'fulfilled' && programsResult.value.programs.length > 0) {
+          source = 'programs'
+          nextPrograms = programsResult.value.programs
+          nextPagination = programsResult.value.pagination
+          nextCursor = null
+        } else if (itemsResult.status === 'fulfilled') {
+          source = 'items'
+          nextPrograms = itemsResult.value.programs
+          nextPagination = itemsResult.value.pagination
+          nextCursor = itemsResult.value.pagination.nextCursor
+        } else {
+          const reason = itemsResult.reason
+            ?? (programsResult.status === 'rejected' ? programsResult.reason : null)
+          throw reason instanceof Error
+            ? reason
+            : new Error('We couldn\u2019t load Motivationals right now.')
         }
 
-        const featuredItems = itemsResponse.programs.filter((program) => program.isFeatured)
+        const featured = nextPrograms.filter((program) => program.isFeatured)
+        setCatalogSource(source)
         setFeaturedPrograms(
-          featuredItems.length > 0
-            ? featuredItems.slice(0, FEATURED_LIMIT)
-            : itemsResponse.programs.slice(0, FEATURED_LIMIT),
+          (featured.length > 0 ? featured : nextPrograms).slice(0, FEATURED_LIMIT),
         )
-        setAudioPrograms(audioResponse.programs.slice(0, SECTION_LIMIT))
-        setVideoPrograms(videoResponse.programs.slice(0, SECTION_LIMIT))
-        setBrowsePrograms(itemsResponse.programs)
-        setPagination(itemsResponse.pagination)
-        setBrowseCursor(itemsResponse.pagination.nextCursor)
+        setAudioPrograms(nextPrograms.filter(isAudioProgram).slice(0, SECTION_LIMIT))
+        setVideoPrograms(nextPrograms.filter(isVideoProgram).slice(0, SECTION_LIMIT))
+        setBrowsePrograms(nextPrograms)
+        setBrowsePagination(nextPagination)
+        setBrowseCursor(nextCursor)
       } catch (reason) {
-        if (requestId !== bootstrapRef.current) return
-        if (reason instanceof DOMException && reason.name === 'AbortError') return
+        if (controller.signal.aborted || requestId !== bootstrapRef.current) return
         setError(readError(reason, 'We couldn\u2019t load Motivationals right now.'))
       } finally {
-        if (requestId === bootstrapRef.current) setLoading(false)
+        if (!controller.signal.aborted && requestId === bootstrapRef.current) setLoading(false)
       }
     })()
 
@@ -158,21 +166,47 @@ export function useMotivationalsPageData(
 
   useEffect(() => {
     browseAbortRef.current?.abort()
+    loadMoreAbortRef.current?.abort()
+    loadMoreAbortRef.current = null
+    loadMoreRef.current += 1
+
     const controller = new AbortController()
     browseAbortRef.current = controller
     const requestId = ++browseRef.current
+    const resetTimer = window.setTimeout(() => {
+      if (controller.signal.aborted || requestId !== browseRef.current) return
+      setLoadingMore(false)
+      setContentLoading(filteredView)
+      setContentError(null)
+      setFilteredPrograms([])
+      setFilteredPagination(null)
+      setFilteredCursor(null)
+    }, 0)
 
     if (!filteredView) {
-      return () => controller.abort()
+      return () => {
+        window.clearTimeout(resetTimer)
+        controller.abort()
+        loadMoreAbortRef.current?.abort()
+        loadMoreAbortRef.current = null
+        loadMoreRef.current += 1
+      }
+    }
+
+    if (!filterSource) {
+      return () => {
+        window.clearTimeout(resetTimer)
+        controller.abort()
+        loadMoreAbortRef.current?.abort()
+        loadMoreAbortRef.current = null
+        loadMoreRef.current += 1
+      }
     }
 
     const timer = window.setTimeout(() => {
       void (async () => {
-        setContentLoading(true)
-        setContentError(null)
-
         try {
-          const response = trimmedSearch
+          const response = filterSource === 'search'
             ? await searchMotivationals(trimmedSearch, { page: 1, limit: BROWSE_LIMIT }, controller.signal).then(
                 (searchResponse) => ({
                   programs: searchResponse.sessions.map(sessionToStandaloneProgram),
@@ -180,7 +214,7 @@ export function useMotivationalsPageData(
                   nextCursor: null as string | null,
                 }),
               )
-            : useItemsCatalog
+            : filterSource === 'items'
               ? await fetchMotivationalItems(
                   {
                     limit: BROWSE_LIMIT,
@@ -205,44 +239,55 @@ export function useMotivationalsPageData(
                   nextCursor: null as string | null,
                 }))
 
-          if (requestId !== browseRef.current) return
+          if (controller.signal.aborted || requestId !== browseRef.current) return
           setFilteredPrograms(response.programs)
-          setPagination(response.pagination)
-          setBrowseCursor(response.nextCursor)
+          setFilteredPagination(response.pagination)
+          setFilteredCursor(response.nextCursor)
         } catch (reason) {
-          if (requestId !== browseRef.current) return
-          if (reason instanceof DOMException && reason.name === 'AbortError') return
+          if (controller.signal.aborted || requestId !== browseRef.current) return
           setContentError(readError(reason, 'Could not load motivational results.'))
           setFilteredPrograms([])
+          setFilteredPagination(null)
+          setFilteredCursor(null)
         } finally {
-          if (requestId === browseRef.current) setContentLoading(false)
+          if (!controller.signal.aborted && requestId === browseRef.current) setContentLoading(false)
         }
       })()
     }, trimmedSearch ? SEARCH_DEBOUNCE_MS : 0)
 
     return () => {
+      window.clearTimeout(resetTimer)
       window.clearTimeout(timer)
       controller.abort()
+      loadMoreAbortRef.current?.abort()
+      loadMoreAbortRef.current = null
+      loadMoreRef.current += 1
     }
   }, [
     browseMediaType,
     categorySlug,
     countryFilter,
     filteredView,
+    filterSource,
     languageFilter,
     trimmedSearch,
-    useItemsCatalog,
   ])
 
+  const pagination = filteredView ? filteredPagination : browsePagination
+  const activeCursor = filteredView ? filteredCursor : browseCursor
+
   const loadMore = useCallback(() => {
-    if (!pagination?.hasMore || loadingMore) return
+    if (!pagination?.hasMore || loadingMore || loadMoreAbortRef.current) return
+    if (!filterSource && filteredView) return
+
     const requestId = ++loadMoreRef.current
     const controller = new AbortController()
+    loadMoreAbortRef.current = controller
     setLoadingMore(true)
 
     void (async () => {
       try {
-        const response = trimmedSearch
+        const response = filterSource === 'search'
           ? await searchMotivationals(
               trimmedSearch,
               { page: (pagination.page ?? 1) + 1, limit: BROWSE_LIMIT },
@@ -252,11 +297,11 @@ export function useMotivationalsPageData(
               pagination: searchResponse.pagination,
               nextCursor: null as string | null,
             }))
-          : useItemsCatalog
+          : catalogSource === 'items'
             ? await fetchMotivationalItems(
                 {
                   limit: BROWSE_LIMIT,
-                  cursor: browseCursor,
+                  cursor: activeCursor,
                   category: categorySlug,
                   mediaType: browseMediaType,
                   language: languageFilter,
@@ -281,32 +326,36 @@ export function useMotivationalsPageData(
                 nextCursor: null as string | null,
               }))
 
-        if (requestId !== loadMoreRef.current) return
+        if (controller.signal.aborted || requestId !== loadMoreRef.current) return
 
-        setPagination(response.pagination)
-        setBrowseCursor(response.nextCursor)
         if (filteredView) {
+          setFilteredPagination(response.pagination)
+          setFilteredCursor(response.nextCursor)
           setFilteredPrograms((previous) => dedupePrograms([...previous, ...response.programs]))
         } else {
+          setBrowsePagination(response.pagination)
+          setBrowseCursor(response.nextCursor)
           setBrowsePrograms((previous) => dedupePrograms([...previous, ...response.programs]))
         }
       } catch {
         // Ignore pagination failures.
       } finally {
-        if (requestId === loadMoreRef.current) setLoadingMore(false)
+        if (!controller.signal.aborted && requestId === loadMoreRef.current) setLoadingMore(false)
+        if (loadMoreAbortRef.current === controller) loadMoreAbortRef.current = null
       }
     })()
   }, [
-    browseCursor,
+    activeCursor,
     browseMediaType,
+    catalogSource,
     categorySlug,
     countryFilter,
+    filterSource,
     filteredView,
     languageFilter,
     loadingMore,
     pagination,
     trimmedSearch,
-    useItemsCatalog,
   ])
 
   const visiblePrograms = useMemo(

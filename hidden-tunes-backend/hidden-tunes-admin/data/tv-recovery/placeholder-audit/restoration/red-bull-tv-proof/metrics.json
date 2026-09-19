@@ -1,0 +1,15 @@
+{
+  "candidateId": "c78ee841-1825-46b6-9f0d-2bd4f1c7fe4d",
+  "streamHost": "rbmn-live.akamaized.net",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 286.368623,
+    "advancedSeconds": 124.353969,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

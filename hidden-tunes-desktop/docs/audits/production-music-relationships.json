@@ -1,0 +1,343 @@
+{
+  "generatedAt": "2026-08-07T12:41:19.754Z",
+  "base": "https://api.hiddentunes.com",
+  "deploymentHost": "api.hiddentunes.com",
+  "health": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "success": true,
+      "status": "ok"
+    }
+  },
+  "catalog": {
+    "artistsFetched": 40,
+    "albumsFetched": 40,
+    "songsFetched": 2732,
+    "playableSongs": 2732
+  },
+  "artistAudit": [
+    {
+      "id": "2da7464d-7fa6-4962-ba1c-a0e57d817619",
+      "name": "Acoustic Time",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 89,
+      "falseZero": false
+    },
+    {
+      "id": "aa37b42a-04b6-458f-bde0-6198e77f8adc",
+      "name": "Aether Stream",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 38,
+      "falseZero": false
+    },
+    {
+      "id": "241848cb-56a8-410b-9cf6-0ad460f077b3",
+      "name": "Amara Skies",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 17,
+      "falseZero": false
+    },
+    {
+      "id": "fa5122e5-0193-439b-8e40-4b9936b49898",
+      "name": "Ann Lyen",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 18,
+      "falseZero": false
+    },
+    {
+      "id": "17ab3236-f48d-4827-bdb8-89d530622821",
+      "name": "Authentic Portuguese Fado",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 14,
+      "falseZero": false
+    },
+    {
+      "id": "9aed264e-e1ca-4b02-8aef-d17ce3bef8ce",
+      "name": "Bazmhent",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 19,
+      "falseZero": false
+    },
+    {
+      "id": "df9d9e29-3c81-44e1-879b-6227f9e00ac5",
+      "name": "Best Love country music",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 13,
+      "falseZero": false
+    },
+    {
+      "id": "a59cde2c-1b48-4848-93e1-2c38286dbb0c",
+      "name": "Bhoho X",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 10,
+      "falseZero": false
+    },
+    {
+      "id": "4d7fd3dd-afbc-460d-8e86-c6cca34815dd",
+      "name": "Blues Block",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 53,
+      "falseZero": false
+    },
+    {
+      "id": "42b7f694-6adf-4b2b-81b7-900957891978",
+      "name": "Brille",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 10,
+      "falseZero": false
+    },
+    {
+      "id": "5ac46dbc-deac-4e4f-9147-5ba13effde2e",
+      "name": "Caasi Wills",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 44,
+      "falseZero": false
+    },
+    {
+      "id": "eea1ec9a-0eed-4289-9192-3f5ca19b483e",
+      "name": "Cafe Jazz",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 1,
+      "falseZero": false
+    },
+    {
+      "id": "e56ea142-072b-4a9c-842a-1a93e179282c",
+      "name": "Chicago Blues",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 1,
+      "falseZero": false
+    },
+    {
+      "id": "42966015-0743-4e5b-9f24-437d8635c28b",
+      "name": "Country Back Roads",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 2,
+      "falseZero": false
+    },
+    {
+      "id": "60a869f7-24b2-41ac-ab0f-1dd41ad9330d",
+      "name": "DRAEVON",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 16,
+      "falseZero": false
+    },
+    {
+      "id": "fbb6602f-ce2d-44b4-bc14-374ed1635808",
+      "name": "Elara Rivers",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 12,
+      "falseZero": false
+    },
+    {
+      "id": "884b6e96-3349-48c2-8667-8086a042f08d",
+      "name": "Elevation Worshippers",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 60,
+      "falseZero": false
+    },
+    {
+      "id": "3f6ff75b-cf40-4329-9057-4d93fb2cdd4f",
+      "name": "Elias River",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 10,
+      "falseZero": false
+    },
+    {
+      "id": "7333d076-a773-4647-859a-5373627f1c89",
+      "name": "Euphoria",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 40,
+      "falseZero": false
+    },
+    {
+      "id": "0c64dae4-eae1-42d9-9ab7-0a13a6c57e1a",
+      "name": "Fado Eterno",
+      "expectedSongCount": 0,
+      "resolvedPlayableSongs": 19,
+      "falseZero": false
+    }
+  ],
+  "albumAudit": [
+    {
+      "id": "5bae7878-1de8-43cb-91ce-70145c6b843f",
+      "title": "Singles",
+      "artistId": "cd9091ad-4671-4eb0-8066-d9ab8bdd96dd",
+      "resolvedPlayableTracks": 2,
+      "falseZero": false
+    },
+    {
+      "id": "9ef148aa-3515-47d8-af84-d42cb89a6240",
+      "title": "Singles",
+      "artistId": "eea1ec9a-0eed-4289-9192-3f5ca19b483e",
+      "resolvedPlayableTracks": 1,
+      "falseZero": false
+    },
+    {
+      "id": "79d5a971-0e49-464c-a946-3c0be208b035",
+      "title": "Singles",
+      "artistId": "4a460e55-6250-4944-8784-ee03e8dccf49",
+      "resolvedPlayableTracks": 1,
+      "falseZero": false
+    },
+    {
+      "id": "2e7d6419-29a4-47ad-81dc-5b1710deee30",
+      "title": "Singles",
+      "artistId": "ed754bd7-32b4-42a4-ba01-abc393f4b9c7",
+      "resolvedPlayableTracks": 2,
+      "falseZero": false
+    },
+    {
+      "id": "fa51fe15-d313-45a8-82d8-adb548abcc3e",
+      "title": "Singles",
+      "artistId": "6ff0a38c-f305-48a4-8aa3-7cc904adeb2c",
+      "resolvedPlayableTracks": 1,
+      "falseZero": false
+    },
+    {
+      "id": "7c1dd157-0b35-426b-aad1-84fd61cf35f5",
+      "title": "Singles",
+      "artistId": "343b2a5b-4234-470d-9938-d058719a2c45",
+      "resolvedPlayableTracks": 1,
+      "falseZero": false
+    },
+    {
+      "id": "e0ad0d07-500a-41c6-99f1-bb8c0efc6e53",
+      "title": "Album",
+      "artistId": "720852ab-7efc-4d26-92c2-30628998282d",
+      "resolvedPlayableTracks": 28,
+      "falseZero": false
+    },
+    {
+      "id": "f1664a77-f24f-4884-a97a-1f61eabc8474",
+      "title": "Album",
+      "artistId": "4507826a-cb2d-4e16-bfd3-1c7cd270ff1c",
+      "resolvedPlayableTracks": 25,
+      "falseZero": false
+    },
+    {
+      "id": "7627a771-04ac-4654-bbe4-c55629ce3fbe",
+      "title": "Album",
+      "artistId": "241848cb-56a8-410b-9cf6-0ad460f077b3",
+      "resolvedPlayableTracks": 17,
+      "falseZero": false
+    },
+    {
+      "id": "d20bc1c2-9106-4a82-9b60-57e06c507f92",
+      "title": "Album",
+      "artistId": "41cfc1a9-946e-4872-a57e-866536c787f2",
+      "resolvedPlayableTracks": 18,
+      "falseZero": false
+    },
+    {
+      "id": "623f5fb3-596b-4b84-9b23-fb633feeecb2",
+      "title": "Album",
+      "artistId": "03497a83-d5aa-4915-b865-5e2f8aee662f",
+      "resolvedPlayableTracks": 10,
+      "falseZero": false
+    },
+    {
+      "id": "da5d944c-9159-46ca-8596-7324b316d935",
+      "title": "Album",
+      "artistId": "60f35e0d-5d99-4f76-b318-c5e8c8d0f3b1",
+      "resolvedPlayableTracks": 10,
+      "falseZero": false
+    },
+    {
+      "id": "230251c3-faa3-4b8e-823d-f96bd904d830",
+      "title": "Album",
+      "artistId": "42c145ce-eb7d-4a1f-b532-68693bc4c451",
+      "resolvedPlayableTracks": 58,
+      "falseZero": false
+    },
+    {
+      "id": "49e5eb32-d1fe-4c06-81a9-801ccb396908",
+      "title": "Album",
+      "artistId": "b3c41799-e50d-4f76-afde-b4db0e752450",
+      "resolvedPlayableTracks": 11,
+      "falseZero": false
+    },
+    {
+      "id": "e767bb58-b95c-4d02-9ec5-4254565b2695",
+      "title": "Album",
+      "artistId": "7333d076-a773-4647-859a-5373627f1c89",
+      "resolvedPlayableTracks": 40,
+      "falseZero": false
+    },
+    {
+      "id": "4239644d-34f0-4b0f-a900-673e23c94867",
+      "title": "Album",
+      "artistId": "2da7464d-7fa6-4962-ba1c-a0e57d817619",
+      "resolvedPlayableTracks": 89,
+      "falseZero": false
+    },
+    {
+      "id": "801d77ff-f5e9-4d8b-9f29-543a7e26781c",
+      "title": "Album",
+      "artistId": "3b3a2f22-1480-43aa-ab25-aa8efc9981b4",
+      "resolvedPlayableTracks": 33,
+      "falseZero": false
+    },
+    {
+      "id": "4bfe8f1b-a930-4e9c-a1c5-49a43898c36a",
+      "title": "Singles",
+      "artistId": "3b3a2f22-1480-43aa-ab25-aa8efc9981b4",
+      "resolvedPlayableTracks": 10,
+      "falseZero": false
+    },
+    {
+      "id": "1e66209d-c71f-4685-a4cb-1cff3e0f4ffc",
+      "title": "Singles",
+      "artistId": "fb7766b0-4406-4f37-936b-de89ac6192d4",
+      "resolvedPlayableTracks": 18,
+      "falseZero": false
+    },
+    {
+      "id": "998f9563-fdde-47ec-b2d7-db35d6d50981",
+      "title": "Singles",
+      "artistId": "081618c5-eb8d-4f99-b0fd-d90bc33e2744",
+      "resolvedPlayableTracks": 32,
+      "falseZero": false
+    }
+  ],
+  "artistFalseZeroCount": 0,
+  "albumFalseZeroCount": 0,
+  "playback": [
+    {
+      "id": "d718b4d7-6289-4c46-85c9-f98abf0b00c1",
+      "title": "Lincoln Baio, Boo LA & MADSNX Loveeeeeee Song Lincoln Baio Remix (Clean)",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "id": "8931f2c0-f7bd-4272-8a63-89b698672d42",
+      "title": "Kehlani Folded Lincoln Baio 68 124 Man I Need Edit Transition",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "id": "e1f22931-ce7c-4ac3-91c8-28fdbc5a0ba3",
+      "title": "Diana Ross Upside Down YANISS & CREMS Remix",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "id": "23b5d846-7146-4156-b81a-8420b6c1d63c",
+      "title": "Odeal Blame U Dan Bravo Sittin' On Top Of The World Edit",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "id": "30ade520-d351-47da-ac4e-54bcaf03bb55",
+      "title": "Jae Murphy Last Time",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    }
+  ],
+  "htmlApiResponses": 0
+}

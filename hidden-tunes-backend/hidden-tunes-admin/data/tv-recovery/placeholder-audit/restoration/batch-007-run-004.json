@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T08:17:55.565Z",
+  "scope": "Batch 7 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "ABC News Live passed a strict confirmation run with 124.65 seconds of 1280x720 Desktop playback, one video owner, and no fatal HLS errors.",
+    "Official Tubi distribution carried continuous live breaking-news coverage and normal search exposed healthy ABC-owned exact canonical records, supporting HIGH identity. Resolver passed.",
+    "Two quarantined aliases remain hidden and are terminal VERIFIED_DUPLICATE_MERGED locally. No production write or duplicate was needed.",
+    "Runtime was rejected for jmp2.uk. Car Chase lacked sufficient broadcaster-specific provenance. Nash Bridges and Antiques Road Trip retain plausible official FAST delivery candidates for later proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 23,
+  "cumulativeTerminalAliases": 101,
+  "batch7Target": 25,
+  "batch7Researched": 20,
+  "batch7Remaining": 5
+}

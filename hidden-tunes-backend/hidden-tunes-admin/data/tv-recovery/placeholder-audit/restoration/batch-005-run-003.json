@@ -1,0 +1,24 @@
+{
+  "completedAt": "2026-08-14T02:36:58.284Z",
+  "scope": "Batch 5 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "South Park and MythBusters candidates use i.mjh.nz and were rejected before media validation.",
+    "BET x Tyler Perry Comedy, BET x Tyler Perry Drama, and Antiques Road Trip use generic CloudFront source URLs with no broadcaster, rights-holder, or official FAST distributor linkage in the catalog records.",
+    "The generic CloudFront candidates were not full-tested because transport ownership alone cannot establish lawful provenance or exact canonical identity.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "batch5Target": 25,
+  "batch5Researched": 15,
+  "batch5Remaining": 10
+}

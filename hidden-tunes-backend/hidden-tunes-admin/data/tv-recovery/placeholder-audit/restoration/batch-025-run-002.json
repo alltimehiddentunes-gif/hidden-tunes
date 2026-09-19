@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T05:24:20.766Z",
+  "scope": "Batch 25 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 2,
+  "productionWrites": 0,
+  "notes": [
+    "Vevo Pop passed 124.46 seconds of 1920x1080 existing-Desktop playback with one video owner from its Rakuten UK-named Amagi candidate.",
+    "Vevo officially documents Vevo Pop as a curated FAST linear channel; sustained official music-video programming with artist/title metadata supports EXACT identity. Normal search and production resolver passed.",
+    "Two quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "A New Life in the Sun used generic CloudFront without complete authoritative linkage. CBS News Sacramento had a CBS lineup candidate but lacked a direct manifest ownership path in this run. CBS News Minnesota had a direct CBS candidate but was not repeated after the prior CBS Texas stall. Bounce XL alternatives lacked complete direct candidate ownership linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 64,
+  "cumulativeTerminalAliases": 201,
+  "batch25Target": 25,
+  "batch25Researched": 10,
+  "batch25Remaining": 15
+}

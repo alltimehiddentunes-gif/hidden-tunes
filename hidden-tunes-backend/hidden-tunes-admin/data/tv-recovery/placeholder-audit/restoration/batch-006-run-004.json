@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T05:38:31.349Z",
+  "scope": "Batch 6 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Vevo 70s candidate fe7ee88b-a7b4-4efb-9c7e-5f70430623a1 uses an exact-name official Vevo/Amagi Samsung distribution service and passed 124.97 seconds of 1920x1080 Desktop playback with one video owner and no fatal HLS errors.",
+    "Sampled frames showed labeled official music videos from 1970s artists including The Doobie Brothers and Rex Smith, establishing exact channel-format identity. Normal search and resolver passed.",
+    "The quarantined alias remains hidden and is terminal VERIFIED_DUPLICATE_MERGED locally. No production write or duplicate was needed.",
+    "Survivor, LiveNOW from FOX, and Highway to Heaven use jmp2.uk; Anger Management's generic Xumo content URL lacked sufficient rights-holder linkage for acceptance in this run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 19,
+  "cumulativeTerminalAliases": 91,
+  "batch6Target": 25,
+  "batch6Researched": 20,
+  "batch6Remaining": 5
+}

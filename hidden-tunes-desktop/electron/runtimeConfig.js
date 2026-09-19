@@ -110,16 +110,10 @@ function resolveMainRuntimeConfig({ isPackaged, env } = {}) {
 }
 
 function resolveSportsPilotToken() {
-  const candidates = [
-    process.env.HT_SPORTS_PRIVATE_PILOT_TOKEN,
-    // Dev convenience only — never rely on Vite-prefixed secrets in packaged builds.
-    process.env.VITE_SPORTS_PRIVATE_PILOT_TOKEN,
-  ]
-  for (const candidate of candidates) {
-    const token = String(candidate || '').trim()
-    if (token.length >= 16) return token
-  }
-  return null
+  // Main-process injection only, in production AND development. Vite-prefixed
+  // credentials can enter public renderer bundles and are never accepted here.
+  const token = String(process.env.HT_SPORTS_PRIVATE_PILOT_TOKEN || '').trim()
+  return token.length >= 16 ? token : null
 }
 
 function getRuntimeDiagnostics(isPackaged) {

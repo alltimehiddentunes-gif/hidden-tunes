@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T11:57:05.252Z",
+  "identity": "The Boat Show",
+  "candidateRecordId": "49ef487b-0e3a-4d1b-a514-dd796b1ca34d",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 123.97,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T01:54:24.821Z",
+  "identity": "Most Haunted Channel",
+  "candidateRecordId": "92098ee6-5c31-4919-a790-892b0b58721a",
+  "aliasesTerminal": 2,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.03,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

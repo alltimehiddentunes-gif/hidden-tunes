@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T04:37:59.990Z",
+  "scope": "Batch 6 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "The Pet Collective candidate 55f5179b-e92b-49d9-a96a-d01fe867e438 uses the exact-name official Samsung/Wurl distribution service and passed 124.45 seconds of 1280x720 Desktop playback with one video owner and no fatal HLS errors.",
+    "All sampled frames showed sustained pet-video programming matching the exact service identity. Normal search and production resolver passed.",
+    "The quarantined alias remains hidden and is terminal VERIFIED_DUPLICATE_MERGED locally. No production write or duplicate was needed.",
+    "Four other identities were provenance-screened; none was accepted in this run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 17,
+  "cumulativeTerminalAliases": 87,
+  "batch6Target": 25,
+  "batch6Researched": 10,
+  "batch6Remaining": 15
+}

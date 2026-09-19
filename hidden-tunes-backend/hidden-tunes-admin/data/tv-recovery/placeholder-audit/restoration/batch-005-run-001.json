@@ -1,0 +1,24 @@
+{
+  "completedAt": "2026-08-14T01:36:57.380Z",
+  "scope": "Batch 5 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Bob Esponja, MTV Teen Mom, and iCarly candidates use jmp2.uk and were rejected before media validation.",
+    "Anthony Bourdain: Parts Unknown uses i.mjh.nz and was rejected before media validation.",
+    "Car Chase resolves through a third-party CBS mediator whose request metadata points to CBS News Chicago rather than the requested channel. The identity mismatch risk is material, so it was not tested or accepted.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "batch5Target": 25,
+  "batch5Researched": 5,
+  "batch5Remaining": 20
+}

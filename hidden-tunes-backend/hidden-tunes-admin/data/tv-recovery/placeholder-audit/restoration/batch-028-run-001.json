@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-16T12:58:12.906Z",
+  "scope": "Batch 28 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "CBS News Bay Area has official CBS provenance and direct CBS-owned delivery, but its bounded existing-Desktop run remained readyState 0 at 0x0 for 190 seconds and was stopped; it remains quarantined.",
+    "Nash Bridges had no materially new evidence after its directly named Xumo candidate previously failed network/decode checks.",
+    "Willow Sports retained only an opaque generic CloudFront candidate without complete direct ownership linkage.",
+    "MTV Jersey Shore used rejected i.mjh.nz and Moviedome used rejected jmp2.uk; neither was sent to expensive validation."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch28Target": 25,
+  "batch28Researched": 5,
+  "batch28Remaining": 20
+}

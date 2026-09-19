@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T08:17:55.565Z",
+  "identity": "ABC News Live",
+  "candidateRecordId": "8ee2d9b6-5211-4e9c-b223-a732f24b3ab3",
+  "aliasesTerminal": 2,
+  "authoritativeProvenance": "Official Tubi FAST distribution corroborated by ABC-owned exact canonical records",
+  "content": "Real moving live breaking-news programme content",
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.65,
+  "resolution": "1280x720",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

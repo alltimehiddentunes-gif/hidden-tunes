@@ -1,0 +1,116 @@
+{
+  "at": "2026-08-04T09:54:00.115Z",
+  "country": "Namibia",
+  "mode": "PUBLISHED",
+  "officialSources": [
+    "https://www.nbc.na/",
+    "https://nbcplus.na/home",
+    "https://oneuptwo.com/"
+  ],
+  "publicIptvSources": [
+    "https://iptv-org.github.io/api/channels.json",
+    "https://iptv-org.github.io/api/streams.json"
+  ],
+  "candidatesDiscovered": 5,
+  "candidatesTested": 5,
+  "accepted": 1,
+  "rejected": 4,
+  "existingBefore": 0,
+  "deduplicated": 0,
+  "proposedImports": 1,
+  "imported": 1,
+  "importRejected": 0,
+  "finalCount": 1,
+  "outcomes": [
+    {
+      "candidate": {
+        "title": "NBC 1",
+        "url": "https://hls2.nbcplus.na/hls/high_nbc1.m3u8",
+        "website": "https://www.nbc.na/",
+        "broadcaster": "Namibia Broadcasting Corporation",
+        "category": "General",
+        "sourceId": "NBC1.na"
+      },
+      "state": "Rejected",
+      "reason": "fetch failed",
+      "protocol": "hls",
+      "finalUrl": "https://hls2.nbcplus.na/hls/high_nbc1.m3u8",
+      "ios": false,
+      "android": false,
+      "desktop": false,
+      "tv": false
+    },
+    {
+      "candidate": {
+        "title": "NBC 2",
+        "url": "https://hls2.nbcplus.na/hls/high_nbc2.m3u8",
+        "website": "https://www.nbc.na/",
+        "broadcaster": "Namibia Broadcasting Corporation",
+        "category": "General",
+        "sourceId": "NBC2.na"
+      },
+      "state": "Rejected",
+      "reason": "fetch failed",
+      "protocol": "hls",
+      "finalUrl": "https://hls2.nbcplus.na/hls/high_nbc2.m3u8",
+      "ios": false,
+      "android": false,
+      "desktop": false,
+      "tv": false
+    },
+    {
+      "candidate": {
+        "title": "NBC 3",
+        "url": "https://hls2.nbcplus.na/hls/high_nbc3.m3u8",
+        "website": "https://www.nbc.na/",
+        "broadcaster": "Namibia Broadcasting Corporation",
+        "category": "General",
+        "sourceId": "NBC3.na"
+      },
+      "state": "Rejected",
+      "reason": "fetch failed",
+      "protocol": "hls",
+      "finalUrl": "https://hls2.nbcplus.na/hls/high_nbc3.m3u8",
+      "ios": false,
+      "android": false,
+      "desktop": false,
+      "tv": false
+    },
+    {
+      "candidate": {
+        "title": "NTV",
+        "url": "https://s-pl-01.mediatool.tv/playout/ntv-abr/index.m3u8",
+        "website": "https://oneuptwo.com/",
+        "broadcaster": "OneUpTwo",
+        "category": "General",
+        "sourceId": "NTV.na"
+      },
+      "state": "Rejected",
+      "reason": "http_404",
+      "protocol": "hls",
+      "finalUrl": "https://s-pl-01.mediatool.tv/playout/ntv-abr/index.m3u8",
+      "ios": false,
+      "android": false,
+      "desktop": false,
+      "tv": false
+    },
+    {
+      "candidate": {
+        "title": "Tjil TV",
+        "url": "https://hls-1zdhtxpm-livepush.akamaized.net/live_cdn/nsM12Xw0C1xXdJ/em0Wx71z-ec6EWJb/rewind-3600.m3u8",
+        "website": "https://oneuptwo.com/tjilTV",
+        "broadcaster": "OneUpTwo",
+        "category": "Entertainment",
+        "sourceId": "TjilTV.na"
+      },
+      "state": "Accepted",
+      "reason": "official_source_and_shared_probe_passed",
+      "protocol": "hls",
+      "finalUrl": "https://hls-1zdhtxpm-livepush.akamaized.net/live_cdn/nsM12Xw0C1xXdJ/em0Wx71z-ec6EWJb/rewind-3600.m3u8",
+      "ios": true,
+      "android": true,
+      "desktop": true,
+      "tv": true
+    }
+  ]
+}

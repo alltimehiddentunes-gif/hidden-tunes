@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T21:55:59.924Z",
+  "scope": "Batch 31 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Degrassi: Queued opaque Roku delivery lacked complete primary exact candidate-to-channel linkage and was not sent to media validation.",
+    "CBS News Chicago: Both production channel and video playback resolvers returned HTTP 404 before media validation.",
+    "CBS News Pittsburgh: Both production channel and video playback resolvers returned HTTP 404 before media validation.",
+    "CBS News Minnesota: Both production channel and video playback resolvers returned HTTP 404 before media validation.",
+    "CBS News Colorado: Both production channel and video playback resolvers returned HTTP 404 before media validation."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 72,
+  "cumulativeTerminalAliases": 215,
+  "batch31Target": 25,
+  "batch31Researched": 20,
+  "batch31Remaining": 5,
+  "batch31Complete": false
+}

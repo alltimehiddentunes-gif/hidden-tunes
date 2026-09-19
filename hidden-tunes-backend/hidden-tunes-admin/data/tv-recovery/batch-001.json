@@ -1,0 +1,1115 @@
+{
+  "runId": "pluto-autonomous-recovery",
+  "checkpointVersion": 2,
+  "batchNumber": 1,
+  "phase": "BATCH_1_COMPLETE",
+  "createdAt": "2026-08-09T21:42:32.577Z",
+  "baselineHead": "0b01836e44ff869d1520b494b8ccb04c5f73f727",
+  "identitiesAttempted": 100,
+  "identitiesCompleted": 0,
+  "candidatesDiscovered": 69,
+  "candidatesTested": 25,
+  "decoded": 16,
+  "verified": 0,
+  "rejected": 0,
+  "unresolved": 16,
+  "noSource": 61,
+  "errors": [],
+  "nextBatch": 2,
+  "nextBatchSize": 150,
+  "nextCursor": 100,
+  "remainingUnattempted": 1632,
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "selection": [
+    {
+      "providerChannelId": "600ae6a78d801e0007117d21",
+      "canonicalName": "Pluto TV Animales",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "5a4d35dfa5c02e717a234f86",
+      "canonicalName": "Pluto TV History",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "619e1874e0d3a7000729a036",
+      "canonicalName": "Pluto TV Fishing",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "61b86c6ef30f5d0007e4c6d1",
+      "canonicalName": "Pluto TV Space",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "61409f8d6feb30000766b675",
+      "canonicalName": "Pluto TV Space",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "6202357dea93940007d723ca",
+      "canonicalName": "Top Gear",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "620239894757070008d4812d",
+      "canonicalName": "Top Gear",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "620234d766314700075cac86",
+      "canonicalName": "Top Gear",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "69b01641a9b840a456a11c18",
+      "canonicalName": "Schlosshotel Orth",
+      "categories": [
+        "Entertainment",
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68dfa431cc3c6cd904053100",
+      "canonicalName": "Pluto TV Handbold Highlights",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "660bfca524e1d000085b6007",
+      "canonicalName": "FIFA+",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "6792066f3de7c8cf941e7ce3",
+      "canonicalName": "UFC (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "657c0954dfed030008d82ea1",
+      "canonicalName": "Kvart i Bold",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "6870c97b759366af055fe371",
+      "canonicalName": "Tennis Channel (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "62e7ba25be69bc0007b77fdc",
+      "canonicalName": "Jakt är Jakt",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "67a52cd4ec91870008a62164",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "660e7404e8fba8000853abc0",
+      "canonicalName": "AWSN",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "679205a13de7c8cf941e7857",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6792044b680721c77c5b9ba2",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66461f433d173b000805eeeb",
+      "canonicalName": "DFB Play TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "67a3b45a21af380008133aa4",
+      "canonicalName": "Realmadrid TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69a20556814d27f4ae630a92",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "67a23bb777796f00080edaec",
+      "canonicalName": "Dominance FC TV",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "6716571bc7626f000890c518",
+      "canonicalName": "MODUS Super Series Darts",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "660d7232635c75000828c95a",
+      "canonicalName": "Realmadrid TV",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "65c340983ba51e00083988e8",
+      "canonicalName": "Monster Jam",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "64805755536e0c0008a19fa1",
+      "canonicalName": "DAZN Ringside",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66bb36e03a4ad200082bb8fe",
+      "canonicalName": "Pixel.tv",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "67921b873de7c8cf94233f52",
+      "canonicalName": "UFC",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68ac52fac9b5923e0585578b",
+      "canonicalName": "Pluto TV Motor",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69f9c50202b6c1c00a213519",
+      "canonicalName": "Dominance FC TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "62e7babea3e6270007f5564a",
+      "canonicalName": "Jakt är Jakt",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "65ba4e7bdc10a40008da084a",
+      "canonicalName": "Rock Channel",
+      "categories": [
+        "Sports",
+        "Rock"
+      ]
+    },
+    {
+      "providerChannelId": "660e746024e1d00008610ea1",
+      "canonicalName": "AWSN",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "64c109a4798def0008a6e03e",
+      "canonicalName": "Top Gear",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "66c86fed85e28d0008f8a9ec",
+      "canonicalName": "PGA TOUR",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "691c5bef3a369d8f40192e71",
+      "canonicalName": "Inter 24/7",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6298bd10d88ef000073f16b7",
+      "canonicalName": "Smithsonian Channel Pluto TV",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "6793ac47f5c74bff95d18a99",
+      "canonicalName": "TOP BARÇA",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "5dc190f7bfed110009d934c3",
+      "canonicalName": "Pluto TV Serie",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "671b4dc049c4060008f91d3a",
+      "canonicalName": "Horse & Country",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "65b14aae0cb1a100087a216e",
+      "canonicalName": "DAZN Ringside",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "654a299cab05240008a12639",
+      "canonicalName": "PFL MMA – Pluto TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "652516fb7971630008a58e74",
+      "canonicalName": "Ultimate Classic Wrestling – Pluto TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "67813f3162bf016db944c9ab",
+      "canonicalName": "Red Bull TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69148c470155f9b136b5d856",
+      "canonicalName": "Pluto TV Snooker 900",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6357f3de3643ba0007bc0b50",
+      "canonicalName": "Pluto TV Sport",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "639b4f75d3d35c0007d37b30",
+      "canonicalName": "Pluto TV Snooker 900",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "63f7e3f9dff38e00082a57af",
+      "canonicalName": "ITV Deportes (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "65a6818c7bdc8d0008457b21",
+      "canonicalName": "RACER Brasil",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "5e98b0447665f200078caded",
+      "canonicalName": "Pluto TV Peleas",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6405d444d200410008009419",
+      "canonicalName": "BET25 LIVE",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6971fc6dca441014e4600f2c",
+      "canonicalName": "Automoto",
+      "categories": [
+        "Sports",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "675c0762f433320008707f68",
+      "canonicalName": "BET25 Live+",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66952e1ed512590008867b5a",
+      "canonicalName": "Mediano TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69d7a0dc805a68fcc92037b7",
+      "canonicalName": "Best of Magnus Midtbø",
+      "categories": [
+        "Sports",
+        "Nytt på Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "65b915780cb1a1000889b837",
+      "canonicalName": "3point.dk",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6582f002a620e3000813b329",
+      "canonicalName": "Azteca Deportes Network",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66997d18a1b69e00082ee85f",
+      "canonicalName": "FIFA+",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "64d626ac9b414d000820e2fc",
+      "canonicalName": "DAZN Ringside",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "677d397b60fbeb00084b0bff",
+      "canonicalName": "Pluto TV Verdenskrigene",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "660c29f80cd4630008f1547c",
+      "canonicalName": "FIFA+",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "63d91d2560bc8f0008a225e4",
+      "canonicalName": "FIFA+",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "63c6e37e636b7e0007ccb635",
+      "canonicalName": "Pluto TV Futbol",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "5ff3934600d4c7000733ff49",
+      "canonicalName": "Pluto TV E-Sports",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6618f54baec96800081525ec",
+      "canonicalName": "Pluto TV Handbold Live",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "686faf533ffa5e0c912688e7",
+      "canonicalName": "Pluto TV Handboll Live",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66fd35e44ca31f0008060b77",
+      "canonicalName": "Pluto TV Snooker 900",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68ac55bb3efb41cd979a65ec",
+      "canonicalName": "Pluto TV Snooker 900",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "696e024a7e92438c27a425a8",
+      "canonicalName": "Rally TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "69148c76e9dec35c9269a16c",
+      "canonicalName": "Pluto TV Snooker 900",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "68ac56363efb41cd979a8005",
+      "canonicalName": "Pluto TV Snooker 900 (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6357f33cb51d2d00077927c6",
+      "canonicalName": "Pluto TV Sport",
+      "categories": [
+        "Sports",
+        "Sport"
+      ]
+    },
+    {
+      "providerChannelId": "62cd74e38f6f0d000798cd93",
+      "canonicalName": "Pluto TV Sport",
+      "categories": [
+        "Sports",
+        "Sport"
+      ]
+    },
+    {
+      "providerChannelId": "696e0fe49ba4ac18057433ac",
+      "canonicalName": "Rally TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "67813f893886aa863497733d",
+      "canonicalName": "Red Bull TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "683df56f5195c2a60a3f5559",
+      "canonicalName": "Swerve Women’s Sports",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6627621d56fc840008e47c90",
+      "canonicalName": "Tennis Channel",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "650999b86a841400083bd1ab",
+      "canonicalName": "Pluto TV Alien Invasion",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "611e7811eb9daf000764cbfd",
+      "canonicalName": "Pluto TV Aventure",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "67164414e40c4a00087f450d",
+      "canonicalName": "MODUS Super Series Darts",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "66ed3eb27358ce000830df49",
+      "canonicalName": "UFC (720p)",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "65c33fd4dc10a40008f26af8",
+      "canonicalName": "Monster Jam",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "62b1e2498261390007f25c98",
+      "canonicalName": "Pluto TV Dokumentär",
+      "categories": [
+        "Documentary",
+        "Dokumentärer",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "69c592dff0f1a7d732dc6e36",
+      "canonicalName": "Pluto TV Cars",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "5ddc503ac7ef120009b101a2",
+      "canonicalName": "Pluto TV Documentales",
+      "categories": [
+        "Americas"
+      ]
+    },
+    {
+      "providerChannelId": "62b30b0060a9ca0007d628b4",
+      "canonicalName": "Pluto TV Dokumentar",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "5ad9b8551b95267e225e59c1",
+      "canonicalName": "Pluto TV Explore",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "69dd5d7bfcb9bf5e3063cb16",
+      "canonicalName": "History & Warfare",
+      "categories": [
+        "Documentary"
+      ]
+    },
+    {
+      "providerChannelId": "5d14fc31252d35decbc4080b",
+      "canonicalName": "Yo! MTV (1080p)",
+      "categories": [
+        "Music TV"
+      ]
+    },
+    {
+      "providerChannelId": "68dfa3e2cc3c6cd904052c41",
+      "canonicalName": "Pluto TV Handboll Highlights",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "6474aa984cfc2c0008883a92",
+      "canonicalName": "Pluto TV Animais",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "5d767ae7b456c8cf265ce922",
+      "canonicalName": "Pluto TV Animals",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "64ad7394798def00087b2bfe",
+      "canonicalName": "Pluto TV Negocio Fechado",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "604b91e0692f770007d9f33f",
+      "canonicalName": "Pluto TV Shows por Stingray",
+      "categories": [
+        "music"
+      ]
+    },
+    {
+      "providerChannelId": "63b578b524f0cf00072f2a52",
+      "canonicalName": "Echappées Belles & Co",
+      "categories": [
+        "Documentaire"
+      ]
+    },
+    {
+      "providerChannelId": "5812bcc8237a6ff45d16c407",
+      "canonicalName": "Spike Pluto TV",
+      "categories": [
+        "documentary"
+      ]
+    },
+    {
+      "providerChannelId": "608030eff4b6f70007e1684c",
+      "canonicalName": "Sport – Pluto TV",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "603fde9026ecbf0007752c2c",
+      "canonicalName": "Pluto TV Competition",
+      "categories": [
+        "Sports"
+      ]
+    },
+    {
+      "providerChannelId": "648056f0f77b61000828f1ba",
+      "canonicalName": "DAZN Ringside",
+      "categories": [
+        "Sports"
+      ]
+    }
+  ],
+  "validations": [
+    {
+      "providerChannelId": "5a4d35dfa5c02e717a234f86",
+      "canonicalName": "Pluto TV History",
+      "existingCatalogRecordId": "f57cc33f-e5e2-4606-bec8-d5973109f9b7",
+      "sourceHost": "88.212.15.19",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "5a4d35dfa5c02e717a234f86",
+      "canonicalName": "Pluto TV History",
+      "existingCatalogRecordId": "aa7c2882-55e3-4f26-bfd9-bf8ac7deab19",
+      "sourceHost": "177.52.24.163",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\002-5a4d35dfa5c02e717a234f86-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\002-5a4d35dfa5c02e717a234f86-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\002-5a4d35dfa5c02e717a234f86-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6202357dea93940007d723ca",
+      "canonicalName": "Top Gear",
+      "existingCatalogRecordId": "99f5a532-e374-4aa4-bb61-cc6debe5364f",
+      "sourceHost": "d1daq1khzqxpku.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "6202357dea93940007d723ca",
+      "canonicalName": "Top Gear",
+      "existingCatalogRecordId": "237d6cd9-024a-42bb-9c65-a173ce347a19",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "620239894757070008d4812d",
+      "canonicalName": "Top Gear",
+      "existingCatalogRecordId": "99f5a532-e374-4aa4-bb61-cc6debe5364f",
+      "sourceHost": "d1daq1khzqxpku.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "620239894757070008d4812d",
+      "canonicalName": "Top Gear",
+      "existingCatalogRecordId": "237d6cd9-024a-42bb-9c65-a173ce347a19",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "620234d766314700075cac86",
+      "canonicalName": "Top Gear",
+      "existingCatalogRecordId": "99f5a532-e374-4aa4-bb61-cc6debe5364f",
+      "sourceHost": "d1daq1khzqxpku.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "620234d766314700075cac86",
+      "canonicalName": "Top Gear",
+      "existingCatalogRecordId": "237d6cd9-024a-42bb-9c65-a173ce347a19",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "660bfca524e1d000085b6007",
+      "canonicalName": "FIFA+",
+      "existingCatalogRecordId": "a5b004de-0b14-4b13-a76b-cfe6b9069eb5",
+      "sourceHost": "ba3e2e93.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\009-660bfca524e1d000085b6007-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\009-660bfca524e1d000085b6007-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\009-660bfca524e1d000085b6007-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "660bfca524e1d000085b6007",
+      "canonicalName": "FIFA+",
+      "existingCatalogRecordId": "3157110e-b2ff-4236-9465-aeffa70cf751",
+      "sourceHost": "a62dad94.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\010-660bfca524e1d000085b6007-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\010-660bfca524e1d000085b6007-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\010-660bfca524e1d000085b6007-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6792066f3de7c8cf941e7ce3",
+      "canonicalName": "UFC (720p)",
+      "existingCatalogRecordId": "c5a8b5b9-5993-4001-925e-2e01f0aec3c3",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\011-6792066f3de7c8cf941e7ce3-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\011-6792066f3de7c8cf941e7ce3-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\011-6792066f3de7c8cf941e7ce3-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6792066f3de7c8cf941e7ce3",
+      "canonicalName": "UFC (720p)",
+      "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\012-6792066f3de7c8cf941e7ce3-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\012-6792066f3de7c8cf941e7ce3-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\012-6792066f3de7c8cf941e7ce3-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6870c97b759366af055fe371",
+      "canonicalName": "Tennis Channel (720p)",
+      "existingCatalogRecordId": "8c394b9f-3dc2-4694-934e-8a10505ec4bf",
+      "sourceHost": "messi.damitv.st",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "6870c97b759366af055fe371",
+      "canonicalName": "Tennis Channel (720p)",
+      "existingCatalogRecordId": "81f563b1-9ecf-489c-9159-5a9e45376635",
+      "sourceHost": "amg01444-tennischannelth-tennischnlintl-lggb-mr3r5.amagi.tv",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "67a52cd4ec91870008a62164",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "c5a8b5b9-5993-4001-925e-2e01f0aec3c3",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\015-67a52cd4ec91870008a62164-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\015-67a52cd4ec91870008a62164-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\015-67a52cd4ec91870008a62164-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "67a52cd4ec91870008a62164",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\016-67a52cd4ec91870008a62164-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\016-67a52cd4ec91870008a62164-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\016-67a52cd4ec91870008a62164-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "679205a13de7c8cf941e7857",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "c5a8b5b9-5993-4001-925e-2e01f0aec3c3",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\017-679205a13de7c8cf941e7857-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\017-679205a13de7c8cf941e7857-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\017-679205a13de7c8cf941e7857-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "679205a13de7c8cf941e7857",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\018-679205a13de7c8cf941e7857-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\018-679205a13de7c8cf941e7857-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\018-679205a13de7c8cf941e7857-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6792044b680721c77c5b9ba2",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "c5a8b5b9-5993-4001-925e-2e01f0aec3c3",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\019-6792044b680721c77c5b9ba2-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\019-6792044b680721c77c5b9ba2-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\019-6792044b680721c77c5b9ba2-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6792044b680721c77c5b9ba2",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\020-6792044b680721c77c5b9ba2-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\020-6792044b680721c77c5b9ba2-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\020-6792044b680721c77c5b9ba2-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "69a20556814d27f4ae630a92",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "c5a8b5b9-5993-4001-925e-2e01f0aec3c3",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\021-69a20556814d27f4ae630a92-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\021-69a20556814d27f4ae630a92-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\021-69a20556814d27f4ae630a92-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "69a20556814d27f4ae630a92",
+      "canonicalName": "UFC",
+      "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\022-69a20556814d27f4ae630a92-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\022-69a20556814d27f4ae630a92-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\022-69a20556814d27f4ae630a92-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "65c340983ba51e00083988e8",
+      "canonicalName": "Monster Jam",
+      "existingCatalogRecordId": "3f30e76d-2e35-40c3-8975-3bef145fbf11",
+      "sourceHost": "4b9627c7.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\023-65c340983ba51e00083988e8-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\023-65c340983ba51e00083988e8-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\023-65c340983ba51e00083988e8-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "64805755536e0c0008a19fa1",
+      "canonicalName": "DAZN Ringside",
+      "existingCatalogRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\024-64805755536e0c0008a19fa1-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\024-64805755536e0c0008a19fa1-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\024-64805755536e0c0008a19fa1-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "64805755536e0c0008a19fa1",
+      "canonicalName": "DAZN Ringside",
+      "existingCatalogRecordId": "a02d741c-b551-4bdf-b9f9-c8bc6b2a42b7",
+      "sourceHost": "live-manifest.production-public.tubi.io",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\025-64805755536e0c0008a19fa1-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\025-64805755536e0c0008a19fa1-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-1\\025-64805755536e0c0008a19fa1-03.jpg"
+      ]
+    }
+  ]
+}

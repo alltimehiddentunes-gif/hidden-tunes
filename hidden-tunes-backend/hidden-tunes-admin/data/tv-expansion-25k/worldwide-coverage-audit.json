@@ -1,0 +1,25 @@
+{
+  "at": "2026-08-04T09:29:17.063Z",
+  "platformEligible": 1269,
+  "catalogRows": 1000,
+  "countriesRepresented": 115,
+  "categoriesRepresented": 75,
+  "regionBuckets": {
+    "Europe": 233,
+    "North America": 341,
+    "Asia": 108,
+    "Caribbean": 24,
+    "South America": 83,
+    "Africa": 30,
+    "Oceania": 9,
+    "Central America": 25,
+    "Unknown": 32,
+    "Middle East": 55
+  },
+  "sourceTypes": {
+    "hls_stream": 998,
+    "youtube_video": 2
+  },
+  "worldwideCoverageFile": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-expansion-25k\\worldwide-coverage.json",
+  "buildReportFile": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-expansion-25k\\worldwave-build-report.json"
+}

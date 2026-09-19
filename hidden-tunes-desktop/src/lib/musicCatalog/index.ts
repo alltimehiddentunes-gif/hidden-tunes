@@ -16,6 +16,8 @@ export {
   loadMusicCatalogBootstrap,
   loadMusicGenreSongsPage,
   loadMusicCatalogPage,
+  searchMusicAlbumsPage,
+  searchMusicArtistsPage,
   searchMusicSongsPage,
 } from './catalogService'
 export {

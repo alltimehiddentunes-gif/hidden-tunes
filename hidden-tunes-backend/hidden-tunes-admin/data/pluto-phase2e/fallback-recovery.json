@@ -1,0 +1,66 @@
+{
+  "testedAt": "2026-08-09T07:58:17.316Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "channels": 3,
+  "results": [
+    {
+      "id": "62b976b93279cb000772c6f9",
+      "name": "Bloomberg TV+",
+      "initialPrimaryRank": 1,
+      "primaryMarkedUnhealthy": true,
+      "fallbackRank": 2,
+      "fallbackPlayback": {
+        "passed": true,
+        "latencyMs": 5513,
+        "errorClass": null
+      },
+      "primaryRecovery": {
+        "passed": true,
+        "latencyMs": 2090,
+        "errorClass": null
+      },
+      "restoredPrimaryRank": 1,
+      "passed": true
+    },
+    {
+      "id": "5a6b92f6e22a617379789618",
+      "name": "CBS News 24/7",
+      "initialPrimaryRank": 1,
+      "primaryMarkedUnhealthy": true,
+      "fallbackRank": 2,
+      "fallbackPlayback": {
+        "passed": true,
+        "latencyMs": 15445,
+        "errorClass": null
+      },
+      "primaryRecovery": {
+        "passed": true,
+        "latencyMs": 1908,
+        "errorClass": null
+      },
+      "restoredPrimaryRank": 1,
+      "passed": true
+    },
+    {
+      "id": "60492e6d7f3f560007ab0f62",
+      "name": "Estrella News (720p)",
+      "initialPrimaryRank": 1,
+      "primaryMarkedUnhealthy": true,
+      "fallbackRank": 2,
+      "fallbackPlayback": {
+        "passed": true,
+        "latencyMs": 5029,
+        "errorClass": null
+      },
+      "primaryRecovery": {
+        "passed": true,
+        "latencyMs": 8878,
+        "errorClass": null
+      },
+      "restoredPrimaryRank": 1,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

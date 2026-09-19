@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-14T22:46:08.802Z",
+  "scope": "Batch 13 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 5,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 4,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Real Housewives Vault has authoritative NBCUniversal launch provenance and a current Xumo public channel page; its candidate uses an NBCUniversal FAST host.",
+    "The Real Housewives Vault candidate decoded at 1920x1080 with one video owner, but advanced only 116.81 seconds during the bounded Desktop run and therefore failed the required 120-second continuity gate. It remains quarantined.",
+    "Little House on the Prairie, Law & Order, Lifetime Movie Favorites, and Xtreme Outdoor by HISTORY were provenance-researched but were not sent to expensive validation because exact candidate-to-authoritative-source linkage was not complete in this run.",
+    "No production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 38,
+  "cumulativeTerminalAliases": 135,
+  "batch13Target": 25,
+  "batch13Researched": 10,
+  "batch13Remaining": 15
+}

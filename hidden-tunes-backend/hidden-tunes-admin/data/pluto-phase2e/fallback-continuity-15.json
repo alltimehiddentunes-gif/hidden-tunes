@@ -1,0 +1,38 @@
+{
+  "testedAt": "2026-08-09T10:48:36.620Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "id": "62b976b93279cb000772c6f9",
+      "name": "Bloomberg TV+",
+      "targetSeconds": 900,
+      "elapsedSeconds": 893,
+      "exitCode": 0,
+      "warningLines": 0,
+      "audioFailure": false,
+      "passed": true
+    },
+    {
+      "id": "5a6b92f6e22a617379789618",
+      "name": "CBS News 24/7",
+      "targetSeconds": 900,
+      "elapsedSeconds": 1136,
+      "exitCode": 0,
+      "warningLines": 44428,
+      "audioFailure": false,
+      "passed": true
+    },
+    {
+      "id": "60492e6d7f3f560007ab0f62",
+      "name": "Estrella News (720p)",
+      "targetSeconds": 900,
+      "elapsedSeconds": 893,
+      "exitCode": 0,
+      "warningLines": 0,
+      "audioFailure": false,
+      "passed": true
+    }
+  ],
+  "passCount": 3
+}

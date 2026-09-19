@@ -14,7 +14,7 @@ const outDir = path.join(ROOT, 'docs', 'audits', 'creators-orbit')
 
 // Use tsx/vite? Prefer compiling via dynamic import of built code — not available.
 // Mirror eligibility rules against live Express payload to prove post-fix set.
-const BASE = 'https://hidden-tunes-api.onrender.com'
+const BASE = process.env.HT_API_BASE || 'https://api.hiddentunes.com'
 
 function hasPlayableUrl(track) {
   return Boolean(

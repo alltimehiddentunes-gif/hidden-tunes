@@ -1,0 +1,18 @@
+{
+  "completedAt": "2026-08-14T14:15:23.701Z",
+  "batch": 9,
+  "identitiesResearched": 25,
+  "newVerifiedSearchableDesktopPlayableIdentities": 3,
+  "newTerminalAliases": 3,
+  "verifiedIdentities": [
+    "Deal or No Deal",
+    "That's 90s00s",
+    "World War TV"
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 28,
+  "cumulativeTerminalAliases": 108,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "safetyRegressions": 0,
+  "nextBatch": 10
+}

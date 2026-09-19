@@ -1,0 +1,15 @@
+{
+  "candidateId": "55f5179b-e92b-49d9-a96a-d01fe867e438",
+  "streamHost": "the-pet-collective-international-gb.samsung.wurl.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 160.486999,
+    "advancedSeconds": 124.44533200000001,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

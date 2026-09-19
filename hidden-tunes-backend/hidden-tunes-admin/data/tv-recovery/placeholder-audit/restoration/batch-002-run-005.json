@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-08-13T15:39:00.000Z",
+  "scope": "provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "oneVideoOwner": 1,
+  "exactHighIdentityPassed": 0,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "AFV CloudFront candidate remained blank with no decoded media after 200 seconds and was not accepted.",
+    "Crimen alternative has Local Now-authoritative provenance and passed 117.5 seconds advancing 1080p Desktop playback with one video owner.",
+    "Sampled Crimen frames showed sustained drama content but no channel bug or title evidence sufficient for EXACT/HIGH identity, so it remains quarantined.",
+    "Beyblade alternative is on an Amagi Rakuten France playout host, but direct exact-channel provenance was not established during this run.",
+    "UnXplained Zone and 48 Hours alternatives resolve through jmp2.uk and were rejected before media validation."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 11,
+  "cumulativeTerminalAliases": 78
+}

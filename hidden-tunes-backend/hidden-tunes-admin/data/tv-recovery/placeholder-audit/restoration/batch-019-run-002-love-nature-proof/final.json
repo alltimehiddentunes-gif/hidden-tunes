@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T13:47:52.248Z",
+  "identity": "Love Nature",
+  "candidateRecordId": "38d77286-6093-43f2-8bd9-49690225559a",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.06,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

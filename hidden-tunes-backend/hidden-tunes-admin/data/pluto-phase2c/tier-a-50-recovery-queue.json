@@ -1,0 +1,3528 @@
+[
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "66dff9d46ad04d0008fda4de",
+      "canonicalName": "CNN Headlines International",
+      "aliases": [
+        "CNN Headlines International"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "GB"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "66dff9d46ad04d0008fda4de",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://i.mjh.nz/.r/sky-ptcn.m3u8",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:ac680b78-a9a7-41fa-aca4-cd247aa78408",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "66c45b1803e3b20008d8c200",
+      "canonicalName": "CNNi",
+      "aliases": [
+        "CNNi"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "DE"
+      ],
+      "language": [],
+      "category": [
+        "Nachrichten"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "6508be683a0d700008c534e4",
+      "canonicalName": "ABC News Live (720p)",
+      "aliases": [
+        "ABC News Live (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "6508be683a0d700008c534e4",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "http://206.212.244.63/2/index.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:191455d9-f34a-4ee2-8f3e-9f3d566f1faf",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "6508be683a0d700008c534e4",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://aegis-cloudfront-1.tubi.video/d6cbb0de-68e4-4f3b-82f9-bf5d526e0bde/index.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:8ee2d9b6-5211-4e9c-b223-a732f24b3ab3",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "6508be683a0d700008c534e4",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dbrb49pjoymg4.cloudfront.net/10001/99951517/hls/master.m3u8?includeAssetTags=true&ads.xumo_channelId=99951517&ads.xumo_streamId=99951517&ads.channelId=99951517&ads.channelName=ABC&ads.caid=ABC&ads.csid=xumo_web_ABC_ssai&ads.genre=News,N&ads._fw_content_genre=News,N&ads._fw_coppa=0&ads.xumo_contentId=58&ads.xumo_contentName=ABC&ads.xumo_providerId=58&ads.xumo_providerName=ABC&ads.asnw=&ads.xumo_channelName=ABC&ads._fw_h_x_country=US&ads._fw_ifa_type=&ads._fw_did=ba3b1ebd-7357-40ed-b2fa-eb7bc580af65&ads.amznappId=&ads.lat=&ads.lon=&ads.os=&ads.osv=&ads._fw_is_lat=0&ads._fw_us_privacy=&ads._fw_content_category=&ads._fw_content_language=en&ads._fw_content_rating=&ads._fw_deviceMake=GitHubAction&ads._fw_device_model=PythonScript&ads.xumo_platform=web&ads.site_id=&ads.appVersion=1.0.0&ads._fw_app_bundle=web.xumo.com&ads._fw_app_store_url=&ads.appName=xumo",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:ca7d3855-cb3b-4a8d-ba4a-78d92ab3646c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 3 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "65d92a8c8b24c80008e285c0",
+      "canonicalName": "BBC News",
+      "aliases": [
+        "BBC News"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "News + Opinion"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "65d92a8c8b24c80008e285c0",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://vs-hls-push-ww-live.akamaized.net/x=4/i=urn:bbc:pips:service:bbc_news_channel_hd/mobile_wifi_main_hd_abr_v2.m3u8",
+        "region": "GB",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:bbe31e23-4f1d-4f74-a883-3e2d23d8d32c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "65d92a8c8b24c80008e285c0",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://d3pxo1qcgzxtxs.cloudfront.net/10005/99951298/hls/playlist.m3u8?includeAssetTags=true&ads.xumo_channelId=99951298&ads.xumo_streamId=99951298&ads.channelId=99951298&ads.channelName=amcbbcnews_us&ads.csid=xumo_web_AMCBBCNews_ssai&ads._fw_coppa=0&ads._fw_content_genre=News,N,DN,Local,LocalNews,News-Local&ads.xumo_contentId=4023&ads.xumo_contentName=AMCBBCNews&ads.xumo_providerId=4023&ads.xumo_providerName=AMCBBCNews&ads._fw_is_lat=0&ads._fw_us_privacy=&ads._fw_did=:7f870c73-d809-4d7a-8cb5-e0e3a18e9c7c&ads._fw_content_category=&ads._fw_content_language=en&ads._fw_content_rating=&ads._fw_deviceType=3-Connected_TV&ads._fw_deviceMake=GitHubAction&ads._fw_device_model=PythonScript&ads.xumo_platform=web&ads.appVersion=1.0.0&ads._fw_app_bundle=web.xumo.com&ads._fw_app_store_url=&ads._fw_ifa_type=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:6fcda078-ede5-4955-b4d6-1fb6783b4db2",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "62b976b93279cb000772c6f9",
+      "canonicalName": "Bloomberg TV+",
+      "aliases": [
+        "Bloomberg TV+"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "News + Opinion"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "62b976b93279cb000772c6f9",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://i.mjh.nz/.r/bloomberg-tv.m3u8",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:9907cc2d-e1ea-4c62-89a3-2dc8ec0af8b9",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "62b976b93279cb000772c6f9",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://86ebec83.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X0Jsb29tYmVyZ1RWUGx1c19ITFM/playlist.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "62b976b93279cb000772c6f9",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://gpuserver3.tier1streams.com/BLOOMBERG/index.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a6a2887f-7c12-44dc-b060-125aff310d6f",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "62b976b93279cb000772c6f9",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://bloomberg.com/media-manifest/streams/eu.m3u8",
+        "region": "GB",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "62b976b93279cb000772c6f9",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://bloomberg.com/media-manifest/streams/phoenix-us.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:8eaa14f4-d532-487b-b351-74975726483c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 5 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "61559552dd585f0007321eca",
+      "canonicalName": "Bloomberg TV+",
+      "aliases": [
+        "Bloomberg TV+"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "61559552dd585f0007321eca",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://i.mjh.nz/.r/bloomberg-tv.m3u8",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:9907cc2d-e1ea-4c62-89a3-2dc8ec0af8b9",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61559552dd585f0007321eca",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://86ebec83.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X0Jsb29tYmVyZ1RWUGx1c19ITFM/playlist.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61559552dd585f0007321eca",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://gpuserver3.tier1streams.com/BLOOMBERG/index.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a6a2887f-7c12-44dc-b060-125aff310d6f",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61559552dd585f0007321eca",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://bloomberg.com/media-manifest/streams/eu.m3u8",
+        "region": "GB",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61559552dd585f0007321eca",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://bloomberg.com/media-manifest/streams/phoenix-us.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:8eaa14f4-d532-487b-b351-74975726483c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 5 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "54ff7ba69222cb1c2624c584",
+      "canonicalName": "Bloomberg TV+",
+      "aliases": [
+        "Bloomberg TV+"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "News + Opinion"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "54ff7ba69222cb1c2624c584",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://i.mjh.nz/.r/bloomberg-tv.m3u8",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:9907cc2d-e1ea-4c62-89a3-2dc8ec0af8b9",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "54ff7ba69222cb1c2624c584",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://86ebec83.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmFrdXRlblRWLWV1X0Jsb29tYmVyZ1RWUGx1c19ITFM/playlist.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "54ff7ba69222cb1c2624c584",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://gpuserver3.tier1streams.com/BLOOMBERG/index.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a6a2887f-7c12-44dc-b060-125aff310d6f",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "54ff7ba69222cb1c2624c584",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://bloomberg.com/media-manifest/streams/eu.m3u8",
+        "region": "GB",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "54ff7ba69222cb1c2624c584",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://bloomberg.com/media-manifest/streams/phoenix-us.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:8eaa14f4-d532-487b-b351-74975726483c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 5 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "6536725167bd1a00084481bc",
+      "canonicalName": "CBC News",
+      "aliases": [
+        "CBC News"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "CA_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "66a8f01914a2bb00084dd86c",
+      "canonicalName": "CBC News British Columbia",
+      "aliases": [
+        "CBC News British Columbia"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "CA"
+      ],
+      "language": [],
+      "category": [
+        "Local News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "6536721dbfbaec00088687c0",
+      "canonicalName": "CBC News Toronto (720p)",
+      "aliases": [
+        "CBC News Toronto (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "CA_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "6536721dbfbaec00088687c0",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amagi-streams.akamaized.net/hls/live/2110961/cbctoronto/master.m3u8",
+        "region": "CA",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:ba63fcd6-20de-45d3-a162-f5350c6e13c5",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5a6b92f6e22a617379789618",
+      "canonicalName": "CBS News 24/7",
+      "aliases": [
+        "CBS News 24/7",
+        "CBS News 24/7 (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US",
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "Nachrichten",
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5a6b92f6e22a617379789618",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5a6b92f6e22a617379789618",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "6231e909bc960f00075d8e7c",
+      "canonicalName": "CBS News 24/7",
+      "aliases": [
+        "CBS News 24/7"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US",
+        "NO_PLUTO",
+        "NO"
+      ],
+      "language": [],
+      "category": [
+        "Noticias",
+        "News",
+        "Nyheter"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "6231e909bc960f00075d8e7c",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "6231e909bc960f00075d8e7c",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "6231ec93779a9d00079ba8e2",
+      "canonicalName": "CBS News 24/7",
+      "aliases": [
+        "CBS News 24/7"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "6231ec93779a9d00079ba8e2",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "6231ec93779a9d00079ba8e2",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "62310d5a5dc9550007c6f580",
+      "canonicalName": "CBS News 24/7",
+      "aliases": [
+        "CBS News 24/7"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "MX"
+      ],
+      "language": [],
+      "category": [
+        "Noticias"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "62310d5a5dc9550007c6f580",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "62310d5a5dc9550007c6f580",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "6231eb3865be650007f59595",
+      "canonicalName": "CBS News 24/7",
+      "aliases": [
+        "CBS News 24/7"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "6231eb3865be650007f59595",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "6231eb3865be650007f59595",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "62310f66d5888f0007534342",
+      "canonicalName": "CBS News 24/7",
+      "aliases": [
+        "CBS News 24/7"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "BR"
+      ],
+      "language": [],
+      "category": [
+        "Notícias"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "62310f66d5888f0007534342",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "62310f66d5888f0007534342",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "61e82af27027f9000753c6e4",
+      "canonicalName": "CBS News 24/7",
+      "aliases": [
+        "CBS News 24/7"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "DK_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "61e82af27027f9000753c6e4",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61e82af27027f9000753c6e4",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "6231e9b7f6deff00074674f4",
+      "canonicalName": "CBS News 24/7 (720p)",
+      "aliases": [
+        "CBS News 24/7 (720p)",
+        "CBS News 24/7"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "language": [],
+      "category": [
+        "News",
+        "Nyheter"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "6231e9b7f6deff00074674f4",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "6231e9b7f6deff00074674f4",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "6231ec4b62cd1f0007093c7b",
+      "canonicalName": "CBS News 24/7 (720p)",
+      "aliases": [
+        "CBS News 24/7 (720p)",
+        "CBS News – Pluto TV",
+        "CBS News 24/7"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "IT_PLUTO",
+        "IT"
+      ],
+      "language": [],
+      "category": [
+        "News",
+        "News e mondo"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "6231ec4b62cd1f0007093c7b",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-us-vtt.cbsnstream.cbsnews.com/out/v1/ef868690d34144509eda696884bf1619/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "6231ec4b62cd1f0007093c7b",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/Sid4xiTQTkCT1SLu6rjUSQ/master.m3u8?imafw_csid=vcbs_xumo_ctv_allos_live_cbsnews;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "60f75919718aed0007250d7a",
+      "canonicalName": "CBS News Baltimore (720p)",
+      "aliases": [
+        "CBS News Baltimore (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "60f75919718aed0007250d7a",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://lineup.cbsivideo.com/playout/8877a7d5-b094-4ac8-bc72-75a5fed68e5b/index.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:debe8a7d-76e6-4100-b4f3-4573617c8144",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60f75919718aed0007250d7a",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?imafw_csid=desktop_web&imafw__fw_did=&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2FTMUt418sQMeu1QtneYJ9ag%2Fmaster.m3u8&height=1080&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36&width=1920&app_version=0.0.0",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:cea2b894-fbd7-4ae2-bbcc-24c656ec7bec",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5eb1afb21486df0007abc57c",
+      "canonicalName": "CBS News Bay Area (720p)",
+      "aliases": [
+        "CBS News Bay Area (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5eb1afb21486df0007abc57c",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-sf.cbsnstream.cbsnews.com/out/v1/dac63c1abb3f4a2dac9f508f44bb072a/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:e783ff21-bfca-47b4-918b-9766d42baa16",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eb1afb21486df0007abc57c",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/laLJwH1nS2KQAUQTF8z1Cg/master.m3u8?imafw_csid=;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:b5bc6a91-c1ee-4191-b9dd-6d85bb033fb3",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "canonicalName": "CBS News Boston (720p)",
+      "aliases": [
+        "CBS News Boston (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5eb1af2ad345340008fccd1e",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/pa/event/dHA193vxQ_WqZNVoC-W5MA/stream/243944cc-ea41-4545-89aa-051577927efd:BRU/master.m3u8",
+        "region": "US_CBSN",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:21f02509-be67-4212-a9bd-43eb9943bcaa",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eb1af2ad345340008fccd1e",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/dHA193vxQ_WqZNVoC-W5MA/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:115878df-69e5-4267-a712-a3487a92b16d",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eb1af2ad345340008fccd1e",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-bos.cbsnstream.cbsnews.com/out/v1/589d66ec6eb8434c96c28de0370d1326/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:4dd83fcf-3f46-42b8-9f4b-90ae242f75b1",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eb1af2ad345340008fccd1e",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/dHA193vxQ_WqZNVoC-W5MA/master.m3u8?imafw_csid=;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:7c6f48c0-c51c-4af5-829a-d7dce34de579",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 4 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5eb1aeb2fd4b8a00076c2047",
+      "canonicalName": "CBS News Chicago (720p)",
+      "aliases": [
+        "CBS News Chicago (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5eb1aeb2fd4b8a00076c2047",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-chi.cbsnstream.cbsnews.com/out/v1/b2fc0d5715d54908adf07f97d2616646/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:16c58c32-a62f-44a5-a1d9-52991753d73a",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eb1aeb2fd4b8a00076c2047",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/_xQBtL7ZSEClkNebaXzn8w/master.m3u8?imafw_csid=;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:82d426f0-fb17-485a-9658-459ba0ff0167",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5eb1b12146cba40007aa7e5d",
+      "canonicalName": "CBS News Colorado (720p)",
+      "aliases": [
+        "CBS News Colorado (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5eb1b12146cba40007aa7e5d",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-den.cbsnstream.cbsnews.com/out/v1/2e49baf2906244ecb01b07d9885fbe7a/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:d68c874b-9bec-4e70-8cec-05574f8ad43f",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eb1b12146cba40007aa7e5d",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2FE9CkyheTSKeGiOiICU_JBQ%2Fmaster.m3u8&imafw_csid=desktop_web&imafw__fw_did=&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&height=1080&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36&width=1920&app_version=0.0.0",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:f468959f-22af-4e92-8d93-dd49b0ddb35e",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "634f2610d5023700078f7dee",
+      "canonicalName": "CBS News Detroit (720p)",
+      "aliases": [
+        "CBS News Detroit (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "634f2610d5023700078f7dee",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-det.cbsnstream.cbsnews.com/out/v1/169f5c001bc74fa7a179b19c20fea069/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:34e60faf-c563-47f9-8222-687e0d20ae1c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "634f2610d5023700078f7dee",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?imafw__fw_vcid2=&imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2FxnyAMOsfSV2J1b-A3nROFQ%2Fmaster.m3u8&imafw_csid=desktop_web&imafw__fw_did=&imafw__fw_is_lat=&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36&width=1920&app_version=0.0.0&height=1080&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:d217586b-db99-4267-8009-61676a4738de",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5dc9b875e280c80009a8a44a",
+      "canonicalName": "CBS News Los Angeles (720p)",
+      "aliases": [
+        "CBS News Los Angeles (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5dc9b875e280c80009a8a44a",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/K_2aA7OVRTacJJli1oSi8w/master.m3u8?imafw_csid=;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "60fb299b79498900070b29e0",
+      "canonicalName": "CBS News Miami (720p)",
+      "aliases": [
+        "CBS News Miami (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "60fb299b79498900070b29e0",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-mia.cbsnstream.cbsnews.com/out/v1/ac174b7938264d24ae27e56f6584bca0/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:bd76bef3-9bd3-4771-b0ba-dbc553a880e2",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60fb299b79498900070b29e0",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?imafw__fw_did=&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2F_yODrBHESGSzPe3dqW4gGg%2Fmaster.m3u8&imafw_csid=desktop_web&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36&width=1920&app_version=0.0.0&height=1080",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a9b5d7f3-2ccb-4da9-ba7f-a05fbbacdbd6",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60fb299b79498900070b29e0",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://lineup.cbsivideo.com/playout/8796731e-7ce7-4bcf-bb04-41ef5a969c62/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:8a99f880-ab56-4cfe-87cf-d5b2cb2d5080",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 3 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5eb1b0bf2240d8000732a09c",
+      "canonicalName": "CBS News Minnesota (720p)",
+      "aliases": [
+        "CBS News Minnesota (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5eb1b0bf2240d8000732a09c",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-min.cbsnstream.cbsnews.com/out/v1/76518f06941246ba810c8d175600bf74/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:86c80dff-0123-4259-a2a1-1aa184aafd10",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eb1b0bf2240d8000732a09c",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?imafw__fw_vcid2=&imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2Fc0XucO32RNKG8oeQ351a4Q%2Fmaster.m3u8&imafw_csid=desktop_web&imafw__fw_did=&imafw__fw_is_lat=&height=1080&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36&width=1920&app_version=0.0.0",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:38cf661c-3c3c-4f1c-854e-963937aa56c8",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5dc9b8223687ff000936ed79",
+      "canonicalName": "CBS News New York (720p)",
+      "aliases": [
+        "CBS News New York (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5dc9b8223687ff000936ed79",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dai.google.com/linear/hls/event/jeTDC610T-OSPdiWhcl0Pg/master.m3u8?imafw_csid=;imafw__fw_h_referer=com.xumo.app&imafw__fw_did=dpid:&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=web.xumo.com&imafw_is_lat=",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5eb1b05ea168cc000767ba67",
+      "canonicalName": "CBS News Philadelphia",
+      "aliases": [
+        "CBS News Philadelphia"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "Local News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5eb1b05ea168cc000767ba67",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2FR2Kw0uvnQIW7fUmOseurzA%2Fmaster.m3u8&imafw_csid=desktop_web&imafw__fw_did=&height=1080&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36&width=1920&app_version=0.0.0",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:26a9fa3f-eec5-45e6-bd6b-88606fa714b4",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5eb1b17aa5277e00083f6521",
+      "canonicalName": "CBS News Pittsburgh (720p)",
+      "aliases": [
+        "CBS News Pittsburgh (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5eb1b17aa5277e00083f6521",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-pit.cbsnstream.cbsnews.com/out/v1/6966dabf8150405ab26f854e3cd6a2b8/master.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:f165911e-a1a6-4661-9c2c-3eaebcc9998b",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eb1b17aa5277e00083f6521",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2Fmir-uZYjTu6-8JLMHBTKhQ%2Fmaster.m3u8&imafw_csid=desktop_web&imafw__fw_did=&imafw__fw_is_lat=&imafw__fw_vcid2=&height=1080&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36&width=1920&app_version=0.0.0",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:85c721fd-0732-4de9-83c0-1663d3b4186a",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "60cb6df2b2ad610008cd5bea",
+      "canonicalName": "CBS News Sacramento (720p)",
+      "aliases": [
+        "CBS News Sacramento (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "60cb6df2b2ad610008cd5bea",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://lineup.cbsivideo.com/playout/c1ed69db-6b71-4581-a937-a70ab4089f8a/index.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:2dec6400-a7e8-494c-8a1e-1fd8144fea83",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60cb6df2b2ad610008cd5bea",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2Fe7mp4YVGS7O_e7rqRNjKow%2Fmaster.m3u8&imafw_csid=desktop_web&imafw__fw_did=&imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&width=1920&app_version=0.0.0&height=1080&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:d41a48f2-70bb-4e89-809d-aa6aae283abf",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5eceb0d4065c240007688ec6",
+      "canonicalName": "CBS News Texas",
+      "aliases": [
+        "CBS News Texas"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "Local News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5eceb0d4065c240007688ec6",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amd-mediator-eolq3tk4la-uk.a.run.app/cbs/map.m3u8?imafw__fw_is_lat=&imafw__fw_vcid2=&imafw__fw_app_bundle=&imafw__fw_us_privacy=1YNY&am.originUrl=https%3A%2F%2Fdai.google.com%2Flinear%2Fhls%2Fevent%2FogzLhRCkRbG3lFHHJwqaNw%2Fmaster.m3u8&imafw_csid=desktop_web&imafw__fw_did=&app_version=0.0.0&height=1080&ip_addr=185.217.168.164&page_url=https%25253A%25252F%25252Flocalnow.com%25252Fchannels%25252Fcbs-news-chicago-hyperlocal&ua=Mozilla%2F5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F122.0.0.0%20Safari%2F537.36&width=1920",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:a85b43a5-45a4-4d20-b25d-a9f97865e56f",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5eceb0d4065c240007688ec6",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cbsn-dal.cbsnstream.cbsnews.com/out/v1/ffa98bbf7d2b4c038c229bd4d9122708/master.m3u8",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:d382701d-749c-467d-9b40-c0f74f386685",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "66c45c274f25dd00092739ee",
+      "canonicalName": "CNN Headlines",
+      "aliases": [
+        "CNN Headlines"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "CA"
+      ],
+      "language": [],
+      "category": [
+        "News + Opinion"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "66c45c274f25dd00092739ee",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dbrb49pjoymg4.cloudfront.net/10001/99951386/hls/playlist.m3u8?includeAssetTags=true&ads.xumo_channelId=99951386&ads.xumo_streamId=99951386&ads.channelId=99951386&ads.channelName=WBDCNNHeadlines&ads.caid=WBDCNNHeadlines&ads.csid=xumo_web_WBDCNNHeadlines_ssai&ads.genre=News,N,DN,Local,LocalNews,News-Local&ads._fw_content_genre=News,N,DN,Local,LocalNews,News-Local&ads._fw_coppa=0&ads.xumo_contentId=4193&ads.xumo_contentName=WBDCNNHeadlines&ads.xumo_providerId=4193&ads.xumo_providerName=WBDCNNHeadlines&ads.asnw=&ads.xumo_channelName=WBDCNNHeadlines&ads._fw_h_x_country=US&ads._fw_ifa_type=&ads._fw_did=e3128d16-e5fa-4ebc-90b2-d4db2ed8f320&ads.amznappId=&ads.lat=&ads.lon=&ads.os=&ads.osv=&ads._fw_is_lat=0&ads._fw_us_privacy=&ads._fw_content_category=&ads._fw_content_language=en&ads._fw_content_rating=&ads._fw_deviceMake=GitHubAction&ads._fw_device_model=PythonScript&ads.xumo_platform=web&ads.site_id=&ads.appVersion=1.0.0&ads._fw_app_bundle=web.xumo.com&ads._fw_app_store_url=&ads.appName=xumo",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:409fc469-0560-4333-be63-4a588c9c9cb8",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5421f71da6af422839419cb3",
+      "canonicalName": "CNN HEADLINES",
+      "aliases": [
+        "CNN HEADLINES"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "News + Opinion"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5421f71da6af422839419cb3",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dbrb49pjoymg4.cloudfront.net/10001/99951386/hls/playlist.m3u8?includeAssetTags=true&ads.xumo_channelId=99951386&ads.xumo_streamId=99951386&ads.channelId=99951386&ads.channelName=WBDCNNHeadlines&ads.caid=WBDCNNHeadlines&ads.csid=xumo_web_WBDCNNHeadlines_ssai&ads.genre=News,N,DN,Local,LocalNews,News-Local&ads._fw_content_genre=News,N,DN,Local,LocalNews,News-Local&ads._fw_coppa=0&ads.xumo_contentId=4193&ads.xumo_contentName=WBDCNNHeadlines&ads.xumo_providerId=4193&ads.xumo_providerName=WBDCNNHeadlines&ads.asnw=&ads.xumo_channelName=WBDCNNHeadlines&ads._fw_h_x_country=US&ads._fw_ifa_type=&ads._fw_did=e3128d16-e5fa-4ebc-90b2-d4db2ed8f320&ads.amznappId=&ads.lat=&ads.lon=&ads.os=&ads.osv=&ads._fw_is_lat=0&ads._fw_us_privacy=&ads._fw_content_category=&ads._fw_content_language=en&ads._fw_content_rating=&ads._fw_deviceMake=GitHubAction&ads._fw_device_model=PythonScript&ads.xumo_platform=web&ads.site_id=&ads.appVersion=1.0.0&ads._fw_app_bundle=web.xumo.com&ads._fw_app_store_url=&ads.appName=xumo",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:409fc469-0560-4333-be63-4a588c9c9cb8",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "66c45afaa72e7b0008a2b153",
+      "canonicalName": "CNNi",
+      "aliases": [
+        "CNNi"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "GB"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "60492e6d7f3f560007ab0f62",
+      "canonicalName": "Estrella News (720p)",
+      "aliases": [
+        "Estrella News (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "60492e6d7f3f560007ab0f62",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://estrellanews-glewed.amagi.tv/playlist.m3u8",
+        "region": "US_GLEWEDTV",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:8ba50421-5727-4215-89b7-aec81048d3a2",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60492e6d7f3f560007ab0f62",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://estrellanews-roku.amagi.tv/playlist.m3u8",
+        "region": "US_ROKU",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:60522caa-ec67-4dc6-acec-7c29a83cb8c3",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60492e6d7f3f560007ab0f62",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://estrella-news-oando.amagi.tv/playlist.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:aa863d0e-5da9-4970-876c-aa249f6234bd",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60492e6d7f3f560007ab0f62",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://amg00567-estrellamedia-estrellanews-distrotv-ddste.amagi.tv/playlist/amg00567-estrellamedia-estrellanews-distrotv/playlist.m3u8",
+        "region": "US_DISTRO",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:eff5fbb9-40a0-4f86-be02-2d23ab40b12b",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60492e6d7f3f560007ab0f62",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://estrellanews-plex.amagi.tv/playlist.m3u8",
+        "region": "US_PLEX",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:90ae6e5a-79cd-4ca0-b286-7565ea4d17b3",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 5 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "61de8e502c8e9400077e5de7",
+      "canonicalName": "Euronews",
+      "aliases": [
+        "Euronews"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "NO_PLUTO",
+        "NO"
+      ],
+      "language": [],
+      "category": [
+        "Entertainment",
+        "Nyheter"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "61de8e502c8e9400077e5de7",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://euronews-live-spa-es.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6571/bitok/eyJzdGlkIjoiMDA0YjY0NTMtYjY2MC00ZTZkLTlkNzEtMTk3YTM3ZDZhZWIxIiwibWt0IjoiZXMiLCJjaCI6NjU3MSwicHRmIjoxfQ==/26034/euronews-es.m3u8",
+        "region": "ES",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:3199322d-3bb9-442e-887e-8dd8b2ade03a",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61de8e502c8e9400077e5de7",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cdn-euronews.akamaized.net/live/eds/euronews-pl/26382/index.m3u8",
+        "region": "PL",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:34b59bb0-eace-440d-bac4-91372e18c986",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61de8e502c8e9400077e5de7",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://7060743b4b224241b86325460b14d152.mediatailor.eu-west-1.amazonaws.com/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6769/bitok/eyJzdGlkIjoiMTE3OTllNGEtYmU1OC00ZjQyLTkxOTYtY2VlYWQzZGU2MDJjIiwibWt0IjoicGwiLCJjaCI6Njc2OSwicHRmIjo1fQ==/26235/euronews-pl.m3u8",
+        "region": "PL_RAKUTEN",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:033dc1cb-d4cd-4798-af66-3f3eed735deb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 3 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "5ca1da6c593a5d78f0e7edce",
+      "canonicalName": "Euronews",
+      "aliases": [
+        "Euronews"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "GB"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "5ca1da6c593a5d78f0e7edce",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://euronews-live-spa-es.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6571/bitok/eyJzdGlkIjoiMDA0YjY0NTMtYjY2MC00ZTZkLTlkNzEtMTk3YTM3ZDZhZWIxIiwibWt0IjoiZXMiLCJjaCI6NjU3MSwicHRmIjoxfQ==/26034/euronews-es.m3u8",
+        "region": "ES",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:3199322d-3bb9-442e-887e-8dd8b2ade03a",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5ca1da6c593a5d78f0e7edce",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cdn-euronews.akamaized.net/live/eds/euronews-pl/26382/index.m3u8",
+        "region": "PL",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:34b59bb0-eace-440d-bac4-91372e18c986",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "5ca1da6c593a5d78f0e7edce",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://7060743b4b224241b86325460b14d152.mediatailor.eu-west-1.amazonaws.com/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6769/bitok/eyJzdGlkIjoiMTE3OTllNGEtYmU1OC00ZjQyLTkxOTYtY2VlYWQzZGU2MDJjIiwibWt0IjoicGwiLCJjaCI6Njc2OSwicHRmIjo1fQ==/26235/euronews-pl.m3u8",
+        "region": "PL_RAKUTEN",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:033dc1cb-d4cd-4798-af66-3f3eed735deb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 3 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "60d35bcaf1ff4a00078af0a6",
+      "canonicalName": "Euronews",
+      "aliases": [
+        "Euronews"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "FR"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "60d35bcaf1ff4a00078af0a6",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://euronews-live-spa-es.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6571/bitok/eyJzdGlkIjoiMDA0YjY0NTMtYjY2MC00ZTZkLTlkNzEtMTk3YTM3ZDZhZWIxIiwibWt0IjoiZXMiLCJjaCI6NjU3MSwicHRmIjoxfQ==/26034/euronews-es.m3u8",
+        "region": "ES",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:3199322d-3bb9-442e-887e-8dd8b2ade03a",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60d35bcaf1ff4a00078af0a6",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cdn-euronews.akamaized.net/live/eds/euronews-pl/26382/index.m3u8",
+        "region": "PL",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:34b59bb0-eace-440d-bac4-91372e18c986",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "60d35bcaf1ff4a00078af0a6",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://7060743b4b224241b86325460b14d152.mediatailor.eu-west-1.amazonaws.com/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6769/bitok/eyJzdGlkIjoiMTE3OTllNGEtYmU1OC00ZjQyLTkxOTYtY2VlYWQzZGU2MDJjIiwibWt0IjoicGwiLCJjaCI6Njc2OSwicHRmIjo1fQ==/26235/euronews-pl.m3u8",
+        "region": "PL_RAKUTEN",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:033dc1cb-d4cd-4798-af66-3f3eed735deb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 3 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "61de96114757070008d33cae",
+      "canonicalName": "Euronews",
+      "aliases": [
+        "Euronews"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "DE"
+      ],
+      "language": [],
+      "category": [
+        "News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "61de96114757070008d33cae",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://euronews-live-spa-es.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6571/bitok/eyJzdGlkIjoiMDA0YjY0NTMtYjY2MC00ZTZkLTlkNzEtMTk3YTM3ZDZhZWIxIiwibWt0IjoiZXMiLCJjaCI6NjU3MSwicHRmIjoxfQ==/26034/euronews-es.m3u8",
+        "region": "ES",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:3199322d-3bb9-442e-887e-8dd8b2ade03a",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61de96114757070008d33cae",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cdn-euronews.akamaized.net/live/eds/euronews-pl/26382/index.m3u8",
+        "region": "PL",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:34b59bb0-eace-440d-bac4-91372e18c986",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61de96114757070008d33cae",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://7060743b4b224241b86325460b14d152.mediatailor.eu-west-1.amazonaws.com/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6769/bitok/eyJzdGlkIjoiMTE3OTllNGEtYmU1OC00ZjQyLTkxOTYtY2VlYWQzZGU2MDJjIiwibWt0IjoicGwiLCJjaCI6Njc2OSwicHRmIjo1fQ==/26235/euronews-pl.m3u8",
+        "region": "PL_RAKUTEN",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:033dc1cb-d4cd-4798-af66-3f3eed735deb",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 3 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "61de90a47365340007f77c27",
+      "canonicalName": "Euronews English (720p)",
+      "aliases": [
+        "Euronews English (720p)",
+        "Euronews"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "language": [],
+      "category": [
+        "Entertainment",
+        "Nyheter"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "61de90a47365340007f77c27",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dash4.antik.sk/live/test_euronews/playlist.m3u8",
+        "region": "FR",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:f972dcea-89bf-4c39-99bc-32ed43496851",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61de90a47365340007f77c27",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://aegis-cloudfront-1.tubi.video/b1c4d439-03a5-4c40-ae9d-90a183e010c9/euronews-en.m3u8",
+        "region": "US_TUBI",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:45efb295-b8ae-4650-b944-ebcd45d2d96b",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61de90a47365340007f77c27",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://streams.sofast.tv/euronewsen/live/eds/euronews-en/25017/euronews-en.m3u8",
+        "region": "US_SOFAST",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:b2dbb9de-2663-46c0-a716-d223b29de7b6",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61de90a47365340007f77c27",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://a-cdn.klowdtv.com/live3/euronews_720p/playlist.m3u8",
+        "region": "US_KLOWDTV",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:9b8bd266-a38f-4366-ac0d-9c12a7378d46",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61de90a47365340007f77c27",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cdn-euronews.akamaized.net/live/eds/euronews-en/25002/index.m3u8",
+        "region": "FR",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:3a6f664a-7baf-483b-9015-57c096075b69",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 5 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "619d59b7cbef25000728221c",
+      "canonicalName": "Euronews Español",
+      "aliases": [
+        "Euronews Español"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "MX"
+      ],
+      "language": [],
+      "category": [
+        "Noticias"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "61b86ea479a4390007c6d5fc",
+      "canonicalName": "Euronews Italian (720p)",
+      "aliases": [
+        "Euronews Italian (720p)",
+        "Euronews – Pluto TV",
+        "Euronews"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "IT_PLUTO",
+        "IT"
+      ],
+      "language": [],
+      "category": [
+        "Entertainment",
+        "News e mondo"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "61b86ea479a4390007c6d5fc",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://acb6ca89.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/UmxheHhUVi1ldV9FdXJvbmV3c0l0YWxpYW5vX0hMUw/playlist.m3u8",
+        "region": "FR",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:08b7af64-8fda-4cfa-ad7f-1e83393f6c47",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      },
+      {
+        "channelIdentity": "61b86ea479a4390007c6d5fc",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://cdn-euronews.akamaized.net/live/eds/euronews-it/25085/index.m3u8",
+        "region": "FR",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:ac6655ac-81d7-43d7-9fb7-8554f72fad45",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 2 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "667f2c7b22acab0008b7072b",
+      "canonicalName": "FOX LOCAL Los Angeles",
+      "aliases": [
+        "FOX LOCAL Los Angeles"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US"
+      ],
+      "language": [],
+      "category": [
+        "Local News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "667f2c7b22acab0008b7072b",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://dbrb49pjoymg4.cloudfront.net/10001/99951420/hls/playlist.m3u8?includeAssetTags=true&ads.xumo_channelId=99951420&ads.xumo_streamId=99951420&ads.channelId=99951420&ads.channelName=FoxLosAngeles&ads.caid=FoxLosAngeles&ads.csid=xumo_web_FoxLosAngeles_ssai&ads.genre=Entertainment&ads._fw_content_genre=Entertainment&ads._fw_coppa=0&ads.xumo_contentId=4155&ads.xumo_contentName=FoxLosAngeles&ads.xumo_providerId=4155&ads.xumo_providerName=FoxLosAngeles&ads.asnw=&ads.xumo_channelName=FoxLosAngeles&ads._fw_h_x_country=US&ads._fw_ifa_type=&ads._fw_did=7dab106e-1d65-457b-9e2d-a5e9a34906f1&ads.amznappId=&ads.lat=&ads.lon=&ads.os=&ads.osv=&ads._fw_is_lat=0&ads._fw_us_privacy=&ads._fw_content_category=&ads._fw_content_language=en&ads._fw_content_rating=&ads._fw_deviceMake=GitHubAction&ads._fw_device_model=PythonScript&ads.xumo_platform=web&ads.site_id=&ads.appVersion=1.0.0&ads._fw_app_bundle=web.xumo.com&ads._fw_app_store_url=&ads.appName=xumo",
+        "region": null,
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:47c51bbf-2e10-429e-a76f-f5b70c99724f",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "640a68880e884c0009979cc2",
+      "canonicalName": "FOX Weather (720p)",
+      "aliases": [
+        "FOX Weather (720p)"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "language": [],
+      "category": [
+        "Entertainment"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "DIRECT_CANDIDATE",
+    "candidates": [
+      {
+        "channelIdentity": "640a68880e884c0009979cc2",
+        "sourceProvider": "existing_catalog_cross_reference",
+        "sourceType": "hls_stream",
+        "sourceUrl": "https://247wlive.foxweather.com/stream/index.m3u8",
+        "region": "US",
+        "protocol": "hls",
+        "requiresHeaders": false,
+        "requiresPublicSession": false,
+        "requiresAccount": false,
+        "drm": "unknown",
+        "confidence": "MEDIUM",
+        "provenance": "existing_tv_record:4c513653-0fae-4ab3-87c6-62d407783f83",
+        "discoveredAt": "2026-08-09T06:37:10.210Z",
+        "lastValidatedAt": null,
+        "validationStatus": "UNKNOWN",
+        "platformCompatibility": {
+          "mobile": null,
+          "desktop": null,
+          "smartTv": null
+        }
+      }
+    ],
+    "evidence": [
+      "Found 1 exact-name direct-stream cross-reference(s); provenance requires verification."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "62cbf063257170000724590c",
+      "canonicalName": "Global News BC",
+      "aliases": [
+        "Global News BC"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "CA"
+      ],
+      "language": [],
+      "category": [
+        "Local News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "62cbf23dcfb48300077f8348",
+      "canonicalName": "Global News Calgary",
+      "aliases": [
+        "Global News Calgary"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "CA"
+      ],
+      "language": [],
+      "category": [
+        "Local News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "62cbf2de1fba5f0007e47d9c",
+      "canonicalName": "Global News Edmonton",
+      "aliases": [
+        "Global News Edmonton"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "CA"
+      ],
+      "language": [],
+      "category": [
+        "Local News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  },
+  {
+    "identity": {
+      "provider": "pluto",
+      "providerChannelId": "62cbf398b8e02600071deda5",
+      "canonicalName": "Global News Halifax",
+      "aliases": [
+        "Global News Halifax"
+      ],
+      "catalogOrigins": [
+        "pluto"
+      ],
+      "region": [
+        "CA"
+      ],
+      "language": [],
+      "category": [
+        "Local News"
+      ]
+    },
+    "tier": "A",
+    "broadcaster": null,
+    "decision": "NO_SOURCE_FOUND",
+    "candidates": [],
+    "evidence": [
+      "No exact-name direct source in the existing non-Pluto catalog."
+    ]
+  }
+]

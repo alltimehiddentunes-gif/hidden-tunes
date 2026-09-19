@@ -1,0 +1,159 @@
+{
+  "generatedAt": "2026-08-01T21:13:02.813Z",
+  "workspace": {
+    "adminRoot": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin",
+    "desktopGit": {
+      "root": "D:/HiddenTunes/Active/HiddenTunes-Desktop",
+      "branch": "desktop/integrate-home-music-split",
+      "head": "927c4d11fa50fdfcc61b4b87d0048e40ab91fe71",
+      "status": [
+        "## desktop/integrate-home-music-split...origin/desktop/integrate-home-music-split",
+        "?? hidden-tunes-backend/hidden-tunes-admin/scripts/_tmp-audiobook-cols.ts",
+        "?? hidden-tunes-backend/hidden-tunes-admin/scripts/run-audiobooks-multisource-audit-dryrun.ts",
+        "?? hidden-tunes-desktop/docs/audits/launch-readiness/branch-recovery/"
+      ]
+    },
+    "mobileGit": {
+      "root": "D:/HiddenTunes/Active/HiddenTunes-CLEAN-1.0.142",
+      "branch": "fix/library-content-type-safe",
+      "head": "95b89f53626b383f21c81b2e89ecf003ac0ac2ec",
+      "status": [
+        "## fix/library-content-type-safe...origin/fix/library-content-type-safe",
+        "D  assets/images/adaptive-icon.png",
+        "D  assets/images/android-icon-background.png",
+        "D  assets/images/android-icon-foreground.png",
+        "D  assets/images/android-icon-monochrome.png",
+        "D  assets/images/cover1.jpg",
+        "D  assets/images/cover2.jpg",
+        "D  assets/images/cover3.jpg"
+      ]
+    },
+    "supabaseProjectRef": "kojcyswxfuikxmqntwye",
+    "supabaseUrl": "https://kojcyswxfuikxmqntwye.supabase.co",
+    "productionApi": "https://admin.hiddentunes.com",
+    "productionOrigin": "VPS 148.230.109.215 nginx+PM2 hidden-tunes-admin",
+    "apiIdMatchInDb": true,
+    "apiMatchSample": {
+      "id": "fe0dd05b-caf5-4214-8910-34456c182e41",
+      "title": "Faerie Queene Book  4",
+      "source_type": "librivox",
+      "source_key": "librivox:book:3251",
+      "publisher": "LibriVox",
+      "playback_status": "playable",
+      "status": "approved"
+    }
+  },
+  "counts": {
+    "totalAudiobooks": 2598,
+    "totalChapters": 58464,
+    "totalFiles": 58459,
+    "playableAudiobooks": 2597,
+    "playableChapters": 58464,
+    "publicApiListTotal": 1197,
+    "missingCovers": 0,
+    "incompleteBooks": 0,
+    "singleChapterBooks": 416,
+    "invalidChapterOrderingBooks": 22,
+    "brokenOrNonPlayableBooks": 1,
+    "duplicateTitleAuthorGroups": 31,
+    "duplicateChapterNumberPairs": 453
+  },
+  "distributions": {
+    "sourceType": {
+      "manual": 23,
+      "librivox": 841,
+      "internet_archive": 1734
+    },
+    "sourceKey": {
+      "manual:88": 1,
+      "manual:68": 1,
+      "librivox:book:7525": 1,
+      "manual:59": 1,
+      "librivox:book:1452": 1,
+      "internet_archive:Wonders309": 1,
+      "internet_archive:Wonders325": 1,
+      "internet_archive:Wonders257": 1,
+      "internet_archive:Ckln88.1FmsRudeAwakeningScrewTheG20HollywoodVs.BilderbergVs.Boys": 1,
+      "internet_archive:Wonders289": 1,
+      "librivox:book:6163": 1,
+      "internet_archive:Wonders304": 1,
+      "internet_archive:Wonders324": 1,
+      "librivox:book:625": 1,
+      "internet_archive:1743684352526-save-text-to-file": 1,
+      "librivox:book:255": 1,
+      "librivox:book:263": 1,
+      "internet_archive:grimm_maerchen2_librivox": 1,
+      "manual:47": 1,
+      "librivox:book:7578": 1,
+      "librivox:book:1635": 1,
+      "manual:54": 1,
+      "librivox:book:1646": 1,
+      "librivox:book:266": 1,
+      "librivox:book:267": 1,
+      "internet_archive:213Erotica": 1,
+      "manual:84": 1,
+      "internet_archive:HotPods012MeetingArthur": 1,
+      "internet_archive:a-taste-of-honey-11": 1,
+      "manual:80": 1,
+      "librivox:book:5195": 1,
+      "librivox:book:1670": 1,
+      "librivox:book:8244": 1,
+      "librivox:book:2901": 1,
+      "librivox:book:7014": 1,
+      "internet_archive:Ep223ProfessionalNakedPersonIsobelWrenSexWithTimareeisobelwren": 1,
+      "internet_archive:Two_Stories_Above_the_Street_03_21_06": 1,
+      "internet_archive:GameOn-18Sept": 1,
+      "librivox:book:18930": 1,
+      "internet_archive:Wonders306": 1
+    },
+    "languageTop20": {
+      "English": 1272,
+      "eng": 1069,
+      "spa": 98,
+      "German": 28,
+      "fre": 26,
+      "Multilingual": 17,
+      "ita": 15,
+      "French": 10,
+      "Spanish": 7,
+      "pol": 7,
+      "Chinese": 6,
+      "deu": 4,
+      "Portuguese": 4,
+      "rus": 4,
+      "mul": 4,
+      "Italian": 3,
+      "ger": 3,
+      "por": 3,
+      "Finnish": 2,
+      "en": 2
+    },
+    "categoryTop20": {
+      "mature": 1400,
+      "poetry": 413,
+      "history": 200,
+      "classics": 189,
+      "fiction": 165,
+      "drama": 121,
+      "biography": 48,
+      "philosophy": 47,
+      "short-stories": 12,
+      "education": 3
+    },
+    "licence": {
+      "unknown": 23,
+      "public_domain_or_librivox": 2571,
+      "other_or_unparsed": 4
+    },
+    "publisherTop20": {
+      "Internet Archive": 1568,
+      "LibriVox": 864,
+      "Internet Archive / LibriVox": 166
+    }
+  },
+  "sourceRegistry": [
+    {
+      "error": "audiobook_source_registry 404: {\"code\":\"PGRST205\",\"details\":null,\"hint\":\"Perhaps you meant the table 'public.motivation_source_registry'\",\"message\":\"Could not find the table 'public.audiobook_source_registry' in the schema cache\"}"
+    }
+  ]
+}

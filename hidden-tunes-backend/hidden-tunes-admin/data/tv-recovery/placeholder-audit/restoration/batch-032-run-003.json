@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T23:59:45.295Z",
+  "scope": "Batch 32 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Bob l'eponge: Direct Pluto-owned candidate advanced 124.50 seconds at 1216x684 with one video owner, but every evidence frame showed only a static Pluto Are you still watching slate, not real programming.",
+    "CBS News Los Angeles: Production channel resolver returned HTTP 404 before media validation.",
+    "Nickelodeon Toons: Direct Pluto-owned candidate was retained but not full-tested after the stronger Bob candidate failed the real-programming content gate.",
+    "The Good Wife: Production channel resolver returned HTTP 404 before media validation.",
+    "A New Life in the Sun: Queued generic CloudFront candidate lacked complete direct authoritative candidate-to-channel linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 74,
+  "cumulativeTerminalAliases": 230,
+  "batch32Target": 25,
+  "batch32Researched": 15,
+  "batch32Remaining": 10,
+  "batch32Complete": false
+}

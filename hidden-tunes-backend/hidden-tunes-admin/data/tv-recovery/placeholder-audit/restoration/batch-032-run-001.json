@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T22:59:24.343Z",
+  "scope": "Batch 32 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "CBS News Sacramento: Broadcaster-owned CBS delivery advanced 124.89 seconds at 1280x720 with one video owner and real news-style programming, but evidence showed only a generic CBS eye and unbranded footage; exact Sacramento identity remained unresolved.",
+    "Ghost Hunters: Production channel resolver returned HTTP 404 before media validation.",
+    "Vevo R&B: Queued opaque Roku delivery lacked complete primary exact candidate-to-channel linkage.",
+    "Bloomberg TV: Production channel resolver returned HTTP 404 before media validation.",
+    "The Price Is Right: The Barker Era: Queued opaque Roku delivery lacked complete primary exact candidate-to-channel linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 73,
+  "cumulativeTerminalAliases": 228,
+  "batch32Target": 25,
+  "batch32Researched": 5,
+  "batch32Remaining": 20,
+  "batch32Complete": false
+}

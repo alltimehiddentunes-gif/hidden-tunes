@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-16T11:57:05.252Z",
+  "scope": "Batch 27 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 5,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "The Boat Show passed 123.97 seconds of 1920x1080 existing-Desktop playback with one video owner from directly named Rakuten Italy delivery.",
+    "Samsung officially lists the exact service; sustained yacht-review programming and presenter clothing branded The Boat Show support HIGH identity. Normal search and production resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was created.",
+    "Hallmark Movies & More retained direct Xumo delivery. Home.Made.Nation retained direct Wurl and Samsung alternatives. People Are Awesome retained directly named Jukin/Samsung Wurl alternatives. The Amazing Race retained direct Pluto delivery; none were full-tested after the stronger Boat Show proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch27Target": 25,
+  "batch27Researched": 25,
+  "batch27Remaining": 0,
+  "batch27Complete": true
+}

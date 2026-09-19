@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T05:08:01.626Z",
+  "scope": "Batch 6 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Estrella News candidate 8ba50421-5727-4215-89b7-aec81048d3a2 uses an exact-name Amagi distribution service and passed 123.52 seconds of 1280x720 Desktop playback with one video owner and no fatal HLS errors.",
+    "Sampled frames showed sustained Spanish-language newsroom, interview, and field-report programming. Multiple healthy exact-name official Amagi catalog distributions corroborate the canonical identity; normal search and resolver passed.",
+    "The quarantined alias remains hidden and is terminal VERIFIED_DUPLICATE_MERGED locally. No production write or duplicate was needed.",
+    "Four additional identities were provenance-screened but not accepted in this run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 18,
+  "cumulativeTerminalAliases": 89,
+  "batch6Target": 25,
+  "batch6Researched": 15,
+  "batch6Remaining": 10
+}

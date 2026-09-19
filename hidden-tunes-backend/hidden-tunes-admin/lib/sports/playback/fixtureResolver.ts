@@ -619,6 +619,7 @@ export async function resolveFixturePlayback(
         userId: request.userId,
         countryCode: request.country,
         devicePlatform: request.platform,
+        ttlMs: provider?.slug === "football_stream_api" ? 120_000 : undefined,
       });
 
       const clientKind: "iframe" | "webview" | "hls" | "dash" =

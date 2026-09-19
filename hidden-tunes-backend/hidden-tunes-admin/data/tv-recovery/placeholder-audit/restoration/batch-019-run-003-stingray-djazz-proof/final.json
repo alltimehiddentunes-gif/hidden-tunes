@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T14:22:00.059Z",
+  "identity": "Stingray DJAZZ",
+  "candidateRecordId": "89035e31-0474-4fc3-b00d-e456311b3c2a",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 123.42,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

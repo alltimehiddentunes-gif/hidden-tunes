@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T04:17:19.506Z",
+  "identity": "Shop LC",
+  "candidateRecordId": "d01c046f-fd56-4803-831d-b912434b29ce",
+  "aliasesTerminal": 2,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.98,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

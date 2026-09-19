@@ -1,0 +1,47 @@
+{
+  "completedAt": "2026-08-12T10:14:23.235Z",
+  "mode": "READ_ONLY_EVIDENCE_RESEARCH",
+  "productionWrites": 0,
+  "channelsGenuinelyResearched": 4,
+  "authoritativeCandidatesFound": 2,
+  "sourcesActuallyTestedThisRun": 0,
+  "decodedThisRun": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassedThisRun": 0,
+  "desktopVerified": 0,
+  "restored": 0,
+  "searchVerified": 0,
+  "cumulativeVerifiedSearchableDesktopPlayable": 0,
+  "findings": [
+    {
+      "identity": "CBS News New York",
+      "candidateRecordId": "e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+      "evidence": "CBS-owned site confirms the exact local service and free 24/7 distribution; candidate host is Google DAI and previously passed 35 seconds.",
+      "nextGate": "fresh decode, visual local-brand identity, placeholder scan, extended continuity"
+    },
+    {
+      "identity": "CBS News Los Angeles",
+      "candidateRecordId": "8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+      "evidence": "CBS-owned site confirms the exact local service and free 24/7 distribution; candidate host is Google DAI and previously passed 35 seconds.",
+      "nextGate": "fresh decode, visual CBS Los Angeles identity, placeholder scan, extended continuity"
+    },
+    {
+      "identity": "Horse & Country",
+      "candidateRecordId": "a60cdd21-b540-49c4-b55c-16cdf1025c4b",
+      "evidence": "Broadcaster evidence confirms a 24/7 channel, but the precise Samsung/Amagi candidate distribution was not proven this run.",
+      "nextGate": "authoritative distribution correlation"
+    },
+    {
+      "identity": "HauntTV",
+      "candidateRecordId": "bf41d136-9cc8-419f-ac5b-87432369a603",
+      "evidence": "Candidate uses Tubi public manifest infrastructure, but authoritative exact-channel evidence was not established this run.",
+      "nextGate": "authoritative identity and distribution correlation"
+    }
+  ],
+  "nextProofCandidates": [
+    "e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+    "8e639b8c-3dac-4eec-bf5d-daa28e22f80c"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "testedAt": "2026-08-09T08:02:48.561Z",
+  "productionWrites": 0,
+  "concurrentCallersPerWave": 10,
+  "initialRefreshCalls": 1,
+  "healthyCacheHit": true,
+  "staleRefreshCalls": 1,
+  "totalRefreshCalls": 2,
+  "coalescingPassed": true
+}

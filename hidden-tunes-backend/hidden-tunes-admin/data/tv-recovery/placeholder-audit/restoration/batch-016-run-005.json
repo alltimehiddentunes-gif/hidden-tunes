@@ -1,0 +1,31 @@
+{
+  "completedAt": "2026-08-15T07:48:02.281Z",
+  "scope": "Batch 16 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Los Gipsy Kings passed 123.34 seconds of 1920x1080 existing-Desktop playback with one video owner from the exact Rakuten TV Spain FAST host.",
+    "Rakuten TV launched the dedicated channel; continuous evidence showed real Mediaset reality-series programming and normal search/resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "FIFA+, Pluto TV Cars, and Yu-Gi-Oh! used rejected jmp2.uk. Hit Sitcoms used generic CloudFront without exact authoritative linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 46,
+  "cumulativeTerminalAliases": 170,
+  "batch16Target": 25,
+  "batch16Researched": 25,
+  "batch16Remaining": 0,
+  "batch16Complete": true
+}

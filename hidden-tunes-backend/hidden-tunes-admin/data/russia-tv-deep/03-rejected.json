@@ -1,0 +1,261 @@
+[
+  {
+    "key": "7cf7bfcb6e9d51a7e53a",
+    "title": "DanceHits80",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://dancehits80.denvs.ru:8080/index.m3u8"
+  },
+  {
+    "key": "3f74a8848ea776f7c37c",
+    "title": "Don 24",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://donmedia.bonus-tv.ru/cdn/donmedia/playlist.m3u8"
+  },
+  {
+    "key": "7f22a13060f6f2f8854e",
+    "title": "Dom kino",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tchaikovsky.af-stream.com:991/s/xzztutfc/dom-kino-hd/video.m3u8"
+  },
+  {
+    "key": "4627c6889e52c0365c2b",
+    "title": "DTR Music 1",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://kino-stream.online/hls/DTRMUSIC1.m3u8"
+  },
+  {
+    "key": "825c2d9aa8b8eb7346f5",
+    "title": "DTR Zona 1",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://kino-stream.online/hls/DTRZONA1.m3u8"
+  },
+  {
+    "key": "d787c29ace65dc3bb01f",
+    "title": "DTR Zona 2",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://kino-stream.online/hls/DTRZONA2.m3u8"
+  },
+  {
+    "key": "a8ea60d5a0f433c00188",
+    "title": "Duma TV",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://dumatv.iptv2022.com/playlist.m3u8"
+  },
+  {
+    "key": "e78d3769703218992f5f",
+    "title": "Enisey",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://tshift-1.telecoma.tv/enisei/index.m3u8"
+  },
+  {
+    "key": "b162a5ec6575784746f9",
+    "title": "Crimea 24",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://cdn.1tvcrimea.ru/24tvcrimea.m3u8"
+  },
+  {
+    "key": "7489d45e73fdc8391f67",
+    "title": "Friday!",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://streaming.televizor-24-tochka.ru/live/19.m3u8"
+  },
+  {
+    "key": "da8d880d7b20c67c6875",
+    "title": "Gulli Girl",
+    "reason": "probe_failed",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://live-3.otcnet.ru/GulliGirl/index.m3u8"
+  },
+  {
+    "key": "2132171f224b7cf29ff9",
+    "title": "Horoshee Kino",
+    "reason": "audio_only",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://live-rian.cdnvideo.ru/rian/rus-radio/playlist.m3u8"
+  },
+  {
+    "key": "efc6c53734932a55b104",
+    "title": "Gubernia Samara",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://live.guberniatv.cdnvideo.ru/guberniatv/guberniatv.sdp/playlist.m3u8"
+  },
+  {
+    "key": "af8afe4cc8da91fabba9",
+    "title": "Izvestia",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://igi-hls.cdnvideo.ru/igi/igi_tcode/playlist.m3u8"
+  },
+  {
+    "key": "b80596aaaa8e8b01d439",
+    "title": "Kino 1",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://kino-1.catcast.tv/content/38617/index.m3u8"
+  },
+  {
+    "key": "4772b382ee551d849803",
+    "title": "Krik-TV",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://cdn-01.bonus-tv.ru/kriktv_edge/playlist.m3u8"
+  },
+  {
+    "key": "345495f140bf0be4660b",
+    "title": "Kino 24",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://sirius.greenhosting.ru/Kino24Ru/video.m3u8"
+  },
+  {
+    "key": "e6420b769cd741d21251",
+    "title": "LenTV24",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://player.smotrim.ru/iframe/stream/live_id/3e95d201-f87d-4ac1-8897-db2c66bb9657"
+  },
+  {
+    "key": "8746388f2a526bb1488c",
+    "title": "Legendarnyy 24",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://sevas.1tvcrimea.ru/legendarniy24.m3u8"
+  },
+  {
+    "key": "b3b4d92a099717cc84f6",
+    "title": "Match! Strana",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://ukr.ukrainske.tv/134/keytvainua/video.m3u8"
+  },
+  {
+    "key": "9d348716af8cc1395b68",
+    "title": "Matur TV",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://public.streaming.matur-tv.ru/hls/h264_aac/stream.m3u8"
+  },
+  {
+    "key": "86e90a06465581e95b48",
+    "title": "Millet",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://live1.1tvcrimea.ru/milletlive.m3u8"
+  },
+  {
+    "key": "7f14085e5bd7f7c500d9",
+    "title": "Mir",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://tvcdn01.esilnet.kz/tv/mir/index.m3u8"
+  },
+  {
+    "key": "c1d114b2ba4d61fce826",
+    "title": "Mir",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://hls.mirtv.cdnvideo.ru/mirtv-parampublish/mirtv2_2500/playlist.m3u8"
+  },
+  {
+    "key": "b5db86c906f4c4a823ee",
+    "title": "Mir",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://hls.mirtv.cdnvideo.ru/mirtv-parampublish/mirtv3_2500/playlist.m3u8"
+  },
+  {
+    "key": "33bfcb9ce101898c2792",
+    "title": "Mir",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://hls.mirtv.cdnvideo.ru/mirtv-parampublish/mirtv7_2500/playlist.m3u8"
+  },
+  {
+    "key": "ae2af0c41b01a6d5f0b6",
+    "title": "Mir 24",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://hls.mirtv.cdnvideo.ru/mirtv-parampublish/mir24_2500/playlist.m3u8"
+  },
+  {
+    "key": "95728d51820ee3c06b60",
+    "title": "Mir",
+    "reason": "dead",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://cdn4.skygo.mn/live/disk1/MIR/HLSv3-FTA/MIR.m3u8"
+  },
+  {
+    "key": "9aa4df501017ea618e93",
+    "title": "Mir",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://hls.mirtv.cdnvideo.ru/mirtv-parampublish/mirtv_2500/playlist.m3u8"
+  },
+  {
+    "key": "9200ec2fe140f107f71b",
+    "title": "Mir",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://streaming.televizor-24-tochka.ru/live/22.m3u8"
+  },
+  {
+    "key": "de6d6b96db09c475fc48",
+    "title": "Mir Belogorya",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://mirbelogorya.ru:8080/mirbelogorya/index.m3u8"
+  },
+  {
+    "key": "830e4bb3feb19d6cda19",
+    "title": "Mir Belogorya",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://stream.tvbelgorod.ru:8080/mirbelogorya/index.m3u8"
+  },
+  {
+    "key": "1e5695bce8f57e141481",
+    "title": "MTV Volgograd",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://hls.volgograd1vtv.cdnvideo.ru/volgograd1vtv/volgograd1vtv.sdp/playlist.m3u8"
+  },
+  {
+    "key": "009ded78fd2f12df24b2",
+    "title": "Muz-TV",
+    "reason": "html_player_page",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://streaming.televizor-24-tochka.ru/live/20.m3u8"
+  },
+  {
+    "key": "1d28d7e954c05821c33a",
+    "title": "Multimania",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://sirius.greenhosting.ru/MultimaniaRu/tracks-v1a1/mono.m3u8"
+  },
+  {
+    "key": "475c99ca94fe29426e5d",
+    "title": "Multimania",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://sirius.greenhosting.ru/MultimaniaRu/video.m3u8"
+  },
+  {
+    "key": "bab73552214c4887ac00",
+    "title": "Nano",
+    "reason": "rejected",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://s1.tv-nano.com/Nano_rec/index.m3u8"
+  }
+]

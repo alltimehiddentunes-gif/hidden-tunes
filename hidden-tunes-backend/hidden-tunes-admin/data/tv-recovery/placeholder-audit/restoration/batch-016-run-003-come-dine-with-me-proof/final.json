@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T06:47:12.643Z",
+  "identity": "Come Dine With Me",
+  "candidateRecordId": "8463d78b-d308-46a5-95f0-ec230c37f7f4",
+  "aliasesTerminal": 3,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.3,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

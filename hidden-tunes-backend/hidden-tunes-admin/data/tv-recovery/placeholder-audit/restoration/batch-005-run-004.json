@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-08-14T03:06:59.073Z",
+  "scope": "Batch 5 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Euronews Italian candidate 08b7af64-8fda-4cfa-ad7f-1e83393f6c47 uses a Wurl URL explicitly naming Euronews Italiano and passed 124.76 seconds of 1280x720 playback in the existing Desktop player with one video owner and no fatal HLS errors.",
+    "Sampled frames showed sustained international-news footage but no visible Euronews logo, Italian text, presenter, lower-third, or other exact language/channel marker. It remains identity-unresolved and quarantined.",
+    "BBC Travel, Super! Spongebob, and America's Test Kitchen use jmp2.uk and were rejected before media validation. Euronews English uses an unrelated Antik test host and lacked sufficient authoritative linkage.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "batch5Target": 25,
+  "batch5Researched": 20,
+  "batch5Remaining": 5
+}

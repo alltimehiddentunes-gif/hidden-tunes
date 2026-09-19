@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T18:53:33.136Z",
+  "scope": "Batch 21 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Are We There Yet? passed 122.08 seconds of 1920x1080 existing-Desktop playback with one video owner from Tubi-owned delivery.",
+    "Tubi officially lists the exact live channel; sampled footage showed sustained exact sitcom content including Ice Cube. Search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Bob Esponja and Dallas Cowboys Cheer used rejected jmp2.uk. Anthony Bourdain: Parts Unknown and MythBusters used rejected i.mjh.nz."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 51,
+  "cumulativeTerminalAliases": 176,
+  "batch21Target": 25,
+  "batch21Researched": 5,
+  "batch21Remaining": 20
+}

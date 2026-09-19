@@ -109,6 +109,16 @@ function StationCard({
   )
 }
 
+function StationSkeleton() {
+  return (
+    <article className="skeleton-card" aria-hidden="true">
+      <div className="skeleton-card-art" />
+      <div className="skeleton-card-line skeleton-card-line--wide" />
+      <div className="skeleton-card-line" />
+    </article>
+  )
+}
+
 export const RadioPage = memo(function RadioPage({
   query,
   onPlayRadioStation,
@@ -177,11 +187,24 @@ export const RadioPage = memo(function RadioPage({
     [activeTab, playStation, visibleStations],
   )
 
+  const hasRenderableData =
+    visibleStations.length > 0
+    || featuredStations.length > 0
+    || genreCards.length > 0
+    || countries.length > 0
+  const showFatalError = Boolean(
+    error && !hasRenderableData && !loading && !stationsLoading,
+  )
+  const showBrowseSkeleton =
+    visibleStations.length === 0
+    && (loading || stationsLoading)
+    && !showFatalError
   const showEmpty =
     !loading
     && !stationsLoading
     && visibleStations.length === 0
-    && !error
+    && !showFatalError
+  const browseMessage = stationsError ?? (hasRenderableData ? error : null)
 
   return (
     <div className="radio-destination">
@@ -209,20 +232,16 @@ export const RadioPage = memo(function RadioPage({
         ))}
       </div>
 
-      {error ? (
+      {showFatalError ? (
         <section className="radio-status radio-status--error" role="alert">
           <p>{error}</p>
           <button type="button" className="btn-secondary btn-sm" onClick={() => void retry()}>
             Retry
           </button>
         </section>
-      ) : loading ? (
-        <section className="radio-status" aria-busy="true">
-          <p>Loading radio catalog…</p>
-        </section>
       ) : null}
 
-      {!error && !loading ? (
+      {!showFatalError ? (
         <>
       {featuredStations.length > 0 && activeTab !== 'countries' ? (
         <section className="radio-section" aria-labelledby="radio-featured-heading">
@@ -309,14 +328,20 @@ export const RadioPage = memo(function RadioPage({
           {stationsLoading ? <span className="radio-section-meta">Updating…</span> : null}
         </div>
 
-        {showEmpty ? (
+        {showBrowseSkeleton ? (
+          <div className="radio-station-grid" aria-busy="true" aria-label="Loading stations">
+            {Array.from({ length: 6 }, (_, index) => (
+              <StationSkeleton key={`radio-skeleton-${index}`} />
+            ))}
+          </div>
+        ) : showEmpty ? (
           <div className="radio-status radio-status--empty" role="status">
             <p>
-              {stationsError
-                ? stationsError
+              {browseMessage
+                ? browseMessage
                 : 'No playable stations match this view right now.'}
             </p>
-            {stationsError ? (
+            {browseMessage ? (
               <button type="button" className="btn-secondary btn-sm" onClick={() => void retry()}>
                 Retry
               </button>

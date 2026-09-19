@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T01:03:55.122Z",
+  "identity": "Criminal Confessions",
+  "candidateRecordId": "2863367c-3f43-47ef-8d0a-39c5dfb5681f",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.31,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

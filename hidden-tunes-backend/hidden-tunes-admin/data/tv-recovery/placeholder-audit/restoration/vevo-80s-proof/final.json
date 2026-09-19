@@ -1,0 +1,16 @@
+{
+  "completedAt": "2026-08-16T07:24:03.430Z",
+  "identity": "Vevo 80s",
+  "candidateRecordId": "d83025f7-c264-4502-8ace-c0d37820ffa0",
+  "rejectedCandidateRecordId": "466e50a3-6ed0-4a59-b10a-e3e4ec22e666",
+  "aliasesTerminal": 2,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.1,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

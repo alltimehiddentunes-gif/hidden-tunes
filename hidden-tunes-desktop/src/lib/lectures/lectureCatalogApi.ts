@@ -90,6 +90,7 @@ async function lectureRequest<T>(path: string, signal?: AbortSignal): Promise<T>
       LECTURE_CATALOG_BASE_URL,
       path,
       LECTURE_REQUEST_TIMEOUT_MS,
+      signal,
     )
     if (signal?.aborted) throw new LectureCatalogError('Lectures request was cancelled.', undefined, 'cancelled')
     if (status < 200 || status >= 300) {
@@ -172,23 +173,26 @@ export async function fetchLectureItems(
 ): Promise<{ success: boolean; series: LectureSeries[]; pagination: LecturePagination }> {
   const page = clampPage(options?.page)
   const limit = clampLimit(options?.limit)
+  const query = buildQuery({
+    page,
+    limit,
+    category: options?.category?.trim() || undefined,
+  })
 
-  if (options?.category) {
-    const response = await fetchLectureCategory(options.category, { page, limit }, signal)
-    return {
-      success: response.success,
-      series: response.series,
-      pagination: response.pagination,
-    }
+  const payload = await lectureRequest<{
+    success?: boolean
+    items?: unknown[]
+    pagination?: unknown
+  }>(`/api/lectures/items?${query.toString()}`, signal)
+
+  const rawRows = Array.isArray(payload.items) ? payload.items : []
+  const series = normalizeSeriesList(rawRows)
+
+  return {
+    success: payload.success === true,
+    series,
+    pagination: normalizePagination(payload.pagination, { page, limit, total: series.length }),
   }
-
-  const categories = await fetchLectureCategories(signal)
-  const fallbackSlug = categories[0]?.slug ?? 'academic-lectures'
-  return fetchLectureCategory(fallbackSlug, { page, limit }, signal).then((response) => ({
-    success: response.success,
-    series: response.series,
-    pagination: response.pagination,
-  }))
 }
 
 export async function fetchLectureCategory(

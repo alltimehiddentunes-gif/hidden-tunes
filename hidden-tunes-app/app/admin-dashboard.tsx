@@ -11,7 +11,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
 
@@ -87,6 +87,10 @@ export default function AdminDashboardScreen() {
     }),
     []
   );
+
+  if (typeof __DEV__ === "undefined" || !__DEV__) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   function openAdminPath(path?: string) {
     if (!path) {

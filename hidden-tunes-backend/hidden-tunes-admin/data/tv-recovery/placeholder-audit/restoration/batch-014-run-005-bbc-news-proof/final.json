@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T02:47:18.806Z",
+  "identity": "BBC News",
+  "candidateRecordId": "e99be7ba-59c0-4570-bed2-5b2575cb701b",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.04,
+  "resolution": "960x540",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

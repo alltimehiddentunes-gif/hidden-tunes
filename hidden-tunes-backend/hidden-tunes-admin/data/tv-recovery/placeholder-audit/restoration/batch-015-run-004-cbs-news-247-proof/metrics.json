@@ -1,0 +1,15 @@
+{
+  "candidateId": "a835f417-5c4f-4395-9de3-342420c488cb",
+  "streamHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 154.295759,
+    "advancedSeconds": 124.236659,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

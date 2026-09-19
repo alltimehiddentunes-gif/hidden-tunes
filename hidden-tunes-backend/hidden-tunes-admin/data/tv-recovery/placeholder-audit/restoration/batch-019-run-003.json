@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T14:22:00.059Z",
+  "scope": "Batch 19 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Stingray DJAZZ passed 123.42 seconds of 1920x1080 existing-Desktop playback with one video owner from the direct Stingray-owned lotus host.",
+    "Stingray officially identifies DJAZZ as its 24/7 jazz television channel; evidence showed continuous real jazz piano performance content.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Bloomberg TV used rejected i.mjh.nz. CNN Originals used generic CloudFront, Evidence of Evil used opaque Wurl, and that's Rock used Local Now CMS without complete exact candidate linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 49,
+  "cumulativeTerminalAliases": 174,
+  "batch19Target": 25,
+  "batch19Researched": 15,
+  "batch19Remaining": 10
+}

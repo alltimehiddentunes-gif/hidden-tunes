@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T15:46:36.373Z",
+  "scope": "Batch 10 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Antiques Roadshow UK passed 122.15 seconds of 1920x1080 Desktop playback through the exact BBC-named Wurl/Xumo service.",
+    "Sampled content showed continuous matching antiques appraisal/restoration programming; official service identity supports HIGH confidence. Search and resolver passed.",
+    "One quarantined alias remains hidden and terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Pluto TV Star Trek and Homicide Hunter were rejected for jmp2.uk. Bounce XL and Cops retain lawful distribution candidates but were not promoted without complete identity proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 29,
+  "cumulativeTerminalAliases": 109,
+  "batch10Target": 25,
+  "batch10Researched": 15,
+  "batch10Remaining": 10
+}

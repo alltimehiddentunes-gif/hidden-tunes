@@ -9,7 +9,6 @@ import {
   ScrollView,
 } from "react-native";
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -21,7 +20,6 @@ import {
 } from "../../services/youtubeBackend";
 import {
   getStoredUserRole,
-  ONBOARDING_STORAGE_KEYS,
   type UserRole,
 } from "../../services/onboardingPreferences";
 
@@ -75,13 +73,7 @@ const ROLE_COPY: Record<
   },
 };
 
-const DEVELOPER_ROLE_OPTIONS: UserRole[] = [
-  "listener",
-  "artist",
-  "uploader",
-  "admin",
-  "owner",
-];
+const IS_DEVELOPMENT_BUILD = typeof __DEV__ !== "undefined" && __DEV__;
 
 export default function ProfileScreen() {
   const [backendStatus, setBackendStatus] = useState<BackendStatus>({
@@ -97,6 +89,11 @@ export default function ProfileScreen() {
   }, []);
 
   async function loadStoredRole() {
+    if (!IS_DEVELOPMENT_BUILD) {
+      setUserRole("listener");
+      return;
+    }
+
     try {
       const role = await getStoredUserRole();
       setUserRole(role);
@@ -108,18 +105,6 @@ export default function ProfileScreen() {
   async function checkBackend() {
     const status = await checkYouTubeBackendStatus();
     setBackendStatus(status);
-  }
-
-  async function previewDeveloperRole(role: UserRole) {
-    try {
-      await AsyncStorage.setItem(ONBOARDING_STORAGE_KEYS.userRole, role);
-      setUserRole(role);
-    } catch {
-      Alert.alert(
-        "Role preview unavailable",
-        "Hidden Tunes could not save the local developer role preview."
-      );
-    }
   }
 
   function openPlaceholder(title: string) {
@@ -165,10 +150,12 @@ export default function ProfileScreen() {
             <Text style={styles.rolePillText}>{roleCopy.label} Mode</Text>
           </View>
 
-          <TouchableOpacity style={styles.premiumButton}>
-            <Ionicons name="sparkles" size={17} color="#000" />
-            <Text style={styles.premiumText}>Hidden Premium</Text>
-          </TouchableOpacity>
+          {IS_DEVELOPMENT_BUILD ? (
+            <TouchableOpacity style={styles.premiumButton}>
+              <Ionicons name="sparkles" size={17} color="#000" />
+              <Text style={styles.premiumText}>Hidden Premium (preview)</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View style={styles.statusCard}>
@@ -217,7 +204,7 @@ export default function ProfileScreen() {
           <Text style={styles.dashboardDescription}>{roleCopy.description}</Text>
         </View>
 
-        <View style={styles.developerPreviewCard}>
+        {IS_DEVELOPMENT_BUILD ? <View style={styles.developerPreviewCard}>
           <View style={styles.developerPreviewHeader}>
             <View>
               <Text style={styles.developerPreviewEyebrow}>
@@ -234,33 +221,8 @@ export default function ProfileScreen() {
             <Ionicons name="construct" size={22} color={COLORS.primary} />
           </View>
 
-          <View style={styles.rolePreviewGrid}>
-            {DEVELOPER_ROLE_OPTIONS.map((role) => {
-              const isActive = userRole === role;
-
-              return (
-                <TouchableOpacity
-                  key={role}
-                  activeOpacity={0.84}
-                  style={[
-                    styles.rolePreviewButton,
-                    isActive && styles.rolePreviewButtonActive,
-                  ]}
-                  onPress={() => previewDeveloperRole(role)}
-                >
-                  <Text
-                    style={[
-                      styles.rolePreviewButtonText,
-                      isActive && styles.rolePreviewButtonTextActive,
-                    ]}
-                  >
-                    {ROLE_COPY[role].label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
         </View>
+        : null}
 
         <View style={styles.dashboardGrid}>
           {dashboardActions.map((action) => (
@@ -359,22 +321,29 @@ export default function ProfileScreen() {
           <ProfileItem
             icon="cloud-upload"
             title="Upload"
-            subtitle="Add music to Hidden Tunes"
-            onPress={() => openPlaceholder("Upload")}
+            subtitle="Creator uploads are available through secure creator access"
+            onPress={() => router.push("/artist-submissions" as never)}
           />
 
           <ProfileItem
             icon="shield-checkmark"
             title="Privacy Policy"
             subtitle="How Hidden Tunes protects you"
-            onPress={() => openPlaceholder("Privacy Policy")}
+            onPress={() => router.push("/privacy" as never)}
           />
 
           <ProfileItem
             icon="notifications"
             title="Notifications"
-            subtitle="New music alerts"
-            onPress={() => openPlaceholder("Notifications")}
+            subtitle="Push alerts are not available in this release"
+            onPress={() => Alert.alert("Notifications unavailable", "Hidden Tunes does not currently provide push notifications. Media playback controls remain available while listening.")}
+          />
+
+          <ProfileItem
+            icon="person-circle"
+            title="Account"
+            subtitle="Sign out or delete your account"
+            onPress={() => router.push("/account" as never)}
           />
 
           <ProfileItem

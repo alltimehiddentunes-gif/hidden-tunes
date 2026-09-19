@@ -70,10 +70,10 @@ async function fetchLivePage(
       )
       return result
     }
-    if (resource === 'albums') {
-      return fetchAlbumsPage({ page, limit }, signal)
+    if (resource === 'albums' || resource === 'album-search') {
+      return fetchAlbumsPage({ page, limit, query: resource === 'album-search' ? query : undefined }, signal)
     }
-    return fetchArtistsPage({ page, limit }, signal)
+    return fetchArtistsPage({ page, limit, query: resource === 'artist-search' ? query : undefined }, signal)
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new CatalogRequestError('abort', 'Catalogue request cancelled.')
@@ -137,8 +137,8 @@ export async function loadMusicCatalogPage<T extends ApiSong | ApiAlbum | ApiArt
       request.signal,
     )
 
-    const shouldCache =
-      request.resource !== 'song-search' || live.items.length > 0
+    const isSearch = request.resource === 'song-search' || request.resource === 'artist-search' || request.resource === 'album-search'
+    const shouldCache = !isSearch || live.items.length > 0
 
     if (shouldCache) {
       writeMusicCatalogPageCache(requestKey, live)
@@ -227,6 +227,38 @@ export async function searchMusicSongsPage(input: {
     page: input.page ?? 1,
     limit: input.limit ?? MUSIC_CATALOG_PAGE_SIZE,
     query,
+    signal: input.signal,
+  })
+}
+
+export async function searchMusicArtistsPage(input: {
+  query: string
+  page?: number
+  limit?: number
+  signal?: AbortSignal
+}) {
+  const query = input.query.trim()
+  return loadMusicCatalogPage<ApiArtist>({
+    resource: query ? 'artist-search' : 'artists',
+    page: input.page ?? 1,
+    limit: input.limit ?? MUSIC_CATALOG_PAGE_SIZE,
+    query: query || undefined,
+    signal: input.signal,
+  })
+}
+
+export async function searchMusicAlbumsPage(input: {
+  query: string
+  page?: number
+  limit?: number
+  signal?: AbortSignal
+}) {
+  const query = input.query.trim()
+  return loadMusicCatalogPage<ApiAlbum>({
+    resource: query ? 'album-search' : 'albums',
+    page: input.page ?? 1,
+    limit: input.limit ?? MUSIC_CATALOG_PAGE_SIZE,
+    query: query || undefined,
     signal: input.signal,
   })
 }

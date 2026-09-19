@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T16:24:15.572Z",
+  "scope": "Batch 29 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Pluto TV Food, Pluto TV Romance, and Pluto TV Animals used rejected jmp2.uk sources.",
+    "Pluto TV Turbo mapped to an unrelated enhanced.live endpoint and Pluto TV Retro mapped to an unrelated cinerama.uz service; neither had authoritative Pluto linkage.",
+    "No candidate passed provenance, so none was sent to expensive Desktop validation; all remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch29Target": 25,
+  "batch29Researched": 15,
+  "batch29Remaining": 10
+}

@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T16:15:00.650Z",
+  "scope": "Batch 10 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Hell's Kitchen passed 122.90 seconds of 1920x1080 Desktop playback on the exact ITV/Amagi/Rakuten service.",
+    "Continuous matching kitchen competition programming and rights-holder service identity support HIGH confidence. Search and resolver passed.",
+    "Six quarantined aliases remain hidden and terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Ghost Hunters used i.mjh.nz; Vevo R&B and The Price Is Right used jmp2.uk. CBS News Detroit retained an identity-uncertain mediator candidate and was not tested."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 30,
+  "cumulativeTerminalAliases": 115,
+  "batch10Target": 25,
+  "batch10Researched": 20,
+  "batch10Remaining": 5
+}

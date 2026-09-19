@@ -1,0 +1,31 @@
+{
+  "completedAt": "2026-08-15T02:47:18.806Z",
+  "scope": "Batch 14 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "BBC News passed 124.04 seconds of 960x540 existing-Desktop playback with one video owner through its worldwide Akamai live feed.",
+    "Continuous evidence carried explicit BBC News branding, ticker, and programme graphics; normal Hidden Tunes search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED. No production write or duplicate was needed.",
+    "Pluto TV Sport used an uncertain third-party source, True Crime Now used jmp2.uk, and Qello Concerts and Criminal Confessions lacked complete exact candidate ownership linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 41,
+  "cumulativeTerminalAliases": 146,
+  "batch14Target": 25,
+  "batch14Researched": 25,
+  "batch14Remaining": 0,
+  "batch14Complete": true
+}

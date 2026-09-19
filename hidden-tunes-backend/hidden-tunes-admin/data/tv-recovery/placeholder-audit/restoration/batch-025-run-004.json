@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T06:20:27.132Z",
+  "scope": "Batch 25 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Pluto TV Star Trek, C4 en Alerta, and Pluto TV Cocina used rejected jmp2.uk sources.",
+    "Sailor Moon used generic CloudFront without complete direct authoritative candidate-to-channel ownership linkage.",
+    "Tiny House Nation retained plausible Wurl and generic CloudFront alternatives, but none had complete direct authoritative candidate linkage in this run.",
+    "None were sent to expensive media validation. All remain quarantined; no production writes or duplicates were created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 64,
+  "cumulativeTerminalAliases": 201,
+  "batch25Target": 25,
+  "batch25Researched": 20,
+  "batch25Remaining": 5
+}

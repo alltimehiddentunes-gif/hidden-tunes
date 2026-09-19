@@ -1,0 +1,15 @@
+{
+  "candidateId": "6d0f0691-e624-4d5e-8147-b7b720f2d39b",
+  "streamHost": "bbc-antiquesroadshowuk-1-us.xumo.wurl.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 164.298083,
+    "advancedSeconds": 122.14941599999999,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

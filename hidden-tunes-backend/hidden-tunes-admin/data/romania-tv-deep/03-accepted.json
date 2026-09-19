@@ -1,0 +1,73 @@
+[
+  {
+    "key": "5893c3b13a0ff29b39a8",
+    "title": "HD365 TV",
+    "protocol": "hls",
+    "sourceFamily": "authorized_distributor_manifest",
+    "sanitizedUrl": "https://s2.netstreaming.eu/hd365.m3u8",
+    "finalUrl": "https://s2.netstreaming.eu/hd365.m3u8",
+    "candidate": {
+      "title": "HD365 TV",
+      "sourceUrl": "https://s2.netstreaming.eu/hd365.m3u8",
+      "region": "Hunedoara",
+      "city": "Petroșani",
+      "language": "ro",
+      "category": "Local",
+      "broadcaster": "HD 365 Petroșani",
+      "website": "https://www.netstreaming.eu/hd365.html",
+      "sourceFamily": "authorized_distributor_manifest",
+      "sourceProvenance": "authorized_netstreaming_broadcaster_page",
+      "sourceConfidence": 0.95,
+      "key": "5893c3b13a0ff29b39a8",
+      "country": "RO",
+      "discoveredAt": "2026-08-02T11:37:51.093Z"
+    }
+  },
+  {
+    "key": "3c34507f33759881152d",
+    "title": "PROFI 24 TV",
+    "protocol": "hls",
+    "sourceFamily": "official_manifest",
+    "sanitizedUrl": "https://live.ro24tv.ro/hls/stream.m3u8",
+    "finalUrl": "https://live.ro24tv.ro/hls/stream.m3u8",
+    "candidate": {
+      "title": "PROFI 24 TV",
+      "sourceUrl": "https://live.ro24tv.ro/hls/stream.m3u8",
+      "region": "Argeș",
+      "language": "ro",
+      "category": "News",
+      "broadcaster": "PROFI 24 TV",
+      "website": "https://ro24tv.ro/",
+      "sourceFamily": "official_manifest",
+      "sourceProvenance": "broadcaster_owned_domain_and_cna_identity",
+      "sourceConfidence": 0.97,
+      "key": "3c34507f33759881152d",
+      "country": "RO",
+      "discoveredAt": "2026-08-02T11:37:51.093Z"
+    }
+  },
+  {
+    "key": "b0db8a04f96b392cea8b",
+    "title": "Speranța TV",
+    "protocol": "hls",
+    "sourceFamily": "authorized_distributor_manifest",
+    "sanitizedUrl": "https://jstre.am/live/jsl:2gNjpghXRLE.m3u8",
+    "finalUrl": "https://cdn-ro-otp.b-cdn.net/hcorg_71rJgMo5bcg/s/jsl_2gNjpghXRLE/master.m3u8",
+    "candidate": {
+      "title": "Speranța TV",
+      "sourceUrl": "https://jstre.am/live/jsl:2gNjpghXRLE.m3u8",
+      "region": "Ilfov",
+      "city": "Voluntari",
+      "language": "ro",
+      "category": "Religious",
+      "broadcaster": "Hope Television Romania",
+      "website": "https://www.sperantatv.ro/",
+      "sourceFamily": "authorized_distributor_manifest",
+      "sourceProvenance": "official_broadcaster_identity_and_authorized_public_distribution",
+      "sourceConfidence": 0.94,
+      "key": "b0db8a04f96b392cea8b",
+      "country": "RO",
+      "discoveredAt": "2026-08-02T11:37:51.093Z"
+    }
+  }
+]

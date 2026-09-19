@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T09:13:26.104Z",
+  "identity": "Vevo 2K",
+  "candidateRecordId": "0c4d96f0-9e98-4aab-a996-1ceb792eb5fe",
+  "aliasesTerminal": 2,
+  "authoritativeProvenance": "Vevo Amagi distribution for Samsung TV Plus",
+  "content": "Real moving 2000s music-video programming with artist/title metadata",
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 120.75,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

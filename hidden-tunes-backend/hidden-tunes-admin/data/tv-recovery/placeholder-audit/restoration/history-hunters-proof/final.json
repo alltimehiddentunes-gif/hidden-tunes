@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-16T01:24:12.837Z",
+  "identity": "History Hunters",
+  "candidateRecordId": "67f3d82f-a698-4731-8cb7-696c9e13dee9",
+  "aliasesTerminal": 1,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.28,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

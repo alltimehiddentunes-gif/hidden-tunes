@@ -1,0 +1,15 @@
+{
+  "candidateId": "d01c046f-fd56-4803-831d-b912434b29ce",
+  "streamHost": "cdn-shop-lc-01.akamaized.net",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 138.994695,
+    "advancedSeconds": 124.975288,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

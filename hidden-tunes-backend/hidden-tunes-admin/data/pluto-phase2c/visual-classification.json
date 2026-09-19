@@ -1,0 +1,34 @@
+{
+  "reviewedAt": "2026-08-09T06:44:00.000Z",
+  "method": "decoded-frame visual identity review plus end-of-availability perceptual-hash control",
+  "classifications": {
+    "65d92a8c8b24c80008e285c0": "IDENTITY_UNCERTAIN",
+    "62b976b93279cb000772c6f9": "PLAYING_CONTENT",
+    "6536721dbfbaec00088687c0": "DEAD",
+    "5a6b92f6e22a617379789618": "PLAYING_CONTENT",
+    "60f75919718aed0007250d7a": "STATION_SLATE",
+    "5eb1afb21486df0007abc57c": "DEAD",
+    "5eb1af2ad345340008fccd1e": "DEAD",
+    "5eb1aeb2fd4b8a00076c2047": "DEAD",
+    "5eb1b12146cba40007aa7e5d": "DEAD",
+    "634f2610d5023700078f7dee": "DEAD",
+    "5dc9b875e280c80009a8a44a": "PLAYING_CONTENT",
+    "60fb299b79498900070b29e0": "PLAYING_CONTENT",
+    "5eb1b0bf2240d8000732a09c": "DEAD",
+    "5dc9b8223687ff000936ed79": "WRONG_CHANNEL",
+    "5eb1b17aa5277e00083f6521": "DEAD",
+    "60cb6df2b2ad610008cd5bea": "PLAYING_CONTENT",
+    "5eceb0d4065c240007688ec6": "DEAD",
+    "60492e6d7f3f560007ab0f62": "PLAYING_CONTENT",
+    "61de8e502c8e9400077e5de7": "PLAYING_CONTENT",
+    "61de90a47365340007f77c27": "PLAYING_CONTENT"
+  },
+  "counts": {
+    "playingContentCorrectChannel": 8,
+    "stationSlate": 1,
+    "wrongChannel": 1,
+    "dead": 9,
+    "identityUncertain": 1,
+    "otherDecodedUnresolved": 0
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T16:57:52.048Z",
+  "scope": "Batch 29 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "JoJo’s Bizarre Adventure retained a generic CloudFront candidate without complete direct authoritative linkage.",
+    "Mr. Bean Animated, Pluto TV Cine Estelar, and Ax Men Die Holzfäller used rejected jmp2.uk; Pluto TV Christmas in July used rejected i.mjh.nz.",
+    "No candidate passed provenance, so none was sent to expensive Desktop validation; all remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch29Target": 25,
+  "batch29Researched": 20,
+  "batch29Remaining": 5
+}

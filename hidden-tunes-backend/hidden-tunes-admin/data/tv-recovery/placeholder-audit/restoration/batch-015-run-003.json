@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T04:17:19.506Z",
+  "scope": "Batch 15 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 2,
+  "productionWrites": 0,
+  "notes": [
+    "Shop LC passed 124.98 seconds of 1920x1080 existing-Desktop playback with one video owner from its branded Akamai distribution.",
+    "Official Shop LC pages confirm live television distribution; continuous evidence showed real shopping programming and normal search/resolver passed.",
+    "Two quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED. No production write or duplicate was needed.",
+    "MovieSphere and The Martha Stewart Channel used rejected jmp2.uk. 60 Minutes used an unverified mediator endpoint. Naruto used generic CloudFront without exact authoritative linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 43,
+  "cumulativeTerminalAliases": 149,
+  "batch15Target": 25,
+  "batch15Researched": 15,
+  "batch15Remaining": 10
+}

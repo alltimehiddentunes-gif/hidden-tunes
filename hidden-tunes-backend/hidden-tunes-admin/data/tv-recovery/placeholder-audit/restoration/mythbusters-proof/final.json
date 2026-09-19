@@ -1,0 +1,16 @@
+{
+  "completedAt": "2026-08-16T03:58:07.127Z",
+  "identity": "MythBusters",
+  "candidateRecordId": "3bc6a3cb-002f-4711-82ab-ebef1996ac35",
+  "rejectedCandidateRecordId": "dee57717-6652-48e5-8a45-e00067748527",
+  "aliasesTerminal": 3,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.56,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

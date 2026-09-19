@@ -1,0 +1,11 @@
+{
+  "completedAt": "2026-08-14T06:08:34.651Z",
+  "batch": 6,
+  "checkpointedIdentitiesResearched": 25,
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 19,
+  "cumulativeTerminalAliases": 91,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "newCompleteProofs": ["QVC2", "The Pet Collective", "Estrella News", "Vevo 70s"],
+  "status": "COMPLETE"
+}

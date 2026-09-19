@@ -1,0 +1,18 @@
+{
+  "completedAt": "2026-08-12T18:30:00.000Z",
+  "identity": "CBS News 24/7",
+  "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+  "productionWrites": 0,
+  "authoritativeProvenance": "PASS",
+  "desktopContinuitySeconds": 115.91,
+  "desktopRuntime": "PASS",
+  "videoElementCount": 1,
+  "productionResolver": "PASS",
+  "normalSearch": "FAIL_NOT_RETURNED",
+  "visualIdentityConfidence": "MEDIUM",
+  "visualEvidence": "Real CBS-distributed programme content was visible, but the captured frame lacked an unambiguous CBS News 24/7 channel bug.",
+  "restored": 0,
+  "verifiedDuplicateMerged": 0,
+  "disposition": "KEEP_PENDING_IDENTITY_AND_SEARCH",
+  "nextAction": "Capture additional branded programme samples and investigate why the normal TV catalog excludes this otherwise resolver-compatible record."
+}

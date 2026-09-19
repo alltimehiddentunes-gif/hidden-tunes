@@ -10,7 +10,14 @@ const failures = []
 const check = (condition, message) => { if (!condition) failures.push(message) }
 
 check(pkg.build?.win?.target?.[0]?.arch?.includes('x64'), 'Windows x64 NSIS target is required')
-check(pkg.build?.mac?.target?.[0]?.arch?.includes('x64') && pkg.build.mac.target[0].arch.includes('arm64'), 'macOS x64 and arm64 targets are required')
+const macArchitectures = pkg.build?.mac?.target?.find((target) => target.target === 'dmg')?.arch ?? []
+check(macArchitectures.includes('x64') && macArchitectures.includes('arm64') && macArchitectures.includes('universal'), 'macOS DMG targets for x64, arm64, and universal are required')
+check(pkg.build?.mac?.hardenedRuntime === true, 'macOS Hardened Runtime is required')
+check(pkg.build?.mac?.notarize === true, 'macOS notarization must be enabled for release builds')
+check(fs.existsSync(path.join(root, pkg.build?.mac?.entitlements ?? '')), 'macOS parent entitlements are required')
+check(fs.existsSync(path.join(root, pkg.build?.mac?.entitlementsInherit ?? '')), 'macOS inherited entitlements are required')
+check(pkg.build?.dmg?.contents?.some((entry) => entry.type === 'link' && entry.path === '/Applications'), 'DMG must include an Applications shortcut')
+check(Boolean(pkg.scripts?.['dist:mac:intel'] && pkg.scripts?.['dist:mac:arm64'] && pkg.scripts?.['dist:mac:universal']), 'macOS architecture-specific build scripts are required')
 check(pkg.build?.linux?.target?.some((target) => target.target === 'AppImage') && pkg.build.linux.target.some((target) => target.target === 'deb'), 'Linux AppImage and deb targets are required')
 check(main.includes("frame: process.platform === 'darwin'"), 'macOS must retain native window chrome')
 check(main.includes("process.platform !== 'darwin'"), 'macOS last-window lifecycle must differ from Windows/Linux')

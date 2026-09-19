@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-17T01:03:02.360Z",
+  "scope": "Batch 32 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Bondi Rescue: Production channel resolver returned HTTP 404 before media validation.",
+    "Nicktoons: Production channel resolver returned HTTP 404 before media validation.",
+    "Noticias RCN: Queued opaque Roku delivery lacked complete primary exact candidate-to-channel linkage.",
+    "Super! Pop: Direct Pluto-owned candidate advanced 124.61 seconds at 1216x684 with one video owner, but all evidence showed Pluto logo/inactivity slates, not real programming.",
+    "ITV Deportes: Queued OTTera endpoint lacked complete primary exact candidate-to-channel ownership linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 74,
+  "cumulativeTerminalAliases": 230,
+  "batch32Target": 25,
+  "batch32Researched": 25,
+  "batch32Remaining": 0,
+  "batch32Complete": true
+}

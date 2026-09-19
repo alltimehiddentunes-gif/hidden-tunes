@@ -1,0 +1,99 @@
+{
+  "batch": 1,
+  "phase": "RESTORATION_SEARCH_PROOF",
+  "completedAt": "2026-08-12T09:11:32.698Z",
+  "startingCandidates": 10,
+  "actualSourcesTested": 10,
+  "decoded": 1,
+  "networkPass": 1,
+  "placeholderRejected": 1,
+  "endOfAvailability": 0,
+  "wrongChannelRejected": 0,
+  "identityUncertain": 0,
+  "deadOrNetworkFail": 9,
+  "unknown": 0,
+  "verifiedPlayable": 0,
+  "restoredToPublic": 0,
+  "restoredToSearch": 0,
+  "desktopPlaybackVerified": 0,
+  "searchResultsVerified": 0,
+  "failedRecordsKeptQuarantined": 10,
+  "duplicatesCreated": 0,
+  "nonPlutoRecordsAffected": 0,
+  "productionRecordsChanged": 0,
+  "productionWrites": 0,
+  "canBatch2Begin": false,
+  "stopReason": "RESTORE_SEARCH_PLAYBACK_PATH_NOT_PROVEN_ZERO_VALID_SURVIVORS",
+  "results": [
+    {
+      "recordId": "1654f65c-ad01-40b6-8f36-79198ea2fdc1",
+      "canonicalChannelName": "FOX LOCAL Los Angeles",
+      "candidateRecordId": "47c51bbf-2e10-429e-a76f-f5b70c99724f",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "3c669350-33de-4e09-9c4f-d05e2dd42d1c",
+      "canonicalChannelName": "BBC Food",
+      "candidateRecordId": "c46acb0f-7ee1-432f-9ed2-3147e57d47d4",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "3d0c57ad-2990-409f-b81d-151092b004a7",
+      "canonicalChannelName": "Naruto",
+      "candidateRecordId": "96f89937-cfa4-4a04-bae7-9a34b2f73abc",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "3f86495c-9291-4380-ad4a-46fa37868fc7",
+      "canonicalChannelName": "America's Next Top Model",
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "50d95ab9-0a13-4897-9805-4da24fa09cdb",
+      "canonicalChannelName": "Bondi Rescue",
+      "candidateRecordId": "9d2a11e0-9dc6-41a6-97c7-6db7e58990fb",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "514c5df8-ab62-4995-a4c4-733169b80580",
+      "canonicalChannelName": "Pluto TV Film",
+      "candidateRecordId": "16a5b46c-751a-4a7c-9ea3-ec58fb2f32d4",
+      "classification": "PLACEHOLDER_BLOCKED",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "7fab392b-2321-42bb-bb91-676a2206b766",
+      "canonicalChannelName": "Mystery TV",
+      "candidateRecordId": "2a2750a8-ca98-400a-bd23-7074cbbf64ce",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "c1ce79a0-3c5e-498c-9483-1d3dfc414cf8",
+      "canonicalChannelName": "Nash Bridges",
+      "candidateRecordId": "f782a563-2eb6-4192-83a3-cc629b2eb8c9",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "d57c7520-44ee-44c9-8d71-c67198eb7c8e",
+      "canonicalChannelName": "Hercules: The Legendary Journeys",
+      "candidateRecordId": "bb8d8d88-48e9-471f-b942-d7c2dfc8c42f",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    },
+    {
+      "recordId": "de413c4b-86fe-496a-84db-949ea50ac0e3",
+      "canonicalChannelName": "News12 New York",
+      "candidateRecordId": "6aa96962-41b1-4320-9990-3d31db2c82fb",
+      "classification": "CANDIDATE_NETWORK_FAIL",
+      "keptQuarantined": true
+    }
+  ]
+}

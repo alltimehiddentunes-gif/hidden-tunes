@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T10:25:42.494Z",
+  "scope": "Batch 27 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 4,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 2,
+  "productionWrites": 0,
+  "notes": [
+    "Vevo 90s passed 123.38 seconds of 1920x1080 existing-Desktop playback with one video owner from its directly named Vevo/Samsung NZ Amagi candidate.",
+    "Official 1990s music-video programming with Mariah Carey artist/title metadata supports EXACT identity. Normal search and production resolver passed.",
+    "Two quarantined aliases were terminally merged from their rejected candidate to the distinct authoritative candidate without creating a duplicate.",
+    "Survivor retained a Banijay/Samsung UK candidate. America's Test Kitchen retained Roku delivery. Top Gear retained Tubi and Samsung alternatives requiring exact canonical review. Pluto TV Star Trek returned no exact catalog candidate."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 68,
+  "cumulativeTerminalAliases": 209,
+  "batch27Target": 25,
+  "batch27Researched": 10,
+  "batch27Remaining": 15
+}

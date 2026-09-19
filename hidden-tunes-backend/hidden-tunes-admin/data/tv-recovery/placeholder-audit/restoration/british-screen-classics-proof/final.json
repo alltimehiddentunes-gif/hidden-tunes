@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-15T23:53:26.258Z",
+  "identity": "British Screen Classics",
+  "candidateRecordId": "07170b14-72ac-478b-8bcf-ee75866cdddb",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.23,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

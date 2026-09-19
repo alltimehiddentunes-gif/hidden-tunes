@@ -1,0 +1,26 @@
+{
+  "completedAt": "2026-08-14T10:45:30.000Z",
+  "scope": "Batch 8 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "MST3K used an exact-name Roku/Amagi service and decoded real 426x240 video, but advanced only 17.94 seconds during the 125-second Desktop run. It failed continuity and remains quarantined.",
+    "Gambero Rosso and Mr. Bean Animated were rejected before media validation because their candidates use jmp2.uk.",
+    "Come Dine With Me retains ITV/Amagi/Rakuten provenance and NatureTime retains Blue Ant/Love Nature/Amagi/Samsung provenance, but neither was promoted or reclassified without complete proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 24,
+  "cumulativeTerminalAliases": 103,
+  "batch8Target": 25,
+  "batch8Researched": 19,
+  "batch8Remaining": 6
+}

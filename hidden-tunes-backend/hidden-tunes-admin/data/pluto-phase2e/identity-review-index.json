@@ -1,0 +1,205 @@
+[
+  {
+    "index": 1,
+    "providerChannelId": "65d92a8c8b24c80008e285c0",
+    "canonicalName": "BBC News",
+    "sourceHost": "vs-hls-push-ww-live.akamaized.net",
+    "provenance": "existing_tv_record:bbe31e23-4f1d-4f74-a883-3e2d23d8d32c"
+  },
+  {
+    "index": 2,
+    "providerChannelId": "61559552dd585f0007321eca",
+    "canonicalName": "Bloomberg TV+",
+    "sourceHost": "86ebec83.wurl.com",
+    "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b"
+  },
+  {
+    "index": 3,
+    "providerChannelId": "61559552dd585f0007321eca",
+    "canonicalName": "Bloomberg TV+",
+    "sourceHost": "bloomberg.com",
+    "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77"
+  },
+  {
+    "index": 4,
+    "providerChannelId": "61559552dd585f0007321eca",
+    "canonicalName": "Bloomberg TV+",
+    "sourceHost": "bloomberg.com",
+    "provenance": "existing_tv_record:8eaa14f4-d532-487b-b351-74975726483c"
+  },
+  {
+    "index": 5,
+    "providerChannelId": "54ff7ba69222cb1c2624c584",
+    "canonicalName": "Bloomberg TV+",
+    "sourceHost": "86ebec83.wurl.com",
+    "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b"
+  },
+  {
+    "index": 6,
+    "providerChannelId": "54ff7ba69222cb1c2624c584",
+    "canonicalName": "Bloomberg TV+",
+    "sourceHost": "bloomberg.com",
+    "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77"
+  },
+  {
+    "index": 7,
+    "providerChannelId": "54ff7ba69222cb1c2624c584",
+    "canonicalName": "Bloomberg TV+",
+    "sourceHost": "bloomberg.com",
+    "provenance": "existing_tv_record:8eaa14f4-d532-487b-b351-74975726483c"
+  },
+  {
+    "index": 8,
+    "providerChannelId": "6231e909bc960f00075d8e7c",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+    "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb"
+  },
+  {
+    "index": 9,
+    "providerChannelId": "6231e909bc960f00075d8e7c",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+  },
+  {
+    "index": 10,
+    "providerChannelId": "6231ec93779a9d00079ba8e2",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+    "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb"
+  },
+  {
+    "index": 11,
+    "providerChannelId": "6231ec93779a9d00079ba8e2",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+  },
+  {
+    "index": 12,
+    "providerChannelId": "62310d5a5dc9550007c6f580",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+    "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb"
+  },
+  {
+    "index": 13,
+    "providerChannelId": "62310d5a5dc9550007c6f580",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+  },
+  {
+    "index": 14,
+    "providerChannelId": "6231eb3865be650007f59595",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+    "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb"
+  },
+  {
+    "index": 15,
+    "providerChannelId": "6231eb3865be650007f59595",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+  },
+  {
+    "index": 16,
+    "providerChannelId": "62310f66d5888f0007534342",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+    "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb"
+  },
+  {
+    "index": 17,
+    "providerChannelId": "62310f66d5888f0007534342",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+  },
+  {
+    "index": 18,
+    "providerChannelId": "61e82af27027f9000753c6e4",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+    "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb"
+  },
+  {
+    "index": 19,
+    "providerChannelId": "61e82af27027f9000753c6e4",
+    "canonicalName": "CBS News 24/7",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+  },
+  {
+    "index": 20,
+    "providerChannelId": "6231e9b7f6deff00074674f4",
+    "canonicalName": "CBS News 24/7 (720p)",
+    "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+    "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb"
+  },
+  {
+    "index": 21,
+    "providerChannelId": "6231e9b7f6deff00074674f4",
+    "canonicalName": "CBS News 24/7 (720p)",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+  },
+  {
+    "index": 22,
+    "providerChannelId": "6231ec4b62cd1f0007093c7b",
+    "canonicalName": "CBS News 24/7 (720p)",
+    "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+    "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb"
+  },
+  {
+    "index": 23,
+    "providerChannelId": "6231ec4b62cd1f0007093c7b",
+    "canonicalName": "CBS News 24/7 (720p)",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c"
+  },
+  {
+    "index": 24,
+    "providerChannelId": "60f75919718aed0007250d7a",
+    "canonicalName": "CBS News Baltimore (720p)",
+    "sourceHost": "lineup.cbsivideo.com",
+    "provenance": "existing_tv_record:debe8a7d-76e6-4100-b4f3-4573617c8144"
+  },
+  {
+    "index": 25,
+    "providerChannelId": "5eb1afb21486df0007abc57c",
+    "canonicalName": "CBS News Bay Area (720p)",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:b5bc6a91-c1ee-4191-b9dd-6d85bb033fb3"
+  },
+  {
+    "index": 26,
+    "providerChannelId": "5eb1af2ad345340008fccd1e",
+    "canonicalName": "CBS News Boston (720p)",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:115878df-69e5-4267-a712-a3487a92b16d"
+  },
+  {
+    "index": 27,
+    "providerChannelId": "5eb1af2ad345340008fccd1e",
+    "canonicalName": "CBS News Boston (720p)",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:7c6f48c0-c51c-4af5-829a-d7dce34de579"
+  },
+  {
+    "index": 28,
+    "providerChannelId": "5eb1aeb2fd4b8a00076c2047",
+    "canonicalName": "CBS News Chicago (720p)",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:82d426f0-fb17-485a-9658-459ba0ff0167"
+  },
+  {
+    "index": 29,
+    "providerChannelId": "5dc9b8223687ff000936ed79",
+    "canonicalName": "CBS News New York (720p)",
+    "sourceHost": "dai.google.com",
+    "provenance": "existing_tv_record:e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b"
+  }
+]

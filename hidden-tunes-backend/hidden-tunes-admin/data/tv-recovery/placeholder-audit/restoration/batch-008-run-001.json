@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T09:13:26.104Z",
+  "scope": "Batch 8 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Vevo 2K passed 120.75 seconds of 1920x1080 Desktop playback with one video owner and no fatal HLS errors.",
+    "The Vevo-branded Amagi/Samsung service showed matching 2000s music videos with artist/title metadata, supporting EXACT identity. Normal search and resolver passed.",
+    "Two quarantined aliases remain hidden and terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Yu-Gi-Oh, The Good Wife, and INTER 24/7 were rejected before media validation for jmp2.uk. Noticias RCN retains an official Roku-delivery candidate for a later bounded run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 24,
+  "cumulativeTerminalAliases": 103,
+  "batch8Target": 25,
+  "batch8Researched": 5,
+  "batch8Remaining": 20
+}

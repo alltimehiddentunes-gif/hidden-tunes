@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-08-13T23:36:55.096Z",
+  "scope": "Batch 4 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "RiffTrax candidate 7c56b1f4-0bfa-4c75-a5d5-d840abb4b891 uses a RiffTrax-named official Wurl/Transmit FAST distribution host and passed 123.49 seconds of 1280x720 playback in the existing Desktop player with one video owner and no fatal HLS errors.",
+    "Sampled frames showed sustained feature-film content but no visible RiffTrax branding, commentator presentation, title card, or other unique identity marker. Exact/high channel identity remains unresolved, so no alias was merged or restored.",
+    "Four additional candidates were provenance-screened; uncertain equivalence or insufficient authoritative linkage prevented full validation.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 14,
+  "cumulativeTerminalAliases": 81,
+  "batch4Target": 25,
+  "batch4Researched": 10,
+  "batch4Remaining": 15
+}

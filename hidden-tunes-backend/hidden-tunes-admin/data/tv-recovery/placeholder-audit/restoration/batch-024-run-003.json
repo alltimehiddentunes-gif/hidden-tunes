@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T03:28:15.909Z",
+  "scope": "Batch 24 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "CBS News Texas had authoritative CBS-owned provenance and a direct cbsnews.com candidate, but the existing Desktop player remained at readyState 0, 0x0, and currentTime 0 for 390.33 seconds.",
+    "The stalled bounded validation was interrupted after durable progress evidence was captured; CBS News Texas remains quarantined and must not be repeated without materially new media evidence.",
+    "Dallas Cowboys Cheer used rejected jmp2.uk. Antiques Road Trip and both BET x Tyler Perry candidates used generic CloudFront without complete direct authoritative linkage.",
+    "No production writes or duplicates were created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 60,
+  "cumulativeTerminalAliases": 194,
+  "batch24Target": 25,
+  "batch24Researched": 15,
+  "batch24Remaining": 10
+}

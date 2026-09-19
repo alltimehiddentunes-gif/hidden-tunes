@@ -203,6 +203,9 @@ async function main() {
   ipcMain.handle('ht-downloads-cancel', async () => ({ ok: false }))
   ipcMain.handle('ht-downloads-remove', async () => ({ ok: false }))
   ipcMain.handle('ht-downloads-get-playable-url', async () => ({ ok: false, error: 'unavailable' }))
+  ipcMain.on('ht-runtime-info', (event) => {
+    event.returnValue = { isPackaged: false, environment: 'development', ok: true, errors: [], warnings: [], expressConfigured: true, adminConfigured: true, sportsPilotConfigured: false }
+  })
 
   await app.whenReady()
   const win = new BrowserWindow({
@@ -216,6 +219,12 @@ async function main() {
       nodeIntegration: false,
     },
   })
+  ipcMain.handle('ht-window-get-state', () => ({ isMaximized: win.isMaximized(), isFullScreen: win.isFullScreen() }))
+  ipcMain.handle('ht-window-is-full-screen', () => win.isFullScreen())
+  ipcMain.handle('ht-window-set-full-screen', (_event, enabled) => { win.setFullScreen(Boolean(enabled)); return win.isFullScreen() })
+  ipcMain.on('ht-window-minimize', () => win.minimize())
+  ipcMain.on('ht-window-toggle-maximize', () => (win.isMaximized() ? win.unmaximize() : win.maximize()))
+  ipcMain.on('ht-window-close', () => win.close())
   win.setContentSize(1024, 900)
   await win.loadURL(RENDERER_URL)
   await waitReady(win)

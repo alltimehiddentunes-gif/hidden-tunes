@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T21:45:45.719Z",
+  "batch": 12,
+  "identitiesResearched": 25,
+  "newlyVerifiedIdentities": [
+    "Space Live powered by Sen",
+    "Stingray Holidayscapes"
+  ],
+  "newlyVerifiedIdentityCount": 2,
+  "newlyTerminalAliases": 2,
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 37,
+  "cumulativeTerminalAliases": 134,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "safetyRegressions": 0,
+  "result": "COMPLETE"
+}

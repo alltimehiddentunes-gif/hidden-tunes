@@ -1,0 +1,2526 @@
+{
+  "runId": "pluto-autonomous-recovery",
+  "checkpointVersion": 13,
+  "batchNumber": 6,
+  "phase": "BATCH_6_COMPLETE",
+  "createdAt": "2026-08-10T03:14:42.211Z",
+  "baselineHead": "0b01836e44ff869d1520b494b8ccb04c5f73f727",
+  "identitiesAttempted": 300,
+  "identitiesCompleted": 0,
+  "candidatesDiscovered": 111,
+  "candidatesTested": 25,
+  "decoded": 12,
+  "verified": 0,
+  "rejected": 0,
+  "unresolved": 12,
+  "noSource": 224,
+  "errors": [],
+  "nextBatch": 7,
+  "nextBatchSize": 432,
+  "nextCursor": 1300,
+  "remainingUnattempted": 432,
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "selection": [
+    {
+      "providerChannelId": "62724c8465731f0007b6cd86",
+      "canonicalName": "Project Runway (720p)",
+      "categories": [
+        "Entertainment",
+        "Mat & livsstil"
+      ]
+    },
+    {
+      "providerChannelId": "691ed77b1308fa77bb2d5562",
+      "canonicalName": "Inter 24/7 (720p)",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5d8bf0b06d2d855ee15115e3",
+      "canonicalName": "Pluto TV Reality",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5e7cf6c7b156d500078c5f44",
+      "canonicalName": "OAN Plus (720p)",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5bb1ad55268cae539bcedb08",
+      "canonicalName": "The Pet Collective (720p)",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5b4e96a0423e067bd6df6901",
+      "canonicalName": "Unsolved Mysteries",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "6512d72b473a540008592be5",
+      "canonicalName": "Sabrina the Teenage Witch",
+      "categories": [
+        "Sitcoms"
+      ]
+    },
+    {
+      "providerChannelId": "5f21e7b24744c60007c1f6fc",
+      "canonicalName": "Survivor",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5fd7bca3e0a4ee0007a38e8c",
+      "canonicalName": "Vevo 2K",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5f7791b8372da90007fd45e6",
+      "canonicalName": "The Price Is Right: The Barker Era (720p)",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "67334bed030a2c000805e414",
+      "canonicalName": "Se og Hør – rød løber",
+      "categories": [
+        "Dansk reality & underholdning"
+      ]
+    },
+    {
+      "providerChannelId": "5f32f26bcd8aea00071240e5",
+      "canonicalName": "Vevo '70s",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "69afef4b0306b277744de1e4",
+      "canonicalName": "The Millers",
+      "categories": [
+        "Sitcoms"
+      ]
+    },
+    {
+      "providerChannelId": "68c01954f89c82a68b084a50",
+      "canonicalName": "Afterwork TV",
+      "categories": [
+        "Entertainment",
+        "Svensk reality och underhållning"
+      ]
+    },
+    {
+      "providerChannelId": "601a0342dcf4370007566891",
+      "canonicalName": "Tiny House Nation (720p)",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "66a7ab4dcd0d3100084395b4",
+      "canonicalName": "Caroline in the City",
+      "categories": [
+        "Sitcoms"
+      ]
+    },
+    {
+      "providerChannelId": "66d714d815d2c60008cec6d2",
+      "canonicalName": "Escape to the Country (720p)",
+      "categories": [
+        "Country",
+        "Mat & livsstil"
+      ]
+    },
+    {
+      "providerChannelId": "636a4eaf77279a0007f14861",
+      "canonicalName": "Pimp My Ride – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "65cb76ea11ced70008206b66",
+      "canonicalName": "Dynasty",
+      "categories": [
+        "Serie Classiche"
+      ]
+    },
+    {
+      "providerChannelId": "69e100b7805a68fcc951e433",
+      "canonicalName": "Pluto TV Urbex",
+      "categories": [
+        "Nytt på Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "61c09e3ac210ed0007606620",
+      "canonicalName": "Horror – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Film"
+      ]
+    },
+    {
+      "providerChannelId": "677fb0e93a225c2d0d8a45bf",
+      "canonicalName": "Northern Exposure",
+      "categories": [
+        "Bingeable Drama"
+      ]
+    },
+    {
+      "providerChannelId": "63eb947c4e83e70008ab877b",
+      "canonicalName": "NCIS",
+      "categories": [
+        "Series"
+      ]
+    },
+    {
+      "providerChannelId": "6a0f0dd902b6c1c00aa51cb9",
+      "canonicalName": "Pluto TV Body Bags",
+      "categories": [
+        "Nyt på Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "66335489307fa300082bd6e4",
+      "canonicalName": "Pluto TV Eros",
+      "categories": [
+        "Film"
+      ]
+    },
+    {
+      "providerChannelId": "61f9597e78607000074f6c2a",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "categories": [
+        "Entertainment",
+        "Sci-Fi"
+      ]
+    },
+    {
+      "providerChannelId": "6501ae4998020f00085040ed",
+      "canonicalName": "Mannen som talar med hundar",
+      "categories": [
+        "Entertainment",
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "663a176ecb3ea10008edacf9",
+      "canonicalName": "Pluto TV Stimulierende Dokus",
+      "categories": [
+        "Sinnliche Fantasien"
+      ]
+    },
+    {
+      "providerChannelId": "65b917720d9ab4000833f323",
+      "canonicalName": "Pluto TV Bud & Terence",
+      "categories": [
+        "Entertainment",
+        "Filmer"
+      ]
+    },
+    {
+      "providerChannelId": "6909fc4b74601d957a380613",
+      "canonicalName": "Hardcore Pawn",
+      "categories": [
+        "Realityserier"
+      ]
+    },
+    {
+      "providerChannelId": "654a517ff91d250008ac2d4a",
+      "canonicalName": "Love Boat",
+      "categories": [
+        "Entertainment",
+        "Gamla godingar"
+      ]
+    },
+    {
+      "providerChannelId": "63d2c140c111bc0008cb890b",
+      "canonicalName": "TeleFórmula",
+      "categories": [
+        "Noticias"
+      ]
+    },
+    {
+      "providerChannelId": "61c0b438244e50000758083b",
+      "canonicalName": "Pluto TV True Crime",
+      "categories": [
+        "Entertainment",
+        "True Crime"
+      ]
+    },
+    {
+      "providerChannelId": "69afec3af59c873b7b874520",
+      "canonicalName": "The 4400",
+      "categories": [
+        "Sci-Fi"
+      ]
+    },
+    {
+      "providerChannelId": "655caa815812e80008884322",
+      "canonicalName": "Hot Ones",
+      "categories": [
+        "Entertainment",
+        "Talkshow"
+      ]
+    },
+    {
+      "providerChannelId": "6440f8ba939a5900082bddc8",
+      "canonicalName": "World of Love Island",
+      "categories": [
+        "Realityserier"
+      ]
+    },
+    {
+      "providerChannelId": "6a205abba7b5a6c560b8ac25",
+      "canonicalName": "All Reality We TV",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "63eba189c111bc0008ff59c5",
+      "canonicalName": "Moranguinho",
+      "categories": [
+        "Infantil"
+      ]
+    },
+    {
+      "providerChannelId": "688a20c69034bd35f34aaa9e",
+      "canonicalName": "Simba Prisen",
+      "categories": [
+        "Dansk reality & underholdning"
+      ]
+    },
+    {
+      "providerChannelId": "6a0f0de3e022927e1cf74c71",
+      "canonicalName": "Pluto TV Body Bags",
+      "categories": [
+        "Nytt på Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "6a0f0df0c3b940365926c3e9",
+      "canonicalName": "Pluto TV Body Bags",
+      "categories": [
+        "Nytt på Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "655caaaac0fc8800086f5d99",
+      "canonicalName": "Pluto TV John Wayne",
+      "categories": [
+        "Entertainment",
+        "Filmer"
+      ]
+    },
+    {
+      "providerChannelId": "66b22c9aa79dea0008cee4a9",
+      "canonicalName": "Taxi",
+      "categories": [
+        "Entertainment",
+        "Sitcoms"
+      ]
+    },
+    {
+      "providerChannelId": "693ae39cc2fa3abe8ad8208c",
+      "canonicalName": "Teen Wolf",
+      "categories": [
+        "Entertainment",
+        "Drama"
+      ]
+    },
+    {
+      "providerChannelId": "662a26cb5a402e00086b2801",
+      "canonicalName": "River Monsters (720p)",
+      "categories": [
+        "Entertainment",
+        "Dokumentärer"
+      ]
+    },
+    {
+      "providerChannelId": "699c1998d5b4d030870ff998",
+      "canonicalName": "Renegade",
+      "categories": [
+        "Entertainment",
+        "Gamla godingar"
+      ]
+    },
+    {
+      "providerChannelId": "62cbdc45d3cb9f0007128df4",
+      "canonicalName": "Pluto TV Christmas in Summer",
+      "categories": [
+        "New on Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "682453731295f98347e92da8",
+      "canonicalName": "River Monsters",
+      "categories": [
+        "Real Life Adventure"
+      ]
+    },
+    {
+      "providerChannelId": "65a7ab137bdc8d0008487dfb",
+      "canonicalName": "Pluto TV Erotica",
+      "categories": [
+        "Movies"
+      ]
+    },
+    {
+      "providerChannelId": "6093f9ed2c75660007322bb7",
+      "canonicalName": "Catfish – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "65e977874e01740008c9fb4c",
+      "canonicalName": "Reno 911",
+      "categories": [
+        "Entertainment",
+        "Komedie"
+      ]
+    },
+    {
+      "providerChannelId": "5812b7d3249444e05d09cc49",
+      "canonicalName": "Pluto TV Anime",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "6426900ea3ade70008ffcb20",
+      "canonicalName": "Crime Scene Solvers",
+      "categories": [
+        "Entertainment",
+        "True Crime"
+      ]
+    },
+    {
+      "providerChannelId": "63eb82e24e83e70008ab735f",
+      "canonicalName": "Yu-Gi-Oh! – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Animazione"
+      ]
+    },
+    {
+      "providerChannelId": "63eb58aa60bc8f0008caa8f8",
+      "canonicalName": "The Boat Show – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "69fcaaa1853a01a827bcd056",
+      "canonicalName": "I Shouldn't Be Alive",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "60940ebad67fd900072382db",
+      "canonicalName": "Ex on the beach – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "69d7ebb726eeec84158e28cb",
+      "canonicalName": "Pluto TV Adventure",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "63a084934734f30007457b2c",
+      "canonicalName": "Smithsonian Channel Pluto TV",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "612cda102f5f18000705e0bf",
+      "canonicalName": "Pluto TV Horror",
+      "categories": [
+        "Movies"
+      ]
+    },
+    {
+      "providerChannelId": "626bb07a58b8dd0007e9f36e",
+      "canonicalName": "Case Pazzesche – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5ddf930548ff9b00090d5686",
+      "canonicalName": "Pluto TV Food",
+      "categories": [
+        "Living"
+      ]
+    },
+    {
+      "providerChannelId": "60e4507a06171800072339a3",
+      "canonicalName": "Il banco dei pugni – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "61fbd721e5b49e00079bfedc",
+      "canonicalName": "Ridiculousness – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "678533155e0e6a000828cd48",
+      "canonicalName": "Untold Stories of the ER",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "5d4af2ffa9506ab29cf38c38",
+      "canonicalName": "Pluto TV Paranormal",
+      "categories": [
+        "Paranormal"
+      ]
+    },
+    {
+      "providerChannelId": "63c012504faf1c0007abfa93",
+      "canonicalName": "Super! Victorious – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5dc02a44a9518600094273ac",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "categories": [
+        "Movies"
+      ]
+    },
+    {
+      "providerChannelId": "68f0f7571d26140175255e43",
+      "canonicalName": "Dr. Quinn Medicine Woman",
+      "categories": [
+        "Entertainment",
+        "Drama"
+      ]
+    },
+    {
+      "providerChannelId": "62f53dc6ee9a0400071dc22b",
+      "canonicalName": "Pluto TV Sitcoms",
+      "categories": [
+        "Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "5c5c2b9d8002db3c3e0b1c6d",
+      "canonicalName": "Pluto TV Retro Toons",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "5812be1c249444e05d09cc50",
+      "canonicalName": "Pluto TV True Crime",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "63d000ef4e83e700086e0d6c",
+      "canonicalName": "Scorpion",
+      "categories": [
+        "Europe",
+        "Crime Drama",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "63a1c959d9dd51000825d659",
+      "canonicalName": "Scorpion",
+      "categories": [
+        "Drama"
+      ]
+    },
+    {
+      "providerChannelId": "655207f8b9c8a700082c7951",
+      "canonicalName": "Super! Spyders – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "61c1e270489a9c000874d209",
+      "canonicalName": "Pluto TV Action",
+      "categories": [
+        "Entertainment",
+        "Film"
+      ]
+    },
+    {
+      "providerChannelId": "6540ff2d770cf1000866b90a",
+      "canonicalName": "Modern Marvels (720p)",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "66d82143abec540008bd2b1c",
+      "canonicalName": "Project Runway",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "68e38b005c876cf730fcbf0f",
+      "canonicalName": "Six Million Dollar Man",
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ]
+    },
+    {
+      "providerChannelId": "62cc1e1e0d0611000837dc1d",
+      "canonicalName": "Radio-Canada INFO (720p)",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "654a4fe9056b9700088804a0",
+      "canonicalName": "Love Boat",
+      "categories": [
+        "Entertainment",
+        "Gamle godbiter"
+      ]
+    },
+    {
+      "providerChannelId": "68e3b6112baff9f069d02540",
+      "canonicalName": "Relic Hunter",
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ]
+    },
+    {
+      "providerChannelId": "64e7715c4c5ed800081230e4",
+      "canonicalName": "Dallas Cowboys Cheerleaders",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "61925ea79541940007d20881",
+      "canonicalName": "Super! Brothers and Sisters – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "63eb573ba99571000897135b",
+      "canonicalName": "Super! Risate – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Teen"
+      ]
+    },
+    {
+      "providerChannelId": "664c94e80120f40008b860f0",
+      "canonicalName": "POP",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "6695294632e25300084bb61b",
+      "canonicalName": "Sister, Sister",
+      "categories": [
+        "Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "68e38b6e20115bbaf9c91083",
+      "canonicalName": "The Incredible Hulk",
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ]
+    },
+    {
+      "providerChannelId": "612ce23f51cce000078eeed5",
+      "canonicalName": "Fireplace – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "699c192688133556bd253602",
+      "canonicalName": "Renegade",
+      "categories": [
+        "Entertainment",
+        "Gamle godbiter"
+      ]
+    },
+    {
+      "providerChannelId": "66b22b748561260008dae057",
+      "canonicalName": "Taxi",
+      "categories": [
+        "Entertainment",
+        "Sitcoms"
+      ]
+    },
+    {
+      "providerChannelId": "64edf6eaa7ec0d000812f58c",
+      "canonicalName": "South Park",
+      "categories": [
+        "Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "693addd62bf6cf7414c4b2fc",
+      "canonicalName": "Star Trek: The Original Series",
+      "categories": [
+        "Sci-Fi"
+      ]
+    },
+    {
+      "providerChannelId": "69c3c6c912e978ee49277dc7",
+      "canonicalName": "That's 60s",
+      "categories": [
+        "Europe"
+      ]
+    },
+    {
+      "providerChannelId": "61814ff322e67b00074a5c43",
+      "canonicalName": "Project Runway (720p)",
+      "categories": [
+        "Entertainment",
+        "Mat & livsstil"
+      ]
+    },
+    {
+      "providerChannelId": "662a26f3cd439400084fc8b8",
+      "canonicalName": "River Monsters (720p)",
+      "categories": [
+        "Entertainment",
+        "Dokumentarer"
+      ]
+    },
+    {
+      "providerChannelId": "677fb08f5b68381e2dbfd5af",
+      "canonicalName": "The Bionic Woman",
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ]
+    },
+    {
+      "providerChannelId": "6850408053d981d1fdb01696",
+      "canonicalName": "Taxi",
+      "categories": [
+        "Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "686d004094a028da3aac8cb0",
+      "canonicalName": "Don Matteo",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "667d3534ca74680008696051",
+      "canonicalName": "Ladykracher",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "63724270c7c2360007b170e8",
+      "canonicalName": "VH1+ Canzoni Italiane – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "69b91797611b4a9fce103037",
+      "canonicalName": "That Peter Crouch Podcast",
+      "categories": [
+        "New on Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "677fb137a5d8215f99b9cc06",
+      "canonicalName": "Top Chef",
+      "categories": [
+        "Living"
+      ]
+    },
+    {
+      "providerChannelId": "677fb0b33a225c2d0d8a17be",
+      "canonicalName": "Xena: Warrior Princess",
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ]
+    },
+    {
+      "providerChannelId": "65819f83a620e300080f692a",
+      "canonicalName": "Weird or What? With William Shatner",
+      "categories": [
+        "Paranormal"
+      ]
+    },
+    {
+      "providerChannelId": "653660b4295b840008a70ba3",
+      "canonicalName": "Le vite degli altri – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Film"
+      ]
+    },
+    {
+      "providerChannelId": "69afeca6ac36b147e7ef33a7",
+      "canonicalName": "The 4400",
+      "categories": [
+        "Entertainment",
+        "Sci-Fi"
+      ]
+    },
+    {
+      "providerChannelId": "68504098f212bedacf63a7e1",
+      "canonicalName": "Touched by an Angel",
+      "categories": [
+        "Bingeable Drama"
+      ]
+    },
+    {
+      "providerChannelId": "60e5ea9a9bb4200008376f76",
+      "canonicalName": "Motorvision TV",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "63693fa2bfa0690007ebc880",
+      "canonicalName": "Wicked Tuna",
+      "categories": [
+        "Real Life Adventure"
+      ]
+    },
+    {
+      "providerChannelId": "5df265697ec3510009df1ef0",
+      "canonicalName": "Pluto TV Vida Real",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "662a622b5e2370000800f392",
+      "canonicalName": "Faites entrer l'accusé",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "63921a3d00c96100082a3cb4",
+      "canonicalName": "Homicide (720p)",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "61099f2b40d0640007fc5aa2",
+      "canonicalName": "El Encantador de Perros",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "65a939fad77d450008863835",
+      "canonicalName": "Car Chase – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5f4fed840a2764000720d966",
+      "canonicalName": "Paisajes por Stingray",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "62e7fa5ab5062e0007dcf97d",
+      "canonicalName": "BBC Drama – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Serie"
+      ]
+    },
+    {
+      "providerChannelId": "685a999bd33909bdd7d2fb1e",
+      "canonicalName": "La maison France 5",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "64025592953da40008bf9238",
+      "canonicalName": "Obsesión por los Autos",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "686e7499e0ecf0e0cc25dbe3",
+      "canonicalName": "Barbie & Friends",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "68b784d03e17b7676a0378f7",
+      "canonicalName": "Shockwave",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "66a92375cd0d31000847b219",
+      "canonicalName": "Monstruos de Rio",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "6495af324c014a000842e923",
+      "canonicalName": "Desafío Super Humanos",
+      "categories": [
+        "Competencia"
+      ]
+    },
+    {
+      "providerChannelId": "681ba2729624e6275efe0044",
+      "canonicalName": "NatureTime",
+      "categories": [
+        "Curiosidad"
+      ]
+    },
+    {
+      "providerChannelId": "65788727a620e30008fe4d88",
+      "canonicalName": "Celeb Reality",
+      "categories": [
+        "Reality",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "60b4c17a81e29300071d3a39",
+      "canonicalName": "Avatar",
+      "categories": [
+        "Europe"
+      ]
+    },
+    {
+      "providerChannelId": "60d35a74c63c3c0008df6a90",
+      "canonicalName": "BBC Series",
+      "categories": [
+        "À Binge-Watch"
+      ]
+    },
+    {
+      "providerChannelId": "664c8ba33d173b00080ef0c8",
+      "canonicalName": "Beyblade",
+      "categories": [
+        "Animation"
+      ]
+    },
+    {
+      "providerChannelId": "65cce14060eb870008dbd003",
+      "canonicalName": "Cheers",
+      "categories": [
+        "À Binge-Watch"
+      ]
+    },
+    {
+      "providerChannelId": "5f8eb66537867f0007146953",
+      "canonicalName": "CATFISH TV",
+      "categories": [
+        "TV Réalité"
+      ]
+    },
+    {
+      "providerChannelId": "65d724a9d8adfa00086c8ae9",
+      "canonicalName": "Come Dine with Me (720p)",
+      "categories": [
+        "Entertainment",
+        "Mat & livsstil"
+      ]
+    },
+    {
+      "providerChannelId": "6964bb3640c8de392514a0c6",
+      "canonicalName": "Rawhide",
+      "categories": [
+        "Gamla godingar"
+      ]
+    },
+    {
+      "providerChannelId": "608aa3c446d73500075f0e24",
+      "canonicalName": "Film Classici – Pluto TV",
+      "categories": [
+        "Movies"
+      ]
+    },
+    {
+      "providerChannelId": "691b351d427d68a118fdda13",
+      "canonicalName": "Cut",
+      "categories": [
+        "Nouveau sur Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "645e7828e1979c00087b75b4",
+      "canonicalName": "MovieSphere by Lionsgate",
+      "categories": [
+        "Movies"
+      ]
+    },
+    {
+      "providerChannelId": "66f55d0b5e4a6e0008c2b920",
+      "canonicalName": "Enquêtes Criminelles",
+      "categories": [
+        "Crime & Mystère"
+      ]
+    },
+    {
+      "providerChannelId": "6671b26836a2f90008d9333c",
+      "canonicalName": "Diane, femme flic",
+      "categories": [
+        "Séries Policières"
+      ]
+    },
+    {
+      "providerChannelId": "68b17414c23bb80b3c1d5bb5",
+      "canonicalName": "Doraemon",
+      "categories": [
+        "Animation"
+      ]
+    },
+    {
+      "providerChannelId": "6581a09edfed030008e12b39",
+      "canonicalName": "Star Trek: The Original Series – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "654c955683595c00081d9d87",
+      "canonicalName": "East is East – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "617bae1d69bca3000729561e",
+      "canonicalName": "Digimon Adventure",
+      "categories": [
+        "Animation"
+      ]
+    },
+    {
+      "providerChannelId": "691b334a1308fa77bb056b0e",
+      "canonicalName": "La Moderna",
+      "categories": [
+        "Nouveau sur Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "60afa1508284e60007163c08",
+      "canonicalName": "Juste pour Rire GAGS",
+      "categories": [
+        "Comédie"
+      ]
+    },
+    {
+      "providerChannelId": "66f55d205e4a6e0008c2b92b",
+      "canonicalName": "Incroyables Transformations",
+      "categories": [
+        "Divertissement"
+      ]
+    },
+    {
+      "providerChannelId": "6349279ed5023700078f2bc2",
+      "canonicalName": "Mai dire sì – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Serie"
+      ]
+    },
+    {
+      "providerChannelId": "60b9dc99521a1400079bdfba",
+      "canonicalName": "Consulenze illegali – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "662bf39756fc840008f25cb9",
+      "canonicalName": "Sony One Escape Perfecto",
+      "categories": [
+        "Competencia"
+      ]
+    },
+    {
+      "providerChannelId": "64ec5c6644fe100009d114ae",
+      "canonicalName": "Affare Fatto – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Intrattenimento"
+      ]
+    },
+    {
+      "providerChannelId": "6512d6a0a1217e00092c1214",
+      "canonicalName": "Beauty and the Beast",
+      "categories": [
+        "Entertainment",
+        "Gamla godingar"
+      ]
+    },
+    {
+      "providerChannelId": "61fbd3f0733df400076c9a2d",
+      "canonicalName": "Il Testimone – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "699c169077cdde1f05252eb9",
+      "canonicalName": "21 Jump Street",
+      "categories": [
+        "Entertainment",
+        "Gamla godingar"
+      ]
+    },
+    {
+      "providerChannelId": "66b228d4cd0d3100085d27b7",
+      "canonicalName": "Les Anges",
+      "categories": [
+        "TV Réalité"
+      ]
+    },
+    {
+      "providerChannelId": "619263ee9541940007d20d60",
+      "canonicalName": "Geordie Shore – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Reality Show"
+      ]
+    },
+    {
+      "providerChannelId": "61925f874b1ec000075e700a",
+      "canonicalName": "Reality – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "66e0b265dd2d690008c5496b",
+      "canonicalName": "Places & Spaces",
+      "categories": [
+        "Christmas In July"
+      ]
+    },
+    {
+      "providerChannelId": "652d0b756208700008d758ad",
+      "canonicalName": "Les Z'amours",
+      "categories": [
+        "Emissions cultes"
+      ]
+    },
+    {
+      "providerChannelId": "6a2b0d669465b98649cd0ba1",
+      "canonicalName": "Charmed",
+      "categories": [
+        "Sci-Fi"
+      ]
+    },
+    {
+      "providerChannelId": "691b33ae8a64bd1811e923f2",
+      "canonicalName": "Les vacances de l'amour",
+      "categories": [
+        "Nouveau sur Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "69fa471bc2b638404ffa91bf",
+      "canonicalName": "Pluto TV Fireworks",
+      "categories": [
+        "Movies"
+      ]
+    },
+    {
+      "providerChannelId": "654933ac986ad20008a1f406",
+      "canonicalName": "Little House on the Prairie",
+      "categories": [
+        "Westerns"
+      ]
+    },
+    {
+      "providerChannelId": "60940a07d88ba90007b9cb71",
+      "canonicalName": "16 anni e incinta – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "686e74c777ed3360cb6908bf",
+      "canonicalName": "Mayday: Catastrophe Aérienne",
+      "categories": [
+        "Emissions cultes"
+      ]
+    },
+    {
+      "providerChannelId": "68758038552299d2b08162e3",
+      "canonicalName": "Law & Order",
+      "categories": [
+        "Drama"
+      ]
+    },
+    {
+      "providerChannelId": "6647c02422494d000804b13a",
+      "canonicalName": "Sony One Shark Tank México",
+      "categories": [
+        "Competencia"
+      ]
+    },
+    {
+      "providerChannelId": "6334a3ffdc283500076acf92",
+      "canonicalName": "Vevo Holiday",
+      "categories": [
+        "Christmas In July"
+      ]
+    },
+    {
+      "providerChannelId": "68b16d2282862c1f067dc763",
+      "canonicalName": "Les Schtroumpfs",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "6304ee20112ca70007d8accc",
+      "canonicalName": "Made – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "66e0b4a3f0f17500085cc268",
+      "canonicalName": "Hit Sitcoms",
+      "categories": [
+        "Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "691cf0410a78a9ce61ad2121",
+      "canonicalName": "America's Funniest Home Videos",
+      "categories": [
+        "Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "6a2b0e66c2b638404f0a4ffb",
+      "canonicalName": "Ghost Whisperer",
+      "categories": [
+        "Sci-Fi"
+      ]
+    },
+    {
+      "providerChannelId": "66f55d565e4a6e0008c2b9d2",
+      "canonicalName": "Les Marseillais",
+      "categories": [
+        "TV Réalité"
+      ]
+    },
+    {
+      "providerChannelId": "6913e381b6bf26bb6e798c13",
+      "canonicalName": "The X-Files",
+      "categories": [
+        "Sci-Fi"
+      ]
+    },
+    {
+      "providerChannelId": "5f8ecb336537e8000764a17f",
+      "canonicalName": "Pluto TV Junior",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "6887a4e01067b66fa16966ec",
+      "canonicalName": "Live PD Presents",
+      "categories": [
+        "True Crime"
+      ]
+    },
+    {
+      "providerChannelId": "654930a8346f420008d3b0b8",
+      "canonicalName": "Oxygen True Crime Archives",
+      "categories": [
+        "True Crime"
+      ]
+    },
+    {
+      "providerChannelId": "608016e446d73500075ea7e0",
+      "canonicalName": "World poker tour – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "654a515f986ad20008a4593b",
+      "canonicalName": "JAG",
+      "categories": [
+        "Gamla godingar"
+      ]
+    },
+    {
+      "providerChannelId": "69699b6d23ea437206f4a036",
+      "canonicalName": "World of Love Island",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "698dde7c8b5c1e0795b85739",
+      "canonicalName": "Flipper: The New Adventures",
+      "categories": [
+        "Entertainment",
+        "Drama"
+      ]
+    },
+    {
+      "providerChannelId": "6578878132c1b300089aa005",
+      "canonicalName": "Modern Marvels (720p)",
+      "categories": [
+        "Entertainment",
+        "Dokumentärer"
+      ]
+    },
+    {
+      "providerChannelId": "654933e253fc970008390114",
+      "canonicalName": "Universal Action",
+      "categories": [
+        "Drama"
+      ]
+    },
+    {
+      "providerChannelId": "636adc255bcf470007d6e0e2",
+      "canonicalName": "Top Gear",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "6671b21ffc3a46000857fe75",
+      "canonicalName": "Mission Impossible",
+      "categories": [
+        "À Binge-Watch"
+      ]
+    },
+    {
+      "providerChannelId": "63eb5767da71180008ace8fc",
+      "canonicalName": "Jersey Shore – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "68bb164fb3900870ec368759",
+      "canonicalName": "Living With Evil",
+      "categories": [
+        "True Crime"
+      ]
+    },
+    {
+      "providerChannelId": "692ec6d82329c10c5166f436",
+      "canonicalName": "Nina",
+      "categories": [
+        "100% Français"
+      ]
+    },
+    {
+      "providerChannelId": "6000a6f4c3f8550008fc9b91",
+      "canonicalName": "Xtreme Outdoor by HISTORY",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "662a63275a402e00086bc8a5",
+      "canonicalName": "Olive & Tom",
+      "categories": [
+        "Animation"
+      ]
+    },
+    {
+      "providerChannelId": "6565413e4261ca0008215320",
+      "canonicalName": "Pickers & Pawn",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "5c37d6712de254456f7ec340",
+      "canonicalName": "Cold Case Files by A&E",
+      "categories": [
+        "True Crime"
+      ]
+    },
+    {
+      "providerChannelId": "68ffc086a530e036bc8f0305",
+      "canonicalName": "Mi Bella Genio",
+      "categories": [
+        "Retro"
+      ]
+    },
+    {
+      "providerChannelId": "619e4833244e500007564d5a",
+      "canonicalName": "Nosey",
+      "categories": [
+        "Talkshow",
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "6549316d2c1d330008631496",
+      "canonicalName": "Real Housewives Vault",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "63335b193583440007c859fb",
+      "canonicalName": "Lifetime Movie Favorites",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "63211ba9cad976000794f988",
+      "canonicalName": "La Selección",
+      "categories": [
+        "Novelas"
+      ]
+    },
+    {
+      "providerChannelId": "64a765c04ea480000823917a",
+      "canonicalName": "Big Brother Camera 1",
+      "categories": [
+        "Big Brother Live"
+      ]
+    },
+    {
+      "providerChannelId": "5f8eb99ff17815000784a3b0",
+      "canonicalName": "Pluto TV  Teen",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "6380c94947c72b0007ee9a13",
+      "canonicalName": "One Piece",
+      "categories": [
+        "Animation"
+      ]
+    },
+    {
+      "providerChannelId": "69aadcdb6c0414a7ecb56ede",
+      "canonicalName": "Pluto TV Anime Retro",
+      "categories": [
+        "Animation"
+      ]
+    },
+    {
+      "providerChannelId": "63a19e1b9ab2df0007bef7a7",
+      "canonicalName": "Pluto TV Horror",
+      "categories": [
+        "Entertainment",
+        "Filmer"
+      ]
+    },
+    {
+      "providerChannelId": "6549322e53fc97000838febc",
+      "canonicalName": "Million Dollar Listing Vault",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "5dcde197f6591d0009839e04",
+      "canonicalName": "Pluto TV Reality",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "69afecd4686531d5faac86e2",
+      "canonicalName": "The 4400",
+      "categories": [
+        "Entertainment",
+        "Sci-Fi"
+      ]
+    },
+    {
+      "providerChannelId": "692ec71425eaa17b6daf2a11",
+      "canonicalName": "PJ",
+      "categories": [
+        "Séries Policières"
+      ]
+    },
+    {
+      "providerChannelId": "662a6309307fa30008196b4e",
+      "canonicalName": "Plus Belle la Vie 2",
+      "categories": [
+        "100% Français"
+      ]
+    },
+    {
+      "providerChannelId": "654932fa4d6d8f00084c4723",
+      "canonicalName": "Bad Girls Club",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "65453f30085df200085883d8",
+      "canonicalName": "ION",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "678f894ef5c74bff95c20a7f",
+      "canonicalName": "Pêche à haut risque",
+      "categories": [
+        "Divertissement"
+      ]
+    },
+    {
+      "providerChannelId": "6549310a53fc97000838fcc9",
+      "canonicalName": "Bravo Vault",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "608017cbe375e400070cc981",
+      "canonicalName": "People are awesome – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "60801317a0ccef00072aaf75",
+      "canonicalName": "The pet collective – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "654a58dbf9cc82000868f0fb",
+      "canonicalName": "Pluto TV Kids Classics",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "646ccdd0939a5900088a1980",
+      "canonicalName": "Corazón",
+      "categories": [
+        "Novelas"
+      ]
+    },
+    {
+      "providerChannelId": "651581ba6a84140008593586",
+      "canonicalName": "Robot Wars by MECH+ – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "691b332aa4385c191ee44b57",
+      "canonicalName": "Rex, chien flic",
+      "categories": [
+        "Séries Policières"
+      ]
+    },
+    {
+      "providerChannelId": "699769fa19ac123965833fd3",
+      "canonicalName": "Cuando los Ángeles Caen",
+      "categories": [
+        "Novelas"
+      ]
+    },
+    {
+      "providerChannelId": "69c2ad7500a8d7d87767d25f",
+      "canonicalName": "Pluto TV Girls Club",
+      "categories": [
+        "Nouveau sur Pluto TV"
+      ]
+    },
+    {
+      "providerChannelId": "61c08d7c73bdb800070eef0a",
+      "canonicalName": "The Hills",
+      "categories": [
+        "Det bästa från MTV"
+      ]
+    },
+    {
+      "providerChannelId": "6304f2e2eb10450007298023",
+      "canonicalName": "Un Village Français",
+      "categories": [
+        "100% Français"
+      ]
+    },
+    {
+      "providerChannelId": "62f3ece7b09fd6000783bfb9",
+      "canonicalName": "Un gars, une fille",
+      "categories": [
+        "100% Français"
+      ]
+    },
+    {
+      "providerChannelId": "62b57a6752a0060008bc65cd",
+      "canonicalName": "Due Fantagenitori – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "64c1093824ade50008bd117f",
+      "canonicalName": "Top Gear",
+      "categories": [
+        "Emissions cultes"
+      ]
+    },
+    {
+      "providerChannelId": "636a4ce50728d200072eebe7",
+      "canonicalName": "Super! Girl Power – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "609401db8cf51c00084b592e",
+      "canonicalName": "Super! Icarly – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "62e8ddbbaed0390007b258a6",
+      "canonicalName": "Super! Rugrats – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "62619405c733e8000732d1fe",
+      "canonicalName": "Teenage Mutant Ninja Turtles – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "626192c51c279b00072c4553",
+      "canonicalName": "Super! Gaming – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "639751f81a36b400072b8f5a",
+      "canonicalName": "Vive Kanal D Drama",
+      "categories": [
+        "Series"
+      ]
+    },
+    {
+      "providerChannelId": "65d881b1332fec000833a122",
+      "canonicalName": "South Park: Cartman Collection",
+      "categories": [
+        "South Park"
+      ]
+    },
+    {
+      "providerChannelId": "6915e0eda570568f53435398",
+      "canonicalName": "Afterwork TV",
+      "categories": [
+        "Mad & livsstil"
+      ]
+    },
+    {
+      "providerChannelId": "6278ec6c33d85a00077ad814",
+      "canonicalName": "Deluxe Lounge HD – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "6577224bb3801200084865d6",
+      "canonicalName": "All exclusive",
+      "categories": [
+        "Dansk reality & underholdning"
+      ]
+    },
+    {
+      "providerChannelId": "6465fef47cb4b100086ee7bd",
+      "canonicalName": "VH1+ Hip Hop & Rap – Pluto TV",
+      "categories": [
+        "Hip Hop"
+      ]
+    },
+    {
+      "providerChannelId": "6130d9c712c2b000070abb50",
+      "canonicalName": "Yu-Gi-Oh!",
+      "categories": [
+        "Animation"
+      ]
+    },
+    {
+      "providerChannelId": "631fb6be21b7440007b9f606",
+      "canonicalName": "Hechizada",
+      "categories": [
+        "Retro"
+      ]
+    },
+    {
+      "providerChannelId": "686cffbf3ffa5e0c91cdcfb3",
+      "canonicalName": "21 Jump Street",
+      "categories": [
+        "Action"
+      ]
+    },
+    {
+      "providerChannelId": "64ff270f30ab3300084e259c",
+      "canonicalName": "Rookie Blue: Policías Novatos",
+      "categories": [
+        "Series"
+      ]
+    },
+    {
+      "providerChannelId": "63a19cb7847a090007f230d7",
+      "canonicalName": "Pluto TV Horror",
+      "categories": [
+        "Entertainment",
+        "Film"
+      ]
+    },
+    {
+      "providerChannelId": "667d63d236a2f90008f72269",
+      "canonicalName": "Axel!",
+      "categories": [
+        "Sitcoms + Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "62e7f8db27ce19000732d1aa",
+      "canonicalName": "Doctor Who – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "65a7d99f4a10d800086083a9",
+      "canonicalName": "Assassination Classroom",
+      "categories": [
+        "Anime"
+      ]
+    },
+    {
+      "providerChannelId": "67e5941f0812459cb682d9c6",
+      "canonicalName": "Relic Hunter",
+      "categories": [
+        "Series"
+      ]
+    },
+    {
+      "providerChannelId": "60802d37ee238e0007c94e64",
+      "canonicalName": "Andromeda – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "6093f9281db477000759fce0",
+      "canonicalName": "Super! Spongebob – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "66b3af1c3a4ad200081c7d03",
+      "canonicalName": "Z Nation",
+      "categories": [
+        "Series"
+      ]
+    },
+    {
+      "providerChannelId": "69fca9dd14a5dfae8875a3be",
+      "canonicalName": "Survivor México",
+      "categories": [
+        "Competencia"
+      ]
+    },
+    {
+      "providerChannelId": "624da1cd2af90c0007c13205",
+      "canonicalName": "Avatar – Pluto TV",
+      "categories": [
+        "Entertainment",
+        "Europe"
+      ]
+    },
+    {
+      "providerChannelId": "636a4173e34fd50007534542",
+      "canonicalName": "VH1+ Rock! – Pluto TV",
+      "categories": [
+        "Rock"
+      ]
+    },
+    {
+      "providerChannelId": "686c2677ed17cf4c900a496d",
+      "canonicalName": "Wicked Tuna",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "5e3ddbd27091820009f86dd9",
+      "canonicalName": "MasterChef México",
+      "categories": [
+        "Competencia"
+      ]
+    },
+    {
+      "providerChannelId": "69fcaa88e022927e1c94c533",
+      "canonicalName": "MasterChef Argentina",
+      "categories": [
+        "Competencia"
+      ]
+    },
+    {
+      "providerChannelId": "6177fd9812fe0c000726f9eb",
+      "canonicalName": "Just for Laughs GAGS",
+      "categories": [
+        "Entertainment",
+        "Humor"
+      ]
+    },
+    {
+      "providerChannelId": "64188b8483f58900083bc954",
+      "canonicalName": "Skål",
+      "categories": [
+        "Entertainment",
+        "Sitcoms"
+      ]
+    },
+    {
+      "providerChannelId": "63c95491808b740007608a74",
+      "canonicalName": "Tareq Taylor's Nordic Cookery",
+      "categories": [
+        "Entertainment",
+        "Mat & livsstil"
+      ]
+    },
+    {
+      "providerChannelId": "672e4d915534bb0008c50168",
+      "canonicalName": "Family Feud",
+      "categories": [
+        "Daytime + Game Shows"
+      ]
+    },
+    {
+      "providerChannelId": "61c1d459fbb4b50007d24647",
+      "canonicalName": "Pluto TV Juniorklubben (720p)",
+      "categories": [
+        "Entertainment",
+        "For barn"
+      ]
+    },
+    {
+      "providerChannelId": "651e719b575f660008d2e629",
+      "canonicalName": "Cheaters",
+      "categories": [
+        "Realityserier"
+      ]
+    },
+    {
+      "providerChannelId": "6552085aab05240008b05f6c",
+      "canonicalName": "VH1+ Back to 90's – Pluto TV",
+      "categories": [
+        "Entertainment"
+      ]
+    },
+    {
+      "providerChannelId": "5dd6ddb30a1d8a000908ed4c",
+      "canonicalName": "Pluto TV Cine Familia",
+      "categories": [
+        "Películas"
+      ]
+    },
+    {
+      "providerChannelId": "65d7239066eec8000881e293",
+      "canonicalName": "Come Dine with Me",
+      "categories": [
+        "Mad & livsstil"
+      ]
+    },
+    {
+      "providerChannelId": "649ddbfb6f29ec000874ca9e",
+      "canonicalName": "Supermarket Sweep",
+      "categories": [
+        "Daytime + Game Shows"
+      ]
+    },
+    {
+      "providerChannelId": "677d93afe650a700081e5f18",
+      "canonicalName": "Popeye",
+      "categories": [
+        "Retro"
+      ]
+    },
+    {
+      "providerChannelId": "68adb11bf84960586ad4aae4",
+      "canonicalName": "Smurfarna",
+      "categories": [
+        "Entertainment",
+        "Barn"
+      ]
+    },
+    {
+      "providerChannelId": "6887aaade3703b7d42b64be8",
+      "canonicalName": "The First 48 by A&E",
+      "categories": [
+        "True Crime"
+      ]
+    },
+    {
+      "providerChannelId": "68757effdf333e336be1e49f",
+      "canonicalName": "Tony Robbins Network",
+      "categories": [
+        "Daytime + Game Shows"
+      ]
+    },
+    {
+      "providerChannelId": "677fb078a4af36ad50111032",
+      "canonicalName": "Die Sieben-Millionen-Dollar-Frau",
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ]
+    },
+    {
+      "providerChannelId": "65775d29dfed030008cb3db2",
+      "canonicalName": "Modern Marvels by HISTORY",
+      "categories": [
+        "History + Science"
+      ]
+    },
+    {
+      "providerChannelId": "62c5d80dc6de440007e033eb",
+      "canonicalName": "Runtime",
+      "categories": [
+        "Películas"
+      ]
+    },
+    {
+      "providerChannelId": "65787eefcbd0d60008f85b3f",
+      "canonicalName": "Dance Moms",
+      "categories": [
+        "Realityserier"
+      ]
+    },
+    {
+      "providerChannelId": "678aa0b3680721c77c5035dd",
+      "canonicalName": "The Walking Dead by AMC",
+      "categories": [
+        "Series"
+      ]
+    },
+    {
+      "providerChannelId": "69c2ac2b14c0213702da7a29",
+      "canonicalName": "Die glorreichen Sieben",
+      "categories": [
+        "Western"
+      ]
+    },
+    {
+      "providerChannelId": "656538f8954b020008d389db",
+      "canonicalName": "UnXplained Zone",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "68bb16e7f89c82a68bcc4397",
+      "canonicalName": "Chip & Jo: Feels Like Home by Magnolia Network",
+      "categories": [
+        "Home + Food"
+      ]
+    },
+    {
+      "providerChannelId": "627d355aa95efd00077afcc7",
+      "canonicalName": "Cheaters",
+      "categories": [
+        "Reality"
+      ]
+    },
+    {
+      "providerChannelId": "6565430c9d5ac4000822f508",
+      "canonicalName": "Rustic Retreats",
+      "categories": [
+        "Home + Food"
+      ]
+    },
+    {
+      "providerChannelId": "67dc21ce5a15c0759a07ee19",
+      "canonicalName": "Der Chef",
+      "categories": [
+        "Crime"
+      ]
+    },
+    {
+      "providerChannelId": "698384cb7230043f21f4a3f4",
+      "canonicalName": "Property Brothers",
+      "categories": [
+        "Home + Food"
+      ]
+    },
+    {
+      "providerChannelId": "6764203df433320008836bc6",
+      "canonicalName": "Los Asesinatos de Midsomer",
+      "categories": [
+        "Series"
+      ]
+    },
+    {
+      "providerChannelId": "65e23f340d4561000821540d",
+      "canonicalName": "Mister Rogers' Neighborhood",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "66ff0cf663292d0008320cf8",
+      "canonicalName": "No Reservations",
+      "categories": [
+        "Home + Food"
+      ]
+    },
+    {
+      "providerChannelId": "5dcdde78f080d900098550e4",
+      "canonicalName": "Pluto TV Cine Comedia",
+      "categories": [
+        "Películas"
+      ]
+    },
+    {
+      "providerChannelId": "64a7665b902f2300085d7901",
+      "canonicalName": "Big Brother Camera 3",
+      "categories": [
+        "Big Brother Live"
+      ]
+    },
+    {
+      "providerChannelId": "668c566d08d5490008075948",
+      "canonicalName": "La Familia del Barrio",
+      "categories": [
+        "En Español"
+      ]
+    },
+    {
+      "providerChannelId": "5812bd9f249444e05d09cc4e",
+      "canonicalName": "Naturescape",
+      "categories": [
+        "Animals + Nature"
+      ]
+    },
+    {
+      "providerChannelId": "5dd7ea2aeab5230009986735",
+      "canonicalName": "Pluto TV Cine Romance",
+      "categories": [
+        "Películas"
+      ]
+    },
+    {
+      "providerChannelId": "64eddce19001910008df22b8",
+      "canonicalName": "F.B.I. Files",
+      "categories": [
+        "True Crime"
+      ]
+    },
+    {
+      "providerChannelId": "664fd48894d5580008e45e7c",
+      "canonicalName": "Dog Whisperer with Cesar Millan",
+      "categories": [
+        "Animals + Nature"
+      ]
+    },
+    {
+      "providerChannelId": "5dd6ed41526c77000941411c",
+      "canonicalName": "Pluto TV Pre-Navidad",
+      "categories": [
+        "Películas"
+      ]
+    },
+    {
+      "providerChannelId": "5dcddfcb229eff00091b6bdf",
+      "canonicalName": "Pluto TV Cine Drama",
+      "categories": [
+        "Películas"
+      ]
+    },
+    {
+      "providerChannelId": "696997049889f8db34c936c2",
+      "canonicalName": "Boruto: Naruto Next Generations",
+      "categories": [
+        "Anime"
+      ]
+    },
+    {
+      "providerChannelId": "66fedd65d7de140008dccd66",
+      "canonicalName": "El Reino Infantil",
+      "categories": [
+        "Kids"
+      ]
+    },
+    {
+      "providerChannelId": "68bb16a500a2f063fdf89f8c",
+      "canonicalName": "Chef vs Chef by Food Network",
+      "categories": [
+        "Home + Food"
+      ]
+    },
+    {
+      "providerChannelId": "678f8676ad083171df19ca07",
+      "canonicalName": "Ditzel & Turbomodul",
+      "categories": [
+        "Dansk reality & underholdning"
+      ]
+    },
+    {
+      "providerChannelId": "67a324d221af380008105d6f",
+      "canonicalName": "Eine schrecklich nette Familie",
+      "categories": [
+        "Sitcoms + Comedy"
+      ]
+    },
+    {
+      "providerChannelId": "622f487722d9d400075f74dd",
+      "canonicalName": "Ein Engel auf Erden",
+      "categories": [
+        "Sci-Fi & Fantasy"
+      ]
+    },
+    {
+      "providerChannelId": "5f2817d3d7573a00080f9175",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "categories": [
+        "Películas"
+      ]
+    },
+    {
+      "providerChannelId": "65790feacbd0d60008fac87a",
+      "canonicalName": "Telemundo Noticias California",
+      "categories": [
+        "En Español"
+      ]
+    },
+    {
+      "providerChannelId": "63da6bcd60bc8f0008a5d364",
+      "canonicalName": "Baby Shark TV",
+      "categories": [
+        "Infantil"
+      ]
+    },
+    {
+      "providerChannelId": "65d881d566eec8000887f6bb",
+      "canonicalName": "South Park: Butters Collection",
+      "categories": [
+        "South Park"
+      ]
+    },
+    {
+      "providerChannelId": "6732499ce40c4a0008bb9894",
+      "canonicalName": "Crimen",
+      "categories": [
+        "En Español"
+      ]
+    }
+  ],
+  "validations": [
+    {
+      "providerChannelId": "62724c8465731f0007b6cd86",
+      "canonicalName": "Project Runway (720p)",
+      "existingCatalogRecordId": "e0b78c62-cb29-400b-8205-2ec56f69343f",
+      "sourceHost": "d2zkt0rpioct1v.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\001-62724c8465731f0007b6cd86-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\001-62724c8465731f0007b6cd86-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\001-62724c8465731f0007b6cd86-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "62724c8465731f0007b6cd86",
+      "canonicalName": "Project Runway (720p)",
+      "existingCatalogRecordId": "b6d533bb-2e4e-4841-82ab-1b5f3713f6ff",
+      "sourceHost": "i.mjh.nz",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\002-62724c8465731f0007b6cd86-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\002-62724c8465731f0007b6cd86-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\002-62724c8465731f0007b6cd86-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "5e7cf6c7b156d500078c5f44",
+      "canonicalName": "OAN Plus (720p)",
+      "existingCatalogRecordId": "2a2e5730-7429-4638-b3e0-1ef279d2db52",
+      "sourceHost": "oan-plus-tcl.amagi.tv",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\003-5e7cf6c7b156d500078c5f44-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\003-5e7cf6c7b156d500078c5f44-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\003-5e7cf6c7b156d500078c5f44-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "5e7cf6c7b156d500078c5f44",
+      "canonicalName": "OAN Plus (720p)",
+      "existingCatalogRecordId": "57c01ebb-5c56-48ef-a60d-5fbe8283b270",
+      "sourceHost": "d35j504z0x2vu2.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "5bb1ad55268cae539bcedb08",
+      "canonicalName": "The Pet Collective (720p)",
+      "existingCatalogRecordId": "154914d7-6a45-4b95-b482-0cd01d051fec",
+      "sourceHost": "6ec8627d.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\005-5bb1ad55268cae539bcedb08-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\005-5bb1ad55268cae539bcedb08-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\005-5bb1ad55268cae539bcedb08-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "5b4e96a0423e067bd6df6901",
+      "canonicalName": "Unsolved Mysteries",
+      "existingCatalogRecordId": "ba77c8f3-be3e-481f-873b-a2aad72e559f",
+      "sourceHost": "d31z96rdrmwfsp.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "5fd7bca3e0a4ee0007a38e8c",
+      "canonicalName": "Vevo 2K",
+      "existingCatalogRecordId": "25458aaf-5810-469b-b9d3-7e3cf4027ac0",
+      "sourceHost": "d3150hggbcolbo.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "5f32f26bcd8aea00071240e5",
+      "canonicalName": "Vevo '70s",
+      "existingCatalogRecordId": "13e7de4d-6677-43db-96ba-4ad8504041f4",
+      "sourceHost": "d341pfs1smb2ef.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "601a0342dcf4370007566891",
+      "canonicalName": "Tiny House Nation (720p)",
+      "existingCatalogRecordId": "0b127b68-2901-439a-9d01-7894ea00851d",
+      "sourceHost": "adf47c43.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 2,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\009-601a0342dcf4370007566891-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\009-601a0342dcf4370007566891-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\009-601a0342dcf4370007566891-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "601a0342dcf4370007566891",
+      "canonicalName": "Tiny House Nation (720p)",
+      "existingCatalogRecordId": "22af9679-3b26-47bd-b714-d167ba8b7e74",
+      "sourceHost": "7e5c93fc.wurl.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 2,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\010-601a0342dcf4370007566891-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\010-601a0342dcf4370007566891-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\010-601a0342dcf4370007566891-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "66d714d815d2c60008cec6d2",
+      "canonicalName": "Escape to the Country (720p)",
+      "existingCatalogRecordId": "e636ec05-e276-42e3-ab4c-5823e7f1bd67",
+      "sourceHost": "i.mjh.nz",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "63eb947c4e83e70008ab877b",
+      "canonicalName": "NCIS",
+      "existingCatalogRecordId": "37a2b053-942d-4d1b-a146-82a7874852db",
+      "sourceHost": "i.mjh.nz",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "61f9597e78607000074f6c2a",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "existingCatalogRecordId": "700b6ca2-06d1-41de-9545-176682a8b651",
+      "sourceHost": "31.148.48.15",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 3,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\013-61f9597e78607000074f6c2a-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\013-61f9597e78607000074f6c2a-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\013-61f9597e78607000074f6c2a-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6909fc4b74601d957a380613",
+      "canonicalName": "Hardcore Pawn",
+      "existingCatalogRecordId": "887950bf-9e2c-4cc3-b59d-6c8b3d1321e5",
+      "sourceHost": "amg00627-amg00627c8-rakuten-uk-4801.playouts.now.amagi.tv",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 3,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\014-6909fc4b74601d957a380613-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\014-6909fc4b74601d957a380613-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\014-6909fc4b74601d957a380613-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "63d2c140c111bc0008cb890b",
+      "canonicalName": "TeleFórmula",
+      "existingCatalogRecordId": "7c34acf9-2662-491e-9b8a-d140ef7bcd2b",
+      "sourceHost": "mdstrm.com",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\015-63d2c140c111bc0008cb890b-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\015-63d2c140c111bc0008cb890b-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\015-63d2c140c111bc0008cb890b-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "655caa815812e80008884322",
+      "canonicalName": "Hot Ones",
+      "existingCatalogRecordId": "15a32eba-9c73-4cb9-a026-e47a6850169e",
+      "sourceHost": "d1si3n1st4nkgb.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "655caa815812e80008884322",
+      "canonicalName": "Hot Ones",
+      "existingCatalogRecordId": "a7228b64-991a-400d-b0dd-3878a3dfd1a5",
+      "sourceHost": "d532j1ra4v4q9.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "6440f8ba939a5900082bddc8",
+      "canonicalName": "World of Love Island",
+      "existingCatalogRecordId": "117fb222-5ae8-4525-a011-ff0bdf870e52",
+      "sourceHost": "worldofloveisland-rakuten.amagi.tv",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\018-6440f8ba939a5900082bddc8-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\018-6440f8ba939a5900082bddc8-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\018-6440f8ba939a5900082bddc8-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6a205abba7b5a6c560b8ac25",
+      "canonicalName": "All Reality We TV",
+      "existingCatalogRecordId": "ad46585f-8733-4879-9f84-ac423692d98f",
+      "sourceHost": "d3pxo1qcgzxtxs.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\019-6a205abba7b5a6c560b8ac25-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\019-6a205abba7b5a6c560b8ac25-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\019-6a205abba7b5a6c560b8ac25-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "6a205abba7b5a6c560b8ac25",
+      "canonicalName": "All Reality We TV",
+      "existingCatalogRecordId": "e0fc3ad7-4dab-4d30-95e7-bca81100b1d1",
+      "sourceHost": "d3pxo1qcgzxtxs.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": true,
+      "attempts": 1,
+      "errorClass": null,
+      "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN",
+      "framePaths": [
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\020-6a205abba7b5a6c560b8ac25-01.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\020-6a205abba7b5a6c560b8ac25-02.jpg",
+        "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-recovery-batch-6\\020-6a205abba7b5a6c560b8ac25-03.jpg"
+      ]
+    },
+    {
+      "providerChannelId": "662a26cb5a402e00086b2801",
+      "canonicalName": "River Monsters (720p)",
+      "existingCatalogRecordId": "7c974607-a918-4bf5-b81e-fbf7e846a1ad",
+      "sourceHost": "i.mjh.nz",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "682453731295f98347e92da8",
+      "canonicalName": "River Monsters",
+      "existingCatalogRecordId": "7c974607-a918-4bf5-b81e-fbf7e846a1ad",
+      "sourceHost": "i.mjh.nz",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "63eb82e24e83e70008ab735f",
+      "canonicalName": "Yu-Gi-Oh! – Pluto TV",
+      "existingCatalogRecordId": "7042c4de-3826-4d5d-ba31-c162d0e5996e",
+      "sourceHost": "amg01796-amg01796c19-rakuten-gb-7486.playouts.now.amagi.tv",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "63eb82e24e83e70008ab735f",
+      "canonicalName": "Yu-Gi-Oh! – Pluto TV",
+      "existingCatalogRecordId": "1882492e-9241-4f29-ac09-afda1912cc55",
+      "sourceHost": "dwgcgcahlni2h.cloudfront.net",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    },
+    {
+      "providerChannelId": "63a084934734f30007457b2c",
+      "canonicalName": "Smithsonian Channel Pluto TV",
+      "existingCatalogRecordId": "f5d3ce96-226b-441b-956a-ba4bec93a29c",
+      "sourceHost": "206.212.244.63",
+      "sourceType": "hls_stream",
+      "decoded": false,
+      "attempts": 3,
+      "errorClass": "transport_or_decode_failure",
+      "identityDecision": "RESEARCH_INCOMPLETE",
+      "framePaths": []
+    }
+  ]
+}

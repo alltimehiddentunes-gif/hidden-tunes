@@ -1,0 +1,214 @@
+{
+  "regions": [
+    {
+      "region": "Alba",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Arad",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Argeș",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 1
+    },
+    {
+      "region": "Bacău",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Bihor",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Bistrița-Năsăud",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Botoșani",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Brașov",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Brăila",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Buzău",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Caraș-Severin",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Călărași",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Cluj",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 3
+    },
+    {
+      "region": "Constanța",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 1
+    },
+    {
+      "region": "Covasna",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Dâmbovița",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Dolj",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Galați",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Giurgiu",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Gorj",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Harghita",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Hunedoara",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 2
+    },
+    {
+      "region": "Ialomița",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Iași",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 1
+    },
+    {
+      "region": "Ilfov",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 2
+    },
+    {
+      "region": "Maramureș",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Mehedinți",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Mureș",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 1
+    },
+    {
+      "region": "Neamț",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Olt",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Prahova",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Satu Mare",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Sălaj",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Sibiu",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Suceava",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 1
+    },
+    {
+      "region": "Teleorman",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Timiș",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 2
+    },
+    {
+      "region": "Tulcea",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Vaslui",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Vâlcea",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Vrancea",
+      "officialPagesTouched": false,
+      "candidateTitlesMentioning": 0
+    },
+    {
+      "region": "Bucharest",
+      "officialPagesTouched": true,
+      "candidateTitlesMentioning": 5
+    }
+  ]
+}

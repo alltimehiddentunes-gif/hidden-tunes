@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-17T00:29:56.110Z",
+  "scope": "Batch 32 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Pluto TV Serie: Direct Pluto-owned candidate retained but not full-tested after the stronger Paramount candidate failed the real-programming content gate.",
+    "TOP Barca: Queued opaque Roku delivery lacked complete primary exact candidate-to-channel linkage.",
+    "OuterSphere: Directly named CloudFront endpoint remained plausible, but complete primary distributor ownership linkage was not established.",
+    "Paramount Movie Channel: Direct Pluto-owned candidate advanced 124.90 seconds at 1216x684 with one video owner, but every evidence frame showed only a static Pluto logo, not real programming.",
+    "Pluto TV Motor: Queued digicom.hls.iptvdc.com Canal Motor endpoint lacked authoritative Pluto linkage and was rejected as uncertain/wrong source."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 74,
+  "cumulativeTerminalAliases": 230,
+  "batch32Target": 25,
+  "batch32Researched": 20,
+  "batch32Remaining": 5,
+  "batch32Complete": false
+}

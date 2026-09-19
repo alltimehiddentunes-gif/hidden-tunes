@@ -1,0 +1,79 @@
+{
+  "at": "2026-08-04T10:20:26.701Z",
+  "project": "https://kojcyswxfuikxmqntwye.supabase.co",
+  "mode": "PUBLISHED",
+  "leads": 142,
+  "officialWebsites": 125,
+  "officialPagesFetched": 92,
+  "correlated": 6,
+  "tested": 6,
+  "accepted": 0,
+  "imported": 1,
+  "rejected": 5,
+  "duplicates": 0,
+  "outcomes": [
+    {
+      "key": "cd7933706b5c8398b04f",
+      "country": "GN",
+      "title": "Evasion TV",
+      "url": "https://kali.vdopanel.com:3090/hybrid/play.m3u8",
+      "state": "rejected",
+      "reason": "fetch failed",
+      "sourceId": "EvasionTV.gn",
+      "website": "https://groupeevasionguinee.info/"
+    },
+    {
+      "key": "a13fc4e5c8dddc1faf71",
+      "country": "KE",
+      "title": "3 Stones TV",
+      "url": "https://goliveafrica.media:9998/live/64d21e682fd26/index.m3u8",
+      "state": "rejected",
+      "reason": "http_404",
+      "sourceId": "3StonesTV.ke",
+      "website": "https://threestones.tv/"
+    },
+    {
+      "key": "63e0d14354b0f8b6ffdc",
+      "country": "KE",
+      "title": "Njata TV",
+      "url": "https://goliveafrica.media:9998/live/625816e585a2b/index.m3u8",
+      "state": "rejected",
+      "reason": "http_404",
+      "sourceId": "NjataTV.ke",
+      "website": "https://njatatv.co.ke/"
+    },
+    {
+      "key": "cf2eb0ea099693436c33",
+      "country": "KE",
+      "title": "UTV",
+      "url": "https://goliveafrica.media:9998/live/62580d78ac508/index.m3u8",
+      "state": "rejected",
+      "reason": "http_404",
+      "sourceId": "UTV.ke",
+      "website": "https://utv.co.ke/"
+    },
+    {
+      "key": "0291c2f761e903eff8ff",
+      "country": "SN",
+      "title": "Amani TV",
+      "url": "https://goccn.cloud/hls/amanitv/index.m3u8",
+      "state": "imported",
+      "reason": "official_page_references_stream_host",
+      "sourceId": "AmaniTV.sn",
+      "website": "https://amanitv.media/",
+      "ios": true,
+      "android": true,
+      "protocol": "hls"
+    },
+    {
+      "key": "d28290fb643c97751035",
+      "country": "SN",
+      "title": "CNM TV",
+      "url": "https://stream.sen-gt.com/cnmtv/myStream/playlist.m3u8",
+      "state": "rejected",
+      "reason": "http_404",
+      "sourceId": "CNMTV.sn",
+      "website": "https://cnm.sn/"
+    }
+  ]
+}

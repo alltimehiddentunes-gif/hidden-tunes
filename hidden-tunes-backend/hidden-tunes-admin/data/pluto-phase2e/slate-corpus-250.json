@@ -1,0 +1,643 @@
+{
+  "testedAt": "2026-08-09T07:56:47.027Z",
+  "productionWrites": 0,
+  "priorPositiveControls": 30,
+  "priorNegativeControls": 131,
+  "newNegativeControls": 120,
+  "totalNegativeControls": 251,
+  "threshold": 8,
+  "falsePositives": 0,
+  "falseNegatives": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "categoryCoverage": [
+    "sports",
+    "sports_event",
+    "weather_graphics"
+  ],
+  "results": [
+    {
+      "name": "World Poker Tour",
+      "category": "sports",
+      "sourceHost": "d2e00kr7m9coe4.cloudfront.net",
+      "decoded": true,
+      "frames": [
+        {
+          "sample": 1,
+          "hash": "170f0f0f5951242c",
+          "distance": 24
+        },
+        {
+          "sample": 2,
+          "hash": "170f0f0f4d4d242a",
+          "distance": 24
+        },
+        {
+          "sample": 3,
+          "hash": "d045254941c7c66b",
+          "distance": 26
+        },
+        {
+          "sample": 4,
+          "hash": "d145254941c7c66b",
+          "distance": 25
+        },
+        {
+          "sample": 5,
+          "hash": "6da686347349657a",
+          "distance": 28
+        },
+        {
+          "sample": 6,
+          "hash": "6da686347369657a",
+          "distance": 29
+        },
+        {
+          "sample": 7,
+          "hash": "6da686347369657a",
+          "distance": 29
+        },
+        {
+          "sample": 8,
+          "hash": "6da686347369657a",
+          "distance": 29
+        },
+        {
+          "sample": 9,
+          "hash": "6da686347369657a",
+          "distance": 29
+        },
+        {
+          "sample": 10,
+          "hash": "6da686347349657a",
+          "distance": 28
+        },
+        {
+          "sample": 11,
+          "hash": "6da686347349657a",
+          "distance": 28
+        },
+        {
+          "sample": 12,
+          "hash": "6da6c61c7349657a",
+          "distance": 29
+        },
+        {
+          "sample": 13,
+          "hash": "6da686147349657a",
+          "distance": 29
+        },
+        {
+          "sample": 14,
+          "hash": "6da686147349657a",
+          "distance": 29
+        },
+        {
+          "sample": 15,
+          "hash": "d0c5054941c7c66b",
+          "distance": 26
+        },
+        {
+          "sample": 16,
+          "hash": "d045254941c7c66b",
+          "distance": 26
+        },
+        {
+          "sample": 17,
+          "hash": "d045250941c7c66b",
+          "distance": 25
+        },
+        {
+          "sample": 18,
+          "hash": "d0c5250941c7c66b",
+          "distance": 24
+        },
+        {
+          "sample": 19,
+          "hash": "a08cec546a5a5419",
+          "distance": 31
+        },
+        {
+          "sample": 20,
+          "hash": "a0acec546a525419",
+          "distance": 31
+        },
+        {
+          "sample": 21,
+          "hash": "a08cec546a5a5419",
+          "distance": 31
+        },
+        {
+          "sample": 22,
+          "hash": "a08cec546a525419",
+          "distance": 30
+        },
+        {
+          "sample": 23,
+          "hash": "a888cc4c4a5a1419",
+          "distance": 26
+        },
+        {
+          "sample": 24,
+          "hash": "e898cc6462726419",
+          "distance": 27
+        },
+        {
+          "sample": 25,
+          "hash": "a0acec544a7a3419",
+          "distance": 30
+        },
+        {
+          "sample": 26,
+          "hash": "d14525094147666b",
+          "distance": 21
+        },
+        {
+          "sample": 27,
+          "hash": "d1c565094147e66b",
+          "distance": 22
+        },
+        {
+          "sample": 28,
+          "hash": "d1c5450941c7e66b",
+          "distance": 24
+        },
+        {
+          "sample": 29,
+          "hash": "d1c525094147e66f",
+          "distance": 22
+        },
+        {
+          "sample": 30,
+          "hash": "d1c505094147e66b",
+          "distance": 22
+        },
+        {
+          "sample": 31,
+          "hash": "d14525094147e66b",
+          "distance": 22
+        },
+        {
+          "sample": 32,
+          "hash": "d14525094147e66b",
+          "distance": 22
+        },
+        {
+          "sample": 33,
+          "hash": "4d26865c53496576",
+          "distance": 30
+        },
+        {
+          "sample": 34,
+          "hash": "cd46465c5349657a",
+          "distance": 28
+        },
+        {
+          "sample": 35,
+          "hash": "c1c585014945e669",
+          "distance": 24
+        },
+        {
+          "sample": 36,
+          "hash": "2da6863c73696574",
+          "distance": 28
+        },
+        {
+          "sample": 37,
+          "hash": "4da6963673517e72",
+          "distance": 28
+        },
+        {
+          "sample": 38,
+          "hash": "170f0f0f4d4d763c",
+          "distance": 22
+        },
+        {
+          "sample": 39,
+          "hash": "d0c5250941c7666f",
+          "distance": 23
+        },
+        {
+          "sample": 40,
+          "hash": "d0c505094147e66f",
+          "distance": 24
+        }
+      ]
+    },
+    {
+      "name": "FIFA+",
+      "category": "sports_event",
+      "sourceHost": "ba3e2e93.wurl.com",
+      "decoded": true,
+      "frames": [
+        {
+          "sample": 1,
+          "hash": "743c4c8c2c2c2928",
+          "distance": 24
+        },
+        {
+          "sample": 2,
+          "hash": "5c3ff7df0f47311c",
+          "distance": 25
+        },
+        {
+          "sample": 3,
+          "hash": "5467bb9b518c6633",
+          "distance": 29
+        },
+        {
+          "sample": 4,
+          "hash": "581f2d502493cc46",
+          "distance": 28
+        },
+        {
+          "sample": 5,
+          "hash": "5a5b4b696bb38dad",
+          "distance": 26
+        },
+        {
+          "sample": 6,
+          "hash": "626a494b49ccd842",
+          "distance": 27
+        },
+        {
+          "sample": 7,
+          "hash": "8c08584a6aabcb25",
+          "distance": 22
+        },
+        {
+          "sample": 8,
+          "hash": "58d9999998161585",
+          "distance": 26
+        },
+        {
+          "sample": 9,
+          "hash": "94359c8d12264f01",
+          "distance": 24
+        },
+        {
+          "sample": 10,
+          "hash": "8494c686860ca806",
+          "distance": 25
+        },
+        {
+          "sample": 11,
+          "hash": "4cc94d1c74ddcd4a",
+          "distance": 33
+        },
+        {
+          "sample": 12,
+          "hash": "449b313211513313",
+          "distance": 21
+        },
+        {
+          "sample": 13,
+          "hash": "547476b0d9b22ebc",
+          "distance": 29
+        },
+        {
+          "sample": 14,
+          "hash": "c6dcccccc4d4dcc6",
+          "distance": 31
+        },
+        {
+          "sample": 15,
+          "hash": "0004304c4c310290",
+          "distance": 19
+        },
+        {
+          "sample": 16,
+          "hash": "9c0c9ab5b5b47434",
+          "distance": 28
+        },
+        {
+          "sample": 17,
+          "hash": "0536b6a444c4943c",
+          "distance": 25
+        },
+        {
+          "sample": 18,
+          "hash": "1884a7a6e3d2dada",
+          "distance": 32
+        },
+        {
+          "sample": 19,
+          "hash": "9d5cdafaaab61a9a",
+          "distance": 29
+        },
+        {
+          "sample": 20,
+          "hash": "4565415745654713",
+          "distance": 27
+        },
+        {
+          "sample": 21,
+          "hash": "65511b054551eb1d",
+          "distance": 28
+        },
+        {
+          "sample": 22,
+          "hash": "cdd9ed8d8b9b9c1f",
+          "distance": 30
+        },
+        {
+          "sample": 23,
+          "hash": "c9d0d69511930b6c",
+          "distance": 25
+        },
+        {
+          "sample": 24,
+          "hash": "d1254d53674d7165",
+          "distance": 30
+        },
+        {
+          "sample": 25,
+          "hash": "2951033723336692",
+          "distance": 22
+        },
+        {
+          "sample": 26,
+          "hash": "0001304c4c300111",
+          "distance": 24
+        },
+        {
+          "sample": 27,
+          "hash": "0001304c4c300111",
+          "distance": 24
+        },
+        {
+          "sample": 28,
+          "hash": "0001c03737c00111",
+          "distance": 28
+        },
+        {
+          "sample": 29,
+          "hash": "0001304c4c300111",
+          "distance": 24
+        },
+        {
+          "sample": 30,
+          "hash": "0082304c4c310290",
+          "distance": 18
+        },
+        {
+          "sample": 31,
+          "hash": "8e8c9ab5b7b47430",
+          "distance": 26
+        },
+        {
+          "sample": 32,
+          "hash": "0516b6a644d4143c",
+          "distance": 25
+        },
+        {
+          "sample": 33,
+          "hash": "c5e8e62727725a6c",
+          "distance": 30
+        },
+        {
+          "sample": 34,
+          "hash": "9d5cdafaaab61a9a",
+          "distance": 29
+        },
+        {
+          "sample": 35,
+          "hash": "4565415747654713",
+          "distance": 28
+        },
+        {
+          "sample": 36,
+          "hash": "65511b054551eb1d",
+          "distance": 28
+        },
+        {
+          "sample": 37,
+          "hash": "cdd9ed8d8b9b9c1f",
+          "distance": 30
+        },
+        {
+          "sample": 38,
+          "hash": "c9d0d69511930b6c",
+          "distance": 25
+        },
+        {
+          "sample": 39,
+          "hash": "d1254d53674d7165",
+          "distance": 30
+        },
+        {
+          "sample": 40,
+          "hash": "2951033723336692",
+          "distance": 22
+        }
+      ]
+    },
+    {
+      "name": "FOX Weather (720p)",
+      "category": "weather_graphics",
+      "sourceHost": "247wlive.foxweather.com",
+      "decoded": true,
+      "frames": [
+        {
+          "sample": 1,
+          "hash": "0f8716c6682b22aa",
+          "distance": 23
+        },
+        {
+          "sample": 2,
+          "hash": "0f8716c6682b22aa",
+          "distance": 23
+        },
+        {
+          "sample": 3,
+          "hash": "0f8716c6682b22a6",
+          "distance": 23
+        },
+        {
+          "sample": 4,
+          "hash": "0f8716c6683b22a6",
+          "distance": 24
+        },
+        {
+          "sample": 5,
+          "hash": "0f8716c6683b220a",
+          "distance": 22
+        },
+        {
+          "sample": 6,
+          "hash": "0f8716c66a3b220a",
+          "distance": 23
+        },
+        {
+          "sample": 7,
+          "hash": "0f0716c6683b222a",
+          "distance": 22
+        },
+        {
+          "sample": 8,
+          "hash": "0f8716c6683b222a",
+          "distance": 23
+        },
+        {
+          "sample": 9,
+          "hash": "0f8716c6683b2222",
+          "distance": 22
+        },
+        {
+          "sample": 10,
+          "hash": "0f8756c6683b222a",
+          "distance": 22
+        },
+        {
+          "sample": 11,
+          "hash": "0f0716c6683b222a",
+          "distance": 22
+        },
+        {
+          "sample": 12,
+          "hash": "0f8796c6682b222a",
+          "distance": 23
+        },
+        {
+          "sample": 13,
+          "hash": "0f8716c6682b22a6",
+          "distance": 23
+        },
+        {
+          "sample": 14,
+          "hash": "0f0716c6682b2226",
+          "distance": 21
+        },
+        {
+          "sample": 15,
+          "hash": "0f0716c6692b2226",
+          "distance": 20
+        },
+        {
+          "sample": 16,
+          "hash": "0f0716c6692b2a22",
+          "distance": 18
+        },
+        {
+          "sample": 17,
+          "hash": "4e8716c6682b2a26",
+          "distance": 21
+        },
+        {
+          "sample": 18,
+          "hash": "4e8696c6ea3b22a6",
+          "distance": 26
+        },
+        {
+          "sample": 19,
+          "hash": "068686c6eab322a6",
+          "distance": 27
+        },
+        {
+          "sample": 20,
+          "hash": "8c5c7c387e64c832",
+          "distance": 28
+        },
+        {
+          "sample": 21,
+          "hash": "031331b27119caaa",
+          "distance": 29
+        },
+        {
+          "sample": 22,
+          "hash": "cb1b191934b93830",
+          "distance": 22
+        },
+        {
+          "sample": 23,
+          "hash": "bb7bfeceeee0e0a0",
+          "distance": 30
+        },
+        {
+          "sample": 24,
+          "hash": "bc7a7eceeefce9b1",
+          "distance": 31
+        },
+        {
+          "sample": 25,
+          "hash": "9cba76cecaddc975",
+          "distance": 32
+        },
+        {
+          "sample": 26,
+          "hash": "0000000006c9c951",
+          "distance": 31
+        },
+        {
+          "sample": 27,
+          "hash": "070706390e0ff971",
+          "distance": 27
+        },
+        {
+          "sample": 28,
+          "hash": "0717063c0d0df971",
+          "distance": 28
+        },
+        {
+          "sample": 29,
+          "hash": "8e86317cdd8d9965",
+          "distance": 26
+        },
+        {
+          "sample": 30,
+          "hash": "ae8e317cd59dd965",
+          "distance": 30
+        },
+        {
+          "sample": 31,
+          "hash": "86863378d59dd94d",
+          "distance": 31
+        },
+        {
+          "sample": 32,
+          "hash": "868607390e0f7944",
+          "distance": 24
+        },
+        {
+          "sample": 33,
+          "hash": "a68607d9cd8f1545",
+          "distance": 25
+        },
+        {
+          "sample": 34,
+          "hash": "a6cccccc898b5745",
+          "distance": 30
+        },
+        {
+          "sample": 35,
+          "hash": "a6cecccc898b574d",
+          "distance": 30
+        },
+        {
+          "sample": 36,
+          "hash": "a6cccccca90b154d",
+          "distance": 29
+        },
+        {
+          "sample": 37,
+          "hash": "070706390e0ff969",
+          "distance": 29
+        },
+        {
+          "sample": 38,
+          "hash": "1b1b1e381c1df969",
+          "distance": 29
+        },
+        {
+          "sample": 39,
+          "hash": "1a3b5ed9d4ccc9c1",
+          "distance": 32
+        },
+        {
+          "sample": 40,
+          "hash": "123b5ed9d4e4c955",
+          "distance": 31
+        }
+      ]
+    }
+  ]
+}

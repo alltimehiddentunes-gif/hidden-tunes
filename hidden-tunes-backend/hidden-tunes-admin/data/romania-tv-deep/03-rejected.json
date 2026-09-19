@@ -1,0 +1,611 @@
+[
+  {
+    "key": "078a7304f456de61d06a",
+    "title": "A7 TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "official_manifest",
+    "sanitizedUrl": "https://a7tvlive.ro/A7TV/A7TV/playlist.m3u8"
+  },
+  {
+    "key": "50dd73fb3c4c7a74dee4",
+    "title": "Agro TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "official_manifest",
+    "sanitizedUrl": "https://agrotv.streamnet.ro/mobile_tv/agrotv.m3u8"
+  },
+  {
+    "key": "606e832fb1111721a8a7",
+    "title": "Aleph Business",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://streamw.m.ro/Aleph/ngrp:Alephbiz.stream_all/playlist.m3u8"
+  },
+  {
+    "key": "a574bbed6214c17a7ee4",
+    "title": "Aleph News",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream-aleph.m.ro/Aleph/ngrp:Alephnewsmain.stream_all/playlist.m3u8"
+  },
+  {
+    "key": "ba8693df60439ddc7f77",
+    "title": "Alfa Omega TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "official_broadcaster_page",
+    "sanitizedUrl": "https://aom-live.maghost.ro/aomTV/streams/OOztu5o9Fx6dh9mD1711027803849.m3u8"
+  },
+  {
+    "key": "66efe6cfe9d1936a2e31",
+    "title": "Alfa Omega TV",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://s5.alfaomega.tv:1935/alfaomega/smil:alfaomegatv/playlist.m3u8"
+  },
+  {
+    "key": "8b2fb19e54717a4867e4",
+    "title": "Angelus TV",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://video.angelustv.ro/hls/angelustv.m3u8"
+  },
+  {
+    "key": "5b051628374d27650794",
+    "title": "Antena Monden",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream1.antenaplay.ro/live/AntenaMonden/playlist.m3u8"
+  },
+  {
+    "key": "a6063fb3267ddd208f84",
+    "title": "Atomic Academy TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://atomic.streamnet.ro/academia.m3u8"
+  },
+  {
+    "key": "352f074184cdfc9a6d46",
+    "title": "Atomic TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://atomic.streamnet.ro/atomictv.m3u8"
+  },
+  {
+    "key": "2d88995cc795b53b7405",
+    "title": "Banat TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://www.btv.ro/hls/banat-tv.m3u8"
+  },
+  {
+    "key": "1ac36c5a39f63c55a9b2",
+    "title": "Bollywood",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://xykt-fix.github.io/cinerama_edge01/hls/BOLLYWOOD_RU/Movie009.m3u8"
+  },
+  {
+    "key": "3a79a6cd2a699fcd4729",
+    "title": "Bucovina TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "official_manifest",
+    "sanitizedUrl": "https://www.bucovinatv.ro/proxy/video/playlist.m3u8"
+  },
+  {
+    "key": "ec3ec91fd414cfff4ac5",
+    "title": "Columna TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://cdn.streamnet.pro/columnatv/live/playlist.m3u8"
+  },
+  {
+    "key": "2625f6c13f39d4c28e3c",
+    "title": "Credo TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://cdn.credonet.tv:1935/ctv/livecredo/playlist.m3u8"
+  },
+  {
+    "key": "891c0a927570e6cc94db",
+    "title": "Credo TV",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://5bb3298db4821.streamlock.net/ctv/livecredo/playlist.m3u8"
+  },
+  {
+    "key": "3276d44afde86c1a139d",
+    "title": "Credo TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://651c69fa2ff4e.streamlock.net/ctv/_definst_/livecredo/playlist.m3u8"
+  },
+  {
+    "key": "627f5beba95703b45117",
+    "title": "Digi24",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "official_manifest",
+    "sanitizedUrl": "https://edge-ar.rcs-rds.ro/digi24ar/index.m3u8"
+  },
+  {
+    "key": "06dfa49e6f0060a3be82",
+    "title": "Dotto TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "official_manifest",
+    "sanitizedUrl": "https://live.dottotv.ro/index.m3u8"
+  },
+  {
+    "key": "262a59c991007794f6f6",
+    "title": "EMI TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://astra.emitv.ro/hls/emi/index.m3u8"
+  },
+  {
+    "key": "071edb70764005109fd0",
+    "title": "Hello Taste",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream1.antenaplay.ro/live/HelloTaste/playlist.m3u8"
+  },
+  {
+    "key": "99287e8bcc1d8cf70a54",
+    "title": "Hello Taste",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://dai.google.com/linear/hls/pa/event/YeG0_KbLRjGeYKU2qVhl_Q/stream/daadc33b-fc6b-4c9e-a8d4-9ca1b7087d4d:BRU/master.m3u8"
+  },
+  {
+    "key": "a2c1d24b70b6e8fa0c49",
+    "title": "Hunedoara 1",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://netstreaming.eu/hd1.m3u8"
+  },
+  {
+    "key": "16fe2de6b8ae2670c69c",
+    "title": "IasiTV Life",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tv.streambox.ro/hls/itv/index.m3u8"
+  },
+  {
+    "key": "7ae696f68eb217cd7c52",
+    "title": "Impact TV Dance",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://online.tvimpact.live/hls/dancetv.m3u8"
+  },
+  {
+    "key": "2e7382265fa8adfaa712",
+    "title": "Impact TV Manele",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://online.tvimpact.live/hls/impact_tv.m3u8"
+  },
+  {
+    "key": "9fe53bbf9c377303821f",
+    "title": "Informatia TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://informatia.streamnet.ro/mobile_tv/informatiatv.m3u8"
+  },
+  {
+    "key": "7ffa36e3eb0036204f95",
+    "title": "JOB TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://jobtvserver.eu/hls/stream.m3u8"
+  },
+  {
+    "key": "f2e78fef221426ef68aa",
+    "title": "Kanal D2",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream2.kanald.ro/iphone/knd2-live.m3u8"
+  },
+  {
+    "key": "d2063d9e15f325ecb52e",
+    "title": "Kanal D2",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://aes.m3u8simplu.workers.dev/kanald2/index.m3u8"
+  },
+  {
+    "key": "7bbcb3c31d38142da7ac",
+    "title": "Kanal D",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream1.kanald.ro/iphone/knd-live.m3u8"
+  },
+  {
+    "key": "915756209107b37d06e6",
+    "title": "Kiss TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tv.broadcasting.ro/kisstv/a629c031-2170-4ee9-a36d-87a891aa3131.m3u8"
+  },
+  {
+    "key": "a8a1b5670f3a584fc46c",
+    "title": "Light Channel",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://streamer1.streamhost.org:1935/salive/GMIlcbgM/playlist.m3u8"
+  },
+  {
+    "key": "b442b6c5cee2e3854447",
+    "title": "Magic TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tv.broadcasting.ro/magictv/925f90db-5c88-4190-a53d-5163cdffe6f4.m3u8"
+  },
+  {
+    "key": "eae42d43897e76709934",
+    "title": "MediCOOL TV",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://dai.google.com/linear/hls/pa/event/dpT7XJvhSzm5-pQkjgqRtg/stream/851625d8-0bfe-4ea1-a924-ddb3ff4d1e53:GRQ/master.m3u8"
+  },
+  {
+    "key": "7e2e70cfc76c66df668a",
+    "title": "Metropola TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "official_broadcaster_page",
+    "sanitizedUrl": "https://www.livemetropolatv.ro/MetropolaTV/Metro/playlist.m3u8"
+  },
+  {
+    "key": "0059b166578ca270d904",
+    "title": "Mireasa",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream1.antenaplay.ro/live/MireasaExtra/playlist.m3u8"
+  },
+  {
+    "key": "c6be34aa7fb795ffaebc",
+    "title": "MISA TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://vidl.misatv.ro:5050/MSTV/romanian_720p_baseline/playlist.m3u8"
+  },
+  {
+    "key": "ce2a3e8800f21f1f58ad",
+    "title": "Muscel TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://cdn.streamnet.pro/musceltv/live/playlist.m3u8"
+  },
+  {
+    "key": "cc2ddc94c49c3e491efb",
+    "title": "Nasul TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://live.nasul.tv/live/stream.m3u8"
+  },
+  {
+    "key": "5a3eb1fa4661aeb892dc",
+    "title": "Nova TV Brasov",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://novapress.ro:2022/live/nova/playlist.m3u8"
+  },
+  {
+    "key": "4fd3e0e3458ef6bca402",
+    "title": "PROTV News",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://cmero-ott-live.ssl.cdn.cra.cz/channels/cme-ro-voyo-news/playlist.m3u8?offsetSeconds=0&url=0"
+  },
+  {
+    "key": "18d4d2e5c1a46a38e6a9",
+    "title": "Qub TV",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://live.djemba.ro/memfs/474f9942-f72b-4130-817a-435cd54b2c36.m3u8"
+  },
+  {
+    "key": "0d8fb48260eef3111244",
+    "title": "Radio Fx Net",
+    "reason": "audio_only",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://streamlov.alsolnet.com/radiofxnet/live/playlist.m3u8"
+  },
+  {
+    "key": "076949d9ff7b2f56fc94",
+    "title": "Realitatea Plus",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream.realitatea.net/realitatea/plus_md/ts:playlist.m3u8"
+  },
+  {
+    "key": "2a338f7d4674a1209598",
+    "title": "Realitatea Sportiva",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream.realitatea.net/realitatea/sportiva_md/ts:playlist.m3u8"
+  },
+  {
+    "key": "61e284fa5fd9617182c7",
+    "title": "Realitatea Star",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream.realitatea.net/realitatea/star_md/ts:playlist.m3u8"
+  },
+  {
+    "key": "d49c864829291a3e6aaa",
+    "title": "Rock TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tv.broadcasting.ro/rocktv/85c83a80-4f71-4f2d-a8d6-43f676896bcb.m3u8"
+  },
+  {
+    "key": "c381e772d2d8716d1ba4",
+    "title": "Super TV",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://live.supertv.ro/live/supertv/playlist.m3u8"
+  },
+  {
+    "key": "981590471d95119dbb47",
+    "title": "Super TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "http://iptv.supertv.ro:8000/play/a001/index.m3u8"
+  },
+  {
+    "key": "4b16d4a7fed6f24ac9dd",
+    "title": "Tele7ABC",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://live.tele7abc.ro/hls/stream/index.m3u8"
+  },
+  {
+    "key": "80f625603ee6baf23895",
+    "title": "Tele7music",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://live.tele7music.ro/hls/stream/index.m3u8"
+  },
+  {
+    "key": "eeafb035ce96d92c5e93",
+    "title": "TeleMoldova +",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://vdo.ssl-stream.com:3247/stream/play.m3u8"
+  },
+  {
+    "key": "ad23f195cb477759504d",
+    "title": "Telestar1",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://dvb.tennet.ro/mobile_tv/telestar.m3u8"
+  },
+  {
+    "key": "bdc603a27ddea51997cd",
+    "title": "TVR 1",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-1.lg.mncdn.com/tvr1/smil:tvr1.smil/playlist.m3u8"
+  },
+  {
+    "key": "cf61ffd52b6dd44f3c5c",
+    "title": "TVR 2",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-2.lg.mncdn.com/tvr2/smil:tvr2.smil/playlist.m3u8"
+  },
+  {
+    "key": "e33c2f727f1ed3b60b41",
+    "title": "TVR 3",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-3.lg.mncdn.com/tvr3/smil:tvr3.smil/playlist.m3u8"
+  },
+  {
+    "key": "1751b5f0a4ed954d1e96",
+    "title": "TVR Cluj",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-cluj.lg.mncdn.com/tvrcluj/smil:tvrcluj.smil/playlist.m3u8"
+  },
+  {
+    "key": "6fc5df66fde508846da6",
+    "title": "TVR Craiova",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-craiova.lg.mncdn.com/tvrcraiova/smil:tvrcraiova.smil/playlist.m3u8"
+  },
+  {
+    "key": "bcafc47bcd561fc9a898",
+    "title": "TVR Cultural",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-cultural.lg.mncdn.com/tvrcultural/smil:tvrcultural.smil/playlist.m3u8"
+  },
+  {
+    "key": "82ef4e7557be80e1499f",
+    "title": "TVR Folclor",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-folclor.lg.mncdn.com/tvrfolclor/smil:tvrfolclor.smil/playlist.m3u8"
+  },
+  {
+    "key": "0d7cea13354e4c36e862",
+    "title": "TVR Iasi",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-tvriasi.cdn.zitec.com/live/tvriasi/main.m3u8"
+  },
+  {
+    "key": "275ae8210cdabb77b901",
+    "title": "TVR Iasi",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-iasi.lg.mncdn.com/tvriasi/smil:tvriasi.smil/playlist.m3u8"
+  },
+  {
+    "key": "bb59d698bda09019f851",
+    "title": "TVR Info",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-info.lg.mncdn.com/tvrinfo/smil:tvrinfo.smil/playlist.m3u8"
+  },
+  {
+    "key": "1e5079a6c1f32840d1f8",
+    "title": "TVR International",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-international.lg.mncdn.com/tvrinternational/smil:tvrinternational.smil/playlist.m3u8"
+  },
+  {
+    "key": "ed2facd71b4c59196c6c",
+    "title": "TVR Sport",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-sport.lg.mncdn.com/tvrsport/smil:tvrsport.smil/playlist.m3u8"
+  },
+  {
+    "key": "b4537541cfc42c30dbfb",
+    "title": "TVR Targu-Mures",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-tgmures.lg.mncdn.com/tvrtgmures/smil:tvrtgmures.smil/playlist.m3u8"
+  },
+  {
+    "key": "10aa10265a0debffb829",
+    "title": "TVR Timisoara",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://tvr-timisoara.lg.mncdn.com/tvrtimisoara/smil:tvrtimisoara.smil/playlist.m3u8"
+  },
+  {
+    "key": "3def9bb20b1015d584c0",
+    "title": "TV SUD",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "iptv_org",
+    "sanitizedUrl": "https://stream2.live-stream.ro/WebRTCApp/streams/118334672595255049029831.m3u8"
+  },
+  {
+    "key": "21a94f119378128f3875",
+    "title": "Romania TV",
+    "reason": "dead_or_unreachable",
+    "sourceFamily": "official_manifest",
+    "sanitizedUrl": "https://livestream.romaniatv.net/clients/romaniatv/playlist.m3u8"
+  },
+  {
+    "key": "2e8a166005284526b7a0",
+    "title": "Radio România Constanța Video",
+    "reason": "audio_only",
+    "sourceFamily": "official_public_video",
+    "sanitizedUrl": "https://stream3.srr.ro/live/1dec/playlist.m3u8"
+  },
+  {
+    "key": "b361b292aba97573c516",
+    "title": "Arges TV",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://btutzctahuf0wjoq.cdn.streamingserver.io/hls/yjvam8hlp2g3u08z02tv0yz66rq3cy.m3u8"
+  },
+  {
+    "key": "1357ce41c390ef245914",
+    "title": "Bollywood Classic",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://dokagents.site/live/bollyc/mono.m3u8"
+  },
+  {
+    "key": "ef12c43a5f76b4621758",
+    "title": "Bollywood Classic",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://d35j504z0x2vu2.cloudfront.net/v1/master/0bc8e8376bd8417a1b6761138aa41c26c7309312/bollywood-classic/manifest.m3u8?ads.vf=QzgeokcHKvy"
+  },
+  {
+    "key": "e6d5ab1743fab9986d31",
+    "title": "Bollywood",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://d35j504z0x2vu2.cloudfront.net/v1/master/0bc8e8376bd8417a1b6761138aa41c26c7309312/bollywood-hd/manifest.m3u8?ads.vf=lWu9a-np_Vi"
+  },
+  {
+    "key": "7d97bb166af533d3bc9f",
+    "title": "Comedy Play",
+    "reason": "duplicate_existing_url",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://stream1.antenaplay.ro/live/ComedyPlay/playlist.m3u8"
+  },
+  {
+    "key": "026dec974d92b8d36657",
+    "title": "TVR 1 Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvr1_hd_live/smil:tvr1_hd_live.smil/playlist.m3u8"
+  },
+  {
+    "key": "bd246b131da044940e72",
+    "title": "TVR 2 Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvr2_test/smil:tvr2_test.smil/playlist.m3u8"
+  },
+  {
+    "key": "19d185fb28b8299f97c6",
+    "title": "TVR 3 Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvr3_test/smil:tvr3_test.smil/playlist.m3u8"
+  },
+  {
+    "key": "f086d7151c3e54bb0012",
+    "title": "TVR Info Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvrinfo/tvrinfo_mjuypp/playlist.m3u8"
+  },
+  {
+    "key": "0cc59ed9c898d8b8401c",
+    "title": "TVR International Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvri_test/smil:tvri_test.smil/playlist.m3u8"
+  },
+  {
+    "key": "b7b22d27fc83eda67606",
+    "title": "Prima TV",
+    "reason": "probe_failed",
+    "sourceFamily": "official_manifest",
+    "sanitizedUrl": "https://stream1.1616.ro:1945/prima/livestream/playlist.m3u8"
+  },
+  {
+    "key": "ce5f773b93ec03a3bfec",
+    "title": "TVR Cluj Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvrcluj_new/smil:tvrcluj_new.smil/index.m3u8"
+  },
+  {
+    "key": "5662e69cc6420779c368",
+    "title": "TVR Craiova Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvrcraiova_new/smil:tvrcraiova_new.smil/index.m3u8"
+  },
+  {
+    "key": "bc2765dd56f5f8f6751c",
+    "title": "TVR Iași Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvriasi_new/smil:tvriasi_new.smil/index.m3u8"
+  },
+  {
+    "key": "9fa6b7946b68fa6ac813",
+    "title": "TVR Timișoara Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvrtimisoara_new/smil:tvrtimisoara_new.smil/index.m3u8"
+  },
+  {
+    "key": "4cf3a51b82119e81fa08",
+    "title": "TVR Tîrgu-Mureș Ⓖ",
+    "reason": "legal_source_unverified",
+    "sourceFamily": "local_seed_json",
+    "sanitizedUrl": "https://mn-nl.mncdn.com/tvrtgmures_new/smil:tvrtgmures_new.smil/index.m3u8"
+  }
+]

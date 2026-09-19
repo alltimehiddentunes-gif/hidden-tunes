@@ -1,0 +1,86 @@
+{
+  "createdAt": "2026-08-10T04:22:25.909Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "providerChannelId": "62a0b2aff4cf470007e47e29",
+      "existingCatalogRecordId": "cf9fc0b8-76b4-4f45-9b1d-24d2cbf98868",
+      "sourceHost": "rivermonstergermany-rakuten.amagi.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelId": "657881c46e4f6a00087414c2",
+      "existingCatalogRecordId": "2677d15a-8bf9-4989-9bae-410311fae926",
+      "sourceHost": "8e979536.wurl.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelId": "5f515ebac01c0f00080e8439",
+      "existingCatalogRecordId": "154914d7-6a45-4b95-b482-0cd01d051fec",
+      "sourceHost": "6ec8627d.wurl.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelId": "66df8aa7abec540008ca8cb6",
+      "existingCatalogRecordId": "57dbad06-6944-46da-bd60-9286ee3d1695",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelId": "64e35aff6b1fdb0008ea8441",
+      "existingCatalogRecordId": "b1f3ee0e-9320-4304-a3c2-2e237224922b",
+      "sourceHost": "igd-it-runtime.otteravision.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    }
+  ],
+  "rejected": [
+    [
+      "5ddd7cb2cbb9010009b4fe32",
+      "Aggregator source is unauthorized and ineligible for Nick Jr. Club."
+    ]
+  ],
+  "unresolved": [
+    [
+      "65d9167818036500080e8780",
+      "Generic slate only; Hunter x Hunter programming and source provenance were not established."
+    ],
+    [
+      "673bf05ddaad7f0008ac7a5c",
+      "Dinosaur programming observed, but opaque CloudFront provenance is insufficient."
+    ],
+    [
+      "66b646f9cd0d3100086af83c",
+      "Interview content observed, but exact 60 Minutes identity and opaque relay provenance were not established."
+    ],
+    [
+      "64a3d96f060e830008af6745",
+      "MovieSphere branding observed, but opaque CloudFront provenance is insufficient."
+    ]
+  ]
+}

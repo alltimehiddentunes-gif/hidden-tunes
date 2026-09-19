@@ -1,0 +1,15 @@
+{
+  "candidateId": "4c513653-0fae-4ab3-87c6-62d407783f83",
+  "streamHost": "247wlive.foxweather.com",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 192.289929,
+    "advancedSeconds": 124.280595,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

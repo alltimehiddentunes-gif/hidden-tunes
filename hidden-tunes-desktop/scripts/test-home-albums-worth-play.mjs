@@ -41,18 +41,16 @@ check(
 )
 check(
   '3-sidebar-footer-same-session',
-  appSource.includes("context === 'home' || context === 'discover'") &&
-    appSource.includes('setDesktopSelectedTrack(resolved)') &&
-    /if \(context === 'home' \|\| context === 'discover'\) \{\s*setDesktopSelectedTrack\(resolved\)\s*return\s*\}/.test(
-      appSource.replace(/\r\n/g, '\n'),
-    ),
-  'home/discover context returns before openSong (no PlayerWorkspace)',
+  appSource.includes('startMediaSession({') &&
+    appSource.includes('Every music source starts the shared compact session') &&
+    !appSource.includes("context === 'home' || context === 'discover' ? 'compact' : 'expanded'"),
+  'home/discover starts the shared session in the compact player',
 )
 check(
-  '7-no-playerworkspace-nav',
-  !/music-home-album-card[\s\S]{0,260}onOpenAlbum\(/.test(homePage) &&
-    homePage.includes('playAlbumCollection'),
-  'card primary action is play, not openAlbum',
+  '7-detail-and-play-actions-separated',
+  homePage.includes('onClick={() => onOpenAlbum(card.album)}') &&
+    homePage.includes('onClick={() => playAlbumCollection(card)}'),
+  'card body opens details and the Play button starts playback',
 )
 check(
   '8-no-second-audio-owner',
@@ -63,7 +61,7 @@ check(
 )
 check(
   '9-double-click-guard',
-  homePage.includes('disabled={locked && !isLoading}') && homePage.includes('450'),
+  homePage.includes('disabled={!canPlay || (locked && !isLoading)}') && homePage.includes('450'),
   'cards lock while a play is in flight',
 )
 check(
@@ -108,15 +106,15 @@ check(
   'queue seeded with album tracks + seedId',
 )
 check(
-  '6-auto-next-bounded',
-  homePage.includes('bounded: true'),
-  'album plays are bounded (auto-next within album)',
+  '6-auto-next-source-first',
+  homePage.includes('bounded: false'),
+  'album order is preserved first, then shared continuation may broaden',
 )
 check(
-  'details-secondary-only',
-  homePage.includes('music-home-album-details') &&
-    /music-home-album-details[\s\S]{0,120}onOpenAlbum\(card\.album\)/.test(homePage),
-  'Details button is the only navigation path',
+  'unplayable-records-excluded',
+  parityLib.includes('.filter((card) => card.playableTrackCount > 0)') &&
+    !parityLib.includes('const fillers = ranked.filter'),
+  'artwork-only and unresolved records cannot enter the playable rail',
 )
 check(
   'responsiveness-pointer-events',
@@ -137,7 +135,7 @@ check(
 
 // --- Live catalog label audit (optional network) ---
 async function liveAudit() {
-  const BASE = process.env.HT_API_BASE || 'https://hidden-tunes-api.onrender.com'
+  const BASE = process.env.HT_API_BASE || 'https://api.hiddentunes.com'
   const albumsRes = await fetch(`${BASE}/api/albums?page=1&limit=40`, {
     headers: { Accept: 'application/json', 'x-ht-platform': 'desktop' },
   })
@@ -212,9 +210,13 @@ async function importViteHelpers() {
   return { buildCatalogIndexes: null }
 }
 
-await liveAudit().catch((err) => {
-  check('live-audit', false, String(err?.message || err))
-})
+if (process.env.HT_RUN_LIVE_AUDIT === '1') {
+  await liveAudit().catch((err) => {
+    check('live-audit', false, String(err?.message || err))
+  })
+} else {
+  console.log('SKIP: live-audit â€” set HT_RUN_LIVE_AUDIT=1 to query the production catalog')
+}
 
 fs.writeFileSync(path.join(outDir, 'TEST-RESULTS.json'), JSON.stringify(results, null, 2))
 

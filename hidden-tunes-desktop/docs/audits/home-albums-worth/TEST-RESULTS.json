@@ -13,12 +13,12 @@
     {
       "name": "3-sidebar-footer-same-session",
       "ok": true,
-      "detail": "home/discover context returns before openSong (no PlayerWorkspace)"
+      "detail": "home/discover starts the shared session in the compact player"
     },
     {
-      "name": "7-no-playerworkspace-nav",
+      "name": "7-detail-and-play-actions-separated",
       "ok": true,
-      "detail": "card primary action is play, not openAlbum"
+      "detail": "card body opens details and the Play button starts playback"
     },
     {
       "name": "8-no-second-audio-owner",
@@ -61,14 +61,14 @@
       "detail": "queue seeded with album tracks + seedId"
     },
     {
-      "name": "6-auto-next-bounded",
+      "name": "6-auto-next-source-first",
       "ok": true,
-      "detail": "album plays are bounded (auto-next within album)"
+      "detail": "album order is preserved first, then shared continuation may broaden"
     },
     {
-      "name": "details-secondary-only",
+      "name": "unplayable-records-excluded",
       "ok": true,
-      "detail": "Details button is the only navigation path"
+      "detail": "artwork-only and unresolved records cannot enter the playable rail"
     },
     {
       "name": "responsiveness-pointer-events",

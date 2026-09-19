@@ -8,6 +8,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const EVIDENCE = path.join(ROOT, 'docs', 'audits', 'global-search')
 const URL = process.env.HT_VALIDATE_URL || 'http://localhost:5173'
 const out = { checks: [], failures: [] }
+let validationWindow = null
+const rendererConsole = []
 function record(check, ok, detail = '') {
   out.checks.push({ check, ok, detail })
   if (!ok) out.failures.push({ check, detail })
@@ -16,7 +18,7 @@ function record(check, ok, detail = '') {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function waitUrl(url) {
   const t0 = Date.now()
-  while (Date.now() - t0 < 90000) {
+  while (Date.now() - t0 < 20000) {
     try {
       const res = await fetch(url)
       if (res.ok || res.status === 304) return
@@ -30,7 +32,7 @@ async function evalPage(win, src) {
 }
 async function waitReady(win) {
   const t0 = Date.now()
-  while (Date.now() - t0 < 90000) {
+  while (Date.now() - t0 < 30000) {
     const s = await evalPage(win, `() => ({ sidebar: !!document.querySelector('.sidebar'), splash: !!document.querySelector('.launch-screen, #launch-splash') })`)
     if (s.sidebar && !s.splash) return
     await sleep(400)
@@ -51,6 +53,10 @@ async function main() {
   await waitUrl(URL)
   await app.whenReady()
   const win = new BrowserWindow({ width: 1024, height: 900, useContentSize: true, show: false, webPreferences: { contextIsolation: true, nodeIntegration: false } })
+  validationWindow = win
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    rendererConsole.push({ level, message, line, sourceId })
+  })
   win.setContentSize(1024, 900)
   await win.loadURL(URL)
   await waitReady(win)
@@ -105,7 +111,7 @@ async function main() {
   const cleared = await evalPage(win, `() => Boolean(document.querySelector('.sidebar') && document.querySelector('main, .content, .page'))`)
   record('Cleared search keeps shell', cleared === true)
 
-  for (const label of ['Home', 'Music', 'Radio', 'My Library']) {
+  for (const label of ['Home', 'Music', 'Radio', 'Library']) {
     record(`${label} still opens`, await clickNav(win, label) === true)
     await sleep(300)
   }
@@ -115,7 +121,31 @@ async function main() {
   out.failed = out.failures.length
   fs.writeFileSync(path.join(EVIDENCE, 'runtime-results.json'), JSON.stringify(out, null, 2))
   console.log(`\nGlobal search runtime: ${out.passed} passed, ${out.failed} failed`)
+  if (!win.isDestroyed()) win.destroy()
+  validationWindow = null
   app.exit(out.failed > 0 ? 1 : 0)
 }
 
-main().catch((e) => { console.error(e); app.exit(1) })
+main().catch(async (e) => {
+  console.error(e)
+  fs.mkdirSync(EVIDENCE, { recursive: true })
+  const diagnostics = {
+    error: String(e?.stack || e),
+    url: validationWindow && !validationWindow.isDestroyed() ? validationWindow.webContents.getURL() : URL,
+    rendererConsole,
+    capturedAt: new Date().toISOString(),
+  }
+  if (validationWindow && !validationWindow.isDestroyed()) {
+    try {
+      const page = await validationWindow.webContents.executeJavaScript(`(() => ({ heading: document.querySelector('h1,h2')?.textContent || '', route: location.href, audioOwners: document.querySelectorAll('audio').length, videoOwners: document.querySelectorAll('video').length }))()`, true)
+      diagnostics.page = page
+      const image = await validationWindow.webContents.capturePage()
+      fs.writeFileSync(path.join(EVIDENCE, 'runtime-failure.png'), image.toPNG())
+    } catch (diagnosticError) {
+      diagnostics.diagnosticError = String(diagnosticError)
+    }
+    validationWindow.destroy()
+  }
+  fs.writeFileSync(path.join(EVIDENCE, 'runtime-failure.json'), JSON.stringify(diagnostics, null, 2))
+  app.exit(1)
+})

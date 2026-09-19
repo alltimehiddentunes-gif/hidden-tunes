@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T07:44:37.284Z",
+  "identity": "BUZZR",
+  "candidateRecordId": "85355b3f-9a8f-4fd8-9b66-88eef9b12acc",
+  "aliasesTerminal": 2,
+  "authoritativeProvenance": "Official Tubi FAST distribution",
+  "content": "Real moving classic game-show programming",
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 119.99,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

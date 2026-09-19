@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-16T18:31:58.703Z",
+  "scope": "Batch 30 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Andromeda: Directly named Samsung Germany MediaTailor/Wurl candidate, but no current primary Samsung listing directly linked this exact candidate to the channel.",
+    "MTV Originals: Direct Pluto-owned candidate advanced 121.98 seconds at 1216x684 with one video owner, but every evidence frame showed only a static Pluto TV Are you still watching slate, not real programming.",
+    "Top Gear: Samsung officially lists Top Gear, but the queued generic CloudFront candidate lacked complete direct candidate-to-channel ownership linkage.",
+    "Pluto TV Conspiracy: Direct Pluto-owned delivery was retained, but was not full-tested after the stronger MTV Originals candidate failed the real-programming content gate.",
+    "Hot Ones: Queued opaque Roku delivery lacked complete primary evidence tying this exact endpoint to the Hot Ones channel."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 72,
+  "cumulativeTerminalAliases": 215,
+  "batch30Target": 25,
+  "batch30Researched": 10,
+  "batch30Remaining": 15,
+  "batch30Complete": false
+}

@@ -1,5 +1,6 @@
 ﻿import {
   createContext,
+  lazy,
   memo,
   startTransition,
   useCallback,
@@ -40,6 +41,8 @@ import {
   loadMusicGenreSongsPage,
   loadMusicCatalogPage,
   MUSIC_CATALOG_PAGE_SIZE,
+  searchMusicAlbumsPage,
+  searchMusicArtistsPage,
   searchMusicSongsPage,
 } from './lib/musicCatalog'
 import { parseMusicGenreIntent, type MusicGenreDefinition } from './lib/musicGenres'
@@ -90,6 +93,9 @@ import {
 } from './services/desktopSupabaseAuth'
 import { DesktopAuthProvider } from './context/DesktopAuthProvider'
 import ContentShareActions from './components/sharing/ContentShareActions'
+const DesktopLocalCrossplayBridge = import.meta.env.DEV
+  ? lazy(() => import('./components/crossplay/DesktopLocalCrossplayBridge').then((module) => ({ default: module.DesktopLocalCrossplayBridge })))
+  : null
 import {
   LocalizationProvider,
   PRODUCTION_LOCALES,
@@ -1396,9 +1402,9 @@ function resolvePageFromNavKey(navKey: NavKey): PageId {
       return 'tv'
     case 'sports':
       return 'sports'
-      case 'about':
-      case 'download':
-      case 'originals':
+    case 'about':
+    case 'download':
+    case 'originals':
     case 'support':
     case 'contact':
     case 'privacy':
@@ -3472,6 +3478,8 @@ function DiscoverPage({
 
   const trimmedQuery = debouncedQuery.trim()
   const [remoteSongs, setRemoteSongs] = useState<ApiSong[]>([])
+  const [remoteArtists, setRemoteArtists] = useState<ApiArtist[]>([])
+  const [remoteAlbums, setRemoteAlbums] = useState<ApiAlbum[]>([])
   const [remoteSearchLoading, setRemoteSearchLoading] = useState(false)
   const [remoteSearchError, setRemoteSearchError] = useState<string | null>(null)
   const [remotePage, setRemotePage] = useState(1)
@@ -3485,6 +3493,8 @@ function DiscoverPage({
     setPrevHasRemoteQuery(hasRemoteQuery)
     if (!hasRemoteQuery) {
       setRemoteSongs([])
+      setRemoteArtists([])
+      setRemoteAlbums([])
       setRemoteSearchLoading(false)
       setRemoteSearchError(null)
     }
@@ -3502,20 +3512,23 @@ function DiscoverPage({
       setRemoteSearchLoading(true)
       setRemoteSearchError(null)
       setRemoteSongs([])
+      setRemoteArtists([])
+      setRemoteAlbums([])
       setRemoteHasMore(false)
 
       try {
-        const result = await (genreDefinition
-          ? loadFilteredGenrePage(genreDefinition, 1, controller.signal)
-          : searchMusicSongsPage({
-              query: trimmedQuery,
-              page: 1,
-              limit: MUSIC_CATALOG_PAGE_SIZE,
-              signal: controller.signal,
-            }))
+        const [result, artistResult, albumResult] = genreDefinition
+          ? [await loadFilteredGenrePage(genreDefinition, 1, controller.signal), null, null]
+          : await Promise.all([
+              searchMusicSongsPage({ query: trimmedQuery, page: 1, limit: MUSIC_CATALOG_PAGE_SIZE, signal: controller.signal }),
+              searchMusicArtistsPage({ query: trimmedQuery, page: 1, limit: MUSIC_CATALOG_PAGE_SIZE, signal: controller.signal }),
+              searchMusicAlbumsPage({ query: trimmedQuery, page: 1, limit: MUSIC_CATALOG_PAGE_SIZE, signal: controller.signal }),
+            ])
         if (gen !== remoteSearchGen.current) return
         startTransition(() => {
           setRemoteSongs(result.items)
+          setRemoteArtists(artistResult?.items ?? [])
+          setRemoteAlbums(albumResult?.items ?? [])
           setRemotePage('page' in result ? result.page : 1)
           setRemoteHasMore(result.hasMore)
         })
@@ -3527,6 +3540,8 @@ function DiscoverPage({
           err instanceof Error ? err.message : 'Search failed.',
         )
         setRemoteSongs([])
+        setRemoteArtists([])
+        setRemoteAlbums([])
         setRemoteHasMore(false)
       } finally {
         if (gen === remoteSearchGen.current) setRemoteSearchLoading(false)
@@ -3639,8 +3654,8 @@ function DiscoverPage({
   const [searchTab, setSearchTab] = useState<'all' | 'songs' | 'artists' | 'albums'>('all')
 
   const localMatchedArtists = useMemo(
-    () => genreDefinition ? [] : rankArtists(sortArtistsList(filterArtistsByQuery(artists, debouncedQuery), 'az'), debouncedQuery),
-    [artists, debouncedQuery, genreDefinition],
+    () => genreDefinition ? [] : rankArtists(trimmedQuery ? filterArtistsByQuery(remoteArtists, debouncedQuery) : sortArtistsList(filterArtistsByQuery(artists, debouncedQuery), 'az'), debouncedQuery),
+    [artists, debouncedQuery, genreDefinition, remoteArtists, trimmedQuery],
   )
   const matchedArtists = useMemo(() => {
     if (genreDefinition || !trimmedQuery) return localMatchedArtists
@@ -3674,10 +3689,25 @@ function DiscoverPage({
     }
     return rankArtists(merged, trimmedQuery)
   }, [genreDefinition, localMatchedArtists, trimmedQuery, visibleSongs])
-  const matchedAlbums = useMemo(
-    () => genreDefinition ? [] : rankAlbums(sortAlbumsList(filterAlbumsByQuery(albums, debouncedQuery, artistNames), 'latest'), debouncedQuery),
-    [albums, artistNames, debouncedQuery, genreDefinition],
-  )
+  const matchedAlbums = useMemo(() => {
+    if (genreDefinition) return []
+    if (!trimmedQuery) return rankAlbums(sortAlbumsList(filterAlbumsByQuery(albums, debouncedQuery, artistNames), 'latest'), debouncedQuery)
+    const merged = new Map(filterAlbumsByQuery(remoteAlbums, debouncedQuery, artistNames).map((album) => [album.id, album]))
+    for (const song of visibleSongs) {
+      if (!song.albumId || !song.album) continue
+      if (!merged.has(song.albumId)) {
+        merged.set(song.albumId, {
+          id: song.albumId,
+          title: song.album,
+          artwork: song.artwork,
+          releaseYear: null,
+          createdAt: song.createdAt,
+          artistId: song.artistId,
+        })
+      }
+    }
+    return rankAlbums([...merged.values()], debouncedQuery)
+  }, [albums, artistNames, debouncedQuery, genreDefinition, remoteAlbums, trimmedQuery, visibleSongs])
 
   const rankedTopSong = useMemo(
     () => genreDefinition ? null : rankSearchSongs(visibleSongs, trimmedQuery)[0] ?? null,
@@ -3746,17 +3776,18 @@ function DiscoverPage({
     const gen = remoteSearchGen.current
     void (async () => {
       try {
-        const result = await (genreDefinition
-          ? loadFilteredGenrePage(genreDefinition, 1, controller.signal)
-          : searchMusicSongsPage({
-              query: trimmedQuery,
-              page: 1,
-              limit: MUSIC_CATALOG_PAGE_SIZE,
-              signal: controller.signal,
-            }))
+        const [result, artistResult, albumResult] = genreDefinition
+          ? [await loadFilteredGenrePage(genreDefinition, 1, controller.signal), null, null]
+          : await Promise.all([
+              searchMusicSongsPage({ query: trimmedQuery, page: 1, limit: MUSIC_CATALOG_PAGE_SIZE, signal: controller.signal }),
+              searchMusicArtistsPage({ query: trimmedQuery, page: 1, limit: MUSIC_CATALOG_PAGE_SIZE, signal: controller.signal }),
+              searchMusicAlbumsPage({ query: trimmedQuery, page: 1, limit: MUSIC_CATALOG_PAGE_SIZE, signal: controller.signal }),
+            ])
         if (gen !== remoteSearchGen.current) return
         startTransition(() => {
           setRemoteSongs(result.items)
+          setRemoteArtists(artistResult?.items ?? [])
+          setRemoteAlbums(albumResult?.items ?? [])
           setRemotePage('page' in result ? result.page : 1)
           setRemoteHasMore(result.hasMore)
         })
@@ -3841,7 +3872,7 @@ function DiscoverPage({
             {remoteSearchError ? (
               <section className="psd-search-error" role="alert" data-search-error="music">
                 <p>{remoteSearchError}</p>
-                <button type="button" className="btn-secondary btn-sm" onClick={retryRemoteSearch}>
+                <button type="button" className="btn-secondary btn-sm" onClick={retryRemoteSearch} aria-label="Retry music search">
                   {t('common.retry')}
                 </button>
               </section>
@@ -8831,7 +8862,7 @@ function PageContent({
         />
       )
     case 'sports':
-      return <DesktopSportsPage pageActive />
+      return <DesktopSportsPage pageActive onOpenSportsTv={() => onNavigateNav('tv')} />
     case 'settings':
       return (
         <SettingsPage
@@ -8872,6 +8903,7 @@ function App() {
       <PreferencesResetProvider>
         <DesktopAuthProvider>
           <DesktopPlaybackProvider>
+            {DesktopLocalCrossplayBridge ? <DesktopLocalCrossplayBridge /> : null}
             <AtmosphereProvider>
               <PremiumAudioVisualizerProvider>
                 <CatalogProvider>
@@ -9042,13 +9074,22 @@ function AppShell() {
   const activePlayerSurface = resolveActivePlayerSurface(activeSessionTrack)
   const videoSurfaceLayout = resolveVideoSurfaceLayout(activeSessionTrack)
   const useMotivationalVideoStage = videoSurfaceLayout === 'motivational-contained'
-  const isPlayerSidebarVisible = playerSidebarVisibility === 'visible'
+  const isTvPresentation = document.documentElement.hasAttribute('data-hidden-tunes-tv')
+  // Universal TV owns a compact Now Playing strip. Desktop's persisted sidebar
+  // preference must never leave that strip mounted-but-invisible on a television.
+  const isPlayerSidebarVisible = isTvPresentation || playerSidebarVisibility === 'visible'
   const canPresentPlayerSidebar = hasActiveMediaSession
     && !useMotivationalVideoStage
     && !anyPlayerShellVisible
   const hasQueueRail = canPresentPlayerSidebar && isPlayerSidebarVisible
   const [mountedPlayerSurface, setMountedPlayerSurface] = useState(activePlayerSurface)
   const [mountedVideoSurfaceLayout, setMountedVideoSurfaceLayout] = useState(videoSurfaceLayout)
+
+  useEffect(() => {
+    if (!isTvPresentation) return
+    document.documentElement.dataset.tvPlayerActive = hasActiveMediaSession ? 'true' : 'false'
+    return () => { delete document.documentElement.dataset.tvPlayerActive }
+  }, [hasActiveMediaSession, isTvPresentation])
 
   useEffect(() => {
     let completionTimer: ReturnType<typeof setTimeout> | null = null
@@ -9902,7 +9943,7 @@ function AppShell() {
                 )}
               </div>
             ) : null}
-            {canPresentPlayerSidebar ? (
+            {canPresentPlayerSidebar && !isTvPresentation ? (
               <button
                 type="button"
                 className={`player-sidebar-toggle player-sidebar-toggle--${isPlayerSidebarVisible ? 'hide' : 'show'}`}

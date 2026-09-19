@@ -1,0 +1,22 @@
+{
+  "completedAt": "2026-08-13T18:42:00.000Z",
+  "scope": "provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "CNN Headlines has direct CNN press-room FAST provenance, but its CloudFront candidate remained blank with readyState 0 after 180 seconds in the D-only Desktop verifier.",
+    "Unbeaten Sports Channel has direct Alchimie and carriage provenance, but the catalog host shares the same CloudFront family that failed KIRO and CNN decoding; it was not promoted without a complete test.",
+    "MTV Reality uses i.mjh.nz and BBC Series uses jmp2.uk; both were rejected before media validation.",
+    "Les Anges uses an Amagi Rakuten UK playout host, but source-to-rights-holder provenance was insufficient for acceptance.",
+    "Only the timed-out CNN verifier processes were stopped."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 13,
+  "cumulativeTerminalAliases": 80
+}

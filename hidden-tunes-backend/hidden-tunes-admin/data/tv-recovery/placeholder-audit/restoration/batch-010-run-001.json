@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T14:43:30.000Z",
+  "scope": "Batch 10 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "TikTok Radio and Teletubbies were rejected before media validation because their candidates use jmp2.uk.",
+    "The First and Matched Married Meet by Lifetime have CloudFront/Xumo-linked candidates, but the records do not establish sufficiently direct broadcaster or rights-holder provenance.",
+    "UEFA Champions League resolves through a generic Google Cloud mediator without authoritative UEFA distribution evidence and was rejected before testing.",
+    "No uncertain source was promoted or reclassified."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 28,
+  "cumulativeTerminalAliases": 108,
+  "batch10Target": 25,
+  "batch10Researched": 5,
+  "batch10Remaining": 20
+}

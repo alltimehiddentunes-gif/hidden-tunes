@@ -1,0 +1,18 @@
+{
+  "completedAt": "2026-08-14T16:45:13.452Z",
+  "batch": 10,
+  "identitiesResearched": 25,
+  "newVerifiedSearchableDesktopPlayableIdentities": 3,
+  "newTerminalAliases": 9,
+  "verifiedIdentities": [
+    "Antiques Roadshow UK",
+    "Hell's Kitchen",
+    "Revry"
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 31,
+  "cumulativeTerminalAliases": 117,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "safetyRegressions": 0,
+  "nextBatch": 11
+}

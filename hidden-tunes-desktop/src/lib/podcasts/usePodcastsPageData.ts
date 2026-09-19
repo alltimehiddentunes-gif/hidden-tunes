@@ -20,6 +20,31 @@ const FEATURED_SHOWS_LIMIT = 12
 const BROWSE_SHOWS_LIMIT = 24
 const EPISODES_LIMIT = 16
 const FALLBACK_SHOWS_LIMIT = 12
+const PODCASTS_PAGE_SNAPSHOT_TTL_MS = 5 * 60 * 1000
+const PODCASTS_PAGE_SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+type PodcastsPageSnapshot = {
+  categories: PodcastCategoryMeta[]
+  featuredShows: PodcastShowMeta[]
+  fallbackShows: PodcastShowMeta[]
+  showsPagination: PodcastPagination | null
+  cachedAt: number
+}
+
+let podcastsPageSnapshot: PodcastsPageSnapshot | null = null
+
+function readPodcastsPageSnapshot() {
+  if (!podcastsPageSnapshot) return null
+  const ageMs = Date.now() - podcastsPageSnapshot.cachedAt
+  if (ageMs > PODCASTS_PAGE_SNAPSHOT_MAX_AGE_MS) {
+    podcastsPageSnapshot = null
+    return null
+  }
+  return {
+    snapshot: podcastsPageSnapshot,
+    fresh: ageMs <= PODCASTS_PAGE_SNAPSHOT_TTL_MS,
+  }
+}
 
 export type PodcastFeaturedSource = 'featured' | 'fallback' | 'browse' | 'empty'
 
@@ -27,13 +52,20 @@ function readError(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback
 }
 
-function isCancelledError(reason: unknown) {
+function isCancelledError(reason: unknown, signal?: AbortSignal) {
   return (
-    (reason instanceof PodcastCatalogError && reason.cancelled)
+    signal?.aborted === true
+    || (reason instanceof PodcastCatalogError && reason.cancelled)
     || (reason instanceof DOMException && reason.name === 'AbortError')
     || (reason instanceof Error && reason.name === 'AbortError')
     || (reason instanceof Error && /cancelled|canceled|aborted/i.test(reason.message))
   )
+}
+
+function dedupeById<T extends { id: string }>(entries: T[]) {
+  const byId = new Map<string, T>()
+  for (const entry of entries) byId.set(entry.id, entry)
+  return [...byId.values()]
 }
 
 /** Production global `/api/podcasts/episodes` (no show_id/category) times out with 500. */
@@ -44,60 +76,86 @@ function canFetchScopedEpisodes(options: {
   return Boolean(options.showId?.trim() || options.category?.trim())
 }
 
-function resolveCategoryFilter(
-  activeTab: PodcastTabId,
-  selectedCategorySlug: string | null,
-  categories: PodcastCategoryMeta[],
-) {
-  if (selectedCategorySlug) return selectedCategorySlug
-
-  if (activeTab === 'all') return null
-
-  const match = categories.find(
-    (category) =>
-      category.slug === activeTab
-      || category.id === activeTab
-      || category.slug.toLowerCase() === activeTab.toLowerCase(),
-  )
-
-  return match?.slug ?? activeTab
-}
-
 function isFilteredView(activeTab: PodcastTabId, searchQuery: string) {
   return searchQuery.trim().length > 0 || activeTab !== 'all'
 }
 
 export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string) {
-  const [featuredShows, setFeaturedShows] = useState<PodcastShowMeta[]>([])
-  const [fallbackShows, setFallbackShows] = useState<PodcastShowMeta[]>([])
+  const [initialSnapshot] = useState(() => readPodcastsPageSnapshot())
+  const [featuredShows, setFeaturedShows] = useState<PodcastShowMeta[]>(
+    () => initialSnapshot?.snapshot.featuredShows ?? [],
+  )
+  const [fallbackShows, setFallbackShows] = useState<PodcastShowMeta[]>(
+    () => initialSnapshot?.snapshot.fallbackShows ?? [],
+  )
   const [browseShows, setBrowseShows] = useState<PodcastShowMeta[]>([])
-  const [catalogEpisodes, setCatalogEpisodes] = useState<PodcastEpisodeMeta[]>([])
   const [browseEpisodes, setBrowseEpisodes] = useState<PodcastEpisodeMeta[]>([])
-  const [categories, setCategories] = useState<PodcastCategoryMeta[]>([])
-  const [showsPagination, setShowsPagination] = useState<PodcastPagination | null>(null)
-  const [episodesPagination, setEpisodesPagination] = useState<PodcastPagination | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState<PodcastCategoryMeta[]>(
+    () => initialSnapshot?.snapshot.categories ?? [],
+  )
+  const [defaultShowsPagination, setDefaultShowsPagination] = useState<PodcastPagination | null>(
+    () => initialSnapshot?.snapshot.showsPagination ?? null,
+  )
+  const [browseShowsPagination, setBrowseShowsPagination] = useState<PodcastPagination | null>(null)
+  const [browseEpisodesPagination, setBrowseEpisodesPagination] = useState<PodcastPagination | null>(null)
+  const [loading, setLoading] = useState(() => !initialSnapshot)
   const [contentLoading, setContentLoading] = useState(false)
   const [showsLoadingMore, setShowsLoadingMore] = useState(false)
   const [episodesLoadingMore, setEpisodesLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [contentError, setContentError] = useState<string | null>(null)
   const [selectedCategorySlug, setSelectedCategorySlug] = useState<string | null>(null)
+  const [bootstrapRetryNonce, setBootstrapRetryNonce] = useState(0)
+  const [browseRetryNonce, setBrowseRetryNonce] = useState(0)
+  const [browseDataIdentity, setBrowseDataIdentity] = useState<string | null>(null)
   const bootstrapRequestRef = useRef(0)
+  const bootstrapAbortRef = useRef<AbortController | null>(null)
   const browseRequestRef = useRef(0)
   const browseAbortRef = useRef<AbortController | null>(null)
-  const knownShowsRef = useRef<PodcastShowMeta[]>([])
+  const showsLoadMoreRequestRef = useRef(0)
+  const showsLoadMoreAbortRef = useRef<AbortController | null>(null)
+  const episodesLoadMoreRequestRef = useRef(0)
+  const episodesLoadMoreAbortRef = useRef<AbortController | null>(null)
+  const categoriesRef = useRef(categories)
+  const featuredShowsRef = useRef(featuredShows)
+  const fallbackShowsRef = useRef(fallbackShows)
+  const defaultShowsPaginationRef = useRef(defaultShowsPagination)
+  const browseShowsRef = useRef(browseShows)
+  const browseEpisodesRef = useRef(browseEpisodes)
+  const browseDataIdentityRef = useRef<string | null>(browseDataIdentity)
+  const knownShowsRef = useRef<PodcastShowMeta[]>([
+    ...featuredShows,
+    ...fallbackShows,
+  ])
 
   const trimmedSearch = searchQuery.trim()
   const filteredView = isFilteredView(activeTab, trimmedSearch)
+  const effectiveSelectedCategorySlug = activeTab === 'all' ? null : selectedCategorySlug
+  const category = effectiveSelectedCategorySlug ?? (activeTab === 'all' ? null : activeTab)
+  const browseQueryKey = [activeTab, category ?? '', trimmedSearch].join('|')
+  const browseIdentityMatches = browseDataIdentity === browseQueryKey
+
+  useEffect(() => {
+    categoriesRef.current = categories
+    featuredShowsRef.current = featuredShows
+    fallbackShowsRef.current = fallbackShows
+    defaultShowsPaginationRef.current = defaultShowsPagination
+    browseShowsRef.current = browseShows
+    browseEpisodesRef.current = browseEpisodes
+    browseDataIdentityRef.current = browseDataIdentity
+  }, [
+    browseDataIdentity,
+    browseEpisodes,
+    browseShows,
+    categories,
+    defaultShowsPagination,
+    fallbackShows,
+    featuredShows,
+  ])
 
   const rememberShows = useCallback((shows: PodcastShowMeta[]) => {
     if (shows.length === 0) return
-    const map = new Map(knownShowsRef.current.map((show) => [show.id, show]))
-    for (const show of shows) {
-      map.set(show.id, show)
-    }
-    knownShowsRef.current = Array.from(map.values())
+    knownShowsRef.current = dedupeById([...knownShowsRef.current, ...shows])
   }, [])
 
   const enrichEpisodes = useCallback(
@@ -111,332 +169,480 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
     [],
   )
 
-  const loadBootstrap = useCallback(async () => {
-    const requestId = ++bootstrapRequestRef.current
-    setLoading(true)
-    setError(null)
-    setContentError(null)
-    knownShowsRef.current = []
+  useEffect(() => {
+    if (initialSnapshot?.fresh && bootstrapRetryNonce === 0) return
 
-    try {
-      // Do not call unscoped GET /api/podcasts/episodes — production returns 500 (statement timeout).
-      // CLEAN mobile home uses local recently-played + category/show-scoped episode lists only.
-      const [categoriesResult, featuredResult] = await Promise.allSettled([
-        fetchPodcastCategories(),
-        fetchPodcastFeaturedShows({ page: 1, limit: FEATURED_SHOWS_LIMIT }),
+    bootstrapAbortRef.current?.abort()
+    showsLoadMoreAbortRef.current?.abort()
+    episodesLoadMoreAbortRef.current?.abort()
+    showsLoadMoreRequestRef.current += 1
+    episodesLoadMoreRequestRef.current += 1
+    const controller = new AbortController()
+    bootstrapAbortRef.current = controller
+    const requestId = ++bootstrapRequestRef.current
+
+    queueMicrotask(() => {
+      if (controller.signal.aborted || requestId !== bootstrapRequestRef.current) return
+      if (featuredShowsRef.current.length === 0 && fallbackShowsRef.current.length === 0) {
+        setLoading(true)
+      }
+      setError(null)
+    })
+
+    void (async () => {
+      // Start the fallback with featured instead of serializing it behind the live empty response.
+      const [categoriesResult, featuredResult, fallbackResult] = await Promise.allSettled([
+        fetchPodcastCategories(controller.signal),
+        fetchPodcastFeaturedShows(
+          { page: 1, limit: FEATURED_SHOWS_LIMIT },
+          controller.signal,
+        ),
+        fetchPodcastShows(
+          { page: 1, limit: FALLBACK_SHOWS_LIMIT },
+          controller.signal,
+        ),
       ])
 
-      if (requestId !== bootstrapRequestRef.current) return
+      if (controller.signal.aborted || requestId !== bootstrapRequestRef.current) return
 
       const failures: string[] = []
-      let nextFeatured: PodcastShowMeta[] = []
-      let nextFallback: PodcastShowMeta[] = []
-      let nextCategories: PodcastCategoryMeta[] = []
+      let nextCategories = categoriesRef.current
+      let nextFeatured = featuredShowsRef.current
+      let nextFallback = fallbackShowsRef.current
+      let nextPagination = defaultShowsPaginationRef.current
+      let acceptedCategoriesRefresh = false
+      let acceptedShowRefresh = false
 
-      if (categoriesResult.status === 'fulfilled') {
+      if (categoriesResult.status === 'fulfilled' && categoriesResult.value.length > 0) {
         nextCategories = categoriesResult.value
-      } else {
+        acceptedCategoriesRefresh = true
+      } else if (
+        categoriesResult.status === 'rejected'
+        && !isCancelledError(categoriesResult.reason, controller.signal)
+      ) {
         failures.push(readError(categoriesResult.reason, 'Failed to load categories.'))
       }
 
-      if (featuredResult.status === 'fulfilled') {
-        nextFeatured = featuredResult.value.shows
-        rememberShows(nextFeatured)
-      } else {
+      if (featuredResult.status === 'rejected' && !isCancelledError(featuredResult.reason, controller.signal)) {
         failures.push(readError(featuredResult.reason, 'Failed to load featured shows.'))
       }
-
-      if (nextFeatured.length === 0) {
-        try {
-          const fallbackResponse = await fetchPodcastShows({
-            page: 1,
-            limit: FALLBACK_SHOWS_LIMIT,
-          })
-          if (requestId !== bootstrapRequestRef.current) return
-          nextFallback = fallbackResponse.shows
-          rememberShows(nextFallback)
-          setShowsPagination(fallbackResponse.pagination)
-        } catch (fallbackError) {
-          failures.push(readError(fallbackError, 'Failed to load podcast shows.'))
-        }
-      } else if (featuredResult.status === 'fulfilled') {
-        setShowsPagination(featuredResult.value.pagination)
+      if (fallbackResult.status === 'rejected' && !isCancelledError(fallbackResult.reason, controller.signal)) {
+        failures.push(readError(fallbackResult.reason, 'Failed to load podcast shows.'))
       }
 
-      if (requestId !== bootstrapRequestRef.current) return
+      if (featuredResult.status === 'fulfilled' && featuredResult.value.shows.length > 0) {
+        nextFeatured = featuredResult.value.shows
+        nextFallback = []
+        nextPagination = featuredResult.value.pagination
+        acceptedShowRefresh = true
+      } else if (fallbackResult.status === 'fulfilled' && fallbackResult.value.shows.length > 0) {
+        nextFeatured = []
+        nextFallback = fallbackResult.value.shows
+        nextPagination = fallbackResult.value.pagination
+        acceptedShowRefresh = true
+      }
 
+      categoriesRef.current = nextCategories
+      featuredShowsRef.current = nextFeatured
+      fallbackShowsRef.current = nextFallback
+      defaultShowsPaginationRef.current = nextPagination
+      rememberShows([...nextFeatured, ...nextFallback])
       setCategories(nextCategories)
       setFeaturedShows(nextFeatured)
       setFallbackShows(nextFallback)
-      setCatalogEpisodes([])
-      setEpisodesPagination(null)
-      setBrowseShows([])
-      setBrowseEpisodes([])
+      setDefaultShowsPagination(nextPagination)
 
       const hasRenderableData =
-        nextCategories.length > 0
-        || nextFeatured.length > 0
-        || nextFallback.length > 0
+        nextCategories.length > 0 || nextFeatured.length > 0 || nextFallback.length > 0
+      setError(hasRenderableData ? null : failures[0] ?? null)
 
-      // Only surface bootstrap error when nothing useful rendered.
-      setError(hasRenderableData ? null : failures[0] ?? 'Failed to load podcast catalog.')
-    } catch (err) {
-      if (requestId !== bootstrapRequestRef.current) return
-      setError(readError(err, 'Failed to load podcast catalog.'))
-    } finally {
-      if (requestId === bootstrapRequestRef.current) {
-        setLoading(false)
-      }
-    }
-  }, [rememberShows])
-
-  const runBrowse = useCallback(
-    async (requestId: number, signal: AbortSignal) => {
-      const category = resolveCategoryFilter(activeTab, selectedCategorySlug, categories)
-
-      if (!filteredView) {
-        if (requestId !== browseRequestRef.current) return
-        setBrowseShows([])
-        setBrowseEpisodes([])
-        setContentError(null)
-        return
-      }
-
-      const showsResponse = await fetchPodcastShows(
-        {
-          page: 1,
-          limit: BROWSE_SHOWS_LIMIT,
-          query: trimmedSearch || undefined,
-          category: category ?? undefined,
-        },
-        signal,
-      )
-
-      if (signal.aborted || requestId !== browseRequestRef.current) return
-
-      // Episode list by `q=` alone times out with 500 in production. Only fetch when scoped.
-      let nextEpisodes: PodcastEpisodeMeta[] = []
-      let nextEpisodesPagination: PodcastPagination | null = null
-      let episodeWarning: string | null = null
-
-      if (canFetchScopedEpisodes({ category })) {
-        try {
-          const episodesResponse = await fetchPodcastEpisodes(
-            {
-              page: 1,
-              limit: EPISODES_LIMIT,
-              category: category ?? undefined,
-            },
-            signal,
-          )
-          if (signal.aborted || requestId !== browseRequestRef.current) return
-          rememberShows(episodesResponse.shows)
-          nextEpisodes = await enrichEpisodes(episodesResponse.episodes, signal)
-          nextEpisodesPagination = episodesResponse.pagination
-        } catch (episodeError) {
-          if (signal.aborted || isCancelledError(episodeError)) throw episodeError
-          episodeWarning = readError(episodeError, 'Failed to load podcast episodes.')
+      if (
+        categoriesResult.status === 'fulfilled'
+        && featuredResult.status === 'fulfilled'
+        && fallbackResult.status === 'fulfilled'
+        && acceptedCategoriesRefresh
+        && acceptedShowRefresh
+      ) {
+        podcastsPageSnapshot = {
+          categories: nextCategories,
+          featuredShows: nextFeatured,
+          fallbackShows: nextFallback,
+          showsPagination: nextPagination,
+          cachedAt: Date.now(),
         }
       }
-
-      if (signal.aborted || requestId !== browseRequestRef.current) return
-
-      rememberShows(showsResponse.shows)
-      setBrowseShows(showsResponse.shows)
-      setBrowseEpisodes(nextEpisodes)
-      setShowsPagination(showsResponse.pagination)
-      setEpisodesPagination(nextEpisodesPagination)
-      setContentError(
-        showsResponse.shows.length === 0 && nextEpisodes.length === 0 && episodeWarning
-          ? episodeWarning
-          : null,
-      )
-    },
-    [
-      activeTab,
-      categories,
-      enrichEpisodes,
-      filteredView,
-      rememberShows,
-      selectedCategorySlug,
-      trimmedSearch,
-    ],
-  )
-
-  const loadBrowse = useCallback(async () => {
-    browseAbortRef.current?.abort()
-
-    if (!isFilteredView(activeTab, trimmedSearch)) {
-      setBrowseShows([])
-      setBrowseEpisodes([])
-      setContentError(null)
-      return
-    }
-
-    const controller = new AbortController()
-    browseAbortRef.current = controller
-
-    const requestId = ++browseRequestRef.current
-    setContentLoading(true)
-    setContentError(null)
-
-    try {
-      await runBrowse(requestId, controller.signal)
-    } catch (err) {
-      if (controller.signal.aborted || requestId !== browseRequestRef.current || isCancelledError(err)) {
-        return
+    })().catch((reason) => {
+      if (requestId !== bootstrapRequestRef.current || isCancelledError(reason, controller.signal)) return
+      if (
+        categoriesRef.current.length === 0
+        && featuredShowsRef.current.length === 0
+        && fallbackShowsRef.current.length === 0
+      ) {
+        setError(readError(reason, 'Failed to load podcast catalog.'))
       }
-      setBrowseShows([])
-      setBrowseEpisodes([])
-      setContentError(readError(err, 'Failed to load podcasts.'))
-    } finally {
-      if (requestId === browseRequestRef.current) {
-        setContentLoading(false)
-      }
-    }
-  }, [activeTab, runBrowse, trimmedSearch])
-
-  useEffect(() => {
-    const timer = globalThis.setTimeout(() => {
-      void loadBootstrap()
-    }, 0)
-    return () => globalThis.clearTimeout(timer)
-  }, [loadBootstrap])
-
-  useEffect(() => {
-    const frame = globalThis.requestAnimationFrame(() => {
-      if (activeTab === 'all') {
-        setSelectedCategorySlug(null)
+    }).finally(() => {
+      if (requestId === bootstrapRequestRef.current && !controller.signal.aborted) {
+        setLoading(false)
       }
     })
-    return () => globalThis.cancelAnimationFrame(frame)
-  }, [activeTab])
+
+    return () => {
+      controller.abort()
+      if (bootstrapAbortRef.current === controller) bootstrapAbortRef.current = null
+    }
+  }, [bootstrapRetryNonce, initialSnapshot, rememberShows])
 
   useEffect(() => {
-    if (loading) return
+    showsLoadMoreAbortRef.current?.abort()
+    episodesLoadMoreAbortRef.current?.abort()
+    showsLoadMoreRequestRef.current += 1
+    episodesLoadMoreRequestRef.current += 1
+
+    if (!filteredView) {
+      browseAbortRef.current?.abort()
+      const resetRequestId = ++browseRequestRef.current
+      let cancelled = false
+      queueMicrotask(() => {
+        if (cancelled || resetRequestId !== browseRequestRef.current) return
+        setContentLoading(false)
+        setContentError(null)
+        setShowsLoadingMore(false)
+        setEpisodesLoadingMore(false)
+      })
+      return () => {
+        cancelled = true
+      }
+    }
+
+    browseAbortRef.current?.abort()
+    const controller = new AbortController()
+    browseAbortRef.current = controller
+    const requestId = ++browseRequestRef.current
+    const requestIdentity = browseQueryKey
+    const sameIdentity = browseDataIdentityRef.current === requestIdentity
+
+    if (!sameIdentity) {
+      browseShowsRef.current = []
+      browseEpisodesRef.current = []
+    }
+
+    queueMicrotask(() => {
+      if (controller.signal.aborted || requestId !== browseRequestRef.current) return
+      setContentLoading(true)
+      setContentError(null)
+      setShowsLoadingMore(false)
+      setEpisodesLoadingMore(false)
+      if (!sameIdentity) {
+        setBrowseShows([])
+        setBrowseEpisodes([])
+        setBrowseShowsPagination(null)
+        setBrowseEpisodesPagination(null)
+      }
+    })
 
     const timer = globalThis.setTimeout(() => {
-      void loadBrowse()
+      void (async () => {
+        const showsPromise = fetchPodcastShows(
+          {
+            page: 1,
+            limit: BROWSE_SHOWS_LIMIT,
+            query: trimmedSearch || undefined,
+            category: category ?? undefined,
+          },
+          controller.signal,
+        )
+        // Never issue the production-broken unscoped or q-only episode request.
+        const episodesPromise = canFetchScopedEpisodes({ category }) && !trimmedSearch
+          ? fetchPodcastEpisodes(
+              { page: 1, limit: EPISODES_LIMIT, category: category ?? undefined },
+              controller.signal,
+            )
+          : Promise.resolve(null)
+
+        const [showsResult, episodesResult] = await Promise.allSettled([
+          showsPromise,
+          episodesPromise,
+        ])
+
+        if (controller.signal.aborted || requestId !== browseRequestRef.current) return
+
+        const failures: string[] = []
+        let committed = false
+
+        if (showsResult.status === 'fulfilled') {
+          const nextShows = showsResult.value.shows
+          rememberShows(nextShows)
+          browseShowsRef.current = nextShows
+          setBrowseShows(nextShows)
+          setBrowseShowsPagination(showsResult.value.pagination)
+          committed = true
+        } else if (!isCancelledError(showsResult.reason, controller.signal)) {
+          failures.push(readError(showsResult.reason, 'Failed to load podcast shows.'))
+        }
+
+        if (episodesResult.status === 'fulfilled') {
+          const response = episodesResult.value
+          const nextEpisodes = response?.episodes ?? []
+          if (response) rememberShows(response.shows)
+          browseEpisodesRef.current = nextEpisodes
+          setBrowseEpisodes(nextEpisodes)
+          setBrowseEpisodesPagination(response?.pagination ?? null)
+          committed = true
+
+          // Base rows commit above; show-title refinement is intentionally secondary.
+          if (response && nextEpisodes.length > 0) {
+            void enrichEpisodes(nextEpisodes, controller.signal).then((enriched) => {
+              if (
+                controller.signal.aborted
+                || requestId !== browseRequestRef.current
+                || browseDataIdentityRef.current !== requestIdentity
+              ) return
+              browseEpisodesRef.current = enriched
+              setBrowseEpisodes(enriched)
+            })
+          }
+        } else if (!isCancelledError(episodesResult.reason, controller.signal)) {
+          failures.push(readError(episodesResult.reason, 'Failed to load podcast episodes.'))
+        }
+
+        if (committed || !sameIdentity) {
+          browseDataIdentityRef.current = requestIdentity
+          setBrowseDataIdentity(requestIdentity)
+        }
+
+        const visibleShows = sameIdentity || committed ? browseShowsRef.current : []
+        const visibleEpisodes = sameIdentity || committed ? browseEpisodesRef.current : []
+        setContentError(
+          visibleShows.length === 0 && visibleEpisodes.length === 0
+            ? failures[0] ?? null
+            : null,
+        )
+      })().catch((reason) => {
+        if (requestId !== browseRequestRef.current || isCancelledError(reason, controller.signal)) return
+        if (!sameIdentity) {
+          browseDataIdentityRef.current = requestIdentity
+          setBrowseDataIdentity(requestIdentity)
+        }
+        const hasSameIdentityRows =
+          sameIdentity
+          && (browseShowsRef.current.length > 0 || browseEpisodesRef.current.length > 0)
+        setContentError(
+          hasSameIdentityRows ? null : readError(reason, 'Failed to load podcasts.'),
+        )
+      }).finally(() => {
+        if (requestId === browseRequestRef.current && !controller.signal.aborted) {
+          setContentLoading(false)
+        }
+      })
     }, trimmedSearch ? SEARCH_DEBOUNCE_MS : 0)
 
     return () => {
       globalThis.clearTimeout(timer)
-      browseAbortRef.current?.abort()
+      controller.abort()
+      if (browseAbortRef.current === controller) browseAbortRef.current = null
     }
-  }, [activeTab, categories, loading, loadBrowse, selectedCategorySlug, trimmedSearch])
+  }, [
+    browseQueryKey,
+    browseRetryNonce,
+    category,
+    enrichEpisodes,
+    filteredView,
+    rememberShows,
+    trimmedSearch,
+  ])
 
-  const latestEpisodes = filteredView ? browseEpisodes : catalogEpisodes
+  useEffect(() => {
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) setSelectedCategorySlug(null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab])
 
   const featuredSectionShows = useMemo(() => {
-    if (filteredView) return browseShows
+    if (filteredView) return browseIdentityMatches ? browseShows : []
     if (featuredShows.length > 0) return featuredShows
     return fallbackShows
-  }, [browseShows, fallbackShows, featuredShows, filteredView])
+  }, [
+    browseIdentityMatches,
+    browseShows,
+    fallbackShows,
+    featuredShows,
+    filteredView,
+  ])
+
+  const latestEpisodes = filteredView && browseIdentityMatches ? browseEpisodes : []
 
   const featuredSource = useMemo<PodcastFeaturedSource>(() => {
-    if (filteredView) return browseShows.length > 0 ? 'browse' : 'empty'
+    if (filteredView) return featuredSectionShows.length > 0 ? 'browse' : 'empty'
     if (featuredShows.length > 0) return 'featured'
     if (fallbackShows.length > 0) return 'fallback'
     return 'empty'
-  }, [browseShows.length, fallbackShows.length, featuredShows.length, filteredView])
+  }, [fallbackShows.length, featuredSectionShows.length, featuredShows.length, filteredView])
 
-  const loadMoreShows = useCallback(async () => {
-    if (!showsPagination?.hasMore || showsLoadingMore) return
+  const showsPagination = filteredView
+    ? (browseIdentityMatches ? browseShowsPagination : null)
+    : defaultShowsPagination
+  const episodesPagination = filteredView && browseIdentityMatches
+    ? browseEpisodesPagination
+    : null
 
-    const category = resolveCategoryFilter(activeTab, selectedCategorySlug, categories)
-    const nextPage = showsPagination.page + 1
+  const loadMoreShows = useCallback(() => {
+    if (!showsPagination?.hasMore || showsLoadingMore || contentLoading) return
+
+    showsLoadMoreAbortRef.current?.abort()
+    const controller = new AbortController()
+    showsLoadMoreAbortRef.current = controller
+    const requestId = ++showsLoadMoreRequestRef.current
+    const requestIdentity = filteredView ? browseQueryKey : 'default'
     setShowsLoadingMore(true)
+    setContentError(null)
 
-    try {
-      if (filteredView) {
-        const response = await fetchPodcastShows({
-          page: nextPage,
-          limit: BROWSE_SHOWS_LIMIT,
-          query: trimmedSearch || undefined,
-          category: category ?? undefined,
-        })
-        rememberShows(response.shows)
-        setBrowseShows((current) => [...current, ...response.shows])
-        setShowsPagination(response.pagination)
-        return
-      }
+    void (async () => {
+      const nextPage = showsPagination.page + 1
+      const response = filteredView
+        ? await fetchPodcastShows(
+            {
+              page: nextPage,
+              limit: BROWSE_SHOWS_LIMIT,
+              query: trimmedSearch || undefined,
+              category: category ?? undefined,
+            },
+            controller.signal,
+          )
+        : featuredShows.length > 0
+          ? await fetchPodcastFeaturedShows(
+              { page: nextPage, limit: FEATURED_SHOWS_LIMIT },
+              controller.signal,
+            )
+          : await fetchPodcastShows(
+              { page: nextPage, limit: FALLBACK_SHOWS_LIMIT },
+              controller.signal,
+            )
 
-      if (featuredShows.length > 0) {
-        const response = await fetchPodcastFeaturedShows({
-          page: nextPage,
-          limit: FEATURED_SHOWS_LIMIT,
-        })
-        rememberShows(response.shows)
-        setFeaturedShows((current) => [...current, ...response.shows])
-        setShowsPagination(response.pagination)
-        return
-      }
+      if (controller.signal.aborted || requestId !== showsLoadMoreRequestRef.current) return
+      if (filteredView && browseDataIdentityRef.current !== requestIdentity) return
 
-      const response = await fetchPodcastShows({
-        page: nextPage,
-        limit: FALLBACK_SHOWS_LIMIT,
-      })
       rememberShows(response.shows)
-      setFallbackShows((current) => [...current, ...response.shows])
-      setShowsPagination(response.pagination)
-    } catch (err) {
-      setContentError(readError(err, 'Failed to load more shows.'))
-    } finally {
-      setShowsLoadingMore(false)
-    }
+      if (filteredView) {
+        setBrowseShows((current) => {
+          const next = dedupeById([...current, ...response.shows])
+          browseShowsRef.current = next
+          return next
+        })
+        setBrowseShowsPagination(response.pagination)
+      } else if (featuredShows.length > 0) {
+        setFeaturedShows((current) => {
+          const next = dedupeById([...current, ...response.shows])
+          featuredShowsRef.current = next
+          return next
+        })
+        setDefaultShowsPagination(response.pagination)
+      } else {
+        setFallbackShows((current) => {
+          const next = dedupeById([...current, ...response.shows])
+          fallbackShowsRef.current = next
+          return next
+        })
+        setDefaultShowsPagination(response.pagination)
+      }
+    })().catch((reason) => {
+      if (requestId !== showsLoadMoreRequestRef.current || isCancelledError(reason, controller.signal)) return
+      setContentError(readError(reason, 'Failed to load more shows.'))
+    }).finally(() => {
+      if (requestId === showsLoadMoreRequestRef.current && !controller.signal.aborted) {
+        setShowsLoadingMore(false)
+      }
+    })
   }, [
-    activeTab,
-    categories,
+    browseQueryKey,
+    category,
+    contentLoading,
     featuredShows.length,
     filteredView,
     rememberShows,
-    selectedCategorySlug,
     showsLoadingMore,
     showsPagination,
     trimmedSearch,
   ])
 
-  const loadMoreEpisodes = useCallback(async () => {
-    if (!episodesPagination?.hasMore || episodesLoadingMore) return
+  const loadMoreEpisodes = useCallback(() => {
+    if (!episodesPagination?.hasMore || episodesLoadingMore || contentLoading) return
+    if (!canFetchScopedEpisodes({ category })) return
 
-    const category = resolveCategoryFilter(activeTab, selectedCategorySlug, categories)
-    if (!canFetchScopedEpisodes({ category: filteredView ? category : null })) {
-      return
-    }
-
-    const nextPage = episodesPagination.page + 1
+    episodesLoadMoreAbortRef.current?.abort()
+    const controller = new AbortController()
+    episodesLoadMoreAbortRef.current = controller
+    const requestId = ++episodesLoadMoreRequestRef.current
+    const requestIdentity = browseQueryKey
     setEpisodesLoadingMore(true)
+    setContentError(null)
 
-    try {
-      const response = await fetchPodcastEpisodes({
-        page: nextPage,
-        limit: EPISODES_LIMIT,
-        category: filteredView ? category ?? undefined : undefined,
-      })
+    void (async () => {
+      const response = await fetchPodcastEpisodes(
+        {
+          page: episodesPagination.page + 1,
+          limit: EPISODES_LIMIT,
+          category: category ?? undefined,
+        },
+        controller.signal,
+      )
+      if (
+        controller.signal.aborted
+        || requestId !== episodesLoadMoreRequestRef.current
+        || browseDataIdentityRef.current !== requestIdentity
+      ) return
+
       rememberShows(response.shows)
-      const enriched = await enrichEpisodes(response.episodes)
-      if (filteredView) {
-        setBrowseEpisodes((current) => [...current, ...enriched])
-      } else {
-        setCatalogEpisodes((current) => [...current, ...enriched])
+      const baseEpisodes = response.episodes
+      setBrowseEpisodes((current) => {
+        const next = dedupeById([...current, ...baseEpisodes])
+        browseEpisodesRef.current = next
+        return next
+      })
+      setBrowseEpisodesPagination(response.pagination)
+
+      const enriched = await enrichEpisodes(baseEpisodes, controller.signal)
+      if (
+        controller.signal.aborted
+        || requestId !== episodesLoadMoreRequestRef.current
+        || browseDataIdentityRef.current !== requestIdentity
+      ) return
+      setBrowseEpisodes((current) => {
+        const next = dedupeById([...current, ...enriched])
+        browseEpisodesRef.current = next
+        return next
+      })
+    })().catch((reason) => {
+      if (requestId !== episodesLoadMoreRequestRef.current || isCancelledError(reason, controller.signal)) return
+      setContentError(readError(reason, 'Failed to load more episodes.'))
+    }).finally(() => {
+      if (requestId === episodesLoadMoreRequestRef.current && !controller.signal.aborted) {
+        setEpisodesLoadingMore(false)
       }
-      setEpisodesPagination(response.pagination)
-    } catch (err) {
-      if (isCancelledError(err)) return
-      setContentError(readError(err, 'Failed to load more episodes.'))
-    } finally {
-      setEpisodesLoadingMore(false)
-    }
+    })
   }, [
-    activeTab,
-    categories,
+    browseQueryKey,
+    category,
+    contentLoading,
     enrichEpisodes,
     episodesLoadingMore,
     episodesPagination,
-    filteredView,
     rememberShows,
-    selectedCategorySlug,
   ])
+
+  useEffect(() => () => {
+    bootstrapAbortRef.current?.abort()
+    browseAbortRef.current?.abort()
+    showsLoadMoreAbortRef.current?.abort()
+    episodesLoadMoreAbortRef.current?.abort()
+    bootstrapRequestRef.current += 1
+    browseRequestRef.current += 1
+    showsLoadMoreRequestRef.current += 1
+    episodesLoadMoreRequestRef.current += 1
+  }, [])
 
   const visibleTabs = useMemo(
     () => [
@@ -472,12 +678,12 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
     categoryCards,
     categories,
     visibleTabs,
-    loading,
-    contentLoading,
+    loading: filteredView ? false : loading,
+    contentLoading: filteredView && (!browseIdentityMatches || contentLoading),
     showsLoadingMore,
     episodesLoadingMore,
-    error,
-    contentError,
+    error: filteredView ? null : error,
+    contentError: filteredView ? contentError : null,
     showsPagination,
     episodesPagination,
     selectedCategorySlug,
@@ -485,7 +691,7 @@ export function usePodcastsPageData(activeTab: PodcastTabId, searchQuery: string
     hasRenderableContent,
     loadMoreShows,
     loadMoreEpisodes,
-    retry: loadBootstrap,
-    retryBrowse: loadBrowse,
+    retry: () => setBootstrapRetryNonce((value) => value + 1),
+    retryBrowse: () => setBrowseRetryNonce((value) => value + 1),
   }
 }

@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-14T16:45:13.452Z",
+  "identity": "Revry",
+  "candidateRecordId": "44788f64-5ea2-4be7-8308-7d0d909533b7",
+  "aliasesTerminal": 2,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.67,
+  "resolution": "1280x720",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

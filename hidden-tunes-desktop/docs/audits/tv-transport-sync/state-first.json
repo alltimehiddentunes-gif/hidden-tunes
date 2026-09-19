@@ -3,17 +3,17 @@
     "clicked": true,
     "cards": 47,
     "kids": true,
-    "label": "Watch NHK World Japan"
+    "label": "Watch DW English"
   },
   "first": {
-    "railTitle": "NHK World Japan",
-    "footerTitle": "NHK World JapanEurope · Japan · English · Verified",
+    "railTitle": "DW English",
+    "footerTitle": "DW EnglishNews · Germany · English · Verified",
     "nowPlaying": true,
     "hasRailTransport": true,
     "videoCount": 1
   },
   "state": {
-    "railTitle": "NHK World Japan",
+    "railTitle": "DW English",
     "footerTitle": null,
     "titlesMatch": false,
     "hasRailPrevNext": true,
@@ -26,9 +26,9 @@
     "railPlayLabel": "Pause",
     "footerPlayLabel": "Pause",
     "upcoming": [
-      "DW English",
+      "Fashion TV Paris",
       "France 24 English",
-      "Fashion TV Paris"
+      "NHK World Japan"
     ]
   }
 }

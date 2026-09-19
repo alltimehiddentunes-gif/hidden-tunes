@@ -1,0 +1,82 @@
+{
+  "testedAt": "2026-08-09T06:53:03.302Z",
+  "productionWrites": 0,
+  "thirtySeconds": [
+    {
+      "id": "62b976b93279cb000772c6f9",
+      "name": "Bloomberg TV+",
+      "host": "bloomberg.com",
+      "passed": true
+    },
+    {
+      "id": "5a6b92f6e22a617379789618",
+      "name": "CBS News 24/7",
+      "host": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "passed": true
+    },
+    {
+      "id": "5dc9b875e280c80009a8a44a",
+      "name": "CBS News Los Angeles (720p)",
+      "host": "dai.google.com",
+      "passed": true
+    },
+    {
+      "id": "60fb299b79498900070b29e0",
+      "name": "CBS News Miami (720p)",
+      "host": "cbsn-mia.cbsnstream.cbsnews.com",
+      "passed": true
+    },
+    {
+      "id": "60cb6df2b2ad610008cd5bea",
+      "name": "CBS News Sacramento (720p)",
+      "host": "lineup.cbsivideo.com",
+      "passed": true
+    },
+    {
+      "id": "60492e6d7f3f560007ab0f62",
+      "name": "Estrella News (720p)",
+      "host": "estrellanews-glewed.amagi.tv",
+      "passed": true
+    },
+    {
+      "id": "61de8e502c8e9400077e5de7",
+      "name": "Euronews",
+      "host": "cdn-euronews.akamaized.net",
+      "passed": true
+    },
+    {
+      "id": "61de90a47365340007f77c27",
+      "name": "Euronews English (720p)",
+      "host": "cdn-euronews.akamaized.net",
+      "passed": true
+    }
+  ],
+  "twoMinutes": [
+    {
+      "id": "62b976b93279cb000772c6f9",
+      "name": "Bloomberg TV+",
+      "host": "bloomberg.com",
+      "passed": true
+    },
+    {
+      "id": "5a6b92f6e22a617379789618",
+      "name": "CBS News 24/7",
+      "host": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "passed": true
+    },
+    {
+      "id": "5dc9b875e280c80009a8a44a",
+      "name": "CBS News Los Angeles (720p)",
+      "host": "dai.google.com",
+      "passed": true
+    }
+  ],
+  "fiveMinutes": [
+    {
+      "id": "62b976b93279cb000772c6f9",
+      "name": "Bloomberg TV+",
+      "host": "bloomberg.com",
+      "passed": true
+    }
+  ]
+}

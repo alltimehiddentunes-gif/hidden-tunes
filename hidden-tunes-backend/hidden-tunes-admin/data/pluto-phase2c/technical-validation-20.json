@@ -1,0 +1,228 @@
+{
+  "validatedAt": "2026-08-09T06:42:27.743Z",
+  "productionWrites": 0,
+  "selected": 20,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "providerChannelId": "65d92a8c8b24c80008e285c0",
+      "canonicalName": "BBC News",
+      "sourceHost": "vs-hls-push-ww-live.akamaized.net",
+      "provenance": "existing_tv_record:bbe31e23-4f1d-4f74-a883-3e2d23d8d32c",
+      "decoded": true,
+      "hash": "a6227c9c9e177656",
+      "minSlateDistance": 27,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\01-65d92a8c8b24c80008e285c0.jpg"
+    },
+    {
+      "providerChannelId": "62b976b93279cb000772c6f9",
+      "canonicalName": "Bloomberg TV+",
+      "sourceHost": "bloomberg.com",
+      "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77",
+      "decoded": true,
+      "hash": "fff0e5e5b5b5e5de",
+      "minSlateDistance": 32,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\02-62b976b93279cb000772c6f9.jpg"
+    },
+    {
+      "providerChannelId": "6536721dbfbaec00088687c0",
+      "canonicalName": "CBC News Toronto (720p)",
+      "sourceHost": "amagi-streams.akamaized.net",
+      "provenance": "existing_tv_record:ba63fcd6-20de-45d3-a162-f5350c6e13c5",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\03-6536721dbfbaec00088687c0.jpg"
+    },
+    {
+      "providerChannelId": "5a6b92f6e22a617379789618",
+      "canonicalName": "CBS News 24/7",
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "hash": "5b5b795959791919",
+      "minSlateDistance": 24,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\04-5a6b92f6e22a617379789618.jpg"
+    },
+    {
+      "providerChannelId": "60f75919718aed0007250d7a",
+      "canonicalName": "CBS News Baltimore (720p)",
+      "sourceHost": "lineup.cbsivideo.com",
+      "provenance": "existing_tv_record:debe8a7d-76e6-4100-b4f3-4573617c8144",
+      "decoded": true,
+      "hash": "308cb2b2f25c9e1c",
+      "minSlateDistance": 28,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\05-60f75919718aed0007250d7a.jpg"
+    },
+    {
+      "providerChannelId": "5eb1afb21486df0007abc57c",
+      "canonicalName": "CBS News Bay Area (720p)",
+      "sourceHost": "cbsn-sf.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:e783ff21-bfca-47b4-918b-9766d42baa16",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\06-5eb1afb21486df0007abc57c.jpg"
+    },
+    {
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "canonicalName": "CBS News Boston (720p)",
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:21f02509-be67-4212-a9bd-43eb9943bcaa",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\07-5eb1af2ad345340008fccd1e.jpg"
+    },
+    {
+      "providerChannelId": "5eb1aeb2fd4b8a00076c2047",
+      "canonicalName": "CBS News Chicago (720p)",
+      "sourceHost": "cbsn-chi.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:16c58c32-a62f-44a5-a1d9-52991753d73a",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\08-5eb1aeb2fd4b8a00076c2047.jpg"
+    },
+    {
+      "providerChannelId": "5eb1b12146cba40007aa7e5d",
+      "canonicalName": "CBS News Colorado (720p)",
+      "sourceHost": "cbsn-den.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:d68c874b-9bec-4e70-8cec-05574f8ad43f",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\09-5eb1b12146cba40007aa7e5d.jpg"
+    },
+    {
+      "providerChannelId": "634f2610d5023700078f7dee",
+      "canonicalName": "CBS News Detroit (720p)",
+      "sourceHost": "cbsn-det.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:34e60faf-c563-47f9-8222-687e0d20ae1c",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\10-634f2610d5023700078f7dee.jpg"
+    },
+    {
+      "providerChannelId": "5dc9b875e280c80009a8a44a",
+      "canonicalName": "CBS News Los Angeles (720p)",
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+      "decoded": true,
+      "hash": "93bb39b1e9696959",
+      "minSlateDistance": 27,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\11-5dc9b875e280c80009a8a44a.jpg"
+    },
+    {
+      "providerChannelId": "60fb299b79498900070b29e0",
+      "canonicalName": "CBS News Miami (720p)",
+      "sourceHost": "cbsn-mia.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:bd76bef3-9bd3-4771-b0ba-dbc553a880e2",
+      "decoded": true,
+      "hash": "9b9a4c2a8e441903",
+      "minSlateDistance": 22,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\12-60fb299b79498900070b29e0.jpg"
+    },
+    {
+      "providerChannelId": "5eb1b0bf2240d8000732a09c",
+      "canonicalName": "CBS News Minnesota (720p)",
+      "sourceHost": "cbsn-min.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:86c80dff-0123-4259-a2a1-1aa184aafd10",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\13-5eb1b0bf2240d8000732a09c.jpg"
+    },
+    {
+      "providerChannelId": "5dc9b8223687ff000936ed79",
+      "canonicalName": "CBS News New York (720p)",
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+      "decoded": true,
+      "hash": "d5d76767e7c78f1f",
+      "minSlateDistance": 27,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\14-5dc9b8223687ff000936ed79.jpg"
+    },
+    {
+      "providerChannelId": "5eb1b17aa5277e00083f6521",
+      "canonicalName": "CBS News Pittsburgh (720p)",
+      "sourceHost": "cbsn-pit.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:f165911e-a1a6-4661-9c2c-3eaebcc9998b",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\15-5eb1b17aa5277e00083f6521.jpg"
+    },
+    {
+      "providerChannelId": "60cb6df2b2ad610008cd5bea",
+      "canonicalName": "CBS News Sacramento (720p)",
+      "sourceHost": "lineup.cbsivideo.com",
+      "provenance": "existing_tv_record:2dec6400-a7e8-494c-8a1e-1fd8144fea83",
+      "decoded": true,
+      "hash": "735b48686c6cad99",
+      "minSlateDistance": 28,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\16-60cb6df2b2ad610008cd5bea.jpg"
+    },
+    {
+      "providerChannelId": "5eceb0d4065c240007688ec6",
+      "canonicalName": "CBS News Texas",
+      "sourceHost": "cbsn-dal.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:d382701d-749c-467d-9b40-c0f74f386685",
+      "decoded": false,
+      "hash": null,
+      "minSlateDistance": null,
+      "automaticState": "DEAD",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\17-5eceb0d4065c240007688ec6.jpg"
+    },
+    {
+      "providerChannelId": "60492e6d7f3f560007ab0f62",
+      "canonicalName": "Estrella News (720p)",
+      "sourceHost": "estrellanews-glewed.amagi.tv",
+      "provenance": "existing_tv_record:8ba50421-5727-4215-89b7-aec81048d3a2",
+      "decoded": true,
+      "hash": "5f9b1686090d52a4",
+      "minSlateDistance": 24,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\18-60492e6d7f3f560007ab0f62.jpg"
+    },
+    {
+      "providerChannelId": "61de8e502c8e9400077e5de7",
+      "canonicalName": "Euronews",
+      "sourceHost": "cdn-euronews.akamaized.net",
+      "provenance": "existing_tv_record:34b59bb0-eace-440d-bac4-91372e18c986",
+      "decoded": true,
+      "hash": "0bb0717178787879",
+      "minSlateDistance": 23,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\19-61de8e502c8e9400077e5de7.jpg"
+    },
+    {
+      "providerChannelId": "61de90a47365340007f77c27",
+      "canonicalName": "Euronews English (720p)",
+      "sourceHost": "cdn-euronews.akamaized.net",
+      "provenance": "existing_tv_record:3a6f664a-7baf-483b-9015-57c096075b69",
+      "decoded": true,
+      "hash": "93b11919133034b4",
+      "minSlateDistance": 20,
+      "automaticState": "NEEDS_VISUAL_REVIEW",
+      "frame": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2c-controls\\20-61de90a47365340007f77c27.jpg"
+    }
+  ]
+}

@@ -162,18 +162,13 @@ function safeTracks(data: unknown): BackendYouTubeTrack[] {
 }
 
 function hasYouTubeApiConfig() {
-  return Boolean(YOUTUBE_CONFIG.API_KEY && YOUTUBE_CONFIG.CHANNEL_ID);
+  return Boolean(YOUTUBE_CONFIG.CHANNEL_ID);
 }
 
 function getYouTubeConfigError() {
-  if (!YOUTUBE_CONFIG.API_KEY && !YOUTUBE_CONFIG.CHANNEL_ID) {
-    return "Missing YouTube API key and channel ID.";
-  }
-
-  if (!YOUTUBE_CONFIG.API_KEY) return "Missing YouTube API key.";
   if (!YOUTUBE_CONFIG.CHANNEL_ID) return "Missing Hidden Tunes YouTube channel ID.";
 
-  return "";
+  return "YouTube Data API discovery requires a server-mediated integration.";
 }
 
 function getYouTubeErrorMessage(status: number, body: string) {
@@ -199,7 +194,6 @@ function buildSearchUrl(params: Record<string, string | number | undefined>) {
     type: "video",
     videoEmbeddable: "true",
     safeSearch: "moderate",
-    key: YOUTUBE_CONFIG.API_KEY,
   });
 
   Object.entries(params).forEach(([key, value]) => {

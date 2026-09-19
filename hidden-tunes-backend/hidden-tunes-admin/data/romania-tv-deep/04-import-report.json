@@ -1,0 +1,28 @@
+{
+  "importedAt": "2026-08-02T11:38:37.970Z",
+  "attempted": 3,
+  "imported": 2,
+  "rejected": 1,
+  "importedIds": [
+    "9b4f89ef-6432-47d6-930c-51a4fe0fe82a",
+    "655ce25e-dab4-44c6-a423-239f88a716c1"
+  ],
+  "stations": [
+    {
+      "id": "9b4f89ef-6432-47d6-930c-51a4fe0fe82a",
+      "title": "HD365 TV",
+      "source_key": "romania-tv-deep:5893c3b13a0ff29b39a8",
+      "playback_status": "playable",
+      "protocol": "hls",
+      "sanitizedUrl": "https://s2.netstreaming.eu/hd365.m3u8"
+    },
+    {
+      "id": "655ce25e-dab4-44c6-a423-239f88a716c1",
+      "title": "PROFI 24 TV",
+      "source_key": "romania-tv-deep:3c34507f33759881152d",
+      "playback_status": "playable",
+      "protocol": "hls",
+      "sanitizedUrl": "https://live.ro24tv.ro/hls/stream.m3u8"
+    }
+  ]
+}

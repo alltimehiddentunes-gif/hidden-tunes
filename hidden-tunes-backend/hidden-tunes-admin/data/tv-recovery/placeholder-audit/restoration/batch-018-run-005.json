@@ -1,0 +1,31 @@
+{
+  "completedAt": "2026-08-15T12:44:19.270Z",
+  "scope": "Batch 18 final identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 1,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Always Funny had authoritative Tubi live-channel provenance and a broadcaster-owned Tubi production endpoint, but the production playback resolver returned HTTP 404 before media playback; it remains quarantined.",
+    "Ancient Aliens, Cars, and Stargate used rejected jmp2.uk sources.",
+    "Murder, She Wrote used generic CloudFront without complete direct authoritative candidate linkage.",
+    "No production writes or duplicate records were created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 47,
+  "cumulativeTerminalAliases": 172,
+  "batch18Target": 25,
+  "batch18Researched": 25,
+  "batch18Remaining": 0,
+  "batch18Complete": true
+}

@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T08:43:35.726Z",
+  "scope": "Batch 7 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "PBR RidePass retained plausible official FAST provenance but failed the Desktop media gate: after 200 seconds it remained readyState 0 at 0x0 with no decoded content. It stays quarantined.",
+    "Teletubbies and Bondi Rescue were rejected before media validation because their candidates use jmp2.uk and i.mjh.nz.",
+    "CBS Sports HQ has a Google DAI candidate but requires stronger exact distribution correlation before expensive validation.",
+    "Nash Bridges retains Xumo-linked CloudFront provenance but was not promoted or reclassified without a complete proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 23,
+  "cumulativeTerminalAliases": 101,
+  "batch7Target": 25,
+  "batch7Researched": 25,
+  "batch7Remaining": 0
+}

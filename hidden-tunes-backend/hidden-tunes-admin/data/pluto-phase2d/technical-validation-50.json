@@ -1,0 +1,1422 @@
+{
+  "testedAt": "2026-08-09T07:09:43.934Z",
+  "productionWrites": 0,
+  "candidatesTested": 50,
+  "decoded": 40,
+  "dead": 10,
+  "endOfAvailability": 0,
+  "negativeControlFrames": 120,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "providerChannelId": "65d92a8c8b24c80008e285c0",
+      "canonicalName": "BBC News",
+      "category": [
+        "News + Opinion"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "vs-hls-push-ww-live.akamaized.net",
+      "provenance": "existing_tv_record:bbe31e23-4f1d-4f74-a883-3e2d23d8d32c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\01-65d92a8c8b24c80008e285c0-01.jpg",
+          "hash": "c6c6cf8386646363",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\01-65d92a8c8b24c80008e285c0-02.jpg",
+          "hash": "79eb8a9fb9089d16",
+          "distance": 30
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\01-65d92a8c8b24c80008e285c0-03.jpg",
+          "hash": "dccca4a2969ddc4c",
+          "distance": 36
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62b976b93279cb000772c6f9",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News + Opinion"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "86ebec83.wurl.com",
+      "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\02-62b976b93279cb000772c6f9-01.jpg",
+          "hash": "343d3b5c5bc7d7b7",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\02-62b976b93279cb000772c6f9-02.jpg",
+          "hash": "373f395f55c5e6b7",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\02-62b976b93279cb000772c6f9-03.jpg",
+          "hash": "1f1f595acdc5f797",
+          "distance": 26
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62b976b93279cb000772c6f9",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News + Opinion"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "bloomberg.com",
+      "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\03-62b976b93279cb000772c6f9-01.jpg",
+          "hash": "898988999c16868f",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\03-62b976b93279cb000772c6f9-02.jpg",
+          "hash": "0d1d1d1d1d0f2723",
+          "distance": 21
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\03-62b976b93279cb000772c6f9-03.jpg",
+          "hash": "1d1d1d1d0d1f2723",
+          "distance": 20
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62b976b93279cb000772c6f9",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News + Opinion"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "bloomberg.com",
+      "provenance": "existing_tv_record:8eaa14f4-d532-487b-b351-74975726483c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\04-62b976b93279cb000772c6f9-01.jpg",
+          "hash": "373f395e56c5f793",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\04-62b976b93279cb000772c6f9-02.jpg",
+          "hash": "373f397e56c5f597",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\04-62b976b93279cb000772c6f9-03.jpg",
+          "hash": "343f335d53a78793",
+          "distance": 24
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61559552dd585f0007321eca",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "86ebec83.wurl.com",
+      "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\05-61559552dd585f0007321eca-01.jpg",
+          "hash": "1f1f594ccdc5d797",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\05-61559552dd585f0007321eca-02.jpg",
+          "hash": "373f395e56c5d793",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\05-61559552dd585f0007321eca-03.jpg",
+          "hash": "373f395e56c5f793",
+          "distance": 27
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61559552dd585f0007321eca",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "bloomberg.com",
+      "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\06-61559552dd585f0007321eca-01.jpg",
+          "hash": "1d1d1d1d0d1f2763",
+          "distance": 21
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\06-61559552dd585f0007321eca-02.jpg",
+          "hash": "2f27373325252525",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\06-61559552dd585f0007321eca-03.jpg",
+          "hash": "6327333333216121",
+          "distance": 23
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61559552dd585f0007321eca",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "bloomberg.com",
+      "provenance": "existing_tv_record:8eaa14f4-d532-487b-b351-74975726483c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\07-61559552dd585f0007321eca-01.jpg",
+          "hash": "343f335d5bcf9493",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\07-61559552dd585f0007321eca-02.jpg",
+          "hash": "bfbd6d7c9ccc9697",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\07-61559552dd585f0007321eca-03.jpg",
+          "hash": "bfbf7d3c1dc59797",
+          "distance": 27
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "54ff7ba69222cb1c2624c584",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News + Opinion"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "86ebec83.wurl.com",
+      "provenance": "existing_tv_record:435c1c43-08a7-4282-abe4-9f92a38cf71b",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\08-54ff7ba69222cb1c2624c584-01.jpg",
+          "hash": "373f395e56c5d793",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\08-54ff7ba69222cb1c2624c584-02.jpg",
+          "hash": "373f395e56c5d593",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\08-54ff7ba69222cb1c2624c584-03.jpg",
+          "hash": "343f335d53a787b3",
+          "distance": 25
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "54ff7ba69222cb1c2624c584",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News + Opinion"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "bloomberg.com",
+      "provenance": "existing_tv_record:0f481c1b-2503-4359-81c1-2d8622a3ba77",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\09-54ff7ba69222cb1c2624c584-01.jpg",
+          "hash": "2f27333325252525",
+          "distance": 24
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\09-54ff7ba69222cb1c2624c584-02.jpg",
+          "hash": "2327333333216123",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\09-54ff7ba69222cb1c2624c584-03.jpg",
+          "hash": "0d0d0d0d1d0f2733",
+          "distance": 23
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "54ff7ba69222cb1c2624c584",
+      "canonicalName": "Bloomberg TV+",
+      "category": [
+        "News + Opinion"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "bloomberg.com",
+      "provenance": "existing_tv_record:8eaa14f4-d532-487b-b351-74975726483c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\10-54ff7ba69222cb1c2624c584-01.jpg",
+          "hash": "bfbf6d3c9dc59797",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\10-54ff7ba69222cb1c2624c584-02.jpg",
+          "hash": "bfbd7f7e9cc69697",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\10-54ff7ba69222cb1c2624c584-03.jpg",
+          "hash": "37373f5e54cd9697",
+          "distance": 30
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6536721dbfbaec00088687c0",
+      "canonicalName": "CBC News Toronto (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "CA_PLUTO"
+      ],
+      "sourceHost": "amagi-streams.akamaized.net",
+      "provenance": "existing_tv_record:ba63fcd6-20de-45d3-a162-f5350c6e13c5",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "5a6b92f6e22a617379789618",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "Nachrichten",
+        "News"
+      ],
+      "region": [
+        "US",
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\12-5a6b92f6e22a617379789618-01.jpg",
+          "hash": "0003076ebf363a68",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\12-5a6b92f6e22a617379789618-02.jpg",
+          "hash": "11173e7fcf5d5119",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\12-5a6b92f6e22a617379789618-03.jpg",
+          "hash": "5645868aca953529",
+          "distance": 30
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5a6b92f6e22a617379789618",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "Nachrichten",
+        "News"
+      ],
+      "region": [
+        "US",
+        "US_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\13-5a6b92f6e22a617379789618-01.jpg",
+          "hash": "5b581c4869379787",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\13-5a6b92f6e22a617379789618-02.jpg",
+          "hash": "858d8f8e8f0c0b8b",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\13-5a6b92f6e22a617379789618-03.jpg",
+          "hash": "85858f8f8f040b8b",
+          "distance": 26
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231e909bc960f00075d8e7c",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "Noticias",
+        "News",
+        "Nyheter"
+      ],
+      "region": [
+        "US",
+        "NO_PLUTO",
+        "NO"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\14-6231e909bc960f00075d8e7c-01.jpg",
+          "hash": "1c93428680855030",
+          "distance": 23
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\14-6231e909bc960f00075d8e7c-02.jpg",
+          "hash": "858d8f8e8d0c0b8b",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\14-6231e909bc960f00075d8e7c-03.jpg",
+          "hash": "85878f8f8f040b8b",
+          "distance": 25
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231e909bc960f00075d8e7c",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "Noticias",
+        "News",
+        "Nyheter"
+      ],
+      "region": [
+        "US",
+        "NO_PLUTO",
+        "NO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\15-6231e909bc960f00075d8e7c-01.jpg",
+          "hash": "85858f8f8f040b8b",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\15-6231e909bc960f00075d8e7c-02.jpg",
+          "hash": "3993c3b9111d0b13",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\15-6231e909bc960f00075d8e7c-03.jpg",
+          "hash": "09a98d8d9dbd8f06",
+          "distance": 28
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231ec93779a9d00079ba8e2",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\16-6231ec93779a9d00079ba8e2-01.jpg",
+          "hash": "858d8f8e8f0c0b8b",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\16-6231ec93779a9d00079ba8e2-02.jpg",
+          "hash": "efe7ef6d6fcf4372",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\16-6231ec93779a9d00079ba8e2-03.jpg",
+          "hash": "09a98929293d9f86",
+          "distance": 27
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231ec93779a9d00079ba8e2",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\17-6231ec93779a9d00079ba8e2-01.jpg",
+          "hash": "3993c3b9911d0b12",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\17-6231ec93779a9d00079ba8e2-02.jpg",
+          "hash": "ce9e9fbe9c9f1918",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\17-6231ec93779a9d00079ba8e2-03.jpg",
+          "hash": "09898d8d8d9d8686",
+          "distance": 27
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62310d5a5dc9550007c6f580",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "Noticias"
+      ],
+      "region": [
+        "MX"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\18-62310d5a5dc9550007c6f580-01.jpg",
+          "hash": "3993c3b9111d0b1a",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\18-62310d5a5dc9550007c6f580-02.jpg",
+          "hash": "09a98d8db9b98f06",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\18-62310d5a5dc9550007c6f580-03.jpg",
+          "hash": "787d7f6c6e3a3038",
+          "distance": 26
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62310d5a5dc9550007c6f580",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "Noticias"
+      ],
+      "region": [
+        "MX"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\19-62310d5a5dc9550007c6f580-01.jpg",
+          "hash": "09898d8d9d9d8686",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\19-62310d5a5dc9550007c6f580-02.jpg",
+          "hash": "53130323130383c5",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\19-62310d5a5dc9550007c6f580-03.jpg",
+          "hash": "c4c6cecece0d8b8b",
+          "distance": 29
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231eb3865be650007f59595",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\20-6231eb3865be650007f59595-01.jpg",
+          "hash": "ce9e9cbc9d9d1818",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\20-6231eb3865be650007f59595-02.jpg",
+          "hash": "09898d8d8d9d9686",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\20-6231eb3865be650007f59595-03.jpg",
+          "hash": "3c2c2c0c2c6c5c48",
+          "distance": 26
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231eb3865be650007f59595",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\21-6231eb3865be650007f59595-01.jpg",
+          "hash": "09898d8d8d9d8686",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\21-6231eb3865be650007f59595-02.jpg",
+          "hash": "c4c6cecece0c8b8b",
+          "distance": 30
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\21-6231eb3865be650007f59595-03.jpg",
+          "hash": "c0cecece8e0ccb9b",
+          "distance": 33
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62310f66d5888f0007534342",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "Notícias"
+      ],
+      "region": [
+        "BR"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\22-62310f66d5888f0007534342-01.jpg",
+          "hash": "c4c6cececf0c8b8b",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\22-62310f66d5888f0007534342-02.jpg",
+          "hash": "c4c6cececf048f89",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\22-62310f66d5888f0007534342-03.jpg",
+          "hash": "1f1f131134aa4ece",
+          "distance": 24
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62310f66d5888f0007534342",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "Notícias"
+      ],
+      "region": [
+        "BR"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\23-62310f66d5888f0007534342-01.jpg",
+          "hash": "c4c6cecece0d8b8b",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\23-62310f66d5888f0007534342-02.jpg",
+          "hash": "4959594756566626",
+          "distance": 22
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\23-62310f66d5888f0007534342-03.jpg",
+          "hash": "9df97a7a598f369e",
+          "distance": 28
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61e82af27027f9000753c6e4",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "DK_PLUTO"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\24-61e82af27027f9000753c6e4-01.jpg",
+          "hash": "c4c6cececf0c8b8b",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\24-61e82af27027f9000753c6e4-02.jpg",
+          "hash": "c4c6cececf048f89",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\24-61e82af27027f9000753c6e4-03.jpg",
+          "hash": "1f1f131134aa4ece",
+          "distance": 24
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61e82af27027f9000753c6e4",
+      "canonicalName": "CBS News 24/7",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "DK_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\25-61e82af27027f9000753c6e4-01.jpg",
+          "hash": "9727ebe12969f175",
+          "distance": 31
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\25-61e82af27027f9000753c6e4-02.jpg",
+          "hash": "1f597879c86cacaa",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\25-61e82af27027f9000753c6e4-03.jpg",
+          "hash": "3210341549497f67",
+          "distance": 27
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231e9b7f6deff00074674f4",
+      "canonicalName": "CBS News 24/7 (720p)",
+      "category": [
+        "News",
+        "Nyheter"
+      ],
+      "region": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\26-6231e9b7f6deff00074674f4-01.jpg",
+          "hash": "a9a8181d161696e6",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\26-6231e9b7f6deff00074674f4-02.jpg",
+          "hash": "9d797a7a598f369e",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\26-6231e9b7f6deff00074674f4-03.jpg",
+          "hash": "51d89c54d458181a",
+          "distance": 28
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231e9b7f6deff00074674f4",
+      "canonicalName": "CBS News 24/7 (720p)",
+      "category": [
+        "News",
+        "Nyheter"
+      ],
+      "region": [
+        "SE_PLUTO",
+        "SW"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\27-6231e9b7f6deff00074674f4-01.jpg",
+          "hash": "9df97a7a599f369e",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\27-6231e9b7f6deff00074674f4-02.jpg",
+          "hash": "51589c54d45c181a",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\27-6231e9b7f6deff00074674f4-03.jpg",
+          "hash": "59592bb329b97971",
+          "distance": 30
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231ec4b62cd1f0007093c7b",
+      "canonicalName": "CBS News 24/7 (720p)",
+      "category": [
+        "News",
+        "News e mondo"
+      ],
+      "region": [
+        "IT_PLUTO",
+        "IT"
+      ],
+      "sourceHost": "cbsn-us-vtt.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:a835f417-5c4f-4395-9de3-342420c488cb",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\28-6231ec4b62cd1f0007093c7b-01.jpg",
+          "hash": "41d89c54d45c181a",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\28-6231ec4b62cd1f0007093c7b-02.jpg",
+          "hash": "a39bd2667a7b33b1",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\28-6231ec4b62cd1f0007093c7b-03.jpg",
+          "hash": "9f9195d4cc854584",
+          "distance": 26
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6231ec4b62cd1f0007093c7b",
+      "canonicalName": "CBS News 24/7 (720p)",
+      "category": [
+        "News",
+        "News e mondo"
+      ],
+      "region": [
+        "IT_PLUTO",
+        "IT"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:5d204254-7c1a-4a0f-89e0-b85ba7a4758c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\29-6231ec4b62cd1f0007093c7b-01.jpg",
+          "hash": "3210341549497f67",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\29-6231ec4b62cd1f0007093c7b-02.jpg",
+          "hash": "a125e4cad9393c24",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\29-6231ec4b62cd1f0007093c7b-03.jpg",
+          "hash": "4318145494989892",
+          "distance": 29
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60f75919718aed0007250d7a",
+      "canonicalName": "CBS News Baltimore (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "lineup.cbsivideo.com",
+      "provenance": "existing_tv_record:debe8a7d-76e6-4100-b4f3-4573617c8144",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\30-60f75919718aed0007250d7a-01.jpg",
+          "hash": "3096696969549e1c",
+          "distance": 23
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\30-60f75919718aed0007250d7a-02.jpg",
+          "hash": "3096696969549e1c",
+          "distance": 23
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\30-60f75919718aed0007250d7a-03.jpg",
+          "hash": "8282c04000828282",
+          "distance": 24
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1afb21486df0007abc57c",
+      "canonicalName": "CBS News Bay Area (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-sf.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:e783ff21-bfca-47b4-918b-9766d42baa16",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "5eb1afb21486df0007abc57c",
+      "canonicalName": "CBS News Bay Area (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:b5bc6a91-c1ee-4191-b9dd-6d85bb033fb3",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\32-5eb1afb21486df0007abc57c-01.jpg",
+          "hash": "6ef3ebe9f9e9e92c",
+          "distance": 31
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\32-5eb1afb21486df0007abc57c-02.jpg",
+          "hash": "eae0624363e9e9c4",
+          "distance": 32
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\32-5eb1afb21486df0007abc57c-03.jpg",
+          "hash": "0d5d1f1a1b933321",
+          "distance": 27
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "canonicalName": "CBS News Boston (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:21f02509-be67-4212-a9bd-43eb9943bcaa",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "canonicalName": "CBS News Boston (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:115878df-69e5-4267-a712-a3487a92b16d",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\34-5eb1af2ad345340008fccd1e-01.jpg",
+          "hash": "ce9e9daf9e9f1b18",
+          "distance": 24
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\34-5eb1af2ad345340008fccd1e-02.jpg",
+          "hash": "098d8d8d9d9d9686",
+          "distance": 28
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\34-5eb1af2ad345340008fccd1e-03.jpg",
+          "hash": "c4c6cecece0c8b8b",
+          "distance": 30
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "canonicalName": "CBS News Boston (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-bos.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:4dd83fcf-3f46-42b8-9f4b-90ae242f75b1",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "5eb1af2ad345340008fccd1e",
+      "canonicalName": "CBS News Boston (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:7c6f48c0-c51c-4af5-829a-d7dce34de579",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\36-5eb1af2ad345340008fccd1e-01.jpg",
+          "hash": "3c3dbd383d79797c",
+          "distance": 30
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\36-5eb1af2ad345340008fccd1e-02.jpg",
+          "hash": "e44d8dbbafefe56c",
+          "distance": 32
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\36-5eb1af2ad345340008fccd1e-03.jpg",
+          "hash": "c4c6cececf0d8b8b",
+          "distance": 28
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1aeb2fd4b8a00076c2047",
+      "canonicalName": "CBS News Chicago (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-chi.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:16c58c32-a62f-44a5-a1d9-52991753d73a",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "5eb1aeb2fd4b8a00076c2047",
+      "canonicalName": "CBS News Chicago (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:82d426f0-fb17-485a-9658-459ba0ff0167",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\38-5eb1aeb2fd4b8a00076c2047-01.jpg",
+          "hash": "c4c6cececf0c8b8b",
+          "distance": 29
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\38-5eb1aeb2fd4b8a00076c2047-02.jpg",
+          "hash": "c4e6cec7cf048f89",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\38-5eb1aeb2fd4b8a00076c2047-03.jpg",
+          "hash": "1f1f139130884e4e",
+          "distance": 27
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1b12146cba40007aa7e5d",
+      "canonicalName": "CBS News Colorado (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-den.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:d68c874b-9bec-4e70-8cec-05574f8ad43f",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "634f2610d5023700078f7dee",
+      "canonicalName": "CBS News Detroit (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-det.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:34e60faf-c563-47f9-8222-687e0d20ae1c",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "5dc9b875e280c80009a8a44a",
+      "canonicalName": "CBS News Los Angeles (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\41-5dc9b875e280c80009a8a44a-01.jpg",
+          "hash": "3830360643910101",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\41-5dc9b875e280c80009a8a44a-02.jpg",
+          "hash": "2019d83535331b19",
+          "distance": 26
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\41-5dc9b875e280c80009a8a44a-03.jpg",
+          "hash": "6563e3f2f2b3a7c8",
+          "distance": 33
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60fb299b79498900070b29e0",
+      "canonicalName": "CBS News Miami (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-mia.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:bd76bef3-9bd3-4771-b0ba-dbc553a880e2",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\42-60fb299b79498900070b29e0-01.jpg",
+          "hash": "686bcecbcacaea63",
+          "distance": 33
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\42-60fb299b79498900070b29e0-02.jpg",
+          "hash": "7171797830315151",
+          "distance": 30
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\42-60fb299b79498900070b29e0-03.jpg",
+          "hash": "6debca272626464c",
+          "distance": 26
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60fb299b79498900070b29e0",
+      "canonicalName": "CBS News Miami (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "lineup.cbsivideo.com",
+      "provenance": "existing_tv_record:8a99f880-ab56-4cfe-87cf-d5b2cb2d5080",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\43-60fb299b79498900070b29e0-01.jpg",
+          "hash": "4c8c8a0a0c8c1301",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\43-60fb299b79498900070b29e0-02.jpg",
+          "hash": "b86869696969b0b1",
+          "distance": 24
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\43-60fb299b79498900070b29e0-03.jpg",
+          "hash": "a78787879f0f1701",
+          "distance": 25
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1b0bf2240d8000732a09c",
+      "canonicalName": "CBS News Minnesota (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-min.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:86c80dff-0123-4259-a2a1-1aa184aafd10",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "5dc9b8223687ff000936ed79",
+      "canonicalName": "CBS News New York (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "dai.google.com",
+      "provenance": "existing_tv_record:e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\45-5dc9b8223687ff000936ed79-01.jpg",
+          "hash": "9e9e969796961311",
+          "distance": 27
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\45-5dc9b8223687ff000936ed79-02.jpg",
+          "hash": "9c3e36adad9d3c6c",
+          "distance": 23
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\45-5dc9b8223687ff000936ed79-03.jpg",
+          "hash": "11018ced6f56d575",
+          "distance": 28
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1b17aa5277e00083f6521",
+      "canonicalName": "CBS News Pittsburgh (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "cbsn-pit.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:f165911e-a1a6-4661-9c2c-3eaebcc9998b",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "60cb6df2b2ad610008cd5bea",
+      "canonicalName": "CBS News Sacramento (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "lineup.cbsivideo.com",
+      "provenance": "existing_tv_record:2dec6400-a7e8-494c-8a1e-1fd8144fea83",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\47-60cb6df2b2ad610008cd5bea-01.jpg",
+          "hash": "6e7646c6ced99901",
+          "distance": 31
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\47-60cb6df2b2ad610008cd5bea-02.jpg",
+          "hash": "711b3b135b191941",
+          "distance": 25
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\47-60cb6df2b2ad610008cd5bea-03.jpg",
+          "hash": "11339291f1618881",
+          "distance": 26
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eceb0d4065c240007688ec6",
+      "canonicalName": "CBS News Texas",
+      "category": [
+        "Local News"
+      ],
+      "region": [
+        "US"
+      ],
+      "sourceHost": "cbsn-dal.cbsnstream.cbsnews.com",
+      "provenance": "existing_tv_record:d382701d-749c-467d-9b40-c0f74f386685",
+      "decoded": false,
+      "samples": [],
+      "automaticState": "DEAD"
+    },
+    {
+      "providerChannelId": "60492e6d7f3f560007ab0f62",
+      "canonicalName": "Estrella News (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "estrellanews-glewed.amagi.tv",
+      "provenance": "existing_tv_record:8ba50421-5727-4215-89b7-aec81048d3a2",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\49-60492e6d7f3f560007ab0f62-01.jpg",
+          "hash": "febf1e8efaf9fabe",
+          "distance": 33
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\49-60492e6d7f3f560007ab0f62-02.jpg",
+          "hash": "d8dcf0c05172f2ce",
+          "distance": 30
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\49-60492e6d7f3f560007ab0f62-03.jpg",
+          "hash": "46462f2f276666e6",
+          "distance": 25
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60492e6d7f3f560007ab0f62",
+      "canonicalName": "Estrella News (720p)",
+      "category": [
+        "News"
+      ],
+      "region": [
+        "US_PLUTO"
+      ],
+      "sourceHost": "estrella-news-oando.amagi.tv",
+      "provenance": "existing_tv_record:aa863d0e-5da9-4970-876c-aa249f6234bd",
+      "decoded": true,
+      "samples": [
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\50-60492e6d7f3f560007ab0f62-01.jpg",
+          "hash": "febf1e8efaf9fabe",
+          "distance": 33
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\50-60492e6d7f3f560007ab0f62-02.jpg",
+          "hash": "d8dcf0c05372f2ce",
+          "distance": 31
+        },
+        {
+          "path": "C:\\Users\\Wills\\AppData\\Local\\Temp\\hidden-tunes-pluto-phase2d-50\\50-60492e6d7f3f560007ab0f62-03.jpg",
+          "hash": "46462f2f276666e6",
+          "distance": 25
+        }
+      ],
+      "automaticState": "NEEDS_VISUAL_IDENTITY_REVIEW"
+    }
+  ]
+}

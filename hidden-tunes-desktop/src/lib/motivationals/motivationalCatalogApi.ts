@@ -223,6 +223,7 @@ async function motivationalRequest<T>(path: string, signal?: AbortSignal): Promi
       MOTIVATIONAL_CATALOG_BASE_URL,
       path,
       MOTIVATIONAL_REQUEST_TIMEOUT_MS,
+      signal,
     )
     if (signal?.aborted) throw new MotivationalCatalogError('Motivationals request was cancelled.')
     if (status < 200 || status >= 300) {

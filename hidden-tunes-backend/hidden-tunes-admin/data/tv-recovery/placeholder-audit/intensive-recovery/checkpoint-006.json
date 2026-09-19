@@ -1,0 +1,743 @@
+{
+  "batch": 6,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH",
+  "startedAt": "2026-08-11T10:06:04.558Z",
+  "completedAt": "2026-08-11T10:16:12.332Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 76,
+  "healthyCandidates": 22,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 22,
+  "stillUnresolved": 28,
+  "remainingQueue": 2897,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "677fb115a4af36ad50113e56",
+      "requestedTitles": [
+        "The Real Housewives"
+      ],
+      "normalizedIdentity": [
+        "the real housewives"
+      ],
+      "candidateRecordId": "5a214720-e20b-4820-a099-4a9088fb77b1",
+      "candidateTitle": "The Real Housewives",
+      "sourceHost": "d39g1vxj2ef6in.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62cd9e0d10bb020007005628",
+      "requestedTitles": [
+        "MTV Ridiculousness",
+        "MTV Ridiculousness (720p)",
+        "MTV Ridiculousness (720p)"
+      ],
+      "normalizedIdentity": [
+        "mtv ridiculousness"
+      ],
+      "candidateRecordId": "5fc2cdf3-756e-4987-95ca-1242d9449a5e",
+      "candidateTitle": "MTV Ridiculousness",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67d9836ba1609bdb523f0c9d",
+      "requestedTitles": [
+        "Relic Hunter",
+        "Relic Hunter"
+      ],
+      "normalizedIdentity": [
+        "relic hunter"
+      ],
+      "candidateRecordId": "95cf51ca-450c-4a5f-9385-d58732839dd6",
+      "candidateTitle": "Relic Hunter",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6512d3a0bdcb19000799cc82",
+      "requestedTitles": [
+        "The Twilight Zone",
+        "The Twilight Zone",
+        "The Twilight Zone"
+      ],
+      "normalizedIdentity": [
+        "the twilight zone"
+      ],
+      "candidateRecordId": "81c4968d-4945-42d4-b29e-7d9c17e2d2cd",
+      "candidateTitle": "The Twilight Zone",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "696998dfa2b623e8b20125a3",
+      "requestedTitles": [
+        "ZenLIFE by Stingray"
+      ],
+      "normalizedIdentity": [
+        "zenlife by stingray"
+      ],
+      "candidateRecordId": "8e6fe632-09d0-4097-a26b-a24412a59d3b",
+      "candidateTitle": "ZenLIFE by Stingray",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6408ae8f9b39550008caf94f",
+      "requestedTitles": [
+        "American Pickers",
+        "American Pickers"
+      ],
+      "normalizedIdentity": [
+        "american pickers"
+      ],
+      "candidateRecordId": "f58f4755-9fdd-4ae5-b9c5-ae93522b45dc",
+      "candidateTitle": "American Pickers",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5ddf901280e3550009139c86",
+      "requestedTitles": [
+        "5 Exploring Britain"
+      ],
+      "normalizedIdentity": [
+        "5 exploring britain"
+      ],
+      "candidateRecordId": "9b13b4ed-6443-4f06-9cc8-2f99b65d0edc",
+      "candidateTitle": "5 Exploring Britain",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "625eaebc2a73a00007d3f855",
+      "requestedTitles": [
+        "Catfish"
+      ],
+      "normalizedIdentity": [
+        "catfish"
+      ],
+      "candidateRecordId": "cb884d46-64b4-4cf0-996d-eb2e57f8bd70",
+      "candidateTitle": "Catfish",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65031534d545e9000881ed10",
+      "requestedTitles": [
+        "British Screen Classics"
+      ],
+      "normalizedIdentity": [
+        "british screen classics"
+      ],
+      "candidateRecordId": "07170b14-72ac-478b-8bcf-ee75866cdddb",
+      "candidateTitle": "British Screen Classics",
+      "sourceHost": "amg00654-itv-amg00654c25-rakuten-gb-8165.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "623b92a2ccefed0007b1db48",
+      "requestedTitles": [
+        "XITE Classic Country"
+      ],
+      "normalizedIdentity": [
+        "xite classic country"
+      ],
+      "candidateRecordId": "b7e056eb-d6c3-4274-9656-cd2990384f4d",
+      "candidateTitle": "XITE Classic Country",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65a7b01907e03a0008913e8f",
+      "requestedTitles": [
+        "Best of Dr. Phil"
+      ],
+      "normalizedIdentity": [
+        "best of dr phil"
+      ],
+      "candidateRecordId": "74832df2-16bc-4a51-9cf8-2b60ef5f5808",
+      "candidateTitle": "Best of Dr. Phil",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6514346fa76507000887d441",
+      "requestedTitles": [
+        "Confess by Nosey"
+      ],
+      "normalizedIdentity": [
+        "confess by nosey"
+      ],
+      "candidateRecordId": "549b1c55-6d14-458d-9102-8e0d48d8ed1f",
+      "candidateTitle": "Confess by Nosey",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c1e51354d923000731bf78",
+      "requestedTitles": [
+        "Pluto TV True Crime",
+        "Pluto TV True Crime",
+        "Pluto TV True Crime"
+      ],
+      "normalizedIdentity": [
+        "true crime"
+      ],
+      "candidateRecordId": "ec870763-b855-4ce8-b238-ce6ba3c20e77",
+      "candidateTitle": "True Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "660d67eec8311c0008b8c3f7",
+      "requestedTitles": [
+        "Bondi Rescue (720p)",
+        "Bondi Rescue"
+      ],
+      "normalizedIdentity": [
+        "bondi rescue"
+      ],
+      "candidateRecordId": "9d2a11e0-9dc6-41a6-97c7-6db7e58990fb",
+      "candidateTitle": "Bondi Rescue",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "60802c209a26320007c92ad5",
+      "requestedTitles": [
+        "Mutant X – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "mutant x"
+      ],
+      "candidateRecordId": "77e0b039-9c9a-4684-b4b1-29cebefc4aaf",
+      "candidateTitle": "Mutant X",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "625e6cc905e09f00073addee",
+      "requestedTitles": [
+        "Squadra Speciale Cobra 11",
+        "Squadra Speciale Cobra 11 – Pluto TV",
+        "Squadra Speciale Cobra 11"
+      ],
+      "normalizedIdentity": [
+        "squadra speciale cobra 11"
+      ],
+      "candidateRecordId": "0befccfa-2472-4c89-acf1-a8cb983f9838",
+      "candidateTitle": "Squadra Speciale Cobra 11",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "682453731295f98347e92da8",
+      "requestedTitles": [
+        "River Monsters"
+      ],
+      "normalizedIdentity": [
+        "river monsters"
+      ],
+      "candidateRecordId": "7c974607-a918-4bf5-b81e-fbf7e846a1ad",
+      "candidateTitle": "River Monsters",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "63eb947c4e83e70008ab877b",
+      "requestedTitles": [
+        "NCIS"
+      ],
+      "normalizedIdentity": [
+        "ncis"
+      ],
+      "candidateRecordId": "37a2b053-942d-4d1b-a146-82a7874852db",
+      "candidateTitle": "NCIS",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "63eb58aa60bc8f0008caa8f8",
+      "requestedTitles": [
+        "The Boat Show – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "the boat show"
+      ],
+      "candidateRecordId": "49ef487b-0e3a-4d1b-a514-dd796b1ca34d",
+      "candidateTitle": "The Boat Show",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "662a26cb5a402e00086b2801",
+      "requestedTitles": [
+        "River Monsters (720p)",
+        "River Monsters"
+      ],
+      "normalizedIdentity": [
+        "river monsters"
+      ],
+      "candidateRecordId": "7c974607-a918-4bf5-b81e-fbf7e846a1ad",
+      "candidateTitle": "River Monsters",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "61c0b438244e50000758083b",
+      "requestedTitles": [
+        "Pluto TV True Crime",
+        "Pluto TV True Crime"
+      ],
+      "normalizedIdentity": [
+        "true crime"
+      ],
+      "candidateRecordId": "ec870763-b855-4ce8-b238-ce6ba3c20e77",
+      "candidateTitle": "True Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63d2c140c111bc0008cb890b",
+      "requestedTitles": [
+        "TeleFórmula"
+      ],
+      "normalizedIdentity": [
+        "teleformula"
+      ],
+      "candidateRecordId": "7c34acf9-2662-491e-9b8a-d140ef7bcd2b",
+      "candidateTitle": "TeleFormula",
+      "sourceHost": "mdstrm.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6464cd7c7cb4b100086c71c9",
+      "requestedTitles": [
+        "America's Next Top Model",
+        "America's Next Top Model",
+        "America's Next Top Model"
+      ],
+      "normalizedIdentity": [
+        "america s next top model"
+      ],
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "candidateTitle": "America's Next Top Model",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62cda0dfddc1040008fccacc",
+      "requestedTitles": [
+        "MTV Ridiculousness (720p)",
+        "MTV Ridiculousness"
+      ],
+      "normalizedIdentity": [
+        "mtv ridiculousness"
+      ],
+      "candidateRecordId": "5fc2cdf3-756e-4987-95ca-1242d9449a5e",
+      "candidateTitle": "MTV Ridiculousness",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "685139b0f7d8b74b62f41c96",
+      "requestedTitles": [
+        "MTV Reality (720p)",
+        "MTV Reality",
+        "MTV Reality (720p)"
+      ],
+      "normalizedIdentity": [
+        "mtv reality"
+      ],
+      "candidateRecordId": "cbf726a4-676b-4c23-b06d-8acaefdada2d",
+      "candidateTitle": "MTV Reality",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64edf6eaa7ec0d000812f58c",
+      "requestedTitles": [
+        "South Park"
+      ],
+      "normalizedIdentity": [
+        "south park"
+      ],
+      "candidateRecordId": "a0b911ac-6fc2-4032-9e22-e68a07dfb6de",
+      "candidateTitle": "South Park",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6490254fd2c47c00083a5743",
+      "requestedTitles": [
+        "That's 80s"
+      ],
+      "normalizedIdentity": [
+        "that s 80s"
+      ],
+      "candidateRecordId": "59a70856-93c2-4dc7-aae5-4963a51be630",
+      "candidateTitle": "That's 80s",
+      "sourceHost": "lightning-now80s-rakuten.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "68c820525ec82769fdfcd104",
+      "requestedTitles": [
+        "Wrestling Legends TV"
+      ],
+      "normalizedIdentity": [
+        "wrestling legends tv"
+      ],
+      "candidateRecordId": "0b112ff8-58ab-4884-b7fa-b7eaee1f6dcb",
+      "candidateTitle": "Wrestling Legends TV",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "660c209e19ca71000846cf38",
+      "requestedTitles": [
+        "That's 90s00s"
+      ],
+      "normalizedIdentity": [
+        "that s 90s00s"
+      ],
+      "candidateRecordId": "c6cb8bee-2e44-4eed-9652-dbcc48a59b43",
+      "candidateTitle": "That's 90s00s",
+      "sourceHost": "amg01076-amg01076c19-rakuten-gb-8653.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "60e5ea9a9bb4200008376f76",
+      "requestedTitles": [
+        "Motorvision TV"
+      ],
+      "normalizedIdentity": [
+        "motorvision tv"
+      ],
+      "candidateRecordId": "2883afca-e0c3-4fd6-a044-1c586fa567b2",
+      "candidateTitle": "Motorvision.TV",
+      "sourceHost": "amg01329-otterainc-motorvisionnz-samsungnz-rdwm7.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "662a26f3cd439400084fc8b8",
+      "requestedTitles": [
+        "River Monsters (720p)",
+        "River Monsters",
+        "River Monsters (720p)"
+      ],
+      "normalizedIdentity": [
+        "river monsters"
+      ],
+      "candidateRecordId": "7c974607-a918-4bf5-b81e-fbf7e846a1ad",
+      "candidateTitle": "River Monsters",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62cc1e1e0d0611000837dc1d",
+      "requestedTitles": [
+        "Radio-Canada INFO (720p)",
+        "Radio-Canada INFO (720p)"
+      ],
+      "normalizedIdentity": [
+        "radio canada info"
+      ],
+      "candidateRecordId": "883b519c-37d1-4c7f-a8fa-a35ea0783d4a",
+      "candidateTitle": "Radio-Canada INFO",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6512d6c92ce8e40008bd5c81",
+      "requestedTitles": [
+        "The Twilight Zone",
+        "The Twilight Zone"
+      ],
+      "normalizedIdentity": [
+        "the twilight zone"
+      ],
+      "candidateRecordId": "81c4968d-4945-42d4-b29e-7d9c17e2d2cd",
+      "candidateTitle": "The Twilight Zone",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "68e3b6112baff9f069d02540",
+      "requestedTitles": [
+        "Relic Hunter"
+      ],
+      "normalizedIdentity": [
+        "relic hunter"
+      ],
+      "candidateRecordId": "95cf51ca-450c-4a5f-9385-d58732839dd6",
+      "candidateTitle": "Relic Hunter",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64c37e710e086a0009e824ab",
+      "requestedTitles": [
+        "That's 70s"
+      ],
+      "normalizedIdentity": [
+        "that s 70s"
+      ],
+      "candidateRecordId": "bc536da8-1396-4a48-a7f9-984040f626ca",
+      "candidateTitle": "that's 70s",
+      "sourceHost": "s7host5.localnow.api.cms.amdvids.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5812be1c249444e05d09cc50",
+      "requestedTitles": [
+        "Pluto TV True Crime"
+      ],
+      "normalizedIdentity": [
+        "true crime"
+      ],
+      "candidateRecordId": "ec870763-b855-4ce8-b238-ce6ba3c20e77",
+      "candidateTitle": "True Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "654930a8346f420008d3b0b8",
+      "requestedTitles": [
+        "Oxygen True Crime Archives"
+      ],
+      "normalizedIdentity": [
+        "oxygen true crime archives"
+      ],
+      "candidateRecordId": "13e72f15-9fd0-4d6f-8be2-856fcca93355",
+      "candidateTitle": "Oxygen True Crime Archives",
+      "sourceHost": "d4whmvwm0rdvi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "662a622b5e2370000800f392",
+      "requestedTitles": [
+        "Faites entrer l'accusé",
+        "Faites entrer l'accusé"
+      ],
+      "normalizedIdentity": [
+        "faites entrer l accuse"
+      ],
+      "candidateRecordId": "dde85fdd-bc46-43f7-9807-5c2386b9e6f3",
+      "candidateTitle": "Faites entrer l'accusé",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65788727a620e30008fe4d88",
+      "requestedTitles": [
+        "Celeb Reality (720p)",
+        "Celeb Reality"
+      ],
+      "normalizedIdentity": [
+        "celeb reality"
+      ],
+      "candidateRecordId": "aa5b1c4b-99e1-4ec7-856f-6a8d0dc77b61",
+      "candidateTitle": "Celeb Reality (720p)",
+      "sourceHost": "d3453fcf.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63921a3d00c96100082a3cb4",
+      "requestedTitles": [
+        "Homicide (720p)",
+        "Homicide (720p)"
+      ],
+      "normalizedIdentity": [
+        "homicide"
+      ],
+      "candidateRecordId": "8693b685-8b1d-4991-9b13-22544449ce37",
+      "candidateTitle": "Homicide",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "65a939fad77d450008863835",
+      "requestedTitles": [
+        "Car Chase – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "car chase"
+      ],
+      "candidateRecordId": "6199c25f-bf6c-4a68-8ec0-b672d150f429",
+      "candidateTitle": "Car Chase",
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66e0b265dd2d690008c5496b",
+      "requestedTitles": [
+        "Places & Spaces"
+      ],
+      "normalizedIdentity": [
+        "places and spaces"
+      ],
+      "candidateRecordId": "0a572642-229a-4b69-b644-49af65310f2a",
+      "candidateTitle": "Places & Spaces",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "685a999bd33909bdd7d2fb1e",
+      "requestedTitles": [
+        "La maison France 5",
+        "La maison France 5"
+      ],
+      "normalizedIdentity": [
+        "la maison france 5"
+      ],
+      "candidateRecordId": "77c99a27-1fa8-4113-89be-4901d4bbbebf",
+      "candidateTitle": "La Maison France 5",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5e98a911c881310007d7aae2",
+      "requestedTitles": [
+        "MTV Ridiculousness"
+      ],
+      "normalizedIdentity": [
+        "mtv ridiculousness"
+      ],
+      "candidateRecordId": "5fc2cdf3-756e-4987-95ca-1242d9449a5e",
+      "candidateTitle": "MTV Ridiculousness",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "68758038552299d2b08162e3",
+      "requestedTitles": [
+        "Law & Order"
+      ],
+      "normalizedIdentity": [
+        "law and order"
+      ],
+      "candidateRecordId": "72270f5c-d4f1-48ea-b9ef-7340ed3d1002",
+      "candidateTitle": "Law & Order",
+      "sourceHost": "d4whmvwm0rdvi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66e0b4a3f0f17500085cc268",
+      "requestedTitles": [
+        "Hit Sitcoms"
+      ],
+      "normalizedIdentity": [
+        "hit sitcoms"
+      ],
+      "candidateRecordId": "7b1ce221-f11d-4f78-a2c2-d6ecc04df504",
+      "candidateTitle": "Hit Sitcoms",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "66b228d4cd0d3100085d27b7",
+      "requestedTitles": [
+        "Les Anges"
+      ],
+      "normalizedIdentity": [
+        "les anges"
+      ],
+      "candidateRecordId": "d45f8f4a-c479-47cb-9e44-99e503a196d7",
+      "candidateTitle": "Les Anges (1080p)",
+      "sourceHost": "amg02393-awpg-amg02393c5-rakuten-uk-2463.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "646ccdd0939a5900088a1980",
+      "requestedTitles": [
+        "Corazón"
+      ],
+      "normalizedIdentity": [
+        "corazon"
+      ],
+      "candidateRecordId": "7e4f16d8-420f-4754-9fa4-0abc805815ff",
+      "candidateTitle": "Corazón",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63335b193583440007c859fb",
+      "requestedTitles": [
+        "Lifetime Movie Favorites"
+      ],
+      "normalizedIdentity": [
+        "lifetime movie favorites"
+      ],
+      "candidateRecordId": "13fc7f54-5a39-4aea-a283-e4f05bc9cecf",
+      "candidateTitle": "Lifetime Movie Favorites",
+      "sourceHost": "e9b6bd7c.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67e5941f0812459cb682d9c6",
+      "requestedTitles": [
+        "Relic Hunter"
+      ],
+      "normalizedIdentity": [
+        "relic hunter"
+      ],
+      "candidateRecordId": "95cf51ca-450c-4a5f-9385-d58732839dd6",
+      "candidateTitle": "Relic Hunter",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    }
+  ]
+}

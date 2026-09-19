@@ -1,0 +1,24 @@
+{
+  "completedAt": "2026-08-14T00:36:56.475Z",
+  "scope": "Batch 4 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "The Conners candidate 9f1a138b-b79e-4c2f-bb0c-192ba206eb8d carries explicit Lionsgate/Xumo FAST metadata and was the only candidate in this bounded set with sufficient authoritative provenance for full validation.",
+    "The production resolver returned a stream, but the existing Desktop HLS runtime remained at readyState 0, 0x0 dimensions, and currentTime 0 for 160 seconds. It failed the real-media gate and remains quarantined.",
+    "Andromeda and Best of Dr. Phil use jmp2.uk; The Twilight Zone and America's Next Top Model use i.mjh.nz. They were rejected before media validation under the established provenance rule.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "batch4Target": 25,
+  "batch4Researched": 20,
+  "batch4Remaining": 5
+}

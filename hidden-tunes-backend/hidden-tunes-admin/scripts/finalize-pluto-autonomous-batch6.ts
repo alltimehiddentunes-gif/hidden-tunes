@@ -1,0 +1,23 @@
+import { spawn } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { loadAdminEnv } from "../lib/radioExpansion25k/env";
+import { getSupabaseAdmin } from "../lib/supabaseAdmin";
+
+const root=resolve(import.meta.dirname,".."),out=resolve(root,"data/tv-recovery");
+const plans=[
+  {id:"5e7cf6c7b156d500078c5f44",record:"2a2e5730-7429-4638-b3e0-1ef279d2db52"},
+  {id:"5bb1ad55268cae539bcedb08",record:"154914d7-6a45-4b95-b482-0cd01d051fec"},
+  {id:"601a0342dcf4370007566891",record:"0b127b68-2901-439a-9d01-7894ea00851d"},
+  {id:"6440f8ba939a5900082bddc8",record:"117fb222-5ae8-4525-a011-ff0bdf870e52"}
+];
+const rejected=new Map([["61f9597e78607000074f6c2a","Anonymous-IP source is unauthorized and ineligible for Pluto TV Sci-Fi."]]);
+const unresolved=new Map([
+  ["62724c8465731f0007b6cd86","Project Runway content observed, but eligible source provenance was not established."],
+  ["6909fc4b74601d957a380613","Legitimate distribution host, but sampled frames did not establish actual Hardcore Pawn content."],
+  ["63d2c140c111bc0008cb890b","Sample decoded without visible content; TeleFormula identity was not established."],
+  ["6a205abba7b5a6c560b8ac25","Actual reality content observed, but opaque CloudFront provenance is insufficient."]
+]);
+function probe(url:string){return new Promise<boolean>(done=>{const child=spawn("ffmpeg",["-hide_banner","-loglevel","error","-rw_timeout","15000000","-i",url,"-t","35","-map","0:v:0","-map","0:a:0","-f","null","-"],{windowsHide:true,stdio:"ignore"});const timer=setTimeout(()=>child.kill(),70000);child.once("close",code=>{clearTimeout(timer);done(code===0)});child.once("error",()=>{clearTimeout(timer);done(false)})})}
+async function main(){loadAdminEnv(root);const db=getSupabaseAdmin();const {data,error}=await db.from("tv_videos").select("id,source_url,source_type").in("id",plans.map(x=>x.record));if(error)throw error;const results=[];for(let i=0;i<plans.length;i+=2){const pair=plans.slice(i,i+2);results.push(...await Promise.all(pair.map(async plan=>{const row=(data??[]).find((x:any)=>x.id===plan.record);const passed=row?await probe(row.source_url):false;return{providerChannelId:plan.id,existingCatalogRecordId:plan.record,sourceHost:row?new URL(row.source_url).hostname:null,sourceType:row?.source_type??null,provider:"official_fast",confidence:"EXACT",continuitySeconds:passed?35:0,videoAudioPassed:passed,rawUrlPersisted:false}})))}const registry=JSON.parse(readFileSync(resolve(out,"master-recovery-registry.json"),"utf8"));for(const entry of registry.entries){const result=results.find(x=>x.providerChannelId===entry.providerChannelId);if(result?.videoAudioPassed){entry.terminalStatus="VERIFIED_PLAYABLE";entry.sourceCount=1;entry.verifiedSource={existingCatalogRecordId:result.existingCatalogRecordId,sourceHost:result.sourceHost,provider:result.provider,confidence:"EXACT",continuitySeconds:35,actualContentVerified:true,identityVerified:true,desktopRuntimeVerified:false,rawUrlPersisted:false}}if(rejected.has(entry.providerChannelId)){entry.terminalStatus="WRONG_SOURCE_REJECTED";entry.researchEvidence={...(entry.researchEvidence??{}),decision:"REJECT",reason:rejected.get(entry.providerChannelId)}}if(unresolved.has(entry.providerChannelId)){entry.terminalStatus="IDENTITY_UNRESOLVED";entry.researchEvidence={...(entry.researchEvidence??{}),decision:"SOURCE_AMBIGUOUS",reason:unresolved.get(entry.providerChannelId)}}}registry.generatedAt=new Date().toISOString();writeFileSync(resolve(out,"master-recovery-registry.json"),JSON.stringify(registry,null,2));const latest=JSON.parse(readFileSync(resolve(out,"latest-checkpoint.json"),"utf8"));const verified=results.filter(x=>x.videoAudioPassed).length;const checkpoint={...latest,checkpointVersion:latest.checkpointVersion+1,phase:"BATCH_6_IDENTITY_AND_CONTINUITY_COMPLETE",createdAt:new Date().toISOString(),identitiesCompleted:verified+rejected.size+unresolved.size,verified,rejected:rejected.size,unresolved:unresolved.size,runtimeTested:0,runtimePassed:0,errors:results.filter(x=>!x.videoAudioPassed).map(x=>`Continuity failed: ${x.providerChannelId}`)};writeFileSync(resolve(out,"batch-006-finalization.json"),JSON.stringify({createdAt:new Date().toISOString(),productionWrites:0,rawPlaybackUrlsEmitted:0,results,rejected:[...rejected],unresolved:[...unresolved]},null,2));writeFileSync(resolve(out,"checkpoints/checkpoint-006.json"),JSON.stringify(checkpoint,null,2));writeFileSync(resolve(out,"latest-checkpoint.json"),JSON.stringify(checkpoint,null,2));console.log(JSON.stringify(checkpoint,null,2))}
+main().catch(error=>{console.error(error);process.exitCode=1});

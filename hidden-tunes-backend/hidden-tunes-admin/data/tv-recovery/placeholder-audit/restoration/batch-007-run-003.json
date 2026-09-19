@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T07:44:37.284Z",
+  "scope": "Batch 7 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "BUZZR candidate uses official Tubi FAST distribution and passed 119.99 seconds of 1920x1080 Desktop playback with one video owner and no fatal HLS errors.",
+    "Sampled frames showed continuous classic game-show programming characteristic of BUZZR; official exact-title distribution supports HIGH identity. Normal search and resolver passed.",
+    "Two quarantined aliases remain hidden and are terminal VERIFIED_DUPLICATE_MERGED locally. No production write or duplicate was needed.",
+    "Anime X HIDIVE and On The Case were rejected before testing because they use jmp2.uk and i.mjh.nz. ABC News Live remains an official Tubi candidate; Nash Bridges retains Xumo-linked provenance for a later bounded run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 22,
+  "cumulativeTerminalAliases": 99,
+  "batch7Target": 25,
+  "batch7Researched": 15,
+  "batch7Remaining": 10
+}

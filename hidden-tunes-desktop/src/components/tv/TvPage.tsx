@@ -51,6 +51,10 @@ function regionCode(name: string) {
   return trimmed.slice(0, 2).toUpperCase()
 }
 
+function browseCountLabel(count: number) {
+  return count > 0 ? `${count.toLocaleString()} channels` : 'Browse channels'
+}
+
 const ChannelCard = memo(function ChannelCard({
   channel,
   tuning,
@@ -309,13 +313,9 @@ export const TvPage = memo(function TvPage({
             Retry
           </button>
         </section>
-      ) : loading ? (
-        <section className="tv-status" aria-busy="true">
-          <p>Loading TV catalog…</p>
-        </section>
       ) : null}
 
-      {!error && !loading ? (
+      {!error ? (
         <>
           {activeFilter === 'genres' && browseCategories.length > 0 ? (
             <section className="tv-section" aria-labelledby="tv-genre-heading">
@@ -332,7 +332,7 @@ export const TvPage = memo(function TvPage({
                   >
                     <span className="tv-genre-icon" aria-hidden="true">{category.icon}</span>
                     <strong>{category.label}</strong>
-                    <span>{category.count.toLocaleString()} channels</span>
+                    <span>{browseCountLabel(category.count)}</span>
                   </button>
                 ))}
               </div>
@@ -377,7 +377,7 @@ export const TvPage = memo(function TvPage({
                   >
                     <span className="tv-genre-icon" aria-hidden="true">{category.icon}</span>
                     <strong>{category.label}</strong>
-                    <span>{category.count.toLocaleString()} channels</span>
+                    <span>{browseCountLabel(category.count)}</span>
                   </button>
                 ))}
               </div>
@@ -401,7 +401,7 @@ export const TvPage = memo(function TvPage({
                       {region.code ?? regionCode(region.name)}
                     </span>
                     <strong>{region.name}</strong>
-                    <span>{region.count.toLocaleString()} channels</span>
+                    <span>{browseCountLabel(region.count)}</span>
                   </button>
                 ))}
               </div>

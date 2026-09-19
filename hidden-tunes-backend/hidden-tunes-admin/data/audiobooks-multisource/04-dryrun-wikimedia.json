@@ -1,0 +1,210 @@
+{
+  "provider": "wikimedia_commons",
+  "requested": 100,
+  "searchTotalHits": 3545,
+  "sampled": 50,
+  "normalizedOk": 2,
+  "rejected": 48,
+  "discovered": [
+    {
+      "provider": "wikimedia_commons",
+      "providerBookId": "File:From the Earth to the Moon and Around the Moon by Jules Verne Audiobook (AI-generated voice).mp3",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File%3AFrom%20the%20Earth%20to%20the%20Moon%20and%20Around%20the%20Moon%20by%20Jules%20Verne%20Audiobook%20(AI-generated%20voice).mp3",
+      "audioSampleUrl": "https://upload.wikimedia.org/wikipedia/commons/7/74/From_the_Earth_to_the_Moon_and_Around_the_Moon_by_Jules_Verne_Audiobook_%28AI-generated_voice%29.mp3",
+      "mime": "audio/mpeg",
+      "licence": "Public domain",
+      "licenceUrl": null,
+      "attribution": "Microsoft Azure Cognitive Services Text to Speech prompted with the public domain text of From the Earth to the Moon by Jules Verne",
+      "narrationType": "synthetic",
+      "rightsTerritory": "per_file_licence",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      },
+      "note": "Many Commons hits are single giant files; chapter mapping often required or treat as one-chapter edition"
+    },
+    {
+      "provider": "wikimedia_commons",
+      "providerBookId": "File:The Iliad by Homer (AI-generated audiobook).mp3",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File%3AThe%20Iliad%20by%20Homer%20(AI-generated%20audiobook).mp3",
+      "audioSampleUrl": "https://upload.wikimedia.org/wikipedia/commons/1/13/The_Iliad_by_Homer_%28AI-generated_audiobook%29.mp3",
+      "mime": "audio/mpeg",
+      "licence": "Public domain",
+      "licenceUrl": null,
+      "attribution": "Microsoft Azure Cognitive Services Text to Speech; The Iliad by Homer",
+      "narrationType": "synthetic",
+      "rightsTerritory": "per_file_licence",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      },
+      "note": "Many Commons hits are single giant files; chapter mapping often required or treat as one-chapter edition"
+    }
+  ],
+  "rejectedSample": [
+    {
+      "title": "File:কঙ্কাল - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "non_audio_mime:application/ogg"
+    },
+    {
+      "title": "File:রাজপথের কথা - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "non_audio_mime:application/ogg"
+    },
+    {
+      "title": "File:রামকানাইয়ের নির্বুদ্ধিতা - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "non_audio_mime:application/ogg"
+    },
+    {
+      "title": "File:সমস্যাপূরণ - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "non_audio_mime:application/ogg"
+    },
+    {
+      "title": "File:দানপ্রতিদান - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "non_audio_mime:application/ogg"
+    },
+    {
+      "title": "File:সম্পত্তি-সমর্পণ - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "non_audio_mime:application/ogg"
+    },
+    {
+      "title": "File:গিন্নি - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "non_audio_mime:application/ogg"
+    },
+    {
+      "title": "File:পোস্ট্‌মাস্টার - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:সমাপ্তি - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:জয়পরাজয় - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:খাতা - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:অসম্ভব কথা - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:দালিয়া - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:সুভা - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:রীতিমতো নভেল - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:খোকাবাবুর প্রত্যাবর্তন - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:স্বর্ণমৃগ - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:ছুটি - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:ত্যাগ - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:শাস্তি - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:মধ্যবর্তিনী - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:একটি ক্ষুদ্র পুরাতন গল্প - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:তারাপ্রসন্নের কীর্তি - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:ব্যবধান - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:সম্পাদক - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:কাবুলিওয়ালা - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:ঘাটের কথা - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:মহামায়া - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:মুক্তির উপায় - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:একরাত্রি - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:Mořičvíl.jpg",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:দেনাপাওনা - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:Taming America's Warriors AUDIOBOOK.mp3",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:একটা আষাঢ়ে গল্প - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:Audio Book Icon 1.svg",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:জীবিত ও মৃত - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:Complex-numbers--2032.opus",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:আপদ - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:ਇੱਕ-ਅਜੀਬ-ਕਹਾਣੀ- -A-Strange-Story- -ਓ-ਹੈਨਰੀ- -ਚਰਨ-ਗਿੱਲ- -ਜਗਸੀਰ-ਸ.-ਸਿੱਧੂ- -Free-Punjabi-Audiobooks.ogg",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    },
+    {
+      "title": "File:মেঘ ও রৌদ্র - রবীন্দ্রনাথ ঠাকুর.oga",
+      "reason": "Unexpected token 'Y', \"You are ma\"... is not valid JSON"
+    }
+  ]
+}

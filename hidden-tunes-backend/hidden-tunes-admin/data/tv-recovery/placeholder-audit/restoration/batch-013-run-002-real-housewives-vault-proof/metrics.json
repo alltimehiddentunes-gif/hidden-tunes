@@ -1,0 +1,15 @@
+{
+  "candidateId": "a8b0d8d8-b17d-466a-9902-95397ee6a14c",
+  "streamHost": "xumo-xumoent-vc-123-8gq0q.fast.nbcuni.com",
+  "pass": false,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 218.814438,
+    "advancedSeconds": 116.80511299999999,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

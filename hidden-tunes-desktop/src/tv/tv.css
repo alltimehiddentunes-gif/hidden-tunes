@@ -27,6 +27,12 @@ html[data-hidden-tunes-tv] .premium-fullscreen-shell, html[data-hidden-tunes-tv]
 html[data-hidden-tunes-tv] .now-playing-art-glow, html[data-hidden-tunes-tv] .cinema-player-art-backdrop, html[data-hidden-tunes-tv] .cinema-player-aura, html[data-hidden-tunes-tv] canvas { display: none !important; }
 html[data-hidden-tunes-tv] .ht-player-art-halo, html[data-hidden-tunes-tv] .rail-psd-art-spinner, html[data-hidden-tunes-tv] .premium-shell-art-spinner, html[data-hidden-tunes-tv] .neon-eq-badge { display: none !important; }
 html[data-hidden-tunes-tv] .now-playing-art-frame, html[data-hidden-tunes-tv] .premium-shell-art-frame { box-shadow: none !important; filter: none !important; }
+
+/* Diagnostics continue reporting to the evidence endpoint; never expose raw state in the release UI. */
+html[data-hidden-tunes-tv] #tv-session-diagnostic,
+html[data-hidden-tunes-tv] #tv-artwork-diagnostic,
+html[data-hidden-tunes-tv] #tv-remote-diagnostic { display: none !important; }
+html[data-hidden-tunes-tv][data-tv-diag="true"] #tv-remote-diagnostic { display: block !important; }
 html[data-hidden-tunes-tv] .ht-player-art-frame, html[data-hidden-tunes-tv] .premium-shell-art-frame, html[data-hidden-tunes-tv] .player-artwork, html[data-hidden-tunes-tv] .ht-player-queue-section .art-frame { position: relative; isolation: isolate; }
 html[data-hidden-tunes-tv] img.tv-primary-player-artwork { display: block !important; visibility: visible !important; opacity: 1 !important; width: 100% !important; height: 100% !important; object-fit: cover !important; border-radius: inherit; position: relative !important; z-index: 4 !important; transform: none !important; transition: none !important; }
 html[data-hidden-tunes-tv] .premium-shell-left { display: flex !important; flex-direction: column; align-items: center !important; }

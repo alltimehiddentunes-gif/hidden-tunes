@@ -1,0 +1,218 @@
+{
+  "generatedAt": "2026-08-10T04:52:14.593Z",
+  "count": 16,
+  "sources": [
+    {
+      "canonicalChannelId": "pluto:62bdb75c3afd1200079146a6",
+      "canonicalName": "Nick Jr. Pluto TV",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 2,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "40.160.24.55",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Unauthorized anonymous-IP/Cinerama Nick Jr. sources."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:66166cb1307fa30008f275e7",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "31.148.48.15",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Anonymous-IP Pluto Sci-Fi source."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5a4d35dfa5c02e717a234f86",
+      "canonicalName": "Pluto TV History",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 2,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "177.52.24.163",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Anonymous-IP source with unacceptable provenance; observed History branding does not prove the claimed Pluto TV History identity."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:61f9598588f86000078ee7d6",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "31.148.48.15",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Anonymous-IP Pluto Sci-Fi source."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5f1212ad1728050007a523b8",
+      "canonicalName": "Pluto TV Retro",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "stream8.cinerama.uz",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Unauthorized Cinerama source."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:6014761dfb91870008ea6463",
+      "canonicalName": "Pluto TV Turbo",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "streaming.aurora.enhanced.live",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Opaque rebroadcast source; provenance insufficient for Pluto TV Turbo."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:65a93b870c7ff50008d1ca47",
+      "canonicalName": "Car Chase",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Opaque relay showing a local Sky9 police chase feed; unacceptable provenance."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5d767b1c126c65d0a307355f",
+      "canonicalName": "Pluto TV History",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 2,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "177.52.24.163",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Anonymous-IP History mapping with unacceptable provenance."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:60ed498c4248a400077c0b9d",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "31.148.48.15",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Anonymous-IP source is unauthorized and ineligible for Pluto TV Sci-Fi."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:66bb374ba4ee27000841a62c",
+      "canonicalName": "Pixel.tv",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "cdn15.live-tv.cloud",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Decoded Russian Nickel-branded cartoon content; wrong channel for Pixel.tv."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:5eb1af2ad345340008fccd1e",
+      "canonicalName": "CBS News Boston (720p)",
+      "status": "WRONG_SOURCE_REJECTED"
+    },
+    {
+      "canonicalChannelId": "pluto:5eb1afb21486df0007abc57c",
+      "canonicalName": "CBS News Bay Area (720p)",
+      "status": "WRONG_SOURCE_REJECTED"
+    },
+    {
+      "canonicalChannelId": "pluto:5eb1aeb2fd4b8a00076c2047",
+      "canonicalName": "CBS News Chicago (720p)",
+      "status": "WRONG_SOURCE_REJECTED"
+    },
+    {
+      "canonicalChannelId": "pluto:61f9597e78607000074f6c2a",
+      "canonicalName": "Pluto TV Sci-Fi",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "31.148.48.15",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Anonymous-IP source is unauthorized and ineligible for Pluto TV Sci-Fi."
+      }
+    },
+    {
+      "canonicalChannelId": "pluto:65d92a8c8b24c80008e285c0",
+      "canonicalName": "BBC News",
+      "status": "WRONG_SOURCE_REJECTED"
+    },
+    {
+      "canonicalChannelId": "pluto:5ddd7cb2cbb9010009b4fe32",
+      "canonicalName": "Nick Jr. Club",
+      "status": "WRONG_SOURCE_REJECTED",
+      "evidence": {
+        "exactCatalogCandidates": 1,
+        "technicalResult": {
+          "decoded": true,
+          "sourceHost": "i.mjh.nz",
+          "errorClass": null,
+          "identityDecision": "CONTENT_VALID_IDENTITY_UNKNOWN"
+        },
+        "decision": "REJECT",
+        "reason": "Aggregator source is unauthorized and ineligible for Nick Jr. Club."
+      }
+    }
+  ]
+}

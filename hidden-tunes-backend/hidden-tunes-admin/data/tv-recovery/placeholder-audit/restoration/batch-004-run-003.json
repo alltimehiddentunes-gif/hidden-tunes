@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T00:06:55.686Z",
+  "scope": "Batch 4 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Beyond Belief: Fact or Fiction candidate c3e74bb9-74db-4502-bc08-f2213270e8da passed 123.94 seconds in the existing Desktop player with one video owner and no fatal HLS errors.",
+    "Sampled live frames showed the exact Beyond Belief: Fact or Fiction title sequence and programme credits; the official Xumo/TCL FAST metadata identifies the same channel.",
+    "Normal TV search returns the healthy canonical record. The quarantined jmp2.uk alias remains hidden and is terminal VERIFIED_DUPLICATE_MERGED locally; no production write or duplicate was needed.",
+    "Four additional identities were provenance-screened but did not justify full validation in this run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "batch4Target": 25,
+  "batch4Researched": 15,
+  "batch4Remaining": 10
+}

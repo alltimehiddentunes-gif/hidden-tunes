@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T20:24:00.000Z",
+  "scope": "Batch 21 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Motorvision TV had official Samsung channel provenance and an exact Motorvision/Samsung New Zealand Amagi candidate, but the existing Desktop verifier failed at the manifest-timeout gate before playback; it remains quarantined.",
+    "Criminal Confessions retained an ITV-namespaced Rakuten UK Amagi candidate but was not promoted without complete exact candidate-to-channel authoritative linkage.",
+    "MTV Originals, C4 en Alerta, and Tiny House Nation used rejected jmp2.uk sources.",
+    "No production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 51,
+  "cumulativeTerminalAliases": 176,
+  "batch21Target": 25,
+  "batch21Researched": 20,
+  "batch21Remaining": 5
+}

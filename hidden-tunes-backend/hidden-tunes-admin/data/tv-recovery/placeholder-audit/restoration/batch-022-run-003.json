@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T22:23:25.437Z",
+  "scope": "Batch 22 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Universal Crime passed 123.57 seconds of 1920x1080 existing-Desktop playback with one video owner from NBCUniversal-owned delivery.",
+    "Official NBCUniversal/Xumo distribution and sustained matching classic crime programming, including Columbo, support HIGH identity. Search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Ghost Hunters used rejected i.mjh.nz. The Price Is Right: The Barker Era, This Old House, and America's Test Kitchen used rejected jmp2.uk."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 53,
+  "cumulativeTerminalAliases": 186,
+  "batch22Target": 25,
+  "batch22Researched": 15,
+  "batch22Remaining": 10
+}

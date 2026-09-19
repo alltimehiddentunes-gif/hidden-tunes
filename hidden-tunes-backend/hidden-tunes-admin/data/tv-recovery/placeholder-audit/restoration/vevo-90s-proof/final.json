@@ -1,0 +1,16 @@
+{
+  "completedAt": "2026-08-16T10:25:42.494Z",
+  "identity": "Vevo 90s",
+  "candidateRecordId": "ded04191-f391-4751-a39f-8c5d287cb51e",
+  "rejectedCandidateRecordId": "8758371e-4cf7-4c73-8d9f-e0e90874cf68",
+  "aliasesTerminal": 2,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 123.38,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

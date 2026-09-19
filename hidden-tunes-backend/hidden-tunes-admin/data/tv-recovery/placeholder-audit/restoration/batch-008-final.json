@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T11:43:30.000Z",
+  "batch": 8,
+  "identitiesResearched": 27,
+  "newVerifiedSearchableDesktopPlayableIdentities": 2,
+  "newTerminalAliases": 4,
+  "verifiedIdentities": [
+    "Vevo 2K",
+    "That's 80s"
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 25,
+  "cumulativeTerminalAliases": 105,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "safetyRegressions": 0,
+  "nextBatch": 9
+}

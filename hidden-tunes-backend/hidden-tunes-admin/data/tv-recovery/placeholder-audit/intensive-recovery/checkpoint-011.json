@@ -1,0 +1,846 @@
+{
+  "batch": 11,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH:AMBIGUOUS_EXACT_TITLE",
+  "startedAt": "2026-08-11T12:36:08.132Z",
+  "completedAt": "2026-08-11T12:48:06.856Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 73,
+  "healthyCandidates": 45,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 45,
+  "stillUnresolved": 5,
+  "remainingQueue": 2569,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "66c638726838ee00085ac20d",
+      "requestedTitles": [
+        "OuterSphere"
+      ],
+      "normalizedIdentity": [
+        "outersphere"
+      ],
+      "candidateRecordId": "91d3627a-b74d-4574-93ee-edd8a7caef97",
+      "candidateTitle": "OuterSphere (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d3o593mz1glx8d.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5f99ac4fded33000078f29ab",
+      "requestedTitles": [
+        "Star Trek"
+      ],
+      "normalizedIdentity": [
+        "star trek"
+      ],
+      "candidateRecordId": "07d73774-c12c-49d1-83c8-b8f61f5dd9e3",
+      "candidateTitle": "Pluto TV - Star Trek",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64c109a4798def0008a6e03e",
+      "requestedTitles": [
+        "Top Gear",
+        "Top Gear – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "top gear"
+      ],
+      "candidateRecordId": "b937008d-3a33-498a-804c-90ff6313339b",
+      "candidateTitle": "Top Gear",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6178037c35922000072a2ff5",
+      "requestedTitles": [
+        "FailArmy"
+      ],
+      "normalizedIdentity": [
+        "failarmy"
+      ],
+      "candidateRecordId": "5632ecc3-a277-423b-936d-59d0fee82133",
+      "candidateTitle": "FailArmy",
+      "exactCandidateCount": 10,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "620ff46e0a576e0007dc2f89",
+      "requestedTitles": [
+        "iCarly"
+      ],
+      "normalizedIdentity": [
+        "icarly"
+      ],
+      "candidateRecordId": "a600112f-fecb-44ca-b2f7-c2b351a2729c",
+      "candidateTitle": "iCarly",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66c45ba803e3b20008d8c294",
+      "requestedTitles": [
+        "CNN Headlines International"
+      ],
+      "normalizedIdentity": [
+        "cnn headlines international"
+      ],
+      "candidateRecordId": "ac680b78-a9a7-41fa-aca4-cd247aa78408",
+      "candidateTitle": "CNN Headlines International",
+      "exactCandidateCount": 6,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "68ac52fac9b5923e0585578b",
+      "requestedTitles": [
+        "Pluto TV Motor",
+        "Pluto TV Motor"
+      ],
+      "normalizedIdentity": [
+        "motor"
+      ],
+      "candidateRecordId": "ec73e684-fbd3-475f-be01-e6fb05c3e39d",
+      "candidateTitle": "Canal Motor",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "digicom.hls.iptvdc.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6793ac47f5c74bff95d18a99",
+      "requestedTitles": [
+        "TOP BARÇA"
+      ],
+      "normalizedIdentity": [
+        "top barca"
+      ],
+      "candidateRecordId": "bbcfd7e0-f44f-4f8b-af28-6783c4783431",
+      "candidateTitle": "Top Barça",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "654ca7f92c1d3300086b608c",
+      "requestedTitles": [
+        "Nicktoons"
+      ],
+      "normalizedIdentity": [
+        "nicktoons"
+      ],
+      "candidateRecordId": "8537d305-8673-48c3-82c6-a9bcd92332f3",
+      "candidateTitle": "NickToons",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66c86fed85e28d0008f8a9ec",
+      "requestedTitles": [
+        "PGA TOUR",
+        "PGA Tour (R0cHM6Ly)",
+        "PGA TOUR (720p)"
+      ],
+      "normalizedIdentity": [
+        "pga tour",
+        "pga tour r0chm6ly"
+      ],
+      "candidateRecordId": "4691fb91-0e5e-475f-96a1-4dd0afcb9e50",
+      "candidateTitle": "PGA TOUR",
+      "exactCandidateCount": 6,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d1195tnygmyfvk.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "691c5bef3a369d8f40192e71",
+      "requestedTitles": [
+        "Inter 24/7"
+      ],
+      "normalizedIdentity": [
+        "inter 24 7"
+      ],
+      "candidateRecordId": "7d2be06c-b46c-4662-9ea3-60b45841156d",
+      "candidateTitle": "INTER 24/7",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "691ed76a9c828fb484f7c2e5",
+      "requestedTitles": [
+        "Inter 24/7",
+        "Inter 24/7 (720p)",
+        "Inter 24/7 (720p)"
+      ],
+      "normalizedIdentity": [
+        "inter 24 7"
+      ],
+      "candidateRecordId": "7d2be06c-b46c-4662-9ea3-60b45841156d",
+      "candidateTitle": "INTER 24/7",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "60d39387706fe50007fda8e8",
+      "requestedTitles": [
+        "PBR RidePass"
+      ],
+      "normalizedIdentity": [
+        "pbr ridepass"
+      ],
+      "candidateRecordId": "765541aa-72e5-49df-8cb8-ad44d31579f8",
+      "candidateTitle": "PBR RidePass",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6177f6bf7693550007531275",
+      "requestedTitles": [
+        "FailArmy (720p)"
+      ],
+      "normalizedIdentity": [
+        "failarmy"
+      ],
+      "candidateRecordId": "5632ecc3-a277-423b-936d-59d0fee82133",
+      "candidateTitle": "FailArmy",
+      "exactCandidateCount": 10,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c0989431084d0007eab12d",
+      "requestedTitles": [
+        "Comedy Central"
+      ],
+      "normalizedIdentity": [
+        "comedy central"
+      ],
+      "candidateRecordId": "812d6cd4-1eb5-4e68-9e8b-af487c8ca3f8",
+      "candidateTitle": "Comedy Central Pluto TV",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6357f3de3643ba0007bc0b50",
+      "requestedTitles": [
+        "Pluto TV Sport"
+      ],
+      "normalizedIdentity": [
+        "sport"
+      ],
+      "candidateRecordId": "dbfc4c92-dc0e-439c-ab20-3fb0792b5fef",
+      "candidateTitle": "Sport",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "stream8.cinerama.uz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6334a574605f140007e233c4",
+      "requestedTitles": [
+        "PFL MMA",
+        "PFL MMA"
+      ],
+      "normalizedIdentity": [
+        "pfl mma"
+      ],
+      "candidateRecordId": "5a6fa90f-35d7-49c8-9ee1-5c6f2a1806dd",
+      "candidateTitle": "PFL MMA",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "680f375e6798ccd1185b58f9",
+      "requestedTitles": [
+        "Heartland"
+      ],
+      "normalizedIdentity": [
+        "heartland"
+      ],
+      "candidateRecordId": "04b79584-fe72-4c42-8ba0-2c1ac40f8dee",
+      "candidateTitle": "Heartland (720p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "2-fss-2.streamhoster.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67813f3162bf016db944c9ab",
+      "requestedTitles": [
+        "Red Bull TV"
+      ],
+      "normalizedIdentity": [
+        "red bull tv"
+      ],
+      "candidateRecordId": "c78ee841-1825-46b6-9f0d-2bd4f1c7fe4d",
+      "candidateTitle": "Red Bull TV",
+      "exactCandidateCount": 10,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "rbmn-live.akamaized.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62fa8176b9884200074ef5ae",
+      "requestedTitles": [
+        "The Walking Dead Universe"
+      ],
+      "normalizedIdentity": [
+        "the walking dead universe"
+      ],
+      "candidateRecordId": "01196b63-47c4-43e8-b441-349a558e9665",
+      "candidateTitle": "The Walking Dead Universe",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d3pxo1qcgzxtxs.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "654a299cab05240008a12639",
+      "requestedTitles": [
+        "PFL MMA – Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "pfl mma"
+      ],
+      "candidateRecordId": "5a6fa90f-35d7-49c8-9ee1-5c6f2a1806dd",
+      "candidateTitle": "PFL MMA",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66997d18a1b69e00082ee85f",
+      "requestedTitles": [
+        "FIFA+"
+      ],
+      "normalizedIdentity": [
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66997e8d3a4ad20008e50be9",
+      "requestedTitles": [
+        "FIFA+"
+      ],
+      "normalizedIdentity": [
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63eba66da8b2270008436b10",
+      "requestedTitles": [
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6086d3f420fc8500075f8dbf",
+      "requestedTitles": [
+        "Runtime"
+      ],
+      "normalizedIdentity": [
+        "runtime"
+      ],
+      "candidateRecordId": "1978ab4d-346d-4d81-bad5-2f53037f4243",
+      "candidateTitle": "Runtime",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6540ff4f7312a40008297b59",
+      "requestedTitles": [
+        "Tiny House Nation"
+      ],
+      "normalizedIdentity": [
+        "tiny house nation"
+      ],
+      "candidateRecordId": "2736eb04-1b91-4f5c-8e83-3319d3e08bed",
+      "candidateTitle": "Tiny House Nation",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "660c29f80cd4630008f1547c",
+      "requestedTitles": [
+        "FIFA+"
+      ],
+      "normalizedIdentity": [
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5adf96e3e738977e2c31cb04",
+      "requestedTitles": [
+        "Pluto TV Paranormal"
+      ],
+      "normalizedIdentity": [
+        "paranormal"
+      ],
+      "candidateRecordId": "8e25d403-b76d-4ad7-bb5b-a5dd45e67e4b",
+      "candidateTitle": "Pluto TV Paranormal",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64f6180130ab3300083d896b",
+      "requestedTitles": [
+        "PFL MMA"
+      ],
+      "normalizedIdentity": [
+        "pfl mma"
+      ],
+      "candidateRecordId": "5a6fa90f-35d7-49c8-9ee1-5c6f2a1806dd",
+      "candidateTitle": "PFL MMA",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5efbd39f8c4ce900075d7698",
+      "requestedTitles": [
+        "Star Trek",
+        "Star Trek"
+      ],
+      "normalizedIdentity": [
+        "star trek"
+      ],
+      "candidateRecordId": "07d73774-c12c-49d1-83c8-b8f61f5dd9e3",
+      "candidateTitle": "Pluto TV - Star Trek",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66c86fff9ba9e800080d8ebe",
+      "requestedTitles": [
+        "PGA Tour",
+        "PGA TOUR",
+        "PGA TOUR (720p)"
+      ],
+      "normalizedIdentity": [
+        "pga tour"
+      ],
+      "candidateRecordId": "4691fb91-0e5e-475f-96a1-4dd0afcb9e50",
+      "candidateTitle": "PGA TOUR",
+      "exactCandidateCount": 6,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d1195tnygmyfvk.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6357f33cb51d2d00077927c6",
+      "requestedTitles": [
+        "Pluto TV Sport",
+        "Pluto TV Sport",
+        "Pluto TV Sport"
+      ],
+      "normalizedIdentity": [
+        "sport"
+      ],
+      "candidateRecordId": "dbfc4c92-dc0e-439c-ab20-3fb0792b5fef",
+      "candidateTitle": "Sport",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "stream8.cinerama.uz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6549306c83595c000815a696",
+      "requestedTitles": [
+        "NBC Sports NOW (R0cHM6Ly)",
+        "NBC Sports NOW (720p)"
+      ],
+      "normalizedIdentity": [
+        "nbc sports now r0chm6ly",
+        "nbc sports now"
+      ],
+      "candidateRecordId": "3199ab3c-775b-4ca3-95ce-482eacbe1d40",
+      "candidateTitle": "NBC Sports NOW",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d4whmvwm0rdvi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61f07513227feb00073ee6bc",
+      "requestedTitles": [
+        "Heartland",
+        "Heartland"
+      ],
+      "normalizedIdentity": [
+        "heartland"
+      ],
+      "candidateRecordId": "04b79584-fe72-4c42-8ba0-2c1ac40f8dee",
+      "candidateTitle": "Heartland (720p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "2-fss-2.streamhoster.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5ca671f215a62078d2ec0abf",
+      "requestedTitles": [
+        "Comedy Central Pluto TV",
+        "Comedy Central Pluto TV"
+      ],
+      "normalizedIdentity": [
+        "comedy central"
+      ],
+      "candidateRecordId": "812d6cd4-1eb5-4e68-9e8b-af487c8ca3f8",
+      "candidateTitle": "Comedy Central Pluto TV",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "687007a8ee4155e89a8f6d67",
+      "requestedTitles": [
+        "Pokémon"
+      ],
+      "normalizedIdentity": [
+        "pokemon"
+      ],
+      "candidateRecordId": "ee2e2a04-c93f-4146-a9b3-af0bf56d2df1",
+      "candidateTitle": "Pokémon (1080p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "docpe51mdltl5.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "63d91d2560bc8f0008a225e4",
+      "requestedTitles": [
+        "FIFA+"
+      ],
+      "normalizedIdentity": [
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62b30beb81f89900071fc7b9",
+      "requestedTitles": [
+        "Pluto TV Paranormal"
+      ],
+      "normalizedIdentity": [
+        "paranormal"
+      ],
+      "candidateRecordId": "8e25d403-b76d-4ad7-bb5b-a5dd45e67e4b",
+      "candidateTitle": "Pluto TV Paranormal",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69dd5d9dceddf13a1a7e39c2",
+      "requestedTitles": [
+        "True Crime Now"
+      ],
+      "normalizedIdentity": [
+        "true crime now"
+      ],
+      "candidateRecordId": "b5bc02e4-40eb-4b9f-a0de-c50dc2382471",
+      "candidateTitle": "True Crime Now",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "655ca57e4261ca00080b3a04",
+      "requestedTitles": [
+        "Anger Management"
+      ],
+      "normalizedIdentity": [
+        "anger management"
+      ],
+      "candidateRecordId": "7fca1f68-88fb-40f6-a7e2-6fed46da940c",
+      "candidateTitle": "Anger Management",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "live-content.xumo.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65cf8bdaa25d5e00081e1e5d",
+      "requestedTitles": [
+        "Anger Management"
+      ],
+      "normalizedIdentity": [
+        "anger management"
+      ],
+      "candidateRecordId": "7fca1f68-88fb-40f6-a7e2-6fed46da940c",
+      "candidateTitle": "Anger Management",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "live-content.xumo.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "660bfc4424e1d000085b5f93",
+      "requestedTitles": [
+        "FIFA+ (UK)",
+        "FIFA+ (720p)"
+      ],
+      "normalizedIdentity": [
+        "fifa uk",
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62cd74e38f6f0d000798cd93",
+      "requestedTitles": [
+        "Pluto TV Sport",
+        "Pluto TV Sport"
+      ],
+      "normalizedIdentity": [
+        "sport"
+      ],
+      "candidateRecordId": "dbfc4c92-dc0e-439c-ab20-3fb0792b5fef",
+      "candidateTitle": "Sport",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "stream8.cinerama.uz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6346935b94aa8c0007c5b7a2",
+      "requestedTitles": [
+        "48 Hours",
+        "48 Hours",
+        "48 Hours"
+      ],
+      "normalizedIdentity": [
+        "48 hours"
+      ],
+      "candidateRecordId": "977cf406-5d91-4b50-be85-309b7a150e58",
+      "candidateTitle": "48 Hours",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "660c2a2d2433010008df7e92",
+      "requestedTitles": [
+        "FIFA+ (UK)",
+        "FIFA+ (720p)"
+      ],
+      "normalizedIdentity": [
+        "fifa uk",
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5616f9c0ada51f8004c4b091",
+      "requestedTitles": [
+        "World Poker Tour (US)",
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour us",
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65c69b683ba51e00084534a3",
+      "requestedTitles": [
+        "Monster Jam",
+        "Monster Jam (US)"
+      ],
+      "normalizedIdentity": [
+        "monster jam",
+        "monster jam us"
+      ],
+      "candidateRecordId": "5884ca41-79fd-4e14-8a7c-0cb3fc9592b9",
+      "candidateTitle": "Monster Jam",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "617807a1a3a6160007f615e4",
+      "requestedTitles": [
+        "Andromeda",
+        "Andromeda"
+      ],
+      "normalizedIdentity": [
+        "andromeda"
+      ],
+      "candidateRecordId": "037f67b9-2ca4-4bb6-93af-87697b8264aa",
+      "candidateTitle": "Andromeda",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "681109b688b9d85d0938c6ba",
+      "requestedTitles": [
+        "Tennis Channel"
+      ],
+      "normalizedIdentity": [
+        "tennis"
+      ],
+      "candidateRecordId": "3ecfd137-e428-4a12-9705-1c7d5684eefc",
+      "candidateTitle": "Tennis+ (1080p)",
+      "exactCandidateCount": 9,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg01935-amg01935c1-amgplt0165.playout.now3.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5ad8d796e738977e2c31094a",
+      "requestedTitles": [
+        "World Poker Tour"
+      ],
+      "normalizedIdentity": [
+        "world poker tour"
+      ],
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "candidateTitle": "World Poker Tour",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    }
+  ]
+}

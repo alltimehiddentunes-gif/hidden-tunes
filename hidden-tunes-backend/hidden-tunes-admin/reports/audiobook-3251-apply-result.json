@@ -1,0 +1,135 @@
+{
+  "mode": "apply",
+  "bookCanonicalId": "fe0dd05b-caf5-4214-8910-34456c182e41",
+  "bookSourceId": "3251",
+  "bookTitle": "Faerie Queene Book  4",
+  "currentChapterCount": 13,
+  "expectedChapterSource": "librivox:book:3251",
+  "currentBrokenRelationship": {
+    "chapters": 0,
+    "files": 0
+  },
+  "exactCause": "aggregate book row persisted without exact-source chapter/file rows",
+  "proposedExactMutation": "insert 13 exact LibriVox chapter rows, insert 13 matching file rows, reconcile chapter_count to 13",
+  "rowsAffected": {
+    "audiobook_chapters": 13,
+    "audiobook_files": 13,
+    "audiobooks": 1,
+    "total": 27
+  },
+  "probes": [
+    {
+      "sectionId": "182657",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182658",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182659",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182660",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182661",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182662",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182663",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182664",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182665",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182666",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182667",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182668",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    },
+    {
+      "sectionId": "182669",
+      "status": 206,
+      "contentType": "audio/mpeg",
+      "ok": true
+    }
+  ],
+  "insertedChapterIds": [
+    "b87cb869-6b2f-4a50-8c87-8865ac5571c2",
+    "af72d813-23ee-4e19-86ba-8f0340253a2e",
+    "1755ed7b-0b51-463a-ad33-06483cb55302",
+    "b16f5cdf-3431-4554-84b2-84e660813702",
+    "79433e81-6935-4d2f-b728-d021753fdd7d",
+    "2f471b01-7ccf-4561-bf44-51f4e9e18838",
+    "000abca6-636a-4345-ba8d-6e1d8e400a44",
+    "77e2a22c-c79f-4b0b-9c17-edfc312e8bd7",
+    "96588513-f886-4362-a353-8e8076ed575f",
+    "b7007535-940a-4ff4-91f9-863a2b5ca4fb",
+    "c1d9e267-2ee2-4784-95f6-e8fe7a58de80",
+    "1b1b424a-2cb8-4e4c-9b62-15b5bf7c9bca",
+    "56cd1f24-9b98-45cb-a773-8245dbe634b0"
+  ],
+  "insertedFileIds": [
+    "d424be43-c06e-408f-9fb7-93543dd3d230",
+    "52138e94-49f1-4d78-8075-61e040ef498b",
+    "a19e7e3b-6e42-45cb-b2db-0942f4e18195",
+    "71480cbd-5edf-4f2f-81b4-694837bcec91",
+    "1bcb0786-d45c-4ec4-a79f-00506fef0e0e",
+    "04cc4acd-629b-4a2b-b515-11371a109b80",
+    "0a526307-203a-47e7-b0cd-1d5e30c8a446",
+    "aa694885-f57e-44d4-afdd-ef214335f7b7",
+    "16d60f96-7739-452c-b473-2d675fdc9b35",
+    "b2655b3d-fc6f-4684-925d-60fcd67afd29",
+    "04dc9f42-ff2b-4fba-9628-ad352d834a3d",
+    "2f8fc5b9-6ffb-40d3-b9c4-66b96907ca33",
+    "23425248-92a6-485a-83fd-020944bfdb3e"
+  ],
+  "globalCountDelta": {
+    "audiobook_chapters": 13,
+    "audiobook_files": 13
+  },
+  "unrelatedRowsChanged": false
+}

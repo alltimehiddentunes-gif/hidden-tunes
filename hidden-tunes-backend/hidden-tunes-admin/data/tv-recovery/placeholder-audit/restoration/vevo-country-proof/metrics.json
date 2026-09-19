@@ -1,0 +1,15 @@
+{
+  "candidateId": "881e96a6-cd7b-4a2d-bdfa-b21f9e4a5375",
+  "streamHost": "amg00056-vevotv-vevocountryau-samsungnz-kcm6r.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 154.622837,
+    "advancedSeconds": 121.594337,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

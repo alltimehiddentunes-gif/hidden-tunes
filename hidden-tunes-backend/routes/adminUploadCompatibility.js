@@ -207,6 +207,137 @@ function requestedPublication(body) {
   return true;
 }
 
+function normalizeCompatibilityMusicSource(value) {
+  const source = value && typeof value === "object" ? value : { sourceKey: value };
+  const sourceKey = String(source.sourceKey || source.source || "mureka").trim().toLowerCase() || "mureka";
+  const explicit = source.isExplicit === true || source.explicit === true;
+  if (sourceKey !== "mureka" && sourceKey !== "djcity") {
+    throw new Error("Unsupported music source.");
+  }
+  if (sourceKey === "djcity" && !explicit) {
+    throw new Error("DJcity is a legacy source and must be explicitly selected.");
+  }
+  return {
+    sourceKey,
+    sourceLabel: sourceKey === "djcity" ? "DJcity" : "Mureka",
+    isExplicit: explicit,
+  };
+}
+
+function compatibilityIds(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  return Array.from(new Set(raw.map((item) => String(item || "").trim()).filter(Boolean))).slice(0, 100);
+}
+
+function compatibilityAssignments(taxonomy) {
+  const body = taxonomy && typeof taxonomy === "object" ? taxonomy : {};
+  const assignments = [];
+  const add = (value, relationshipType) => {
+    compatibilityIds(value).forEach((termId) => {
+      assignments.push({
+        term_id: termId,
+        relationship_type: relationshipType,
+        assignment_state: "ACCEPTED",
+        confidence: 1,
+        source: "OWNER",
+      });
+    });
+  };
+  add(body.primaryGenreId, "PRIMARY_GENRE");
+  add(body.secondaryGenreIds, "SECONDARY_GENRE");
+  add(body.primarySubgenreId, "PRIMARY_SUBGENRE");
+  add(body.subgenreIds, "SUBGENRE");
+  add(body.regionalStyleIds, "REGIONAL_STYLE");
+  add(body.culturalStyleIds, "CULTURAL_STYLE");
+  add(body.moodIds, "MOOD");
+  add(body.activityIds, "ACTIVITY");
+  add(body.themeIds, "THEME");
+  add(body.languageIds, "LANGUAGE");
+  add(body.vocalStyleIds, "VOCAL_STYLE");
+  add(body.instrumentIds, "INSTRUMENT");
+  add(body.eraId, "ERA");
+  add(body.tempoClassId, "TEMPO_CLASS");
+  if (!assignments.some((assignment) => assignment.relationship_type === "PRIMARY_GENRE")) {
+    throw new Error("A primary genre is required for canonical classification.");
+  }
+  return assignments;
+}
+
+const COMPATIBILITY_RELATIONSHIP_TYPES = {
+  PRIMARY_GENRE: "GENRE",
+  SECONDARY_GENRE: "GENRE",
+  PRIMARY_SUBGENRE: "SUBGENRE",
+  SUBGENRE: "SUBGENRE",
+  REGIONAL_STYLE: "REGIONAL_STYLE",
+  CULTURAL_STYLE: "CULTURAL_STYLE",
+  MOOD: "MOOD",
+  ACTIVITY: "ACTIVITY",
+  THEME: "THEME",
+  LANGUAGE: "LANGUAGE",
+  VOCAL_STYLE: "VOCAL_STYLE",
+  INSTRUMENT: "INSTRUMENT",
+  ERA: "ERA",
+  TEMPO_CLASS: "TEMPO_CLASS",
+};
+
+async function persistCompatibilityMusicMetadata(db, trackId, body, actorId) {
+  if (body.musicSource === undefined && body.musicTaxonomy === undefined) return null;
+  const source = normalizeCompatibilityMusicSource(body.musicSource);
+  let assignments = null;
+  if (body.musicTaxonomy !== undefined) {
+    assignments = compatibilityAssignments(body.musicTaxonomy);
+    const termIds = Array.from(new Set(assignments.map((assignment) => assignment.term_id)));
+    const terms = await db
+      .from("music_taxonomy_terms")
+      .select("id,taxonomy_type,status")
+      .in("id", termIds);
+    if (terms.error) throw terms.error;
+    const termMap = new Map((terms.data || []).map((term) => [String(term.id), term]));
+    if (termMap.size !== termIds.length) throw new Error("One or more canonical taxonomy terms are missing.");
+    assignments.forEach((assignment) => {
+      const term = termMap.get(assignment.term_id);
+      if (!term || term.status !== "ACTIVE" || term.taxonomy_type !== COMPATIBILITY_RELATIONSHIP_TYPES[assignment.relationship_type]) {
+        throw new Error(`Taxonomy term ${assignment.term_id} is invalid for ${assignment.relationship_type}.`);
+      }
+    });
+    const replaced = await db.rpc("replace_music_track_classification", {
+      p_track_id: trackId,
+      p_assignments: assignments,
+      p_features: body.musicAudioFeatures || body.audioFeatures || {},
+      p_actor_id: actorId || null,
+    });
+    if (replaced.error) throw replaced.error;
+  }
+  const sourceResult = await db
+    .from("music_track_sources")
+    .upsert({
+      track_id: trackId,
+      source_key: source.sourceKey,
+      source_label: source.sourceLabel,
+      is_explicit: source.isExplicit,
+      actor_id: actorId || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "track_id" });
+  if (sourceResult.error) throw sourceResult.error;
+  const legacyRows = [
+    ["genre", body.genre],
+    ["mood", body.mood],
+  ]
+    .map(([fieldName, value]) => ({
+      track_id: trackId,
+      field_name: fieldName,
+      raw_value: String(value || "").trim().slice(0, 500),
+    }))
+    .filter((row) => row.raw_value);
+  if (legacyRows.length) {
+    const legacyResult = await db
+      .from("music_track_legacy_metadata")
+      .upsert(legacyRows, { onConflict: "track_id,field_name,raw_value" });
+    if (legacyResult.error) throw legacyResult.error;
+  }
+  return { source, classificationSaved: Boolean(assignments) };
+}
+
 function normalizedBody(body) {
   return {
     title: String(body.title || body.titleOverride || "").trim(),
@@ -312,6 +443,13 @@ async function insertStagedSong(db, payload) {
 
 async function completeTrack(req, res) {
   const item = normalizedBody(req.body || {});
+  if (req.body?.musicSource !== undefined) {
+    try {
+      normalizeCompatibilityMusicSource(req.body.musicSource);
+    } catch (error) {
+      return safeFailure(req, res, 400, error.message || "Invalid music source.");
+    }
+  }
   if (!item.title || !item.audioUrl || !item.audioKey) {
     return safeFailure(req, res, 400, "Missing required song metadata or uploaded audio URL.");
   }
@@ -412,6 +550,25 @@ async function completeTrack(req, res) {
     if (inserted.error) throw inserted.error;
     attempt.songId = inserted.data.id;
 
+    let musicMetadataWarning = null;
+    if (req.body?.musicSource !== undefined || req.body?.musicTaxonomy !== undefined) {
+      try {
+        await persistCompatibilityMusicMetadata(
+          db,
+          inserted.data.id,
+          req.body,
+          req.adminActor.id
+        );
+      } catch (taxonomyError) {
+        musicMetadataWarning = "Track saved, but canonical music taxonomy metadata could not be saved; review classification before publishing.";
+        console.error("Compatibility upload music taxonomy save failed after song save", {
+          requestId: req.adminRequestId,
+          songId: inserted.data.id,
+          taxonomyError,
+        });
+      }
+    }
+
     const track = {
       ...inserted.data,
       artistId: inserted.data.artist_id,
@@ -425,6 +582,7 @@ async function completeTrack(req, res) {
       staged: !item.isPublic,
       published: item.isPublic,
       track,
+      ...(musicMetadataWarning ? { warning: musicMetadataWarning } : {}),
     };
     remember(key, payload);
     try {

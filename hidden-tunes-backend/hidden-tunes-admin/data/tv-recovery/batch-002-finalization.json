@@ -1,0 +1,103 @@
+{
+  "createdAt": "2026-08-09T22:02:31.184Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "providerChannelIds": [
+        "65c340383a116800078c8454"
+      ],
+      "existingCatalogRecordId": "3f30e76d-2e35-40c3-8975-3bef145fbf11",
+      "sourceHost": "4b9627c7.wurl.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "679203d4bc03978b9b4b79a6"
+      ],
+      "existingCatalogRecordId": "1e95721f-7a91-456a-bc8a-b2e73f0837fd",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "69ef5682980899a9edf1a884"
+      ],
+      "existingCatalogRecordId": "53a581d9-7094-4587-a1d3-37c2a3ff75d4",
+      "sourceHost": null,
+      "sourceType": null,
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 0,
+      "videoAudioPassed": false,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "649b6898f2ec0000081a9460"
+      ],
+      "existingCatalogRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    }
+  ],
+  "rejected": [
+    [
+      "5d767b1c126c65d0a307355f",
+      "Anonymous-IP History mapping with unacceptable provenance."
+    ],
+    [
+      "66bb374ba4ee27000841a62c",
+      "Decoded Russian Nickel-branded cartoon content; wrong channel for Pixel.tv."
+    ]
+  ],
+  "unresolved": [
+    [
+      "69b1489b5828e7c242d83064",
+      "Opaque CloudFront provenance"
+    ],
+    [
+      "61cd7b49543066000713b620",
+      "Opaque CloudFront provenance"
+    ],
+    [
+      "64f6163a30ab3300083d870e",
+      "Station slate only"
+    ],
+    [
+      "6334a574605f140007e233c4",
+      "Station slate only"
+    ],
+    [
+      "66c86fff9ba9e800080d8ebe",
+      "Opaque CloudFront provenance and insufficient PGA channel branding"
+    ],
+    [
+      "69b16df6ed2a2444365e7ff1",
+      "Opaque CloudFront provenance"
+    ],
+    [
+      "69b16dc543d0f313203b714c",
+      "Opaque CloudFront provenance"
+    ],
+    [
+      "69b3db536c0414a7ecf564fb",
+      "Opaque CloudFront provenance"
+    ]
+  ]
+}

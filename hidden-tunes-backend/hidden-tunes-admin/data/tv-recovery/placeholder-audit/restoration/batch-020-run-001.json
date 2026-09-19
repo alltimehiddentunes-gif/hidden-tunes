@@ -1,0 +1,29 @@
+{
+  "completedAt": "2026-08-15T15:48:59.714Z",
+  "scope": "Batch 20 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 0,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Anger Management had authoritative Xumo channel provenance and direct Xumo delivery with exact series content, but advanced only 116.11 seconds in the bounded Desktop run and failed the required 120-second continuity gate; it remains quarantined.",
+    "Just.fishing, Alerte Cobra, Pastewka, and Don Matteo used rejected jmp2.uk.",
+    "No production writes or duplicate records were created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 49,
+  "cumulativeTerminalAliases": 174,
+  "batch20Target": 25,
+  "batch20Researched": 5,
+  "batch20Remaining": 20
+}

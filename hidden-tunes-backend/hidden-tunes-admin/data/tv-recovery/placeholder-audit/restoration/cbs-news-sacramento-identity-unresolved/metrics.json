@@ -1,0 +1,15 @@
+{
+  "candidateId": "2dec6400-a7e8-494c-8a1e-1fd8144fea83",
+  "streamHost": "lineup.cbsivideo.com",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 166.9381,
+    "advancedSeconds": 124.889367,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

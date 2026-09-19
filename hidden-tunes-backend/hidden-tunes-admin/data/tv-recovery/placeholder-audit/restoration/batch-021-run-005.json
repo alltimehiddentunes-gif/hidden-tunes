@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T20:53:09.989Z",
+  "scope": "Batch 21 final provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 9,
+  "productionWrites": 0,
+  "notes": [
+    "DAZN Ringside passed 123.90 seconds of 1920x1080 existing-Desktop playback with one video owner from Tubi-owned delivery.",
+    "Official Tubi/DAZN partnership and channel listings plus sustained professional boxing programming support HIGH identity. Search and resolver passed.",
+    "Nine quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "PBS Antiques Roadshow and Forensic Files used rejected jmp2.uk. Million Dollar Listing VAULT used rejected i.mjh.nz. CBS Sports HQ used a Google DAI endpoint and was not validated without complete direct candidate linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 52,
+  "cumulativeTerminalAliases": 185,
+  "batch21Target": 25,
+  "batch21Researched": 25,
+  "batch21Remaining": 0
+}

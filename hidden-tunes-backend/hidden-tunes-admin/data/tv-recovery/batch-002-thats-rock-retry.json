@@ -1,0 +1,9 @@
+{
+  "testedAt": "2026-08-09T22:04:10.062Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "providerChannelId": "69ef5682980899a9edf1a884",
+  "sourceHost": "s7host5.localnow.api.cms.amdvids.com",
+  "continuitySeconds": 35,
+  "passed": true
+}

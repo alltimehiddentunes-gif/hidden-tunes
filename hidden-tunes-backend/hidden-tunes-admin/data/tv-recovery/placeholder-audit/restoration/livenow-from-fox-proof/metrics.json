@@ -1,0 +1,15 @@
+{
+  "candidateId": "1fbac29e-900f-435a-b716-3c8737a50b0a",
+  "streamHost": "fox-foxnewsnow-vizio.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 166.420252,
+    "advancedSeconds": 124.416262,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

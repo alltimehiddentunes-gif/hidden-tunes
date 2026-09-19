@@ -209,6 +209,7 @@ async function audiobookRequest<T>(path: string, signal?: AbortSignal): Promise<
       AUDIOBOOK_CATALOG_BASE_URL,
       path,
       AUDIOBOOK_REQUEST_TIMEOUT_MS,
+      signal,
     )
     if (signal?.aborted) throw new AudiobookCatalogError('Audiobook request was cancelled.')
     if (status < 200 || status >= 300) {

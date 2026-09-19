@@ -1,0 +1,15 @@
+{
+  "candidateId": "7fca1f68-88fb-40f6-a7e2-6fed46da940c",
+  "streamHost": "live-content.xumo.com",
+  "pass": false,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 116.105957,
+    "advancedSeconds": 116.105957,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

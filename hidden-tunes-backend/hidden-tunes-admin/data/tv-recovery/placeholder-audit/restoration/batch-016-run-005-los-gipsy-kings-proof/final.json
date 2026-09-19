@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T07:48:02.281Z",
+  "identity": "Los Gipsy Kings",
+  "candidateRecordId": "eadba0c0-5e60-4f3e-9f97-ddaa0391bb01",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 123.34,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

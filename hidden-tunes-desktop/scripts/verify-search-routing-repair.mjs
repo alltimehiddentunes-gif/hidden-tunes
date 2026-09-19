@@ -13,6 +13,9 @@ const app = read('src/App.tsx')
 const tvAdapter = read('src/lib/tv/tvPlaybackAdapter.ts')
 const radioAdapter = read('src/lib/radio/radioPlaybackAdapter.ts')
 const searchWiring = app.slice(app.indexOf('<GlobalSearchSections'), app.indexOf('/>', app.indexOf('<GlobalSearchSections')))
+const radioPlayback = app.slice(app.indexOf('const playRadioStation'), app.indexOf('const playPodcastEpisode'))
+const tvPlayback = app.slice(app.indexOf('const playTvChannel'), app.indexOf('const openAlbum'))
+const discoverPlayback = app.slice(app.indexOf('const playDiscoverSong'), app.indexOf("const [searchTab"))
 
 let failures = 0
 function check(label, condition) {
@@ -30,8 +33,8 @@ check('TV Play cannot trigger card navigation', /aria-label={`Play \${channel\.t
 check('Radio Play cannot trigger card navigation', /aria-label={`Play \${station\.name}`}[\s\S]*?event\.stopPropagation\(\)[\s\S]*?onPlayRadio\?\.\(station\)/.test(ui))
 check('Search does not rebuild a partial TV result', !searchWiring.includes('onPlayTv={(channelId, title, artwork)'))
 check('Search does not rebuild a partial Radio result', !searchWiring.includes('onPlayRadio={(stationId, title, artwork)'))
-check('TV playback retains TV queue context', app.includes("playQueue(apiQueue, safeIndex, 'tv', queueTitle"))
-check('Radio playback retains Radio queue context', app.includes("playQueue(apiQueue, safeIndex, 'radio', queueTitle"))
+check('TV playback retains TV queue context', tvPlayback.includes("context: 'tv'") && tvPlayback.includes('queueTitle'))
+check('Radio playback retains Radio queue context', radioPlayback.includes("context: 'radio'") && radioPlayback.includes('queueTitle'))
 check('TV identity is namespaced from music IDs', tvAdapter.includes("TV_SONG_ID_PREFIX = 'tv-'"))
 check('Radio identity is namespaced from music IDs', radioAdapter.includes("RADIO_SONG_ID_PREFIX = 'radio-'"))
 check('Unknown Search family has no Music fallback', !/default\s*:[\s\S]{0,160}(openMusic|navigateNav\(['\"]music)/.test(ui))
@@ -39,7 +42,7 @@ check('Podcast show opens its detail handler', ui.includes('onOpenPodcastShow?.(
 check('Audiobook opens its detail handler', ui.includes('onOpenAudiobook?.(book.id)'))
 check('Motivational opens its program handler', ui.includes('onOpenMotivational?.(session.programId || session.id)'))
 check('Sports exposes navigation only', ui.includes("onClick={() => onNavigateNav('sports')}") && !ui.includes('onPlaySports'))
-check('Search song playback remains route-independent', app.includes("'discover',") && app.includes("context === 'home' || context === 'discover'"))
+check('Search song playback remains route-independent', discoverPlayback.includes("genreDefinition ? 'genre' : 'search'") && discoverPlayback.includes('onOpenSong('))
 check('Section search submit cannot redirect to global Music-shaped Search', app.includes("activeNavKey === 'home'\n                      ? () => navigatePage('discover', 'search')") && !app.includes("if (activeNavKey === 'music' && query)"))
 
 console.log(`\nSearch routing repair: ${21 - failures} passed, ${failures} failed`)

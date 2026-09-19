@@ -361,22 +361,27 @@ const withHiddenAudioAndroidMainApplication = (config) => {
       );
       const originalContents = fs.readFileSync(mainAppPath, "utf8");
       let contents = originalContents;
-      if (!contents.includes("HiddenAudioPackage")) {
-        if (contents.includes("ExpoReactHostFactory")) {
-          contents = contents.replace(
-            "import expo.modules.ExpoReactHostFactory",
-            "import com.hiddentunes.app.audio.HiddenAudioPackage\nimport expo.modules.ExpoReactHostFactory"
-          );
-        }
+      const packageImport =
+        "import com.hiddentunes.app.audio.HiddenAudioPackage";
+      const mediaSessionManagerImport =
+        "import com.hiddentunes.app.audio.HiddenAudioMediaSessionManager";
+
+      if (!contents.includes(packageImport)) {
+        contents = contents.replace(
+          "import com.facebook.react.PackageList",
+          `${packageImport}\nimport com.facebook.react.PackageList`
+        );
+      }
+      if (!contents.includes(mediaSessionManagerImport)) {
+        contents = contents.replace(
+          "import com.facebook.react.PackageList",
+          `${mediaSessionManagerImport}\nimport com.facebook.react.PackageList`
+        );
+      }
+      if (!contents.includes("add(HiddenAudioPackage())")) {
         contents = contents.replace(
           "// add(MyReactNativePackage())",
           "add(HiddenAudioPackage())"
-        );
-      }
-      if (!contents.includes("HiddenAudioMediaSessionManager")) {
-        contents = contents.replace(
-          "import com.hiddentunes.app.audio.HiddenAudioPackage",
-          "import com.hiddentunes.app.audio.HiddenAudioPackage\nimport com.hiddentunes.app.audio.HiddenAudioMediaSessionManager"
         );
       }
       if (!contents.includes("warmUpForAndroidAuto")) {

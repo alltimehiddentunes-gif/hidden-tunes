@@ -1,0 +1,26 @@
+{
+  "completedAt": "2026-08-14T12:13:30.000Z",
+  "scope": "Batch 9 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "K-Drama+, Dating hinter Gittern, and Y'a que la vérité qui compte were rejected before media validation because their candidates use jmp2.uk.",
+    "Hunter x Hunter and JoJo's Bizarre Adventure have healthy CloudFront candidates, but the catalog records do not establish direct lawful rights-holder or official distributor provenance. They were not sent to expensive validation.",
+    "No uncertain source was promoted or reclassified."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 25,
+  "cumulativeTerminalAliases": 105,
+  "batch9Target": 25,
+  "batch9Researched": 5,
+  "batch9Remaining": 20
+}

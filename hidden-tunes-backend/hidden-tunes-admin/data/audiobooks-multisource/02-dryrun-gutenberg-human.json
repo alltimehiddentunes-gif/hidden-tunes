@@ -1,0 +1,1452 @@
+{
+  "provider": "project_gutenberg_human",
+  "requested": 100,
+  "categoryPageStatus": 200,
+  "uniqueIdsOnCategoryPage": 576,
+  "sampled": 100,
+  "normalizedOk": 100,
+  "rejected": 0,
+  "discovered": [
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22946",
+      "title": "The Indiscreet Letter by Eleanor Hallowell Abbott",
+      "author": "PS: Language and Literatures: American and Canadian literature",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22946",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22946/mp3/22946-01.mp3",
+      "chapterAudioUrlsFound": 4,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22982",
+      "title": "Little Eve Edgarton by Eleanor Hallowell Abbott",
+      "author": "PS: Language and Literatures: American and Canadian literature",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22982",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22982/mp3/22982-01.mp3",
+      "chapterAudioUrlsFound": 14,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22983",
+      "title": "Molly Make-Believe by Eleanor Hallowell Abbott",
+      "author": "PS: Language and Literatures: American and Canadian literature",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22983",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22983/mp3/22983-01.mp3",
+      "chapterAudioUrlsFound": 22,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22947",
+      "title": "Peace On Earth, Good-Will To Dogs by Eleanor Hallowell Abbott",
+      "author": "PZ: Language and Literatures: Juvenile belles lettres",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22947",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22947/mp3/22947-01.mp3",
+      "chapterAudioUrlsFound": 6,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22446",
+      "title": "Alexander the Great by Jacob Abbott",
+      "author": "DF: History: General and Eastern Hemisphere: Greece",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22446",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22446/mp3/22446-01.mp3",
+      "chapterAudioUrlsFound": 24,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "26300",
+      "title": "Peter the Great by Jacob Abbott",
+      "author": "DK: History: General and Eastern Hemisphere: Russia, Former Soviet Republics, Poland",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/26300",
+      "audioSampleUrl": "https://www.gutenberg.org/files/26300/mp3/26300-01.mp3",
+      "chapterAudioUrlsFound": 40,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "23705",
+      "title": "Seven Wives and Seven Prisons by L. A. Abbott",
+      "author": "CT: History: Biography",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/23705",
+      "audioSampleUrl": "https://www.gutenberg.org/files/23705/mp3/23705-01.mp3",
+      "chapterAudioUrlsFound": 30,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "26302",
+      "title": "The Theory of Social Revolutions by Brooks Adams",
+      "author": "JC: Political science: Political theory",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/26302",
+      "audioSampleUrl": "https://www.gutenberg.org/files/26302/mp3/26302-01.mp3",
+      "chapterAudioUrlsFound": 12,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22785",
+      "title": "Indian Frontier Policy by Sir John Adye",
+      "author": "D: History: General and Eastern Hemisphere",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22785",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22785/mp3/22785-01.mp3",
+      "chapterAudioUrlsFound": 6,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19616",
+      "title": "Aesop's Fables - Volume 01 by Aesop",
+      "author": "Chesterton, G. K. (Gilbert Keith), 1874-1936",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19616",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19616/mp3/19616-00.mp3",
+      "chapterAudioUrlsFound": 52,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19617",
+      "title": "Aesop's Fables - Volume 02 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19617",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19617/mp3/19617-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19618",
+      "title": "Aesop's Fables - Volume 03 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19618",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19618/mp3/19618-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19619",
+      "title": "Aesop's Fables - Volume 04 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19619",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19619/mp3/19619-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19620",
+      "title": "Aesop's Fables - Volume 05 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19620",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19620/mp3/19620-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19621",
+      "title": "Aesop's Fables - Volume 06 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19621",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19621/mp3/19621-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19622",
+      "title": "Aesop's Fables - Volume 07 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19622",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19622/mp3/19622-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19623",
+      "title": "Aesop's Fables - Volume 08 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19623",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19623/mp3/19623-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19624",
+      "title": "Aesop's Fables - Volume 09 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19624",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19624/mp3/19624-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19625",
+      "title": "Aesop's Fables - Volume 10 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19625",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19625/mp3/19625-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19626",
+      "title": "Aesop's Fables - Volume 11 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19626",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19626/mp3/19626-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19627",
+      "title": "Aesop's Fables - Volume 12 by Aesop",
+      "author": "Vernon Jones, V. S. (Vernon Stanley)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19627",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19627/mp3/19627-01.mp3",
+      "chapterAudioUrlsFound": 18,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20268",
+      "title": "The Baby's Own Aesop by Walter Crane and Aesop",
+      "author": "Aesop, 621? BCE-565? BCE",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20268",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20268/mp3/20268-01.mp3",
+      "chapterAudioUrlsFound": 12,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "21143",
+      "title": "Las Fábulas de Esopo, Vol. 01 by George Fyler Townsend and Aesop",
+      "author": "Aesop, 621? BCE-565? BCE",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/21143",
+      "audioSampleUrl": "https://www.gutenberg.org/files/21143/mp3/21143-01.mp3",
+      "chapterAudioUrlsFound": 60,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20029",
+      "title": "Las Fábulas de Esopo, Vol. 02 by George Fyler Townsend and Aesop",
+      "author": "Aesop, 621? BCE-565? BCE",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20029",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20029/mp3/20029-01.mp3",
+      "chapterAudioUrlsFound": 60,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "21144",
+      "title": "Las Fábulas de Esopo, Vol. 03 by George Fyler Townsend and Aesop",
+      "author": "Aesop, 621? BCE-565? BCE",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/21144",
+      "audioSampleUrl": "https://www.gutenberg.org/files/21144/mp3/21144-01.mp3",
+      "chapterAudioUrlsFound": 60,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20272",
+      "title": "Helsinkiin by Juhani Aho",
+      "author": "Finnish",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20272",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20272/mp3/20272-01.mp3",
+      "chapterAudioUrlsFound": 12,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22786",
+      "title": "Rautatie by Juhani Aho",
+      "author": "en.wikipedia.org/wiki/Rautatie",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22786",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22786/mp3/22786-01.mp3",
+      "chapterAudioUrlsFound": 16,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22445",
+      "title": "Robinson Crusoe in Words of One Syllable by Daniel Defoe and Lucy Aikin",
+      "author": "Aikin, Lucy, 1781-1864",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22445",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22445/mp3/22445-01.mp3",
+      "chapterAudioUrlsFound": 24,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22451",
+      "title": "Jack and Jill by Louisa May Alcott",
+      "author": "en.wikipedia.org/wiki/Jack_and_Jill:_A_Village_Story",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22451",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22451/mp3/22451-01.mp3",
+      "chapterAudioUrlsFound": 48,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22787",
+      "title": "Little Men by Louisa May Alcott",
+      "author": "en.wikipedia.org/wiki/Little_Men",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22787",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22787/mp3/22787-01.mp3",
+      "chapterAudioUrlsFound": 42,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "26297",
+      "title": "Little Women by Louisa May Alcott",
+      "author": "en.wikipedia.org/wiki/Little_Women",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/26297",
+      "audioSampleUrl": "https://www.gutenberg.org/files/26297/mp3/26297-01.mp3",
+      "chapterAudioUrlsFound": 94,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "26299",
+      "title": "Onder Moeders Vleugels by Louisa May Alcott",
+      "author": "Elberts, G. W. (Gerardina Wilhelmina), 1868-1945",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/26299",
+      "audioSampleUrl": "https://www.gutenberg.org/files/26299/mp3/26299-01.mp3",
+      "chapterAudioUrlsFound": 46,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20689",
+      "title": "Ragged Dick by Jr. Horatio Alger",
+      "author": "en.wikipedia.org/wiki/Ragged_Dick",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20689",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20689/mp3/20689-01.mp3",
+      "chapterAudioUrlsFound": 26,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20679",
+      "title": "The Heavenly Life by James Allen",
+      "author": "BV: Philosophy, Psychology, Religion: Christianity: Practical theology, Worship",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20679",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20679/mp3/20679-01.mp3",
+      "chapterAudioUrlsFound": 20,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22789",
+      "title": "On the Duties of the Clergy by Bishop of Milan Saint Ambrose",
+      "author": "BR: Philosophy, Psychology, Religion: Christianity",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22789",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22789/mp3/22789-01.mp3",
+      "chapterAudioUrlsFound": 206,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19574",
+      "title": "Andersen's Fairy Tales by H. C. Andersen",
+      "author": "PZ: Language and Literatures: Juvenile belles lettres",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19574",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19574/mp3/19574-01.mp3",
+      "chapterAudioUrlsFound": 36,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "12703",
+      "title": "The Little Match Girl by H. C. Andersen",
+      "author": "en.wikipedia.org/wiki/The_Little_Match_Girl",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/12703",
+      "audioSampleUrl": "https://www.gutenberg.org/files/12703/12703-m/12703-m-1.mp3",
+      "chapterAudioUrlsFound": 3,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22949",
+      "title": "Winesburg, Ohio by Sherwood Anderson",
+      "author": "en.wikipedia.org/wiki/Winesburg,_Ohio",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22949",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22949/mp3/22949-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19635",
+      "title": "Biblia Sacra Vulgata - Psalmi XXII by Anonymous",
+      "author": "Latin",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19635",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19635/mp3/19635.mp3",
+      "chapterAudioUrlsFound": 2,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19639",
+      "title": "Book of Esther by Anonymous",
+      "author": "en.wikipedia.org/wiki/Book_of_Esther",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19639",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19639/mp3/19639-01.mp3",
+      "chapterAudioUrlsFound": 6,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22930",
+      "title": "The Epistle to the Hebrews by Anonymous",
+      "author": "en.wikipedia.org/wiki/Epistle_to_the_Hebrews",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22930",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22930/mp3/22930-01.mp3",
+      "chapterAudioUrlsFound": 26,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19842",
+      "title": "Évangile selon Jean by Anonymous",
+      "author": "en.wikipedia.org/wiki/Gospel_of_John",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19842",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19842/mp3/19842-01.mp3",
+      "chapterAudioUrlsFound": 10,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "21369",
+      "title": "Ring o' Roses: A Nursery Rhyme Picture Book by Anonymous",
+      "author": "PZ: Language and Literatures: Juvenile belles lettres",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/21369",
+      "audioSampleUrl": "https://www.gutenberg.org/files/21369/mp3/21369-01.mp3",
+      "chapterAudioUrlsFound": 6,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22951",
+      "title": "Tom Swift and His Aerial Warship; Or, The Naval Terror of the Seas by Appleton",
+      "author": "en.wikipedia.org/wiki/Tom_Swift_and_His_Aerial_Warship",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22951",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22951/mp3/22951-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22952",
+      "title": "Tom Swift in the Land of Wonders by Victor Appleton",
+      "author": "en.wikipedia.org/wiki/Tom_Swift_in_the_Land_of_Wonders",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22952",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22952/mp3/22952-01.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22333",
+      "title": "Tom Swift and the Visitor From Planet X by II Victor Appleton",
+      "author": "PZ: Language and Literatures: Juvenile belles lettres",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22333",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22333/mp3/22333-01.mp3",
+      "chapterAudioUrlsFound": 40,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20685",
+      "title": "Poetics by Aristotle",
+      "author": "en.wikipedia.org/wiki/Poetics_(Aristotle)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20685",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20685/mp3/20685-01.mp3",
+      "chapterAudioUrlsFound": 22,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19839",
+      "title": "Emma by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Emma_(novel)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19839",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19839/mp3/19839-01.mp3",
+      "chapterAudioUrlsFound": 110,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22953",
+      "title": "Lady Susan by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Lady_Susan",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22953",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22953/mp3/22953-01.mp3",
+      "chapterAudioUrlsFound": 12,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22954",
+      "title": "Love and Freindship [sic] by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Love_and_Freindship",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22954",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22954/mp3/22954-01.mp3",
+      "chapterAudioUrlsFound": 6,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22962",
+      "title": "Mansfield Park by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Mansfield_Park",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22962",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22962/mp3/22962-01.mp3",
+      "chapterAudioUrlsFound": 96,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20682",
+      "title": "Northanger Abbey by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Northanger_Abbey",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20682",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20682/mp3/20682-01.mp3",
+      "chapterAudioUrlsFound": 62,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22963",
+      "title": "Persuasion by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Persuasion_(novel)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22963",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22963/mp3/22963-01.mp3",
+      "chapterAudioUrlsFound": 48,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20686",
+      "title": "Pride and Prejudice by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Pride_and_Prejudice",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20686",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20686/mp3/20686-01.mp3",
+      "chapterAudioUrlsFound": 70,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20687",
+      "title": "Pride and Prejudice by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Pride_and_Prejudice",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20687",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20687/mp3/20687-01.mp3",
+      "chapterAudioUrlsFound": 74,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "26301",
+      "title": "Pride and Prejudice by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Pride_and_Prejudice",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/26301",
+      "audioSampleUrl": "https://www.gutenberg.org/files/26301/mp3/26301-01.mp3",
+      "chapterAudioUrlsFound": 122,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22964",
+      "title": "Sense and Sensibility by Jane Austen",
+      "author": "en.wikipedia.org/wiki/Sense_and_Sensibility",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22964",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22964/mp3/22964-01.mp3",
+      "chapterAudioUrlsFound": 100,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "23078",
+      "title": "Murder at Bridge by Anne Austin",
+      "author": "PS: Language and Literatures: American and Canadian literature",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/23078",
+      "audioSampleUrl": "https://www.gutenberg.org/files/23078/mp3/23078-01.mp3",
+      "chapterAudioUrlsFound": 58,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22978",
+      "title": "The Essays of Francis Bacon by Francis Bacon",
+      "author": "en.wikipedia.org/wiki/Essays_(Francis_Bacon)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22978",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22978/mp3/22978-01.mp3",
+      "chapterAudioUrlsFound": 28,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22979",
+      "title": "The tale of Peter Mink by Arthur Scott Bailey",
+      "author": "PZ: Language and Literatures: Juvenile belles lettres",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22979",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22979/mp3/22979-01.mp3",
+      "chapterAudioUrlsFound": 38,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22434",
+      "title": "The tale of Timothy Turtle by Arthur Scott Bailey",
+      "author": "PZ: Language and Literatures: Juvenile belles lettres",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22434",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22434/mp3/22434-01.mp3",
+      "chapterAudioUrlsFound": 16,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20677",
+      "title": "God and the State by Mikhail Aleksandrovich Bakunin",
+      "author": "HX: Social sciences: Socialism, Communism, Anarchism",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20677",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20677/mp3/20677-01.mp3",
+      "chapterAudioUrlsFound": 12,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "26219",
+      "title": "The Dog Crusoe and His Master by R. M. Ballantyne",
+      "author": "PR: Language and Literatures: English literature",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/26219",
+      "audioSampleUrl": "https://www.gutenberg.org/files/26219/mp3/26219-01.mp3",
+      "chapterAudioUrlsFound": 54,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22980",
+      "title": "The Golden Dream by R. M. Ballantyne",
+      "author": "PR: Language and Literatures: English literature",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22980",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22980/mp3/22980-01.mp3",
+      "chapterAudioUrlsFound": 58,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22981",
+      "title": "Letters of Two Brides by Honoré de Balzac",
+      "author": "en.wikipedia.org/wiki/M%C3%A9moires_de_deux_jeunes_mari%C3%A9es",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22981",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22981/mp3/22981-01.mp3",
+      "chapterAudioUrlsFound": 114,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20691",
+      "title": "Sarrasine by Honoré de Balzac",
+      "author": "Bell, Clara, 1834-1927",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20691",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20691/mp3/20691-01.mp3",
+      "chapterAudioUrlsFound": 2,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "21175",
+      "title": "The Rosary by Florence L. Barclay",
+      "author": "en.wikipedia.org/wiki/The_Rosary_(novel)",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/21175",
+      "audioSampleUrl": "https://www.gutenberg.org/files/21175/mp3/21175-01.mp3",
+      "chapterAudioUrlsFound": 76,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "28782",
+      "title": "Legend Land, Volume 1 &amp; 2 by G. Basil Barham",
+      "author": "GR: Geography, Anthropology, Recreation: Folklore",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/28782",
+      "audioSampleUrl": "https://www.gutenberg.org/files/28782/mp3/28782-01.mp3",
+      "chapterAudioUrlsFound": 52,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "51566",
+      "title": "The Admirable Crichton by J. M. Barrie",
+      "author": "Rose, Temi",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/51566",
+      "audioSampleUrl": "https://www.gutenberg.org/files/51566/51566-mp3/51566-0101.mp3",
+      "chapterAudioUrlsFound": 14,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "22984",
+      "title": "Peter Pan by J. M. Barrie",
+      "author": "en.wikipedia.org/wiki/Peter_and_Wendy",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/22984",
+      "audioSampleUrl": "https://www.gutenberg.org/files/22984/mp3/22984-01.mp3",
+      "chapterAudioUrlsFound": 34,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20674",
+      "title": "The Triumphs of Eugene Valmont by Robert Barr",
+      "author": "PS: Language and Literatures: American and Canadian literature",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20674",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20674/mp3/20674-01.mp3",
+      "chapterAudioUrlsFound": 24,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20684",
+      "title": "Peterchens Mondfahrt by Gerdt von Bassewitz",
+      "author": "en.wikipedia.org/wiki/Little_Peter%27s_Journey_to_the_Moon",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20684",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20684/mp3/20684-01.mp3",
+      "chapterAudioUrlsFound": 28,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "20680",
+      "title": "The Key of Gold: 23 Czech Folk Tales by Josef Baudiš",
+      "author": "GR: Geography, Anthropology, Recreation: Folklore",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/20680",
+      "audioSampleUrl": "https://www.gutenberg.org/files/20680/mp3/20680-01.mp3",
+      "chapterAudioUrlsFound": 48,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19450",
+      "title": "Dorothy and the Wizard in Oz by L. Frank Baum",
+      "author": "en.wikipedia.org/wiki/Dorothy_and_the_Wizard_in_Oz",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19450",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19450/19450-mp3/19450-mp3-01.mp3",
+      "chapterAudioUrlsFound": 40,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "21163",
+      "title": "The Emerald City of Oz by L. Frank Baum",
+      "author": "en.wikipedia.org/wiki/The_Emerald_City_of_Oz",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/21163",
+      "audioSampleUrl": "https://www.gutenberg.org/files/21163/mp3/21163-01.mp3",
+      "chapterAudioUrlsFound": 60,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "21164",
+      "title": "The Enchanted Island of Yew by L. Frank Baum",
+      "author": "en.wikipedia.org/wiki/The_Enchanted_Island_of_Yew",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/21164",
+      "audioSampleUrl": "https://www.gutenberg.org/files/21164/mp3/21164-01.mp3",
+      "chapterAudioUrlsFound": 30,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "21192",
+      "title": "The Life and Adventures of Santa Claus by L. Frank Baum",
+      "author": "en.wikipedia.org/wiki/The_Life_and_Adventures_of_Santa_Claus",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/21192",
+      "audioSampleUrl": "https://www.gutenberg.org/files/21192/mp3/21192-01.mp3",
+      "chapterAudioUrlsFound": 24,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19467",
+      "title": "Little Wizard Stories of Oz by L. Frank Baum",
+      "author": "en.wikipedia.org/wiki/Little_Wizard_Stories_of_Oz",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19467",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19467/19467-mp3/littlewizardstories_01_baum.mp3",
+      "chapterAudioUrlsFound": 6,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "21169",
+      "title": "The Lost Princess of Oz by L. Frank Baum",
+      "author": "en.wikipedia.org/wiki/The_Lost_Princess_of_Oz",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/21169",
+      "audioSampleUrl": "https://www.gutenberg.org/files/21169/mp3/21169-01.mp3",
+      "chapterAudioUrlsFound": 54,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    },
+    {
+      "provider": "project_gutenberg_human",
+      "providerBookId": "19466",
+      "title": "The Marvelous Land of Oz by L. Frank Baum",
+      "author": "en.wikipedia.org/wiki/The_Marvelous_Land_of_Oz",
+      "sourceUrl": "https://www.gutenberg.org/ebooks/19466",
+      "audioSampleUrl": "https://www.gutenberg.org/files/19466/19466-mp3/19466-mp3-00.mp3",
+      "chapterAudioUrlsFound": 50,
+      "narrationType": "human_volunteer",
+      "licence": "Project Gutenberg; US public domain for underlying text — territory metadata required",
+      "rightsTerritory": "US_PD_default_not_worldwide",
+      "probe": {
+        "ok": true,
+        "status": 200,
+        "contentType": "audio/mpeg",
+        "method": "HEAD"
+      }
+    }
+  ],
+  "rejectedSample": []
+}

@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T03:17:58.088Z",
+  "identity": "Construcciones Asombrosas",
+  "candidateRecordId": "06639ff2-2405-4a09-90e9-5d577dc6fb64",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 122.54,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

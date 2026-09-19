@@ -1,0 +1,107 @@
+{
+  "searchedAt": "2026-08-02T11:39:09.576Z",
+  "queries": [
+    {
+      "query": "România",
+      "error": null,
+      "hits": 0,
+      "sample": []
+    },
+    {
+      "query": "Romania",
+      "error": null,
+      "hits": 3,
+      "sample": [
+        {
+          "id": "b9070294-13bb-41a1-8c1c-44421566a1f7",
+          "title": "Romania TV"
+        },
+        {
+          "id": "c2ec7278-cb88-4a54-af3f-289a266692ad",
+          "title": "Euronews Romania (1080p)"
+        },
+        {
+          "id": "ce21bd11-169f-445b-84bd-6ddc31ef92f7",
+          "title": "Romania TV (1080p)"
+        }
+      ]
+    },
+    {
+      "query": "TVR",
+      "error": null,
+      "hits": 14,
+      "sample": [
+        {
+          "id": "5dc8a20b-3aee-4be1-971a-72857242fb11",
+          "title": "TVR 1"
+        },
+        {
+          "id": "81bcb461-4d8b-4b48-af80-58ad61b9b183",
+          "title": "TVR Craiova"
+        },
+        {
+          "id": "edb188d1-18ad-4c91-bf3e-13da690fed52",
+          "title": "TVR Targu-Mures"
+        },
+        {
+          "id": "e4c8a5a4-e980-49ab-8967-d7f41b3c8e13",
+          "title": "TVR Info"
+        },
+        {
+          "id": "f7449fc5-de3a-4117-9a2e-0e2d4fcbf27d",
+          "title": "TVR Iasi (R0cHM6Ly)"
+        }
+      ]
+    },
+    {
+      "query": "Digi24",
+      "error": null,
+      "hits": 0,
+      "sample": []
+    },
+    {
+      "query": "Romania TV",
+      "error": null,
+      "hits": 2,
+      "sample": [
+        {
+          "id": "b9070294-13bb-41a1-8c1c-44421566a1f7",
+          "title": "Romania TV"
+        },
+        {
+          "id": "ce21bd11-169f-445b-84bd-6ddc31ef92f7",
+          "title": "Romania TV (1080p)"
+        }
+      ]
+    },
+    {
+      "query": "RO",
+      "error": null,
+      "hits": 20,
+      "sample": [
+        {
+          "id": "68eb330e-bf94-44a3-a4cd-4727d156430c",
+          "title": "National 24 Plus"
+        },
+        {
+          "id": "78aa19c9-5c7a-4ec7-ab72-8605d2126bc3",
+          "title": "TVPlus Suceava"
+        },
+        {
+          "id": "1cfe57bd-d7a2-41bf-a8e8-564657dc7236",
+          "title": "Arges TV"
+        },
+        {
+          "id": "a93d5893-3daa-4403-b759-84bde9d5d5ce",
+          "title": "MediCOOL TV"
+        },
+        {
+          "id": "aa3695eb-7466-44a1-bbf0-97d1f37b7733",
+          "title": "Muscel TV"
+        }
+      ]
+    }
+  ],
+  "countryBrowsePlayableCount": 69,
+  "aliasSearchNote": "tv_videos has no dedicated aliases column in public search path; title/channel_name/region are searchable. Alias-only matches are not guaranteed without schema support."
+}

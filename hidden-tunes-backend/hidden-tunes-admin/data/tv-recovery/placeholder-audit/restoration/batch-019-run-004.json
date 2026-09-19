@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T14:44:47.215Z",
+  "scope": "Batch 19 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 3,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "60 Days in Jail and Hoarders used opaque Wurl candidates without complete direct authoritative channel linkage.",
+    "Heartland used an unverified Streamhoster endpoint without complete authoritative linkage.",
+    "Dance Moms used rejected jmp2.uk and MTV Ridiculousness used rejected i.mjh.nz.",
+    "No candidate was sent to expensive validation; all five remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 49,
+  "cumulativeTerminalAliases": 174,
+  "batch19Target": 25,
+  "batch19Researched": 20,
+  "batch19Remaining": 5
+}

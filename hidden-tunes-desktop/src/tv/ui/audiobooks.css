@@ -1,0 +1,306 @@
+/* Premium Smart TV Audiobooks presentation. Data and playback remain shared owners. */
+html[data-tv-platform] .page-view[data-page='audiobooks'] {
+  --tv-book-violet: #b33cff;
+  --tv-book-magenta: #e847ff;
+  background:
+    radial-gradient(circle at 78% 5%, rgb(145 42 169 / 20%), transparent 34rem),
+    linear-gradient(180deg, #08050f 0%, #05030a 74%);
+}
+
+html[data-tv-platform] .audiobooks-destination {
+  display: grid;
+  gap: clamp(1.2rem, 2vh, 2rem);
+  padding-bottom: calc(var(--tv-player-height, 5.5rem) + 3rem);
+}
+
+html[data-tv-platform] .audiobooks-destination > .sectionHero {
+  position: relative;
+  min-height: clamp(17rem, 34vh, 27rem);
+  align-content: end;
+  overflow: hidden;
+  padding: clamp(2.2rem, 4vw, 4.8rem);
+  border: 1px solid rgb(205 76 255 / 30%);
+  border-radius: 1.5rem;
+  background:
+    linear-gradient(90deg, rgb(7 4 12 / 98%) 4%, rgb(20 7 29 / 88%) 47%, rgb(8 4 12 / 20%) 100%),
+    url('/home-reference/explore-audiobooks.webp') center 60% / cover;
+  box-shadow: inset 0 0 6rem rgb(142 37 189 / 18%);
+}
+
+html[data-tv-platform] .audiobooks-destination > .sectionHero::before {
+  content: '▱  AUDIOBOOKS';
+  color: #d86cff;
+  font-size: clamp(.8rem, .9vw, 1.1rem);
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+html[data-tv-platform] .audiobooks-destination > .sectionHero h1,
+html[data-tv-platform] .audiobooks-destination > .sectionHero h2 {
+  position: relative;
+  z-index: 1;
+  max-width: 12ch;
+  margin: .45rem 0;
+  font-size: clamp(3.3rem, 5vw, 6.4rem);
+  line-height: .95;
+  letter-spacing: -.055em;
+  background: linear-gradient(100deg, #fff 20%, #e6adff 78%);
+  background-clip: text;
+  color: transparent;
+}
+
+html[data-tv-platform] .audiobooks-destination > .sectionHero p {
+  position: relative;
+  z-index: 1;
+  max-width: 42rem;
+  color: rgb(255 255 255 / 72%);
+  font-size: clamp(1.05rem, 1.25vw, 1.45rem);
+}
+
+html[data-tv-platform] .audiobooks-section {
+  margin: 0;
+  padding-inline: clamp(.5rem, 1.3vw, 1.6rem);
+}
+
+html[data-tv-platform] .audiobooks-section h2 {
+  margin: 0 0 .8rem;
+  color: #fff;
+  font-size: clamp(1.45rem, 1.65vw, 2rem);
+  letter-spacing: -.025em;
+}
+
+html[data-tv-platform] .audiobooks-book-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(12rem, 14.5vw, 18rem);
+  grid-template-columns: none;
+  gap: clamp(.8rem, 1vw, 1.25rem);
+  overflow-x: auto;
+  padding: .45rem .35rem 1.1rem;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+html[data-tv-platform] .audiobooks-book-grid::-webkit-scrollbar,
+html[data-tv-platform] .audiobooks-continue-rail::-webkit-scrollbar,
+html[data-tv-platform] .audiobooks-category-grid::-webkit-scrollbar { display: none; }
+
+html[data-tv-platform] .audiobook-book-card {
+  min-width: 0;
+  scroll-snap-align: start;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, rgb(27 20 35 / 96%), rgb(9 7 14 / 98%));
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+html[data-tv-platform] .audiobook-book-card-hit {
+  width: 100%;
+  padding: .55rem;
+  color: inherit;
+  text-align: left;
+}
+
+html[data-tv-platform] .audiobook-book-card-art {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 2 / 3;
+  border-radius: .72rem;
+  background: linear-gradient(145deg, #25152e, #100b17);
+}
+
+/* Keep global absolute ArtworkImage frames inside their intended TV surfaces. */
+html[data-tv-platform] .audiobook-book-cover,
+html[data-tv-platform] .audiobook-chapter-row-art,
+html[data-tv-platform] .audiobooks-continue-art {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+html[data-tv-platform] .audiobook-book-page {
+  gap: clamp(1.25rem, 2vh, 2rem);
+  padding: clamp(.5rem, 1.2vw, 1.5rem) clamp(1rem, 2vw, 2.5rem) calc(var(--tv-player-height, 5.5rem) + 3rem);
+}
+
+html[data-tv-platform] .audiobook-book-hero {
+  grid-template-columns: clamp(13rem, 18vw, 22rem) minmax(0, 1fr);
+  gap: clamp(2rem, 3vw, 4rem);
+  padding: clamp(1.5rem, 2vw, 2.75rem);
+  border: 1px solid rgb(211 91 255 / 24%);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(circle at 18% 30%, rgb(180 57 255 / 19%), transparent 25rem),
+    linear-gradient(115deg, rgb(23 12 31 / 98%), rgb(8 5 13 / 98%));
+  box-shadow: inset 0 0 5rem rgb(130 36 175 / 12%);
+}
+
+html[data-tv-platform] .audiobook-book-cover {
+  aspect-ratio: 2 / 3;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 1rem;
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 55%), 0 0 2.5rem rgb(192 62 255 / 15%);
+}
+
+html[data-tv-platform] .audiobook-book-cover .art-frame,
+html[data-tv-platform] .audiobook-book-cover .art-frame--square {
+  height: 100%;
+}
+
+html[data-tv-platform] .audiobook-book-hero-copy h1 {
+  max-width: 18ch;
+  font-size: clamp(2.5rem, 3.8vw, 4.8rem);
+  line-height: 1;
+  letter-spacing: -.045em;
+}
+
+html[data-tv-platform] .audiobook-book-description {
+  display: -webkit-box;
+  overflow: hidden;
+  max-width: 68ch;
+  color: rgb(255 255 255 / 66%);
+  font-size: clamp(1rem, 1.05vw, 1.3rem);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+html[data-tv-platform] .audiobook-book-actions {
+  position: relative;
+  z-index: 2;
+  gap: .8rem;
+  margin-top: 1.25rem;
+}
+
+html[data-tv-platform] .audiobook-book-actions button:focus-visible,
+html[data-tv-platform] .audiobook-chapter-row-play:focus-visible {
+  outline: 3px solid #e16bff;
+  outline-offset: 4px;
+  box-shadow: 0 0 0 .45rem rgb(205 76 255 / 18%), 0 0 2rem rgb(205 76 255 / 28%);
+}
+
+html[data-tv-platform] .audiobook-chapter-list {
+  gap: .75rem;
+}
+
+html[data-tv-platform] .audiobook-chapter-row {
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 1rem;
+  background: linear-gradient(105deg, rgb(29 20 37 / 95%), rgb(10 7 14 / 97%));
+}
+
+html[data-tv-platform] .audiobook-chapter-row:focus-within {
+  border-color: #d45fff;
+  box-shadow: 0 0 0 3px rgb(212 95 255 / 72%), 0 0 2rem rgb(176 54 255 / 20%);
+}
+
+html[data-tv-platform] .audiobook-book-card-art .art-frame,
+html[data-tv-platform] .audiobook-book-card-art .art-frame--square {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 2 / 3;
+}
+
+html[data-tv-platform] .audiobook-book-card-copy {
+  min-height: 5.4rem;
+  padding: .75rem .3rem .35rem;
+}
+
+html[data-tv-platform] .audiobook-book-card-copy h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0 0 .35rem;
+  color: #fff;
+  font-size: clamp(.95rem, 1vw, 1.2rem);
+  line-height: 1.22;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+html[data-tv-platform] .audiobook-book-card-copy p {
+  overflow: hidden;
+  color: rgb(255 255 255 / 56%);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-tv-platform] .audiobook-book-card:focus-within {
+  z-index: 2;
+  border-color: #d55eff;
+  outline: 3px solid rgb(213 94 255 / 90%);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 .42rem rgb(180 53 255 / 16%), 0 1.2rem 3rem rgb(0 0 0 / 54%);
+  transform: translateY(-.35rem) scale(1.035);
+}
+
+html[data-tv-platform] .audiobook-book-card:focus-within .audiobook-book-card-play {
+  opacity: 1;
+  transform: scale(1.08);
+  background: linear-gradient(135deg, var(--tv-book-magenta), #7519d0);
+}
+
+html[data-tv-platform] .audiobooks-continue-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(25rem, 31vw, 39rem);
+  gap: 1rem;
+  overflow-x: auto;
+  padding: .4rem .35rem 1rem;
+  scrollbar-width: none;
+}
+
+html[data-tv-platform] .audiobooks-continue-card {
+  grid-template-columns: clamp(5rem, 6vw, 7rem) minmax(0, 1fr) auto;
+  min-height: clamp(7rem, 10vh, 9rem);
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 1rem;
+  background: linear-gradient(110deg, rgb(35 25 44 / 96%), rgb(12 9 17 / 96%));
+}
+
+html[data-tv-platform] .audiobooks-continue-card:focus-within {
+  border-color: #d05fff;
+  box-shadow: 0 0 0 3px rgb(208 95 255 / 80%), 0 0 2.4rem rgb(174 54 255 / 24%);
+}
+
+html[data-tv-platform] .audiobooks-category-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(11rem, 13.5vw, 17rem);
+  grid-template-columns: none;
+  gap: .8rem;
+  overflow-x: auto;
+  padding: .4rem .35rem .9rem;
+  scrollbar-width: none;
+}
+
+html[data-tv-platform] .audiobooks-category-card {
+  min-height: 4.5rem;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: .85rem;
+  background: rgb(18 14 24 / 94%);
+}
+
+html[data-tv-platform] .audiobooks-category-card:focus-visible,
+html[data-tv-platform] .audiobooks-category-card.is-active {
+  border-color: #cd5cff;
+  outline: 3px solid rgb(205 92 255 / 84%);
+  outline-offset: 3px;
+  background: linear-gradient(135deg, rgb(126 35 184 / 96%), rgb(62 17 104 / 98%));
+  box-shadow: 0 0 2.2rem rgb(178 60 255 / 24%);
+}
+
+@media (min-width: 2400px) {
+  html[data-tv-platform] .audiobooks-book-grid { grid-auto-columns: 21rem; }
+  html[data-tv-platform] .audiobooks-continue-rail { grid-auto-columns: 45rem; }
+}
+
+@media (max-width: 1366px) {
+  html[data-tv-platform] .audiobooks-destination > .sectionHero { min-height: 14rem; padding: 2rem 2.4rem; }
+  html[data-tv-platform] .audiobooks-book-grid { grid-auto-columns: 12rem; }
+  html[data-tv-platform] .audiobooks-continue-rail { grid-auto-columns: 24rem; }
+  html[data-tv-platform] .audiobook-book-hero { grid-template-columns: 11rem minmax(0, 1fr); gap: 1.5rem; padding: 1.5rem; }
+  html[data-tv-platform] .audiobook-book-description { -webkit-line-clamp: 3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-tv-platform] .audiobook-book-card { transition: none; }
+}

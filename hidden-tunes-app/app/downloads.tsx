@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -12,32 +14,54 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
 import { COLORS, GRADIENTS } from "../constants/theme";
+import {
+  clearDownloads,
+  deleteDownload,
+  getDownloadedSongs,
+  type DownloadedSong,
+} from "../services/downloads";
 
-const downloadedSongs = [
-  {
-    id: "1",
-    title: "Lonely Road",
-    artist: "Caasi Wills",
-    cover: require("../assets/images/cover1.jpg"),
-    size: "8.4 MB",
-  },
-  {
-    id: "2",
-    title: "Midnight Drive",
-    artist: "Hidden Tunes",
-    cover: require("../assets/images/cover2.jpg"),
-    size: "6.1 MB",
-  },
-  {
-    id: "3",
-    title: "Porch Light Still On",
-    artist: "Caasi Wills",
-    cover: require("../assets/images/cover3.jpg"),
-    size: "7.3 MB",
-  },
-];
+function formatBytes(bytes: number) {
+  if (!bytes) return "0 MB";
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function DownloadsScreen() {
+  const [downloadedSongs, setDownloadedSongs] = useState<DownloadedSong[]>([]);
+
+  useEffect(() => {
+    void getDownloadedSongs().then(setDownloadedSongs);
+  }, []);
+
+  const storageBytes = downloadedSongs.reduce(
+    (total, song) => total + Number((song as DownloadedSong & { size?: number }).size || 0),
+    0
+  );
+
+  async function removeDownload(id: string) {
+    const removed = await deleteDownload(id);
+    if (removed) setDownloadedSongs((current) => current.filter((song) => song.id !== id));
+    else Alert.alert("Could not remove download", "Try again later.");
+  }
+
+  function confirmClearDownloads() {
+    if (!downloadedSongs.length) return;
+    Alert.alert("Clear downloads?", "This removes all downloaded files from this device.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Clear downloads",
+        style: "destructive",
+        onPress: () => void clearAllDownloads(),
+      },
+    ]);
+  }
+
+  async function clearAllDownloads() {
+    const cleared = await clearDownloads();
+    if (cleared) setDownloadedSongs([]);
+    else Alert.alert("Could not clear downloads", "Try again later.");
+  }
+
   return (
     <LinearGradient colors={GRADIENTS.main} style={styles.container}>
       <View style={styles.glowPurple} />
@@ -53,7 +77,7 @@ export default function DownloadsScreen() {
           <Text style={styles.headerSubtitle}>Saved music</Text>
         </View>
 
-        <TouchableOpacity style={styles.iconButton}>
+        <TouchableOpacity style={styles.iconButton} onPress={confirmClearDownloads}>
           <Ionicons name="download-outline" size={22} color={COLORS.text} />
         </TouchableOpacity>
       </View>
@@ -66,20 +90,24 @@ export default function DownloadsScreen() {
           <View style={styles.storageCard}>
             <View>
               <Text style={styles.storageLabel}>Storage</Text>
-              <Text style={styles.storageValue}>21.8 MB</Text>
+              <Text style={styles.storageValue}>{formatBytes(storageBytes)}</Text>
             </View>
 
-            <View style={styles.progressBar}>
+            {downloadedSongs.length ? <View style={styles.progressBar}>
               <View style={styles.progressFill} />
-            </View>
+            </View> : null}
           </View>
         </LinearGradient>
 
         <Text style={styles.sectionTitle}>Downloaded</Text>
 
-        {downloadedSongs.map((song) => (
-          <TouchableOpacity key={song.id} style={styles.songCard}>
-            <Image source={song.cover} style={styles.cover} />
+        {downloadedSongs.length ? downloadedSongs.map((song) => (
+          <View key={song.id} style={styles.songCard}>
+            {song.cover ? <Image source={{ uri: song.cover }} style={styles.cover} /> : (
+              <View style={[styles.cover, styles.coverFallback]}>
+                <Ionicons name="musical-notes" size={26} color={COLORS.primary} />
+              </View>
+            )}
 
             <View style={styles.songInfo}>
               <Text numberOfLines={1} style={styles.songTitle}>
@@ -97,9 +125,9 @@ export default function DownloadsScreen() {
             </View>
 
             <View style={styles.rightSection}>
-              <Text style={styles.size}>{song.size}</Text>
+              <Text style={styles.size}>Saved locally</Text>
 
-              <TouchableOpacity style={styles.moreButton}>
+              <TouchableOpacity style={styles.moreButton} onPress={() => void removeDownload(song.id)}>
                 <Ionicons
                   name="ellipsis-vertical"
                   size={18}
@@ -107,8 +135,12 @@ export default function DownloadsScreen() {
                 />
               </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        ))}
+          </View>
+        )) : <View style={styles.emptyCard}>
+          <Ionicons name="download-outline" size={34} color={COLORS.primary} />
+          <Text style={styles.emptyTitle}>No downloaded music</Text>
+          <Text style={styles.emptyText}>Downloaded files will appear here when an item is saved for offline listening.</Text>
+        </View>}
       </ScrollView>
     </LinearGradient>
   );
@@ -246,6 +278,11 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
   },
 
+  coverFallback: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   songInfo: {
     flex: 1,
     marginLeft: 14,
@@ -300,5 +337,29 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  emptyCard: {
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.055)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+
+  emptyTitle: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 12,
+  },
+
+  emptyText: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+    marginTop: 8,
   },
 });

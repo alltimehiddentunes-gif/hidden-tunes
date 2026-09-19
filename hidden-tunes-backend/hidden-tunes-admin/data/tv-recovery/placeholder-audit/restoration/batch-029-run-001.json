@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T15:27:14.720Z",
+  "scope": "Batch 29 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "Doctor Who Classic passed technical playback for 124.21 seconds at 1920x1080 with one video owner from directly named BBC/Wurl delivery, but evidence showed a prolonged promotional Doctor montage rather than sustained real programme; it failed the content gate and remains quarantined.",
+    "BritBox Mysteries retained a Tubi CloudFront candidate but lacked complete direct exact candidate ownership linkage.",
+    "Un Si Grand Soleil, Wild N Out, and 5 Cops used rejected jmp2.uk sources."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch29Target": 25,
+  "batch29Researched": 5,
+  "batch29Remaining": 20
+}

@@ -1,0 +1,15 @@
+{
+  "candidateId": "7c56b1f4-0bfa-4c75-a5d5-d840abb4b891",
+  "streamHost": "wurlrifftrax.global.transmit.live",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 142.447599,
+    "advancedSeconds": 124.33349899999999,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

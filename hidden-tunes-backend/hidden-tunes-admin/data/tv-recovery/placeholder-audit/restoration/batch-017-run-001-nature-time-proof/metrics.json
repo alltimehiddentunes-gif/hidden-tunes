@@ -1,0 +1,15 @@
+{
+  "candidateId": "e2a5facf-6bfe-45af-a1fd-c285883f4f76",
+  "streamHost": "amg00090-amgnaturetimeemea-rakuten.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 163.465512,
+    "advancedSeconds": 124.40211299999999,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

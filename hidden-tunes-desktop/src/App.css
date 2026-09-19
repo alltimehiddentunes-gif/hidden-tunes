@@ -29061,6 +29061,97 @@ button.lecture-detail-crumb:focus-visible {
   gap: 12px;
 }
 
+.sports-competition-section,
+.sports-tv-fallback {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+  padding: 18px;
+}
+
+.sports-section-heading,
+.sports-tv-fallback,
+.sports-competition-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sports-section-eyebrow {
+  margin: 0 0 5px;
+  color: rgba(245, 243, 250, 0.5);
+  font-size: 0.7rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.sports-section-heading h2,
+.sports-tv-fallback h2,
+.sports-competition-group-heading h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.sports-competition-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.sports-competition-chip {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
+  color: inherit;
+  padding: 8px 11px;
+  cursor: pointer;
+}
+
+.sports-competition-chip:hover,
+.sports-competition-chip.is-active {
+  border-color: rgba(244, 194, 88, 0.45);
+  background: rgba(244, 194, 88, 0.1);
+}
+
+.sports-competition-groups {
+  display: grid;
+  gap: 22px;
+}
+
+.sports-competition-group {
+  display: grid;
+  gap: 10px;
+}
+
+.sports-competition-group-heading span {
+  color: rgba(245, 243, 250, 0.5);
+  font-size: 0.78rem;
+}
+
+.sports-tv-fallback p:not(.sports-section-eyebrow) {
+  margin: 7px 0 0;
+  max-width: 42rem;
+  color: rgba(245, 243, 250, 0.62);
+  line-height: 1.45;
+}
+
+@media (min-width: 1180px) {
+  .sports-fixture-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .sports-section-heading,
+  .sports-tv-fallback,
+  .sports-competition-group-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .sports-fixture-card {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -32091,15 +32182,10 @@ button.lecture-detail-crumb:focus-visible {
 .tv-video-surface:fullscreen,
 .tv-video-surface:-webkit-full-screen,
 .tv-video-surface.is-css-fullscreen {
-    position: fixed;
-    inset: 0;
+  position: fixed;
+  inset: 0;
   z-index: 10000;
   display: block;
-  box-sizing: border-box;
-  flex: none;
-  gap: 0;
-  margin: 0;
-  padding: 0;
   border-radius: 0;
   max-width: none;
   width: 100vw;
@@ -32108,74 +32194,62 @@ button.lecture-detail-crumb:focus-visible {
   background: #000;
 }
 
-  .tv-video-surface:fullscreen .tv-video-surface-mount,
-  .tv-video-surface:-webkit-full-screen .tv-video-surface-mount,
-  .tv-video-surface.is-css-fullscreen .tv-video-surface-mount {
-    position: absolute;
-    inset: 0;
-    max-height: none;
-    width: 100%;
-    height: 100%;
+.tv-video-surface:fullscreen .tv-video-surface-mount,
+.tv-video-surface:-webkit-full-screen .tv-video-surface-mount,
+.tv-video-surface.is-css-fullscreen .tv-video-surface-mount {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-height: none;
+  height: 100%;
   aspect-ratio: auto;
-  margin: 0;
   border-radius: 0;
 }
 
-.tv-video-surface:fullscreen .ht-tv-video-element,
-.tv-video-surface:-webkit-full-screen .ht-tv-video-element,
-.tv-video-surface.is-css-fullscreen .ht-tv-video-element {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none;
-  max-height: none;
-  margin: 0;
-  object-fit: contain;
-  background: #000;
+.tv-video-surface:fullscreen .tv-video-surface-overlay,
+.tv-video-surface:-webkit-full-screen .tv-video-surface-overlay,
+.tv-video-surface.is-css-fullscreen .tv-video-surface-overlay {
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding: 18px 20px 56px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent);
+  transition: opacity 160ms ease, visibility 160ms ease;
 }
 
+.tv-video-surface:fullscreen .tv-video-surface-toolbar,
+.tv-video-surface:-webkit-full-screen .tv-video-surface-toolbar,
+.tv-video-surface.is-css-fullscreen .tv-video-surface-toolbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  min-height: 88px;
+  padding: 42px 24px 20px;
+  border-radius: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.68) 52%, transparent);
+  transition: opacity 160ms ease, visibility 160ms ease;
+}
+
+.tv-video-surface[data-fullscreen='true'][data-controls-visible='false'] .tv-video-surface-overlay,
+.tv-video-surface[data-fullscreen='true'][data-controls-visible='false'] .tv-video-surface-toolbar {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
   .tv-video-surface:fullscreen .tv-video-surface-overlay,
   .tv-video-surface:-webkit-full-screen .tv-video-surface-overlay,
-  .tv-video-surface.is-css-fullscreen .tv-video-surface-overlay {
-    z-index: 3;
-    padding-bottom: 86px;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.72), transparent 28%);
-    transition: opacity 180ms ease, visibility 180ms ease;
-  }
-
+  .tv-video-surface.is-css-fullscreen .tv-video-surface-overlay,
   .tv-video-surface:fullscreen .tv-video-surface-toolbar,
   .tv-video-surface:-webkit-full-screen .tv-video-surface-toolbar,
   .tv-video-surface.is-css-fullscreen .tv-video-surface-toolbar {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 4;
-    min-height: 86px;
-    padding: 18px clamp(16px, 3vw, 48px);
-    background: linear-gradient(0deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.48) 62%, transparent);
-    transition: opacity 180ms ease, visibility 180ms ease;
+    transition: none;
   }
-
-  .tv-video-surface[data-fullscreen='true'][data-controls-visible='false'] .tv-video-surface-overlay,
-  .tv-video-surface[data-fullscreen='true'][data-controls-visible='false'] .tv-video-surface-toolbar {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .tv-video-surface:fullscreen .tv-video-surface-overlay,
-    .tv-video-surface:-webkit-full-screen .tv-video-surface-overlay,
-    .tv-video-surface.is-css-fullscreen .tv-video-surface-overlay,
-    .tv-video-surface:fullscreen .tv-video-surface-toolbar,
-    .tv-video-surface:-webkit-full-screen .tv-video-surface-toolbar,
-    .tv-video-surface.is-css-fullscreen .tv-video-surface-toolbar {
-      transition: none;
-    }
-  }
+}
 
 @media (max-height: 780px) {
   .tv-rail[data-video-layout='motivational-contained'] .tv-video-surface-mount,
@@ -33603,7 +33677,6 @@ html.ht-os-fullscreen .premium-fullscreen-shell[data-media-kind] {
   .podcast-show-episode-actions { grid-column: 2; justify-content: flex-start; }
   .podcast-show-episode-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
-
 /* Browser-only About destination. The route is inert in Electron builds. */
 .web-about {
   --about-line: rgba(255, 255, 255, 0.11);

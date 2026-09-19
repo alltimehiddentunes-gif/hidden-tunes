@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T11:14:28.436Z",
+  "scope": "Batch 8 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "That's 80s passed 123.30 seconds of 1920x1080 Desktop playback with one video owner and no fatal HLS errors.",
+    "The exact-name Lightning/Now 80s Amagi/Rakuten service showed continuous 1980s-specific moving programming, disproving the prior closure-slate concern and supporting HIGH identity. Search and resolver passed.",
+    "Two quarantined aliases remain hidden and terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Filmgold and KultKrimi were rejected for jmp2.uk; CSI used i.mjh.nz. Judge Nosey retains official Nosey/Amagi provenance but was not promoted without complete proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 25,
+  "cumulativeTerminalAliases": 105,
+  "batch8Target": 25,
+  "batch8Researched": 24,
+  "batch8Remaining": 1
+}

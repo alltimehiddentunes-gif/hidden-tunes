@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-14T20:15:00.000Z",
+  "scope": "Batch 12 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 5,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 1,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Real Madrid TV used the club-owned rmtv.akamaized.net service and technically advanced for 124.23 seconds, but every sampled frame was the static rights-unavailable slate.",
+    "The Real Madrid candidate failed the real-programme and continuity gates and remains quarantined; technical playback was not credited as recovery.",
+    "Terra Mater WILD, Tastemade, Shop LC, and RCN Más retained legitimate brand/distribution evidence but were not sent to full validation without stronger direct source-to-identity proof in this bounded run.",
+    "No production write, duplicate, or cache mutation occurred."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 36,
+  "cumulativeTerminalAliases": 133,
+  "batch12Target": 25,
+  "batch12Researched": 10,
+  "batch12Remaining": 15
+}

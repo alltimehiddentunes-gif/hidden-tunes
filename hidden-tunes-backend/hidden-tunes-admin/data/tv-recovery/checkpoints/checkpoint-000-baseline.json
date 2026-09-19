@@ -1,0 +1,28 @@
+{
+  "runId": "pluto-autonomous-recovery",
+  "checkpointVersion": 1,
+  "batchNumber": 0,
+  "phase": "BASELINE_PHASE2E_COMPLETE",
+  "createdAt": "2026-08-09T10:52:36.199Z",
+  "baselineHead": "0b01836e44ff869d1520b494b8ccb04c5f73f727",
+  "canonicalIdentities": 1882,
+  "identitiesAttempted": 150,
+  "identitiesCompleted": 13,
+  "candidatesDiscovered": 164,
+  "candidatesTested": 50,
+  "verified": 8,
+  "rejected": 4,
+  "unresolved": 1,
+  "errors": [],
+  "nextBatch": 1,
+  "nextBatchSize": 100,
+  "nextCursor": 0,
+  "selectionRule": "first priority-ranked identity with terminalStatus=RESEARCH_INCOMPLETE and previouslyResearched=false",
+  "productionWrites": 0,
+  "statusCounts": {
+    "RESEARCH_INCOMPLETE": 1869,
+    "VERIFIED_PLAYABLE": 8,
+    "IDENTITY_UNRESOLVED": 1,
+    "WRONG_SOURCE_REJECTED": 4
+  }
+}

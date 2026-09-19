@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T12:51:47.348Z",
+  "identity": "Deal or No Deal",
+  "candidateRecordId": "f203b42f-8262-409e-aba9-50903e1d220f",
+  "aliasesTerminal": 1,
+  "authoritativeProvenance": "Banijay/Amagi distribution for Samsung TV Plus",
+  "content": "Real moving branded Deal or No Deal game-show programming",
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 123.95,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

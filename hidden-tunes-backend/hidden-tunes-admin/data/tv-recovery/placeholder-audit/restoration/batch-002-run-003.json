@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-12T19:20:07.160Z",
+  "batch": 2,
+  "run": 3,
+  "productionWrites": 0,
+  "identitiesResearched": 3,
+  "authoritativeCandidatesFound": 2,
+  "selected": [
+    {
+      "identity": "World Poker Tour",
+      "candidateRecordId": "49b70a19-adc8-4708-9469-1d95eb126a55",
+      "provenanceConfidence": "HIGH",
+      "evidence": "World Poker Tour and Samsung both confirm official free Samsung TV Plus distribution."
+    },
+    {
+      "identity": "PGA TOUR",
+      "candidateRecordId": "4691fb91-0e5e-475f-96a1-4dd0afcb9e50",
+      "provenanceConfidence": "HIGH",
+      "evidence": "PGA TOUR officially confirms its free 24/7 Samsung TV Plus FAST channel."
+    }
+  ],
+  "deferred": [
+    {
+      "identity": "CBS News 24/7",
+      "reason": "Runtime and resolver pass; additional unmistakable branded-frame evidence still required before terminal merge."
+    }
+  ],
+  "nextGate": "URL-redacted host correlation, followed by 120-second Desktop playback and visual identity validation",
+  "cumulativeVerifiedSearchableDesktopPlayable": 2
+}

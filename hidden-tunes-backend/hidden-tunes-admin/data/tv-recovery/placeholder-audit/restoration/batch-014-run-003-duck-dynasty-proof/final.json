@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T01:47:19.083Z",
+  "identity": "Duck Dynasty",
+  "candidateRecordId": "e8c053a1-7eff-4f70-a8b6-c27bf644fb2a",
+  "aliasesTerminal": 9,
+  "identityConfidence": "EXACT",
+  "desktopPlaybackSeconds": 124.95,
+  "resolution": "1920x1080",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

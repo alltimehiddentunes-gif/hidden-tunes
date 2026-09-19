@@ -1,0 +1,15 @@
+{
+  "candidateId": "34ed9dc7-f88d-45c0-94ac-d62023ba5b61",
+  "streamHost": "9fe704e826f54008893e1f2cec429fc3.mediatailor.us-west-2.amazonaws.com",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 164.908828,
+    "advancedSeconds": 122.899513,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

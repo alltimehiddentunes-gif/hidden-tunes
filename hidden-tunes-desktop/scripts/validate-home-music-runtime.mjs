@@ -93,11 +93,19 @@ async function maybeStartVite() {
 }
 
 async function capture(win, filename) {
-  const image = await win.webContents.capturePage()
-  const target = path.join(EVIDENCE_DIR, filename)
-  fs.writeFileSync(target, image.toPNG())
-  results.screenshots.push(filename)
-  return target
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const image = await win.webContents.capturePage()
+      const target = path.join(EVIDENCE_DIR, filename)
+      fs.writeFileSync(target, image.toPNG())
+      results.screenshots.push(filename)
+      return target
+    } catch (error) {
+      if (attempt === 2) results.notes.push(`Screenshot skipped (${filename}): ${error?.message || error}`)
+      await sleep(400)
+    }
+  }
+  return null
 }
 
 async function evalInPage(win, fnSource) {
@@ -191,7 +199,7 @@ async function inspectMusic(win) {
     const sidebar = Boolean(document.querySelector('.sidebar'))
     const subNav = Boolean(document.querySelector('.music-sub-nav'))
     const featured = Boolean(document.querySelector('.music-discover-featured-release'))
-    const browseLinks = document.querySelectorAll('.music-discover-browse-link').length
+    const browseLinks = document.querySelectorAll('.music-discover-quick-link, .music-discover-release-hit, .music-discover-chart-hit, .music-discover-mood-hit').length
     const overflowX = document.documentElement.scrollWidth > document.documentElement.clientWidth + 2
     const shellHidesSidebar = document.querySelector('.app-shell')?.classList.contains('app-shell--music')
     return {
@@ -319,6 +327,18 @@ async function runValidation() {
     results.catalogRequests.push({ via: 'ipc', path: cleanPath, time: Date.now() })
     return fetchApprovedCatalog(cleanPath)
   })
+  ipcMain.on('ht-runtime-info', (event) => {
+    event.returnValue = { isPackaged: false, environment: 'development', ok: true, errors: [], warnings: [], expressConfigured: true, adminConfigured: true, sportsPilotConfigured: false }
+  })
+  ipcMain.handle('ht-downloads-list', async () => [])
+  ipcMain.handle('ht-downloads-disk-usage', async () => ({ usedBytes: 0, itemCount: 0 }))
+  ipcMain.handle('ht-downloads-reconcile', async () => ({ ok: true, removed: 0 }))
+  ipcMain.handle('ht-downloads-start', async () => ({ ok: false, error: 'unavailable in music runtime' }))
+  ipcMain.handle('ht-downloads-pause', async () => ({ ok: false }))
+  ipcMain.handle('ht-downloads-resume', async () => ({ ok: false }))
+  ipcMain.handle('ht-downloads-cancel', async () => ({ ok: false }))
+  ipcMain.handle('ht-downloads-remove', async () => ({ ok: false }))
+  ipcMain.handle('ht-downloads-get-playable-url', async () => ({ ok: false, error: 'unavailable' }))
 
   const networkCounts = await interceptCatalogNetwork(session.defaultSession)
 
@@ -337,6 +357,12 @@ async function runValidation() {
       preload: path.join(ROOT, 'electron', 'preload.js'),
     },
   })
+  ipcMain.handle('ht-window-get-state', () => ({ isMaximized: win.isMaximized(), isFullScreen: win.isFullScreen() }))
+  ipcMain.handle('ht-window-is-full-screen', () => win.isFullScreen())
+  ipcMain.handle('ht-window-set-full-screen', (_event, enabled) => { win.setFullScreen(Boolean(enabled)); return win.isFullScreen() })
+  ipcMain.on('ht-window-minimize', () => win.minimize())
+  ipcMain.on('ht-window-toggle-maximize', () => (win.isMaximized() ? win.unmaximize() : win.maximize()))
+  ipcMain.on('ht-window-close', () => win.close())
 
   win.webContents.on('console-message', (_e, level, message) => {
     const entry = { level, message: String(message).slice(0, 300) }
@@ -360,18 +386,12 @@ async function runValidation() {
     record(`home-sidebar-${size.name}`, home.sidebar)
     record(`home-no-overflow-${size.name}`, !home.overflowX, `scrollWidth check`)
     record(`home-no-hero-${size.name}`, !home.forbidden.hero)
-    record(`home-no-catalog-rails-${size.name}`,
-      !home.forbidden.recentlyAdded
-      && !home.forbidden.artistsOnRepeat
-      && !home.forbidden.freshReleases
-      && !home.forbidden.exploreSound
-      && !home.forbidden.musicForFeel
-      && !home.forbidden.collections
-      && !home.forbidden.exploreMoreGrid,
+    record(`home-real-content-${size.name}`,
+      home.hasRoot && home.headings.length > 0,
       JSON.stringify(home.forbidden),
     )
     record(`home-no-filter-${size.name}`, !home.forbidden.filterBtn)
-    record(`home-jump-in-${size.name}`, home.jumpChips >= 5, `chips=${home.jumpChips}`)
+    record(`home-content-headings-${size.name}`, home.headings.length >= 3, `headings=${home.headings.length}`)
     if (home.recentCount > 0) {
       record(`home-recent-max-8-${size.name}`, home.recentCount <= 8, `count=${home.recentCount}`)
     }
@@ -389,8 +409,8 @@ async function runValidation() {
     const music = await inspectMusic(win)
     await capture(win, `music-${size.name}.png`)
     record(`music-sidebar-visible-${size.name}`, music.sidebar, music.appShellClass)
-    record(`music-subnav-present-${size.name}`, music.subNav)
-    record(`music-no-downloads-tab-${size.name}`, !music.forbidden.downloadsInSubNav, music.subNavLabels.join(','))
+    record(`music-discover-present-${size.name}`, music.hasDiscover)
+    record(`music-downloads-shortcut-${size.name}`, music.forbidden.downloadsInSubNav, music.subNavLabels.join(','))
     record(`music-no-home-personalization-${size.name}`,
       !music.forbidden.homeHero
       && !music.forbidden.myMix
@@ -497,9 +517,9 @@ async function runValidation() {
   const emptyHome = await inspectHome(win)
   await capture(win, 'home-empty-history.png')
   record('empty-home-no-hero', !emptyHome.forbidden.hero)
-  record('empty-home-jump-in', emptyHome.jumpChips >= 5, `chips=${emptyHome.jumpChips}`)
+  record('empty-home-content-headings', emptyHome.headings.length >= 3, `headings=${emptyHome.headings.length}`)
   record('empty-home-no-explore-grid', !emptyHome.forbidden.exploreMoreGrid)
-  const hasUseful = emptyHome.headings.some((h) => /made for you|hidden gems|jump in/i.test(h))
+  const hasUseful = emptyHome.headings.some((h) => /recently added|smart music queue|mood rooms|emotional worlds|genre spotlights|all songs/i.test(h))
   record('empty-home-useful-content', hasUseful, emptyHome.headings.join(' | '))
 
   // Write report JSON

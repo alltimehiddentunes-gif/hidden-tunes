@@ -1,0 +1,886 @@
+{
+  "batch": 10,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH:AMBIGUOUS_EXACT_TITLE",
+  "startedAt": "2026-08-11T12:06:05.145Z",
+  "completedAt": "2026-08-11T12:19:07.168Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 98,
+  "healthyCandidates": 41,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 41,
+  "stillUnresolved": 9,
+  "remainingQueue": 2642,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "5c6eeb85c05dfc257e5a50c4",
+      "requestedTitles": [
+        "Degrassi",
+        "Degrassi"
+      ],
+      "normalizedIdentity": [
+        "degrassi"
+      ],
+      "candidateRecordId": "088bac4f-251a-44d0-ae42-d2e625057a37",
+      "candidateTitle": "Degrassi",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e92b5fca869f00078f0162",
+      "requestedTitles": [
+        "The Pet Collective",
+        "The Pet Collective"
+      ],
+      "normalizedIdentity": [
+        "the pet collective"
+      ],
+      "candidateRecordId": "55f5179b-e92b-49d9-a96a-d01fe867e438",
+      "candidateTitle": "The Pet Collective (720p)",
+      "exactCandidateCount": 15,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "the-pet-collective-international-gb.samsung.wurl.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5d93b635b43dd1a399b39eee",
+      "requestedTitles": [
+        "Vevo Pop (R0cHM6Ly)",
+        "Vevo Pop"
+      ],
+      "normalizedIdentity": [
+        "vevo pop r0chm6ly",
+        "vevo pop"
+      ],
+      "candidateRecordId": "0d404114-554d-4f54-b5b8-c9adca1cd752",
+      "candidateTitle": "Vevo Pop (1080p)",
+      "exactCandidateCount": 11,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg00056-amg00056c6-rakuten-uk-3235.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67817323dd7846fe546940dd",
+      "requestedTitles": [
+        "QVC2",
+        "QVC2"
+      ],
+      "normalizedIdentity": [
+        "qvc2"
+      ],
+      "candidateRecordId": "3f7fce59-9b85-402e-934e-d4a3b4d72b77",
+      "candidateTitle": "QVC2",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "qvc-amd-live.akamaized.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1aeb2fd4b8a00076c2047",
+      "requestedTitles": [
+        "CBS News Chicago (R0cHM6Ly)",
+        "CBS News Chicago (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news chicago r0chm6ly",
+        "cbs news chicago"
+      ],
+      "candidateRecordId": "82d426f0-fb17-485a-9658-459ba0ff0167",
+      "candidateTitle": "CBS News Chicago",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "dai.google.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1b17aa5277e00083f6521",
+      "requestedTitles": [
+        "CBS News Pittsburgh",
+        "CBS News Pittsburgh (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news pittsburgh"
+      ],
+      "candidateRecordId": "85c721fd-0732-4de9-83c0-1663d3b4186a",
+      "candidateTitle": "CBS News Pittsburgh",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62cd97fb9f8154000727516c",
+      "requestedTitles": [
+        "Ice Pilots",
+        "Ice Pilots"
+      ],
+      "normalizedIdentity": [
+        "ice pilots"
+      ],
+      "candidateRecordId": "4e7e728f-1bcd-41eb-b94e-dc788e1936a1",
+      "candidateTitle": "Ice Pilots",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1b0bf2240d8000732a09c",
+      "requestedTitles": [
+        "CBS News Minnesota (R0cHM6Ly)",
+        "CBS News Minnesota (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news minnesota r0chm6ly",
+        "cbs news minnesota"
+      ],
+      "candidateRecordId": "38cf661c-3c3c-4f1c-854e-963937aa56c8",
+      "candidateTitle": "CBS News Minnesota",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5eb1b12146cba40007aa7e5d",
+      "requestedTitles": [
+        "CBS News Colorado (R0cHM6Ly)",
+        "CBS News Colorado (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news colorado r0chm6ly",
+        "cbs news colorado"
+      ],
+      "candidateRecordId": "f468959f-22af-4e92-8d93-dd49b0ddb35e",
+      "candidateTitle": "CBS News Colorado",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6578875614fbe400086e319e",
+      "requestedTitles": [
+        "Crime 360 (R0cHM6Ly)",
+        "Crime 360 (720p)",
+        "Crime 360"
+      ],
+      "normalizedIdentity": [
+        "crime 360 r0chm6ly",
+        "crime 360"
+      ],
+      "candidateRecordId": "f6451fcf-0b46-4512-ab55-142c979129ac",
+      "candidateTitle": "Crime 360 (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "94a3e237.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60faffc3fbbc120007fc4376",
+      "requestedTitles": [
+        "Baby Shark TV (R0cHM6Ly)",
+        "Baby Shark TV"
+      ],
+      "normalizedIdentity": [
+        "baby shark tv r0chm6ly",
+        "baby shark tv"
+      ],
+      "candidateRecordId": "c2620c09-5acc-4e4e-ae82-8669666ff37d",
+      "candidateTitle": "Baby Shark TV",
+      "exactCandidateCount": 8,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "c0c65b821b3542c3a4dca92702f59944.mediatailor.us-east-1.amazonaws.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69b16dc543d0f313203b714c",
+      "requestedTitles": [
+        "Space Live powered by sen (R0cHM6Ly)",
+        "Space Live (720p)"
+      ],
+      "normalizedIdentity": [
+        "space live powered by sen r0chm6ly",
+        "space live"
+      ],
+      "candidateRecordId": "e753c000-0095-4690-9fa7-e97c3057f4ff",
+      "candidateTitle": "Space Live (1080p)",
+      "exactCandidateCount": 8,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d111bsx9oooqoh.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62e93d0a80d8d10008a0181e",
+      "requestedTitles": [
+        "Nosey",
+        "Nosey (720p)"
+      ],
+      "normalizedIdentity": [
+        "nosey"
+      ],
+      "candidateRecordId": "39e35122-69ee-4229-acfa-ff13a197b873",
+      "candidateTitle": "Nosey",
+      "exactCandidateCount": 6,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64c109735dc1660008a4a2dc",
+      "requestedTitles": [
+        "Top Gear (R0cHM6Ly)",
+        "Top Gear"
+      ],
+      "normalizedIdentity": [
+        "top gear r0chm6ly",
+        "top gear"
+      ],
+      "candidateRecordId": "b937008d-3a33-498a-804c-90ff6313339b",
+      "candidateTitle": "Top Gear",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5fd7b8bf927e090007685853",
+      "requestedTitles": [
+        "Vevo '80s (R0cHM6Ly)",
+        "Vevo '80s"
+      ],
+      "normalizedIdentity": [
+        "vevo 80s r0chm6ly",
+        "vevo 80s"
+      ],
+      "candidateRecordId": "466e50a3-6ed0-4a59-b10a-e3e4ec22e666",
+      "candidateTitle": "Vevo '80s (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d3svsvgc81yfe1.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "634f2610d5023700078f7dee",
+      "requestedTitles": [
+        "CBS News Detroit",
+        "CBS News Detroit (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news detroit"
+      ],
+      "candidateRecordId": "d217586b-db99-4267-8009-61676a4738de",
+      "candidateTitle": "CBS News Detroit",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6346937a46f9a2000889073d",
+      "requestedTitles": [
+        "48 Hours (R0cHM6Ly)",
+        "48 Hours",
+        "48 Hours"
+      ],
+      "normalizedIdentity": [
+        "48 hours r0chm6ly",
+        "48 hours"
+      ],
+      "candidateRecordId": "977cf406-5d91-4b50-be85-309b7a150e58",
+      "candidateTitle": "48 Hours",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "660bfc032433010008def35a",
+      "requestedTitles": [
+        "FIFA+ (R0cHM6Ly)",
+        "FIFA+ (720p)"
+      ],
+      "normalizedIdentity": [
+        "fifa r0chm6ly",
+        "fifa"
+      ],
+      "candidateRecordId": "4097431a-1da5-45e5-b60e-eba80fc5b582",
+      "candidateTitle": "FIFA+",
+      "exactCandidateCount": 13,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "657880c46e4f6a00087404d0",
+      "requestedTitles": [
+        "Crime 360"
+      ],
+      "normalizedIdentity": [
+        "crime 360"
+      ],
+      "candidateRecordId": "f6451fcf-0b46-4512-ab55-142c979129ac",
+      "candidateTitle": "Crime 360 (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "94a3e237.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62bdb5500c21270007218ce1",
+      "requestedTitles": [
+        "FailArmy",
+        "FailArmy"
+      ],
+      "normalizedIdentity": [
+        "failarmy"
+      ],
+      "candidateRecordId": "5632ecc3-a277-423b-936d-59d0fee82133",
+      "candidateTitle": "FailArmy",
+      "exactCandidateCount": 10,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6508be683a0d700008c534e4",
+      "requestedTitles": [
+        "ABC News Live (R0cHM6Ly)",
+        "ABC News Live (720p)"
+      ],
+      "normalizedIdentity": [
+        "abc news live r0chm6ly",
+        "abc news live"
+      ],
+      "candidateRecordId": "8ee2d9b6-5211-4e9c-b223-a732f24b3ab3",
+      "candidateTitle": "ABC News Live (720p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5812bfbe4ced4f7b601b12e6",
+      "requestedTitles": [
+        "Buzzr (R0cHM6Ly)",
+        "BUZZR (720p)"
+      ],
+      "normalizedIdentity": [
+        "buzzr r0chm6ly",
+        "buzzr"
+      ],
+      "candidateRecordId": "85355b3f-9a8f-4fd8-9b66-88eef9b12acc",
+      "candidateTitle": "BUZZR (720p)",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61c194ff6f23a7000780073a",
+      "requestedTitles": [
+        "Hell's Kitchen",
+        "Hell's Kitchen (720p)"
+      ],
+      "normalizedIdentity": [
+        "hell s kitchen"
+      ],
+      "candidateRecordId": "ad48d7cc-520f-4e3d-87ab-38eb2407ccf9",
+      "candidateTitle": "Hell's Kitchen (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "itv-hellskitchen-rakuten.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60cb6df2b2ad610008cd5bea",
+      "requestedTitles": [
+        "CBS News Sacramento (R0cHM6Ly)",
+        "CBS News Sacramento (720p)"
+      ],
+      "normalizedIdentity": [
+        "cbs news sacramento r0chm6ly",
+        "cbs news sacramento"
+      ],
+      "candidateRecordId": "2dec6400-a7e8-494c-8a1e-1fd8144fea83",
+      "candidateTitle": "CBS News Sacramento",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "lineup.cbsivideo.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "640a68880e884c0009979cc2",
+      "requestedTitles": [
+        "Fox Weather (R0cHM6Ly)",
+        "FOX Weather (720p)"
+      ],
+      "normalizedIdentity": [
+        "fox weather r0chm6ly",
+        "fox weather"
+      ],
+      "candidateRecordId": "4c513653-0fae-4ab3-87c6-62d407783f83",
+      "candidateTitle": "Fox Weather",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "247wlive.foxweather.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64e561a4354251000823a0e0",
+      "requestedTitles": [
+        "Ghost Hunters",
+        "Ghost Hunters"
+      ],
+      "normalizedIdentity": [
+        "ghost hunters"
+      ],
+      "candidateRecordId": "62b76744-9b62-4cd8-9256-433557d27cc3",
+      "candidateTitle": "Ghost Hunters",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "651e6607575f660008d2cb7f",
+      "requestedTitles": [
+        "Cheaters",
+        "Cheaters"
+      ],
+      "normalizedIdentity": [
+        "cheaters"
+      ],
+      "candidateRecordId": "a731df5f-ca0e-4bc5-8e1a-ab1055dcfda5",
+      "candidateTitle": "Cheaters",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5da0d83f66c9700009b96d0e",
+      "requestedTitles": [
+        "Vevo R&B",
+        "Vevo R&B"
+      ],
+      "normalizedIdentity": [
+        "vevo r and b"
+      ],
+      "candidateRecordId": "e370fb23-d13e-4e64-8e6b-93a9f35e3d64",
+      "candidateTitle": "Vevo R&B",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "61de991729cd4a00079f812b",
+      "requestedTitles": [
+        "Bloomberg TV (R0cHM6Ly)",
+        "Bloomberg TV+ (720p)"
+      ],
+      "normalizedIdentity": [
+        "bloomberg tv r0chm6ly",
+        "bloomberg tv"
+      ],
+      "candidateRecordId": "9907cc2d-e1ea-4c62-89a3-2dc8ec0af8b9",
+      "candidateTitle": "Bloomberg TV",
+      "exactCandidateCount": 16,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5e9debf8c881310007d7bde1",
+      "requestedTitles": [
+        "Deal or No Deal",
+        "Deal or No Deal"
+      ],
+      "normalizedIdentity": [
+        "deal or no deal"
+      ],
+      "candidateRecordId": "dadcbafd-9ba0-4aa6-b5aa-0874de003001",
+      "candidateTitle": "Deal or No Deal",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6870c97b759366af055fe371",
+      "requestedTitles": [
+        "Tennis Channel (720p)",
+        "Tennis Channel",
+        "Tennis Channel"
+      ],
+      "normalizedIdentity": [
+        "tennis"
+      ],
+      "candidateRecordId": "3ecfd137-e428-4a12-9705-1c7d5684eefc",
+      "candidateTitle": "Tennis+ (1080p)",
+      "exactCandidateCount": 9,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg01935-amg01935c1-amgplt0165.playout.now3.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66e0b4866ad04d0008fff4d8",
+      "requestedTitles": [
+        "Mythbusters (R0cHM6Ly)",
+        "MythBusters"
+      ],
+      "normalizedIdentity": [
+        "mythbusters r0chm6ly",
+        "mythbusters"
+      ],
+      "candidateRecordId": "dee57717-6652-48e5-8a45-e00067748527",
+      "candidateTitle": "MythBusters",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6177fb39b68ef1000725e59e",
+      "requestedTitles": [
+        "Andromeda (R0cHM6Ly)",
+        "Andromeda"
+      ],
+      "normalizedIdentity": [
+        "andromeda r0chm6ly",
+        "andromeda"
+      ],
+      "candidateRecordId": "037f67b9-2ca4-4bb6-93af-87697b8264aa",
+      "candidateTitle": "Andromeda",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6181241c1a35d50007874c27",
+      "requestedTitles": [
+        "Forensic Files",
+        "Forensic Files",
+        "Forensic Files"
+      ],
+      "normalizedIdentity": [
+        "forensic files"
+      ],
+      "candidateRecordId": "d0b6a6bd-e230-46f0-80a9-1fdd9ea9b561",
+      "candidateTitle": "Forensic Files",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "657739fcb9adc40008fe02f4",
+      "requestedTitles": [
+        "Duck Dynasty",
+        "Duck Dynasty (720p)",
+        "Duck Dynasty"
+      ],
+      "normalizedIdentity": [
+        "duck dynasty"
+      ],
+      "candidateRecordId": "e8c053a1-7eff-4f70-a8b6-c27bf644fb2a",
+      "candidateTitle": "Duck Dynasty (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg00276-amg00276c2-rakuten-uk-3449.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "628e685ba3811100070551a8",
+      "requestedTitles": [
+        "Hallmark Movies & More (R0cHM6Ly)",
+        "Hallmark Movies & More (720p)"
+      ],
+      "normalizedIdentity": [
+        "hallmark movies and more r0chm6ly",
+        "hallmark movies and more"
+      ],
+      "candidateRecordId": "4b518382-c272-431b-8fc9-ec3177d8ca44",
+      "candidateTitle": "Hallmark Movies & More",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "live-content.xumo.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6915dd5ca570568f53431c7f",
+      "requestedTitles": [
+        "The Graham Norton Show (R0cHM6Ly)",
+        "The Graham Norton Show (720p)"
+      ],
+      "normalizedIdentity": [
+        "the graham norton show r0chm6ly",
+        "the graham norton show"
+      ],
+      "candidateRecordId": "3347b4e8-f87e-4909-a4b9-2a66fe5986fe",
+      "candidateTitle": "The Graham Norton Show",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5fd7bca3e0a4ee0007a38e8c",
+      "requestedTitles": [
+        "Vevo 2K (R0cHM6Ly)",
+        "Vevo 2K"
+      ],
+      "normalizedIdentity": [
+        "vevo 2k r0chm6ly",
+        "vevo 2k"
+      ],
+      "candidateRecordId": "0c4d96f0-9e98-4aab-a996-1ceb792eb5fe",
+      "candidateTitle": "Vevo 2K (1080p)",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "amg00056-vevotv-vevo2kau-samsungnz-tamaq.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "642d4493aa2d690008f0a03f",
+      "requestedTitles": [
+        "Yu-Gi-Oh!",
+        "Yu-Gi-Oh!"
+      ],
+      "normalizedIdentity": [
+        "yu gi oh"
+      ],
+      "candidateRecordId": "6a46aedd-810c-42ae-a31e-0549b7734a16",
+      "candidateTitle": "Yu-Gi-Oh",
+      "exactCandidateCount": 7,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "69b01641a9b840a456a11c18",
+      "requestedTitles": [
+        "Schlosshotel Orth",
+        "Schlosshotel Orth"
+      ],
+      "normalizedIdentity": [
+        "schlosshotel orth"
+      ],
+      "candidateRecordId": "195106d1-405a-43d2-8b74-42f7f2d9eeff",
+      "candidateTitle": "Schlosshotel Orth",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64dab9df3d48f40008868091",
+      "requestedTitles": [
+        "The Jamie Oliver Channel",
+        "The Jamie Oliver Channel (720p)"
+      ],
+      "normalizedIdentity": [
+        "the jamie oliver"
+      ],
+      "candidateRecordId": "5664debb-3a2d-4f69-8aca-5122a4b3679c",
+      "candidateTitle": "The Jamie Oliver Channel",
+      "exactCandidateCount": 7,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d3i68hpvh19xjd.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6177fd9812fe0c000726f9eb",
+      "requestedTitles": [
+        "Just for Laughs Gags",
+        "Just for Laughs GAGS",
+        "Just for Laughs GAGS"
+      ],
+      "normalizedIdentity": [
+        "just for laughs gags"
+      ],
+      "candidateRecordId": "3170f0b4-915a-43c7-9df8-a6ebe2b1ed07",
+      "candidateTitle": "Just for Laughs Gags",
+      "exactCandidateCount": 12,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "distributionsjustepourrire-justforlaughsgags-1-be.samsung.wurl.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "674f735a2fb8a100087bf253",
+      "requestedTitles": [
+        "Revry",
+        "Revry"
+      ],
+      "normalizedIdentity": [
+        "revry"
+      ],
+      "candidateRecordId": "44788f64-5ea2-4be7-8308-7d0d909533b7",
+      "candidateTitle": "Revry",
+      "exactCandidateCount": 5,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "99d8b4b6.wurl.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "645951c0e94c38000802d2cb",
+      "requestedTitles": [
+        "Nickelodeon Toons"
+      ],
+      "normalizedIdentity": [
+        "nickelodeon toons"
+      ],
+      "candidateRecordId": "51459925-94b7-4a1f-8915-f6ba2ffc12a0",
+      "candidateTitle": "Nickelodeon Toons",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "685a995b460ac82fa504342c",
+      "requestedTitles": [
+        "The Good Wife"
+      ],
+      "normalizedIdentity": [
+        "the good wife"
+      ],
+      "candidateRecordId": "7943ac9f-f814-49e8-bfc8-93410edcf8c3",
+      "candidateTitle": "The Good Wife",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64e50055286f6b000838c067",
+      "requestedTitles": [
+        "Teletubbies"
+      ],
+      "normalizedIdentity": [
+        "teletubbies"
+      ],
+      "candidateRecordId": "5526a430-4678-43e4-a8d7-294db05b5c24",
+      "candidateTitle": "Teletubbies",
+      "exactCandidateCount": 8,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6874ac742704ca31d815b8ed",
+      "requestedTitles": [
+        "Survivor"
+      ],
+      "normalizedIdentity": [
+        "survivor"
+      ],
+      "candidateRecordId": "58484fda-493c-441c-8c3a-be8e3f879ceb",
+      "candidateTitle": "Survivor",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6852854bce36f0644f37d765",
+      "requestedTitles": [
+        "A New Life in the Sun"
+      ],
+      "normalizedIdentity": [
+        "a new life in the sun"
+      ],
+      "candidateRecordId": "044931ce-b77e-4656-a6fb-8d5e39c73b3e",
+      "candidateTitle": "A New Life In The Sun (1080p)",
+      "exactCandidateCount": 2,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "d36zu8tswi4fqu.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5dc190f7bfed110009d934c3",
+      "requestedTitles": [
+        "Pluto TV Serie"
+      ],
+      "normalizedIdentity": [
+        "serie"
+      ],
+      "candidateRecordId": "10399ebd-208c-4a8e-a575-addff42b2c6a",
+      "candidateTitle": "Pluto TV Serie",
+      "exactCandidateCount": 4,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6888ee858f4a4aa11feb9430",
+      "requestedTitles": [
+        "TOP Barca"
+      ],
+      "normalizedIdentity": [
+        "top barca"
+      ],
+      "candidateRecordId": "bbcfd7e0-f44f-4f8b-af28-6783c4783431",
+      "candidateTitle": "Top Barça",
+      "exactCandidateCount": 3,
+      "attemptedCandidateCount": 2,
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T13:43:30.000Z",
+  "scope": "Batch 9 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 0,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Cheaters, Dinos 24/7, and Metal.Rocks were rejected before media validation because their candidates use jmp2.uk.",
+    "Million Dollar Listing VAULT was rejected because its candidate uses i.mjh.nz without direct authoritative provenance.",
+    "Hit Sitcoms has a CloudFront/Xumo-linked candidate, but the generic identity lacks sufficiently direct broadcaster or rights-holder evidence for expensive validation.",
+    "No uncertain source was promoted or reclassified."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 27,
+  "cumulativeTerminalAliases": 107,
+  "batch9Target": 25,
+  "batch9Researched": 20,
+  "batch9Remaining": 5
+}

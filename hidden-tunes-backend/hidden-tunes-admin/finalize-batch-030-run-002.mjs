@@ -1,0 +1,12 @@
+import fs from 'node:fs';import path from 'node:path';
+const r=process.cwd(),d=path.join(r,'data/tv-recovery/placeholder-audit/restoration'),s=path.join(r,'data/tv-recovery/placeholder-audit/intensive-recovery/state.json'),at=new Date().toISOString(),state=JSON.parse(fs.readFileSync(s,'utf8'));
+const rows=[
+['037f67b9-2ca4-4bb6-93af-87697b8264aa','Andromeda','PROVENANCE_INCOMPLETE','Directly named Samsung Germany MediaTailor/Wurl candidate, but no current primary Samsung listing directly linked this exact candidate to the channel.'],
+['1b4a56ee-8b29-49d5-8caf-ef1c28721845','MTV Originals','CONTENT_GATE_FAILED','Direct Pluto-owned candidate advanced 121.98 seconds at 1216x684 with one video owner, but every evidence frame showed only a static Pluto TV Are you still watching slate, not real programming.'],
+['b937008d-3a33-498a-804c-90ff6313339b','Top Gear','PROVENANCE_INCOMPLETE','Samsung officially lists Top Gear, but the queued generic CloudFront candidate lacked complete direct candidate-to-channel ownership linkage.'],
+['0d2c090e-004f-44ee-9671-ce7a848fbdaa','Pluto TV Conspiracy','IDENTITY_REVIEW_DEFERRED','Direct Pluto-owned delivery was retained, but was not full-tested after the stronger MTV Originals candidate failed the real-programming content gate.'],
+['c67915d5-69b3-432a-a6b2-b195840c7361','Hot Ones','PROVENANCE_INCOMPLETE','Queued opaque Roku delivery lacked complete primary evidence tying this exact endpoint to the Hot Ones channel.']];
+for(const [id,title,result,evidence] of rows){for(const e of state.entries.filter(x=>x.alternativeRecordId===id)){e.attempts??=[];e.attempts.push({at,method:'BATCH_030_RUN_002_PROVENANCE_FIRST_REVIEW',result,evidence,productionWrites:0});}}
+state.updatedAt=at;fs.writeFileSync(s,JSON.stringify(state,null,2)+'\n');
+fs.writeFileSync(path.join(d,'batch-030-run-002.json'),JSON.stringify({completedAt:at,scope:'Batch 30 provenance-first bounded investigation',identitiesResearched:5,authoritativeCandidatesFound:2,sourcesTested:1,decoded:1,continuityPassed:1,desktopVerified:0,exactHighIdentityPassed:0,searchVerified:0,resolverVerified:1,restored:0,verifiedDuplicatesMerged:0,productionWrites:0,duplicatesCreated:0,notes:rows.map(x=>`${x[1]}: ${x[3]}`),cumulativeVerifiedSearchableDesktopPlayableIdentities:72,cumulativeTerminalAliases:215,batch30Target:25,batch30Researched:10,batch30Remaining:15,batch30Complete:false},null,2)+'\n');
+console.log(JSON.stringify({totals:{identities:72,aliases:215},batch30Researched:10,batch30Complete:false,productionWrites:0,duplicates:0},null,2));

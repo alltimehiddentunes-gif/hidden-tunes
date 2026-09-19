@@ -11,10 +11,14 @@ const homePath = path.join(root, 'src/components/home/MusicHomePage.tsx')
 const appPath = path.join(root, 'src/App.tsx')
 const parityPath = path.join(root, 'src/lib/home/mobileHomeParity.ts')
 const sectionsPath = path.join(root, 'src/lib/home/musicHomeSections.ts')
+const homeCssPath = path.join(root, 'src/components/home/MusicHomePage.css')
+const appCssPath = path.join(root, 'src/App.css')
 const home = fs.readFileSync(homePath, 'utf8')
 const app = fs.readFileSync(appPath, 'utf8')
 const parity = fs.readFileSync(parityPath, 'utf8')
 const sections = fs.readFileSync(sectionsPath, 'utf8')
+const homeCss = fs.readFileSync(homeCssPath, 'utf8')
+const appCss = fs.readFileSync(appCssPath, 'utf8')
 
 let passed = 0
 let failed = 0
@@ -32,7 +36,9 @@ function check(label, condition, detail = '') {
 check(
   'home-mounted-after-play-context',
   (home.includes("'home'") || home.includes('"home"')) &&
-    (app.includes("context === 'home'") || app.includes('context === "home"')),
+    app.includes('const selectAndPlay = useCallback') &&
+    !app.includes('presentationIntent:') &&
+    !app.includes('openSong(track)'),
 )
 check('idle-mix-column', home.includes('music-home-mix-column') && home.includes('showEditorialMix'))
 check('active-session-hides-mix', home.includes('is-active-session') && home.includes('hasActiveMediaSession'))
@@ -53,6 +59,23 @@ check('quick-access-library', home.includes("navKey: 'library'") && home.include
 check('phase9-honesty-untouched-sports-flag', fs.existsSync(path.join(root, 'src/lib/sports/sportsFlags.ts')))
 check('phase9-account-gate-present', fs.existsSync(path.join(root, 'src/lib/account/accountGate.ts')))
 check('art-bounded-shell', home.includes('music-home-art music-home-art--'))
+check(
+  'shared-global-sidebar-data',
+  app.includes('const groups = SIDEBAR_NAV_GROUPS') && !app.includes('HOME_REFERENCE_SIDEBAR_GROUPS'),
+)
+check(
+  'home-css-does-not-own-sidebar',
+  !homeCss.includes('.sidebar') && !homeCss.includes('.nav-item') && !homeCss.includes('.app-shell'),
+)
+check(
+  'home-route-does-not-collapse-sidebar',
+  !appCss.includes('.app-shell--home .sidebar') && !appCss.includes('.app-shell--home .nav-item'),
+)
+check(
+  'single-current-global-brand',
+  app.includes('brand-wordmark brand-wordmark--current')
+    && !fs.readFileSync(path.join(root, 'src/components/music/GlobalTopNav.tsx'), 'utf8').includes('global-top-nav-brand'),
+)
 
 console.log(`\nPhase 10 Home verify: ${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

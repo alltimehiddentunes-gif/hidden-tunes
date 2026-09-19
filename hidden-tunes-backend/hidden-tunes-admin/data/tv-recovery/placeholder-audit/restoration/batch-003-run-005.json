@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-13T22:36:53.904Z",
+  "scope": "Batch 3 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Scripps News candidate 6037069e-e1aa-45c0-89cf-8885851cdb80 passed 124.25 seconds of 1920x1080 playback in the existing Desktop player with one video owner and no fatal HLS errors.",
+    "Sampled programme frames repeatedly displayed Scripps News newsroom branding, establishing exact channel identity; normal TV search returns the healthy canonical record and the production resolver passed.",
+    "The quarantined jmp2.uk alias remains hidden and is terminal VERIFIED_DUPLICATE_MERGED locally; no production write or duplicate was required.",
+    "Homeful has a healthy official FAST candidate but was materially reviewed previously; 48 Hours and CBS News New York currently fail catalog playback state, while CBS News Texas has a suspicious Chicago-derived mediator configuration. None were accepted in this run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 14,
+  "cumulativeTerminalAliases": 81,
+  "batch3Target": 25,
+  "batch3Researched": 25,
+  "batch3Remaining": 0
+}

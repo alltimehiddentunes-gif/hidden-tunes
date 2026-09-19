@@ -1,0 +1,28 @@
+{
+  "repairedAt": "2026-08-02T11:38:38.759Z",
+  "dryRun": false,
+  "repaired": 1,
+  "skipped": 2,
+  "repairs": [
+    {
+      "id": "e10c4145-0607-464c-9b4d-20e1041de914",
+      "title": "SperantaTV",
+      "previousPlayback": "playable",
+      "previousUrl": "https://cdn-ro-otp.b-cdn.net/hcorg_71rJgMo5bcg/s/jsl_2gNjpghXRLE/master.m3u8",
+      "newUrl": "https://jstre.am/live/jsl:2gNjpghXRLE.m3u8",
+      "protocol": "hls"
+    }
+  ],
+  "skippedSample": [
+    {
+      "id": "9b4f89ef-6432-47d6-930c-51a4fe0fe82a",
+      "title": "HD365 TV",
+      "reason": "already_healthy"
+    },
+    {
+      "id": "655ce25e-dab4-44c6-a423-239f88a716c1",
+      "title": "PROFI 24 TV",
+      "reason": "already_healthy"
+    }
+  ]
+}

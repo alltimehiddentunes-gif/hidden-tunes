@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T17:58:32.773Z",
+  "scope": "Batch 20 final provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "BBC Earth passed 124.43 seconds of 1920x1080 existing-Desktop playback with one video owner from the Xumo-namespaced Amagi service.",
+    "BBC Studios and official Xumo channel-lineup evidence establish BBC Earth FAST distribution; continuous premium natural-history programming supports HIGH identity. Search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Pluto TV Star Trek, Radio-Canada INFO, and Pluto TV Movies used rejected jmp2.uk. Nickelodeon used an unverified ma.anixa.tv endpoint and was not validated."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 50,
+  "cumulativeTerminalAliases": 175,
+  "batch20Target": 25,
+  "batch20Researched": 25,
+  "batch20Remaining": 0
+}

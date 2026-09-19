@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-15T20:53:09.989Z",
+  "batch": 21,
+  "identitiesResearched": 25,
+  "newVerifiedSearchableDesktopPlayableIdentities": 2,
+  "newTerminalAliases": 10,
+  "verifiedIdentities": [
+    "Are We There Yet?",
+    "DAZN Ringside"
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 52,
+  "cumulativeTerminalAliases": 185,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "safetyRegressions": 0,
+  "nextBatch": 22
+}

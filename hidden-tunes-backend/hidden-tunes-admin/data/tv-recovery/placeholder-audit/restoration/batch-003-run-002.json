@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-13T20:39:00.000Z",
+  "scope": "Batch 3 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "oneVideoOwner": 1,
+  "exactHighIdentityPassed": 0,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Salem News Channel has direct broadcaster provenance and passed 119.89 seconds of 1080p Desktop playback with one video owner.",
+    "Evidence showed political/news-adjacent material but no stable Salem News Channel bug, programme title, or presenter identity sufficient for EXACT/HIGH channel proof, so it remains quarantined.",
+    "NatureTime has Blue Ant authoritative provenance and Motorvision.TV uses an official-looking Samsung/Amagi playout host; both remain candidates for later full validation.",
+    "The Twilight Zone uses i.mjh.nz and Wrestling Legends TV uses jmp2.uk; both were rejected before media testing."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 13,
+  "cumulativeTerminalAliases": 80,
+  "batch3Target": 25,
+  "batch3Researched": 10,
+  "batch3Remaining": 15
+}

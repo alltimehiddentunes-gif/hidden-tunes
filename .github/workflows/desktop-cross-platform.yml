@@ -1,0 +1,34 @@
+name: Desktop cross-platform
+
+on:
+  pull_request:
+    paths: ['hidden-tunes-desktop/**', '.github/workflows/desktop-cross-platform.yml']
+  workflow_dispatch:
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, package_args: '--win nsis --x64 --dir' }
+          - { os: macos-13, package_args: '--mac dmg --x64 --dir' }
+          - { os: macos-14, package_args: '--mac dmg --arm64 --dir' }
+          - { os: ubuntu-22.04, package_args: '--linux AppImage deb --x64 --dir' }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: hidden-tunes-desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: hidden-tunes-desktop/package-lock.json
+      - run: npm ci
+      - run: npm run verify:cross-platform
+      - run: npm run lint
+      - run: npm run build
+      - name: Native packaging dry run
+        run: npx electron-builder ${{ matrix.package_args }}

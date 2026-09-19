@@ -1,0 +1,24 @@
+{
+  "completedAt": "2026-08-12T11:14:24.286Z",
+  "productionWrites": 0,
+  "candidate": "CBS News New York",
+  "candidateRecordId": "e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+  "preRestorationGates": {
+    "authoritativeProvenance": "PASS",
+    "actualMovingProgramme": "PASS",
+    "placeholderScan": "PASS",
+    "identityConfidence": "EXACT",
+    "continuitySeconds": 120,
+    "continuity": "PASS"
+  },
+  "desktopRuntime": {
+    "status": "UNAVAILABLE",
+    "hiddenTunesDesktopProcessFound": false,
+    "controllableHiddenTunesTabFound": false
+  },
+  "restored": 0,
+  "searchVerified": 0,
+  "desktopVerified": 0,
+  "disposition": "KEEP_QUARANTINED_PENDING_DESKTOP_RUNTIME_GATE",
+  "reason": "The Hidden Tunes Desktop app was not running and no controllable Hidden Tunes runtime surface was available. Production restoration is locked until the existing Desktop player can be tested."
+}

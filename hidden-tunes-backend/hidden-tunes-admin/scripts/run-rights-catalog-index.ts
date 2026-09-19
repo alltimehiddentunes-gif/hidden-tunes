@@ -2,7 +2,7 @@ import { createReadStream } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline";
 
-import { DJCITY_UPLOADER_ID, MUSIC_CUTOFF } from "../lib/rights/cohorts";
+import { DJCITY_UPLOADER_ID, MUREKA_CORRECTED_TRACK_IDS, MUSIC_CUTOFF } from "../lib/rights/cohorts";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin";
 
 const DEFAULT_LEDGER = resolve(process.cwd(), "..", "..", "..", "HIDDENTUNES-APPLE-5.2.3-RIGHTS-EVIDENCE", "HIDDENTUNES-BACKEND-RIGHTS-AUDIT.csv");
@@ -11,6 +11,7 @@ const inputPath = resolve(inputArg ? inputArg.slice("--input=".length) : DEFAULT
 const execute = process.argv.includes("--execute");
 const writeEnabled = process.env.RIGHTS_INDEX_WRITE_ENABLED === "true";
 const BATCH_SIZE = 1000;
+const correctedMurekaIds = new Set<string>(MUREKA_CORRECTED_TRACK_IDS);
 
 function parseCsvLine(line: string) {
   const values: string[] = [];
@@ -103,9 +104,11 @@ async function main() {
     if (keys.has(key)) throw new Error(`duplicate_ledger_key:${key}`);
     keys.add(key);
     const ingestedAt = ingestionTimestamp(row);
-    const ownerConfirmedMusicSlug = type === "music" && ingestedAt
-      ? Date.parse(ingestedAt) <= Date.parse(MUSIC_CUTOFF) ? "mureka" : "djcity"
-      : null;
+    const ownerConfirmedMusicSlug = type === "music" && correctedMurekaIds.has(row.INTERNAL_ID)
+      ? "mureka"
+      : type === "music" && ingestedAt
+        ? Date.parse(ingestedAt) <= Date.parse(MUSIC_CUTOFF) ? "mureka" : "djcity"
+        : null;
     if (ownerConfirmedMusicSlug === "mureka") murekaMusic++;
     if (ownerConfirmedMusicSlug === "djcity") djcityMusic++;
     const slug = ownerConfirmedMusicSlug ?? providerSlug(row.PROVIDER || row.IMPORTER || "");
@@ -125,7 +128,7 @@ async function main() {
   }
   await flush();
   if (rows !== 1_065_943 || skipped !== 0) throw new Error(`ledger_reconciliation_failed:${rows}:${skipped}`);
-  if (murekaMusic !== 1_245 || djcityMusic !== 3_498) throw new Error(`owner_music_reconciliation_failed:${murekaMusic}:${djcityMusic}`);
+  if (murekaMusic !== 1_276 || djcityMusic !== 3_467) throw new Error(`owner_music_reconciliation_failed:${murekaMusic}:${djcityMusic}`);
   console.log(JSON.stringify({ inputPath, mode: execute ? "EXECUTE" : "DRY_RUN", rows, uniqueKeys: keys.size, skipped, music: { mureka: murekaMusic, djcity: djcityMusic, unknown: 0, other: 0, total: murekaMusic + djcityMusic }, productionEligibilityChanged: false }));
 }
 

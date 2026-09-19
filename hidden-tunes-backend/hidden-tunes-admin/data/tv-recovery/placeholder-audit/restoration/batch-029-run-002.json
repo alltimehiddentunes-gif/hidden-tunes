@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-16T15:54:30.704Z",
+  "scope": "Batch 29 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "TikTok Radio Brasil retained a generic CloudFront candidate but lacked complete direct candidate ownership linkage.",
+    "Nickelodeon Pluto TV used an uncertain anixa.tv endpoint without direct Paramount/Nickelodeon linkage.",
+    "Les filles d’à côté, Pluto TV Film Commedia, and Pluto TV Fantastic used rejected jmp2.uk sources.",
+    "No candidate passed provenance, so none was sent to expensive Desktop validation; all remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch29Target": 25,
+  "batch29Researched": 10,
+  "batch29Remaining": 15
+}

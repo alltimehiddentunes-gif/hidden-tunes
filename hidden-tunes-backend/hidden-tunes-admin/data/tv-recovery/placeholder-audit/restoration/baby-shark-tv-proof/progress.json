@@ -1,0 +1,12 @@
+{
+  "candidateId": "c2620c09-5acc-4e4e-ae82-8669666ff37d",
+  "wallSeconds": 120.216,
+  "sample": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 158.229963,
+    "videoElementCount": 1
+  }
+}

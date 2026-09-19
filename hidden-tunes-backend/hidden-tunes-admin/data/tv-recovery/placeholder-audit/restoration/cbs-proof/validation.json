@@ -1,0 +1,105 @@
+{
+  "completedAt": "2026-08-12T10:52:08.986Z",
+  "mode": "READ_ONLY_PROOF_VALIDATION",
+  "productionWrites": 0,
+  "researched": 2,
+  "sourcesTested": 2,
+  "decoded": 2,
+  "placeholderRejected": 0,
+  "continuityPassed": 1,
+  "restored": 0,
+  "searchVerified": 0,
+  "desktopVerified": 0,
+  "results": [
+    {
+      "candidateRecordId": "e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+      "expectedIdentity": "CBS News New York",
+      "catalogTitle": "CBS News New York",
+      "sourceHost": "dai.google.com",
+      "framesDecoded": 3,
+      "placeholderDetected": false,
+      "continuitySeconds": 120,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frames": [
+        {
+          "second": 5,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\cbs-proof\\1-5s.jpg",
+          "knownBad": {
+            "blocked": false,
+            "reason": null,
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 30
+          }
+        },
+        {
+          "second": 25,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\cbs-proof\\1-25s.jpg",
+          "knownBad": {
+            "blocked": false,
+            "reason": null,
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 30
+          }
+        },
+        {
+          "second": 55,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\cbs-proof\\1-55s.jpg",
+          "knownBad": {
+            "blocked": false,
+            "reason": null,
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 27
+          }
+        }
+      ]
+    },
+    {
+      "candidateRecordId": "8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+      "expectedIdentity": "CBS News Los Angeles",
+      "catalogTitle": "CBS News Los Angeles",
+      "sourceHost": "dai.google.com",
+      "framesDecoded": 3,
+      "placeholderDetected": false,
+      "continuitySeconds": 0,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frames": [
+        {
+          "second": 5,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\cbs-proof\\2-5s.jpg",
+          "knownBad": {
+            "blocked": false,
+            "reason": null,
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 25
+          }
+        },
+        {
+          "second": 25,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\cbs-proof\\2-25s.jpg",
+          "knownBad": {
+            "blocked": false,
+            "reason": null,
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 33
+          }
+        },
+        {
+          "second": 55,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\cbs-proof\\2-55s.jpg",
+          "knownBad": {
+            "blocked": false,
+            "reason": null,
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 22
+          }
+        }
+      ]
+    }
+  ]
+}

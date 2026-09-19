@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T21:24:00.000Z",
+  "scope": "Batch 22 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "BritBox Mysteries had authoritative Tubi live-channel provenance and Tubi-owned delivery, and passed 124.09 seconds of 1920x1080 Desktop playback with one video owner.",
+    "All sampled evidence frames were unbranded interior close-ups and did not establish the exact BritBox Mysteries channel identity; it remains quarantined and must not be repeated without materially new identity evidence.",
+    "BBC Travel, Cash in the Attic, and OUTflix Movies used rejected jmp2.uk. CNN Headlines used generic CloudFront without complete direct candidate-to-channel ownership linkage.",
+    "No production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 52,
+  "cumulativeTerminalAliases": 185,
+  "batch22Target": 25,
+  "batch22Researched": 5,
+  "batch22Remaining": 20
+}

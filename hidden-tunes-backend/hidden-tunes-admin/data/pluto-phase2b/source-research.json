@@ -1,0 +1,72 @@
+{
+  "generatedAt": "2026-08-09T06:30:00.000Z",
+  "scope": "Phase 2B staging only; no production activation",
+  "rules": {
+    "youtubeExcluded": true,
+    "partnerImpersonationExcluded": true,
+    "externalWebpageAloneIsPlayable": false
+  },
+  "findings": [
+    {
+      "providerChannelId": "5e7cb84a172a0f0007da69e4",
+      "canonicalName": "Red Bull TV",
+      "candidateProvider": "Official Red Bull TV",
+      "sourceType": "official_web_distribution",
+      "sourceURL": "https://www.redbull.tv/en_EU",
+      "confidence": "HIGH",
+      "playbackCandidate": false,
+      "validationRequired": true,
+      "evidence": "Official broadcaster operates current free web/app programming, but no independently validated embeddable HLS/DASH source was established for Hidden Tunes."
+    },
+    {
+      "providerChannelId": "660bfc032433010008def35a",
+      "canonicalName": "FIFA+",
+      "candidateProvider": "Official FIFA+",
+      "sourceType": "official_web_distribution",
+      "sourceURL": "https://www.plus.fifa.com/en/",
+      "confidence": "MEDIUM",
+      "playbackCandidate": false,
+      "validationRequired": true,
+      "evidence": "FIFA+ currently offers real live events, but equivalence to the discontinued Pluto linear channel and an in-app-safe direct source are not established."
+    },
+    {
+      "providerChannelId": "66c45b1803e3b20008d8c200",
+      "canonicalName": "CNNi",
+      "candidateProvider": "Official CNN",
+      "sourceType": "authenticated_official_web",
+      "sourceURL": "https://help.cnn.com/us/Answer/Detail/000001011",
+      "confidence": "EXACT",
+      "playbackCandidate": false,
+      "validationRequired": false,
+      "evidence": "CNN confirms CNN International live streaming requires CNN subscription or a qualifying TV provider; it is not a lawful anonymous replacement source."
+    },
+    {
+      "providerChannelId": "5e7cb84a172a0f0007da69e4",
+      "canonicalName": "Red Bull TV",
+      "candidateProvider": "Joyn",
+      "sourceType": "other_legitimate_fast_web",
+      "sourceURL": "https://www.joyn.de/live-tv/red-bull-tv",
+      "confidence": "HIGH",
+      "playbackCandidate": false,
+      "validationRequired": true,
+      "evidence": "Public listing confirms lawful distribution, but an external player page alone does not satisfy Hidden Tunes playback requirements."
+    }
+  ],
+  "openSourceLifecycleEvidence": [
+    {
+      "project": "mbc3k/pluto",
+      "url": "https://github.com/mbc3k/pluto",
+      "finding": "Current implementation relies on authenticated, persistent per-tuner Pluto sessions and periodic guide refresh; not reusable under the no-account/no-session-copy Phase 2B constraints."
+    },
+    {
+      "project": "oe-alliance/PlutoTV",
+      "url": "https://github.com/oe-alliance/PlutoTV",
+      "finding": "A 2025 rewrite indicates continuing catalog/lifecycle churn, but it does not by itself prove lawful reusable playback for Hidden Tunes."
+    },
+    {
+      "project": "iptv-org issue 33647",
+      "url": "https://github.com/iptv-org/iptv/issues/33647",
+      "finding": "A 2026 removal request is recent evidence that cached Pluto playlist entries require active provenance and lifecycle revalidation."
+    }
+  ]
+}

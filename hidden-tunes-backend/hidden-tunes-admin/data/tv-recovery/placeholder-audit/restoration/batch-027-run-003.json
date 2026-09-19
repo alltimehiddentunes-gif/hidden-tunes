@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T10:58:15.647Z",
+  "scope": "Batch 27 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 5,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 3,
+  "productionWrites": 0,
+  "notes": [
+    "Survivor passed 122.96 seconds of 1920x1080 existing-Desktop playback with one video owner from its directly named Banijay/Samsung UK Amagi candidate.",
+    "A persistent Survivor mark over sustained real programme footage supports EXACT identity. Normal search and production resolver passed.",
+    "Three quarantined aliases were terminally merged from their prior candidate to the distinct authoritative Samsung UK candidate without creating a duplicate.",
+    "Hallmark Movies & More retained direct Xumo delivery. Home.Made.Nation retained Wurl and Samsung alternatives. Robot Wars by MECH+ retained a directly named Samsung/Wurl candidate. The Boat Show retained a directly named Rakuten Italy candidate; none were full-tested after the stronger exact Survivor proof."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 69,
+  "cumulativeTerminalAliases": 212,
+  "batch27Target": 25,
+  "batch27Researched": 15,
+  "batch27Remaining": 10
+}

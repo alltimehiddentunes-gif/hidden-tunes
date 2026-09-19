@@ -55,7 +55,7 @@ function songHasPlayableUrl(song) {
 
 function isBoundedPlaybackContext(context, seedType, bounded) {
   if (typeof bounded === 'boolean') return bounded
-  return true
+  return ['radio', 'podcast', 'audiobook', 'motivational', 'lecture', 'tv', 'sports', 'scene', 'manual-queue'].includes(context)
 }
 
 function scoreSmartContinuationCandidate(song, current, index) {
@@ -78,11 +78,11 @@ function buildSmartContinuation({
   bounded,
 }) {
   if (!currentQueue.length) return { relatedTracks: [], reason: 'empty_queue' }
-  if (seedType === 'manual') return { relatedTracks: [], reason: 'manual_seed' }
   if (isBoundedPlaybackContext(context, seedType, bounded)) {
     return { relatedTracks: [], reason: 'bounded_context' }
   }
-  if (context !== 'home' && context !== 'discover' && context !== 'smart') {
+  const musicContexts = new Set(['home', 'discover', 'smart', 'album', 'artist', 'mood', 'genre', 'emotional-world', 'playlist', 'search', 'library', 'favorites', 'history', 'downloads', 'recommendation', 'manual'])
+  if (!musicContexts.has(context)) {
     return { relatedTracks: [], reason: 'non_music_context' }
   }
   const current = currentTrack || currentQueue[currentQueue.length - 1]
@@ -257,6 +257,17 @@ const catalog = [
   )
 }
 
+for (const context of ['album', 'artist', 'playlist', 'genre', 'mood', 'emotional-world', 'search', 'library', 'favorites', 'history', 'downloads', 'recommendation']) {
+  const result = buildSmartContinuation({
+    currentQueue: [catalog[0]],
+    currentTrack: catalog[0],
+    context,
+    seedType: context,
+    seedTracks: catalog,
+  })
+  check(`8d. ${context} uses central continuation`, result.relatedTracks.length > 0)
+}
+
 // 9. Smart fetch failure does not break queue (empty related → queue unchanged)
 {
   const queue = [song('only')]
@@ -330,13 +341,26 @@ const catalog = [
   )
 }
 
-// 16. Home does not navigate to player
+// 16. Every music source starts the canonical compact session. Expansion is a
+// separate presentation action and the persisted preference gates only refill.
 {
   const app = fs.readFileSync(path.join(ROOT, 'src/App.tsx'), 'utf8')
+  const provider = fs.readFileSync(path.join(ROOT, 'src/context/DesktopPlaybackProvider.tsx'), 'utf8')
+  const preferences = fs.readFileSync(path.join(ROOT, 'src/lib/localPreferences.ts'), 'utf8')
+  const sessionBoundary = app.slice(
+    app.indexOf('const startMediaSession = useCallback'),
+    app.indexOf('const selectAndPlay = useCallback'),
+  )
   check(
-    '16. Home does not navigate to player when playback starts',
-    app.includes("context === 'home' || context === 'discover'")
-    && app.includes('setDesktopSelectedTrack(resolved)'),
+    '16. music uses canonical shared Now Playing without legacy song navigation',
+    app.includes('const selectAndPlay = useCallback')
+    && app.includes('startMediaSession({')
+    && !sessionBoundary.includes('openPreferredNowPlayingPage')
+    && !app.includes('presentationIntent:')
+    && !app.includes('openSong(track)')
+    && preferences.includes("musicAutoNextEnabled: 'music-auto-next-enabled'")
+    && provider.includes('!autoNextEnabledRef.current')
+    && provider.includes('setAutoNextEnabled'),
   )
 }
 
@@ -450,10 +474,16 @@ const catalog = [
   )
   check('provider uses ENDED_ADVANCE_DEBOUNCE_MS', provider.includes('ENDED_ADVANCE_DEBOUNCE_MS'))
   check('provider gates extend on exhaustion', provider.includes("reason: 'exhaustion'"))
+  const endedHandler = provider.slice(provider.indexOf('const onEnded = () => {'), provider.indexOf('const onError = () => {'))
+  check(
+    'ended handler atomically commits next track before playback',
+    endedHandler.includes('commitActiveQueueTrack(queue, playableIndex)')
+      && endedHandler.includes('commitActiveQueueTrack(extendedQueue, playableIndex)'),
+  )
   check('provider tracks smartContinuationStartRef', provider.includes('smartContinuationStartRef'))
   check('provider stores queueSeedBoundedRef', provider.includes('queueSeedBoundedRef'))
   check('home full catalog unbounded', home.includes("bounded: false"))
-  check('home sections default bounded', home.includes('options?.bounded ?? true'))
+  check('home sections default continuous', home.includes('options?.bounded ?? false'))
   check(
     'no second queue store introduced',
     !provider.includes('smartQueueRef') && provider.includes('queueRef'),

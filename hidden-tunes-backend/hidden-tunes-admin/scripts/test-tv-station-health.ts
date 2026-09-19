@@ -50,11 +50,11 @@ const failedUpdate = applyTvHealthProbe(
   },
   "2026-07-02T00:00:00.000Z"
 );
-assert.equal(failedUpdate.playback_status, "failed");
+assert.equal(failedUpdate.playback_status, "playable");
 assert.equal(failedUpdate.reliability_score, 53);
 assert.equal(failedUpdate.consecutive_failures, 2);
-assert.equal(failedUpdate.is_active, false);
-assert.equal(failedUpdate.quarantined_at, "2026-07-02T00:00:00.000Z");
+assert.equal(failedUpdate.is_active, true);
+assert.equal(failedUpdate.quarantined_at, null);
 
 const disabledUpdate = applyTvHealthProbe(
   { ...baseRow, reliability_score: TV_AUTO_DISABLE_THRESHOLD, consecutive_failures: 3 },
@@ -126,6 +126,13 @@ assert.equal(deduped.length, 1);
   );
   assert.equal(manifest.isHlsManifest, true);
   assert.equal(manifest.isVideoLike, true);
+
+  const blocked = await (await import("../lib/tvStationHealth")).probeTvStation({
+    ...baseRow,
+    last_health_error: "known_bad_content:pluto_non_channel_placeholder",
+  });
+  assert.equal(blocked.playable, false);
+  assert.equal(blocked.playback_status, "blocked");
 
   console.log("tv station health tests passed");
 }

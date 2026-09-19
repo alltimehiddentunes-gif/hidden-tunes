@@ -1,0 +1,14 @@
+begin;
+drop trigger if exists external_catalog_events_append_only on public.external_catalog_events;
+drop function if exists public.external_catalog_deny_event_mutation();
+drop table if exists public.external_catalog_events;
+drop table if exists public.external_catalog_jobs;
+drop table if exists public.external_catalog_taxonomy;
+drop table if exists public.external_catalog_duplicates;
+drop table if exists public.external_catalog_files;
+drop table if exists public.external_catalog_evidence;
+drop table if exists public.external_catalog_rights;
+drop table if exists public.external_catalog_assets;
+drop table if exists public.external_catalog_batches;
+drop table if exists public.external_catalog_sources;
+commit;

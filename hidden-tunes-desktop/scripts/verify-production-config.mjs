@@ -7,6 +7,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
+import vm from 'node:vm'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
@@ -131,9 +132,9 @@ console.log('Phase 7A — production config')
     !rendererSrc.includes('sportsPrivatePilotToken'),
   )
   ok(
-    'packaged renderer bridge refuses Vite sports token',
-    bridgeSrc.includes('if (info?.isPackaged) return null')
-      && bridgeSrc.includes('if (import.meta.env?.PROD) return null'),
+    'renderer bridge has no private token environment path',
+    !bridgeSrc.includes('SPORTS_PRIVATE_PILOT_TOKEN')
+      && !bridgeSrc.includes('resolveBrowserSportsPilotToken'),
   )
   ok('main process owns sports token resolver', typeof resolveSportsPilotToken === 'function')
   ok(
@@ -168,6 +169,87 @@ console.log('Phase 7A — production config')
       && !runtimeSrc.includes('return {') === false
       && !/getRuntimeDiagnostics[\s\S]*token:/.test(runtimeSrc),
   )
+}
+
+{
+  const runtimeSrc = fs.readFileSync(path.join(ROOT, 'electron/runtimeConfig.js'), 'utf8')
+  const bridgeSrc = fs.readFileSync(path.join(ROOT, 'electron/catalogBridge.js'), 'utf8')
+  const htToken = 'synthetic-main-only-pilot-credential'
+  const viteToken = 'synthetic-vite-pilot-must-not-resolve'
+
+  function loadRuntime(env, isPackaged) {
+    const context = {
+      module: { exports: {} },
+      process: { env },
+      URL,
+      require: (name) => {
+        assert.equal(name, 'electron')
+        return { app: { isPackaged } }
+      },
+    }
+    vm.runInNewContext(runtimeSrc, context)
+    return context.module.exports
+  }
+
+  for (const isPackaged of [true, false]) {
+    const mode = isPackaged ? 'packaged production' : 'development'
+    const baseEnv = { NODE_ENV: isPackaged ? 'production' : 'development' }
+    const cases = [
+      ['HT token', { HT_SPORTS_PRIVATE_PILOT_TOKEN: htToken }, htToken],
+      ['no token', {}, null],
+      ['Vite token only', { VITE_SPORTS_PRIVATE_PILOT_TOKEN: viteToken }, null],
+      ['HT wins over Vite', { HT_SPORTS_PRIVATE_PILOT_TOKEN: htToken, VITE_SPORTS_PRIVATE_PILOT_TOKEN: viteToken }, htToken],
+      ['short HT does not fall back', { HT_SPORTS_PRIVATE_PILOT_TOKEN: 'short', VITE_SPORTS_PRIVATE_PILOT_TOKEN: viteToken }, null],
+      ['blank HT does not fall back', { HT_SPORTS_PRIVATE_PILOT_TOKEN: ' ', VITE_SPORTS_PRIVATE_PILOT_TOKEN: viteToken }, null],
+      ['HT whitespace trimmed', { HT_SPORTS_PRIVATE_PILOT_TOKEN: ` ${htToken} ` }, htToken],
+    ]
+    for (const [label, env, expected] of cases) {
+      const runtime = loadRuntime({ ...baseEnv, ...env }, isPackaged)
+      ok(`${mode}: ${label}`, runtime.resolveSportsPilotToken() === expected)
+      const diagnostics = runtime.getRuntimeDiagnostics(isPackaged)
+      ok(`${mode}: ${label} diagnostics are accurate and contain no credential`,
+        diagnostics.sportsPilotConfigured === Boolean(expected)
+        && !JSON.stringify(diagnostics).includes(htToken)
+        && !JSON.stringify(diagnostics).includes(viteToken))
+
+      const context = {
+        module: { exports: {} }, URL,
+        require: (name) => name === './runtimeConfig' ? runtime : { app: { isPackaged } },
+      }
+      // Exercise the real header builder without making network requests.
+      vm.runInNewContext(`${bridgeSrc}\nmodule.exports.auditHeaders = buildCatalogHeaders;`, context)
+      const headers = context.module.exports.auditHeaders()
+      ok(`${mode}: ${label} request header follows resolver`,
+        expected ? headers['X-Hidden-Tunes-Sports-Pilot'] === expected
+          : !Object.hasOwn(headers, 'X-Hidden-Tunes-Sports-Pilot'))
+    }
+  }
+
+  function assertNoTokenLiteral(content, tokens) {
+    assert.ok(!tokens.some((token) => token.length >= 16 && content.includes(token)),
+      'Renderer bundle contains pilot credential material (value redacted)')
+  }
+  assert.throws(() => assertNoTokenLiteral(`const leaked = '${viteToken}'`, [viteToken]))
+  ok('renderer token literal fails leak check', true)
+  assertNoTokenLiteral('const name = "HT_SPORTS_PRIVATE_PILOT_TOKEN"', [htToken, viteToken])
+  ok('variable name alone is not reported as a leaked credential', true)
+
+  const referenceTokens = [
+    process.env.HT_SPORTS_PRIVATE_PILOT_TOKEN,
+    process.env.VITE_SPORTS_PRIVATE_PILOT_TOKEN,
+    process.env.SPORTS_PRIVATE_PILOT_TOKEN,
+  ].filter((value) => typeof value === 'string' && value.trim().length >= 16)
+    .map((value) => value.trim())
+  const dist = path.join(ROOT, 'dist')
+  if (referenceTokens.length && fs.existsSync(dist)) {
+    for (const name of fs.readdirSync(dist, { recursive: true })) {
+      const file = path.join(dist, name)
+      if (fs.statSync(file).isFile()) assertNoTokenLiteral(fs.readFileSync(file, 'utf8'), referenceTokens)
+    }
+    ok('existing renderer artifact excludes supplied reference tokens', true)
+  } else {
+    console.log('  SKIP: real-token renderer artifact clearance requires dist and a reference token; synthetic rejection passed')
+  }
 }
 
 console.log(`\nproduction-config: ${passed} checks passed`)

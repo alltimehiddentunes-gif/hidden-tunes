@@ -1,0 +1,106 @@
+{
+  "at": "2026-08-02T11:17:08.259Z",
+  "workspace": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin",
+  "results": [
+    {
+      "code": "RU",
+      "total": 395,
+      "playable": 241,
+      "public": 241,
+      "quarantined": 154,
+      "disabled": 101,
+      "iosPlayable": 241,
+      "androidPlayable": 241
+    },
+    {
+      "code": "CN",
+      "total": 84,
+      "playable": 37,
+      "public": 37,
+      "quarantined": 46,
+      "disabled": 39,
+      "iosPlayable": 37,
+      "androidPlayable": 37
+    },
+    {
+      "code": "US",
+      "total": 2669,
+      "playable": 2443,
+      "public": 2443,
+      "quarantined": 222,
+      "disabled": 147,
+      "iosPlayable": 2443,
+      "androidPlayable": 2443
+    },
+    {
+      "code": "GB",
+      "total": 439,
+      "playable": 426,
+      "public": 426,
+      "quarantined": 13,
+      "disabled": 12,
+      "iosPlayable": 426,
+      "androidPlayable": 426
+    },
+    {
+      "code": "ES",
+      "total": 559,
+      "playable": 537,
+      "public": 537,
+      "quarantined": 21,
+      "disabled": 13,
+      "iosPlayable": 537,
+      "androidPlayable": 537
+    },
+    {
+      "code": "IN",
+      "total": 681,
+      "playable": 642,
+      "public": 642,
+      "quarantined": 39,
+      "disabled": 14,
+      "iosPlayable": 642,
+      "androidPlayable": 642
+    },
+    {
+      "code": "UA",
+      "total": 83,
+      "playable": 59,
+      "public": 59,
+      "quarantined": 24,
+      "disabled": 18,
+      "iosPlayable": 59,
+      "androidPlayable": 59
+    },
+    {
+      "code": "TR",
+      "total": 169,
+      "playable": 163,
+      "public": 163,
+      "quarantined": 6,
+      "disabled": 4,
+      "iosPlayable": 163,
+      "androidPlayable": 163
+    },
+    {
+      "code": "FR",
+      "total": 512,
+      "playable": 443,
+      "public": 443,
+      "quarantined": 69,
+      "disabled": 32,
+      "iosPlayable": 443,
+      "androidPlayable": 443
+    },
+    {
+      "code": "RO",
+      "total": 128,
+      "playable": 67,
+      "public": 67,
+      "quarantined": 22,
+      "disabled": 12,
+      "iosPlayable": 67,
+      "androidPlayable": 67
+    }
+  ]
+}

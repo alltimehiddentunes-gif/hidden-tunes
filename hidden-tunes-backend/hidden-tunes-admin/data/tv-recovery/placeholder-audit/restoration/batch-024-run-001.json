@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-16T02:25:17.212Z",
+  "scope": "Batch 24 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "Million Dollar Listing Vault passed 124.07 seconds of 1920x1080 existing-Desktop playback with one video owner from NBCUniversal-owned delivery.",
+    "NBCUniversal/Xumo provenance and sustained matching luxury-real-estate reality programming support HIGH identity. Search and resolver passed.",
+    "The rejected i.mjh.nz match was not used; its one quarantined alias was terminally merged to the distinct authoritative NBCUniversal candidate without creating a duplicate.",
+    "BBC Series, The Good Wife, and Forensic Files used rejected jmp2.uk. Unbeaten Sports used generic CloudFront without complete direct authoritative linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 60,
+  "cumulativeTerminalAliases": 194,
+  "batch24Target": 25,
+  "batch24Researched": 5,
+  "batch24Remaining": 20
+}

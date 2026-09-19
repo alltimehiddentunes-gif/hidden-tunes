@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-14T11:14:28.436Z",
+  "identity": "That's 80s",
+  "candidateRecordId": "59a70856-93c2-4dc7-aae5-4963a51be630",
+  "aliasesTerminal": 2,
+  "authoritativeProvenance": "Lightning/Now 80s Amagi distribution for Rakuten",
+  "content": "Real moving 1980s-themed programming; no closure slate",
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 123.3,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

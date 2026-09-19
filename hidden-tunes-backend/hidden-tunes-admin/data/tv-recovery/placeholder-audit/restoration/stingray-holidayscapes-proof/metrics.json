@@ -1,0 +1,15 @@
+{
+  "candidateId": "e39b873c-e82d-46fa-8d5d-1b082e895ada",
+  "streamHost": "plextv.ott-channels.stingray.com",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 163.337717,
+    "advancedSeconds": 124.273717,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "ruChannelIdentities": 844,
+  "streamCandidates": 1047,
+  "sample": [
+    {
+      "title": "2x2",
+      "iptvOrgId": "2x2.ru",
+      "category": "entertainment",
+      "url": "http://stream.mcquack.net/187/index.m3u8"
+    },
+    {
+      "title": "2x2",
+      "iptvOrgId": "2x2.ru",
+      "category": "entertainment",
+      "url": "http://31.148.48.15/2x2/index.m3u8"
+    },
+    {
+      "title": "2x2",
+      "iptvOrgId": "2x2.ru",
+      "category": "entertainment",
+      "url": "https://zabava-htlive.cdn.ngenix.net/hls/CH_2X2/variant.m3u8"
+    },
+    {
+      "title": "3ABN Russia",
+      "iptvOrgId": "3ABNRussia.ru",
+      "category": "religious",
+      "url": "https://hls.tv.3angels.ru/stream.m3u8"
+    },
+    {
+      "title": "3ABN Russia",
+      "iptvOrgId": "3ABNRussia.ru",
+      "category": "religious",
+      "url": "https://3abn.bozztv.com/3abn2/Rus_live/smil:Rus_live.smil/playlist.m3u8"
+    },
+    {
+      "title": "5 minut tishiny",
+      "iptvOrgId": "5minuttishiny.ru",
+      "category": "series",
+      "url": "https://cdn-dvr.ntv.ru/5_minut_tishiny/index.m3u8"
+    },
+    {
+      "title": "15+ Music",
+      "iptvOrgId": "15PlusMusic.ru",
+      "category": "music",
+      "url": "https://live.15plusmg.ru/memfs/ce3366b1-bf25-4e24-96bb-1adf0d44bd3d.m3u8"
+    },
+    {
+      "title": "86",
+      "iptvOrgId": "86.ru",
+      "category": "general",
+      "url": "https://sitv.ru/hls/s86.m3u8"
+    },
+    {
+      "title": "360° News",
+      "iptvOrgId": "360News.ru",
+      "category": "news",
+      "url": "https://live-vgtrksmotrim.cdnvideo.ru/vgtrksmotrim/smotrim-live-03-srt.smil/playlist.m3u8"
+    },
+    {
+      "title": "360°",
+      "iptvOrgId": "360.ru",
+      "category": "general",
+      "url": "https://cdn-evacoder-tv.facecast.io/evacoder_hls_hi/CkxfR1xNUAJwTgtXTBZTAJli/index.m3u8"
+    },
+    {
+      "title": "360°",
+      "iptvOrgId": "360.ru",
+      "category": "general",
+      "url": "https://streaming.thestream.cyou/live/7000.m3u8"
+    },
+    {
+      "title": "360°",
+      "iptvOrgId": "360.ru",
+      "category": "general",
+      "url": "https://live-vgtrksmotrim.cdnvideo.ru/vgtrksmotrim/smotrim-live-04-srt.smil/playlist.m3u8"
+    },
+    {
+      "title": "365 days TV",
+      "iptvOrgId": "365daysTV.ru",
+      "category": "documentary",
+      "url": "http://stream.mcquack.net/70/index.m3u8"
+    },
+    {
+      "title": "365 days TV",
+      "iptvOrgId": "365daysTV.ru",
+      "category": "documentary",
+      "url": "http://31.148.48.15/365_dney/index.m3u8"
+    },
+    {
+      "title": "555",
+      "iptvOrgId": "555.ru",
+      "category": "general",
+      "url": "http://trk555.tv:8888/live"
+    },
+    {
+      "title": "A1",
+      "iptvOrgId": "A1.ru",
+      "category": "music",
+      "url": "http://31.148.48.15/A1/index.m3u8"
+    },
+    {
+      "title": "A2",
+      "iptvOrgId": "A2.ru",
+      "category": "series",
+      "url": "http://31.148.48.15/A2/index.m3u8"
+    },
+    {
+      "title": "Abaza TV",
+      "iptvOrgId": "AbazaTV.ru",
+      "category": "general",
+      "url": "https://public.apsny.camera/tv_abaza_tv_to_site/index.m3u8"
+    },
+    {
+      "title": "Afontovo",
+      "iptvOrgId": "Afontovo.ru",
+      "category": "general",
+      "url": "https://stream.afontovo.ru/hd.m3u8"
+    },
+    {
+      "title": "AIST TV",
+      "iptvOrgId": "AISTTV.ru",
+      "category": "general",
+      "url": "http://live2-aisttv.cdnvideo.ru/aisttv2/aisttv.sdp/playlist.m3u8"
+    }
+  ]
+}

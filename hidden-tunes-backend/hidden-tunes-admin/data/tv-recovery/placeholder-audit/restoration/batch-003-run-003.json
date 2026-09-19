@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-08-13T21:09:00.000Z",
+  "scope": "Batch 3 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "resolverRejected": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Qello Concerts has direct Stingray FAST provenance and broad official carriage, but its existing production playback resolver returned HTTP 404, so it remains quarantined.",
+    "That's 80s and That's 90s00s have current official Rakuten catalog evidence, but reports indicate the FAST services may now show closure slates; they were not accepted without live content proof.",
+    "La Maison France 5 uses jmp2.uk and was rejected before media validation.",
+    "Construcciones Asombrosas uses a Local Now host but exact rights-holder/channel provenance was not sufficient for full validation."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 13,
+  "cumulativeTerminalAliases": 80,
+  "batch3Target": 25,
+  "batch3Researched": 15,
+  "batch3Remaining": 10
+}

@@ -1,0 +1,22 @@
+{
+  "completedAt": "2026-08-12T13:00:00.000Z",
+  "candidate": "CBS News New York",
+  "existingRecordId": "e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+  "quarantinedAliasId": "80cf5e79-9e1d-4b39-901f-99081f87f7a3",
+  "authoritativeProvenance": "PASS",
+  "actualProgramme": "PASS",
+  "identity": "EXACT",
+  "placeholder": "PASS",
+  "continuitySeconds": 120,
+  "electronRuntime": "PASS",
+  "normalSearchWhileActivated": "PASS",
+  "productionPlaybackResolver": "FAIL_404",
+  "activationAttempts": 2,
+  "rollbackApplied": true,
+  "productionRecordLeftPublic": false,
+  "restored": 0,
+  "searchableAfterRollback": 0,
+  "duplicatesCreated": 0,
+  "disposition": "KEEP_QUARANTINED_RESOLVER_INCOMPATIBLE",
+  "blocker": "The deployed /api/tv/channels/{id}/play resolver rejects the otherwise playable Google DAI source. Bypassing the resolver would violate the existing Desktop playback contract."
+}

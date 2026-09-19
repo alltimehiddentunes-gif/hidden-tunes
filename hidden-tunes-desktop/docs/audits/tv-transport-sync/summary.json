@@ -9,33 +9,60 @@
     "clicked": true,
     "cards": 47,
     "kids": true,
-    "label": "Watch NHK World Japan"
+    "label": "Watch DW English"
   },
   "first": {
-    "railTitle": "NHK World Japan",
-    "footerTitle": "NHK World JapanEurope · Japan · English · Verified",
+    "railTitle": "DW English",
+    "footerTitle": "DW EnglishNews · Germany · English · Verified",
     "nowPlaying": true,
     "hasRailTransport": true,
     "videoCount": 1
   },
+  "controlPass": true,
+  "controlChecks": {
+    "muteClicked": true,
+    "muted": true,
+    "unmuteClicked": true,
+    "unmuted": true,
+    "volumeChanged": true,
+    "volumeSynchronized": true,
+    "pausedViaRail": true,
+    "pauseSynchronized": true,
+    "resumedViaRail": true,
+    "resumeSynchronized": true,
+    "fullscreenClicked": true,
+    "fullscreenEntered": true,
+    "escapeExitedFullscreen": true,
+    "pictureInPictureClicked": true,
+    "pictureInPictureEntered": true,
+    "pictureInPictureExited": true,
+    "sidebarHiddenClicked": true,
+    "sidebarHidden": true,
+    "sidebarRestoredClicked": true,
+    "sidebarRestored": true,
+    "homeNavigation": true,
+    "playbackSurvivesRouteChange": true,
+    "tvNavigationRestored": true,
+    "sessionRestoredOnTv": true
+  },
   "finalState": {
-    "railTitle": "NHK World Japan",
+    "railTitle": "Fashion TV Paris",
     "footerTitle": null,
     "titlesMatch": false,
     "hasRailPrevNext": true,
     "hasFooterPrevNext": true,
-    "railPrevDisabled": true,
+    "railPrevDisabled": false,
     "railNextDisabled": false,
-    "footerPrevDisabled": true,
+    "footerPrevDisabled": false,
     "footerNextDisabled": false,
     "videoCount": 1,
     "railPlayLabel": "Pause",
     "footerPlayLabel": "Pause",
     "upcoming": [
-      "DW English",
       "France 24 English",
-      "Fashion TV Paris"
+      "NHK World Japan",
+      "Qwest TV Jazz & Beyond"
     ]
   },
-  "outDir": "C:\\Users\\Wills\\Desktop\\HiddenTunes-desktop-integration\\hidden-tunes-desktop\\docs\\audits\\tv-transport-sync"
+  "outDir": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-desktop\\docs\\audits\\tv-transport-sync"
 }

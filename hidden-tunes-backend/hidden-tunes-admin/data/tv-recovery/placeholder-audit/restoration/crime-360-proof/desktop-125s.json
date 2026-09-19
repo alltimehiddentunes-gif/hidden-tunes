@@ -1,0 +1,15 @@
+{
+  "candidateId": "f6451fcf-0b46-4512-ab55-142c979129ac",
+  "streamHost": "94a3e237.wurl.com",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 161.013611,
+    "advancedSeconds": 124.94948600000001,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

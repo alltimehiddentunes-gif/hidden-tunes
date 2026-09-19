@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T22:55:04.815Z",
+  "scope": "Batch 22 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "RiffTrax passed 124.33 seconds of 1280x720 existing-Desktop playback with one video owner from its exact RiffTrax-named Wurl endpoint.",
+    "Official RiffTrax FAST distribution and sustained matching riffed low-budget film programming support HIGH identity. Search and resolver passed.",
+    "One quarantined alias is terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Top Gear, Weather Network, and Midsomer Murders used rejected jmp2.uk. Noticias RCN used Roku delivery without complete direct authoritative candidate linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 54,
+  "cumulativeTerminalAliases": 187,
+  "batch22Target": 25,
+  "batch22Researched": 20,
+  "batch22Remaining": 5
+}

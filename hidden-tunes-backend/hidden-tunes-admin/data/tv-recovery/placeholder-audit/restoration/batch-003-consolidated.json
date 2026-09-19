@@ -1,0 +1,11 @@
+{
+  "completedAt": "2026-08-13T22:36:53.904Z",
+  "batch": 3,
+  "checkpointedIdentitiesResearched": 25,
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 14,
+  "cumulativeTerminalAliases": 81,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "newCompleteProofs": ["Scripps News"],
+  "status": "COMPLETE"
+}

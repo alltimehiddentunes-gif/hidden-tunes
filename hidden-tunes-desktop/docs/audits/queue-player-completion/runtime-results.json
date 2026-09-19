@@ -1,6 +1,6 @@
 {
-  "startedAt": "2026-07-27T16:53:48.530Z",
-  "rendererUrl": "http://localhost:5175",
+  "startedAt": "2026-08-07T12:26:32.467Z",
+  "rendererUrl": "http://localhost:5173",
   "checks": [
     {
       "check": "UI ready",
@@ -50,7 +50,7 @@
     {
       "check": "no duplicate player bar soft",
       "ok": true,
-      "detail": "bars=2"
+      "detail": "bars=0"
     },
     {
       "check": "no duplicate video surface soft",
@@ -60,22 +60,22 @@
     {
       "check": "Music catalog play click",
       "ok": true,
-      "detail": "Play DEV Audio Versions: All Tiers by Hidden Tunes QA"
+      "detail": "Play Jeremih Birthday Sex BOMBASTIC, JAHMO & FD Remix by Hidden Tunes"
     },
     {
       "check": "Music playback surfaced",
       "ok": true,
-      "detail": "{\"title\":\"\",\"audioPlaying\":false,\"hasBar\":true,\"queueRail\":true}"
+      "detail": "{\"title\":\"\",\"audioPlaying\":true,\"hasBar\":true,\"queueRail\":true}"
     },
     {
       "check": "Queue surface available or empty state",
       "ok": true,
-      "detail": "{\"queueUi\":{\"opened\":true,\"via\":\"rail\",\"panel\":true},\"queueDom\":{\"panel\":true,\"empty\":false,\"clear\":true,\"removeBtns\":4,\"moveBtns\":8,\"rows\":8,\"live\":false}}"
+      "detail": "{\"queueUi\":{\"opened\":true,\"via\":\"rail\",\"panel\":true},\"queueDom\":{\"panel\":true,\"empty\":false,\"clear\":true,\"removeBtns\":40,\"moveBtns\":120,\"rows\":80,\"live\":false}}"
     },
     {
       "check": "Queue panel has rows when playing",
       "ok": true,
-      "detail": "rows=8"
+      "detail": "rows=80"
     },
     {
       "check": "Queue clear button present",
@@ -85,17 +85,17 @@
     {
       "check": "Queue remove buttons present",
       "ok": true,
-      "detail": "remove=4"
+      "detail": "remove=40"
     },
     {
       "check": "Queue reorder buttons present",
       "ok": true,
-      "detail": "move=8"
+      "detail": "move=120"
     },
     {
       "check": "Queue remove click interacts",
       "ok": true,
-      "detail": "{\"before\":8,\"after\":6}"
+      "detail": "{\"before\":80,\"after\":78}"
     },
     {
       "check": "Radio station play click",
@@ -105,7 +105,7 @@
     {
       "check": "Radio LIVE progress when station played",
       "ok": true,
-      "detail": "{\"liveLabels\":[\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\"],\"title\":\"\",\"audioPlaying\":false}"
+      "detail": "{\"liveLabels\":[\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\",\"LIVE\"],\"title\":\"\",\"audioPlaying\":true}"
     },
     {
       "check": "ownership soft Music/Sports/Radio surfaces",
@@ -230,7 +230,7 @@
   ],
   "failures": [],
   "notes": [],
-  "finishedAt": "2026-07-27T16:54:29.781Z",
+  "finishedAt": "2026-08-07T12:27:21.542Z",
   "passed": 45,
   "failed": 0,
   "checkCount": 45

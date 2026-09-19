@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-16T14:53:48.022Z",
+  "scope": "Batch 28 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "duplicatesCreated": 0,
+  "notes": [
+    "FOX Sports retained a generic CloudFront candidate but lacked complete direct authoritative candidate-to-channel linkage.",
+    "TV Land Sitcoms, Bellator MMA, TV Land Drama, and Yo! MTV used rejected jmp2.uk sources.",
+    "No candidate passed provenance, so none was sent to expensive Desktop validation; all remain quarantined."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 71,
+  "cumulativeTerminalAliases": 214,
+  "batch28Target": 25,
+  "batch28Researched": 25,
+  "batch28Remaining": 0,
+  "batch28Complete": true
+}

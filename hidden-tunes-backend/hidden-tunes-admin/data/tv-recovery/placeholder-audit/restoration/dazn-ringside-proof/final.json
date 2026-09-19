@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-15T20:53:09.989Z",
+  "identity": "DAZN Ringside",
+  "candidateRecordId": "380aa94f-c654-4374-9dca-82d9ef369b41",
+  "aliasesTerminal": 9,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 123.9,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

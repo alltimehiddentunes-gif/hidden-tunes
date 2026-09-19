@@ -1,0 +1,22 @@
+{
+  "completedAt": "2026-08-13T17:10:00.000Z",
+  "scope": "provenance-first bounded retest investigation",
+  "identitiesResearched": 3,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "identityUnresolved": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "KIRO Seattle has broadcaster-authoritative KIRO 7 Now and KIRO 24/7 provenance, but its CloudFront catalog candidate remained blank with readyState 0 after 190 seconds in the D-only Desktop verifier.",
+    "Most Haunted has one healthy Amagi Rakuten UK catalog record and independent current FAST lineup evidence, but direct rights-holder-to-stream provenance remains insufficient for full acceptance.",
+    "The KIRO timed-out verifier processes were stopped selectively; no unrelated Desktop processes were touched.",
+    "No candidate passed the complete identity, continuity, resolver, and search gate in this run."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 12,
+  "cumulativeTerminalAliases": 79
+}

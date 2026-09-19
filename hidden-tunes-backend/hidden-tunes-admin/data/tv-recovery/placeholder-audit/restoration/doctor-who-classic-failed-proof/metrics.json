@@ -1,0 +1,15 @@
+{
+  "candidateId": "ede4d348-a7d4-456e-952b-d2555ec34f73",
+  "streamHost": "bbc-classicdrwho-1-us.xumo.wurl.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 166.453031,
+    "advancedSeconds": 124.21103100000002,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

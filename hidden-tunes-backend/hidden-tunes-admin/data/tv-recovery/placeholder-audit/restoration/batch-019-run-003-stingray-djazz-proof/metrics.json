@@ -1,0 +1,15 @@
+{
+  "candidateId": "89035e31-0474-4fc3-b00d-e456311b3c2a",
+  "streamHost": "lotus.stingray.com",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 168.503486,
+    "advancedSeconds": 123.419386,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

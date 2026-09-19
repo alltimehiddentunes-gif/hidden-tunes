@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T04:47:18.254Z",
+  "scope": "Batch 15 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 2,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 17,
+  "productionWrites": 0,
+  "notes": [
+    "CBS News 24/7 passed 124.24 seconds of 1280x720 existing-Desktop playback with one video owner from a broadcaster-owned CBS News host.",
+    "Official CBS pages confirm the exact national 24/7 service; evidence showed real CBS news programming and explicit CBS Evening News branding.",
+    "Seventeen quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Homeful and Highway to Heaven used rejected jmp2.uk. Pokémon used generic CloudFront without exact authoritative linkage. Most Haunted retained a plausible Rakuten/Amagi candidate but lacked primary exact candidate linkage."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 44,
+  "cumulativeTerminalAliases": 166,
+  "batch15Target": 25,
+  "batch15Researched": 20,
+  "batch15Remaining": 5
+}

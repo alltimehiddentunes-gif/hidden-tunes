@@ -10,10 +10,16 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow } from 'electron'
 
+// The Windows validation host may not provide a usable GPU subprocess. This must
+// be set before app readiness so a harness limitation cannot prevent renderer QA.
+app.disableHardwareAcceleration()
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
 const EVIDENCE_DIR = path.join(ROOT, 'docs', 'audits', 'user-playlists')
 const RENDERER_URL = process.env.HT_VALIDATE_URL || 'http://localhost:5173'
+const LOG_DIR = process.env.HT_VALIDATION_LOG_DIR || EVIDENCE_DIR
+const CHECKPOINT_PATH = path.join(LOG_DIR, 'playlists-checkpoints.jsonl')
 
 const out = {
   startedAt: new Date().toISOString(),
@@ -28,6 +34,10 @@ function record(check, ok, detail = '') {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+function checkpoint(name, detail = {}) {
+  fs.mkdirSync(LOG_DIR, { recursive: true })
+  fs.appendFileSync(CHECKPOINT_PATH, `${JSON.stringify({ at: new Date().toISOString(), name, ...detail })}\n`)
+}
 
 async function waitUrl(url, ms = 90_000) {
   const t0 = Date.now()
@@ -78,8 +88,13 @@ async function clickNav(win, label) {
 
 async function main() {
   fs.mkdirSync(EVIDENCE_DIR, { recursive: true })
+  checkpoint('process spawned', { pid: process.pid, rendererUrl: RENDERER_URL })
+  app.on('before-quit', () => checkpoint('application quit requested'))
+  app.on('child-process-gone', (_event, details) => checkpoint('child-process-gone', details))
+  process.on('uncaughtExceptionMonitor', (error) => checkpoint('main-process error', { error: String(error?.stack || error) }))
   await waitUrl(RENDERER_URL)
   await app.whenReady()
+  checkpoint('Electron app ready')
 
   const win = new BrowserWindow({
     width: 1024,
@@ -91,9 +106,16 @@ async function main() {
       nodeIntegration: false,
     },
   })
+  checkpoint('BrowserWindow created', { browserWindowId: win.id })
+  win.on('ready-to-show', () => checkpoint('BrowserWindow ready-to-show'))
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => checkpoint('did-fail-load', { errorCode, errorDescription, validatedURL }))
+  win.webContents.on('render-process-gone', (_event, details) => checkpoint('render-process-gone', details))
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => checkpoint('renderer-console', { level, message, line, sourceId }))
   win.setContentSize(1024, 900)
   await win.loadURL(RENDERER_URL)
+  checkpoint('renderer URL loaded', { route: win.webContents.getURL() })
   await waitReady(win)
+  checkpoint('renderer mounted', { route: win.webContents.getURL() })
   record('UI ready', true)
 
   // Seed library favorite to prove independence later
@@ -115,6 +137,7 @@ async function main() {
   await waitReady(win)
 
   const opened = await clickNav(win, 'Playlists')
+  checkpoint('Playlists route opened', { opened, route: win.webContents.getURL() })
   record('Playlists opens via sidebar', opened)
   await sleep(700)
 
@@ -131,30 +154,50 @@ async function main() {
       }
     }`,
   )
+  checkpoint('first assertion', { shell })
   record('Playlists shell / empty state', shell.hasShell && shell.empty)
   record('1024px layout', shell.width >= 1000 && shell.width <= 1040, `width=${shell.width}`)
   record('No duplicate player bar', shell.playerBars <= 1, `count=${shell.playerBars}`)
 
-  const created = await evalPage(
+  const launchedCreate = await evalPage(
     win,
     `() => {
-      const input = document.querySelector('.ht-playlists-create input')
-      const button = document.querySelector('.ht-playlists-create button[type="submit"]')
-      if (!input || !button) return { ok: false, reason: 'create form missing' }
+      const launch = Array.from(document.querySelectorAll('.ht-playlists-empty button')).find((button) => /create playlist/i.test(button.textContent || ''))
+      if (!launch) return false
+      launch.click()
+      return true
+    }`,
+  )
+  await sleep(250)
+  const filledCreate = await evalPage(
+    win,
+    `() => {
+      const input = document.querySelector('.ht-playlist-dialog input')
+      if (!input) return false
       const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
       setter?.call(input, 'Runtime Mix')
       input.dispatchEvent(new Event('input', { bubbles: true }))
+      return true
+    }`,
+  )
+  await sleep(250)
+  const created = await evalPage(
+    win,
+    `() => {
+      const input = document.querySelector('.ht-playlist-dialog input')
+      const button = Array.from(document.querySelectorAll('.ht-playlist-dialog button')).find((candidate) => /create playlist/i.test(candidate.textContent || ''))
+      if (!input || !button || button.disabled) return { ok: false, reason: 'create dialog not ready' }
       button.click()
       return { ok: true, value: input.value }
     }`,
   )
-  record('Create playlist', created.ok === true, created.reason || created.value || '')
+  record('Create playlist', launchedCreate && filledCreate && created.ok === true, created.reason || created.value || '')
   await sleep(500)
 
   const detail = await evalPage(
     win,
     `() => {
-      const title = document.querySelector('.ht-playlists-detail-header h1')
+      const title = document.querySelector('.ht-playlist-detail-hero h1')
       return {
         open: Boolean(title),
         title: title?.textContent || '',
@@ -204,8 +247,8 @@ async function main() {
   await evalPage(
     win,
     `() => {
-      const card = document.querySelector('.ht-playlists-card-main')
-      card?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      const card = document.querySelector('.ht-playlist-card-open')
+      card?.click()
       return Boolean(card)
     }`,
   )
@@ -214,25 +257,23 @@ async function main() {
   const rows = await evalPage(
     win,
     `() => {
-      const list = Array.from(document.querySelectorAll('.ht-playlists-item-row'))
+      const list = Array.from(document.querySelectorAll('.ht-playlist-track-list > li'))
       return {
         count: list.length,
-        types: list.map((row) => row.getAttribute('data-playlist-type')),
+        titles: list.map((row) => row.querySelector('strong')?.textContent || ''),
       }
     }`,
   )
   record('Playlist items render', rows.count >= 2, `count=${rows.count}`)
-  record('Song and podcast episode both present', rows.types.includes('song') && rows.types.includes('podcast_episode'))
+  record('Song and podcast episode both present', rows.titles.includes('Playlist Song One') && rows.titles.includes('Same Raw ID Episode'))
 
   // Reorder
   const reordered = await evalPage(
     win,
     `() => {
-      const down = document.querySelector('.ht-playlists-item-row .btn-ghost.btn-sm')
-      // find Down button on first row
-      const first = document.querySelector('.ht-playlists-item-row')
+      const first = document.querySelector('.ht-playlist-track-list > li')
       const buttons = Array.from(first?.querySelectorAll('button') || [])
-      const downBtn = buttons.find((b) => (b.textContent || '').trim() === 'Down')
+      const downBtn = buttons.find((b) => /move .* down/i.test(b.getAttribute('aria-label') || ''))
       downBtn?.click()
       return Boolean(downBtn)
     }`,
@@ -258,12 +299,21 @@ async function main() {
     win,
     `() => {
       const buttons = Array.from(document.querySelectorAll('button'))
-      const del = buttons.find((b) => (b.textContent || '').trim() === 'Delete playlist')
+      const del = buttons.find((b) => (b.textContent || '').trim() === 'Delete')
       del?.click()
       return Boolean(del)
     }`,
   )
   await sleep(400)
+  await evalPage(
+    win,
+    `() => {
+      const confirm = Array.from(document.querySelectorAll('button')).find((button) => /delete playlist/i.test(button.textContent || ''))
+      confirm?.click()
+      return Boolean(confirm)
+    }`,
+  )
+  await sleep(300)
 
   const afterDelete = await evalPage(
     win,
@@ -280,7 +330,7 @@ async function main() {
   record('Delete playlist preserves Library favorite', afterDelete.libraryKept === true)
 
   // Core destinations still work
-  for (const label of ['Home', 'Music', 'Radio', 'Podcasts', 'My Library']) {
+  for (const label of ['Home', 'Music', 'Radio', 'Podcasts', 'Library']) {
     const ok = await clickNav(win, label)
     await sleep(400)
     record(`${label} still opens`, ok === true)

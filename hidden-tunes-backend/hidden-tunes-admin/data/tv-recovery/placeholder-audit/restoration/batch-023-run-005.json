@@ -1,0 +1,28 @@
+{
+  "completedAt": "2026-08-16T01:54:24.821Z",
+  "scope": "Batch 23 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 2,
+  "productionWrites": 0,
+  "notes": [
+    "Most Haunted Channel passed 124.03 seconds of 1920x1080 existing-Desktop playback with one video owner from its Little Dot Studios/Rakuten GB-named Amagi endpoint.",
+    "Little Dot Studios/Rakuten provenance and sustained matching paranormal-investigation programming support HIGH identity. Search and resolver passed.",
+    "Two quarantined aliases are terminal VERIFIED_DUPLICATE_MERGED; no production write or duplicate was needed.",
+    "Barney and Friends used generic CloudFront without complete direct authoritative linkage. Pluto TV Sanctuary and Medical Detectives used rejected jmp2.uk. CSI: Crime Scene Investigation used rejected i.mjh.nz."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 59,
+  "cumulativeTerminalAliases": 193,
+  "batch23Target": 25,
+  "batch23Researched": 25,
+  "batch23Remaining": 0,
+  "batch23Complete": true
+}

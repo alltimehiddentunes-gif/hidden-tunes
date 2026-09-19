@@ -1,0 +1,209 @@
+{
+  "generatedAt": "2026-08-07T12:57:44.851Z",
+  "base": "https://admin.hiddentunes.com",
+  "audited": 20,
+  "falseZeroBooks": 0,
+  "playableBooks": 20,
+  "rows": [
+    {
+      "bookId": "fe0dd05b-caf5-4214-8910-34456c182e41",
+      "title": "Faerie Queene Book  4",
+      "sourceId": null,
+      "expectedChapters": 13,
+      "resolvedChapters": 13,
+      "playableChapters": 13,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "49baf1ae-4551-4fcc-a6b3-436cd6d3d4f5",
+      "title": "Faerie Queene Book 5",
+      "sourceId": null,
+      "expectedChapters": 14,
+      "resolvedChapters": 14,
+      "playableChapters": 14,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "8b55f906-23f4-491e-a793-b342d69d6bf0",
+      "title": "Faerie Queene Books 6 & 7",
+      "sourceId": null,
+      "expectedChapters": 16,
+      "resolvedChapters": 16,
+      "playableChapters": 16,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "1534283e-3548-4d1d-a6f2-f6e30aa7799f",
+      "title": "Aesops Fables in Russian",
+      "sourceId": null,
+      "expectedChapters": 117,
+      "resolvedChapters": 38,
+      "playableChapters": 37,
+      "rejected": 1,
+      "reason": "chapter_files_unavailable"
+    },
+    {
+      "bookId": "436c8359-4ad6-41f0-84a0-aff44d069a47",
+      "title": "When I Was One And Twenty",
+      "sourceId": null,
+      "expectedChapters": 22,
+      "resolvedChapters": 22,
+      "playableChapters": 22,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "ec27497c-efbd-4991-8d12-c2b1baa60886",
+      "title": "The 9/11 Commission Report",
+      "sourceId": null,
+      "expectedChapters": 171,
+      "resolvedChapters": 40,
+      "playableChapters": 40,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "d20fa225-d86a-483a-9a8f-634a4ae652a4",
+      "title": "Poems and Prose for the Departed Vol. 01",
+      "sourceId": null,
+      "expectedChapters": 20,
+      "resolvedChapters": 20,
+      "playableChapters": 20,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "a6b14c52-001d-48bb-8e94-97e829eb4081",
+      "title": "Forgiveness (Russell)",
+      "sourceId": null,
+      "expectedChapters": 19,
+      "resolvedChapters": 19,
+      "playableChapters": 19,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "a72955c4-68e1-42f3-9f0e-4a2a96bfc040",
+      "title": "Essay on Criticism",
+      "sourceId": null,
+      "expectedChapters": 1,
+      "resolvedChapters": 1,
+      "playableChapters": 1,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "7d35d948-585a-49b8-ab89-f596e517bc95",
+      "title": "Favole di Jean de La Fontaine, libro 06",
+      "sourceId": null,
+      "expectedChapters": 63,
+      "resolvedChapters": 40,
+      "playableChapters": 40,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "ff21518e-1af6-4b56-a775-62da8bc7f547",
+      "title": "Short Poetry Collection 080",
+      "sourceId": null,
+      "expectedChapters": 31,
+      "resolvedChapters": 31,
+      "playableChapters": 31,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "c40f818a-7835-463b-8f99-9c12c7ed6765",
+      "title": "Pippa Passes",
+      "sourceId": null,
+      "expectedChapters": 6,
+      "resolvedChapters": 6,
+      "playableChapters": 6,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "c68afb6e-eae1-42cf-ace8-0c437b7676f2",
+      "title": "Great Panjandrum Himself",
+      "sourceId": null,
+      "expectedChapters": 10,
+      "resolvedChapters": 10,
+      "playableChapters": 10,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "ee384627-09b0-49ab-b549-8a7bb04223bf",
+      "title": "My True Love",
+      "sourceId": null,
+      "expectedChapters": 13,
+      "resolvedChapters": 13,
+      "playableChapters": 13,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "36c6069c-450f-4733-8ec2-7ff85bb65a6a",
+      "title": "Give All To Love",
+      "sourceId": null,
+      "expectedChapters": 9,
+      "resolvedChapters": 9,
+      "playableChapters": 9,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "59ac8f10-f308-40e0-ab45-080c0042a711",
+      "title": "Ode (Bards Of Passion And Of Mirth)",
+      "sourceId": null,
+      "expectedChapters": 14,
+      "resolvedChapters": 14,
+      "playableChapters": 14,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "bd3942b9-3564-4d87-8b06-0e6e5aa59d7f",
+      "title": "Aventuras de Masín (Tom) Sawyer",
+      "sourceId": null,
+      "expectedChapters": 144,
+      "resolvedChapters": 40,
+      "playableChapters": 40,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "3bf56d2b-1acd-4107-aa0b-972639407192",
+      "title": "Compilation de poèmes - 001",
+      "sourceId": null,
+      "expectedChapters": 25,
+      "resolvedChapters": 40,
+      "playableChapters": 40,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "0749bd30-b8a3-41b8-b8f3-005c54a5b963",
+      "title": "Favole di Jean de La Fontaine, libro 03",
+      "sourceId": null,
+      "expectedChapters": 54,
+      "resolvedChapters": 40,
+      "playableChapters": 40,
+      "rejected": 0,
+      "reason": null
+    },
+    {
+      "bookId": "6e837692-d5f2-48f2-ae5c-e8a59739cbe7",
+      "title": "Twenty Years After",
+      "sourceId": null,
+      "expectedChapters": 270,
+      "resolvedChapters": 40,
+      "playableChapters": 40,
+      "rejected": 0,
+      "reason": null
+    }
+  ]
+}

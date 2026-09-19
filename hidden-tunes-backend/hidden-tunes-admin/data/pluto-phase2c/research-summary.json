@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-08-09T06:54:25.195Z",
+  "selected": 50,
+  "broadcasterOwnershipEstablished": 50,
+  "languagesIdentified": 50,
+  "regionsIdentified": 50,
+  "decisions": {
+    "ACCOUNT_REQUIRED": 5,
+    "IDENTITY_UNCERTAIN": 3,
+    "DIRECT_CANDIDATE": 18,
+    "NO_SOURCE_FOUND": 7,
+    "PUBLIC_SESSION_CANDIDATE": 17
+  },
+  "families": {
+    "UNVERIFIED_AGGREGATOR": 39,
+    "DIRECT_OFFICIAL": 32,
+    "LEGITIMATE_FAST": 6,
+    "PUBLIC_SESSION": 19
+  }
+}

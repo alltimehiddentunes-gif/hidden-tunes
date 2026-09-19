@@ -10,7 +10,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "../constants/theme";
@@ -136,6 +136,10 @@ export default function PlaybackDiagnosticsScreen() {
       ]
     );
   }, [refreshLogs]);
+
+  if (typeof __DEV__ === "undefined" || !__DEV__) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>

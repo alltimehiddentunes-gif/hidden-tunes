@@ -1,0 +1,25 @@
+{
+  "completedAt": "2026-08-14T03:37:28.911Z",
+  "scope": "Batch 5 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Azteca Internacional candidate 0f984ed0-a2fc-4e09-ae2b-9fb978b0efb7 uses an Azteca-named Ottera distribution host and passed 124.22 seconds of 1920x1080 playback in the existing Desktop player with one video owner and no fatal HLS errors.",
+    "Sampled frames showed sustained Spanish-language dramatic content but no visible Azteca logo, programme title, presenter, lower-third, or other exact/high identity marker. It remains quarantined.",
+    "Pluto TV Star Trek, Comedia Made in Spain, and Pluto TV Film use jmp2.uk; Nick Jr Club uses i.mjh.nz and already has failed playback state. They were rejected before full validation.",
+    "No production records, search state, cache, or public flags were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 15,
+  "cumulativeTerminalAliases": 82,
+  "batch5Target": 25,
+  "batch5Researched": 25,
+  "batch5Remaining": 0
+}

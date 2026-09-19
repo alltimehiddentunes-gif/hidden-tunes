@@ -1,0 +1,15 @@
+{
+  "candidateId": "8c246ff7-7af8-43c1-8d56-425f0da3c718",
+  "streamHost": "cdn.fast.jwp.services",
+  "pass": false,
+  "metrics": {
+    "readyState": 1,
+    "width": 1280,
+    "height": 720,
+    "paused": false,
+    "currentTime": 143.0005,
+    "advancedSeconds": 118.996501,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

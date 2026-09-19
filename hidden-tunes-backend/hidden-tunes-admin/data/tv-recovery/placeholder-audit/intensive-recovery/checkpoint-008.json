@@ -1,0 +1,297 @@
+{
+  "batch": 8,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH",
+  "startedAt": "2026-08-11T11:06:04.024Z",
+  "completedAt": "2026-08-11T11:11:25.197Z",
+  "processedIdentities": 20,
+  "queueRowsClassified": 20,
+  "healthyCandidates": 13,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 13,
+  "stillUnresolved": 7,
+  "remainingQueue": 2826,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "5c12ba66eae03059cbdc77f2",
+      "requestedTitles": [
+        "Cars"
+      ],
+      "normalizedIdentity": [
+        "cars"
+      ],
+      "candidateRecordId": "65aa04dc-1c7b-4271-a54d-cabcc869161a",
+      "candidateTitle": "Cars",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66c45c274f25dd00092739ee",
+      "requestedTitles": [
+        "CNN Headlines"
+      ],
+      "normalizedIdentity": [
+        "cnn headlines"
+      ],
+      "candidateRecordId": "409fc469-0560-4333-be63-4a588c9c9cb8",
+      "candidateTitle": "CNN Headlines",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "620bfa7df72827000703ddb1",
+      "requestedTitles": [
+        "Stargate"
+      ],
+      "normalizedIdentity": [
+        "stargate"
+      ],
+      "candidateRecordId": "6c0a09a0-0cf0-44e1-bd89-56a71ef18168",
+      "candidateTitle": "Stargate",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6000a5a9e767980007b497ca",
+      "requestedTitles": [
+        "A&E Crime 360"
+      ],
+      "normalizedIdentity": [
+        "a and e crime 360"
+      ],
+      "candidateRecordId": "4dd59763-d95b-4a42-ac52-b26e09b1328b",
+      "candidateTitle": "A&E Crime 360",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "638e0f4832494900074481e7",
+      "requestedTitles": [
+        "Confess by Nosey"
+      ],
+      "normalizedIdentity": [
+        "confess by nosey"
+      ],
+      "candidateRecordId": "549b1c55-6d14-458d-9102-8e0d48d8ed1f",
+      "candidateTitle": "Confess by Nosey",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5ad8d54be738977e2c310940",
+      "requestedTitles": [
+        "Pluto TV Kids"
+      ],
+      "normalizedIdentity": [
+        "kids"
+      ],
+      "candidateRecordId": "4a41893c-8a41-4648-a7b8-6f4462ba067f",
+      "candidateTitle": "Pluto TV Kids",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5d486acc34ceb37d3c458a64",
+      "requestedTitles": [
+        "The First"
+      ],
+      "normalizedIdentity": [
+        "the first"
+      ],
+      "candidateRecordId": "074e9cc7-fa9d-42a6-abf9-5f796facae7e",
+      "candidateTitle": "The First (1080p)",
+      "sourceHost": "d35j504z0x2vu2.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "65254e8d81f9420008342cee",
+      "requestedTitles": [
+        "La fiebre del Jade"
+      ],
+      "normalizedIdentity": [
+        "la fiebre del jade"
+      ],
+      "candidateRecordId": "64e5c8f4-c481-4ce2-b737-6fbce1b3613e",
+      "candidateTitle": "La Fiebre del Jade",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "69699ae5d301d54fb3dc1499",
+      "requestedTitles": [
+        "GrowthDay Network"
+      ],
+      "normalizedIdentity": [
+        "growthday network"
+      ],
+      "candidateRecordId": "3c88aaae-7f21-4d91-b3ca-800ed6cbfa10",
+      "candidateTitle": "GrowthDay Network",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "60f760bbdf090700075d7bfe",
+      "requestedTitles": [
+        "Best of Dr. Phil"
+      ],
+      "normalizedIdentity": [
+        "best of dr phil"
+      ],
+      "candidateRecordId": "74832df2-16bc-4a51-9cf8-2b60ef5f5808",
+      "candidateTitle": "Best of Dr. Phil",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65ea8b928145cb0008509426",
+      "requestedTitles": [
+        "UEFA Champions League"
+      ],
+      "normalizedIdentity": [
+        "uefa champions league"
+      ],
+      "candidateRecordId": "590ebcae-fae3-47cb-9f5a-34fb5b2ad5e6",
+      "candidateTitle": "UEFA Champions League",
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6267352efcf21c0007c76642",
+      "requestedTitles": [
+        "Let's Make A Deal"
+      ],
+      "normalizedIdentity": [
+        "let s make a deal"
+      ],
+      "candidateRecordId": "a4dba0ea-c1c0-42b3-9262-f4dcd1dffd24",
+      "candidateTitle": "Let's Make a Deal",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "693bf37b75432d022c85ef01",
+      "requestedTitles": [
+        "Stargate"
+      ],
+      "normalizedIdentity": [
+        "stargate"
+      ],
+      "candidateRecordId": "6c0a09a0-0cf0-44e1-bd89-56a71ef18168",
+      "candidateTitle": "Stargate",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6568a78d635c3c0008765f41",
+      "requestedTitles": [
+        "That's Rock"
+      ],
+      "normalizedIdentity": [
+        "that s rock"
+      ],
+      "candidateRecordId": "53a581d9-7094-4587-a1d3-37c2a3ffbe72",
+      "candidateTitle": "that's Rock",
+      "sourceHost": "s7host5.localnow.api.cms.amdvids.com",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "66e0b4536ad04d0008fff4b2",
+      "requestedTitles": [
+        "CNN Originals"
+      ],
+      "normalizedIdentity": [
+        "cnn originals"
+      ],
+      "candidateRecordId": "ef60dbd3-a3f2-40ba-af2c-da77d21c8c26",
+      "candidateTitle": "CNN Originals",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "67c63b90a20c0399a381b816",
+      "requestedTitles": [
+        "Inuyasha"
+      ],
+      "normalizedIdentity": [
+        "inuyasha"
+      ],
+      "candidateRecordId": "958d5d47-8d23-4121-988e-287b151fb23a",
+      "candidateTitle": "Inuyasha",
+      "sourceHost": "d3f4oii5n0oeqi.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "66d9ab4bf0f17500084e9b7e",
+      "requestedTitles": [
+        "Pluto TV True Crime"
+      ],
+      "normalizedIdentity": [
+        "true crime"
+      ],
+      "candidateRecordId": "ec870763-b855-4ce8-b238-ce6ba3c20e77",
+      "candidateTitle": "True Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69445a9a78c0c45b6c9aa8b9",
+      "requestedTitles": [
+        "TikTok Radio"
+      ],
+      "normalizedIdentity": [
+        "tiktok radio"
+      ],
+      "candidateRecordId": "3ce6b1a0-6efb-4d8a-8657-99c3ed1ae230",
+      "candidateTitle": "TikTok Radio",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62e91384210bec0007ba714c",
+      "requestedTitles": [
+        "The Dick Van Dyke Show"
+      ],
+      "normalizedIdentity": [
+        "the dick van dyke show"
+      ],
+      "candidateRecordId": "bcb71386-739b-45a1-9e3a-6c4a046cfbc7",
+      "candidateTitle": "The Dick Van Dyke Show",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "662a271c06839f0008ccf733",
+      "requestedTitles": [
+        "River Monsters"
+      ],
+      "normalizedIdentity": [
+        "river monsters"
+      ],
+      "candidateRecordId": "7c974607-a918-4bf5-b81e-fbf7e846a1ad",
+      "candidateTitle": "River Monsters",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "name": "hidden-tunes-app",
   "main": "index.js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "start": "node --max-old-space-size=4096 ./node_modules/expo/bin/cli start --max-workers 1",
     "start:clear": "node --max-old-space-size=4096 ./node_modules/expo/bin/cli start --clear --max-workers 1",

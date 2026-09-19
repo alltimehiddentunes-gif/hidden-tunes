@@ -1,0 +1,15 @@
+{
+  "candidateId": "eadba0c0-5e60-4f3e-9f97-ddaa0391bb01",
+  "streamHost": "gipsy-kings-rakuten-tv-es.fast.rakuten.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 141.413397,
+    "advancedSeconds": 123.343763,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

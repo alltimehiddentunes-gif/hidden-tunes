@@ -1,0 +1,22 @@
+{
+  "completedAt": "2026-08-13T18:12:00.000Z",
+  "scope": "provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 1,
+  "decoded": 0,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Naruto has VIZ-authoritative 24/7 FAST distribution evidence, but the CloudFront candidate remained blank with readyState 0 after 210 seconds in the D-only Desktop verifier.",
+    "Rookie Blue uses an Amagi Rakuten US playout host and has Rakuten lineup evidence, but direct rights-holder-to-stream provenance was not strong enough for full validation.",
+    "On The Case uses i.mjh.nz and Relic Hunter uses jmp2.uk; both were rejected before media validation.",
+    "JoJo's Bizarre Adventure uses CloudFront, but no authoritative FAST-channel provenance was established in this run.",
+    "Only verifier processes launched by the timed-out Naruto run were stopped."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 13,
+  "cumulativeTerminalAliases": 80
+}

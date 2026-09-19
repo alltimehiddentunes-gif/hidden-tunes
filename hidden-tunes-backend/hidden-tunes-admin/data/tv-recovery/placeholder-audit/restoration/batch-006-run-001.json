@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T04:07:30.251Z",
+  "scope": "Batch 6 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "QVC2 candidate 3f7fce59-9b85-402e-934e-d4a3b4d72b77 uses QVC's official qvc2us Akamai live path and passed 124.32 seconds of 1280x720 playback with one video owner and no fatal HLS errors.",
+    "All sampled frames showed sustained QVC-branded live shopping graphics and programming. The official QVC2 stream path establishes the QVC2 service identity; normal search and production resolver passed.",
+    "The quarantined alias remains hidden and is terminal VERIFIED_DUPLICATE_MERGED locally. Degrassi and Midsomer Murders use jmp2.uk; Estrella News and The Pet Collective remain available for later exact-identity validation.",
+    "No production write or duplicate was needed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 16,
+  "cumulativeTerminalAliases": 84,
+  "batch6Target": 25,
+  "batch6Researched": 5,
+  "batch6Remaining": 20
+}

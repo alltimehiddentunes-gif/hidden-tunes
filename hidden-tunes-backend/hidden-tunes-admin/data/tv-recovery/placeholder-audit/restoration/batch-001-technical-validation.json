@@ -1,0 +1,397 @@
+{
+  "batch": 1,
+  "completedAt": "2026-08-12T09:10:25.637Z",
+  "productionWrites": 0,
+  "candidates": 10,
+  "networkPass": 1,
+  "continuityPass": 1,
+  "placeholderDetected": 1,
+  "identityReviewPending": 10,
+  "results": [
+    {
+      "recordId": "1654f65c-ad01-40b6-8f36-79198ea2fdc1",
+      "canonicalChannelName": "FOX LOCAL Los Angeles",
+      "candidateRecordId": "47c51bbf-2e10-429e-a76f-f5b70c99724f",
+      "candidateTitle": "FOX LOCAL Los Angeles",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "protocol": "HLS",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 120,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\01-1654f65c-ad01-40b6-8f36-79198ea2fdc1-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\01-1654f65c-ad01-40b6-8f36-79198ea2fdc1-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\01-1654f65c-ad01-40b6-8f36-79198ea2fdc1-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    },
+    {
+      "recordId": "3c669350-33de-4e09-9c4f-d05e2dd42d1c",
+      "canonicalChannelName": "BBC Food",
+      "candidateRecordId": "c46acb0f-7ee1-432f-9ed2-3147e57d47d4",
+      "candidateTitle": "BBC Food",
+      "sourceHost": "jmp2.uk",
+      "protocol": "OTHER",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 120,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\02-3c669350-33de-4e09-9c4f-d05e2dd42d1c-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\02-3c669350-33de-4e09-9c4f-d05e2dd42d1c-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\02-3c669350-33de-4e09-9c4f-d05e2dd42d1c-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    },
+    {
+      "recordId": "3d0c57ad-2990-409f-b81d-151092b004a7",
+      "canonicalChannelName": "Naruto",
+      "candidateRecordId": "96f89937-cfa4-4a04-bae7-9a34b2f73abc",
+      "candidateTitle": "Naruto",
+      "sourceHost": "jmp2.uk",
+      "protocol": "OTHER",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 120,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\03-3d0c57ad-2990-409f-b81d-151092b004a7-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\03-3d0c57ad-2990-409f-b81d-151092b004a7-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\03-3d0c57ad-2990-409f-b81d-151092b004a7-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    },
+    {
+      "recordId": "3f86495c-9291-4380-ad4a-46fa37868fc7",
+      "canonicalChannelName": "America's Next Top Model",
+      "candidateRecordId": "ff2de500-ddda-47f7-af37-6ce2911a8800",
+      "candidateTitle": "America's Next Top Model",
+      "sourceHost": "i.mjh.nz",
+      "protocol": "HLS",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 35,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\04-3f86495c-9291-4380-ad4a-46fa37868fc7-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\04-3f86495c-9291-4380-ad4a-46fa37868fc7-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\04-3f86495c-9291-4380-ad4a-46fa37868fc7-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    },
+    {
+      "recordId": "50d95ab9-0a13-4897-9805-4da24fa09cdb",
+      "canonicalChannelName": "Bondi Rescue",
+      "candidateRecordId": "9d2a11e0-9dc6-41a6-97c7-6db7e58990fb",
+      "candidateTitle": "Bondi Rescue",
+      "sourceHost": "i.mjh.nz",
+      "protocol": "HLS",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 35,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\05-50d95ab9-0a13-4897-9805-4da24fa09cdb-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\05-50d95ab9-0a13-4897-9805-4da24fa09cdb-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\05-50d95ab9-0a13-4897-9805-4da24fa09cdb-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    },
+    {
+      "recordId": "514c5df8-ab62-4995-a4c4-733169b80580",
+      "canonicalChannelName": "Pluto TV Film",
+      "candidateRecordId": "16a5b46c-751a-4a7c-9ea3-ec58fb2f32d4",
+      "candidateTitle": "Pluto TV Film",
+      "sourceHost": "jmp2.uk",
+      "protocol": "OTHER",
+      "networkPass": true,
+      "framesDecoded": 3,
+      "continuityTargetSeconds": 35,
+      "continuityPass": true,
+      "placeholderDetected": true,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\06-514c5df8-ab62-4995-a4c4-733169b80580-5s.jpg",
+          "dHash": "00c9283038383800",
+          "knownBad": {
+            "blocked": false,
+            "reason": null,
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 18
+          }
+        },
+        {
+          "second": 25,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\06-514c5df8-ab62-4995-a4c4-733169b80580-25s.jpg",
+          "dHash": "0000000c0c080000",
+          "knownBad": {
+            "blocked": true,
+            "reason": "known_bad_content:pluto_non_channel_placeholder",
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 2
+          }
+        },
+        {
+          "second": 55,
+          "decoded": true,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\06-514c5df8-ab62-4995-a4c4-733169b80580-55s.jpg",
+          "dHash": "0000000c0c080000",
+          "knownBad": {
+            "blocked": true,
+            "reason": "known_bad_content:pluto_non_channel_placeholder",
+            "signatureVersion": "pluto-placeholder-v2",
+            "distance": 2
+          }
+        }
+      ]
+    },
+    {
+      "recordId": "7fab392b-2321-42bb-bb91-676a2206b766",
+      "canonicalChannelName": "Mystery TV",
+      "candidateRecordId": "2a2750a8-ca98-400a-bd23-7074cbbf64ce",
+      "candidateTitle": "Mystery TV",
+      "sourceHost": "aenetworks-mysterytv-rakuten.amagi.tv",
+      "protocol": "HLS",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 35,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\07-7fab392b-2321-42bb-bb91-676a2206b766-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\07-7fab392b-2321-42bb-bb91-676a2206b766-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\07-7fab392b-2321-42bb-bb91-676a2206b766-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    },
+    {
+      "recordId": "c1ce79a0-3c5e-498c-9483-1d3dfc414cf8",
+      "canonicalChannelName": "Nash Bridges",
+      "candidateRecordId": "f782a563-2eb6-4192-83a3-cc629b2eb8c9",
+      "candidateTitle": "Nash Bridges",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "protocol": "HLS",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 35,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\08-c1ce79a0-3c5e-498c-9483-1d3dfc414cf8-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\08-c1ce79a0-3c5e-498c-9483-1d3dfc414cf8-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\08-c1ce79a0-3c5e-498c-9483-1d3dfc414cf8-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    },
+    {
+      "recordId": "d57c7520-44ee-44c9-8d71-c67198eb7c8e",
+      "canonicalChannelName": "Hercules: The Legendary Journeys",
+      "candidateRecordId": "bb8d8d88-48e9-471f-b942-d7c2dfc8c42f",
+      "candidateTitle": "Hercules: The Legendary Journeys",
+      "sourceHost": "d39g1vxj2ef6in.cloudfront.net",
+      "protocol": "HLS",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 35,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\09-d57c7520-44ee-44c9-8d71-c67198eb7c8e-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\09-d57c7520-44ee-44c9-8d71-c67198eb7c8e-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\09-d57c7520-44ee-44c9-8d71-c67198eb7c8e-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    },
+    {
+      "recordId": "de413c4b-86fe-496a-84db-949ea50ac0e3",
+      "canonicalChannelName": "News12 New York",
+      "candidateRecordId": "6aa96962-41b1-4320-9990-3d31db2c82fb",
+      "candidateTitle": "News12+ New York",
+      "sourceHost": "mdc.ott.alticeusa.net",
+      "protocol": "HLS",
+      "networkPass": false,
+      "framesDecoded": 0,
+      "continuityTargetSeconds": 35,
+      "continuityPass": false,
+      "placeholderDetected": false,
+      "identityConfidence": "PENDING_VISUAL_REVIEW",
+      "frameResults": [
+        {
+          "second": 5,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\10-de413c4b-86fe-496a-84db-949ea50ac0e3-5s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 25,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\10-de413c4b-86fe-496a-84db-949ea50ac0e3-25s.jpg",
+          "dHash": null,
+          "knownBad": null
+        },
+        {
+          "second": 55,
+          "decoded": false,
+          "path": "D:\\HiddenTunes\\Active\\HiddenTunes-Desktop\\hidden-tunes-backend\\hidden-tunes-admin\\data\\tv-recovery\\placeholder-audit\\restoration\\batch-001-evidence\\10-de413c4b-86fe-496a-84db-949ea50ac0e3-55s.jpg",
+          "dHash": null,
+          "knownBad": null
+        }
+      ]
+    }
+  ]
+}

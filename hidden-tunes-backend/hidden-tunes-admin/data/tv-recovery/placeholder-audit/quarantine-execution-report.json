@@ -1,0 +1,17 @@
+{
+  "completedAt": "2026-08-10T20:51:43.754Z",
+  "auditedIds": 3336,
+  "successfullyQuarantined": 3336,
+  "previouslyPublicAffected": 3325,
+  "publicPlaceholderRemaining": 0,
+  "falsePlayableRemoved": 3325,
+  "falseHealthyRemoved": 3325,
+  "canonicalChannelsDeleted": 0,
+  "nonPlutoAffected": 0,
+  "knownLegitimateJmp2StreamsPreserved": 2140,
+  "remainingPublicTvChannels": 12975,
+  "remainingPublicPluto": 2140,
+  "recoveryQueue": 3336,
+  "knownBadContentSignaturesBlocked": "4/4",
+  "productionVerification": "PASS"
+}

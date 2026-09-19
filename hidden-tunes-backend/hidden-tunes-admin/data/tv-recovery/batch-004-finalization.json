@@ -1,0 +1,96 @@
+{
+  "createdAt": "2026-08-09T22:36:38.809Z",
+  "productionWrites": 0,
+  "rawPlaybackUrlsEmitted": 0,
+  "results": [
+    {
+      "providerChannelIds": [
+        "6915de3d74601d957afa4592"
+      ],
+      "existingCatalogRecordId": "48926810-75cb-4671-a5d8-6ebbd96333bd",
+      "sourceHost": "amg00654-itv-amg00654c35-rakuten-gb-7598.playouts.now.amagi.tv",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "6964b77dff4f2148e520fa9b"
+      ],
+      "existingCatalogRecordId": "7fca1f68-88fb-40f6-a7e2-6fed46da940c",
+      "sourceHost": "live-content.xumo.com",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "62bdae69a47b6c00076af298"
+      ],
+      "existingCatalogRecordId": "90a5693a-6c00-4464-a06d-0d3aef504c8d",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "5ebac49ce4dc8b00078b23bc"
+      ],
+      "existingCatalogRecordId": "8c246ff7-7af8-43c1-8d56-425f0da3c718",
+      "sourceHost": "cdn.fast.jwp.services",
+      "sourceType": "hls_stream",
+      "provider": "broadcaster_public_api",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    },
+    {
+      "providerChannelIds": [
+        "6540fee72cf13100085d5a18"
+      ],
+      "existingCatalogRecordId": "736ccc24-d1e3-4699-b8e0-a22d5982fa0d",
+      "sourceHost": "aegis-cloudfront-1.tubi.video",
+      "sourceType": "hls_stream",
+      "provider": "official_fast",
+      "confidence": "EXACT",
+      "continuitySeconds": 35,
+      "videoAudioPassed": true,
+      "rawUrlPersisted": false
+    }
+  ],
+  "rejected": [
+    [
+      "5f1212ad1728050007a523b8",
+      "Unauthorized Cinerama source."
+    ],
+    [
+      "6014761dfb91870008ea6463",
+      "Opaque rebroadcast source; provenance insufficient for Pluto TV Turbo."
+    ],
+    [
+      "65a93b870c7ff50008d1ca47",
+      "Opaque relay showing a local Sky9 police chase feed; unacceptable provenance."
+    ]
+  ],
+  "unresolved": [
+    [
+      "62e92967cd663f0007e604fd",
+      "Legitimate Tubi distribution but station slate only; actual programming not verified."
+    ],
+    [
+      "672e1634e482950008c759a5",
+      "Aggregator-only source; content appears consistent but provenance is ineligible."
+    ]
+  ]
+}

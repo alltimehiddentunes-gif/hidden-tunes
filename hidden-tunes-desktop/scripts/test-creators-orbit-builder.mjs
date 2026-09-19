@@ -43,7 +43,7 @@ function normalizeSong(track, artist) {
   }
 }
 
-const base = 'https://hidden-tunes-api.onrender.com'
+const base = process.env.HT_API_BASE || 'https://api.hiddentunes.com'
 const artistsJson = await (
   await fetch(`${base}/api/artists?page=1&limit=40`, {
     headers: { Accept: 'application/json', 'x-ht-platform': 'desktop' },

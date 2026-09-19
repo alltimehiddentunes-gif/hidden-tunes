@@ -1,0 +1,24 @@
+{
+  "completedAt": "2026-08-13T22:06:27.828Z",
+  "scope": "Batch 3 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "identityUnresolved": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Vidas Extremas candidate 98b775cb-cf40-4603-9652-3a78eb8f4602 has authoritative Local Now/WBD provenance and passed the production resolver plus 118.61 seconds of 1920x1080 playback in the existing Desktop player with one video owner.",
+    "Four sampled frames showed continuous moving extreme-lifestyle/travel programming, but no stable Vidas Extremas channel bug or uniquely identifying programme metadata was visible. Exact/high channel identity therefore remains unresolved and the quarantined record was not restored.",
+    "No production records, public flags, URLs, search indexes, or caches were changed."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 13,
+  "cumulativeTerminalAliases": 80,
+  "batch3Target": 25,
+  "batch3Researched": 20,
+  "batch3Remaining": 5
+}

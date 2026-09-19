@@ -1,0 +1,15 @@
+{
+  "candidateId": "7c63bf39-9710-432d-9dd1-661af4ecd27c",
+  "streamHost": "amg00793-amg00793c6-xumo-us-2669.playouts.now.amagi.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 162.852224,
+    "advancedSeconds": 124.427908,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

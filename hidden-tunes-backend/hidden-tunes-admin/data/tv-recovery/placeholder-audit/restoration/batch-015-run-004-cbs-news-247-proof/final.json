@@ -1,0 +1,14 @@
+{
+  "completedAt": "2026-08-15T04:47:18.254Z",
+  "identity": "CBS News 24/7",
+  "candidateRecordId": "a835f417-5c4f-4395-9de3-342420c488cb",
+  "aliasesTerminal": 17,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.24,
+  "resolution": "1280x720",
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}

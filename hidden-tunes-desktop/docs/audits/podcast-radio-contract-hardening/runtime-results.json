@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-07-29T13:45:12.593Z",
+  "startedAt": "2026-08-07T11:54:38.653Z",
   "checks": [
     {
       "check": "shell-ready",
@@ -29,17 +29,57 @@
     {
       "check": "podcast-search-jazz",
       "ok": true,
-      "detail": "{\"cards\":3,\"err\":\"\",\"input\":\"jazz\"}"
+      "detail": "{\"cards\":0,\"err\":\"\",\"input\":\"jazz\"}"
     },
     {
       "check": "podcast-show-detail",
       "ok": true,
-      "detail": "{\"episodes\":161,\"err\":\"\"}"
+      "detail": "{\"episodes\":162,\"err\":\"\"}"
     },
     {
       "check": "podcast-play-attempt",
       "ok": true,
       "detail": "{\"bar\":true,\"title\":\"\"}"
+    },
+    {
+      "check": "podcast-playing",
+      "ok": true,
+      "detail": "{\"active\":true,\"paused\":false,\"time\":0.746114,\"rate\":1,\"playerText\":\"EP. 503: The Discomfort Threshold | Cody D'AcquistoTruth From The Stand Deer Hunting Podcast0:0099:02AutoData SaverStandardHigh Quality\"}"
+    },
+    {
+      "check": "podcast-pause",
+      "ok": true,
+      "detail": "paused=true"
+    },
+    {
+      "check": "podcast-resume",
+      "ok": true,
+      "detail": "paused=false"
+    },
+    {
+      "check": "podcast-seek",
+      "ok": true,
+      "detail": "max=5942 time=1180.039064"
+    },
+    {
+      "check": "podcast-full-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "podcast-speed",
+      "ok": true,
+      "detail": "rate=1.5"
+    },
+    {
+      "check": "podcast-manual-next",
+      "ok": true,
+      "detail": "EP. 502: What Ten Years Of Deer Hunting Mistakes Taught Me"
+    },
+    {
+      "check": "podcast-previous",
+      "ok": true,
+      "detail": ""
     },
     {
       "check": "nav-radio",
@@ -49,7 +89,7 @@
     {
       "check": "radio-page-renders",
       "ok": true,
-      "detail": "{\"cards\":32,\"err\":\"\",\"hasPage\":true,\"loading\":false,\"activeNav\":[\"\",\"Radio\"]}"
+      "detail": "{\"cards\":32,\"err\":\"\",\"hasPage\":true,\"loading\":false,\"activeNav\":[\"\",\"Personal Radio\"]}"
     },
     {
       "check": "radio-has-stations",
@@ -62,6 +102,11 @@
       "detail": "{\"cards\":32,\"names\":[\"Bossa Jazz Brasil\",\"101 SMOOTH JAZZ MELLOW MIX\",\"The Jazz Groove - East\",\"Jazz Radio Only Women\",\"FIP Jazz\"],\"matureVisible\":false,\"input\":\"jazz\"}"
     },
     {
+      "check": "radio-aac-play-attempt",
+      "ok": true,
+      "detail": "{\"playerText\":\"FJFIP JazzFrance · AAC · 192kbps · aac · jazzLIVEOn airLIVE\",\"activePlayer\":true,\"playLabel\":\"Pause\",\"audioPlaying\":true,\"err\":\"\"}"
+    },
+    {
       "check": "radio-mature-excluded-from-search",
       "ok": true,
       "detail": "{\"cards\":0,\"names\":[]}"
@@ -69,11 +114,76 @@
     {
       "check": "radio-play-attempt",
       "ok": true,
-      "detail": "{\"title\":\"\",\"audioPlaying\":true,\"err\":\"\"}"
+      "detail": "{\"title\":\"\",\"playerText\":\"BWBBC World ServiceThe United Kingdom Of Great Britain And Northern Ireland · MP3 · 56kbps · newsLIVEOn airLIVE\",\"activePlayer\":true,\"tunedHint\":true,\"playLabel\":\"Pause\",\"audioPlaying\":true,\"err\":\"\"}"
+    },
+    {
+      "check": "nav-audiobooks",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audiobook-catalog",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audiobook-details",
+      "ok": false,
+      "detail": "{\"openedBook\":{\"clicked\":true,\"label\":\"Faerie Queene Book 4Edmund Spenser · 13 chapters · 5h 18m\"},\"audiobookDetailState\":{\"page\":true,\"chapters\":0,\"error\":\"\"}}"
+    },
+    {
+      "check": "audiobook-chapter-start",
+      "ok": false,
+      "detail": "{\"active\":true,\"paused\":false,\"title\":\"BWBBC World ServiceThe United Kingdom Of Great Britain And Northern Ireland · MP3 · 56kbps · newsLIVEOn airLIVE\"}"
+    },
+    {
+      "check": "audiobook-pause",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audiobook-resume",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audiobook-seek",
+      "ok": false,
+      "detail": "time=69.933854"
+    },
+    {
+      "check": "audiobook-full-player",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audiobook-speed",
+      "ok": false,
+      "detail": "rate=1"
+    },
+    {
+      "check": "audiobook-next-chapter",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audiobook-previous-chapter",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "audiobook-progress-resume",
+      "ok": false,
+      "detail": "time=0.51974"
+    },
+    {
+      "check": "audiobook-auto-next",
+      "ok": true,
+      "detail": "BBC World Service -> BBC Somali"
     },
     {
       "check": "nav-music",
-      "ok": true,
+      "ok": false,
       "detail": ""
     },
     {
@@ -97,7 +207,32 @@
       "detail": ""
     }
   ],
-  "failures": [],
+  "failures": [
+    {
+      "check": "audiobook-details",
+      "detail": "{\"openedBook\":{\"clicked\":true,\"label\":\"Faerie Queene Book 4Edmund Spenser · 13 chapters · 5h 18m\"},\"audiobookDetailState\":{\"page\":true,\"chapters\":0,\"error\":\"\"}}"
+    },
+    {
+      "check": "audiobook-chapter-start",
+      "detail": "{\"active\":true,\"paused\":false,\"title\":\"BWBBC World ServiceThe United Kingdom Of Great Britain And Northern Ireland · MP3 · 56kbps · newsLIVEOn airLIVE\"}"
+    },
+    {
+      "check": "audiobook-seek",
+      "detail": "time=69.933854"
+    },
+    {
+      "check": "audiobook-speed",
+      "detail": "rate=1"
+    },
+    {
+      "check": "audiobook-progress-resume",
+      "detail": "time=0.51974"
+    },
+    {
+      "check": "nav-music",
+      "detail": ""
+    }
+  ],
   "screenshots": [
     "podcasts-home.png",
     "podcast-show-detail.png",
@@ -109,42 +244,56 @@
     "/api/podcasts/featured?page=1&limit=12",
     "/api/podcasts/shows?page=1&limit=12",
     "/api/podcasts/shows?page=1&limit=24&q=jazz",
-    "/api/podcasts/shows/57a734a1-802b-4a01-a21a-e539ed9fe7e3",
-    "/api/podcasts/shows/57a734a1-802b-4a01-a21a-e539ed9fe7e3",
-    "/api/podcasts/episodes?page=1&limit=20&show_id=57a734a1-802b-4a01-a21a-e539ed9fe7e3",
-    "/api/podcasts/episodes/f0f4795b-0788-4fa7-aa36-2f1681cd80ab/play",
+    "/api/podcasts/shows/a2c28971-1e86-41e1-9bc6-745a7e7d4b84",
+    "/api/podcasts/episodes?page=1&limit=20&show_id=a2c28971-1e86-41e1-9bc6-745a7e7d4b84",
+    "/api/podcasts/episodes/16f9d625-a727-47cc-a513-8ccc2dc9bf19/play",
+    "/api/podcasts/episodes/ddd9dcf7-690a-4d4c-929f-659904805b87/play",
     "/api/radio/categories",
     "/api/radio/countries",
     "/api/radio/stations?page=1&limit=12&featured=true",
     "/api/radio/stations?page=1&limit=32",
     "/api/radio/stations?page=1&limit=32&q=jazz",
+    "/api/radio/stations/6a1df830-ee26-49aa-a94d-a0825547be77/play",
     "/api/radio/stations?page=1&limit=32&q=Sex+Sound+Radio",
     "/api/radio/stations?page=1&limit=32&q=bbc",
     "/api/radio/stations/7453505a-e1cb-4612-9135-eedfa898e05a/play",
+    "/api/radio/stations?page=1&limit=32",
+    "/api/audiobooks/categories",
+    "/api/audiobooks?page=1&limit=12",
+    "/api/audiobooks?page=1&limit=40",
+    "/api/audiobooks/fe0dd05b-caf5-4214-8910-34456c182e41",
+    "/api/radio/stations/bc0ce1f6-6f6d-4b9c-b531-aeec67b127c0/play",
     "/api/radio/categories",
     "/api/radio/countries",
     "/api/radio/stations?page=1&limit=12&featured=true",
-    "/api/radio/stations?page=1&limit=32&q=bbc",
+    "/api/radio/stations?page=1&limit=32",
     "/api/podcasts/categories",
     "/api/podcasts/featured?page=1&limit=12",
     "/api/podcasts/shows?page=1&limit=12"
   ],
-  "endedAt": "2026-07-29T13:46:06.213Z",
+  "endedAt": "2026-08-07T11:56:50.360Z",
   "uniqueCatalogPaths": [
     "/api/podcasts/categories",
     "/api/podcasts/featured?page=1&limit=12",
     "/api/podcasts/shows?page=1&limit=12",
     "/api/podcasts/shows?page=1&limit=24&q=jazz",
-    "/api/podcasts/shows/57a734a1-802b-4a01-a21a-e539ed9fe7e3",
-    "/api/podcasts/episodes?page=1&limit=20&show_id=57a734a1-802b-4a01-a21a-e539ed9fe7e3",
-    "/api/podcasts/episodes/f0f4795b-0788-4fa7-aa36-2f1681cd80ab/play",
+    "/api/podcasts/shows/a2c28971-1e86-41e1-9bc6-745a7e7d4b84",
+    "/api/podcasts/episodes?page=1&limit=20&show_id=a2c28971-1e86-41e1-9bc6-745a7e7d4b84",
+    "/api/podcasts/episodes/16f9d625-a727-47cc-a513-8ccc2dc9bf19/play",
+    "/api/podcasts/episodes/ddd9dcf7-690a-4d4c-929f-659904805b87/play",
     "/api/radio/categories",
     "/api/radio/countries",
     "/api/radio/stations?page=1&limit=12&featured=true",
     "/api/radio/stations?page=1&limit=32",
     "/api/radio/stations?page=1&limit=32&q=jazz",
+    "/api/radio/stations/6a1df830-ee26-49aa-a94d-a0825547be77/play",
     "/api/radio/stations?page=1&limit=32&q=Sex+Sound+Radio",
     "/api/radio/stations?page=1&limit=32&q=bbc",
-    "/api/radio/stations/7453505a-e1cb-4612-9135-eedfa898e05a/play"
+    "/api/radio/stations/7453505a-e1cb-4612-9135-eedfa898e05a/play",
+    "/api/audiobooks/categories",
+    "/api/audiobooks?page=1&limit=12",
+    "/api/audiobooks?page=1&limit=40",
+    "/api/audiobooks/fe0dd05b-caf5-4214-8910-34456c182e41",
+    "/api/radio/stations/bc0ce1f6-6f6d-4b9c-b531-aeec67b127c0/play"
   ]
 }

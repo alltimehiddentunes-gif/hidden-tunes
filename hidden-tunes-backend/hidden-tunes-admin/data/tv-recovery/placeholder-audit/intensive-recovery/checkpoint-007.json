@@ -1,0 +1,718 @@
+{
+  "batch": 7,
+  "lane": "EXACT_HEALTHY_CATALOG_MATCH",
+  "startedAt": "2026-08-11T10:36:04.067Z",
+  "completedAt": "2026-08-11T10:48:21.452Z",
+  "processedIdentities": 50,
+  "queueRowsClassified": 51,
+  "healthyCandidates": 25,
+  "promoted": 0,
+  "duplicates": 0,
+  "identityReviewRequired": 25,
+  "stillUnresolved": 25,
+  "remainingQueue": 2846,
+  "productionWrites": 0,
+  "results": [
+    {
+      "providerChannelId": "699769fa19ac123965833fd3",
+      "requestedTitles": [
+        "Cuando los Ángeles Caen"
+      ],
+      "normalizedIdentity": [
+        "cuando los angeles caen"
+      ],
+      "candidateRecordId": "58cab2dc-ec19-4066-b1f7-2e86d5438b2e",
+      "candidateTitle": "Cuando Los Angeles Caen",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6000a6f4c3f8550008fc9b91",
+      "requestedTitles": [
+        "Xtreme Outdoor by HISTORY"
+      ],
+      "normalizedIdentity": [
+        "xtreme outdoor by history"
+      ],
+      "candidateRecordId": "c546b7cc-d983-46af-a12e-b456f2585e72",
+      "candidateTitle": "Xtreme Outdoor by History",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5de91b7ea86ee60009d89e75",
+      "requestedTitles": [
+        "MTV Reality"
+      ],
+      "normalizedIdentity": [
+        "mtv reality"
+      ],
+      "candidateRecordId": "cbf726a4-676b-4c23-b06d-8acaefdada2d",
+      "candidateTitle": "MTV Reality",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "632b619c8d2a6c0007ff534e",
+      "requestedTitles": [
+        "KIRO Seattle"
+      ],
+      "normalizedIdentity": [
+        "kiro seattle"
+      ],
+      "candidateRecordId": "c99f5f3a-d51f-4427-918d-d8f35e37c186",
+      "candidateTitle": "KIRO Seattle",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "65790feacbd0d60008fac87a",
+      "requestedTitles": [
+        "Telemundo Noticias California"
+      ],
+      "normalizedIdentity": [
+        "telemundo noticias california"
+      ],
+      "candidateRecordId": "58dd5242-621f-456a-8cd6-f65d1acc0c46",
+      "candidateTitle": "Telemundo Noticias California",
+      "sourceHost": "d4whmvwm0rdvi.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6732499ce40c4a0008bb9894",
+      "requestedTitles": [
+        "Crimen"
+      ],
+      "normalizedIdentity": [
+        "crimen"
+      ],
+      "candidateRecordId": "17d13913-d04a-4328-8898-b75b0593c886",
+      "candidateTitle": "Crimen",
+      "sourceHost": "s10host4.localnow.api.cms.amdvids.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "65775d29dfed030008cb3db2",
+      "requestedTitles": [
+        "Modern Marvels by HISTORY"
+      ],
+      "normalizedIdentity": [
+        "modern marvels by history"
+      ],
+      "candidateRecordId": "f2f79ec6-d8e6-472f-bcb9-8e3aed8d61a6",
+      "candidateTitle": "Modern Marvels by History",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "55b179af994403942f3061d6",
+      "requestedTitles": [
+        "Newsmax2"
+      ],
+      "normalizedIdentity": [
+        "newsmax2"
+      ],
+      "candidateRecordId": "9ad010fb-d066-4e36-8cdc-fbd59a72f0b6",
+      "candidateTitle": "Newsmax2",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "649ddbfb6f29ec000874ca9e",
+      "requestedTitles": [
+        "Supermarket Sweep"
+      ],
+      "normalizedIdentity": [
+        "supermarket sweep"
+      ],
+      "candidateRecordId": "3c9f0437-ba31-4e7d-8a3e-eba45ab696c1",
+      "candidateTitle": "Supermarket Sweep",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5421f71da6af422839419cb3",
+      "requestedTitles": [
+        "CNN HEADLINES"
+      ],
+      "normalizedIdentity": [
+        "cnn headlines"
+      ],
+      "candidateRecordId": "409fc469-0560-4333-be63-4a588c9c9cb8",
+      "candidateTitle": "CNN Headlines",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64d160f53c785e0008df525e",
+      "requestedTitles": [
+        "Top Rank Classics"
+      ],
+      "normalizedIdentity": [
+        "top rank classics"
+      ],
+      "candidateRecordId": "ff573dca-d1e1-44cb-b39a-3c7b4844739a",
+      "candidateTitle": "Top Rank Classics",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "664fd48894d5580008e45e7c",
+      "requestedTitles": [
+        "Dog Whisperer with Cesar Millan"
+      ],
+      "normalizedIdentity": [
+        "dog whisperer with cesar millan"
+      ],
+      "candidateRecordId": "b3602b54-00bf-47b0-94f5-096308f7f0b4",
+      "candidateTitle": "Dog Whisperer With Cesar Millan",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6887aaade3703b7d42b64be8",
+      "requestedTitles": [
+        "The First 48 by A&E"
+      ],
+      "normalizedIdentity": [
+        "the first 48 by a and e"
+      ],
+      "candidateRecordId": "9bcbf195-a65e-4eb1-98bf-4c3de6b7fad7",
+      "candidateTitle": "The First 48 by A&E",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6400f731d200410008f9b339",
+      "requestedTitles": [
+        "Discovery Turbo TV"
+      ],
+      "normalizedIdentity": [
+        "discovery turbo tv"
+      ],
+      "candidateRecordId": "e4da7c75-db20-4e89-a029-9f881272faa4",
+      "candidateTitle": "Discovery Turbo TV",
+      "sourceHost": "dtqutq7lmcchv.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "66b26681d2d50d00083abe8b",
+      "requestedTitles": [
+        "Inuyasha"
+      ],
+      "normalizedIdentity": [
+        "inuyasha"
+      ],
+      "candidateRecordId": "958d5d47-8d23-4121-988e-287b151fb23a",
+      "candidateTitle": "Inuyasha",
+      "sourceHost": "d3f4oii5n0oeqi.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "696998915a0ae9e1b563f0c6",
+      "requestedTitles": [
+        "Qello Concerts"
+      ],
+      "normalizedIdentity": [
+        "qello concerts"
+      ],
+      "candidateRecordId": "d81e3d17-4b1e-4b40-b4be-617f07eef33e",
+      "candidateTitle": "Qello Concerts (1080p)",
+      "sourceHost": "d35j504z0x2vu2.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "650315163a0d700008bb07f8",
+      "requestedTitles": [
+        "Criminal Confessions"
+      ],
+      "normalizedIdentity": [
+        "criminal confessions"
+      ],
+      "candidateRecordId": "2863367c-3f43-47ef-8d0a-39c5dfb5681f",
+      "candidateTitle": "Criminal Confessions",
+      "sourceHost": "amg00654-itv-amg00654c7-rakuten-uk-1282.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "673249afc7626f0008c7205d",
+      "requestedTitles": [
+        "Vidas Extremas"
+      ],
+      "normalizedIdentity": [
+        "vidas extremas"
+      ],
+      "candidateRecordId": "98b775cb-cf40-4603-9652-3a78eb8f4602",
+      "candidateTitle": "Vidas Extremas",
+      "sourceHost": "s10host4.localnow.api.cms.amdvids.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "673249433a61d400087a51ed",
+      "requestedTitles": [
+        "Construcciones Asombrosas"
+      ],
+      "normalizedIdentity": [
+        "construcciones asombrosas"
+      ],
+      "candidateRecordId": "06639ff2-2405-4a09-90e9-5d577dc6fb64",
+      "candidateTitle": "Construcciones Asombrosas",
+      "sourceHost": "s10host4.localnow.api.cms.amdvids.com",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64240d3d466225000827412b",
+      "requestedTitles": [
+        "Qello Concerts"
+      ],
+      "normalizedIdentity": [
+        "qello concerts"
+      ],
+      "candidateRecordId": "d81e3d17-4b1e-4b40-b4be-617f07eef33e",
+      "candidateTitle": "Qello Concerts (1080p)",
+      "sourceHost": "d35j504z0x2vu2.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "5ddd7cb2cbb9010009b4fe32",
+      "requestedTitles": [
+        "Nick Jr. Club"
+      ],
+      "normalizedIdentity": [
+        "nick jr club"
+      ],
+      "candidateRecordId": "9eda5b09-7d8d-46a0-beb8-9266c4d2eaed",
+      "candidateTitle": "Nick Jr Club",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "686cd8bb9d079f48dbbdfecb",
+      "requestedTitles": [
+        "Metal Rocks"
+      ],
+      "normalizedIdentity": [
+        "metal rocks"
+      ],
+      "candidateRecordId": "f7cd165a-6f60-4916-929f-9f09b6abf845",
+      "candidateTitle": "Metal.Rocks",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62d550d81054990007db7798",
+      "requestedTitles": [
+        "Teen Mom"
+      ],
+      "normalizedIdentity": [
+        "teen mom"
+      ],
+      "candidateRecordId": "e8b74080-d63c-4a40-a071-a8d7e5bdf99b",
+      "candidateTitle": "Teen Mom",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "677fb0231da79bfe4fb0bf4e",
+      "requestedTitles": [
+        "The Real Housewives"
+      ],
+      "normalizedIdentity": [
+        "the real housewives"
+      ],
+      "candidateRecordId": "5a214720-e20b-4820-a099-4a9088fb77b1",
+      "candidateTitle": "The Real Housewives",
+      "sourceHost": "d39g1vxj2ef6in.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "615af74dfe3d8e0007524511",
+      "requestedTitles": [
+        "On The Case"
+      ],
+      "normalizedIdentity": [
+        "on the case"
+      ],
+      "candidateRecordId": "4d583e2a-9b6a-4cf1-bfb1-69af22c350c6",
+      "candidateTitle": "On The Case",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "66b646f9cd0d3100086af83c",
+      "requestedTitles": [
+        "60 Minutes"
+      ],
+      "normalizedIdentity": [
+        "60 minutes"
+      ],
+      "candidateRecordId": "cf1d258a-9987-495b-83ce-7ec336b5a344",
+      "candidateTitle": "60 Minutes",
+      "sourceHost": "amd-mediator-eolq3tk4la-uk.a.run.app",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6081648340382e0007f73d45",
+      "requestedTitles": [
+        "Most Haunted"
+      ],
+      "normalizedIdentity": [
+        "most haunted"
+      ],
+      "candidateRecordId": "92098ee6-5c31-4919-a790-892b0b58721a",
+      "candidateTitle": "Most Haunted Channel",
+      "sourceHost": "amg00426-lds-amg00426c17-rakuten-gb-10156.playouts.now.amagi.tv",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6081738748d3200007afb24b",
+      "requestedTitles": [
+        "Highway to Heaven"
+      ],
+      "normalizedIdentity": [
+        "highway to heaven"
+      ],
+      "candidateRecordId": "dd216ddb-2a5a-4764-ac39-f97ee2382a2b",
+      "candidateTitle": "Highway To Heaven",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6095ad97351eb0000754c1e6",
+      "requestedTitles": [
+        "Hells Kitchen"
+      ],
+      "normalizedIdentity": [
+        "hells kitchen"
+      ],
+      "candidateRecordId": "6de9ab63-e671-476e-b568-4a3dcfd3f745",
+      "candidateTitle": "Hells Kitchen",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "664c76d68ea5560008c6c7a4",
+      "requestedTitles": [
+        "Alerta Cobra"
+      ],
+      "normalizedIdentity": [
+        "alerta cobra"
+      ],
+      "candidateRecordId": "44925416-ce66-44c8-a3d1-7b3af5d97e19",
+      "candidateTitle": "Alerta Cobra",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "5812b821249444e05d09cc4c",
+      "requestedTitles": [
+        "Pluto TV Pixel World"
+      ],
+      "normalizedIdentity": [
+        "pixel world"
+      ],
+      "candidateRecordId": "bd6b6351-e96e-4887-8c6c-fd0a7098c132",
+      "candidateTitle": "Pluto TV Pixel World",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6812206e1b3e3be031a5c363",
+      "requestedTitles": [
+        "Águila Roja"
+      ],
+      "normalizedIdentity": [
+        "aguila roja"
+      ],
+      "candidateRecordId": "96b18450-3c69-4139-9edc-6c0e0ae39d8c",
+      "candidateTitle": "Águila Roja",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "65367e914f123d000877d021",
+      "requestedTitles": [
+        "River Monsters"
+      ],
+      "normalizedIdentity": [
+        "river monsters"
+      ],
+      "candidateRecordId": "7c974607-a918-4bf5-b81e-fbf7e846a1ad",
+      "candidateTitle": "River Monsters",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6853c216069aec0976371a2f",
+      "requestedTitles": [
+        "Pluto TV Christmas in July"
+      ],
+      "normalizedIdentity": [
+        "christmas in july"
+      ],
+      "candidateRecordId": "777db5ea-a477-4979-9416-1bd42ffb0c7f",
+      "candidateTitle": "Christmas In July",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "62cdad7b5c38c00007f566c2",
+      "requestedTitles": [
+        "On the Case",
+        "On the Case"
+      ],
+      "normalizedIdentity": [
+        "on the case"
+      ],
+      "candidateRecordId": "4d583e2a-9b6a-4cf1-bfb1-69af22c350c6",
+      "candidateTitle": "On The Case",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "69f0bb1a00ad62de02a6b716",
+      "requestedTitles": [
+        "Pluto TV Fútbol"
+      ],
+      "normalizedIdentity": [
+        "futbol"
+      ],
+      "candidateRecordId": "bc3f22ee-57a5-4531-9ee2-52fd3f9281e9",
+      "candidateTitle": "Futbol",
+      "sourceHost": "live.teleradiocom.tj",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "68adc3fdd8f7693ae347a63a",
+      "requestedTitles": [
+        "Los Gipsy Kings"
+      ],
+      "normalizedIdentity": [
+        "los gipsy kings"
+      ],
+      "candidateRecordId": "eadba0c0-5e60-4f3e-9f97-ddaa0391bb01",
+      "candidateTitle": "Los Gipsy Kings (1080p)",
+      "sourceHost": "gipsy-kings-rakuten-tv-es.fast.rakuten.tv",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69b83e4169056557a9252f61",
+      "requestedTitles": [
+        "Hit Sitcoms"
+      ],
+      "normalizedIdentity": [
+        "hit sitcoms"
+      ],
+      "candidateRecordId": "7b1ce221-f11d-4f78-a2c2-d6ecc04df504",
+      "candidateTitle": "Hit Sitcoms",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64a3f200f238ce0008d47247",
+      "requestedTitles": [
+        "Pluto TV True Crime"
+      ],
+      "normalizedIdentity": [
+        "true crime"
+      ],
+      "candidateRecordId": "ec870763-b855-4ce8-b238-ce6ba3c20e77",
+      "candidateTitle": "True Crime",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6130d8dc943001000708548d",
+      "requestedTitles": [
+        "MTV Reality"
+      ],
+      "normalizedIdentity": [
+        "mtv reality"
+      ],
+      "candidateRecordId": "cbf726a4-676b-4c23-b06d-8acaefdada2d",
+      "candidateTitle": "MTV Reality",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6887a86be3703b7d42b3eca3",
+      "requestedTitles": [
+        "Matched Married Meet by Lifetime"
+      ],
+      "normalizedIdentity": [
+        "matched married meet by lifetime"
+      ],
+      "candidateRecordId": "85ea4f41-435d-4e97-9a96-a8fe1fd2a3eb",
+      "candidateTitle": "Matched Married Meet by Lifetime",
+      "sourceHost": "dbrb49pjoymg4.cloudfront.net",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "64c2201a2a7f2200089a0af2",
+      "requestedTitles": [
+        "Let's Make a deal"
+      ],
+      "normalizedIdentity": [
+        "let s make a deal"
+      ],
+      "candidateRecordId": "a4dba0ea-c1c0-42b3-9262-f4dcd1dffd24",
+      "candidateTitle": "Let's Make a Deal",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "691d1200c2185a44642f5e7c",
+      "requestedTitles": [
+        "El Rey Rebel"
+      ],
+      "normalizedIdentity": [
+        "el rey rebel"
+      ],
+      "candidateRecordId": "b352b1e1-8c67-478f-92b7-06a2d0e91bf8",
+      "candidateTitle": "El Rey Rebel",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62a2e8d8a1c8650007e95bac",
+      "requestedTitles": [
+        "Anime All day"
+      ],
+      "normalizedIdentity": [
+        "anime all day"
+      ],
+      "candidateRecordId": "bdf83fdc-80f6-4ab4-9976-df3f8042c5ce",
+      "candidateTitle": "Anime All day",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "6874ad743ffa5e0c917f6e20",
+      "requestedTitles": [
+        "The Outer Limits"
+      ],
+      "normalizedIdentity": [
+        "the outer limits"
+      ],
+      "candidateRecordId": "5ea85b66-0787-4db6-803b-390fa899115d",
+      "candidateTitle": "The Outer Limits",
+      "sourceHost": "linear-1145.frequency.stream",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "62f4f5de1c100100075665ef",
+      "requestedTitles": [
+        "NCIS"
+      ],
+      "normalizedIdentity": [
+        "ncis"
+      ],
+      "candidateRecordId": "37a2b053-942d-4d1b-a146-82a7874852db",
+      "candidateTitle": "NCIS",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    },
+    {
+      "providerChannelId": "6887a8fd8e92b5e0a7244e88",
+      "requestedTitles": [
+        "Ancient Aliens"
+      ],
+      "normalizedIdentity": [
+        "ancient aliens"
+      ],
+      "candidateRecordId": "e2bccb17-c061-4d57-8d8a-c14a2102c82e",
+      "candidateTitle": "Ancient Aliens",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "69eaa34817801c84fca05d94",
+      "requestedTitles": [
+        "Always Funny"
+      ],
+      "normalizedIdentity": [
+        "always funny"
+      ],
+      "candidateRecordId": "908ecfa7-bb00-4168-961f-c20b4689b976",
+      "candidateTitle": "Always Funny",
+      "sourceHost": "live-manifest.production-public.tubi.io",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64f8a2a23a0d700008a6ed7b",
+      "requestedTitles": [
+        "Catfish"
+      ],
+      "normalizedIdentity": [
+        "catfish"
+      ],
+      "candidateRecordId": "cb884d46-64b4-4cf0-996d-eb2e57f8bd70",
+      "candidateTitle": "Catfish",
+      "sourceHost": "jmp2.uk",
+      "freshContinuitySeconds": 35,
+      "classification": "SOURCE_FOUND_NEEDS_IDENTITY_REVIEW"
+    },
+    {
+      "providerChannelId": "64f89fcfd661bb00081ba45c",
+      "requestedTitles": [
+        "MTV Reality"
+      ],
+      "normalizedIdentity": [
+        "mtv reality"
+      ],
+      "candidateRecordId": "cbf726a4-676b-4c23-b06d-8acaefdada2d",
+      "candidateTitle": "MTV Reality",
+      "sourceHost": "i.mjh.nz",
+      "freshContinuitySeconds": 0,
+      "classification": "SOURCE_FOUND_NEEDS_RETEST"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "candidateId": "49ef487b-0e3a-4d1b-a514-dd796b1ca34d",
+  "streamHost": "the-boat-show-ita-it.fast.rakuten.tv",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 142.043894,
+    "advancedSeconds": 123.968927,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "candidateId": "736ccc24-d1e3-4699-b8e0-a22d5982fa0d",
+  "streamHost": "aegis-cloudfront-1.tubi.video",
+  "pass": true,
+  "metrics": {
+    "readyState": 4,
+    "width": 1920,
+    "height": 1080,
+    "paused": false,
+    "currentTime": 163.184403,
+    "advancedSeconds": 124.115103,
+    "videoElementCount": 1,
+    "fatal": []
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-15T19:54:00.000Z",
+  "scope": "Batch 21 provenance-first bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 1,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "Crimen had official Local Now channel-listing provenance and a Local Now CMS candidate, and passed 123.56 seconds of 1920x1080 Desktop playback with one video owner.",
+    "All sampled evidence frames were unbranded extreme close-ups and did not establish exact channel identity, so Crimen remains quarantined and must not be repeated without materially new identity evidence.",
+    "Pluto TV Serie and Alerte a Malibu used rejected jmp2.uk. CSI: Crime Scene Investigation and MasterChef used rejected i.mjh.nz.",
+    "No production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 51,
+  "cumulativeTerminalAliases": 176,
+  "batch21Target": 25,
+  "batch21Researched": 15,
+  "batch21Remaining": 10
+}

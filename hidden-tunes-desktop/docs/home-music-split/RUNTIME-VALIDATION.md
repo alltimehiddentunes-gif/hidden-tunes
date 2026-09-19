@@ -24,7 +24,7 @@ npm.cmd run dev:vite
 - Electron entry (product): `electron/main.js` (default window 1680×1024, **minWidth 1280**)
 - Validation harness: `scripts/validate-home-music-runtime.mjs` — real Electron + same preload/catalog IPC + Vite renderer at `http://localhost:5173`
 - Vite: `npm run dev:vite` → `http://localhost:5173`
-- Production music catalog API: `https://hidden-tunes-api.onrender.com`
+- Production music catalog API: `https://api.hiddentunes.com`
 - Admin catalog IPC base: `https://admin.hiddentunes.com`
 
 Harness temporarily lowers `minWidth` to **760** so 1024 / narrow layouts can be exercised. Product `electron/main.js` still enforces **minWidth 1280** for normal `npm run dev`.

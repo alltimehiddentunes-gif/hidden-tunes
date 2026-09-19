@@ -1,0 +1,27 @@
+{
+  "completedAt": "2026-08-14T07:19:54.329Z",
+  "scope": "Batch 7 provenance-first bounded retest investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 3,
+  "sourcesTested": 1,
+  "decoded": 1,
+  "continuityPassed": 1,
+  "desktopVerified": 1,
+  "exactHighIdentityPassed": 1,
+  "searchVerified": 1,
+  "resolverVerified": 1,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 1,
+  "productionWrites": 0,
+  "notes": [
+    "FOX Weather candidate uses the broadcaster-owned 247wlive.foxweather.com service and passed 124.28 seconds of 1280x720 Desktop playback with one video owner and no fatal HLS errors.",
+    "Sampled frames showed continuous weather field and studio programming; authoritative host provenance supports HIGH identity. Normal search and resolver passed.",
+    "Two quarantined aliases remain hidden and are terminal VERIFIED_DUPLICATE_MERGED locally. No production write or duplicate was needed.",
+    "FIFA+ and Bloomberg candidates were rejected before testing because they use jmp2.uk and i.mjh.nz. BUZZR and ABC News Live retain official Tubi candidates for later bounded runs."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 21,
+  "cumulativeTerminalAliases": 97,
+  "batch7Target": 25,
+  "batch7Researched": 10,
+  "batch7Remaining": 15
+}

@@ -1,0 +1,29 @@
+{
+  "completedAt": "2026-08-12T10:52:08.986Z",
+  "productionWrites": 0,
+  "candidate": {
+    "candidateRecordId": "e6ea03b2-2ec7-4a43-8491-7e629e4b9d7b",
+    "canonicalIdentity": "CBS News New York",
+    "provenance": "CBS-owned public 24/7 distribution with Google DAI delivery",
+    "network": "PASS",
+    "actualMovingProgramme": "PASS",
+    "placeholderScan": "PASS",
+    "identityConfidence": "EXACT",
+    "identityEvidence": "Visible WCBS/CBS News New York branding, local Brooklyn Heights ticker and live broadcast graphics across multiple samples",
+    "continuitySeconds": 120,
+    "continuity": "PASS",
+    "desktopPlayback": "PENDING",
+    "canonicalRestoration": "PENDING",
+    "normalSearchVerification": "PENDING"
+  },
+  "secondCandidate": {
+    "candidateRecordId": "8e639b8c-3dac-4eec-bf5d-daa28e22f80c",
+    "canonicalIdentity": "CBS News Los Angeles",
+    "decoded": true,
+    "placeholderDetected": false,
+    "continuity": "FAIL",
+    "disposition": "KEEP_QUARANTINED_RETEST"
+  },
+  "restorationAuthorizedThisRun": false,
+  "nextAction": "Test CBS News New York candidate in existing Hidden Tunes Desktop player before any production restoration; if runtime passes, preserve rollback evidence, restore the existing canonical quarantined record, then verify normal search and playback from search."
+}

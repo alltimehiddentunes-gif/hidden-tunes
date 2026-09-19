@@ -1,0 +1,30 @@
+{
+  "completedAt": "2026-08-15T02:17:30.000Z",
+  "scope": "Batch 14 identity-review bounded investigation",
+  "identitiesResearched": 5,
+  "authoritativeCandidatesFound": 2,
+  "sourcesTested": 0,
+  "decoded": 0,
+  "placeholderRejected": 0,
+  "wrongChannelRejected": 0,
+  "identityUnresolved": 3,
+  "continuityPassed": 0,
+  "desktopVerified": 0,
+  "exactHighIdentityPassed": 0,
+  "searchVerified": 0,
+  "resolverVerified": 0,
+  "restored": 0,
+  "verifiedDuplicatesMerged": 0,
+  "productionWrites": 0,
+  "notes": [
+    "COPS and Discovery Turbo TV have authoritative official programming services, but their MediaTailor/CloudFront candidates lacked complete direct distributor ownership linkage in this run.",
+    "The First 48 by A&E and Inuyasha also used generic CloudFront candidates without complete authoritative candidate provenance.",
+    "Property Brothers used a rejected jmp2.uk source. The previously exhausted 48 Hours candidate was skipped and not repeated.",
+    "No candidate met the provenance threshold for expensive validation. All five remain quarantined; no production write or duplicate was created."
+  ],
+  "cumulativeVerifiedSearchableDesktopPlayableIdentities": 40,
+  "cumulativeTerminalAliases": 145,
+  "batch14Target": 25,
+  "batch14Researched": 20,
+  "batch14Remaining": 5
+}

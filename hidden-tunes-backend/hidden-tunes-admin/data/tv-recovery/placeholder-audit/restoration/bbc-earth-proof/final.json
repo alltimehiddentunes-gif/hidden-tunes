@@ -1,0 +1,15 @@
+{
+  "completedAt": "2026-08-15T17:58:32.773Z",
+  "identity": "BBC Earth",
+  "candidateRecordId": "7c63bf39-9710-432d-9dd1-661af4ecd27c",
+  "aliasesTerminal": 1,
+  "identityConfidence": "HIGH",
+  "desktopPlaybackSeconds": 124.43,
+  "resolution": "1920x1080",
+  "videoElementCount": 1,
+  "productionSearch": "PASS",
+  "productionResolver": "PASS",
+  "result": "VERIFIED_DUPLICATE_MERGED",
+  "productionWrites": 0,
+  "duplicatesCreated": 0
+}
