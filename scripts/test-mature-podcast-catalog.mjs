@@ -3,6 +3,12 @@
  * Run: node scripts/test-mature-podcast-catalog.mjs
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const apiSource = readFileSync(
+  new URL("../services/podcastCatalogApi.ts", import.meta.url),
+  "utf8"
+);
 
 const BASE = "https://admin.hiddentunes.com/api/podcasts/shows";
 const MATURE_CATEGORY = "adult-lifestyle";
@@ -41,6 +47,16 @@ const matureKey = cacheKey({
   q: "",
 });
 assert.notEqual(safeKey, matureKey, "mature/general cache keys must differ");
+assert.match(
+  apiSource,
+  /mature_enabled:\s*includeMature\s*\?\s*"true"\s*:\s*undefined/,
+  "mature list requests must declare the enabled gate only for mature access"
+);
+assert.match(
+  apiSource,
+  /age_confirmed:\s*includeMature\s*\?\s*"true"\s*:\s*undefined/,
+  "mature list requests must declare age confirmation only for mature access"
+);
 
 const gated = await fetchShows({
   page: 1,
@@ -51,14 +67,33 @@ const gated = await fetchShows({
 assert.equal(Array.isArray(gated.shows), true);
 assert.equal(gated.shows.length, 0, "mature category must be empty without includeMature");
 
+const missingAgeConfirmation = await fetchShows({
+  page: 1,
+  limit: 5,
+  category: MATURE_CATEGORY,
+  includeMature: "true",
+});
+assert.equal(missingAgeConfirmation.success, true);
+assert.equal(
+  missingAgeConfirmation.shows.length,
+  0,
+  "mature category must remain empty without explicit age confirmation"
+);
+
 const page1 = await fetchShows({
   page: 1,
   limit: PAGE_LIMIT,
   category: MATURE_CATEGORY,
   includeMature: "true",
+  mature_enabled: "true",
+  age_confirmed: "true",
 });
 assert.equal(page1.success, true);
 assert.ok(page1.shows.length > 0, "first mature page must return shows");
+assert.ok(
+  page1.shows.every((show) => show.is_mature === true),
+  "gated mature page must contain only mature-classified shows"
+);
 assert.equal(page1.shows.length <= PAGE_LIMIT, true);
 assert.equal(page1.pagination.hasMore, true);
 const total = Number(page1.pagination.total);
@@ -69,6 +104,8 @@ const page2 = await fetchShows({
   limit: PAGE_LIMIT,
   category: MATURE_CATEGORY,
   includeMature: "true",
+  mature_enabled: "true",
+  age_confirmed: "true",
 });
 assert.equal(page2.success, true);
 assert.ok(page2.shows.length > 0, "second mature page must return shows");
@@ -85,6 +122,8 @@ const search = await fetchShows({
   limit: 5,
   category: MATURE_CATEGORY,
   includeMature: "true",
+  mature_enabled: "true",
+  age_confirmed: "true",
   q: "sex",
 });
 assert.equal(search.success, true);
@@ -96,6 +135,8 @@ const finalPage = await fetchShows({
   limit: PAGE_LIMIT,
   category: MATURE_CATEGORY,
   includeMature: "true",
+  mature_enabled: "true",
+  age_confirmed: "true",
 });
 assert.equal(finalPage.success, true);
 assert.equal(finalPage.pagination.hasMore, false, "final page must stop hasMore");

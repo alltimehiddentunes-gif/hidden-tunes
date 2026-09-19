@@ -206,19 +206,24 @@ export default function YouTubeFeedScreen() {
       featuredVideo: featured?.videos[0],
     };
   }, [lanes]);
+  const currentTvById = useMemo(() => {
+    const indexed = new Map<string, HiddenTunesTvVideo>();
+    lanes.forEach((lane) => {
+      lane.videos.forEach((video) =>
+        indexed.set(String(video.id).trim(), video)
+      );
+    });
+    return indexed;
+  }, [lanes]);
   const recentlyWatchedLane = useMemo<TvLane | null>(() => {
     if (!recentlyWatched.length) return null;
-    const currentById = new Map<string, HiddenTunesTvVideo>();
-    lanes.forEach((lane) => {
-      lane.videos.forEach((video) => currentById.set(video.id, video));
-    });
     const videos = recentlyWatched
-      .map((entry) => currentById.get(entry.channelId))
+      .map((entry) => currentTvById.get(String(entry.channelId).trim()))
       .filter((video): video is HiddenTunesTvVideo => Boolean(video));
     return videos.length
       ? { id: "recently-watched", title: "Recently Watched", videos }
       : null;
-  }, [lanes, recentlyWatched]);
+  }, [currentTvById, recentlyWatched]);
   const hasSearchText = query.trim().length > 0;
 
   const abortHome = useCallback(() => {

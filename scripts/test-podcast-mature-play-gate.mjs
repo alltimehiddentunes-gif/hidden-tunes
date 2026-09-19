@@ -14,7 +14,7 @@ async function getJson(path) {
 }
 
 const episodes = await getJson(
-  `/api/podcasts/episodes?show_id=${SHOW_ID}&page=1&limit=1&includeMature=true`
+  `/api/podcasts/episodes?show_id=${SHOW_ID}&page=1&limit=1&includeMature=true&mature_enabled=true&age_confirmed=true`
 );
 assert.equal(episodes.status, 200);
 assert.ok(episodes.json?.episodes?.length > 0, "need a mature episode");
@@ -42,7 +42,7 @@ assert.ok(
 );
 
 console.log("PASS podcast mature play gate", {
-  episodeId,
+  episodeResolved: Boolean(episodeId),
   generalStatus: general.status,
   matureGatedStatus: matureGated.status,
   hasAudio: Boolean(matureGated.json?.audio_url),

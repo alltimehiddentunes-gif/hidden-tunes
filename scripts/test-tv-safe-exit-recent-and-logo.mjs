@@ -49,8 +49,25 @@ assert.match(history, /MAX_RECENT_ENTRIES = 20/, "history is bounded");
 assert.match(history, /pendingChannels\.set/, "resolved sessions only stage history");
 assert.match(host, /5_000/, "confirmed playback has a five-second threshold");
 assert.match(host, /confirmTvRecentlyWatched/, "playing host confirms history");
-assert.match(history, /item\.channelId !== channel\.id/, "rewatch deduplicates");
+assert.match(
+  host,
+  /recentlyWatchedStageRef\.current !== stageKey/,
+  "a playback generation stages history once"
+);
+assert.doesNotMatch(
+  host,
+  /finalizeAfterDestinationRender[\s\S]*?await confirmTvRecentlyWatched/,
+  "X close cannot bypass the five-second qualification"
+);
+assert.match(
+  host,
+  /displayChannel\?\.id \|\| item\.id/,
+  "catalog sessions use the canonical current item ID"
+);
+assert.match(history, /item\.channelId !== normalizedChannelId/, "rewatch deduplicates");
 assert.match(page, /title: "Recently Watched"/, "TV page presents genuine history");
+assert.match(page, /const currentTvById = useMemo/, "catalog indexing is memoized separately");
+assert.match(page, /currentTvById\.get/, "history joins through the memoized catalog index");
 assert.doesNotMatch(page, /recentlyAddedLane/, "Recently Added presentation is removed");
 
 console.log("PASS: safe TV exit, station logo, and recently watched contracts");

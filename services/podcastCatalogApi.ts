@@ -482,6 +482,8 @@ export async function fetchPodcastEpisodesByCategory(
         page: safePage,
         limit: safeLimit,
         includeMature: options?.includeMature ? "true" : "false",
+        mature_enabled: options?.includeMature ? "true" : undefined,
+        age_confirmed: options?.includeMature ? "true" : undefined,
       }),
       options?.signal
     );
@@ -593,6 +595,8 @@ export async function fetchPodcastShows(
           page: safePage,
           limit: safeLimit,
           includeMature: includeMature ? "true" : "false",
+          mature_enabled: includeMature ? "true" : undefined,
+          age_confirmed: includeMature ? "true" : undefined,
           q: q || undefined,
         }),
         options.signal
@@ -704,6 +708,8 @@ export async function fetchPodcastEpisodesByShow(
         page: safePage,
         limit: safeLimit,
         includeMature: options?.includeMature ? "true" : "false",
+        mature_enabled: options?.includeMature ? "true" : undefined,
+        age_confirmed: options?.includeMature ? "true" : undefined,
       }),
       options?.signal
     );
