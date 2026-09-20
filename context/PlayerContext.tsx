@@ -624,6 +624,21 @@ function logTapLatencyDiagnostic(
 
 const DEFAULT_QUEUE_CONTEXT: PlaybackQueueContext = { source: "unknown" };
 
+/** Native states that mean playback is genuinely stopped — not buffering/unknown after play(). */
+function isExplicitNativeStoppedState(
+  playbackState: string | null | undefined,
+  isPlaying: boolean
+): boolean {
+  if (isPlaying) return false;
+  const state = String(playbackState || "").toLowerCase();
+  return (
+    state === "paused" ||
+    state === "ended" ||
+    state === "error" ||
+    state === "stopped"
+  );
+}
+
 function cleanContextValue(value: unknown) {
   const clean = String(value || "").trim();
   return clean || undefined;
@@ -1352,9 +1367,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (progress.isPlaying !== isPlayingRef.current) {
-        isPlayingRef.current = progress.isPlaying;
-        recordPlaybackReactStateUpdate("is_playing");
-        setIsPlayingState(progress.isPlaying);
+        // Wave 7: ignore pause demotions while a user tap load is still in flight —
+        // replace/buffer transitions otherwise flip UI to paused right after play().
+        if (
+          !progress.isPlaying &&
+          (isChangingTrackRef.current || inFlightPlaySongIdRef.current)
+        ) {
+          logPlayerContextDebug("hidden_audio_progress_pause_ignored_inflight", {
+            source,
+            playbackState: progress.playbackState,
+            inFlightSongId: inFlightPlaySongIdRef.current,
+          });
+        } else {
+          isPlayingRef.current = progress.isPlaying;
+          recordPlaybackReactStateUpdate("is_playing");
+          setIsPlayingState(progress.isPlaying);
+        }
       }
 
       logPlayerContextDebug("hidden_audio_progress_event_applied", {
@@ -3027,11 +3055,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const nativeRetainsPlayback = nativeSnapshotIndicatesLoadedPlayback(nativeSnapshot);
       const backgrounding = isBackgroundAppState(appStateRef.current);
       const userInitiatedStop = isUserInitiatedHiddenAudioStopReason(reason);
+      // Track replace must clear the prior session — do not re-activate stale native.
+      const isTrackReplaceStop = reason === "load_and_play_replace_track";
       // Never "preserve" native audio on deliberate stops (Stop, media handoff).
       // Preserving while native is still loaded was clearing JS/MiniPlayer state
       // while HiddenAudio continued — ghost playback after Music → TV.
       const shouldPreserveHiddenAudio =
         !userInitiatedStop &&
+        !isTrackReplaceStop &&
         (nativeRetainsPlayback ||
           (backgrounding && Boolean(currentSongRef.current)) ||
           (backgrounding &&
@@ -6005,6 +6036,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             void syncNativeRemoteQueueAvailability();
 
             const startPositionMillis = Math.round(startPositionSeconds * 1000);
+            // Wave 7: play() already succeeded — keep UI playing unless native is
+            // explicitly paused/ended/error. Buffering/null status must not demote.
+            setIsPlaying(true);
             const statusAfterPlay = await syncHiddenAudioState("load_and_play_after_play");
             logPlayerContextDebug("hidden_audio_status_after_play", statusAfterPlay);
 
@@ -6022,9 +6056,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               if (resolvedDurationMillis > 0) {
                 setDurationMillis(resolvedDurationMillis);
               }
-              setIsPlaying(statusAfterPlay.isPlaying);
 
-              if (!statusAfterPlay.isPlaying) {
+              const explicitlyStopped = isExplicitNativeStoppedState(
+                statusAfterPlay.playbackState,
+                statusAfterPlay.isPlaying
+              );
+
+              if (explicitlyStopped) {
+                setIsPlaying(false);
                 logPlaybackCritical("hidden_audio_play_failure", {
                   songId: normalizedSong.id,
                   platform: Platform.OS,
@@ -6046,6 +6085,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                   reason: "native_status_not_playing_after_play",
                 });
               } else {
+                if (!statusAfterPlay.isPlaying) {
+                  logPlayerContextDebug("hidden_audio_play_optimistic_keep", {
+                    songId: normalizedSong.id,
+                    playbackState: statusAfterPlay.playbackState || null,
+                    reason: "native_not_yet_playing_after_play",
+                  });
+                }
                 logPlaybackCritical("hidden_audio_play_success", {
                   songId: normalizedSong.id,
                   platform: Platform.OS,
@@ -6100,11 +6146,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
                 platform: Platform.OS,
                 reason: "native_status_unavailable_after_play",
               });
-              logPlayerContextDebug("hidden_audio_fake_play_prevented", {
+              logPlayerContextDebug("hidden_audio_play_optimistic_keep", {
                 songId: normalizedSong.id,
                 reason: "native_status_unavailable_after_play",
               });
-              setIsPlaying(false);
             }
 
             logAudioLoadSuccess({
@@ -8653,11 +8698,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (progress.isPlaying !== isPlayingRef.current) {
           const backgrounding = isBackgroundAppState(appStateRef.current);
           const playbackStateLower = String(progress.playbackState || "").toLowerCase();
+          const ignoreInFlightPause =
+            !progress.isPlaying &&
+            (isChangingTrackRef.current || Boolean(inFlightPlaySongIdRef.current));
           const allowBackgroundPauseSync =
-            !backgrounding ||
-            progress.isPlaying ||
-            playbackStateLower === "ended" ||
-            playbackStateLower === "paused";
+            !ignoreInFlightPause &&
+            (!backgrounding ||
+              progress.isPlaying ||
+              playbackStateLower === "ended" ||
+              playbackStateLower === "paused");
           if (allowBackgroundPauseSync) {
             isPlayingRef.current = progress.isPlaying;
             recordPlaybackReactStateUpdate("is_playing");

@@ -1018,7 +1018,11 @@ export default function SearchScreen() {
     const internalSongs = songsFromSearchHits(internalSearchResults);
     const merged = dedupeSongs([...backendSongs, ...internalSongs]);
     const ranked = unwrapRankedSearchItems(
-      rankSearchSongs(merged, cleanSubmittedSearchQuery, { limit: 80 })
+      rankSearchSongs(merged, cleanSubmittedSearchQuery, {
+        limit: 80,
+        // Backend already matched these rows — never drop to a false "0 matches".
+        preserveUnscored: true,
+      })
     );
     if (__DEV__ && cleanSubmittedSearchQuery) {
       logSearchTiming("search_rank_end", rankStartedAt, {

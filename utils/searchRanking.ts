@@ -158,6 +158,20 @@ export function scoreSearchResult(
     }
   }
 
+  // Multi-token song+artist queries (e.g. "three wooden crosses randy travis")
+  // must score against the combined title+artist field, not each field alone.
+  if (result.score === 0 && tokens.length >= 2) {
+    const combined = `${title} ${artist}`.trim();
+    if (combined && tokensMatchField(combined, tokens)) {
+      applyScore(result, SEARCH_SCORE.titleContains, "title_contains");
+    } else if (combined) {
+      const matched = tokens.filter((token) => combined.includes(token)).length;
+      if (matched >= Math.ceil(tokens.length * 0.6)) {
+        applyScore(result, SEARCH_SCORE.albumContains, "title_contains");
+      }
+    }
+  }
+
   if (album) {
     if (album === normalizedQuery) {
       applyScore(result, SEARCH_SCORE.exactAlbum, "exact_album");
@@ -234,6 +248,8 @@ export function rankSearchItems<T extends SearchRankableItem>(
     limit?: number;
     isRelatedFallback?: boolean;
     isExternal?: boolean;
+    /** Keep API/backend-trusted rows even when local scorer returns 0 (avoids false "0 matches"). */
+    preserveUnscored?: boolean;
     getScoreItem?: (item: T) => SearchRankableItem;
   } = {}
 ): RankedSearchItem<T>[] {
@@ -257,6 +273,9 @@ export function rankSearchItems<T extends SearchRankableItem>(
   });
 
   ranked.sort(compareRankedSearchItems);
+  if (options.preserveUnscored) {
+    return ranked.slice(0, limit);
+  }
   return ranked.filter((entry) => entry.score > 0).slice(0, limit);
 }
 
@@ -267,6 +286,7 @@ export function rankSearchSongs(
     limit?: number;
     isRelatedFallback?: boolean;
     isExternal?: boolean;
+    preserveUnscored?: boolean;
   } = {}
 ) {
   return rankSearchItems(songs, query, options);

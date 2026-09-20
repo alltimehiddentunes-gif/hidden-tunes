@@ -199,7 +199,11 @@ export function rankApkSongResults(
   query: string,
   relatedSongs: HiddenTunesSong[] = []
 ) {
-  const direct = rankSearchSongs(songs, query, { limit: 48 });
+  // Preserve backend/API rows even when local scorer is stricter than the API.
+  const direct = rankSearchSongs(songs, query, {
+    limit: 48,
+    preserveUnscored: true,
+  });
   const directIds = new Set(direct.map((entry) => String(entry.item.id || "")));
 
   const related = rankSearchSongs(
