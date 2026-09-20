@@ -1,6 +1,6 @@
 /**
  * Unified PlaybackPreparationService.
- * Priorities: P0 user tap > P1 next > P2 auto-next > P3 next+1 > P4 search prewarm > P5 other.
+ * Priorities: P0 user tap > P1 next/SEARCH_TOP > P2 auto-next > P3 next+1/SEARCH_SECONDARY > P4 legacy search > P5 other.
  * Single-flight via resolveBridgeMediaId. INTERNAL ONLY.
  */
 
@@ -20,8 +20,12 @@ import { rollingWindowAfter, markSessionTrackReady, registerSearchSession } from
 const PRIORITY = {
   P0_USER: 0,
   P1_NEXT: 1,
+  /** Alias: search result #1 — same urgency as NEXT so first tap is warm. */
+  P1_SEARCH_TOP: 1,
   P2_AUTO_NEXT: 2,
   P3_NEXT_PLUS: 3,
+  /** Alias: search result #2 when capacity permits. */
+  P3_SEARCH_SECONDARY: 3,
   P4_SEARCH: 4,
   P5_OTHER: 5,
 };
@@ -32,6 +36,8 @@ let activeJobs = 0;
 let refreshTimers = new Map();
 let maxConcurrent = 2;
 let resolveTtlHintMs = 8 * 60 * 1000;
+/** Bumped on each final search response — stale speculative search jobs yield. */
+let searchPrepGeneration = 0;
 
 function sourceKey(hit) {
   return String(hit?.canonicalSourceKey || `${hit?.provider || ""}:${hit?.sourceId || ""}`)
@@ -67,6 +73,11 @@ function enqueue(job) {
     if (job.priority < waiters[existing].priority) {
       waiters[existing] = job;
       waiters.sort((a, b) => a.priority - b.priority || a.enqueuedAt - b.enqueuedAt);
+    } else if (
+      job.searchGen != null &&
+      (waiters[existing].searchGen == null || job.searchGen >= waiters[existing].searchGen)
+    ) {
+      waiters[existing].searchGen = job.searchGen;
     }
     return;
   }
@@ -75,6 +86,20 @@ function enqueue(job) {
   setState(key, { state: "QUEUED", priority: job.priority, publicPlaybackId: job.record?.publicPlaybackId });
   recordMetric("playbackPreparationQueued", { priority: job.priority });
   pump();
+}
+
+/** Drop queued speculative search jobs from older queries (never P0–P2 playback window). */
+function cancelStaleSearchPrep(gen) {
+  for (let i = waiters.length - 1; i >= 0; i -= 1) {
+    const job = waiters[i];
+    if (job.searchGen == null) continue;
+    if (job.searchGen >= gen) continue;
+    if (job.priority <= PRIORITY.P2_AUTO_NEXT && job.searchGen == null) continue;
+    // Speculative search only — playback-window jobs do not carry searchGen.
+    waiters.splice(i, 1);
+    setState(job.key, { state: "COLD" });
+    recordMetric("playbackPreparationCancelled", { reason: "stale_search", priority: job.priority });
+  }
 }
 
 function dropLowPriorityQueued() {
@@ -100,10 +125,21 @@ function pump() {
 }
 
 function startJob(job) {
-  const { key, record, client, store, priority, timeoutMs, force } = job;
+  const { key, record, client, store, priority, timeoutMs, force, searchGen } = job;
   if (isKnownUnplayable(record)) {
     setState(key, { state: "FAILED", priority });
     recordMetric("playbackPreparationFailed", { reason: "unplayable" });
+    return;
+  }
+  // Stale speculative search — do not starve a newer query (unless promoted to user tap).
+  if (
+    searchGen != null &&
+    searchGen < searchPrepGeneration &&
+    priority > PRIORITY.P0_USER
+  ) {
+    setState(key, { state: "COLD" });
+    recordMetric("playbackPreparationCancelled", { reason: "stale_search_start", priority });
+    pump();
     return;
   }
   // Always run ingest/resolve — an existing bridgeMediaId does NOT mean Gateway
@@ -250,6 +286,7 @@ export function prepare(record, options = {}) {
     timeoutMs: options.timeoutMs,
     currentDurationMs: options.currentDurationMs,
     force: Boolean(options.force),
+    searchGen: options.searchGen,
     enqueuedAt: Date.now(),
   });
   return getPreparationState(key);
@@ -258,8 +295,15 @@ export function prepare(record, options = {}) {
 export function prepareMany(records, options = {}) {
   const list = Array.isArray(records) ? records : [];
   const basePriority = Number.isFinite(options.priority) ? options.priority : PRIORITY.P4_SEARCH;
-  for (const record of list) {
-    prepare(record, { ...options, priority: basePriority });
+  for (let i = 0; i < list.length; i += 1) {
+    const record = list[i];
+    let priority = basePriority;
+    if (options.rankedSearchPriorities) {
+      if (i === 0) priority = PRIORITY.P1_SEARCH_TOP;
+      else if (i === 1) priority = PRIORITY.P3_SEARCH_SECONDARY;
+      else priority = PRIORITY.P4_SEARCH;
+    }
+    prepare(record, { ...options, priority });
   }
 }
 
@@ -406,7 +450,9 @@ export function preparePlayerQueueWindow(opaqueIds, client, store, config = {}, 
 }
 
 /**
- * Search returned: register session + P4 prepare top N.
+ * Search returned: register session + prepare top results BEFORE tap.
+ * #1 → P1 SEARCH_TOP (resolve now). #2 → P3 SEARCH_SECONDARY if capacity.
+ * Does not block the search HTTP response (caller fires this after return path).
  */
 export function onSearchResults(records, client, store, config = {}, meta = {}) {
   const session = registerSearchSession(records, meta);
@@ -415,16 +461,29 @@ export function onSearchResults(records, client, store, config = {}, meta = {}) 
     return { scheduled: 0, sessionId: session?.id || null };
   }
   configurePreparation({ maxConcurrent: cfg.maxConcurrent });
+  searchPrepGeneration += 1;
+  const gen = searchPrepGeneration;
+  cancelStaleSearchPrep(gen);
   const targets = (Array.isArray(records) ? records : [])
     .filter((r) => r?.provider && r?.sourceId && !isKnownUnplayable(r))
-    .slice(0, cfg.topN);
+    .slice(0, Math.min(cfg.topN, 2));
   prepareMany(targets, {
-    priority: PRIORITY.P4_SEARCH,
+    rankedSearchPriorities: true,
     client,
     store,
     timeoutMs: cfg.timeoutMs,
+    searchGen: gen,
   });
-  return { scheduled: targets.length, sessionId: session?.id || null };
+  console.log(
+    JSON.stringify({
+      event: "j2_search_top_prep",
+      scheduled: targets.length,
+      searchGen: gen,
+      topSourceId: targets[0]?.sourceId || null,
+      priorities: targets.map((_, i) => (i === 0 ? PRIORITY.P1_SEARCH_TOP : PRIORITY.P3_SEARCH_SECONDARY)),
+    }),
+  );
+  return { scheduled: targets.length, sessionId: session?.id || null, searchGen: gen };
 }
 
 export function preparationStats() {
@@ -445,6 +504,7 @@ export function clearPreparationForTests() {
   waiters.length = 0;
   activeJobs = 0;
   states.clear();
+  searchPrepGeneration = 0;
   for (const t of refreshTimers.values()) clearTimeout(t);
   refreshTimers.clear();
 }

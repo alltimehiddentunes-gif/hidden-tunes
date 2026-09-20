@@ -16,7 +16,13 @@ import {
   beginUserPlay,
   endUserPlay,
 } from "../services/junction2/prewarm.js";
-import { onTrackStarted, getPreparationState, preparePlayerQueueWindow } from "../services/junction2/preparation.js";
+import {
+  onTrackStarted,
+  getPreparationState,
+  preparePlayerQueueWindow,
+  prepare,
+  PRIORITY,
+} from "../services/junction2/preparation.js";
 
 function abortFrom(res) {
   const controller = new AbortController();
@@ -66,10 +72,10 @@ export function createMediaRouter(deps = {}) {
 
     try {
       const tStore = Date.now();
-      let bridgeMediaId = record.bridgeMediaId;
+      const prepBefore = getPreparationState(record);
+      let bridgeMediaId = record.bridgeMediaId || prepBefore?.bridgeMediaId || null;
       marks.storeMs = Date.now() - tStore;
 
-      const prepBefore = getPreparationState(record);
       const readyBeforeRequest = Boolean(
         bridgeMediaId || prepBefore?.state === "READY" || prepBefore?.state === "RESOLVING",
       );
@@ -81,7 +87,16 @@ export function createMediaRouter(deps = {}) {
         const tIngest = Date.now();
         beginUserPlay();
         try {
-          // Join in-flight prewarm if the same source is already resolving.
+          // Promote to P0: join/upgrade in-flight SEARCH_TOP prep; never duplicate yt-dlp.
+          prepare(record, {
+            priority: PRIORITY.P0_USER,
+            client,
+            store,
+            timeoutMs: Math.min(
+              Number(config.playbackTimeoutMs) || 45_000,
+              Number.parseInt(String(process.env.J2_COLD_RESOLVE_TIMEOUT_MS || "12000"), 10) || 12_000,
+            ),
+          });
           // Bound cold resolve so the player is not left hanging 20s+.
           const coldBudgetMs = Math.min(
             Number(config.playbackTimeoutMs) || 45_000,
