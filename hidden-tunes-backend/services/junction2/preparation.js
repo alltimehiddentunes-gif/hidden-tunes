@@ -40,9 +40,15 @@ let resolveTtlHintMs = 8 * 60 * 1000;
 let searchPrepGeneration = 0;
 
 function sourceKey(hit) {
-  return String(hit?.canonicalSourceKey || `${hit?.provider || ""}:${hit?.sourceId || ""}`)
-    .trim()
-    .toLowerCase();
+  const raw = String(hit?.canonicalSourceKey || `${hit?.provider || ""}:${hit?.sourceId || ""}`).trim();
+  if (!raw) return "";
+  const idx = raw.indexOf(":");
+  if (idx <= 0) return raw.toLowerCase();
+  const provider = raw.slice(0, idx).toLowerCase();
+  const id = raw.slice(idx + 1);
+  // YouTube ids are case-sensitive (UiDjPR9yRDU ≠ uidjpr9yrdu).
+  if (provider === "youtube") return `${provider}:${id}`;
+  return `${provider}:${id}`.toLowerCase();
 }
 
 export function configurePreparation(opts = {}) {
