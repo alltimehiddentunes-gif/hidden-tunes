@@ -71,6 +71,18 @@ export async function resolveBridgeMediaId(hit, client, store, options = {}) {
     error.code = "NOT_FOUND";
     throw error;
   }
+  const provider = String(hit.provider || "").toLowerCase();
+  if (
+    provider === "mediacache" ||
+    provider === "artist" ||
+    provider === "album" ||
+    provider === "seed" ||
+    /\s/.test(String(hit.sourceId || ""))
+  ) {
+    const error = new Error("unresolvable_provider");
+    error.code = "UNRESOLVABLE";
+    throw error;
+  }
   if (hit.bridgeMediaId && !options.force) return String(hit.bridgeMediaId);
   if (options.publicPlaybackId && store && !options.force) {
     const existing = store.get(options.publicPlaybackId);

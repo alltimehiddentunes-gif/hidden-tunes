@@ -147,7 +147,7 @@ export class MediaBridgeClient {
       });
       const text = await response.text();
       if (!response.ok) {
-        const error = new Error("bridge_http");
+        const error = new Error(`bridge_http_${response.status}`);
         error.code = response.status === 401 ? "UNAUTHORIZED" : "BRIDGE_HTTP";
         error.status = response.status;
         throw error;

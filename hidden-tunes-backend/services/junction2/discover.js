@@ -13,11 +13,25 @@ import { resolveHitIdentities, rememberTrackRelationships } from "./identity.js"
 /** Lower is better. Prefer providers that reliably resolve for tap-to-play. */
 function playbackReliabilityRank(hit) {
   const provider = String(hit?.provider || "").toLowerCase();
-  if (provider === "youtube") return 0;
-  if (provider === "archive.org") return 1;
+  // Archive is currently the most reliable cold path while YouTube worker is often unreachable.
+  if (provider === "archive.org") return 0;
+  if (provider === "youtube") return 1;
   if (provider === "bandcamp") return 2;
   if (provider === "soundcloud") return 4;
   return 3;
+}
+
+/** Providers Bridge/Gateway can actually resolve for playback. */
+export function isResolvableExternalProvider(hit) {
+  const provider = String(hit?.provider || "").toLowerCase();
+  if (!provider) return false;
+  if (provider === "mediacache" || provider === "artist" || provider === "album" || provider === "seed") {
+    return false;
+  }
+  if (!["youtube", "archive.org", "soundcloud", "bandcamp"].includes(provider)) return false;
+  const sourceId = String(hit?.sourceId || "").trim();
+  if (!sourceId || /\s/.test(sourceId)) return false;
+  return true;
 }
 
 /** Keep relative order within a provider tier. */
@@ -96,6 +110,10 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
         break;
       }
       if (!isPubliclySurfaceable(hit, config)) {
+        skippedPolicy += 1;
+        continue;
+      }
+      if (!isResolvableExternalProvider(hit)) {
         skippedPolicy += 1;
         continue;
       }
