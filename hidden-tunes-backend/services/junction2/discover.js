@@ -119,6 +119,10 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
         skippedPolicy += 1;
         continue;
       }
+      if (!config.youtubeSurfaceEnabled && String(hit?.provider || "").toLowerCase() === "youtube") {
+        skippedPolicy += 1;
+        continue;
+      }
       if (isKnownUnplayable(hit)) {
         skippedUnplayable += 1;
         continue;
