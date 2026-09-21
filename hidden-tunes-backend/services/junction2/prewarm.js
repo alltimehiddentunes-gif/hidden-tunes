@@ -77,7 +77,8 @@ export async function resolveBridgeMediaId(hit, client, store, options = {}) {
     provider === "artist" ||
     provider === "album" ||
     provider === "seed" ||
-    /\s/.test(String(hit.sourceId || ""))
+    /\s/.test(String(hit.sourceId || "")) ||
+    (provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(String(hit.sourceId || "").trim()))
   ) {
     const error = new Error("unresolvable_provider");
     error.code = "UNRESOLVABLE";

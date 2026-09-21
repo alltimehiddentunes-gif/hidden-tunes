@@ -31,6 +31,8 @@ export function isResolvableExternalProvider(hit) {
   if (!["youtube", "archive.org", "soundcloud", "bandcamp"].includes(provider)) return false;
   const sourceId = String(hit?.sourceId || "").trim();
   if (!sourceId || /\s/.test(sourceId)) return false;
+  // YouTube channel IDs (UC…) are not playable track identities.
+  if (provider === "youtube" && !/^[A-Za-z0-9_-]{11}$/.test(sourceId)) return false;
   return true;
 }
 
