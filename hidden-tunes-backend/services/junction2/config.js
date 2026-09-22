@@ -122,6 +122,8 @@ export function loadJunction2Config(env = process.env) {
     ownerCanaryUpstreamQuery: String(env.J2_OWNER_CANARY_UPSTREAM_QUERY || "").trim(),
     ownerCanarySourceKeys: parseKeys(env.J2_OWNER_CANARY_SOURCE_KEYS || ""),
     workerRole: String(env.J2_WORKER_ROLE || "OWNER_CANARY_WORKER").trim() || "OWNER_CANARY_WORKER",
+    // When false, do not surface YouTube hits (Archive/Bandcamp still can). Use while YT worker/bot-check is down.
+    youtubeSurfaceEnabled: String(env.J2_YOUTUBE_SURFACE_ENABLED || "true").trim().toLowerCase() !== "false",
   };
 }
 
