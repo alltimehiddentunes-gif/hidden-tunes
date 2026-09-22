@@ -9,6 +9,7 @@ import { enrichSearchHit } from "./metadata/enrich.js";
 import { isKnownUnplayable, needsPlayabilityProbe } from "./playability.js";
 import { onSearchResults } from "./preparation.js";
 import { resolveHitIdentities, rememberTrackRelationships } from "./identity.js";
+import { verifyPlayerCompatibleHit } from "./verifyPlayable.js";
 
 /** Lower is better. Prefer providers that reliably resolve for tap-to-play. */
 function playbackReliabilityRank(hit) {
@@ -105,6 +106,12 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
     let skippedProbe = 0;
     let skippedEnrichIdentity = 0;
     let skippedBudget = 0;
+    let skippedVerify = 0;
+    const verifyBudgetMs = canary
+      ? Math.min(12_000, Math.max(4_000, Number(config.ownerCanarySearchTimeoutMs) || 5_500))
+      : 0;
+    const verifyDeadline = Date.now() + verifyBudgetMs;
+    const maxVerify = canary ? Math.min(5, config.searchLimit || 5) : 0;
 
     for (const hit of orderedResults) {
       if (Date.now() - mapStarted >= postBudgetMs) {
@@ -145,6 +152,24 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       }
 
       let bridgeMediaId = hit.bridgeMediaId ? String(hit.bridgeMediaId) : null;
+
+      // Owner canary: only surface hits that already deliver player-compatible progressive audio.
+      // Prevents /api/media 503 JSON from reaching the phone as MEDIA_ERR_SRC_NOT_SUPPORTED.
+      if (canary && mapped.length < maxVerify && Date.now() < verifyDeadline) {
+        const verified = await verifyPlayerCompatibleHit(hit, client, {
+          signal: context.signal,
+          timeoutMs: Math.max(1_500, verifyDeadline - Date.now()),
+        });
+        if (!verified) {
+          skippedVerify += 1;
+          continue;
+        }
+        bridgeMediaId = verified;
+      } else if (canary && !bridgeMediaId) {
+        // Prefer not to surface unverified cold hits once the verify budget is spent.
+        skippedVerify += 1;
+        continue;
+      }
 
       // Shallow enrich only (source-basic / cache). Deep MusicBrainz is async after return.
       const remaining = Math.max(50, postBudgetMs - (Date.now() - mapStarted));
@@ -207,6 +232,7 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       skippedProbe,
       skippedEnrichIdentity,
       skippedBudget,
+      skippedVerify,
       youtubeRaw: byProvider.youtube || 0,
       soundcloudRaw: byProvider.soundcloud || 0,
       archiveRaw: byProvider["archive.org"] || 0,
@@ -230,6 +256,7 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
             skippedDedupe,
             skippedProbe,
             skippedBudget,
+            skippedVerify,
             public: mapped.length,
           },
           status: "success",

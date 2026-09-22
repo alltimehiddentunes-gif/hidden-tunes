@@ -105,7 +105,7 @@ export class MediaBridgeClient {
       error.code = "NOT_READY";
       throw error;
     }
-    const combined = combineSignals(this.config.playbackTimeoutMs, options.signal);
+    const combined = combineSignals(options.timeoutMs ?? this.config.playbackTimeoutMs, options.signal);
     try {
       const headers = {
         authorization: `Bearer ${this.config.secret}`,
@@ -117,7 +117,8 @@ export class MediaBridgeClient {
         { method: options.method || "GET", headers, signal: combined.signal, redirect: "manual" }
       );
       combined.stopTimer();
-      this.markSuccess();
+      if (response.ok || response.status === 206) this.markSuccess();
+      else this.markFailure();
       return response;
     } catch (err) {
       this.markFailure();
