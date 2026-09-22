@@ -14,9 +14,9 @@ import { verifyPlayerCompatibleHit } from "./verifyPlayable.js";
 /** Lower is better. Prefer providers that reliably resolve for tap-to-play. */
 function playbackReliabilityRank(hit) {
   const provider = String(hit?.provider || "").toLowerCase();
-  // Archive is currently the most reliable cold path while YouTube worker is often unreachable.
-  if (provider === "archive.org") return 0;
-  if (provider === "youtube") return 1;
+  // YouTube worker now delivers progressive m4a/mp4; Archive often returns non-audio items first.
+  if (provider === "youtube") return 0;
+  if (provider === "archive.org" || provider === "archive") return 1;
   if (provider === "bandcamp") return 2;
   if (provider === "soundcloud") return 4;
   return 3;
