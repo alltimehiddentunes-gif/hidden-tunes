@@ -78,7 +78,10 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
   const started = Date.now();
   const timeoutMs = canary ? config.ownerCanarySearchTimeoutMs : config.searchTimeoutMs;
   const enrichFn = deps.enrichSearchHit || enrichSearchHit;
-  const postBudgetMs = searchPostProcessBudgetMs(timeoutMs);
+  // Canary verify-before-surface needs a long post budget; public shallow path stays tiny.
+  const postBudgetMs = canary
+    ? Math.min(14_000, Math.max(8_000, Number(config.ownerCanarySearchTimeoutMs) || 8_000))
+    : searchPostProcessBudgetMs(timeoutMs);
 
   recordMetric("externalSearchAttempt", { canary, workerRole: config.workerRole });
 
