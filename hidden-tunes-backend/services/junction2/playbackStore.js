@@ -40,6 +40,7 @@ export class PlaybackStore {
         if (hit.bridgeMediaId) existing.bridgeMediaId = String(hit.bridgeMediaId);
         // Prefer exact-case sourceId from latest hit (YouTube case-sensitive).
         if (hit.sourceId) existing.sourceId = String(hit.sourceId);
+        if (hit.provider) existing.provider = String(hit.provider);
         if (hit.canonicalSourceKey) existing.canonicalSourceKey = String(hit.canonicalSourceKey);
         existing.expiresAt = Date.now() + this.ttlMs;
         this.records.set(existing.publicPlaybackId, existing);

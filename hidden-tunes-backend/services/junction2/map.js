@@ -4,6 +4,25 @@ function publicMediaUrl(publicBaseUrl, publicPlaybackId) {
   return `${String(publicBaseUrl).replace(/\/+$/, "")}/api/media/${encodeURIComponent(publicPlaybackId)}`;
 }
 
+/** Canonical provider label from stored hit provenance — never from opaque UUID text. */
+export function publicProviderLabel(record) {
+  const raw = String(record?.provider || "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw === "archive" || raw === "archive.org") return "archive.org";
+  if (raw === "youtube" || raw === "yt") return "youtube";
+  if (raw === "soundcloud" || raw === "sc") return "soundcloud";
+  if (raw === "bandcamp") return "bandcamp";
+  // Reject anything that looks like an opaque id / URL leak.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(raw)) return null;
+  if (raw.includes("://") || raw.includes(".")) {
+    if (raw.includes("archive.org")) return "archive.org";
+    if (raw.includes("youtube") || raw.includes("youtu.be")) return "youtube";
+    if (raw.includes("soundcloud")) return "soundcloud";
+    return null;
+  }
+  return raw;
+}
+
 export function toPublicSong(record, publicBaseUrl) {
   const streamUrl = publicMediaUrl(publicBaseUrl, record.publicPlaybackId);
   // Unknown duration stays null — never coerce null→0 (false reject downstream).
@@ -19,6 +38,7 @@ export function toPublicSong(record, publicBaseUrl) {
     Array.isArray(record.artists) && record.artists.length
       ? record.artists
       : [{ name: artist, role: "primary" }];
+  const provider = publicProviderLabel(record);
 
   return {
     id: record.publicPlaybackId,
@@ -54,6 +74,14 @@ export function toPublicSong(record, publicBaseUrl) {
     thumbnail: art.thumbnail,
     sourceName: "Hidden Tunes",
     source_name: "Hidden Tunes",
+    // Provenance from discovery hit (PlaybackStore.provider) — not inferred from opaque id.
+    ...(provider
+      ? {
+          provider,
+          sourceProvider: provider,
+          source_provider: provider,
+        }
+      : {}),
     type: "external",
     source_type: "external",
     isOnline: true,
