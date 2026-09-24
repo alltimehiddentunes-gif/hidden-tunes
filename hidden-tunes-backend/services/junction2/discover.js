@@ -97,8 +97,10 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       const p = String(hit?.provider || "unknown").toLowerCase();
       byProvider[p] = (byProvider[p] || 0) + 1;
     }
-    // Prefer YouTube/archive ahead of SoundCloud; known-unplayable filtered below.
-    const orderedResults = orderByPlaybackReliability(results);
+    // Keep Gateway relevance order for display. Verify playability separately —
+    // never let provider speed / verify order rewrite top-N ranking.
+    const relevanceOrder = Array.isArray(results) ? results : [];
+    const verifyOrder = orderByPlaybackReliability(relevanceOrder);
     const mapped = [];
     const prewarmTargets = [];
     const deepEnrichQueue = [];
@@ -114,9 +116,46 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       ? Math.min(12_000, Math.max(4_000, Number(config.ownerCanarySearchTimeoutMs) || 5_500))
       : 0;
     const verifyDeadline = Date.now() + verifyBudgetMs;
-    const maxVerify = canary ? Math.min(5, config.searchLimit || 5) : 0;
+    const maxVerify = canary ? Math.min(8, config.searchLimit || 8) : 0;
 
-    for (const hit of orderedResults) {
+    /** @type {Map<string, string>} */
+    const verifiedBridgeIds = new Map();
+    if (canary && maxVerify > 0) {
+      for (const hit of verifyOrder) {
+        if (verifiedBridgeIds.size >= maxVerify) break;
+        if (Date.now() >= verifyDeadline) break;
+        if (Date.now() - mapStarted >= postBudgetMs) break;
+        if (!isPubliclySurfaceable(hit, config)) continue;
+        if (!isResolvableExternalProvider(hit)) continue;
+        if (!config.youtubeSurfaceEnabled && String(hit?.provider || "").toLowerCase() === "youtube") {
+          continue;
+        }
+        if (isKnownUnplayable(hit)) continue;
+        if (local.some((song) => isConservativeDuplicate(hit, song))) continue;
+        if (needsPlayabilityProbe(hit) && !hit.bridgeMediaId) {
+          /* canary still verifies below */
+        }
+        const key = String(hit.canonicalSourceKey || `${hit.provider}:${hit.sourceId}`)
+          .trim()
+          .toLowerCase();
+        if (!key || verifiedBridgeIds.has(key)) continue;
+        if (hit.bridgeMediaId) {
+          verifiedBridgeIds.set(key, String(hit.bridgeMediaId));
+          continue;
+        }
+        const verified = await verifyPlayerCompatibleHit(hit, client, {
+          signal: context.signal,
+          timeoutMs: Math.max(1_500, verifyDeadline - Date.now()),
+        });
+        if (!verified) {
+          skippedVerify += 1;
+          continue;
+        }
+        verifiedBridgeIds.set(key, verified);
+      }
+    }
+
+    for (const hit of relevanceOrder) {
       if (Date.now() - mapStarted >= postBudgetMs) {
         skippedBudget += 1;
         break;
@@ -154,24 +193,20 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
         }
       }
 
+      const key = String(hit.canonicalSourceKey || `${hit.provider}:${hit.sourceId}`)
+        .trim()
+        .toLowerCase();
       let bridgeMediaId = hit.bridgeMediaId ? String(hit.bridgeMediaId) : null;
 
       // Owner canary: only surface hits that already deliver player-compatible progressive audio.
-      // Prevents /api/media 503 JSON from reaching the phone as MEDIA_ERR_SRC_NOT_SUPPORTED.
-      if (canary && mapped.length < maxVerify && Date.now() < verifyDeadline) {
-        const verified = await verifyPlayerCompatibleHit(hit, client, {
-          signal: context.signal,
-          timeoutMs: Math.max(1_500, verifyDeadline - Date.now()),
-        });
-        if (!verified) {
+      // Preserve Gateway relevance order among verified hits (DISPLAYED TOP == PREPARED TOP).
+      if (canary) {
+        const verifiedId = key ? verifiedBridgeIds.get(key) : null;
+        if (!verifiedId && !bridgeMediaId) {
           skippedVerify += 1;
           continue;
         }
-        bridgeMediaId = verified;
-      } else if (canary && !bridgeMediaId) {
-        // Prefer not to surface unverified cold hits once the verify budget is spent.
-        skippedVerify += 1;
-        continue;
+        bridgeMediaId = verifiedId || bridgeMediaId;
       }
 
       // Shallow enrich only (source-basic / cache). Deep MusicBrainz is async after return.
