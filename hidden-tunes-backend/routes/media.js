@@ -40,6 +40,17 @@ function sendPublicError(res, status = 503) {
   return res.status(status).json(publicPlaybackError());
 }
 
+/** Reject payloads that would become MEDIA_ERR_SRC_NOT_SUPPORTED in the phone player. */
+function sniffNonAudioKind(bytes) {
+  if (!bytes || !bytes.length) return "EMPTY";
+  const b = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  if (b[0] === 0x7b || b[0] === 0x5b) return "JSON";
+  const head = b.subarray(0, Math.min(b.length, 16)).toString("utf8").trimStart();
+  if (head.startsWith("<")) return "HTML";
+  if (b.subarray(0, 7).toString("utf8") === "#EXTM3U") return "HLS";
+  return null;
+}
+
 export function createMediaRouter(deps = {}) {
   const router = express.Router();
 
@@ -141,10 +152,12 @@ export function createMediaRouter(deps = {}) {
 
       if (upstream.status >= 300 && upstream.status < 400) {
         recordMetric("playbackFailure", { reason: "redirect", durationMs: Date.now() - started });
+        markUnplayable(record, "REDIRECT", 60 * 60 * 1000);
         return sendPublicError(res, 503);
       }
       if (upstream.status >= 400) {
         recordMetric("playbackFailure", { reason: "upstream", status: upstream.status, durationMs: Date.now() - started });
+        markUnplayable(record, `UPSTREAM_${upstream.status}`, 60 * 60 * 1000);
         if (upstream.body?.cancel) {
           try {
             await upstream.body.cancel();
@@ -158,7 +171,39 @@ export function createMediaRouter(deps = {}) {
       const headers = sanitizeStreamHeaders(upstream.headers);
       if (containsPublicLeak(headers, publicApiBaseUrl(req, config))) {
         recordMetric("playbackFailure", { reason: "leak", durationMs: Date.now() - started });
+        markUnplayable(record, "LEAK", 60 * 60 * 1000);
+        if (upstream.body?.cancel) {
+          try {
+            await upstream.body.cancel();
+          } catch {
+            /* ignore */
+          }
+        }
         return sendPublicError(res, 503);
+      }
+
+      // Peek first bytes before committing audio headers — block JSON/HTML masquerading as media.
+      let reader = null;
+      let firstChunk = null;
+      if (method !== "HEAD" && upstream.body?.getReader) {
+        reader = upstream.body.getReader();
+        const { done, value } = await reader.read();
+        if (!done && value) firstChunk = Buffer.from(value);
+        const bad = sniffNonAudioKind(firstChunk);
+        if (bad) {
+          try {
+            await reader.cancel();
+          } catch {
+            /* ignore */
+          }
+          markUnplayable(record, `JSON_AS_MEDIA_${bad}`, 6 * 60 * 60 * 1000);
+          recordMetric("playbackFailure", {
+            reason: "non_audio_payload",
+            kind: bad,
+            durationMs: Date.now() - started,
+          });
+          return sendPublicError(res, 503);
+        }
       }
 
       res.status(upstream.status);
@@ -182,14 +227,31 @@ export function createMediaRouter(deps = {}) {
         res.end();
         return;
       }
-      if (!upstream.body) {
+      if (!upstream.body && !firstChunk) {
         recordMetric("playbackSuccess", { method, durationMs: marks.firstByteMs, ...marks });
         res.end();
         return;
       }
 
-      const reader = upstream.body.getReader();
+      if (!reader) {
+        reader = upstream.body.getReader();
+      }
       let logged = false;
+      if (firstChunk) {
+        marks.firstByteMs = Date.now() - started;
+        logged = true;
+        console.log(
+          JSON.stringify({
+            event: "j2_playback_timing",
+            method,
+            ...marks,
+            cacheHit: Boolean(marks.ingestMs === 0),
+          }),
+        );
+        if (!res.write(firstChunk)) {
+          await new Promise((resolve) => res.once("drain", () => resolve()));
+        }
+      }
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -213,10 +275,8 @@ export function createMediaRouter(deps = {}) {
       res.end();
     } catch (err) {
       if (record?.canonicalSourceKey || (record?.provider && record?.sourceId)) {
-        const code = String(err?.code || "");
-        if (code === "BRIDGE_HTTP" || code === "UNAUTHORIZED" || code === "MALFORMED") {
-          markUnplayable(record, code || "PLAYBACK_FAILURE");
-        }
+        const code = String(err?.code || err?.message || "PLAYBACK_FAILURE").slice(0, 80);
+        markUnplayable(record, code || "PLAYBACK_FAILURE");
       }
       recordMetric("playbackFailure", { durationMs: Date.now() - started });
       return sendPublicError(res, 503);
