@@ -9,7 +9,6 @@ import { enrichSearchHit } from "./metadata/enrich.js";
 import { isKnownUnplayable, needsPlayabilityProbe } from "./playability.js";
 import { onSearchResults } from "./preparation.js";
 import { resolveHitIdentities, rememberTrackRelationships } from "./identity.js";
-import { verifyPlayerCompatibleHit } from "./verifyPlayable.js";
 
 /** Lower is better. Prefer providers that reliably resolve for tap-to-play. */
 function playbackReliabilityRank(hit) {
@@ -78,10 +77,9 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
   const started = Date.now();
   const timeoutMs = canary ? config.ownerCanarySearchTimeoutMs : config.searchTimeoutMs;
   const enrichFn = deps.enrichSearchHit || enrichSearchHit;
-  // Canary verify-before-surface needs a long post budget; public shallow path stays tiny.
-  const postBudgetMs = canary
-    ? Math.min(14_000, Math.max(8_000, Number(config.ownerCanarySearchTimeoutMs) || 8_000))
-    : searchPostProcessBudgetMs(timeoutMs);
+  // Never let optional verify/enrich hold the user-visible search — public and owner canary
+  // share the same tiny post budget. Prep + playback prove PLAYER_COMPATIBLE asynchronously.
+  const postBudgetMs = searchPostProcessBudgetMs(timeoutMs);
 
   recordMetric("externalSearchAttempt", { canary, workerRole: config.workerRole });
 
@@ -97,10 +95,8 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
       const p = String(hit?.provider || "unknown").toLowerCase();
       byProvider[p] = (byProvider[p] || 0) + 1;
     }
-    // Keep Gateway relevance order for display. Verify playability separately —
-    // never let provider speed / verify order rewrite top-N ranking.
+    // Keep Gateway relevance order for display. Never rewrite top-N by provider speed.
     const relevanceOrder = Array.isArray(results) ? results : [];
-    const verifyOrder = orderByPlaybackReliability(relevanceOrder);
     const mapped = [];
     const prewarmTargets = [];
     const deepEnrichQueue = [];
@@ -112,48 +108,10 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
     let skippedEnrichIdentity = 0;
     let skippedBudget = 0;
     let skippedVerify = 0;
-    const verifyBudgetMs = canary
-      ? Math.min(12_000, Math.max(4_000, Number(config.ownerCanarySearchTimeoutMs) || 5_500))
-      : 0;
-    const verifyDeadline = Date.now() + verifyBudgetMs;
-    const maxVerify = canary ? Math.min(8, config.searchLimit || 8) : 0;
-
+    // Sync verify-before-surface was stacking 4–12s cold resolves into search p95.
+    // Surface trusted resolvable providers immediately; preparation warms SOURCE_READY.
     /** @type {Map<string, string>} */
     const verifiedBridgeIds = new Map();
-    if (canary && maxVerify > 0) {
-      for (const hit of verifyOrder) {
-        if (verifiedBridgeIds.size >= maxVerify) break;
-        if (Date.now() >= verifyDeadline) break;
-        if (Date.now() - mapStarted >= postBudgetMs) break;
-        if (!isPubliclySurfaceable(hit, config)) continue;
-        if (!isResolvableExternalProvider(hit)) continue;
-        if (!config.youtubeSurfaceEnabled && String(hit?.provider || "").toLowerCase() === "youtube") {
-          continue;
-        }
-        if (isKnownUnplayable(hit)) continue;
-        if (local.some((song) => isConservativeDuplicate(hit, song))) continue;
-        if (needsPlayabilityProbe(hit) && !hit.bridgeMediaId) {
-          /* canary still verifies below */
-        }
-        const key = String(hit.canonicalSourceKey || `${hit.provider}:${hit.sourceId}`)
-          .trim()
-          .toLowerCase();
-        if (!key || verifiedBridgeIds.has(key)) continue;
-        if (hit.bridgeMediaId) {
-          verifiedBridgeIds.set(key, String(hit.bridgeMediaId));
-          continue;
-        }
-        const verified = await verifyPlayerCompatibleHit(hit, client, {
-          signal: context.signal,
-          timeoutMs: Math.max(1_500, verifyDeadline - Date.now()),
-        });
-        if (!verified) {
-          skippedVerify += 1;
-          continue;
-        }
-        verifiedBridgeIds.set(key, verified);
-      }
-    }
 
     for (const hit of relevanceOrder) {
       if (Date.now() - mapStarted >= postBudgetMs) {
@@ -198,15 +156,9 @@ export async function discoverAndMerge(localSongs, context = {}, deps = {}) {
         .toLowerCase();
       let bridgeMediaId = hit.bridgeMediaId ? String(hit.bridgeMediaId) : null;
 
-      // Owner canary: only surface hits that already deliver player-compatible progressive audio.
-      // Preserve Gateway relevance order among verified hits (DISPLAYED TOP == PREPARED TOP).
-      if (canary) {
-        const verifiedId = key ? verifiedBridgeIds.get(key) : null;
-        if (!verifiedId && !bridgeMediaId) {
-          skippedVerify += 1;
-          continue;
-        }
-        bridgeMediaId = verifiedId || bridgeMediaId;
+      // Prefer a previously verified bridge id when present; do not block search for verify.
+      if (key && verifiedBridgeIds.has(key)) {
+        bridgeMediaId = verifiedBridgeIds.get(key) || bridgeMediaId;
       }
 
       // Shallow enrich only (source-basic / cache). Deep MusicBrainz is async after return.
