@@ -5,10 +5,11 @@ import { getLockscreenPlaybackDiagnosticLogs, subscribeLockscreenPlaybackDiagnos
 import { getNowPlayingSnapshot } from "./nowPlayingStore";
 import type { MetroRenderSurface } from "./metroRenderProbe";
 
-const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void; __htMarkRender?: (surface: MetroRenderSurface) => void };
+const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void; __htMarkRender?: (surface: MetroRenderSurface) => void; __htProviderDuration?: (durationMs: number) => void };
 globals.__htHarnessDispose?.();
 delete globals.__htTrace;
 delete globals.__htMarkRender;
+delete globals.__htProviderDuration;
 const native = Platform.OS === "ios" ? (NativeModules.HiddenAudioModule || NativeModules.HiddenAudio) : undefined;
 const source = TurboModuleRegistry.get("SourceCode") as { getConstants?: () => { scriptURL?: string } } | null;
 const scriptURL = String(source?.getConstants?.().scriptURL || NativeModules.SourceCode?.scriptURL || "");
@@ -25,7 +26,7 @@ let transportErrorShown = false;
 function emit(event: string, details: Record<string, unknown> = {}) {
   if (disposed || !endpoint || Platform.OS !== "ios") return;
   const safe: Record<string, unknown> = {};
-  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs", "playerProvider", "stateConsumer", "actionsConsumer", "progressConsumer", "trackStatusActive", "trackStatusInactive", "appShell", "miniPlayer", "miniProgress"]) {
+  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs", "playerProvider", "stateConsumer", "actionsConsumer", "progressConsumer", "trackStatusActive", "trackStatusInactive", "appShell", "miniPlayer", "miniProgress", "providerTotalMs", "providerMaxMs", "frames", "over50", "maxFrameMs"]) {
     const value = details[key];
     if (typeof value === "number" || typeof value === "boolean") safe[key] = value;
     else if (typeof value === "string" && value.length < 100 && !value.includes('://')) safe[key] = value;
@@ -40,6 +41,13 @@ const renderCounts = {
   trackStatusActive: 0, trackStatusInactive: 0, appShell: 0, miniPlayer: 0, miniProgress: 0,
 };
 globals.__htMarkRender = (surface) => { renderCounts[surface] += 1; };
+let providerTotalMs = 0;
+let providerMaxMs = 0;
+globals.__htProviderDuration = (durationMs) => {
+  if (!Number.isFinite(durationMs) || durationMs < 0) return;
+  providerTotalMs += durationMs;
+  providerMaxMs = Math.max(providerMaxMs, durationMs);
+};
 const timerWindow = { status: "", ticks: 0, over80: 0, over250: 0, maxDelayMs: 0, startedAt: Date.now() };
 let lastTimerTick = Date.now();
 const timer = setInterval(() => {
@@ -57,6 +65,8 @@ const timer = setInterval(() => {
   if (timerWindow.status && (timerWindow.status !== status || now - timerWindow.startedAt >= 10_000)) {
     emit("js_timer_window", timerWindow);
     emit("render_window", { status: timerWindow.status, ...renderCounts });
+    emit("provider_duration_window", { status: timerWindow.status, providerTotalMs: Math.round(providerTotalMs), providerMaxMs: Math.round(providerMaxMs) });
+    providerTotalMs = providerMaxMs = 0;
     for (const key of Object.keys(renderCounts) as MetroRenderSurface[]) renderCounts[key] = 0;
     timerWindow.ticks = timerWindow.over80 = timerWindow.over250 = timerWindow.maxDelayMs = 0;
     timerWindow.startedAt = now;
@@ -114,4 +124,4 @@ removers.push(subscribeLockscreenPlaybackDiagnostics(() => {
   lastLockscreen = entry.id;
   if (/tap|load|engine|play_success|play_failure/.test(entry.event)) emit(entry.event, entry.details);
 }));
-globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; delete globals.__htMarkRender; removers.forEach((remove) => remove()); pending.length = 0; };
+globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; delete globals.__htMarkRender; delete globals.__htProviderDuration; removers.forEach((remove) => remove()); pending.length = 0; };

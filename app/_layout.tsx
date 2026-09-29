@@ -2,6 +2,7 @@ import { Stack, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { memo, useEffect, useMemo } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Platform } from "react-native";
 
 import RemoteMediaControlsBridge from "../components/RemoteMediaControlsBridge";
 import AppScreenErrorBoundary from "../components/AppScreenErrorBoundary";
@@ -12,6 +13,7 @@ import { TvPlaybackProvider } from "../context/TvPlaybackContext";
 import LocalizationProvider from "../localization/LocalizationProvider";
 import { markAppMounted } from "../utils/startupDiagnostics";
 import { startRuntimeInstrumentation } from "../utils/runtimeInstrumentation";
+import MetroFrameProbe from "../components/MetroFrameProbe";
 
 // Keep the native splash visible until LocalizationProvider finishes bootstrap
 // and hides it. Root Stack always mounts (provider never returns null children).
@@ -73,6 +75,7 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {Platform.OS === "ios" && process.env.EXPO_PUBLIC_METRO_HARNESS === "1" ? <MetroFrameProbe /> : null}
       <LocalizationProvider>
         {skipLegacyPlayback ? (
           stack

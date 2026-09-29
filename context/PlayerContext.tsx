@@ -12,7 +12,7 @@ import { router } from "expo-router";
 import { AppState, AppStateStatus, InteractionManager, Platform } from "react-native";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
-import { markMetroRender } from "../utils/metroRenderProbe";
+import { markMetroProviderDuration, markMetroRender } from "../utils/metroRenderProbe";
 
 import {
   buildPersonalRadioQueue,
@@ -866,6 +866,7 @@ function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
 
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  const metroRenderStartedAt = process.env.EXPO_PUBLIC_METRO_HARNESS === "1" ? globalThis.performance?.now?.() ?? Date.now() : 0;
   markMetroRender("playerProvider");
   const soundRef = useRef<LegacySound | null>(null);
   const isChangingTrackRef = useRef(false);
@@ -10333,6 +10334,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [positionMillis, durationMillis, currentLyricLine]
   );
 
+  markMetroProviderDuration((globalThis.performance?.now?.() ?? Date.now()) - metroRenderStartedAt);
   return (
     <PlayerActionsContext.Provider value={actionsValue}>
       <PlayerStateContext.Provider value={stateValue}>

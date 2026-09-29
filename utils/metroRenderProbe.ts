@@ -16,3 +16,10 @@ export function markMetroRender(surface: MetroRenderSurface) {
     __htMarkRender?: (surface: MetroRenderSurface) => void;
   }).__htMarkRender?.(surface);
 }
+
+export function markMetroProviderDuration(durationMs: number) {
+  if (process.env.EXPO_PUBLIC_METRO_HARNESS !== "1") return;
+  (globalThis as typeof globalThis & {
+    __htProviderDuration?: (durationMs: number) => void;
+  }).__htProviderDuration?.(durationMs);
+}
