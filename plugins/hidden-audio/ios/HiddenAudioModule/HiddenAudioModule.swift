@@ -48,6 +48,10 @@ class HiddenAudioModule: RCTEventEmitter {
   private var diagnosticConfirmPlayingMs: [Double] = []
   private var diagnosticNowPlayingMs: [Double] = []
   private var diagnosticNowPlayingWriteMs: [Double] = []
+  private var diagnosticPrintMs: [Double] = []
+  private var diagnosticBridgeMs: [Double] = []
+  private var diagnosticMainPrintCalls = 0
+  private var diagnosticMainBridgeCalls = 0
   private var diagnosticAudioSessionCalls = 0
   private var diagnosticSetCategoryCalls = 0
   private var diagnosticSetActiveCalls = 0
@@ -124,7 +128,7 @@ class HiddenAudioModule: RCTEventEmitter {
       return
     }
     let mode = requestedMode as String
-    guard ["normal", "no_elapsed", "no_periodic", "audio_only"].contains(mode) else {
+    guard ["normal", "no_elapsed", "no_periodic", "audio_only", "no_periodic_no_print", "no_periodic_no_bridge"].contains(mode) else {
       reject("DIAGNOSTIC_MODE_INVALID", "Unknown native playback diagnostic mode", nil)
       return
     }
@@ -132,7 +136,7 @@ class HiddenAudioModule: RCTEventEmitter {
       self.stopProgressObserver()
       self.diagnosticMode = mode
       self.resetDiagnosticMetrics()
-      if mode != "no_periodic" && mode != "audio_only", (self.player?.rate ?? 0) > 0 {
+      if !mode.hasPrefix("no_periodic") && mode != "audio_only", (self.player?.rate ?? 0) > 0 {
         self.startProgressObserver()
       }
       resolve(["mode": mode, "periodicObserverActive": self.progressObserverToken != nil])
@@ -167,6 +171,10 @@ class HiddenAudioModule: RCTEventEmitter {
     diagnosticConfirmPlayingMs.removeAll(keepingCapacity: true)
     diagnosticNowPlayingMs.removeAll(keepingCapacity: true)
     diagnosticNowPlayingWriteMs.removeAll(keepingCapacity: true)
+    diagnosticPrintMs.removeAll(keepingCapacity: true)
+    diagnosticBridgeMs.removeAll(keepingCapacity: true)
+    diagnosticMainPrintCalls = 0
+    diagnosticMainBridgeCalls = 0
     diagnosticAudioSessionCalls = 0
     diagnosticSetCategoryCalls = 0
     diagnosticSetActiveCalls = 0
@@ -206,6 +214,12 @@ class HiddenAudioModule: RCTEventEmitter {
       "nowPlayingWriteP50Ms": diagnosticPercentile(diagnosticNowPlayingWriteMs, 0.50),
       "nowPlayingWriteP95Ms": diagnosticPercentile(diagnosticNowPlayingWriteMs, 0.95),
       "nowPlayingWriteMaxMs": diagnosticNowPlayingWriteMs.max() ?? 0,
+      "diagnosticMainPrintCalls": diagnosticMainPrintCalls,
+      "diagnosticMainBridgeCalls": diagnosticMainBridgeCalls,
+      "diagnosticPrintP95Ms": diagnosticPercentile(diagnosticPrintMs, 0.95),
+      "diagnosticPrintMaxMs": diagnosticPrintMs.max() ?? 0,
+      "diagnosticBridgeP95Ms": diagnosticPercentile(diagnosticBridgeMs, 0.95),
+      "diagnosticBridgeMaxMs": diagnosticBridgeMs.max() ?? 0,
       "itemEndObserverActive": itemEndObserver != nil,
       "itemStatusObserverActive": itemStatusObserver != nil,
       "timeControlObserverActive": timeControlObserver != nil,
@@ -1481,7 +1495,7 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func startProgressObserver() {
-    guard diagnosticMode != "no_periodic" && diagnosticMode != "audio_only",
+    guard !diagnosticMode.hasPrefix("no_periodic") && diagnosticMode != "audio_only",
           progressObserverToken == nil,
           let currentPlayer = player else { return }
 
@@ -1759,16 +1773,31 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func emitDiagnostic(_ eventName: String, _ data: [String: Any] = [:]) {
-    if diagnosticMode == "audio_only" && (player?.rate ?? 0) > 0 {
-      let safetyEvent = ["remote", "interruption", "route", "error", "failed", "ended", "stalled"].contains { eventName.contains($0) }
-      if !safetyEvent { return }
+    let active = (player?.rate ?? 0) > 0
+    let safetyEvent = ["remote", "interruption", "route", "error", "failed", "ended", "stalled"].contains { eventName.contains($0) }
+    let nonessentialWhilePlaying = active && !safetyEvent
+    let shouldPrint = diagnosticMode != "no_periodic_no_print" && !(diagnosticMode == "audio_only" && nonessentialWhilePlaying)
+    let shouldBridge = !(["audio_only", "no_periodic_no_bridge"].contains(diagnosticMode) && nonessentialWhilePlaying)
+    if shouldPrint {
+      let startedAt = CACurrentMediaTime()
+      print("[HiddenAudio] \(eventName) \(data)")
+      if Thread.isMainThread && diagnosticPrintMs.count < 256 {
+        diagnosticMainPrintCalls += 1
+        diagnosticPrintMs.append((CACurrentMediaTime() - startedAt) * 1000)
+      }
     }
-    print("[HiddenAudio] \(eventName) \(data)")
-    sendEvent(withName: "HiddenAudioDiagnostic", body: [
-      "type": "diagnostic",
-      "eventName": eventName,
-      "data": data
-    ])
+    if shouldBridge {
+      let startedAt = CACurrentMediaTime()
+      sendEvent(withName: "HiddenAudioDiagnostic", body: [
+        "type": "diagnostic",
+        "eventName": eventName,
+        "data": data
+      ])
+      if Thread.isMainThread && diagnosticBridgeMs.count < 256 {
+        diagnosticMainBridgeCalls += 1
+        diagnosticBridgeMs.append((CACurrentMediaTime() - startedAt) * 1000)
+      }
+    }
   }
 
   private func emitRemoteCommandResult(

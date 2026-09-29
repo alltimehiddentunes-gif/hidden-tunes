@@ -8550,7 +8550,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (
         Platform.OS === "ios" &&
         process.env.EXPO_PUBLIC_METRO_HARNESS === "1" &&
-        ["no_periodic", "audio_only"].includes((globalThis as typeof globalThis & { __htNativeDiagnosticMode?: string }).__htNativeDiagnosticMode || "")
+        (["audio_only", "no_periodic"].includes((globalThis as typeof globalThis & { __htNativeDiagnosticMode?: string }).__htNativeDiagnosticMode || "") || (globalThis as typeof globalThis & { __htNativeDiagnosticMode?: string }).__htNativeDiagnosticMode?.startsWith("no_periodic_"))
       ) return;
 
       // Native progress events already drive UI on Android and iOS. Polling
