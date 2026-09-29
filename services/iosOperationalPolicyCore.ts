@@ -20,6 +20,16 @@ export type IosOperationalDeps = {
 };
 const refKey = (ref: IosOperationalRef) => `${ref.type}:${ref.id}`;
 const ageQuery = (access: IosOperationalAccess = {}) => access.matureEnabled ? "mature_enabled=true&age_confirmed=true" : "";
+function samePolicy(left: IosOperationalPolicy | null, right: IosOperationalPolicy): boolean {
+  if (!left || left.version !== right.version || left.revision !== right.revision ||
+      left.enforcementEnabled !== right.enforcementEnabled || left.profileActive !== right.profileActive ||
+      left.mode !== right.mode || left.controls.length !== right.controls.length) return false;
+  const controls = new Map(left.controls.map((control) => [control.id, control]));
+  return right.controls.every((control) => {
+    const previous = controls.get(control.id);
+    return previous?.enabled === control.enabled && previous.parentId === control.parentId;
+  });
+}
 export class IosOperationalUnavailableError extends Error {
   constructor() { super("This content is currently unavailable on iOS."); this.name = "IosOperationalUnavailableError"; }
 }
@@ -96,8 +106,13 @@ export class IosOperationalPolicyClient {
         this.acceptedLegacyRevision = this.activated && !policy.enforcementEnabled ? policy.revision : -1;
         this.minimumRevision = policy.revision;
         await this.deps.write(JSON.stringify({ version: 1, policyTarget: IOS_216_POLICY_TARGET, activated: this.activated, revision: this.minimumRevision, acceptedLegacyRevision: this.acceptedLegacyRevision }));
-        if (policy.revision !== this.snapshot.revision || this.snapshot.status !== (policy.enforcementEnabled ? "active" : "legacy")) this.decisions.clear();
-        this.publish(policy.enforcementEnabled ? "active" : "legacy", policy);
+        const status = policy.enforcementEnabled ? "active" : "legacy";
+        // A successful refresh with identical controls is not a catalog change.
+        // Preserve the snapshot reference so subscribed rows do not rerender.
+        if (this.snapshot.status !== status || !samePolicy(this.snapshot.policy, policy)) {
+          this.decisions.clear();
+          this.publish(status, policy);
+        }
       } catch {
         this.decisions.clear();
         this.publish("unavailable", null);

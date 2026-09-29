@@ -22,7 +22,7 @@ function fixture(platform = "ios") {
     calls.push({ path });
     return response({ policyTarget: IOS_216_POLICY_TARGET, success: allowed(id, type), allowed: allowed(id, type), enforcementEnabled: active, revision, type, id, playbackUrl: `https://controlled.invalid/${type}/${id}`, delivery: type === "music" ? "controlled_media" : "direct" }, allowed(id, type) ? 200 : 403);
   } });
-  return { client, calls, activate() { active = true; revision++; now += 20000; }, deactivate() { active = false; revision++; now += 20000; }, set(id: string, value: boolean) { enabled[id] = value; revision++; now += 20000; }, offline() { offline = true; now += 20000; }, policy, saved: () => stored };
+  return { client, calls, activate() { active = true; revision++; now += 20000; }, deactivate() { active = false; revision++; now += 20000; }, set(id: string, value: boolean) { enabled[id] = value; revision++; now += 20000; }, setSameRevision(id: string, value: boolean) { enabled[id] = value; now += 20000; }, offline() { offline = true; now += 20000; }, policy, saved: () => stored };
 }
 
 async function main() {
@@ -46,6 +46,27 @@ async function main() {
     assert.deepEqual(await f.client.playback({ type: "music", id: djcity }), { enforced: false });
     assert.equal(f.calls.length, 0); assert.equal(f.saved(), null);
   }
+  const unchanged = fixture();
+  let notifications = 0;
+  unchanged.client.subscribe(() => { notifications++; });
+  await unchanged.client.refresh(true);
+  const firstSnapshot = unchanged.client.getSnapshot();
+  await unchanged.client.refresh(true);
+  assert.equal(unchanged.client.getSnapshot(), firstSnapshot, "unchanged successful refresh preserves snapshot identity");
+  assert.equal(notifications, 1, "unchanged refresh does not notify every mounted catalog row");
+  unchanged.activate();
+  await unchanged.client.refresh(true);
+  assert.equal(notifications, 2, "activation still notifies subscribers");
+  await unchanged.client.filter([{ id: mureka }], (song) => ({ type: "music", id: song.id }));
+  assert.equal(unchanged.client.itemVisible({ type: "music", id: mureka }), true);
+  const beforeControlChange = notifications;
+  unchanged.setSameRevision("source:music:mureka", false);
+  await unchanged.client.refresh(true);
+  assert.equal(notifications, beforeControlChange + 1, "changed controls notify even at the same revision");
+  assert.equal(unchanged.client.itemVisible({ type: "music", id: mureka }), false, "changed controls invalidate cached visibility");
+  unchanged.offline();
+  assert.equal((await unchanged.client.refresh(true)).status, "unavailable", "failed refresh still fails closed");
+  assert.equal(notifications, beforeControlChange + 2, "failed refresh still notifies mounted subscribers");
   const f = fixture();
   const songs = [{ id: mureka }, { id: djcity }];
   assert.equal(await f.client.filter(songs, (x) => ({ type: "music", id: x.id })), songs, "inactive is exact legacy passthrough");
