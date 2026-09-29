@@ -5,7 +5,9 @@ type TapTiming = {
   navigationDispatchAt?: number;
 };
 
-const enabled = __DEV__;
+import { getNowPlayingSnapshot } from "./nowPlayingStore";
+
+const enabled = __DEV__ || process.env.EXPO_PUBLIC_METRO_HARNESS === "1";
 const pendingByRoute = new Map<string, TapTiming>();
 
 function now(): number {
@@ -55,6 +57,17 @@ export function markDestinationFirstFrame(route: string) {
       timing.navigationDispatchAt === undefined
         ? null
         : Math.round(timing.navigationDispatchAt - timing.touchDownAt),
+    touchDownToFirstFrameMs: Math.round(firstFrameAt - timing.touchDownAt),
+  });
+  (globalThis as typeof globalThis & {
+    __htTrace?: (event: string, details?: Record<string, unknown>) => void;
+  }).__htTrace?.("nav_timing", {
+    status: getNowPlayingSnapshot().isPlaying ? "playing" : "idle_or_paused",
+    route: key,
+    touchDownToHandlerMs:
+      timing.pressHandlerAt === undefined ? -1 : Math.round(timing.pressHandlerAt - timing.touchDownAt),
+    touchDownToDispatchMs:
+      timing.navigationDispatchAt === undefined ? -1 : Math.round(timing.navigationDispatchAt - timing.touchDownAt),
     touchDownToFirstFrameMs: Math.round(firstFrameAt - timing.touchDownAt),
   });
   pendingByRoute.delete(key);

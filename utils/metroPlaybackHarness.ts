@@ -1,7 +1,8 @@
 // Local observation only: never loads, starts, pauses or replaces audio.
-import { Alert, NativeModules, NativeEventEmitter, Platform, TurboModuleRegistry } from "react-native";
+import { Alert, AppState, NativeModules, NativeEventEmitter, Platform, TurboModuleRegistry } from "react-native";
 import { getPlaybackCriticalLogs, subscribePlaybackCriticalLogs } from "./playbackCriticalLogs";
 import { getLockscreenPlaybackDiagnosticLogs, subscribeLockscreenPlaybackDiagnostics } from "./lockscreenPlaybackDiagnostics";
+import { getNowPlayingSnapshot } from "./nowPlayingStore";
 
 const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void };
 globals.__htHarnessDispose?.();
@@ -22,7 +23,7 @@ let transportErrorShown = false;
 function emit(event: string, details: Record<string, unknown> = {}) {
   if (disposed || !endpoint || Platform.OS !== "ios") return;
   const safe: Record<string, unknown> = {};
-  for (const key of ["songId", "trackId", "status", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis"]) {
+  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs"]) {
     const value = details[key];
     if (typeof value === "number" || typeof value === "boolean") safe[key] = value;
     else if (typeof value === "string" && value.length < 100 && !value.includes('://')) safe[key] = value;
@@ -32,6 +33,32 @@ function emit(event: string, details: Record<string, unknown> = {}) {
   void flush();
 }
 globals.__htTrace = emit;
+const timerWindow = { status: "", ticks: 0, over80: 0, over250: 0, maxDelayMs: 0, startedAt: Date.now() };
+let lastTimerTick = Date.now();
+const timer = setInterval(() => {
+  const now = Date.now();
+  const delay = Math.max(0, now - lastTimerTick - 100);
+  lastTimerTick = now;
+  if (AppState.currentState !== "active") {
+    timerWindow.status = "";
+    timerWindow.ticks = timerWindow.over80 = timerWindow.over250 = timerWindow.maxDelayMs = 0;
+    timerWindow.startedAt = now;
+    return;
+  }
+  const playback = getNowPlayingSnapshot();
+  const status = playback.isPlaying ? "playing" : playback.currentSongId ? "paused" : "idle";
+  if (timerWindow.status && (timerWindow.status !== status || now - timerWindow.startedAt >= 10_000)) {
+    emit("js_timer_window", timerWindow);
+    timerWindow.ticks = timerWindow.over80 = timerWindow.over250 = timerWindow.maxDelayMs = 0;
+    timerWindow.startedAt = now;
+  }
+  timerWindow.status = status;
+  timerWindow.ticks += 1;
+  if (delay > 80) timerWindow.over80 += 1;
+  if (delay > 250) timerWindow.over250 += 1;
+  timerWindow.maxDelayMs = Math.max(timerWindow.maxDelayMs, delay);
+}, 100);
+removers.push(() => clearInterval(timer));
 async function flush() {
   if (inFlight || disposed || !pending.length || !endpoint) return;
   inFlight = true;

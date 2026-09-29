@@ -14,16 +14,17 @@ for (const available of [true, false]) {
   const native = Object.fromEntries(['setup', 'loadTrack', 'play', 'pause', 'stop', 'seekTo', 'setVolume', 'getActiveTrack', 'getProgress', 'addListener', 'removeListeners'].map(name => [name, () => calls.push(name)]));
   native.getState = async () => { calls.push('getState'); return { status: 'idle' }; };
   const subscribe = () => () => cleanups++;
-  const context = vm.createContext({ exports: {}, console, fetch: async (_url, req) => events.push(...JSON.parse(req.body)),
+  const context = vm.createContext({ exports: {}, console, setInterval: () => 1, clearInterval: () => {}, fetch: async (_url, req) => events.push(...JSON.parse(req.body)),
     require(name) {
       if (name === 'react-native') return {
         Alert: { alert: () => {} },
-        NativeModules: available ? { HiddenAudioModule: native } : {}, Platform: { OS: 'ios' },
+        NativeModules: available ? { HiddenAudioModule: native } : {}, Platform: { OS: 'ios' }, AppState: { currentState: 'active' },
         TurboModuleRegistry: { get: () => ({ getConstants: () => ({ scriptURL: 'http://172.20.10.6:8081/index.bundle' }) }) },
         NativeEventEmitter: class { addListener(_name, listener) { nativeListener = listener; return { remove: () => cleanups++ }; } },
       };
       if (name === './playbackCriticalLogs') return { getPlaybackCriticalLogs: () => [], subscribePlaybackCriticalLogs: subscribe };
       if (name === './lockscreenPlaybackDiagnostics') return { getLockscreenPlaybackDiagnosticLogs: () => [], subscribeLockscreenPlaybackDiagnostics: subscribe };
+      if (name === './nowPlayingStore') return { getNowPlayingSnapshot: () => ({ currentSongId: '', isPlaying: false }) };
       throw new Error(name);
     },
   });

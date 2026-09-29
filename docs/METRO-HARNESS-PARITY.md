@@ -38,7 +38,7 @@ Live Hermes inspection found the connected iPhone loaded `http://172.20.10.6:808
 
 The physical iPhone then proved `HiddenAudioModule` available, all 12 expected methods present, native emitter listener registered and `getState()` resolved `idle`. Repeated Music rows reached `playSong` but stopped during `authorizeIosOperationalSong` before `HiddenAudio.loadTrack`. The iOS policy endpoint returned 200 and the client was in legacy mode. A diagnostic catch identified the exact exception: Metro could not determine a production URL for additional JavaScript chunks because native Hermes has no web `location`. This was triggered by the mature-access dynamic import in a `dev=false&lazy=true` Metro bundle. It is a local bundling error, not missing HiddenAudio native registration.
 
-With `EXPO_PUBLIC_METRO_HARNESS=1`, `metro.config.js` now rewrites only iOS release-mode `/index.bundle` requests from `lazy=true` to `lazy=false`. The actual requested URL compiled successfully, includes `shouldIncludeMatureInApi` in the main bundle and leaves Android requests unchanged. The physical iPhone has not yet completed the post-restart song test, so playback is not claimed repaired. The active server was restarted on port 8081 with no tunnel.
+With `EXPO_PUBLIC_METRO_HARNESS=1`, `metro.config.js` now rewrites only iOS release-mode `/index.bundle` requests from `lazy=true` to `lazy=false`. The actual requested URL compiled successfully, includes `shouldIncludeMatureInApi` in the main bundle and leaves Android requests unchanged. The physical iPhone subsequently reached native player creation and native playing confirmation; the owner confirmed three distinct songs were audible. The active server is on port 8081 with no tunnel.
 
 Run from this workspace with environment:
 
@@ -57,6 +57,6 @@ Listener registration alone does not prove events arrive. Native playing state d
 
 ## Gate
 
-Metro /status and iOS bundle return HTTP 200; bundle runtime is the development runtime above. iPhone appears as com.hiddentunes.app in Metro and the owner confirms Home loaded and scrolls. Native handshake passes. The one-tap trace identifies the local dynamic-import failure. Post-restart first audio, 3/3 audible songs and playback through Home/Explore/Library/Profile remain pending.
+Metro /status and iOS bundle return HTTP 200; bundle runtime is the development runtime above. iPhone appears as com.hiddentunes.app in Metro and the owner confirms Home loaded and scrolls. Native handshake passes. The one-tap trace identified and the eager Metro bundle resolved the local dynamic-import failure. First audio and 3/3 audible songs pass by owner report. Playback through Home/Explore/Library/Profile remains pending, as does the idle-versus-playing performance comparison. The Metro-only timing probe records tap-to-first-JS-frame and 100 ms timer delay; neither is a native main-thread stack or proof of visual frame timing.
 
 No optimization until this gate passes. No rebuild without evidence of missing native capability or a demonstrated native configuration defect. No production changes and no OTA.
