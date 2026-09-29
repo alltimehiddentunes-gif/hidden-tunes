@@ -55,6 +55,13 @@ RCT_EXTERN_METHOD(getProgress:(RCTPromiseResolveBlock)resolve
 RCT_EXTERN_METHOD(getActiveTrack:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(setDiagnosticMode:(NSString *)mode
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(getDiagnosticSnapshot:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(syncCarPlayCatalog:(NSDictionary *)snapshot
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)

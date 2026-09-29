@@ -106,6 +106,7 @@ module.exports = ({ config }) => {
         ...(appJson.expo.ios?.infoPlist || {}),
         ...(config.ios?.infoPlist || {}),
         UIBackgroundModes: ["audio"],
+        ...(isDevClientBuild ? { HTNativePlaybackDiagnostic: true } : {}),
       },
     },
     android: {

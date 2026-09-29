@@ -18,6 +18,8 @@ const endpoint = scriptURL.match(/^http:\/\/(?:localhost|127\.0\.0\.1|10\.[\d.]+
   ? `${scriptURL.split('/').slice(0, 3).join('/')}/__ht_harness`
   : null;
 const required = ["setup", "loadTrack", "play", "pause", "stop", "seekTo", "setVolume", "getState", "getProgress", "getActiveTrack", "addListener", "removeListeners"];
+// Change one value between Metro reloads; the native module is never altered by OTA.
+const requestedNativeMode = "normal";
 let disposed = false;
 let inFlight = false;
 let sequence = 0;
@@ -27,7 +29,7 @@ let transportErrorShown = false;
 function emit(event: string, details: Record<string, unknown> = {}) {
   if (disposed || !endpoint || Platform.OS !== "ios") return;
   const safe: Record<string, unknown> = {};
-  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "elapsedMs", "nativeProgress", "nativeState", "nativeDiagnostics", "nativeBuffer", "nativeTimeControl", "nativeRate", "nativeNowPlayingNotice", "jsProgressCallback", "jsProgressApplied", "jsProgressSuppressed", "positionWrites", "durationWrites", "playingWrites", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs", "playerProvider", "stateConsumer", "actionsConsumer", "progressConsumer", "trackStatusActive", "trackStatusInactive", "appShell", "miniPlayer", "miniProgress", "providerTotalMs", "providerMaxMs", "frames", "over50", "maxFrameMs"]) {
+  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "elapsedMs", "nativeProgress", "nativeState", "nativeDiagnostics", "nativeBuffer", "nativeTimeControl", "nativeRate", "nativeNowPlayingNotice", "jsProgressCallback", "jsProgressApplied", "jsProgressSuppressed", "positionWrites", "durationWrites", "playingWrites", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs", "playerProvider", "stateConsumer", "actionsConsumer", "progressConsumer", "trackStatusActive", "trackStatusInactive", "appShell", "miniPlayer", "miniProgress", "providerTotalMs", "providerMaxMs", "frames", "over50", "maxFrameMs", "mode", "elapsedSeconds", "playerRate", "periodicObserverActive", "periodicCallbacks", "periodicObserverInstalls", "periodicObserverRemovals", "periodicP50Ms", "periodicP95Ms", "periodicMaxMs", "progressEmitP95Ms", "progressEmitMaxMs", "endFallbackP95Ms", "endFallbackMaxMs", "confirmPlayingP95Ms", "confirmPlayingMaxMs", "nowPlayingCalls", "nowPlayingWrites", "nowPlayingOnMain", "nowPlayingP50Ms", "nowPlayingP95Ms", "nowPlayingMaxMs", "nowPlayingWriteP50Ms", "nowPlayingWriteP95Ms", "nowPlayingWriteMaxMs", "itemEndObserverActive", "itemStatusObserverActive", "timeControlObserverActive", "rateObserverActive", "loadedRangesObserverActive", "bufferEmptyObserverActive", "likelyToKeepUpObserverActive", "remoteCommandsRegistered", "lifecycleObserversRegistered", "audioSessionCalls", "setCategoryCalls", "setActiveCalls"]) {
     const value = details[key];
     if (typeof value === "number" || typeof value === "boolean") safe[key] = value;
     else if (typeof value === "string" && value.length < 100 && !value.includes('://')) safe[key] = value;
@@ -60,6 +62,7 @@ globals.__htCountPlayback = (kind) => {
 };
 const timerWindow = { status: "", ticks: 0, over80: 0, over250: 0, maxDelayMs: 0, startedAt: Date.now() };
 let lastTimerTick = Date.now();
+let lastNativeSnapshotAt = 0;
 const timer = setInterval(() => {
   const now = Date.now();
   const delay = Math.max(0, now - lastTimerTick - 100);
@@ -72,6 +75,14 @@ const timer = setInterval(() => {
   }
   const playback = getNowPlayingSnapshot();
   const status = playback.isPlaying ? "playing" : playback.currentSongId ? "paused" : "idle";
+  if (typeof native?.getDiagnosticSnapshot === "function" &&
+      ((status === "playing" && now - lastNativeSnapshotAt >= 10_000) ||
+       (timerWindow.status === "playing" && status !== "playing"))) {
+    lastNativeSnapshotAt = now;
+    void native.getDiagnosticSnapshot()
+      .then((snapshot: Record<string, unknown>) => emit("native_diag_snapshot", snapshot))
+      .catch(() => emit("native_diag_snapshot_failed"));
+  }
   if (timerWindow.status && (timerWindow.status !== status || now - timerWindow.startedAt >= 1_000)) {
     const elapsedMs = now - timerWindow.startedAt;
     emit("js_timer_window", { ...timerWindow, elapsedMs });
@@ -111,6 +122,13 @@ if (Platform.OS === "ios") {
 }
 for (const method of required) emit(`method_${method}_${typeof native?.[method] === 'function' ? 'present' : 'missing'}`);
 if (native) {
+  if (typeof native.setDiagnosticMode === "function") {
+    void native.setDiagnosticMode(requestedNativeMode)
+      .then((result: Record<string, unknown>) => emit("native_diag_mode_ready", result))
+      .catch(() => emit("native_diag_mode_failed"));
+  } else {
+    emit("native_diag_mode_unavailable");
+  }
   try {
     const emitter = new NativeEventEmitter(native);
     const allowed = new Set(["hidden_audio_native_load_start", "hidden_audio_native_player_created", "hidden_audio_native_playing_confirmed", "hidden_audio_playback_buffer_empty", "hidden_audio_playback_likely_to_keep_up", "hidden_audio_time_control_status"]);

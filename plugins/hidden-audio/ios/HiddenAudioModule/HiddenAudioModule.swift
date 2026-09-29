@@ -1,5 +1,6 @@
 import AVFoundation
 import MediaPlayer
+import QuartzCore
 import React
 import UIKit
 
@@ -32,6 +33,24 @@ class HiddenAudioModule: RCTEventEmitter {
   private var nowPlayingArtworkUrl: String?
   private var nowPlayingArtwork: MPMediaItemArtwork?
   private var remoteCommandsRegistered = false
+  // Internal development build only. Never exposed by a store/preview profile.
+  private var diagnosticMode = "normal"
+  private var diagnosticStartedAt = CACurrentMediaTime()
+  private var diagnosticPeriodicCallbacks = 0
+  private var diagnosticPeriodicObserverInstalls = 0
+  private var diagnosticPeriodicObserverRemovals = 0
+  private var diagnosticNowPlayingCalls = 0
+  private var diagnosticNowPlayingWrites = 0
+  private var diagnosticNowPlayingOnMain = true
+  private var diagnosticPeriodicMs: [Double] = []
+  private var diagnosticProgressEmitMs: [Double] = []
+  private var diagnosticEndFallbackMs: [Double] = []
+  private var diagnosticConfirmPlayingMs: [Double] = []
+  private var diagnosticNowPlayingMs: [Double] = []
+  private var diagnosticNowPlayingWriteMs: [Double] = []
+  private var diagnosticAudioSessionCalls = 0
+  private var diagnosticSetCategoryCalls = 0
+  private var diagnosticSetActiveCalls = 0
   private var lifecycleObserversRegistered = false
   private var currentItemEndedHandled = false
   private var wasPlayingBeforeInterruption = false
@@ -91,6 +110,114 @@ class HiddenAudioModule: RCTEventEmitter {
       "HiddenAudioTrackChanged",
       "HiddenAudioPlaybackEnded",
       "HiddenAudioDiagnostic"
+    ]
+  }
+
+  @objc(setDiagnosticMode:resolver:rejecter:)
+  func setDiagnosticMode(
+    _ requestedMode: NSString,
+    resolver resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard (Bundle.main.object(forInfoDictionaryKey: "HTNativePlaybackDiagnostic") as? Bool) == true else {
+      reject("DIAGNOSTIC_UNAVAILABLE", "Native playback diagnostics require an internal development build", nil)
+      return
+    }
+    let mode = requestedMode as String
+    guard ["normal", "no_elapsed", "no_periodic"].contains(mode) else {
+      reject("DIAGNOSTIC_MODE_INVALID", "Unknown native playback diagnostic mode", nil)
+      return
+    }
+    let apply = {
+      self.stopProgressObserver()
+      self.diagnosticMode = mode
+      self.resetDiagnosticMetrics()
+      if mode != "no_periodic", (self.player?.rate ?? 0) > 0 {
+        self.startProgressObserver()
+      }
+      resolve(["mode": mode, "periodicObserverActive": self.progressObserverToken != nil])
+    }
+    if Thread.isMainThread { apply() } else { DispatchQueue.main.async(execute: apply) }
+  }
+
+  @objc(getDiagnosticSnapshot:rejecter:)
+  func getDiagnosticSnapshot(
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard (Bundle.main.object(forInfoDictionaryKey: "HTNativePlaybackDiagnostic") as? Bool) == true else {
+      reject("DIAGNOSTIC_UNAVAILABLE", "Native playback diagnostics require an internal development build", nil)
+      return
+    }
+    let read = { resolve(self.diagnosticSnapshot()) }
+    if Thread.isMainThread { read() } else { DispatchQueue.main.async(execute: read) }
+  }
+
+  private func resetDiagnosticMetrics() {
+    diagnosticStartedAt = CACurrentMediaTime()
+    diagnosticPeriodicCallbacks = 0
+    diagnosticPeriodicObserverInstalls = 0
+    diagnosticPeriodicObserverRemovals = 0
+    diagnosticNowPlayingCalls = 0
+    diagnosticNowPlayingWrites = 0
+    diagnosticNowPlayingOnMain = true
+    diagnosticPeriodicMs.removeAll(keepingCapacity: true)
+    diagnosticProgressEmitMs.removeAll(keepingCapacity: true)
+    diagnosticEndFallbackMs.removeAll(keepingCapacity: true)
+    diagnosticConfirmPlayingMs.removeAll(keepingCapacity: true)
+    diagnosticNowPlayingMs.removeAll(keepingCapacity: true)
+    diagnosticNowPlayingWriteMs.removeAll(keepingCapacity: true)
+    diagnosticAudioSessionCalls = 0
+    diagnosticSetCategoryCalls = 0
+    diagnosticSetActiveCalls = 0
+  }
+
+  private func diagnosticPercentile(_ samples: [Double], _ percentile: Double) -> Double {
+    guard !samples.isEmpty else { return 0 }
+    let sorted = samples.sorted()
+    let index = min(sorted.count - 1, Int(ceil(Double(sorted.count) * percentile)) - 1)
+    return sorted[max(0, index)]
+  }
+
+  private func diagnosticSnapshot() -> [String: Any] {
+    return [
+      "mode": diagnosticMode,
+      "elapsedSeconds": CACurrentMediaTime() - diagnosticStartedAt,
+      "playerRate": player?.rate ?? 0,
+      "periodicObserverActive": progressObserverToken != nil,
+      "periodicCallbacks": diagnosticPeriodicCallbacks,
+      "periodicObserverInstalls": diagnosticPeriodicObserverInstalls,
+      "periodicObserverRemovals": diagnosticPeriodicObserverRemovals,
+      "periodicP50Ms": diagnosticPercentile(diagnosticPeriodicMs, 0.50),
+      "periodicP95Ms": diagnosticPercentile(diagnosticPeriodicMs, 0.95),
+      "periodicMaxMs": diagnosticPeriodicMs.max() ?? 0,
+      "progressEmitP95Ms": diagnosticPercentile(diagnosticProgressEmitMs, 0.95),
+      "progressEmitMaxMs": diagnosticProgressEmitMs.max() ?? 0,
+      "endFallbackP95Ms": diagnosticPercentile(diagnosticEndFallbackMs, 0.95),
+      "endFallbackMaxMs": diagnosticEndFallbackMs.max() ?? 0,
+      "confirmPlayingP95Ms": diagnosticPercentile(diagnosticConfirmPlayingMs, 0.95),
+      "confirmPlayingMaxMs": diagnosticConfirmPlayingMs.max() ?? 0,
+      "nowPlayingCalls": diagnosticNowPlayingCalls,
+      "nowPlayingWrites": diagnosticNowPlayingWrites,
+      "nowPlayingOnMain": diagnosticNowPlayingOnMain,
+      "nowPlayingP50Ms": diagnosticPercentile(diagnosticNowPlayingMs, 0.50),
+      "nowPlayingP95Ms": diagnosticPercentile(diagnosticNowPlayingMs, 0.95),
+      "nowPlayingMaxMs": diagnosticNowPlayingMs.max() ?? 0,
+      "nowPlayingWriteP50Ms": diagnosticPercentile(diagnosticNowPlayingWriteMs, 0.50),
+      "nowPlayingWriteP95Ms": diagnosticPercentile(diagnosticNowPlayingWriteMs, 0.95),
+      "nowPlayingWriteMaxMs": diagnosticNowPlayingWriteMs.max() ?? 0,
+      "itemEndObserverActive": itemEndObserver != nil,
+      "itemStatusObserverActive": itemStatusObserver != nil,
+      "timeControlObserverActive": timeControlObserver != nil,
+      "rateObserverActive": rateObserver != nil,
+      "loadedRangesObserverActive": loadedTimeRangesObserver != nil,
+      "bufferEmptyObserverActive": bufferEmptyObserver != nil,
+      "likelyToKeepUpObserverActive": likelyToKeepUpObserver != nil,
+      "remoteCommandsRegistered": remoteCommandsRegistered,
+      "lifecycleObserversRegistered": lifecycleObserversRegistered,
+      "audioSessionCalls": diagnosticAudioSessionCalls,
+      "setCategoryCalls": diagnosticSetCategoryCalls,
+      "setActiveCalls": diagnosticSetActiveCalls
     ]
   }
 
@@ -556,6 +683,7 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func activateAudioSession() throws {
+    diagnosticAudioSessionCalls += 1
     // Phone call / system interruption owns the session — never fight it.
     if audioInterruptionActive {
       emitDiagnostic("ios_call_interruption_session_activate_blocked", [
@@ -578,6 +706,7 @@ class HiddenAudioModule: RCTEventEmitter {
       ])
 
       do {
+        diagnosticSetCategoryCalls += 1
         try session.setCategory(.playback, mode: .default, options: [])
         emitDiagnostic("ios_audio_session_category_success", [
           "category": session.category.rawValue,
@@ -597,6 +726,7 @@ class HiddenAudioModule: RCTEventEmitter {
     }
 
     do {
+      diagnosticSetActiveCalls += 1
       try session.setActive(true)
       emitDiagnostic("ios_audio_session_active_success", [
         "category": session.category.rawValue,
@@ -1351,7 +1481,9 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func startProgressObserver() {
-    guard progressObserverToken == nil, let currentPlayer = player else { return }
+    guard diagnosticMode != "no_periodic",
+          progressObserverToken == nil,
+          let currentPlayer = player else { return }
 
     // 1.0s matches Android PROGRESS_LOOP_INTERVAL_MS — lock-screen elapsed
     // still updates at whole-second resolution via updateNowPlayingElapsed.
@@ -1359,11 +1491,30 @@ class HiddenAudioModule: RCTEventEmitter {
       forInterval: CMTime(seconds: 1.0, preferredTimescale: 600),
       queue: .main
     ) { [weak self] _ in
-      self?.emitProgress(force: false)
-      self?.updateNowPlayingElapsed()
-      self?.emitEndedFallbackIfNeeded()
-      self?.confirmPlayingIfNeeded()
+      guard let self = self else { return }
+      let startedAt = CACurrentMediaTime()
+      self.diagnosticPeriodicCallbacks += 1
+      var operationStartedAt = CACurrentMediaTime()
+      self.emitProgress(force: false)
+      if self.diagnosticProgressEmitMs.count < 256 {
+        self.diagnosticProgressEmitMs.append((CACurrentMediaTime() - operationStartedAt) * 1000)
+      }
+      if self.diagnosticMode != "no_elapsed" { self.updateNowPlayingElapsed() }
+      operationStartedAt = CACurrentMediaTime()
+      self.emitEndedFallbackIfNeeded()
+      if self.diagnosticEndFallbackMs.count < 256 {
+        self.diagnosticEndFallbackMs.append((CACurrentMediaTime() - operationStartedAt) * 1000)
+      }
+      operationStartedAt = CACurrentMediaTime()
+      self.confirmPlayingIfNeeded()
+      if self.diagnosticConfirmPlayingMs.count < 256 {
+        self.diagnosticConfirmPlayingMs.append((CACurrentMediaTime() - operationStartedAt) * 1000)
+      }
+      if self.diagnosticPeriodicMs.count < 256 {
+        self.diagnosticPeriodicMs.append((CACurrentMediaTime() - startedAt) * 1000)
+      }
     }
+    diagnosticPeriodicObserverInstalls += 1
   }
 
   private func emitEndedFallbackIfNeeded() {
@@ -1392,6 +1543,7 @@ class HiddenAudioModule: RCTEventEmitter {
     if let token = progressObserverToken {
       player?.removeTimeObserver(token)
       progressObserverToken = nil
+      diagnosticPeriodicObserverRemovals += 1
     }
   }
 
@@ -1427,6 +1579,14 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func updateNowPlayingElapsed() {
+    let callStartedAt = CACurrentMediaTime()
+    diagnosticNowPlayingCalls += 1
+    diagnosticNowPlayingOnMain = diagnosticNowPlayingOnMain && Thread.isMainThread
+    defer {
+      if diagnosticNowPlayingMs.count < 256 {
+        diagnosticNowPlayingMs.append((CACurrentMediaTime() - callStartedAt) * 1000)
+      }
+    }
     let progress = progressPayload()
     let positionSeconds = progress["positionSeconds"] ?? 0
     let elapsedFloor = Int(floor(positionSeconds))
@@ -1438,11 +1598,16 @@ class HiddenAudioModule: RCTEventEmitter {
     lastNowPlayingElapsedFloor = elapsedFloor
     lastNowPlayingRate = rate
 
+    let writeStartedAt = CACurrentMediaTime()
     var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
     info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = positionSeconds
     info[MPMediaItemPropertyPlaybackDuration] = progress["durationSeconds"]
     info[MPNowPlayingInfoPropertyPlaybackRate] = rate
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    diagnosticNowPlayingWrites += 1
+    if diagnosticNowPlayingWriteMs.count < 256 {
+      diagnosticNowPlayingWriteMs.append((CACurrentMediaTime() - writeStartedAt) * 1000)
+    }
 
     let now = Date().timeIntervalSince1970
     if now - lastNowPlayingElapsedDiagnosticAt >= 15 {
