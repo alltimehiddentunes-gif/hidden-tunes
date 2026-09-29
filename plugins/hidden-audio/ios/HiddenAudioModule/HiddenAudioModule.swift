@@ -124,7 +124,7 @@ class HiddenAudioModule: RCTEventEmitter {
       return
     }
     let mode = requestedMode as String
-    guard ["normal", "no_elapsed", "no_periodic"].contains(mode) else {
+    guard ["normal", "no_elapsed", "no_periodic", "audio_only"].contains(mode) else {
       reject("DIAGNOSTIC_MODE_INVALID", "Unknown native playback diagnostic mode", nil)
       return
     }
@@ -132,7 +132,7 @@ class HiddenAudioModule: RCTEventEmitter {
       self.stopProgressObserver()
       self.diagnosticMode = mode
       self.resetDiagnosticMetrics()
-      if mode != "no_periodic", (self.player?.rate ?? 0) > 0 {
+      if mode != "no_periodic" && mode != "audio_only", (self.player?.rate ?? 0) > 0 {
         self.startProgressObserver()
       }
       resolve(["mode": mode, "periodicObserverActive": self.progressObserverToken != nil])
@@ -1481,7 +1481,7 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func startProgressObserver() {
-    guard diagnosticMode != "no_periodic",
+    guard diagnosticMode != "no_periodic" && diagnosticMode != "audio_only",
           progressObserverToken == nil,
           let currentPlayer = player else { return }
 
@@ -1683,6 +1683,7 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func emitProgress(force: Bool = true) {
+    if diagnosticMode == "audio_only" && (player?.rate ?? 0) > 0 { return }
     let progress = progressPayload()
     let positionSeconds = progress["positionSeconds"] ?? 0
     let positionMs = Int64((positionSeconds.isFinite ? positionSeconds : 0) * 1000)
@@ -1758,6 +1759,10 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func emitDiagnostic(_ eventName: String, _ data: [String: Any] = [:]) {
+    if diagnosticMode == "audio_only" && (player?.rate ?? 0) > 0 {
+      let safetyEvent = ["remote", "interruption", "route", "error", "failed", "ended", "stalled"].contains { eventName.contains($0) }
+      if !safetyEvent { return }
+    }
     print("[HiddenAudio] \(eventName) \(data)")
     sendEvent(withName: "HiddenAudioDiagnostic", body: [
       "type": "diagnostic",
