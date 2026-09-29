@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -206,20 +207,21 @@ export function usePlayerNowPlaying() {
 
 export function useTrackPlaybackStatus(trackId: string) {
   const normalizedTrackId = String(trackId || "");
-  const snapshot = useSyncExternalStore(
+  const getStatus = useCallback(() => {
+    const { currentSongId, isPlaying } = getNowPlayingSnapshot();
+    if (!normalizedTrackId || currentSongId !== normalizedTrackId) return 0;
+    return isPlaying ? 2 : 1;
+  }, [normalizedTrackId]);
+  const status = useSyncExternalStore(
     subscribeNowPlaying,
-    getNowPlayingSnapshot,
-    getNowPlayingSnapshot
+    getStatus,
+    getStatus
   );
 
-  return useMemo(() => {
-    const isActive = snapshot.currentSongId === normalizedTrackId;
-
-    return {
-      isActive,
-      isPlaying: isActive && snapshot.isPlaying,
-    };
-  }, [normalizedTrackId, snapshot.currentSongId, snapshot.isPlaying]);
+  return useMemo(() => ({
+    isActive: status !== 0,
+    isPlaying: status === 2,
+  }), [status]);
 }
 
 export function usePlayer(): PlayerContextType {
