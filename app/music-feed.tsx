@@ -1381,6 +1381,7 @@ export default function MusicFeedScreen() {
 
   const playCatalogSong = useCallback(
     (song: HiddenTunesSong | HiddenTunesNormalizedSong) => {
+      (globalThis as any).__htTrace?.("row_press", { songId: String(song.id) });
       const index = findSongIndex(songs, song);
       const catalogSong = index >= 0 ? songs[index] : (song as HiddenTunesSong);
       void playSong(catalogSong, songs, Math.max(index, 0), {
@@ -1461,6 +1462,7 @@ export default function MusicFeedScreen() {
 
   const playSongFromList = useCallback(
     (song: HiddenTunesSong, queueSongs: HiddenTunesSong[], queueContext: PlaybackQueueContext) => {
+      (globalThis as any).__htTrace?.("row_press", { songId: String(song.id) });
       const queue = queueSongs.length ? queueSongs : songs;
       const queueIndex = findSongIndex(queue, song);
       void playSong(song, queue, Math.max(queueIndex, 0), {

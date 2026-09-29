@@ -22,8 +22,16 @@ const client = new IosOperationalPolicyClient({
   request: async (path, init) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 7000);
+    const trace = (globalThis as any).__htTrace as ((event: string, details?: Record<string, unknown>) => void) | undefined;
+    const stage = path.startsWith("/api/ios/playback/") ? "playback" : path.startsWith("/api/ios/policy") ? "policy" : "resolve";
+    trace?.(`ios_${stage}_request_start`);
     try {
-      return await fetch(`https://admin.hiddentunes.com${path}`, { ...init, headers: { Accept: "application/json", ...init?.headers, ...iosOperationalRequestHeaders() }, signal: controller.signal, cache: "no-store" });
+      const response = await fetch(`https://admin.hiddentunes.com${path}`, { ...init, headers: { Accept: "application/json", ...init?.headers, ...iosOperationalRequestHeaders() }, signal: controller.signal, cache: "no-store" });
+      trace?.(`ios_${stage}_request_end`, { status: response.status });
+      return response;
+    } catch (error) {
+      trace?.(`ios_${stage}_request_error`, { status: error instanceof Error ? error.name : "unknown" });
+      throw error;
     } finally { clearTimeout(timeout); }
   },
 });
@@ -84,8 +92,20 @@ export async function iosOperationalMatureAccess(ref: IosOperationalRef | null):
 }
 export async function authorizeIosOperationalSong<T extends { id?: unknown; source?: unknown; providerRawId?: unknown; streamUrl?: unknown; url?: unknown; audioUrl?: unknown; audio_url?: unknown }>(song: T): Promise<T> {
   if (!IOS_OPERATIONAL_PLATFORM) return song;
+  const trace = (globalThis as any).__htTrace as ((event: string, details?: Record<string, unknown>) => void) | undefined;
   const ref = iosOperationalSongRef(song);
-  const playback = await resolveIosOperationalPlayback(ref, await iosOperationalMatureAccess(ref));
+  trace?.("ios_authorize_start", { songId: String(song.id || ""), status: client.getSnapshot().status });
+  let playback: Awaited<ReturnType<typeof resolveIosOperationalPlayback>>;
+  try {
+    const access = await iosOperationalMatureAccess(ref);
+    trace?.("ios_authorize_access_ready", { songId: String(song.id || ""), status: client.getSnapshot().status });
+    playback = await resolveIosOperationalPlayback(ref, access);
+    trace?.("ios_authorize_resolved", { songId: String(song.id || ""), status: playback.enforced ? "enforced" : "legacy" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    trace?.("ios_authorize_error", { songId: String(song.id || ""), status: message.replace(/https?:\/\/\S+/g, "[url]").slice(0, 90) });
+    throw error;
+  }
   if (!playback.enforced) return song;
   if (playback.delivery !== "direct" && playback.delivery !== "controlled_media") throw new IosOperationalUnavailableError();
   return { ...song, streamUrl: playback.playbackUrl, url: playback.playbackUrl, audioUrl: playback.playbackUrl, audio_url: playback.playbackUrl };

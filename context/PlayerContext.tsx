@@ -7222,12 +7222,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queueMode?: ActiveQueueMode
     ) => {
       const tapStartedAt = Date.now();
+      (globalThis as any).__htTrace?.("player_playSong_enter", { songId: String(song?.id || "") });
       const tapRequestId = latestPlaySongTapIdRef.current + 1;
       latestPlaySongTapIdRef.current = tapRequestId;
       if (IOS_OPERATIONAL_PLATFORM) {
         const commandGeneration = manualQueueCommandGenerationRef.current;
         const authorizationGeneration = ++iosAuthorizationGenerationRef.current;
         song = await authorizeIosOperationalSong(song);
+        (globalThis as any).__htTrace?.("player_authorized", { songId: String(song?.id || "") });
         if (latestPlaySongTapIdRef.current !== tapRequestId || manualQueueCommandGenerationRef.current !== commandGeneration || iosAuthorizationGenerationRef.current !== authorizationGeneration) return;
       }
       manualQueueCommandGenerationRef.current += 1;

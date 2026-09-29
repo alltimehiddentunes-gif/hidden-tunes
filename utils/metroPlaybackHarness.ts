@@ -3,8 +3,9 @@ import { Alert, NativeModules, NativeEventEmitter, Platform, TurboModuleRegistry
 import { getPlaybackCriticalLogs, subscribePlaybackCriticalLogs } from "./playbackCriticalLogs";
 import { getLockscreenPlaybackDiagnosticLogs, subscribeLockscreenPlaybackDiagnostics } from "./lockscreenPlaybackDiagnostics";
 
-const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void };
+const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void };
 globals.__htHarnessDispose?.();
+delete globals.__htTrace;
 const native = Platform.OS === "ios" ? (NativeModules.HiddenAudioModule || NativeModules.HiddenAudio) : undefined;
 const source = TurboModuleRegistry.get("SourceCode") as { getConstants?: () => { scriptURL?: string } } | null;
 const scriptURL = String(source?.getConstants?.().scriptURL || NativeModules.SourceCode?.scriptURL || "");
@@ -30,6 +31,7 @@ function emit(event: string, details: Record<string, unknown> = {}) {
   if (pending.length > 100) pending.shift();
   void flush();
 }
+globals.__htTrace = emit;
 async function flush() {
   if (inFlight || disposed || !pending.length || !endpoint) return;
   inFlight = true;
@@ -76,4 +78,4 @@ removers.push(subscribeLockscreenPlaybackDiagnostics(() => {
   lastLockscreen = entry.id;
   if (/tap|load|engine|play_success|play_failure/.test(entry.event)) emit(entry.event, entry.details);
 }));
-globals.__htHarnessDispose = () => { disposed = true; removers.forEach((remove) => remove()); pending.length = 0; };
+globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; removers.forEach((remove) => remove()); pending.length = 0; };

@@ -16,6 +16,12 @@ if (process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
   config.server = {
     ...config.server,
     enhanceMiddleware: (middleware) => (req, res, next) => {
+      // The installed 1.0.216 dev client requests release-mode JS from Metro.
+      // Lazy production chunks require a web location, which native Hermes lacks.
+      // Keep the physical-device diagnostic bundle self-contained.
+      if (req.url?.startsWith("/index.bundle?") && /[?&]platform=ios(?:&|$)/.test(req.url) && /[?&]dev=false(?:&|$)/.test(req.url)) {
+        req.url = req.url.replace(/([?&])lazy=true(?=&|$)/, "$1lazy=false");
+      }
       if (req.url !== "/__ht_harness") return middleware(req, res, next);
       if (req.method !== "POST") { res.writeHead(405); return res.end(); }
       let body = "";

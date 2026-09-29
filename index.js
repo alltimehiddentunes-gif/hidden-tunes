@@ -15,7 +15,7 @@
 
 require("react-native-gesture-handler");
 
-if (__DEV__ && process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
+if (process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
   require("./utils/metroPlaybackHarness");
 }
 

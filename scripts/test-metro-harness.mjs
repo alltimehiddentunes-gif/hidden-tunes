@@ -42,5 +42,5 @@ for (const available of [true, false]) {
   assert.equal(cleanups, available ? 3 : 2);
 }
 const entry = fs.readFileSync('index.js', 'utf8');
-assert.match(entry, /if \(__DEV__ && process\.env\.EXPO_PUBLIC_METRO_HARNESS === "1"\)/);
+assert.match(entry, /if \(process\.env\.EXPO_PUBLIC_METRO_HARNESS === "1"\)/);
 console.log('PASS: native availability, read-only probe, bounded event selection, URL exclusion and listener cleanup');
