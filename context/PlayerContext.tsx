@@ -1390,6 +1390,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           lastPositionStateUpdateRef.current = now;
           recordPlaybackProgressUpdate();
           recordPlaybackReactStateUpdate("position");
+          (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("positionWrites");
           setPositionMillisState(progress.positionMillis);
         }
       }
@@ -1407,6 +1408,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           ) {
             durationMillisRef.current = progress.durationMillis;
             recordPlaybackReactStateUpdate("duration");
+            (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("durationWrites");
             setDurationMillisState(progress.durationMillis);
           }
         }
@@ -1415,6 +1417,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (progress.isPlaying !== isPlayingRef.current) {
         isPlayingRef.current = progress.isPlaying;
         recordPlaybackReactStateUpdate("is_playing");
+        (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("playingWrites");
         setIsPlayingState(progress.isPlaying);
       }
 
@@ -9359,8 +9362,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         ? "ios_hidden_audio_progress_event"
         : "android_hidden_audio_progress_event";
     const unsubscribe = subscribeHiddenAudioProgress((progress) => {
+      (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("jsProgressCallback");
       lastNativeProgressEventAtRef.current = Date.now();
       applyHiddenAudioProgressToUi(progress, source);
+      (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("jsProgressApplied");
     });
     return () => {
       nativeProgressEventsActiveRef.current = false;

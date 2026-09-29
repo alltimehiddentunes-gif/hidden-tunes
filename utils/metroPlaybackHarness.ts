@@ -5,11 +5,12 @@ import { getLockscreenPlaybackDiagnosticLogs, subscribeLockscreenPlaybackDiagnos
 import { getNowPlayingSnapshot } from "./nowPlayingStore";
 import type { MetroRenderSurface } from "./metroRenderProbe";
 
-const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void; __htMarkRender?: (surface: MetroRenderSurface) => void; __htProviderDuration?: (durationMs: number) => void };
+const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void; __htMarkRender?: (surface: MetroRenderSurface) => void; __htProviderDuration?: (durationMs: number) => void; __htCountPlayback?: (kind: string) => void };
 globals.__htHarnessDispose?.();
 delete globals.__htTrace;
 delete globals.__htMarkRender;
 delete globals.__htProviderDuration;
+delete globals.__htCountPlayback;
 const native = Platform.OS === "ios" ? (NativeModules.HiddenAudioModule || NativeModules.HiddenAudio) : undefined;
 const source = TurboModuleRegistry.get("SourceCode") as { getConstants?: () => { scriptURL?: string } } | null;
 const scriptURL = String(source?.getConstants?.().scriptURL || NativeModules.SourceCode?.scriptURL || "");
@@ -26,7 +27,7 @@ let transportErrorShown = false;
 function emit(event: string, details: Record<string, unknown> = {}) {
   if (disposed || !endpoint || Platform.OS !== "ios") return;
   const safe: Record<string, unknown> = {};
-  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs", "playerProvider", "stateConsumer", "actionsConsumer", "progressConsumer", "trackStatusActive", "trackStatusInactive", "appShell", "miniPlayer", "miniProgress", "providerTotalMs", "providerMaxMs", "frames", "over50", "maxFrameMs"]) {
+  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "elapsedMs", "nativeProgress", "nativeState", "nativeDiagnostics", "nativeBuffer", "nativeTimeControl", "nativeRate", "nativeNowPlayingNotice", "jsProgressCallback", "jsProgressApplied", "jsProgressSuppressed", "positionWrites", "durationWrites", "playingWrites", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs", "playerProvider", "stateConsumer", "actionsConsumer", "progressConsumer", "trackStatusActive", "trackStatusInactive", "appShell", "miniPlayer", "miniProgress", "providerTotalMs", "providerMaxMs", "frames", "over50", "maxFrameMs"]) {
     const value = details[key];
     if (typeof value === "number" || typeof value === "boolean") safe[key] = value;
     else if (typeof value === "string" && value.length < 100 && !value.includes('://')) safe[key] = value;
@@ -48,6 +49,15 @@ globals.__htProviderDuration = (durationMs) => {
   providerTotalMs += durationMs;
   providerMaxMs = Math.max(providerMaxMs, durationMs);
 };
+const playbackCounts: Record<string, number> = {
+  nativeProgress: 0, nativeState: 0, nativeDiagnostics: 0, nativeBuffer: 0,
+  nativeTimeControl: 0, nativeRate: 0, nativeNowPlayingNotice: 0,
+  jsProgressCallback: 0, jsProgressApplied: 0, jsProgressSuppressed: 0,
+  positionWrites: 0, durationWrites: 0, playingWrites: 0,
+};
+globals.__htCountPlayback = (kind) => {
+  if (Object.prototype.hasOwnProperty.call(playbackCounts, kind)) playbackCounts[kind] += 1;
+};
 const timerWindow = { status: "", ticks: 0, over80: 0, over250: 0, maxDelayMs: 0, startedAt: Date.now() };
 let lastTimerTick = Date.now();
 const timer = setInterval(() => {
@@ -62,12 +72,15 @@ const timer = setInterval(() => {
   }
   const playback = getNowPlayingSnapshot();
   const status = playback.isPlaying ? "playing" : playback.currentSongId ? "paused" : "idle";
-  if (timerWindow.status && (timerWindow.status !== status || now - timerWindow.startedAt >= 10_000)) {
-    emit("js_timer_window", timerWindow);
+  if (timerWindow.status && (timerWindow.status !== status || now - timerWindow.startedAt >= 1_000)) {
+    const elapsedMs = now - timerWindow.startedAt;
+    emit("js_timer_window", { ...timerWindow, elapsedMs });
+    emit("playback_count_window", { status: timerWindow.status, elapsedMs, ...playbackCounts });
     emit("render_window", { status: timerWindow.status, ...renderCounts });
     emit("provider_duration_window", { status: timerWindow.status, providerTotalMs: Math.round(providerTotalMs), providerMaxMs: Math.round(providerMaxMs) });
     providerTotalMs = providerMaxMs = 0;
     for (const key of Object.keys(renderCounts) as MetroRenderSurface[]) renderCounts[key] = 0;
+    for (const key of Object.keys(playbackCounts)) playbackCounts[key] = 0;
     timerWindow.ticks = timerWindow.over80 = timerWindow.over250 = timerWindow.maxDelayMs = 0;
     timerWindow.startedAt = now;
   }
@@ -103,9 +116,17 @@ if (native) {
     const allowed = new Set(["hidden_audio_native_load_start", "hidden_audio_native_player_created", "hidden_audio_native_playing_confirmed", "hidden_audio_playback_buffer_empty", "hidden_audio_playback_likely_to_keep_up", "hidden_audio_time_control_status"]);
     removers.push(() => subscription.remove());
     const subscription = emitter.addListener("HiddenAudioDiagnostic", (payload) => {
+      globals.__htCountPlayback?.("nativeDiagnostics");
       const event = String(payload?.eventName || "");
+      if (event.includes("loaded_time_ranges") || event.includes("buffer")) globals.__htCountPlayback?.("nativeBuffer");
+      if (event.includes("time_control")) globals.__htCountPlayback?.("nativeTimeControl");
+      if (event.includes("rate_changed")) globals.__htCountPlayback?.("nativeRate");
+      if (event.includes("now_playing_elapsed_updated")) globals.__htCountPlayback?.("nativeNowPlayingNotice");
       if (allowed.has(event)) emit(event, payload.data || {});
     });
+    const progressSubscription = emitter.addListener("HiddenAudioProgressChanged", () => globals.__htCountPlayback?.("nativeProgress"));
+    const stateSubscription = emitter.addListener("HiddenAudioState", () => globals.__htCountPlayback?.("nativeState"));
+    removers.push(() => progressSubscription.remove(), () => stateSubscription.remove());
     emit("emitter_listener_registered");
     void native.getState().then((state: Record<string, unknown>) => emit("native_getState_resolved", state)).catch(() => emit("native_getState_rejected"));
   } catch { emit("native_probe_error"); }
@@ -124,4 +145,4 @@ removers.push(subscribeLockscreenPlaybackDiagnostics(() => {
   lastLockscreen = entry.id;
   if (/tap|load|engine|play_success|play_failure/.test(entry.event)) emit(entry.event, entry.details);
 }));
-globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; delete globals.__htMarkRender; delete globals.__htProviderDuration; removers.forEach((remove) => remove()); pending.length = 0; };
+globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; delete globals.__htMarkRender; delete globals.__htProviderDuration; delete globals.__htCountPlayback; removers.forEach((remove) => remove()); pending.length = 0; };

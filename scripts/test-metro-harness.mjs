@@ -10,7 +10,7 @@ for (const available of [true, false]) {
   const events = [];
   const calls = [];
   let cleanups = 0;
-  let nativeListener;
+  const nativeListeners = new Map();
   const native = Object.fromEntries(['setup', 'loadTrack', 'play', 'pause', 'stop', 'seekTo', 'setVolume', 'getActiveTrack', 'getProgress', 'addListener', 'removeListeners'].map(name => [name, () => calls.push(name)]));
   native.getState = async () => { calls.push('getState'); return { status: 'idle' }; };
   const subscribe = () => () => cleanups++;
@@ -20,7 +20,7 @@ for (const available of [true, false]) {
         Alert: { alert: () => {} },
         NativeModules: available ? { HiddenAudioModule: native } : {}, Platform: { OS: 'ios' }, AppState: { currentState: 'active' },
         TurboModuleRegistry: { get: () => ({ getConstants: () => ({ scriptURL: 'http://172.20.10.6:8081/index.bundle' }) }) },
-        NativeEventEmitter: class { addListener(_name, listener) { nativeListener = listener; return { remove: () => cleanups++ }; } },
+        NativeEventEmitter: class { addListener(name, listener) { nativeListeners.set(name, listener); return { remove: () => cleanups++ }; } },
       };
       if (name === './playbackCriticalLogs') return { getPlaybackCriticalLogs: () => [], subscribePlaybackCriticalLogs: subscribe };
       if (name === './lockscreenPlaybackDiagnostics') return { getLockscreenPlaybackDiagnosticLogs: () => [], subscribeLockscreenPlaybackDiagnostics: subscribe };
@@ -33,14 +33,14 @@ for (const available of [true, false]) {
   assert(events.some(e => e.event === (available ? 'module_available' : 'module_missing')));
   assert.deepEqual(calls, available ? ['getState'] : [], 'Observer must not invoke playback operations');
   if (available) {
-    nativeListener({ eventName: 'hidden_audio_native_player_created', data: { url: 'https://secret.example/token', trackId: 'known-test-id' } });
+    nativeListeners.get('HiddenAudioDiagnostic')({ eventName: 'hidden_audio_native_player_created', data: { url: 'https://secret.example/token', trackId: 'known-test-id' } });
     await new Promise(resolve => setImmediate(resolve));
     const event = events.find(e => e.event === 'hidden_audio_native_player_created');
     assert.equal(event.details.trackId, 'known-test-id');
     assert.equal(event.details.url, undefined);
   }
   context.__htHarnessDispose();
-  assert.equal(cleanups, available ? 3 : 2);
+  assert.equal(cleanups, available ? 5 : 2);
 }
 const entry = fs.readFileSync('index.js', 'utf8');
 assert.match(entry, /if \(process\.env\.EXPO_PUBLIC_METRO_HARNESS === "1"\)/);

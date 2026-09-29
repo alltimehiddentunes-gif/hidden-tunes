@@ -22,7 +22,7 @@ export default function MetroFrameProbe() {
     if (gap > 50) over50.value += 1;
     if (gap > 250) over250.value += 1;
     maxFrameMs.value = Math.max(maxFrameMs.value, gap);
-    if (frame.timestamp - startedAt.value < 10_000) return;
+    if (frame.timestamp - startedAt.value < 1_000) return;
     runOnJS(report)(frames.value, over50.value, over250.value, maxFrameMs.value);
     startedAt.value = frame.timestamp;
     frames.value = over50.value = over250.value = maxFrameMs.value = 0;
