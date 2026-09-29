@@ -36,6 +36,7 @@ import {
   subscribeNowPlaying,
 } from "../../utils/nowPlayingStore";
 import { navigatePrimaryDestination } from "../../utils/primaryNavigation";
+import { markMetroRender } from "../../utils/metroRenderProbe";
 import { useLocalization } from "../../localization";
 import { getNavigationLabelKey } from "../../localization/navigationLabels";
 import {
@@ -149,6 +150,7 @@ export default function AppShell({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
+  markMetroRender("appShell");
   const pathname = usePathname();
   const { t } = useLocalization();
   const insets = useSafeAreaInsets();

@@ -3,10 +3,12 @@ import { Alert, AppState, NativeModules, NativeEventEmitter, Platform, TurboModu
 import { getPlaybackCriticalLogs, subscribePlaybackCriticalLogs } from "./playbackCriticalLogs";
 import { getLockscreenPlaybackDiagnosticLogs, subscribeLockscreenPlaybackDiagnostics } from "./lockscreenPlaybackDiagnostics";
 import { getNowPlayingSnapshot } from "./nowPlayingStore";
+import type { MetroRenderSurface } from "./metroRenderProbe";
 
-const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void };
+const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void; __htMarkRender?: (surface: MetroRenderSurface) => void };
 globals.__htHarnessDispose?.();
 delete globals.__htTrace;
+delete globals.__htMarkRender;
 const native = Platform.OS === "ios" ? (NativeModules.HiddenAudioModule || NativeModules.HiddenAudio) : undefined;
 const source = TurboModuleRegistry.get("SourceCode") as { getConstants?: () => { scriptURL?: string } } | null;
 const scriptURL = String(source?.getConstants?.().scriptURL || NativeModules.SourceCode?.scriptURL || "");
@@ -23,7 +25,7 @@ let transportErrorShown = false;
 function emit(event: string, details: Record<string, unknown> = {}) {
   if (disposed || !endpoint || Platform.OS !== "ios") return;
   const safe: Record<string, unknown> = {};
-  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs"]) {
+  for (const key of ["songId", "trackId", "status", "route", "engine", "isPlaying", "urlHost", "urlScheme", "positionSeconds", "positionMillis", "ticks", "over80", "over250", "maxDelayMs", "touchDownToHandlerMs", "touchDownToDispatchMs", "touchDownToFirstFrameMs", "playerProvider", "stateConsumer", "actionsConsumer", "progressConsumer", "trackStatusActive", "trackStatusInactive", "appShell", "miniPlayer", "miniProgress"]) {
     const value = details[key];
     if (typeof value === "number" || typeof value === "boolean") safe[key] = value;
     else if (typeof value === "string" && value.length < 100 && !value.includes('://')) safe[key] = value;
@@ -33,6 +35,11 @@ function emit(event: string, details: Record<string, unknown> = {}) {
   void flush();
 }
 globals.__htTrace = emit;
+const renderCounts = {
+  playerProvider: 0, stateConsumer: 0, actionsConsumer: 0, progressConsumer: 0,
+  trackStatusActive: 0, trackStatusInactive: 0, appShell: 0, miniPlayer: 0, miniProgress: 0,
+};
+globals.__htMarkRender = (surface) => { renderCounts[surface] += 1; };
 const timerWindow = { status: "", ticks: 0, over80: 0, over250: 0, maxDelayMs: 0, startedAt: Date.now() };
 let lastTimerTick = Date.now();
 const timer = setInterval(() => {
@@ -49,6 +56,8 @@ const timer = setInterval(() => {
   const status = playback.isPlaying ? "playing" : playback.currentSongId ? "paused" : "idle";
   if (timerWindow.status && (timerWindow.status !== status || now - timerWindow.startedAt >= 10_000)) {
     emit("js_timer_window", timerWindow);
+    emit("render_window", { status: timerWindow.status, ...renderCounts });
+    for (const key of Object.keys(renderCounts) as MetroRenderSurface[]) renderCounts[key] = 0;
     timerWindow.ticks = timerWindow.over80 = timerWindow.over250 = timerWindow.maxDelayMs = 0;
     timerWindow.startedAt = now;
   }
@@ -105,4 +114,4 @@ removers.push(subscribeLockscreenPlaybackDiagnostics(() => {
   lastLockscreen = entry.id;
   if (/tap|load|engine|play_success|play_failure/.test(entry.event)) emit(entry.event, entry.details);
 }));
-globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; removers.forEach((remove) => remove()); pending.length = 0; };
+globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; delete globals.__htMarkRender; removers.forEach((remove) => remove()); pending.length = 0; };

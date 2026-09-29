@@ -36,6 +36,7 @@ import Animated, {
 
 import { COLORS, GRADIENTS, LUXURY_GLOW } from "../constants/theme";
 import { logMiniPlayerControl, logPlaybackUxSync } from "../utils/playbackDiagnostics";
+import { markMetroRender } from "../utils/metroRenderProbe";
 import { createTapGuard } from "../utils/tapGuard";
 import { isAppActiveForWork, subscribeAppActive, useAppActiveState } from "../utils/performanceMode";
 import { logPerformanceDuplicateListenerRemoved, logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
@@ -301,6 +302,7 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
   isYoutubeMode: boolean;
   isLiveRadioMode: boolean;
 }) {
+  markMetroRender("miniProgress");
   const { position, duration } = usePlayerProgress();
   const trackWidth = useSharedValue(0);
   const progressValue = useSharedValue(0);
@@ -422,6 +424,7 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
 });
 
 function MiniPlayer() {
+  markMetroRender("miniPlayer");
   const {
     currentSong,
     isPlaying,

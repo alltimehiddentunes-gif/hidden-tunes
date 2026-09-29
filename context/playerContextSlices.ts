@@ -17,6 +17,7 @@ import {
   setNowPlayingSnapshot,
   subscribeNowPlaying,
 } from "../utils/nowPlayingStore";
+import { markMetroRender } from "../utils/metroRenderProbe";
 
 import type { AppSong, PlayerContextType, SyncedLyricLine } from "./PlayerContext";
 
@@ -172,18 +173,21 @@ export function PlayerFeedStoreSync() {
 }
 
 export function usePlayerActions(): PlayerActionsContextValue {
+  markMetroRender("actionsConsumer");
   const context = usePlayerActionsContext();
   usePlaybackRenderProbe("usePlayerActions");
   return context;
 }
 
 export function usePlayerState(): PlayerStateContextValue {
+  markMetroRender("stateConsumer");
   const context = usePlayerStateContext();
   usePlaybackRenderProbe("usePlayerState");
   return context;
 }
 
 export function usePlayerProgress(): PlayerProgressContextValue {
+  markMetroRender("progressConsumer");
   const context = usePlayerProgressContext();
   usePlaybackRenderProbe("usePlayerProgress");
   return context;
@@ -211,6 +215,7 @@ export function useTrackPlaybackStatus(trackId: string) {
     getNowPlayingSnapshot,
     getNowPlayingSnapshot
   );
+  markMetroRender(normalizedTrackId && snapshot.currentSongId === normalizedTrackId ? "trackStatusActive" : "trackStatusInactive");
 
   return useMemo(() => {
     const isActive = snapshot.currentSongId === normalizedTrackId;

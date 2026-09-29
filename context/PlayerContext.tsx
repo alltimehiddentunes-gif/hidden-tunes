@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import { AppState, AppStateStatus, InteractionManager, Platform } from "react-native";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
+import { markMetroRender } from "../utils/metroRenderProbe";
 
 import {
   buildPersonalRadioQueue,
@@ -865,6 +866,7 @@ function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
 
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  markMetroRender("playerProvider");
   const soundRef = useRef<LegacySound | null>(null);
   const isChangingTrackRef = useRef(false);
   const isMountedRef = useRef(true);
