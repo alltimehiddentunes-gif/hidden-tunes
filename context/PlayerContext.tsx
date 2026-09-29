@@ -8545,6 +8545,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const pollHiddenAudioProgress = async () => {
       if (cancelled) return;
 
+      // In the internal native no-periodic-observer experiment, polling would
+      // replace the removed native tick and invalidate the isolation test.
+      if (
+        Platform.OS === "ios" &&
+        process.env.EXPO_PUBLIC_METRO_HARNESS === "1" &&
+        (globalThis as typeof globalThis & { __htNativeDiagnosticMode?: string }).__htNativeDiagnosticMode === "no_periodic"
+      ) return;
+
       // Native progress events already drive UI on Android and iOS. Polling
       // duplicates bridge traffic and React setState — keep only as a slow
       // fallback when the event subscription is not active.

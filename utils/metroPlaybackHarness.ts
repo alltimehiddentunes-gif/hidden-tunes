@@ -5,12 +5,13 @@ import { getLockscreenPlaybackDiagnosticLogs, subscribeLockscreenPlaybackDiagnos
 import { getNowPlayingSnapshot } from "./nowPlayingStore";
 import type { MetroRenderSurface } from "./metroRenderProbe";
 
-const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void; __htMarkRender?: (surface: MetroRenderSurface) => void; __htProviderDuration?: (durationMs: number) => void; __htCountPlayback?: (kind: string) => void };
+const globals = globalThis as typeof globalThis & { __htHarnessDispose?: () => void; __htTrace?: (event: string, details?: Record<string, unknown>) => void; __htMarkRender?: (surface: MetroRenderSurface) => void; __htProviderDuration?: (durationMs: number) => void; __htCountPlayback?: (kind: string) => void; __htNativeDiagnosticMode?: string };
 globals.__htHarnessDispose?.();
 delete globals.__htTrace;
 delete globals.__htMarkRender;
 delete globals.__htProviderDuration;
 delete globals.__htCountPlayback;
+delete globals.__htNativeDiagnosticMode;
 const native = Platform.OS === "ios" ? (NativeModules.HiddenAudioModule || NativeModules.HiddenAudio) : undefined;
 const source = TurboModuleRegistry.get("SourceCode") as { getConstants?: () => { scriptURL?: string } } | null;
 const scriptURL = String(source?.getConstants?.().scriptURL || NativeModules.SourceCode?.scriptURL || "");
@@ -124,7 +125,10 @@ for (const method of required) emit(`method_${method}_${typeof native?.[method] 
 if (native) {
   if (typeof native.setDiagnosticMode === "function") {
     void native.setDiagnosticMode(requestedNativeMode)
-      .then((result: Record<string, unknown>) => emit("native_diag_mode_ready", result))
+      .then((result: Record<string, unknown>) => {
+        globals.__htNativeDiagnosticMode = String(result.mode || "normal");
+        emit("native_diag_mode_ready", result);
+      })
       .catch(() => emit("native_diag_mode_failed"));
   } else {
     emit("native_diag_mode_unavailable");
@@ -163,4 +167,4 @@ removers.push(subscribeLockscreenPlaybackDiagnostics(() => {
   lastLockscreen = entry.id;
   if (/tap|load|engine|play_success|play_failure/.test(entry.event)) emit(entry.event, entry.details);
 }));
-globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; delete globals.__htMarkRender; delete globals.__htProviderDuration; delete globals.__htCountPlayback; removers.forEach((remove) => remove()); pending.length = 0; };
+globals.__htHarnessDispose = () => { disposed = true; delete globals.__htTrace; delete globals.__htMarkRender; delete globals.__htProviderDuration; delete globals.__htCountPlayback; delete globals.__htNativeDiagnosticMode; removers.forEach((remove) => remove()); pending.length = 0; };
