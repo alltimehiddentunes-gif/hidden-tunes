@@ -128,7 +128,7 @@ class HiddenAudioModule: RCTEventEmitter {
       return
     }
     let mode = requestedMode as String
-    guard ["normal", "no_elapsed", "no_periodic", "audio_only", "no_periodic_no_print", "no_periodic_no_bridge"].contains(mode) else {
+    guard ["normal", "no_elapsed", "no_periodic", "audio_only", "no_periodic_no_print", "no_periodic_no_bridge", "quiet_diagnostics"].contains(mode) else {
       reject("DIAGNOSTIC_MODE_INVALID", "Unknown native playback diagnostic mode", nil)
       return
     }
@@ -1776,8 +1776,8 @@ class HiddenAudioModule: RCTEventEmitter {
     let active = (player?.rate ?? 0) > 0
     let safetyEvent = ["remote", "interruption", "route", "error", "failed", "ended", "stalled"].contains { eventName.contains($0) }
     let nonessentialWhilePlaying = active && !safetyEvent
-    let shouldPrint = diagnosticMode != "no_periodic_no_print" && !(diagnosticMode == "audio_only" && nonessentialWhilePlaying)
-    let shouldBridge = !(["audio_only", "no_periodic_no_bridge"].contains(diagnosticMode) && nonessentialWhilePlaying)
+    let shouldPrint = diagnosticMode != "no_periodic_no_print" && !(["audio_only", "quiet_diagnostics"].contains(diagnosticMode) && nonessentialWhilePlaying)
+    let shouldBridge = !(["audio_only", "no_periodic_no_bridge", "quiet_diagnostics"].contains(diagnosticMode) && nonessentialWhilePlaying)
     if shouldPrint {
       let startedAt = CACurrentMediaTime()
       print("[HiddenAudio] \(eventName) \(data)")

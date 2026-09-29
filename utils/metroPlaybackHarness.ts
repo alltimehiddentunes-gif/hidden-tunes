@@ -20,7 +20,7 @@ const endpoint = scriptURL.match(/^http:\/\/(?:localhost|127\.0\.0\.1|10\.[\d.]+
   : null;
 const required = ["setup", "loadTrack", "play", "pause", "stop", "seekTo", "setVolume", "getState", "getProgress", "getActiveTrack", "addListener", "removeListeners"];
 // Change one value between Metro reloads; the native module is never altered by OTA.
-const requestedNativeMode = "audio_only";
+const requestedNativeMode = "quiet_diagnostics";
 let disposed = false;
 let inFlight = false;
 let sequence = 0;
