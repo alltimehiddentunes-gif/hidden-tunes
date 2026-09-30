@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useGlobalSearchParams, usePathname, router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useIosOperationalPolicy, useIosOperationalItemVisibility } from "../hooks/useIosOperationalPolicy";
-import { IOS_OPERATIONAL_PLATFORM, iosOperationalRouteSection, type IosOperationalRef } from "../services/iosOperationalPolicy";
+import { IOS_OPERATIONAL_PLATFORM, iosOperationalRouteSection, refreshIosOperationalPolicy, type IosOperationalRef } from "../services/iosOperationalPolicy";
 
 function detailRef(path: string): IosOperationalRef | null {
   const routes: [RegExp, string][] = [[/^\/podcasts\/show\/([^/]+)$/, "podcast_show"], [/^\/podcasts\/episode\/([^/]+)$/, "podcast_episode"], [/^\/audiobooks\/([^/]+)$/, "audiobook"], [/^\/lectures\/([^/]+)$/, "lecture"], [/^\/sports\/(?:fixture|player)\/([^/]+)$/, "sports_fixture"]];
@@ -13,6 +13,7 @@ function IosRouteMask({ children }: { children: ReactNode }) {
   const path = usePathname();
   const params = useGlobalSearchParams<{ id?: string; channelId?: string }>();
   const policy = useIosOperationalPolicy();
+  const temporarilyUnavailable = policy.status === "unavailable";
   const section = iosOperationalRouteSection(path);
   const tvId = params.id || params.channelId;
   const ref = detailRef(path) || ((path === "/tv-player" || path === "/youtube-player") && tvId ? { type: "tv", id: String(tvId) } : null);
@@ -23,8 +24,9 @@ function IosRouteMask({ children }: { children: ReactNode }) {
   return <View style={styles.fill}>
     <View style={[styles.fill, blocked && styles.hidden]} pointerEvents={blocked ? "none" : "auto"} accessibilityElementsHidden={blocked} importantForAccessibility={blocked ? "no-hide-descendants" : "auto"}>{children}</View>
     {blocked ? <View style={styles.mask} accessibilityViewIsModal>
-      <Text style={styles.title}>{policy.status === "loading" ? "Checking availability…" : "This content is unavailable"}</Text>
-      <Text style={styles.copy}>Your account and saved library remain available.</Text>
+      <Text style={styles.title}>{policy.status === "loading" ? "Checking availability…" : temporarilyUnavailable ? "Unable to check availability" : "This content is unavailable"}</Text>
+      <Text style={styles.copy}>{temporarilyUnavailable ? "We couldn't verify content availability right now. Your account and saved library remain available." : "Your account and saved library remain available."}</Text>
+      {temporarilyUnavailable ? <Pressable style={styles.button} onPress={() => { void refreshIosOperationalPolicy(true); }} accessibilityRole="button"><Text style={styles.buttonText}>Retry</Text></Pressable> : null}
       <Pressable style={styles.button} onPress={() => router.replace("/more" as never)} accessibilityRole="button"><Text style={styles.buttonText}>More</Text></Pressable>
       <Pressable style={styles.button} onPress={() => router.push("/profile" as never)} accessibilityRole="button"><Text style={styles.buttonText}>Account and settings</Text></Pressable>
     </View> : null}
