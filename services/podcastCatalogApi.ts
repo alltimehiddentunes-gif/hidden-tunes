@@ -983,7 +983,24 @@ export async function fetchPodcastEpisodePlay(...args: Parameters<typeof fetchPo
   try {
     const playback = await resolveIosOperationalPlayback({ type: "podcast_episode", id: args[0] }, await iosPodcastAccess(args[1]?.includeMature));
     const result = await fetchPodcastEpisodePlayLegacy(...args);
+    if (process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
+      (globalThis as any).__htTrace?.("podcast_play_result", {
+        episodeId: String(args[0]),
+        success: result.success,
+        policyEnforced: playback.enforced,
+        error: result.error?.slice(0, 160),
+      });
+    }
     if (!playback.enforced || !result.play) return result;
     return { ...result, play: { ...result.play, audioUrl: playback.playbackUrl } };
-  } catch { return { success: false, play: null, error: "This content is currently unavailable on iOS." }; }
+  } catch (error) {
+    if (process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
+      const message = error instanceof Error ? error.message : String(error);
+      (globalThis as any).__htTrace?.("podcast_play_error", {
+        episodeId: String(args[0]),
+        message: message.replace(/https?:\/\/\S+/g, "[url]").slice(0, 160),
+      });
+    }
+    return { success: false, play: null, error: "This content is currently unavailable on iOS." };
+  }
 }

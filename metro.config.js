@@ -12,6 +12,19 @@ config.maxWorkers = 1;
 if (process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
   const fs = require("fs");
   const log = path.join(__dirname, ".expo", "metro-harness.jsonl");
+  const linkedNodeModules = fs.realpathSync.native(path.join(__dirname, "node_modules"));
+  const linkedRoot = path.dirname(linkedNodeModules);
+  const linkedPrefix = `./${path.basename(linkedRoot)}/node_modules/`;
+  config.watchFolders = [...config.watchFolders, linkedRoot];
+  const upstreamResolve = config.resolver.resolveRequest;
+  config.resolver.resolveRequest = (context, moduleName, platform) => {
+    // Expo's release-mode Hermes chunk loader can serialize this junction's
+    // physical sibling path as if it were relative to the diagnostic root.
+    const target = moduleName.startsWith(linkedPrefix)
+      ? path.join(linkedNodeModules, moduleName.slice(linkedPrefix.length))
+      : moduleName;
+    return (upstreamResolve || context.resolveRequest)(context, target, platform);
+  };
   fs.mkdirSync(path.dirname(log), { recursive: true });
   config.server = {
     ...config.server,
