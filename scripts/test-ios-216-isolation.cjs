@@ -102,7 +102,7 @@ async function assertLegacy(f, label) {
 
 async function main() {
   const saved = JSON.stringify({ version: 1, policyTarget: target, activated: true, revision: 999 });
-  for (const build of [null, undefined, '', '1.0.1', '1.0.213', '1.0.214', '1.0.215', '1.0.217', '2.0.0', '216', '1.0.216.0', '1.0.0216', '1.0.216-beta']) await assertLegacy(fixture('ios', build, 'com.hiddentunes.app', { saved }), `installed ${build}`);
+  for (const build of [null, undefined, '', '1.0.1', '1.0.213', '1.0.214', '1.0.215', '1.0.218', '2.0.0', '216', '1.0.216.0', '1.0.0216', '1.0.216-beta']) await assertLegacy(fixture('ios', build, 'com.hiddentunes.app', { saved }), `installed ${build}`);
   for (const platform of ['android', 'web', 'windows', 'macos', 'linux', 'amazon-fire']) {
     const f = fixture(platform, '1.0.216', 'com.hiddentunes.app', { saved }); await assertLegacy(f, platform); assert.equal(f.nativeReads(), 0);
   }
@@ -111,6 +111,19 @@ async function main() {
   await assertLegacy(fixture('ios', '1.0.216', undefined, { native: { platform: { ios: { buildNumber: '1.0.216' } }, manifest: '{bad' } }), 'malformed embedded config');
   await assertLegacy(fixture('ios', '1.0.216', undefined, { native: { platform: { ios: { buildNumber: '1.0.216' } }, manifest: { ios: { bundleIdentifier: 'com.hiddentunes.app' } }, executionEnvironment: 'storeClient' } }), 'Expo Go');
   await assertLegacy(fixture('ios', '1.0.215', undefined, { native: { platform: { ios: { buildNumber: '1.0.215' } }, manifest: { ios: { bundleIdentifier: 'com.hiddentunes.app', buildNumber: '1.0.216' } }, expoConfig: { ios: { buildNumber: '1.0.216', bundleIdentifier: 'com.hiddentunes.app' } } } }), 'OTA216 cannot change installed215');
+  await assertLegacy(fixture('ios', '1.0.218', undefined, { native: { platform: { ios: { buildNumber: '1.0.218' } }, manifest: { ios: { bundleIdentifier: 'com.hiddentunes.app', buildNumber: '1.0.217' } }, expoConfig: { ios: { buildNumber: '1.0.217', bundleIdentifier: 'com.hiddentunes.app' } } } }), 'OTA217 cannot qualify unknown future build');
+
+  const next = fixture('ios', '1.0.217');
+  assert.equal(next.api.IOS_OPERATIONAL_IDENTITY.nativeBuild, '1.0.217');
+  assert.equal(next.api.IOS_OPERATIONAL_IDENTITY.profile, 'IOS_216');
+  assert.equal(next.api.IOS_OPERATIONAL_PLATFORM, true);
+  assert.equal(next.api.iosOperationalRequestHeaders()['x-ht-native-build'], '1.0.217', 'wire identity stays truthful');
+  assert.equal((await next.api.refreshIosOperationalPolicy()).status, 'active', '217 inherits current policy');
+  assert.equal((await next.api.resolveIosOperationalPlayback({ type: 'music', id: mureka })).playbackUrl, signedMedia);
+  await assert.rejects(next.api.resolveIosOperationalPlayback({ type: 'music', id: djcity }));
+  assert.ok(next.calls.every(call => new Headers(call.init.headers).get('x-ht-native-build') === '1.0.217'));
+  const nextOffline = fixture('ios', '1.0.217'); nextOffline.setOffline(true);
+  assert.equal((await nextOffline.api.refreshIosOperationalPolicy()).status, 'unavailable', '217 cold start fails closed');
 
   const f = fixture('ios', '1.0.216');
   const { IosOperationalPolicyClient } = f.load('services/iosOperationalPolicyCore.ts');
@@ -156,6 +169,6 @@ async function main() {
   }
   const inactive = fixture('ios', '1.0.216'); inactive.setActive(false);
   assert.equal((await inactive.api.refreshIosOperationalPolicy()).status, 'legacy', 'only valid explicit inactive216 response may select legacy');
-  console.log('PASS installed216 isolation: <=215/future/non-iOS zero policy work, OTA spoof resistance, exact native tuple, target mismatch/offline denial, signed URL preservation,15s propagation and DJcity play denial. Local fixtures only.');
+  console.log('PASS installed216/217 isolation: <=215/future/non-iOS zero policy work, OTA spoof resistance, truthful native tuple, canonical policy target, target mismatch/offline denial, signed URL preservation,15s propagation and DJcity play denial. Local fixtures only.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

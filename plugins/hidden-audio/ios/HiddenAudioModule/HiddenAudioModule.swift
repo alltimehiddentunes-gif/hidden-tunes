@@ -33,8 +33,9 @@ class HiddenAudioModule: RCTEventEmitter {
   private var nowPlayingArtworkUrl: String?
   private var nowPlayingArtwork: MPMediaItemArtwork?
   private var remoteCommandsRegistered = false
-  // Internal development build only. Never exposed by a store/preview profile.
-  private var diagnosticMode = "normal"
+  // Public playback uses the owner-validated quiet diagnostics behavior.
+  // Runtime mode switching remains limited to internal development builds.
+  private var diagnosticMode = "quiet_diagnostics"
   private var diagnosticStartedAt = CACurrentMediaTime()
   private var diagnosticPeriodicCallbacks = 0
   private var diagnosticPeriodicObserverInstalls = 0
@@ -77,8 +78,9 @@ class HiddenAudioModule: RCTEventEmitter {
   private var currentVolume: Float = 1.0
 
   private var requiresIos216PolicyAuthorization: Bool {
+    let nativeBuild = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
     return Bundle.main.bundleIdentifier == "com.hiddentunes.app"
-      && (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) == "1.0.216"
+      && (nativeBuild == "1.0.216" || nativeBuild == "1.0.217")
   }
 
   // Accept the native command, but let the existing JS owner authorize its current asset.

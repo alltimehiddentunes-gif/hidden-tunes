@@ -1,5 +1,5 @@
 /** Operational availability only. Never interprets documentary rights or projection flags. */
-import { isIos216PolicyTarget, IOS_216_POLICY_TARGET } from "./iosOperationalIdentity";
+import { isIos216PolicyTarget, isIosCurrentNativeIdentity, IOS_216_POLICY_TARGET } from "./iosOperationalIdentity";
 export type IosOperationalSection = "music" | "radio" | "tv" | "podcasts" | "audiobooks" | "lectures" | "motivationals" | "sports";
 export type IosOperationalRef = { type: string; id: string };
 export type IosOperationalPolicy = {
@@ -47,7 +47,7 @@ export class IosOperationalPolicyClient {
   private lastRefresh = -Infinity;
   private readonly controlled: boolean;
   constructor(private readonly deps: IosOperationalDeps) {
-    this.controlled = deps.platform === "ios" && isIos216PolicyTarget(deps.identity);
+    this.controlled = deps.platform === "ios" && isIosCurrentNativeIdentity(deps.identity);
     this.snapshot = { status: this.controlled ? "loading" : "legacy", revision: -1, policy: null, generation: 0 };
   }
   getSnapshot = () => this.snapshot;

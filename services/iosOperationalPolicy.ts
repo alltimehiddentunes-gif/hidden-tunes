@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Platform } from "react-native";
 import { requireOptionalNativeModule } from "expo-modules-core";
-import { installedIosOperationalIdentity, isIos216PolicyTarget, ios216RequestHeaders } from "./iosOperationalIdentity";
+import { installedIosOperationalIdentity, isIos216PolicyTarget, isIosCurrentNativeIdentity, ios216RequestHeaders } from "./iosOperationalIdentity";
 import { IosOperationalPolicyClient, IosOperationalUnavailableError, type IosOperationalAccess, type IosOperationalRef, type IosOperationalSection } from "./iosOperationalPolicyCore";
 
 export type { IosOperationalRef, IosOperationalSection, IosOperationalAccess, IosOperationalSnapshot, IosOperationalPlayback, IosOperationalDelivery } from "./iosOperationalPolicyCore";
@@ -11,8 +11,8 @@ function readNativePolicyIdentity() {
   catch { return null; }
 }
 export const IOS_OPERATIONAL_IDENTITY = installedIosOperationalIdentity(Platform.OS, readNativePolicyIdentity());
-/** Existing callers use this capability guard, now scoped to the exact installed216 binary. */
-export const IOS_OPERATIONAL_PLATFORM = isIos216PolicyTarget(IOS_OPERATIONAL_IDENTITY);
+/** Existing callers use this capability guard, scoped to qualified installed binaries. */
+export const IOS_OPERATIONAL_PLATFORM = isIosCurrentNativeIdentity(IOS_OPERATIONAL_IDENTITY);
 export const iosOperationalRequestHeaders = () => ios216RequestHeaders(IOS_OPERATIONAL_IDENTITY);
 export { isIos216PolicyTarget };
 const client = new IosOperationalPolicyClient({

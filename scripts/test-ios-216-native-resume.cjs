@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 const { execFileSync } = require('node:child_process');
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(process.env.HT_NATIVE_RESUME_SOURCE_ROOT || path.resolve(__dirname, '..'));
 const swiftPath = 'plugins/hidden-audio/ios/HiddenAudioModule/HiddenAudioModule.swift';
 const swift = fs.readFileSync(path.join(root, swiftPath), 'utf8').replace(/\r\n/g, '\n');
 const baseline = execFileSync('git', ['show', `1c5b9d1826dda057ca2bb87338a08e8cab2371a5:${swiftPath}`], { cwd: root, encoding: 'utf8' });
@@ -19,8 +19,22 @@ function block(source, marker) {
 function swiftContracts() {
   const selector = block(swift, 'private var requiresIos216PolicyAuthorization');
   assert.match(selector, /Bundle\.main\.bundleIdentifier == "com\.hiddentunes\.app"/);
-  assert.match(selector, /&& \(Bundle\.main\.object\(forInfoDictionaryKey: "CFBundleVersion"\) as\? String\) == "1\.0\.216"/);
-  assert.doesNotMatch(selector, />=|startsWith|hasPrefix|UserDefaults|activeTrack|manifest/);
+  const releaseBuild = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8')).expo.ios.buildNumber;
+  if (releaseBuild === '1.0.217') {
+    assert.match(selector, /let nativeBuild = Bundle\.main\.object\(forInfoDictionaryKey: "CFBundleVersion"\) as\? String/);
+    assert.match(selector, /nativeBuild == "1\.0\.216" \|\| nativeBuild == "1\.0\.217"/);
+    assert.match(swift, /private var diagnosticMode = "quiet_diagnostics"/, '217 starts in the owner-validated production diagnostic mode');
+    const diagnostics = block(swift, 'private func emitDiagnostic');
+    assert.match(diagnostics, /\["audio_only", "quiet_diagnostics"\]\.contains\(diagnosticMode\) && nonessentialWhilePlaying/, 'nonessential prints suppressed');
+    assert.match(diagnostics, /\["audio_only", "no_periodic_no_bridge", "quiet_diagnostics"\]\.contains\(diagnosticMode\) && nonessentialWhilePlaying/, 'nonessential bridge events suppressed');
+    assert.match(diagnostics, /"remote", "interruption", "route", "error", "failed", "ended", "stalled"/, 'safety diagnostics preserved');
+    assert.match(swift, /sendEvent\(withName: "HiddenAudioProgressChanged"/, 'product progress remains available');
+    assert.match(swift, /sendEvent\(withName: "HiddenAudioPlaybackEnded"/, 'product completion remains available');
+  } else {
+    assert.equal(releaseBuild, '1.0.216');
+    assert.match(selector, /&& \(Bundle\.main\.object\(forInfoDictionaryKey: "CFBundleVersion"\) as\? String\) == "1\.0\.216"/);
+  }
+  assert.doesNotMatch(selector, />=|startsWith|hasPrefix|UserDefaults|activeTrack|manifest|1\.0\.215|1\.0\.218/);
   const defer = block(swift, 'private func deferIos216ResumeToJs');
   assert.ok(defer.indexOf('guard requiresIos216PolicyAuthorization else { return false }') < defer.indexOf('emitDiagnostic'));
   assert.match(defer, /"ios_remote_command_received"/); assert.match(defer, /"command": "play"/);
@@ -39,7 +53,17 @@ function swiftContracts() {
   assert.ok(background.indexOf('if audioInterruptionActive') < deferredAt);
   assert.ok(background.indexOf('if hasRecentIntentionalPause()') < deferredAt);
   for (const marker of ['commandCenter.pauseCommand.addTarget', 'commandCenter.nextTrackCommand.addTarget', 'commandCenter.previousTrackCommand.addTarget', '@objc private func audioInterruption', 'func play(resolve:', 'func pause(resolve:']) assert.equal(block(swift, marker), block(baseline, marker), `${marker} unchanged`);
-  assert.equal((swift.match(/@objc\(/g) || []).length, (baseline.match(/@objc\(/g) || []).length, 'no new native bridge API');
+  const golden = execFileSync('git', ['show', `9e8d375681b925733041b03a62c89d18f30728f7:${swiftPath}`], { cwd: root, encoding: 'utf8' });
+  const selectors = source => Array.from(source.matchAll(/@objc\(([^)]+)\)/g), match => match[1]);
+  const baselineSelectors = selectors(baseline);
+  const goldenSelectors = selectors(golden);
+  assert.equal(baselineSelectors.length, 20, 'pre-diagnostic native API');
+  assert.equal(goldenSelectors.length, 22, 'frozen golden native API');
+  assert.deepEqual(goldenSelectors.filter(name => !baselineSelectors.includes(name)), [
+    'setDiagnosticMode:resolver:rejecter:',
+    'getDiagnosticSnapshot:rejecter:',
+  ], 'golden adds only the two established internal diagnostic methods');
+  assert.deepEqual(selectors(swift), goldenSelectors, 'no native bridge API change from frozen golden');
   assert.equal((swift.match(/\.play\(\)/g) || []).length, (baseline.match(/\.play\(\)/g) || []).length, 'no additional direct native play site');
 }
 
