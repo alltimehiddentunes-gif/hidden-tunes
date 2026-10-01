@@ -10,7 +10,6 @@ import {
 // This module is inert outside the isolated 217 internal development client.
 export const IOS217_DIAGNOSTIC_ENABLED =
   Platform.OS === "ios" &&
-  __DEV__ &&
   Constants.expoConfig?.extra?.isDevClientBuild === true &&
   Constants.expoConfig?.version === "1.0.3" &&
   Constants.platform?.ios?.buildNumber === "1.0.217";

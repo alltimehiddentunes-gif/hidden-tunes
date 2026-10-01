@@ -47,6 +47,7 @@ import {
 import { useLocalization } from "../localization";
 import type { TranslationKey } from "../localization";
 import * as Clipboard from "expo-clipboard";
+import { readIos217NativePerf, resetIos217NativePerf } from "../utils/ios217NativePerf";
 import {
   IOS217_DIAGNOSTIC_ENABLED,
   getIos217PlaybackSampleStatus,
@@ -252,9 +253,19 @@ function Ios217DiagnosticEntry() {
     setReport("");
     setOpen(false);
   };
-  const stop = () => setReport(stopIos217PlaybackSample());
-  const reset = () => {
+  const stop = async () => {
+    const jsReport = stopIos217PlaybackSample();
+    try { setReport(`${jsReport}\n${await readIos217NativePerf()}`); }
+    catch (error) { setReport(`${jsReport}\nnativeRecorderError=${String(error)}`); }
+  };
+  const recover = async () => {
+    try { setReport(await readIos217NativePerf()); }
+    catch (error) { setReport(`nativeRecorderError=${String(error)}`); }
+  };
+  const reset = async () => {
     resetIos217PlaybackSample();
+    try { await resetIos217NativePerf(); }
+    catch (error) { Alert.alert("Recorder unavailable", String(error)); }
     setReport("");
   };
   const copy = async () => {
@@ -275,12 +286,13 @@ function Ios217DiagnosticEntry() {
     <Modal visible={open} animationType="none" onRequestClose={() => setOpen(false)}>
       <ScrollView contentContainerStyle={styles.diagnosticModal}>
         <Text style={styles.diagnosticTitle}>217 pause/play sample</Text>
-        <Text style={styles.diagnosticText}>Pause the same song. Tap Start, then Home: sampling begins when Home opens. PAUSE 30s → PLAY 30s → PAUSE 30s → PLAY 30s. Scroll and tap vigorously in each interval. Return here after the fourth interval.</Text>
+        <Text style={styles.diagnosticText}>Reset counters, pause one song, tap Start, then Home. The same song and page should alternate PAUSE 30s → PLAY 30s → PAUSE 30s → PLAY 30s. If the UI freezes, force-close and reopen; Recover incident reads the native snapshot. No live diagnostic screen is shown during sampling.</Text>
         <Text style={styles.diagnosticText}>Current: {status.phase}</Text>
         <TouchableOpacity style={styles.diagnosticAction} onPress={start}><Text style={styles.diagnosticText}>Start sample (paused)</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.diagnosticAction} onPress={stop}><Text style={styles.diagnosticText}>Stop sample</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void stop(); }}><Text style={styles.diagnosticText}>Stop sample</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void recover(); }}><Text style={styles.diagnosticText}>Recover incident</Text></TouchableOpacity>
         <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void copy(); }}><Text style={styles.diagnosticText}>Copy results</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.diagnosticAction} onPress={reset}><Text style={styles.diagnosticText}>Reset counters</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void reset(); }}><Text style={styles.diagnosticText}>Reset counters</Text></TouchableOpacity>
         <TouchableOpacity style={styles.diagnosticAction} onPress={() => setOpen(false)}><Text style={styles.diagnosticText}>Close</Text></TouchableOpacity>
         {report ? <Text selectable style={styles.diagnosticReport}>{report}</Text> : null}
       </ScrollView>

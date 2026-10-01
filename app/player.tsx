@@ -466,6 +466,8 @@ const MetadataContextChip = memo(function MetadataContextChip({
 });
 
 export default function PlayerScreen() {
+  (globalThis as typeof globalThis & { __htCountIos217?: (kind: "playerRenders") => void })
+    .__htCountIos217?.("playerRenders");
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compactLayout = viewportWidth < 380 || viewportHeight < 760;

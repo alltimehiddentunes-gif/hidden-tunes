@@ -2,6 +2,7 @@
 export type PlaybackSampleMode = "paused" | "playing";
 export type PlaybackSampleCounter =
   | "homeRenders" | "appShellRenders" | "miniPlayerRenders" | "policyRenders"
+  | "playerRenders" | "songRowRenders"
   | "positionWrites" | "playingWrites" | "trackWrites" | "bufferWrites"
   | "durationWrites" | "queueWrites" | "progressCallbacks"
   | "progressApplied" | "policyAttempts" | "policySuccesses"
@@ -9,9 +10,9 @@ export type PlaybackSampleCounter =
 
 export type PlaybackSampleMetrics = {
   durationMs: number;
-  gap50: number; gap100: number; gap250: number; gap500: number; gap1000: number;
+  gap50: number; gap100: number; gap250: number; gap500: number; gap1000: number; gap2000: number;
   maxGapMs: number; maxTransitionGapMs: number;
-  tapCount: number; tapP50Ms: number | null; tapP95Ms: number | null;
+  tapCount: number; tapP50Ms: number | null; tapP95Ms: number | null; tapP99Ms: number | null;
   tapMaxMs: number | null; tapSamplesDropped: number;
   nativeTapTimestamps: number; jsTouchFallbacks: number;
   counters: Record<PlaybackSampleCounter, number>;
@@ -22,6 +23,7 @@ type Phase = { mode: PlaybackSampleMode; startedAt: number; endedAt: number | nu
 const EXPECTED: PlaybackSampleMode[] = ["paused", "playing", "paused", "playing"];
 const COUNTERS: PlaybackSampleCounter[] = [
   "homeRenders", "appShellRenders", "miniPlayerRenders", "policyRenders",
+  "playerRenders", "songRowRenders",
   "positionWrites", "playingWrites", "trackWrites", "bufferWrites", "durationWrites",
   "queueWrites", "progressCallbacks", "progressApplied", "policyAttempts",
   "policySuccesses", "policyFailures", "policyTransitions",
@@ -32,9 +34,9 @@ function blank(): MutableMetrics {
   const counters = {} as Record<PlaybackSampleCounter, number>;
   for (const key of COUNTERS) counters[key] = 0;
   return {
-    durationMs: 0, gap50: 0, gap100: 0, gap250: 0, gap500: 0, gap1000: 0,
+    durationMs: 0, gap50: 0, gap100: 0, gap250: 0, gap500: 0, gap1000: 0, gap2000: 0,
     maxGapMs: 0, maxTransitionGapMs: 0, tapCount: 0, tapP50Ms: null,
-    tapP95Ms: null, tapMaxMs: null, tapSamplesDropped: 0,
+    tapP95Ms: null, tapP99Ms: null, tapMaxMs: null, tapSamplesDropped: 0,
     nativeTapTimestamps: 0, jsTouchFallbacks: 0, counters,
     tapLatencies: [],
   };
@@ -52,6 +54,7 @@ function finalize(metrics: MutableMetrics): PlaybackSampleMetrics {
     ...rest,
     tapP50Ms: percentile(sorted, 0.5),
     tapP95Ms: percentile(sorted, 0.95),
+    tapP99Ms: percentile(sorted, 0.99),
     tapMaxMs: sorted.length ? Math.round(sorted[sorted.length - 1]) : null,
   };
 }
@@ -118,6 +121,7 @@ export class Ios217PlaybackDiagnosticCore {
     if (excess > 250) metrics.gap250++;
     if (excess > 500) metrics.gap500++;
     if (excess > 1000) metrics.gap1000++;
+    if (excess > 2000) metrics.gap2000++;
   }
 
   count(key: PlaybackSampleCounter) {
@@ -154,7 +158,7 @@ export class Ios217PlaybackDiagnosticCore {
         const m = phase.metrics;
         total.durationMs += m.durationMs || (phase.endedAt === null ? Math.max(0, Math.round(this.now() - phase.startedAt)) : 0);
         total.gap50 += m.gap50; total.gap100 += m.gap100; total.gap250 += m.gap250;
-        total.gap500 += m.gap500; total.gap1000 += m.gap1000;
+        total.gap500 += m.gap500; total.gap1000 += m.gap1000; total.gap2000 += m.gap2000;
         total.maxGapMs = Math.max(total.maxGapMs, m.maxGapMs);
         total.maxTransitionGapMs = Math.max(total.maxTransitionGapMs, m.maxTransitionGapMs);
         total.tapCount += m.tapCount;
@@ -180,23 +184,24 @@ export class Ios217PlaybackDiagnosticCore {
       })),
     };
   }
+
 }
 
 export function formatIos217PlaybackSample(result: ReturnType<Ios217PlaybackDiagnosticCore["snapshot"]>): string {
-  const lines = ["Hidden Tunes 217 pause/play diagnostic", "runtime=1.0.3-production.1.0.217",
+  const lines = ["Hidden Tunes 217 pause/play diagnostic", "runtime=1.0.3-dev.1.0.217",
     "gap=excess over 100ms JS heartbeat; tap=event timestamp to handler when clocks match, else JS onPressIn to handler",
     `sequence_complete=${result.complete}`];
   for (const mode of ["paused", "playing"] as const) {
     const m = result[mode];
-    lines.push(`${mode.toUpperCase()} TOTAL duration=${Math.round(m.durationMs / 1000)}s gaps>50=${m.gap50} >100=${m.gap100} >250=${m.gap250} >500=${m.gap500} >1000=${m.gap1000} max=${m.maxGapMs}ms transitionMax=${m.maxTransitionGapMs}ms`);
-    lines.push(`taps n=${m.tapCount} p50=${m.tapP50Ms ?? "n/a"}ms p95=${m.tapP95Ms ?? "n/a"}ms max=${m.tapMaxMs ?? "n/a"}ms nativeClock=${m.nativeTapTimestamps} jsFallback=${m.jsTouchFallbacks} dropped=${m.tapSamplesDropped}`);
+    lines.push(`${mode.toUpperCase()} TOTAL duration=${Math.round(m.durationMs / 1000)}s gaps>50=${m.gap50} >100=${m.gap100} >250=${m.gap250} >500=${m.gap500} >1000=${m.gap1000} >2000=${m.gap2000} max=${m.maxGapMs}ms transitionMax=${m.maxTransitionGapMs}ms`);
+    lines.push(`taps n=${m.tapCount} p50=${m.tapP50Ms ?? "n/a"}ms p95=${m.tapP95Ms ?? "n/a"}ms p99=${m.tapP99Ms ?? "n/a"}ms max=${m.tapMaxMs ?? "n/a"}ms nativeClock=${m.nativeTapTimestamps} jsFallback=${m.jsTouchFallbacks} dropped=${m.tapSamplesDropped}`);
     lines.push(COUNTERS.map((key) => `${key}=${m.counters[key]}`).join(" "));
   }
   for (const [index, phase] of result.phases.entries()) {
     const m = phase.metrics;
     lines.push(`${index + 1} ${phase.mode.toUpperCase()} duration=${Math.round(m.durationMs / 1000)}s`);
-    lines.push(`gaps >50=${m.gap50} >100=${m.gap100} >250=${m.gap250} >500=${m.gap500} >1000=${m.gap1000} max=${m.maxGapMs}ms transitionMax=${m.maxTransitionGapMs}ms`);
-    lines.push(`taps n=${m.tapCount} p50=${m.tapP50Ms ?? "n/a"}ms p95=${m.tapP95Ms ?? "n/a"}ms max=${m.tapMaxMs ?? "n/a"}ms nativeClock=${m.nativeTapTimestamps} jsFallback=${m.jsTouchFallbacks} dropped=${m.tapSamplesDropped}`);
+    lines.push(`gaps >50=${m.gap50} >100=${m.gap100} >250=${m.gap250} >500=${m.gap500} >1000=${m.gap1000} >2000=${m.gap2000} max=${m.maxGapMs}ms transitionMax=${m.maxTransitionGapMs}ms`);
+    lines.push(`taps n=${m.tapCount} p50=${m.tapP50Ms ?? "n/a"}ms p95=${m.tapP95Ms ?? "n/a"}ms p99=${m.tapP99Ms ?? "n/a"}ms max=${m.tapMaxMs ?? "n/a"}ms nativeClock=${m.nativeTapTimestamps} jsFallback=${m.jsTouchFallbacks} dropped=${m.tapSamplesDropped}`);
     lines.push(COUNTERS.map((key) => `${key}=${m.counters[key]}`).join(" "));
   }
   lines.push("network=unavailable (no safe common wrapper)");

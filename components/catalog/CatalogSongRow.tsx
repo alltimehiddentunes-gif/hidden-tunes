@@ -38,6 +38,8 @@ function CatalogSongRow({
   isPlaying,
   onPress,
 }: CatalogSongRowProps) {
+  (globalThis as typeof globalThis & { __htCountIos217?: (kind: "songRowRenders") => void })
+    .__htCountIos217?.("songRowRenders");
   const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(song));
   const handlePress = useCallback(() => {
     onPress(song);
