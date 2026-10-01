@@ -27,6 +27,7 @@
         "simulator": false
       },
       "env": {
+        "HT_IOS217_PERF_DEVCLIENT": "1",
         "EXPO_PUBLIC_BUILD_PROFILE": "production",
         "EXPO_PUBLIC_MATURE_PODCASTS_DEVICE_LOCK_ENABLED": "true",
         "EXPO_PUBLIC_SPORTS_ENABLED": "false",

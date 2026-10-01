@@ -9,7 +9,9 @@ module.exports = ({ config }) => {
     process.env.EAS_BUILD_PROFILE ||
     process.env.EXPO_PUBLIC_BUILD_PROFILE ||
     "";
-  const isDevClientBuild = profile === "developmentClient" || profile === "ios217PerfDiagnostic";
+  const isDevClientBuild = profile === "developmentClient" ||
+    profile === "ios217PerfDiagnostic" ||
+    process.env.HT_IOS217_PERF_DEVCLIENT === "1";
   const isPreviewBuild = profile === "preview";
   const isProductionBuild = profile === "production";
   const isStandaloneBuild = !isDevClientBuild;

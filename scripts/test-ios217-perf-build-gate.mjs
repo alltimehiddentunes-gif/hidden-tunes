@@ -11,6 +11,8 @@ assert.equal(dev.distribution, 'internal');
 assert.equal(dev.channel, 'ios-217-perf');
 assert.equal(dev.environment, 'production');
 assert.equal(dev.env.EXPO_PUBLIC_BUILD_PROFILE, 'production');
+assert.equal(dev.env.HT_IOS217_PERF_DEVCLIENT, '1');
+assert.match(read('app.config.js'), /process\.env\.HT_IOS217_PERF_DEVCLIENT === "1"/);
 for (const [name, value] of Object.entries(production.env)) {
   if (name.startsWith('EXPO_PUBLIC_')) assert.equal(dev.env[name], value, `${name} differs from production`);
 }

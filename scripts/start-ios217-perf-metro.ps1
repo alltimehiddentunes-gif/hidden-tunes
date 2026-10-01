@@ -7,6 +7,7 @@ if ($listener) {
 }
 Set-Location -LiteralPath $workspace
 $env:EAS_BUILD_PROFILE = 'ios217PerfDiagnostic'
+$env:HT_IOS217_PERF_DEVCLIENT = '1'
 $env:EXPO_PUBLIC_BUILD_PROFILE = 'production'
 Remove-Item Env:EXPO_PUBLIC_METRO_HARNESS -ErrorAction SilentlyContinue
 Remove-Item Env:EXPO_PUBLIC_IOS217_DIAGNOSTIC -ErrorAction SilentlyContinue
