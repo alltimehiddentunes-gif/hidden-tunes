@@ -12,8 +12,8 @@ import {
 export const IOS217_DIAGNOSTIC_ENABLED =
   Platform.OS === "ios" &&
   process.env.EXPO_PUBLIC_IOS217_DIAGNOSTIC === "1" &&
-  Constants.nativeAppVersion === "1.0.3" &&
-  Constants.nativeBuildVersion === "1.0.217" &&
+  Constants.expoConfig?.version === "1.0.3" &&
+  Constants.platform?.ios?.buildNumber === "1.0.217" &&
   Updates.runtimeVersion === "1.0.3-production.1.0.217";
 
 const core = new Ios217PlaybackDiagnosticCore();
