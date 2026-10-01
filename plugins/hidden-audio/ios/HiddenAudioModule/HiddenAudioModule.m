@@ -62,6 +62,12 @@ RCT_EXTERN_METHOD(setDiagnosticMode:(NSString *)mode
 RCT_EXTERN_METHOD(getDiagnosticSnapshot:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(getPerformanceSnapshot:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(resetPerformanceSnapshot:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(syncCarPlayCatalog:(NSDictionary *)snapshot
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)

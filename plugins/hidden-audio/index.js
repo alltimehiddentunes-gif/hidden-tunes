@@ -193,6 +193,7 @@ const HIDDEN_AUDIO_GROUP = "HiddenAudioModule";
 const NATIVE_FILES = [
   "HiddenAudioModule.swift",
   "HiddenAudioModule.m",
+  "HiddenAudioPerfRecorder.swift",
   "HiddenAudioCarPlayManager.swift",
   "HiddenAudioCarPlayCatalog.swift",
   "HiddenAudioCarPlayArtworkLoader.swift",

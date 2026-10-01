@@ -6,6 +6,7 @@ import UIKit
 
 @objc(HiddenAudioModule)
 class HiddenAudioModule: RCTEventEmitter {
+  private let perfRecorder = HiddenAudioPerfRecorder()
   private var player: AVPlayer?
   private var activeTrack: [String: Any]?
   private var queue: [[String: Any]] = []
@@ -159,6 +160,31 @@ class HiddenAudioModule: RCTEventEmitter {
     if Thread.isMainThread { read() } else { DispatchQueue.main.async(execute: read) }
   }
 
+  @objc(getPerformanceSnapshot:rejecter:)
+  func getPerformanceSnapshot(
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard (Bundle.main.object(forInfoDictionaryKey: "HTNativePlaybackDiagnostic") as? Bool) == true else {
+      reject("DIAGNOSTIC_UNAVAILABLE", "Performance recording requires an internal development build", nil)
+      return
+    }
+    resolve(perfRecorder.snapshot())
+  }
+
+  @objc(resetPerformanceSnapshot:rejecter:)
+  func resetPerformanceSnapshot(
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard (Bundle.main.object(forInfoDictionaryKey: "HTNativePlaybackDiagnostic") as? Bool) == true else {
+      reject("DIAGNOSTIC_UNAVAILABLE", "Performance recording requires an internal development build", nil)
+      return
+    }
+    perfRecorder.reset()
+    resolve(nil)
+  }
+
   private func resetDiagnosticMetrics() {
     diagnosticStartedAt = CACurrentMediaTime()
     diagnosticPeriodicCallbacks = 0
@@ -239,6 +265,9 @@ class HiddenAudioModule: RCTEventEmitter {
 
   @objc(setup:rejecter:)
   func setup(resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+    if (Bundle.main.object(forInfoDictionaryKey: "HTNativePlaybackDiagnostic") as? Bool) == true {
+      perfRecorder.start()
+    }
     do {
       try activateAudioSession()
       let carPlayManager = HiddenAudioCarPlayManager.shared
@@ -770,6 +799,7 @@ class HiddenAudioModule: RCTEventEmitter {
   private func observePlayerItem(_ item: AVPlayerItem) {
     itemStatusObserver = item.observe(\.status, options: [.new]) { [weak self] item, _ in
       guard let self = self else { return }
+      self.perfRecorder.count("itemStatusKvo")
       self.emitDiagnostic("hidden_audio_player_item_status", [
         "status": item.status.rawValue,
         "durationSeconds": self.safeDurationSeconds(for: item),
@@ -812,6 +842,7 @@ class HiddenAudioModule: RCTEventEmitter {
 
     loadedTimeRangesObserver = item.observe(\.loadedTimeRanges, options: [.new]) { [weak self] item, _ in
       guard let self = self else { return }
+      self.perfRecorder.count("loadedRangesKvo")
       let now = Date().timeIntervalSince1970
       if now - self.lastBufferDiagnosticAt < 15 { return }
       self.lastBufferDiagnosticAt = now
@@ -823,6 +854,7 @@ class HiddenAudioModule: RCTEventEmitter {
 
     bufferEmptyObserver = item.observe(\.isPlaybackBufferEmpty, options: [.new]) { [weak self] item, _ in
       guard let self = self else { return }
+      self.perfRecorder.count("bufferEmptyKvo")
       if item.isPlaybackBufferEmpty {
         self.emitDiagnostic("hidden_audio_playback_buffer_empty", [
           "trackId": self.activeTrack?["id"] as? String ?? "",
@@ -840,6 +872,7 @@ class HiddenAudioModule: RCTEventEmitter {
 
     likelyToKeepUpObserver = item.observe(\.isPlaybackLikelyToKeepUp, options: [.new]) { [weak self] item, _ in
       guard let self = self else { return }
+      self.perfRecorder.count("likelyToKeepUpKvo")
       self.emitDiagnostic("hidden_audio_playback_likely_to_keep_up", [
         "likelyToKeepUp": item.isPlaybackLikelyToKeepUp,
         "trackId": self.activeTrack?["id"] as? String ?? "",
@@ -859,6 +892,8 @@ class HiddenAudioModule: RCTEventEmitter {
     guard let currentPlayer = player else { return }
     timeControlObserver = currentPlayer.observe(\.timeControlStatus, options: [.new]) { [weak self] _, _ in
       guard let self = self else { return }
+      self.perfRecorder.count("timeControlKvo")
+      self.perfRecorder.setPlaying(currentPlayer.rate > 0)
       self.emitDiagnostic("hidden_audio_time_control_status", [
         "status": currentPlayer.timeControlStatus.rawValue,
         "rate": currentPlayer.rate
@@ -878,6 +913,8 @@ class HiddenAudioModule: RCTEventEmitter {
       }
     }
     rateObserver = currentPlayer.observe(\.rate, options: [.new]) { [weak self] player, _ in
+      self?.perfRecorder.count("rateKvo")
+      self?.perfRecorder.setPlaying(player.rate > 0)
       self?.emitDiagnostic("hidden_audio_player_rate_changed", [
         "rate": player.rate,
         "timeControlStatus": player.timeControlStatus.rawValue
@@ -1510,6 +1547,7 @@ class HiddenAudioModule: RCTEventEmitter {
       guard let self = self else { return }
       let startedAt = CACurrentMediaTime()
       self.diagnosticPeriodicCallbacks += 1
+      self.perfRecorder.count("periodicCallbacks")
       var operationStartedAt = CACurrentMediaTime()
       self.emitProgress(force: false)
       if self.diagnosticProgressEmitMs.count < 256 {
@@ -1596,6 +1634,7 @@ class HiddenAudioModule: RCTEventEmitter {
 
   private func updateNowPlayingElapsed() {
     let callStartedAt = CACurrentMediaTime()
+    perfRecorder.count("nowPlayingCalls")
     diagnosticNowPlayingCalls += 1
     diagnosticNowPlayingOnMain = diagnosticNowPlayingOnMain && Thread.isMainThread
     defer {
@@ -1621,6 +1660,7 @@ class HiddenAudioModule: RCTEventEmitter {
     info[MPNowPlayingInfoPropertyPlaybackRate] = rate
     MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     diagnosticNowPlayingWrites += 1
+    perfRecorder.count("nowPlayingWrites")
     if diagnosticNowPlayingWriteMs.count < 256 {
       diagnosticNowPlayingWriteMs.append((CACurrentMediaTime() - writeStartedAt) * 1000)
     }
@@ -1692,6 +1732,8 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func emitState() {
+    perfRecorder.setPlaying((player?.rate ?? 0) > 0)
+    perfRecorder.count("stateEvents")
     sendEvent(withName: "HiddenAudioState", body: [
       "type": "state",
       "state": statePayload()
@@ -1718,6 +1760,7 @@ class HiddenAudioModule: RCTEventEmitter {
     lastEmittedProgressIsPlaying = isPlaying
 
     // JS only subscribes to HiddenAudioProgressChanged — avoid duplicate bridge traffic.
+    perfRecorder.count("progressEvents")
     sendEvent(withName: "HiddenAudioProgressChanged", body: [
       "type": "progress",
       "progress": progress
@@ -1775,6 +1818,10 @@ class HiddenAudioModule: RCTEventEmitter {
   }
 
   private func emitDiagnostic(_ eventName: String, _ data: [String: Any] = [:]) {
+    if eventName == "hidden_audio_remote_command_result" {
+      perfRecorder.count("remoteCommandResults")
+    }
+    perfRecorder.count("diagnosticCalls")
     let active = (player?.rate ?? 0) > 0
     let safetyEvent = ["remote", "interruption", "route", "error", "failed", "ended", "stalled"].contains { eventName.contains($0) }
     let nonessentialWhilePlaying = active && !safetyEvent
@@ -1789,6 +1836,7 @@ class HiddenAudioModule: RCTEventEmitter {
       }
     }
     if shouldBridge {
+      perfRecorder.count("diagnosticBridgeEvents")
       let startedAt = CACurrentMediaTime()
       sendEvent(withName: "HiddenAudioDiagnostic", body: [
         "type": "diagnostic",
