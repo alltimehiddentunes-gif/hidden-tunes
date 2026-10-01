@@ -6,6 +6,7 @@ const vm = require('node:vm');
 const ts = require('typescript');
 
 const root = path.resolve(__dirname, '..');
+// The 217 native client uses the established IOS_216 policy contract on the server.
 const target = { platform: 'ios', nativeBuild: '1.0.216', bundleId: 'com.hiddentunes.app', profile: 'IOS_216' };
 
 function fixture() {
@@ -30,7 +31,7 @@ function fixture() {
     },
     'expo-modules-core': {
       requireOptionalNativeModule: () => ({
-        platform: { ios: { buildNumber: '1.0.216' } },
+        platform: { ios: { buildNumber: '1.0.217' } },
         manifest: { ios: { bundleIdentifier: 'com.hiddentunes.app' } },
         executionEnvironment: 'bare',
       }),
@@ -154,6 +155,8 @@ async function settle(predicate) {
 
 async function main() {
   const normal = fixture();
+  assert.equal(normal.service.IOS_OPERATIONAL_PLATFORM, true, 'installed 217 is policy controlled');
+  assert.equal(normal.service.IOS_OPERATIONAL_IDENTITY.nativeBuild, '1.0.217');
   assert.equal((await normal.service.refreshIosOperationalPolicy(true)).status, 'legacy');
   assert.equal(normal.screen().text.includes('EXISTING_ROUTE'), true, 'valid legacy route visible');
   assert.equal(normal.screen().text.includes('This content is unavailable'), false);
@@ -212,7 +215,7 @@ async function main() {
   assert.equal(denied.screen().text.includes('This content is unavailable'), true, 'valid explicit OFF remains blocked after retry');
   assert.equal(has(denied.screen(), 'Retry'), false);
 
-  console.log('PASS iOS 1.0.216 policy route recovery: legacy, explicit section/mature/detail denial, six transient failures, immediate retry, automatic recovery, safe exits, explicit OFF after retry.');
+  console.log('PASS iOS 1.0.217 policy route recovery: legacy, explicit section/mature/detail denial, six transient failures, immediate retry, automatic recovery, safe exits, explicit OFF after retry.');
 }
 
 main().catch(error => { console.error(error); process.exitCode = 1; });
