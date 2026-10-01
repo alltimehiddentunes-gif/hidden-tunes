@@ -1,5 +1,4 @@
 import Constants from "expo-constants";
-import * as Updates from "expo-updates";
 import { Platform } from "react-native";
 import { getNowPlayingSnapshot } from "./nowPlayingStore";
 import {
@@ -8,13 +7,13 @@ import {
   type PlaybackSampleCounter,
 } from "./ios217PlaybackDiagnosticCore";
 
-// This module is inert outside the one TestFlight 217 diagnostic OTA.
+// This module is inert outside the isolated 217 internal development client.
 export const IOS217_DIAGNOSTIC_ENABLED =
   Platform.OS === "ios" &&
-  process.env.EXPO_PUBLIC_IOS217_DIAGNOSTIC === "1" &&
+  __DEV__ &&
+  Constants.expoConfig?.extra?.isDevClientBuild === true &&
   Constants.expoConfig?.version === "1.0.3" &&
-  Constants.platform?.ios?.buildNumber === "1.0.217" &&
-  Updates.runtimeVersion === "1.0.3-production.1.0.217";
+  Constants.platform?.ios?.buildNumber === "1.0.217";
 
 const core = new Ios217PlaybackDiagnosticCore();
 let heartbeat: ReturnType<typeof setInterval> | null = null;
