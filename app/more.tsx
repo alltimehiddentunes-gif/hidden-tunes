@@ -1,6 +1,9 @@
-import { memo, useCallback, useEffect, useMemo } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { FlatList,
+  Alert,
   Image,
+  Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -43,6 +46,14 @@ import {
 } from "../constants/sportsFlags";
 import { useLocalization } from "../localization";
 import type { TranslationKey } from "../localization";
+import * as Clipboard from "expo-clipboard";
+import {
+  IOS217_DIAGNOSTIC_ENABLED,
+  getIos217PlaybackSampleStatus,
+  resetIos217PlaybackSample,
+  startIos217PlaybackSample,
+  stopIos217PlaybackSample,
+} from "../utils/ios217PlaybackDiagnostic";
 
 /**
  * Sports Preview entry in More → Discovery.
@@ -228,6 +239,55 @@ function MoreHero({
   );
 }
 
+function Ios217DiagnosticEntry() {
+  const [open, setOpen] = useState(false);
+  const [report, setReport] = useState("");
+  if (!IOS217_DIAGNOSTIC_ENABLED) return null;
+  const status = getIos217PlaybackSampleStatus();
+  const start = () => {
+    if (!startIos217PlaybackSample()) {
+      Alert.alert("Pause first", "Pause the same song before starting the four-interval sample.");
+      return;
+    }
+    setReport("");
+    setOpen(false);
+  };
+  const stop = () => setReport(stopIos217PlaybackSample());
+  const reset = () => {
+    resetIos217PlaybackSample();
+    setReport("");
+  };
+  const copy = async () => {
+    const text = report || getIos217PlaybackSampleStatus().report;
+    if (!text) return;
+    await Clipboard.setStringAsync(text);
+    Alert.alert("Copied", "The one-page 217 pause/play summary is on the clipboard.");
+  };
+  return <>
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel="217 pause play diagnostic"
+      style={styles.diagnosticEntry}
+      onPress={() => { setReport(getIos217PlaybackSampleStatus().report); setOpen(true); }}
+    >
+      <Text style={styles.diagnosticText}>217 pause/play diagnostic</Text>
+    </TouchableOpacity>
+    <Modal visible={open} animationType="none" onRequestClose={() => setOpen(false)}>
+      <ScrollView contentContainerStyle={styles.diagnosticModal}>
+        <Text style={styles.diagnosticTitle}>217 pause/play sample</Text>
+        <Text style={styles.diagnosticText}>Pause the same song. Tap Start, then Home: sampling begins when Home opens. PAUSE 30s → PLAY 30s → PAUSE 30s → PLAY 30s. Scroll and tap vigorously in each interval. Return here after the fourth interval.</Text>
+        <Text style={styles.diagnosticText}>Current: {status.phase}</Text>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={start}><Text style={styles.diagnosticText}>Start sample (paused)</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={stop}><Text style={styles.diagnosticText}>Stop sample</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void copy(); }}><Text style={styles.diagnosticText}>Copy results</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={reset}><Text style={styles.diagnosticText}>Reset counters</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={() => setOpen(false)}><Text style={styles.diagnosticText}>Close</Text></TouchableOpacity>
+        {report ? <Text selectable style={styles.diagnosticReport}>{report}</Text> : null}
+      </ScrollView>
+    </Modal>
+  </>;
+}
+
 /** Dedicated More / Discovery hub — separate from Library collection. */
 export default function MoreScreen() {
   const { t } = useLocalization();
@@ -325,6 +385,7 @@ export default function MoreScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           ListHeaderComponent={listHeader}
+          ListFooterComponent={IOS217_DIAGNOSTIC_ENABLED ? <Ios217DiagnosticEntry /> : null}
           initialNumToRender={2}
           maxToRenderPerBatch={2}
           windowSize={3}
@@ -336,6 +397,12 @@ export default function MoreScreen() {
 }
 
 const styles = StyleSheet.create({
+  diagnosticEntry: { padding: 18, marginVertical: 18, borderWidth: 1, borderColor: COLORS.cyan, borderRadius: 14 },
+  diagnosticModal: { flexGrow: 1, backgroundColor: "#08080c", padding: 22, paddingTop: 70, gap: 16 },
+  diagnosticAction: { borderWidth: 1, borderColor: COLORS.cyan, borderRadius: 12, padding: 16 },
+  diagnosticTitle: { color: COLORS.text, fontWeight: "800", fontSize: 24 },
+  diagnosticText: { color: COLORS.text, fontSize: 16 },
+  diagnosticReport: { color: COLORS.text, fontSize: 12, lineHeight: 18 },
   container: {
     flex: 1,
     paddingTop: 40,

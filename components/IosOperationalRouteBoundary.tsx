@@ -10,6 +10,8 @@ function detailRef(path: string): IosOperationalRef | null {
   return null;
 }
 function IosRouteMask({ children }: { children: ReactNode }) {
+  (globalThis as typeof globalThis & { __htCountIos217?: (kind: "policyRenders") => void })
+    .__htCountIos217?.("policyRenders");
   const path = usePathname();
   const params = useGlobalSearchParams<{ id?: string; channelId?: string }>();
   const policy = useIosOperationalPolicy();

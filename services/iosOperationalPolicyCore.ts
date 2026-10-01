@@ -53,6 +53,10 @@ export class IosOperationalPolicyClient {
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => { if (!this.controlled) return () => {}; this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private publish(status: IosOperationalSnapshot["status"], policy: IosOperationalPolicy | null = this.snapshot.policy) {
+    if (status !== this.snapshot.status) {
+      (globalThis as typeof globalThis & { __htCountIos217?: (kind: "policyTransitions") => void })
+        .__htCountIos217?.("policyTransitions");
+    }
     this.snapshot = { status, policy, revision: policy?.revision ?? this.minimumRevision, generation: this.snapshot.generation + 1 };
     for (const listener of this.listeners) listener();
   }
@@ -94,6 +98,8 @@ export class IosOperationalPolicyClient {
       // Exact216 starts closed until its server explicitly returns a valid target
       // policy. Older/future builds never enter this path or read this storage.
       try {
+        (globalThis as typeof globalThis & { __htCountIos217?: (kind: "policyAttempts" | "policySuccesses" | "policyFailures") => void })
+          .__htCountIos217?.("policyAttempts");
         const response = await this.deps.request("/api/ios/policy");
         if (!response.ok) throw new Error("Policy request failed");
         const policy = this.parsePolicy(await response.json());
@@ -106,6 +112,8 @@ export class IosOperationalPolicyClient {
         this.acceptedLegacyRevision = this.activated && !policy.enforcementEnabled ? policy.revision : -1;
         this.minimumRevision = policy.revision;
         await this.deps.write(JSON.stringify({ version: 1, policyTarget: IOS_216_POLICY_TARGET, activated: this.activated, revision: this.minimumRevision, acceptedLegacyRevision: this.acceptedLegacyRevision }));
+        (globalThis as typeof globalThis & { __htCountIos217?: (kind: "policyAttempts" | "policySuccesses" | "policyFailures") => void })
+          .__htCountIos217?.("policySuccesses");
         const status = policy.enforcementEnabled ? "active" : "legacy";
         // A successful refresh with identical controls is not a catalog change.
         // Preserve the snapshot reference so subscribed rows do not rerender.
@@ -114,6 +122,8 @@ export class IosOperationalPolicyClient {
           this.publish(status, policy);
         }
       } catch {
+        (globalThis as typeof globalThis & { __htCountIos217?: (kind: "policyAttempts" | "policySuccesses" | "policyFailures") => void })
+          .__htCountIos217?.("policyFailures");
         this.decisions.clear();
         this.publish("unavailable", null);
       }

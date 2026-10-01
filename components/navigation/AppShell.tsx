@@ -106,8 +106,8 @@ const BottomTabButton = memo(function BottomTabButton({
   item: AppNavigationItem & { label: string; active: boolean };
   onNavigate: (item: AppNavigationItem & { label: string; active: boolean }) => void;
 }) {
-  const handlePressIn = useCallback(() => {
-    markTabTouchDown(item.route);
+  const handlePressIn = useCallback((event: { timeStamp?: number }) => {
+    markTabTouchDown(item.route, event.timeStamp);
   }, [item.route]);
 
   const handlePress = useCallback(() => {
@@ -197,6 +197,10 @@ export default function AppShell({
   );
 
   useEffect(() => {
+    if (pathname === "/music-feed") {
+      (globalThis as typeof globalThis & { __htStartIos217OnHome?: () => void })
+        .__htStartIos217OnHome?.();
+    }
     const frame = requestAnimationFrame(() => {
       markDestinationFirstFrame(pathname);
     });

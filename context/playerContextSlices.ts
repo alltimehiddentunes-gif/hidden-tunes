@@ -140,19 +140,36 @@ export function NowPlayingStoreSync() {
   const state = useContext(PlayerStateContext);
   const currentSongId = String(state?.currentSong?.id || "");
   const isPlaying = Boolean(state?.isPlaying);
+  const isLoading = Boolean(state?.isLoading);
+  const previousRef = useRef({ currentSongId, isLoading });
 
   useEffect(() => {
     setNowPlayingSnapshot({ currentSongId, isPlaying });
   }, [currentSongId, isPlaying]);
+
+  useEffect(() => {
+    const count = (globalThis as typeof globalThis & {
+      __htCountIos217?: (kind: "trackWrites" | "bufferWrites") => void;
+    }).__htCountIos217;
+    if (previousRef.current.currentSongId !== currentSongId) count?.("trackWrites");
+    if (previousRef.current.isLoading !== isLoading) count?.("bufferWrites");
+    previousRef.current = { currentSongId, isLoading };
+  }, [currentSongId, isLoading]);
 
   return null;
 }
 
 export function PlayerFeedStoreSync() {
   const state = useContext(PlayerStateContext);
+  const previousQueueRef = useRef(state?.activeQueue);
 
   useEffect(() => {
     if (!state) return;
+    if (previousQueueRef.current !== state.activeQueue) {
+      (globalThis as typeof globalThis & { __htCountIos217?: (kind: "queueWrites") => void })
+        .__htCountIos217?.("queueWrites");
+      previousQueueRef.current = state.activeQueue;
+    }
 
     setPlayerFeedSnapshot(
       buildPlayerFeedSnapshot({

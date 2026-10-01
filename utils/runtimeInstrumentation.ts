@@ -178,6 +178,12 @@ export function recordPlaybackProgressUpdate(
 }
 
 export function recordPlaybackReactStateUpdate(kind: string) {
+  const counter = (globalThis as typeof globalThis & {
+    __htCountIos217?: (kind: "positionWrites" | "durationWrites" | "playingWrites") => void;
+  }).__htCountIos217;
+  if (kind === "position") counter?.("positionWrites");
+  else if (kind === "duration") counter?.("durationWrites");
+  else if (kind === "is_playing") counter?.("playingWrites");
   if (!isRuntimeInstrumentationEnabled()) return;
   bump(counters.playbackReactStateUpdates);
   bump(counters.playbackStatusSpam);

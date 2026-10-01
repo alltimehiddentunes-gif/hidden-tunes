@@ -1,0 +1,57 @@
+import assert from "node:assert/strict";
+import {
+  formatIos217PlaybackSample,
+  Ios217PlaybackDiagnosticCore,
+} from "../utils/ios217PlaybackDiagnosticCore";
+
+let now = 0;
+const sample = new Ios217PlaybackDiagnosticCore(() => now);
+assert.equal(sample.start("playing"), false, "sample must start paused");
+assert.equal(sample.start("paused"), true);
+now = 100;
+sample.tick("paused");
+now = 400;
+sample.tick("paused");
+sample.count("homeRenders");
+sample.tapLatency(12);
+sample.tapLatency(30);
+now = 500;
+sample.tick("playing");
+now = 600;
+sample.tick("playing");
+now = 2000;
+sample.tick("playing");
+sample.count("progressCallbacks");
+sample.count("positionWrites");
+sample.tapLatency(900);
+now = 2100;
+sample.tick("paused");
+now = 2200;
+sample.tick("paused");
+now = 2300;
+sample.tick("playing");
+now = 2400;
+sample.tick("playing");
+now = 2500;
+const result = sample.stop();
+assert.equal(result.complete, true);
+assert.deepEqual(result.phases.map((phase) => phase.mode), ["paused", "playing", "paused", "playing"]);
+assert.equal(result.phases[0].metrics.gap100, 1);
+assert.equal(result.phases[0].metrics.counters.homeRenders, 1);
+assert.equal(result.phases[0].metrics.tapP50Ms, 12);
+assert.equal(result.phases[0].metrics.tapP95Ms, 30);
+assert.equal(result.phases[1].metrics.gap1000, 1);
+assert.equal(result.phases[1].metrics.maxGapMs, 1300);
+assert.equal(result.phases[1].metrics.counters.progressCallbacks, 1);
+assert.equal(result.phases[1].metrics.counters.positionWrites, 1);
+assert.equal(result.phases[1].metrics.tapMaxMs, 900);
+assert.equal(result.paused.counters.homeRenders, 1);
+assert.equal(result.playing.counters.progressCallbacks, 1);
+assert.equal(result.playing.maxGapMs, 1300);
+assert.equal(result.playing.tapP95Ms, 900);
+assert.match(formatIos217PlaybackSample(result), /PLAYING TOTAL/);
+assert.match(formatIos217PlaybackSample(result), /network=unavailable/);
+sample.reset();
+assert.equal(sample.snapshot().phases.length, 0);
+assert.equal(sample.isActive(), false);
+console.log("iOS 217 pause/play counter tests passed");

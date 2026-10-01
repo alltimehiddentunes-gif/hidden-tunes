@@ -798,6 +798,8 @@ function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
 type HomeCatalogStatus = "loading" | "cached" | "fresh" | "empty" | "error";
 
 export default function MusicFeedScreen() {
+  (globalThis as typeof globalThis & { __htCountIos217?: (kind: "homeRenders") => void })
+    .__htCountIos217?.("homeRenders");
   const iosPolicy = useIosOperationalPolicy();
   const { playSong } = usePlayerActions();
   const playerFeed = usePlayerFeedSnapshot();
