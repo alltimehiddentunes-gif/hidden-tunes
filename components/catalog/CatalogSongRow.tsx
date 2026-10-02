@@ -29,21 +29,22 @@ type CatalogSongRowProps = {
   active: boolean;
   isPlaying: boolean;
   onPress: (song: any) => void;
+  /** When parent already gated visibility, skip duplicate policy subscription. */
+  iosVisibilityChecked?: boolean;
 };
 
-function CatalogSongRow({
+function CatalogSongRowBody({
   song,
   image,
   active,
   isPlaying,
   onPress,
-}: CatalogSongRowProps) {
-  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(song));
+}: Omit<CatalogSongRowProps, "iosVisibilityChecked">) {
   const handlePress = useCallback(() => {
     onPress(song);
   }, [onPress, song]);
 
-  return iosVisible ? ((
+  return (
     <View style={[styles.shell, active && styles.shellActive]}>
       <MediaCard
         title={song.title}
@@ -75,7 +76,23 @@ function CatalogSongRow({
         )}
       </View>
     </View>
-  )) : null;
+  );
+}
+
+function CatalogSongRowWithPolicyGate(props: Omit<CatalogSongRowProps, "iosVisibilityChecked">) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(props.song));
+  if (!iosVisible) return null;
+  return <CatalogSongRowBody {...props} />;
+}
+
+function CatalogSongRow({
+  iosVisibilityChecked = false,
+  ...props
+}: CatalogSongRowProps) {
+  if (iosVisibilityChecked) {
+    return <CatalogSongRowBody {...props} />;
+  }
+  return <CatalogSongRowWithPolicyGate {...props} />;
 }
 
 export default memo(CatalogSongRow, (previous, next) => {
@@ -84,7 +101,8 @@ export default memo(CatalogSongRow, (previous, next) => {
     previous.image === next.image &&
     previous.active === next.active &&
     previous.isPlaying === next.isPlaying &&
-    previous.onPress === next.onPress
+    previous.onPress === next.onPress &&
+    previous.iosVisibilityChecked === next.iosVisibilityChecked
   );
 });
 
@@ -98,15 +116,18 @@ const styles = StyleSheet.create({
   action: {
     position: "absolute",
     right: 24,
-    top: "50%",
-    marginTop: -20,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 10,
   },
   playButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#facc15",
   },
 });

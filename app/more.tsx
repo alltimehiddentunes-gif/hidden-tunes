@@ -10,7 +10,7 @@ import { FlatList,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -106,17 +106,20 @@ const HUB_TRANSLATION_KEYS: Record<
 };
 
 const MoreHeroGlow = memo(function MoreHeroGlow() {
+  const focused = useIsFocused();
   const appActive = useAppActiveState();
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
   useEffect(() => {
-    if (!appActive) {
+    if (!appActive || !focused) {
       cancelAnimation(opacity);
       cancelAnimation(scale);
       opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
       scale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
-      logPerformanceOffscreenWorkPaused("more_hero_glow", { reason: "app_inactive" });
+      if (!appActive) {
+        logPerformanceOffscreenWorkPaused("more_hero_glow", { reason: "app_inactive" });
+      }
       return;
     }
 
@@ -153,7 +156,7 @@ const MoreHeroGlow = memo(function MoreHeroGlow() {
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [appActive, opacity, scale]);
+  }, [appActive, focused, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,

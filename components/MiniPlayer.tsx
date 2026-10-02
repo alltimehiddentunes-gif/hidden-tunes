@@ -37,7 +37,7 @@ import Animated, {
 import { COLORS, GRADIENTS, LUXURY_GLOW } from "../constants/theme";
 import { logMiniPlayerControl, logPlaybackUxSync } from "../utils/playbackDiagnostics";
 import { createTapGuard } from "../utils/tapGuard";
-import { isAppActiveForWork, subscribeAppActive, useAppActiveState } from "../utils/performanceMode";
+import { isAppActiveForWork, subscribeAppActive, useAppActiveState, isFastScrolling, subscribeFastScrolling } from "../utils/performanceMode";
 import { logPerformanceDuplicateListenerRemoved, logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
 import {
   usePlayerActions,
@@ -58,7 +58,6 @@ import HTImage from "./HTImage";
 import FavoriteButton from "./FavoriteButton";
 import { buildSongFavoriteItem } from "../services/favorites/favoriteItemBuilders";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
-import { isFastScrolling } from "../utils/performanceMode";
 import {
   getUserFacingArtist,
   getUserFacingRadioSubtitle,
@@ -195,16 +194,22 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
   trackKey: string;
 }) {
   const appActive = useAppActiveState();
+  const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
   const glowOpacity = useSharedValue(0.18);
   const glowScale = useSharedValue(1);
 
+  useEffect(() => subscribeFastScrolling(setFastScrolling), []);
+
   useEffect(() => {
-    if (!appActive) {
+    const allowPulse = appActive && !fastScrolling;
+    if (!allowPulse) {
       cancelAnimation(glowOpacity);
       cancelAnimation(glowScale);
       glowOpacity.value = withTiming(LUXURY_GLOW.opacityMin + 0.06, { duration: 220 });
       glowScale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
-      logPerformanceOffscreenWorkPaused("mini_player_artwork_glow", { reason: "app_inactive" });
+      if (!appActive) {
+        logPerformanceOffscreenWorkPaused("mini_player_artwork_glow", { reason: "app_inactive" });
+      }
       return;
     }
 
@@ -244,7 +249,7 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
       cancelAnimation(glowOpacity);
       cancelAnimation(glowScale);
     };
-  }, [appActive, glowOpacity, glowScale, isPlaying, isYoutubeMode]);
+  }, [appActive, fastScrolling, glowOpacity, glowScale, isPlaying, isYoutubeMode]);
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,

@@ -73,6 +73,30 @@ let state: HandoffState = {
   pendingController: null,
 };
 
+const ownerListeners = new Set<() => void>();
+
+function notifyPlaybackOwnerListeners() {
+  for (const listener of ownerListeners) {
+    try {
+      listener();
+    } catch {
+      // Subscriber errors must not break handoff.
+    }
+  }
+}
+
+/** Reactive ownership for UI gates (MiniPlayer). Not used for arbitration. */
+export function subscribeActivePlaybackOwner(listener: () => void) {
+  ownerListeners.add(listener);
+  return () => {
+    ownerListeners.delete(listener);
+  };
+}
+
+export function getActivePlaybackOwnerSnapshot(): PlaybackOwnerId | null {
+  return state.activeOwner;
+}
+
 export function isPlaybackHandoffAbortError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
   const name = String((error as { name?: string }).name || "");
@@ -246,6 +270,9 @@ export async function claimExclusivePlayback(input: {
   state.activeOwner = input.owner;
   state.contentKind = input.contentKind;
   state.mediaKey = input.mediaKey;
+  if (previousOwner !== input.owner) {
+    notifyPlaybackOwnerListeners();
+  }
 
   if (typeof __DEV__ !== "undefined" && __DEV__) {
     console.log("[handoff] handoff_requested", {
@@ -320,6 +347,7 @@ export function releasePlaybackOwner(owner: PlaybackOwnerId, generation?: number
   state.activeOwner = null;
   state.contentKind = null;
   state.mediaKey = null;
+  notifyPlaybackOwnerListeners();
 }
 
 /** Test / recovery helper — does not stop adapters. */
@@ -333,6 +361,7 @@ export function __resetPlaybackHandoffForTests() {
     mediaKey: null,
     pendingController: null,
   };
+  notifyPlaybackOwnerListeners();
 }
 
 export function __getPlaybackHandoffDebugState() {

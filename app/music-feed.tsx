@@ -12,7 +12,9 @@ import {
   Pressable,
   TouchableOpacity,
   View,
+  PixelRatio,
 } from "react-native";
+
 
 import { router, useFocusEffect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -610,7 +612,6 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
         heroCardWidth={heroCardWidth}
         heroCardHeight={heroCardHeight}
         totalCards={cards.length}
-        activeSlideIndex={heroIndex}
         heroActionLabels={heroActionLabels}
         onPress={handleHeroPress}
         HeroPressable={HeroPressable}
@@ -626,7 +627,6 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
       heroActionLabels,
       heroCardHeight,
       heroCardWidth,
-      heroIndex,
     ]
   );
 
@@ -1519,6 +1519,8 @@ export default function MusicFeedScreen() {
               fallback={moodRoomFallbackArtwork(room.id)}
               style={styles.roomImageFill}
               contentFit="cover"
+            maxDecodeWidth={Math.ceil(180 * PixelRatio.get())}
+              maxDecodeHeight={Math.ceil(180 * PixelRatio.get())}
             />
           </View>
           <LinearGradient
@@ -1619,6 +1621,8 @@ export default function MusicFeedScreen() {
               fallback={moodRoomFallbackArtwork(room.id)}
               style={styles.roomImageFill}
               contentFit="cover"
+            maxDecodeWidth={Math.ceil(180 * PixelRatio.get())}
+              maxDecodeHeight={Math.ceil(180 * PixelRatio.get())}
             />
           </View>
           <LinearGradient

@@ -96,7 +96,9 @@ function HTImage({
   const failureCountRef = useRef(0);
   const gaveUpRef = useRef(false);
   const prefetchedUriRef = useRef("");
+  const previousSourceKeyRef = useRef<string>("");
 
+  
   const flatStyle = useMemo(() => flattenStyle(style), [style]);
   const borderRadius = Number(flatStyle.borderRadius || 0);
 
@@ -149,6 +151,14 @@ function HTImage({
   }, [resolvedSource]);
 
   useEffect(() => {
+    const key = recyclingKey;
+    if (previousSourceKeyRef.current && previousSourceKeyRef.current !== key) {
+    } else if (!previousSourceKeyRef.current) {
+    }
+    previousSourceKeyRef.current = key;
+  }, [recyclingKey]);
+
+  useEffect(() => {
     setCandidateIndex(0);
     failureCountRef.current = 0;
     gaveUpRef.current = false;
@@ -194,7 +204,13 @@ function HTImage({
     void Image.prefetch(uriValue).catch(() => undefined);
   }, [prefetch, resolvedSource]);
 
-  const fastScrolling = isFastScrolling();
+  // Do NOT subscribe to fast-scroll React state here — that forced every mounted
+  // HTImage to re-render on fling start/end. Gate decode/transition via isFastScrolling().
+  const flinging = isFastScrolling();
+  const displaySource =
+    flinging && !showingFallback && imageReady
+      ? stablePlaceholder || fallbackSource
+      : resolvedSource;
 
   return (
     <View
@@ -209,7 +225,7 @@ function HTImage({
       ]}
     >
       <Image
-        source={resolvedSource}
+        source={displaySource}
         recyclingKey={recyclingKey}
         style={[
           style,
@@ -221,10 +237,10 @@ function HTImage({
         cachePolicy="disk"
         placeholder={stablePlaceholder || fallbackSource}
         placeholderContentFit="cover"
-        transition={fastScrolling || showingFallback ? 0 : IMAGE_FADE_MS}
+        transition={flinging || showingFallback ? 0 : IMAGE_FADE_MS}
         onLoad={() => {
           setImageReady(true);
-          if (!fastScrolling) {
+          if (!isFastScrolling()) {
             setStablePlaceholder(resolvedSource);
           }
         }}

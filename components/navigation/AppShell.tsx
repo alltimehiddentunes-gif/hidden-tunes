@@ -30,7 +30,11 @@ import {
   type AppNavigationItem,
 } from "./navigationConfig";
 import { createKeyedTapGuard } from "../../utils/tapGuard";
-import { getActivePlaybackOwner } from "../../services/playback/PlaybackHandoffCoordinator";
+import {
+  getActivePlaybackOwnerSnapshot,
+  subscribeActivePlaybackOwner,
+  type PlaybackOwnerId,
+} from "../../services/playback/PlaybackHandoffCoordinator";
 import {
   getNowPlayingSongIdSnapshot,
   subscribeNowPlaying,
@@ -61,6 +65,22 @@ const MINI_PLAYER_ROUTES = [
   "/cloud-playlists",
   "/motivation",
 ] as const;
+
+function isForeignPlaybackOwner(owner: PlaybackOwnerId | null): boolean {
+  return owner === "tv" || owner === "video" || owner === "sports";
+}
+
+function shouldShowMiniPlayer(
+  pathname: string,
+  songId: string,
+  owner: PlaybackOwnerId | null
+): boolean {
+  return (
+    isMiniPlayerRoute(pathname) &&
+    Boolean(songId) &&
+    !isForeignPlaybackOwner(owner)
+  );
+}
 
 function isActiveRoute(pathname: string, item: AppNavigationItem) {
   return item.matches.some((route) => {
@@ -158,15 +178,29 @@ export default function AppShell({
     getNowPlayingSongIdSnapshot,
     getNowPlayingSongIdSnapshot
   );
+  const activePlaybackOwner = useSyncExternalStore(
+    subscribeActivePlaybackOwner,
+    getActivePlaybackOwnerSnapshot,
+    getActivePlaybackOwnerSnapshot
+  );
   const bottomOffset = Math.max(insets.bottom, 8);
-  const showMiniPlayer =
-    isMiniPlayerRoute(pathname) &&
-    Boolean(currentSongId) &&
-    // TV/video/sports own audible media — MiniPlayer must not imply audio owns it.
-    getActivePlaybackOwner() === "shared-audio";
+  const showMiniPlayer = shouldShowMiniPlayer(
+    pathname,
+    currentSongId,
+    activePlaybackOwner
+  );
+  // Sticky bottom inset while song remains loaded — progress ticks never change this.
+  const reservedMiniSpaceRef = useRef(false);
+  if (!isMiniPlayerRoute(pathname) || isForeignPlaybackOwner(activePlaybackOwner)) {
+    reservedMiniSpaceRef.current = false;
+  } else if (showMiniPlayer) {
+    reservedMiniSpaceRef.current = true;
+  } else if (!currentSongId) {
+    reservedMiniSpaceRef.current = false;
+  }
   const shellContentPaddingBottom = getMobileShellContentPaddingBottom(
     insets.bottom,
-    showMiniPlayer
+    reservedMiniSpaceRef.current || showMiniPlayer
   );
   const backgroundVariant = getBackgroundVariant(pathname);
 
