@@ -12,6 +12,8 @@ import { router } from "expo-router";
 import { AppState, AppStateStatus, InteractionManager, Platform } from "react-native";
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
+import { markMetroProviderDuration, markMetroRender } from "../utils/metroRenderProbe";
+import { isIos217JsProgressPublicationSuppressed } from "../utils/ios217PlaybackDiagnostic";
 
 import {
   buildPersonalRadioQueue,
@@ -78,11 +80,22 @@ import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 import {
   ENDLESS_MUSIC_LIMITS,
   createContinuationSession,
+  buildLocalContinuationPool,
+  formatSmartQueueLabel,
   rankContinuationCandidates,
   shouldRefillContinuationQueue,
   type ContinuationSession,
   type ContinuationUserIntent,
 } from "../services/endlessMusicContinuation";
+import {
+  discoverMoodRoomPage,
+  markMoodRoomSongsSeen,
+} from "../services/moodRoomDiscovery";
+import {
+  discoverGenreAnchoredMoodPage,
+  markGenreAnchoredSkipped,
+  songMatchesGenreAnchor,
+} from "../services/genreAnchoredMoodDiscovery";
 import {
   requestMusicRecommendations,
   type MusicRecommendationRequest,
@@ -865,6 +878,8 @@ function parseSyncedLyrics(input?: string | null): SyncedLyricLine[] {
 
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  const metroRenderStartedAt = process.env.EXPO_PUBLIC_METRO_HARNESS === "1" ? globalThis.performance?.now?.() ?? Date.now() : 0;
+  markMetroRender("playerProvider");
   const soundRef = useRef<LegacySound | null>(null);
   const isChangingTrackRef = useRef(false);
   const isMountedRef = useRef(true);
@@ -1387,6 +1402,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           lastPositionStateUpdateRef.current = now;
           recordPlaybackProgressUpdate();
           recordPlaybackReactStateUpdate("position");
+          (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("positionWrites");
           setPositionMillisState(progress.positionMillis);
         }
       }
@@ -1404,6 +1420,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           ) {
             durationMillisRef.current = progress.durationMillis;
             recordPlaybackReactStateUpdate("duration");
+            (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("durationWrites");
             setDurationMillisState(progress.durationMillis);
           }
         }
@@ -1412,6 +1429,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (progress.isPlaying !== isPlayingRef.current) {
         isPlayingRef.current = progress.isPlaying;
         recordPlaybackReactStateUpdate("is_playing");
+        (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("playingWrites");
         setIsPlayingState(progress.isPlaying);
       }
 
@@ -6576,6 +6594,82 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         .slice(0, ENDLESS_MUSIC_LIMITS.recentWindow)
         .map((song) => String(song.id));
       const existingQueueIds = new Set(smartQueue.map((song) => String(song.id)));
+      let freshRelated: AppSong[] = [];
+      let rankingSource: "server" | "local_fallback" | "mood_paginated" = "local_fallback";
+      let candidateCount = 0;
+
+      const moodSeed = String(
+        context.source === "mood"
+          ? context.searchQuery || context.mood || context.label || ""
+          : ""
+      ).trim();
+      const genreAnchor = String(
+        context.source === "mood" ? context.genre || "" : ""
+      ).trim();
+      if (moodSeed && options?.networkAllowed !== false) {
+        try {
+          if (genreAnchor) {
+            markGenreAnchoredSkipped(
+              { genre: genreAnchor, mood: moodSeed, id: `${genreAnchor}|${moodSeed}` },
+              smartQueue.map((song) => String(song.id || ""))
+            );
+            const anchored = await discoverGenreAnchoredMoodPage({
+              genre: genreAnchor,
+              mood: moodSeed,
+              id: `${genreAnchor}|${moodSeed}`,
+              limit: ENDLESS_MUSIC_LIMITS.refillBatch,
+            });
+            if (!isCurrentRefill()) return false;
+            const anchoredCandidates = anchored.songs
+              .map((song) => normalizeSong(song as unknown as AppSong))
+              .filter(
+                (song) =>
+                  !existingQueueIds.has(String(song.id)) &&
+                  !isYouTubeSong(song) &&
+                  Boolean(getPlayableUri(song)) &&
+                  (anchored.broadeningLevel > 3 ||
+                    songMatchesGenreAnchor(
+                      song as any,
+                      genreAnchor
+                    ))
+              );
+            if (anchoredCandidates.length) {
+              freshRelated = anchoredCandidates.slice(
+                0,
+                ENDLESS_MUSIC_LIMITS.refillBatch
+              );
+              rankingSource = "mood_paginated";
+              candidateCount = anchoredCandidates.length;
+            }
+          } else {
+            markMoodRoomSongsSeen(moodSeed, moodSeed, smartQueue as any);
+            const moodPage = await discoverMoodRoomPage({
+              moodLabel: moodSeed,
+              id: moodSeed,
+              limit: ENDLESS_MUSIC_LIMITS.refillBatch,
+            });
+            if (!isCurrentRefill()) return false;
+            const moodCandidates = moodPage.songs
+              .map((song) => normalizeSong(song as unknown as AppSong))
+              .filter(
+                (song) =>
+                  !existingQueueIds.has(String(song.id)) &&
+                  !isYouTubeSong(song) &&
+                  Boolean(getPlayableUri(song))
+              );
+            if (moodCandidates.length) {
+              freshRelated = moodCandidates.slice(0, ENDLESS_MUSIC_LIMITS.refillBatch);
+              rankingSource = "mood_paginated";
+              candidateCount = moodCandidates.length;
+            }
+          }
+        } catch (error) {
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.log("[HTMoodRoomDiscovery] auto-next refill failed", error);
+          }
+        }
+      }
+
       const recommendationRequest: MusicRecommendationRequest = {
         seedSongId: String(current.id),
         journeyIntent: "CONTINUE",
@@ -6588,15 +6682,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           .map((song) => String(song.id)),
         listener: { favorites: [...favoriteIds] },
       };
-      const serverResult = options?.networkAllowed === false
-        ? null
-        : await requestMusicRecommendations(recommendationRequest);
+      const serverResult =
+        freshRelated.length || options?.networkAllowed === false
+          ? null
+          : await requestMusicRecommendations(recommendationRequest);
       if (!isCurrentRefill()) return false;
 
-      let freshRelated: AppSong[] = [];
-      let rankingSource: "server" | "local_fallback" = "local_fallback";
-      let candidateCount = 0;
       if (
+        !freshRelated.length &&
         serverResult &&
         isCurrentMusicRecommendationResult(serverResult, {
           seedSongId: String(current.id),
@@ -6635,18 +6728,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (freshRelated.length) rankingSource = "server";
       }
       if (!freshRelated.length) {
-        const catalogSongs = catalogSnapshot
-          .slice(0, ENDLESS_MUSIC_LIMITS.candidateCap)
-          .map((song) => normalizeSong(song as unknown as AppSong));
-        const combinedLibrary = [...(memory as AppSong[]), ...catalogSongs]
-          .slice(0, ENDLESS_MUSIC_LIMITS.candidateCap)
-          .map(normalizeSong)
-          .filter((song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
+        const memorySongs = (memory as AppSong[]).map(normalizeSong);
+        const catalogSongs = catalogSnapshot.map((song) =>
+          normalizeSong(song as unknown as AppSong)
+        );
+        const combinedSources = [...memorySongs, ...catalogSongs].filter(
+          (song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song))
+        );
+        const intentPool = buildLocalContinuationPool(combinedSources, {
+          current,
+          context,
+          excludeIds: existingQueueIds,
+          cap: ENDLESS_MUSIC_LIMITS.candidateCap,
+        });
         const playCounts = new Map(
           recentlyPlayedRef.current.map((song) => [String(song.id), song.playCount || 1])
         );
-        candidateCount = combinedLibrary.length;
-        const ranked = rankContinuationCandidates(combinedLibrary, {
+        candidateCount = intentPool.length;
+        const ranked = rankContinuationCandidates(intentPool, {
           current,
           context,
           existingQueue: smartQueue,
@@ -6677,7 +6776,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         {
           ...context,
           source: context.source === "unknown" ? "smart_queue" : context.source,
-          label: context.label || "Smart continuation",
+          label: formatSmartQueueLabel({
+            ...context,
+            label: context.label,
+          }),
+          queueType: context.queueType || "smart_queue",
         },
         "smart_queue"
       );
@@ -7222,12 +7325,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       queueMode?: ActiveQueueMode
     ) => {
       const tapStartedAt = Date.now();
+      (globalThis as any).__htTrace?.("player_playSong_enter", { songId: String(song?.id || "") });
       const tapRequestId = latestPlaySongTapIdRef.current + 1;
       latestPlaySongTapIdRef.current = tapRequestId;
       if (IOS_OPERATIONAL_PLATFORM) {
         const commandGeneration = manualQueueCommandGenerationRef.current;
         const authorizationGeneration = ++iosAuthorizationGenerationRef.current;
         song = await authorizeIosOperationalSong(song);
+        (globalThis as any).__htTrace?.("player_authorized", { songId: String(song?.id || "") });
         if (latestPlaySongTapIdRef.current !== tapRequestId || manualQueueCommandGenerationRef.current !== commandGeneration || iosAuthorizationGenerationRef.current !== authorizationGeneration) return;
       }
       manualQueueCommandGenerationRef.current += 1;
@@ -8537,6 +8642,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const pollHiddenAudioProgress = async () => {
       if (cancelled) return;
 
+      // In the internal native no-periodic-observer experiment, polling would
+      // replace the removed native tick and invalidate the isolation test.
+      if (Platform.OS === "ios" && process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
+        const mode =
+          (globalThis as typeof globalThis & { __htNativeDiagnosticMode?: string })
+            .__htNativeDiagnosticMode || "";
+        const suppressesNativePeriodic =
+          mode === "audio_only" ||
+          mode === "audio_core_only" ||
+          mode === "no_periodic" ||
+          mode === "no_periodic_no_print" ||
+          mode === "no_periodic_no_bridge";
+        if (suppressesNativePeriodic) return;
+      }
+
       // Native progress events already drive UI on Android and iOS. Polling
       // duplicates bridge traffic and React setState — keep only as a slow
       // fallback when the event subscription is not active.
@@ -9354,8 +9474,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         ? "ios_hidden_audio_progress_event"
         : "android_hidden_audio_progress_event";
     const unsubscribe = subscribeHiddenAudioProgress((progress) => {
+      (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("jsProgressCallback");
       lastNativeProgressEventAtRef.current = Date.now();
+      // 217 diagnostic A/B only: keep native progress/audio; skip React position fanout.
+      if (isIos217JsProgressPublicationSuppressed()) {
+        return;
+      }
       applyHiddenAudioProgressToUi(progress, source);
+      (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("jsProgressApplied");
     });
     return () => {
       nativeProgressEventsActiveRef.current = false;
@@ -10329,6 +10455,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [positionMillis, durationMillis, currentLyricLine]
   );
 
+  markMetroProviderDuration((globalThis.performance?.now?.() ?? Date.now()) - metroRenderStartedAt);
   return (
     <PlayerActionsContext.Provider value={actionsValue}>
       <PlayerStateContext.Provider value={stateValue}>

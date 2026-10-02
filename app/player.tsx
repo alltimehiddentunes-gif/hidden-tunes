@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
-import { router } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 import { safeRouterBack } from "../utils/safeNavigation";
 import { navigateRadioPlayerBack } from "../utils/radioNavigation";
 import Animated, {
@@ -73,8 +73,8 @@ function fireLightHaptic() {
   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }
 
-const AmbientGlow = memo(function AmbientGlow() {
-  const appActive = useAppActiveState();
+const AmbientGlow = memo(function AmbientGlow({ screenFocused }: { screenFocused: boolean }) {
+  const appActive = useAppActiveState() && screenFocused;
   const purple = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const cyan = useSharedValue<number>(LUXURY_GLOW.opacityMin * 0.85);
 
@@ -84,7 +84,7 @@ const AmbientGlow = memo(function AmbientGlow() {
       cancelAnimation(cyan);
       purple.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
       cyan.value = withTiming(LUXURY_GLOW.opacityMin * 0.85, { duration: 220 });
-      logPerformanceOffscreenWorkPaused("player_ambient_glow", { reason: "app_inactive" });
+      logPerformanceOffscreenWorkPaused("player_ambient_glow", { reason: screenFocused ? "app_inactive" : "screen_unfocused" });
       return;
     }
 
@@ -121,7 +121,7 @@ const AmbientGlow = memo(function AmbientGlow() {
       cancelAnimation(purple);
       cancelAnimation(cyan);
     };
-  }, [appActive, purple, cyan]);
+  }, [appActive, purple, cyan, screenFocused]);
 
   const purpleStyle = useAnimatedStyle(() => ({
     opacity: purple.value,
@@ -466,6 +466,8 @@ const MetadataContextChip = memo(function MetadataContextChip({
 });
 
 export default function PlayerScreen() {
+  (globalThis as typeof globalThis & { __htCountIos217?: (kind: "playerRenders") => void })
+    .__htCountIos217?.("playerRenders");
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compactLayout = viewportWidth < 380 || viewportHeight < 760;
@@ -476,7 +478,8 @@ export default function PlayerScreen() {
   const horizontalPadding = compactLayout ? 18 : 22;
 
   const { currentSong, isPlaying, isLoading } = usePlayerNowPlaying();
-  const playerScreenActive = useAppActiveState();
+  const playerScreenFocused = useIsFocused();
+  const playerScreenActive = useAppActiveState() && playerScreenFocused;
   const {
     activeQueue,
     activeQueueIndex,
@@ -826,7 +829,26 @@ export default function PlayerScreen() {
       fireLightHaptic();
 
       if (type === "mood") {
-        openMoodCatalog(trimmed);
+        // Genre session → mood tap: hard-lock genre, refine with mood.
+        // Prefer explicit queue genre context; never rely on track metadata alone
+        // when the user is already inside a genre station.
+        const fromGenreSession =
+          activeQueueContext?.source === "genre"
+            ? String(activeQueueContext.genre || activeQueueContext.label || "").trim()
+            : "";
+        const fromMoodAlreadyAnchored =
+          activeQueueContext?.source === "mood"
+            ? String(activeQueueContext.genre || "").trim()
+            : "";
+        const fromArtistGenre =
+          activeQueueContext?.source === "artist"
+            ? String(activeQueueContext.genre || "").trim()
+            : "";
+        const genreAnchor =
+          fromGenreSession || fromMoodAlreadyAnchored || fromArtistGenre;
+        openMoodCatalog(trimmed, undefined, {
+          genreAnchor: genreAnchor || undefined,
+        });
         return;
       }
 
@@ -849,14 +871,14 @@ export default function PlayerScreen() {
         },
       } as any);
     },
-    [artist]
+    [activeQueueContext, artist]
   );
 
   if (!currentSong) {
     return (
       <AppShell>
         <LinearGradient colors={GRADIENTS.player} style={styles.emptyContainer}>
-          <AmbientGlow />
+          <AmbientGlow screenFocused={playerScreenFocused} />
           <View style={styles.emptyIcon}>
             <Ionicons name="musical-notes-outline" size={64} color={COLORS.primary} />
           </View>
@@ -878,7 +900,7 @@ export default function PlayerScreen() {
   return (
     <AppShell>
       <LinearGradient colors={GRADIENTS.player} style={styles.container}>
-        <AmbientGlow />
+        <AmbientGlow screenFocused={playerScreenFocused} />
 
         <View
           style={[

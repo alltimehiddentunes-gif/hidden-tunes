@@ -6,6 +6,9 @@ import {
   ensureCatalogViewPersistenceHydrated,
   prefetchCatalogView,
 } from "../services/unifiedCatalog";
+import {
+  setPendingGenreMoodAnchor,
+} from "../services/genreAnchorHandoff";
 import { scheduleNavigationPrewarm } from "./performanceMode";
 
 export type CatalogNavigationParams = {
@@ -13,6 +16,8 @@ export type CatalogNavigationParams = {
   title?: string;
   query?: string;
   type?: CatalogResolverType;
+  /** Hard genre lock when opening a mood from inside a genre session. */
+  genreAnchor?: string;
 };
 
 export async function ensureCatalogNavigationReady() {
@@ -27,6 +32,7 @@ export function prefetchCatalogNavigation(params: CatalogNavigationParams) {
     id: params.id,
     title: params.title,
     query: params.query,
+    genreAnchor: params.genreAnchor,
   });
 }
 
@@ -48,7 +54,10 @@ export function scheduleGenreCatalogPrewarm(params: CatalogNavigationParams) {
   return scheduleCatalogNavigationPrewarm({ ...params, type: params.type || "genre" });
 }
 
-function pushCatalogRoute(target: ReturnType<typeof buildCatalogViewTarget>) {
+function pushCatalogRoute(
+  target: ReturnType<typeof buildCatalogViewTarget>,
+  genreAnchor?: string
+) {
   router.push({
     pathname: "/genre",
     params: {
@@ -56,16 +65,19 @@ function pushCatalogRoute(target: ReturnType<typeof buildCatalogViewTarget>) {
       title: target.title,
       query: target.query,
       type: target.type,
+      ...(genreAnchor ? { genreAnchor } : {}),
     },
   } as any);
 }
 
 export function openCatalogNavigation(params: CatalogNavigationParams) {
+  const genreAnchor = String(params.genreAnchor || "").trim();
   const target = buildCatalogViewTarget({
     type: params.type || "category",
     id: params.id,
     title: params.title,
     query: params.query,
+    genreAnchor,
   });
 
   prefetchCatalogNavigation({
@@ -73,27 +85,43 @@ export function openCatalogNavigation(params: CatalogNavigationParams) {
     id: target.id,
     title: target.title,
     query: target.query,
+    genreAnchor,
   });
 
-  pushCatalogRoute(target);
+  pushCatalogRoute(target, genreAnchor || undefined);
 }
 
 export function openGenreCatalog(params: CatalogNavigationParams) {
-  openCatalogNavigation({ ...params, type: "genre" });
+  openCatalogNavigation({ ...params, type: "genre", genreAnchor: undefined });
 }
 
 export function openCategoryCatalog(params: CatalogNavigationParams) {
   openCatalogNavigation({ ...params, type: params.type || "category" });
 }
 
-export function openMoodCatalog(title: string, query?: string) {
+export function openMoodCatalog(
+  title: string,
+  query?: string,
+  options?: { genreAnchor?: string }
+) {
   const safeTitle = String(title || "").trim();
   if (!safeTitle) return;
+  const genreAnchor = String(options?.genreAnchor || "").trim();
+
+  if (genreAnchor) {
+    setPendingGenreMoodAnchor({ moodTitle: safeTitle, genreAnchor });
+  }
 
   openCatalogNavigation({
     type: "mood",
     title: safeTitle,
     query: query || `${safeTitle} music`,
-    id: safeTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    id: genreAnchor
+      ? `${genreAnchor.toLowerCase()}|${safeTitle.toLowerCase()}`.replace(
+          /[^a-z0-9|]+/g,
+          "-"
+        )
+      : safeTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    genreAnchor: genreAnchor || undefined,
   });
 }

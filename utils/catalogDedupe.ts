@@ -16,6 +16,19 @@ export function getSongDedupeKey(song: {
   return `meta:${title}:${artist}`;
 }
 
+/** Recording-level key (title+artist) so alternate IDs of the same track collapse. */
+export function getRecordingDedupeKey(song: {
+  id?: unknown;
+  title?: unknown;
+  artist?: unknown;
+  artist_name?: unknown;
+} | null | undefined): string {
+  const title = normalizeCatalogKey(song?.title);
+  const artist = normalizeCatalogKey(song?.artist || song?.artist_name);
+  if (title && artist) return `meta:${title}:${artist}`;
+  return getSongDedupeKey(song);
+}
+
 export function isCatalogSeedFallback(song: { id?: unknown } | null | undefined): boolean {
   const id = String(song?.id || "").trim().toLowerCase();
   return CATALOG_SEED_FALLBACK_IDS.has(id);

@@ -1,6 +1,11 @@
 import { getArtworkUri } from "./artwork";
 import { getMoodTags, normalizeGenreKey } from "./genreAliases";
 import { getSongDedupeKey } from "./catalogDedupe";
+import {
+  normalizeDiscoveryConcepts,
+  selectMoodCatalogCandidates,
+  splitDiscoveryConcepts,
+} from "../services/radioCatalogDiscovery";
 
 export type MoodRoomGradient = readonly [string, string, ...string[]];
 
@@ -334,15 +339,20 @@ export function songMatchesMoodLabel<T extends MoodFieldSong>(
   song: T,
   label: unknown
 ): boolean {
-  const targetTitle = normalizeMoodName(label);
-  if (!targetTitle) return false;
+  const rawConcepts = splitDiscoveryConcepts(label);
+  // Single-concept labels keep premium room matching.
+  if (rawConcepts.length <= 1) {
+    const targetTitle = normalizeMoodName(label);
+    if (!targetTitle) return false;
+    const premium = PREMIUM_MOOD_ROOMS.find((room) => room.title === targetTitle);
+    if (premium) return songMatchesMoodRoom(song, premium);
+    return collectSongMoodTokens(song).some(
+      (token) => normalizeMoodName(token) === targetTitle
+    );
+  }
 
-  const premium = PREMIUM_MOOD_ROOMS.find((room) => room.title === targetTitle);
-  if (premium) return songMatchesMoodRoom(song, premium);
-
-  return collectSongMoodTokens(song).some(
-    (token) => normalizeMoodName(token) === targetTitle
-  );
+  // Comma-separated / multi-concept labels: ANY strong concept match.
+  return selectMoodCatalogCandidates([song], label, 1).songs.length > 0;
 }
 
 function subtitleForCustomMood(title: string): string {
@@ -458,15 +468,30 @@ export function buildMoodRoomGroups<T extends MoodFieldSong>(
     .forEach(([moodKey, groupSongs]) => {
       if (groups.length >= limit) return;
 
-      const title = normalizeMoodName(groupSongs[0]?.mood || moodKey);
+      // Prefer the token key / first concept — never keep raw "Afro, Party, Chill" as a literal title.
+      const rawMood = String(groupSongs[0]?.mood || "");
+      const firstConcept =
+        splitDiscoveryConcepts(rawMood)[0] ||
+        splitDiscoveryConcepts(moodKey)[0] ||
+        moodKey;
+      const title = normalizeMoodName(firstConcept) || titleCaseMood(firstConcept);
       if (!title) return;
+
+      const conceptAliases = Array.from(
+        new Set([
+          title,
+          firstConcept,
+          ...splitDiscoveryConcepts(rawMood),
+          ...normalizeDiscoveryConcepts(rawMood),
+        ])
+      ).filter(Boolean);
 
       takeGroup(
         {
-          id: moodKey.replace(/\s+/g, "-"),
+          id: normalizeMoodKey(title).replace(/\s+/g, "-") || moodKey.replace(/\s+/g, "-"),
           title,
           subtitle: subtitleForCustomMood(title),
-          aliases: [title],
+          aliases: conceptAliases,
           gradient: DEFAULT_GRADIENT,
         },
         groupSongs,

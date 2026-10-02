@@ -28,6 +28,8 @@ import type {
 } from "./hiddenTunesApi";
 import type { HiddenTunesTvVideo } from "./tvCatalogApi";
 import { pickBestArtworkFromSongs } from "../utils/artwork";
+import { normalizeDiscoveryConcepts } from "./radioCatalogDiscovery";
+import { getMoodConceptStats, listMoodConcepts } from "./historicalMoodGraph";
 
 export type UniversalSearchSongHit = UniversalSearchHit<HiddenTunesNormalizedSong> & {
   kind: "song" | "lyric";
@@ -594,6 +596,28 @@ function deriveMoodRoomsFromMatchedSongs(
       subtitle: `${matchedHits.length} matched track${matchedHits.length === 1 ? "" : "s"}`,
     });
   }
+
+  // Historical mood concepts from catalog intelligence (not only hardcoded rooms).
+  const queryConcepts = normalizeDiscoveryConcepts(query);
+  const known = listMoodConcepts();
+  queryConcepts.forEach((concept) => {
+    if (!known.includes(concept)) return;
+    const stats = getMoodConceptStats(concept);
+    if (!stats || stats.trackIds.size <= 0) return;
+    const title = concept.charAt(0).toUpperCase() + concept.slice(1);
+    hits.push({
+      id: `mood-radio:${concept}`,
+      score: 900 + Math.min(80, stats.trackIds.size),
+      reason: "Historical mood radio",
+      payload: {
+        id: `mood-${concept}`,
+        title: `${title} Radio`,
+        query: title,
+        emoji: "✨",
+      },
+      subtitle: `${stats.trackIds.size} catalog matches`,
+    });
+  });
 
   return rankSearchHits(hits, LIMITS.moodRooms);
 }

@@ -1,3 +1,8 @@
+import {
+  normalizeDiscoveryConcepts,
+  splitDiscoveryConcepts,
+} from "./radioCatalogDiscovery";
+
 export const ENDLESS_MUSIC_LIMITS = {
   queueCap: 50,
   lowWater: 5,
@@ -146,6 +151,13 @@ function text(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function recordingKey(song: ContinuationSong) {
+  const title = text(song.title).replace(/[^a-z0-9]+/g, " ").trim();
+  const artist = text(song.artist).replace(/[^a-z0-9]+/g, " ").trim();
+  if (title && artist) return `meta:${title}:${artist}`;
+  return `id:${String(song.id || "").trim().toLowerCase()}`;
+}
+
 function tag(value: unknown) {
   return text(value).replace(/[_\s]+/g, "-");
 }
@@ -276,11 +288,117 @@ function isMature(song: ContinuationSong) {
   );
 }
 
+  function prefersSeedArtist(context: ContinuationContext) {
+  const source = text(context.source);
+  return (
+    Boolean(text(context.artistName)) ||
+    Boolean(text(context.searchQuery)) ||
+    source === "search" ||
+    source === "artist" ||
+    source === "radio" ||
+    source === "mood" ||
+    source === "smart_queue"
+  );
+}
+
+function artistLooseMatch(candidate: string, seed: string) {
+  if (!candidate || !seed) return false;
+  if (candidate === seed) return true;
+  return candidate.includes(seed) || seed.includes(candidate);
+}
+
+/**
+ * Intent-first local pool. Scans the full catalog/memory sources and prefers
+ * same-artist / search-query / genre-mood matches before any residual discovery.
+ * Avoids catalog.slice(0, N) random-prefix dumps.
+ */
+export function buildLocalContinuationPool<T extends ContinuationSong>(
+  sources: T[],
+  input: {
+    current: T;
+    context: ContinuationContext;
+    excludeIds?: Set<string>;
+    cap?: number;
+  }
+): T[] {
+  const cap = input.cap ?? ENDLESS_MUSIC_LIMITS.candidateCap;
+  const artist = text(input.context.artistName || input.current.artist);
+  const genre = text(input.context.genre || input.current.genre);
+  const mood = text(input.context.mood || input.current.mood);
+  const tokens = splitDiscoveryConcepts(
+    input.context.searchQuery || input.context.mood || input.context.genre || ""
+  );
+  const exclude = input.excludeIds || new Set<string>();
+  const currentId = String(input.current.id || "");
+
+  const sameArtist: T[] = [];
+  const queryHits: T[] = [];
+  const sameGenreMood: T[] = [];
+  const related: T[] = [];
+  const rest: T[] = [];
+  const seen = new Set<string>();
+
+  for (const song of sources) {
+    const id = String(song.id || "");
+    if (!id || id === currentId || exclude.has(id)) continue;
+    const key = recordingKey(song);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    if (!isPlayable(song)) continue;
+
+    const songArtist = text(song.artist);
+    const songGenre = text(song.genre);
+    const songMood = text(song.mood);
+    const haystack = `${text(song.title)} ${songArtist}`;
+
+    if (artist && artistLooseMatch(songArtist, artist)) {
+      sameArtist.push(song);
+      continue;
+    }
+    if (tokens.length && tokens.some((token) => haystack.includes(token))) {
+      queryHits.push(song);
+      continue;
+    }
+    if ((genre && songGenre === genre) || (mood && songMood && songMood.includes(mood))) {
+      sameGenreMood.push(song);
+      continue;
+    }
+    if (
+      genre &&
+      songGenre &&
+      (songGenre.includes(genre) || genre.includes(songGenre))
+    ) {
+      related.push(song);
+      continue;
+    }
+    rest.push(song);
+  }
+
+  const intent = [...sameArtist, ...queryHits, ...sameGenreMood, ...related];
+  // Graceful broadening stays inside intent tiers (artist → query → genre/mood → soft genre).
+  // Never append residual catalog dump when any seed-relevant match exists.
+  if (intent.length > 0) {
+    return intent.slice(0, cap);
+  }
+  return rest.slice(0, cap);
+}
+
+export function formatSmartQueueLabel(context: ContinuationContext): string {
+  const display = String(
+    context.label || context.searchQuery || context.artistName || context.genre || ""
+  ).trim();
+  if (display && /^smart\s*queue/i.test(display)) return display;
+  return display ? `Smart Queue · ${display}` : "Smart Queue";
+}
+
 export function rankContinuationCandidates<T extends ContinuationSong>(
   candidates: T[],
   input: RankingInput<T>
 ): RankedContinuation<T>[] {
   const existingIds = new Set(input.existingQueue.map((song) => String(song.id)));
+  const existingRecordings = new Set(
+    input.existingQueue.map((song) => recordingKey(song))
+  );
   const recentIds = new Set(input.recentIds.slice(-ENDLESS_MUSIC_LIMITS.recentWindow));
   const currentProfile = metadata(input.current);
   const currentArtist = text(input.current.artist);
@@ -288,17 +406,22 @@ export function rankContinuationCandidates<T extends ContinuationSong>(
   const contextArtist = text(input.context.artistName);
   const contextGenre = text(input.context.genre);
   const contextMood = text(input.context.mood);
+  const searchTokens = normalizeDiscoveryConcepts(
+    input.context.searchQuery || input.context.mood || input.context.genre || ""
+  );
+  const seedArtistPreferred = prefersSeedArtist(input.context);
 
   const bounded = candidates.slice(0, ENDLESS_MUSIC_LIMITS.candidateCap);
   const unique = new Map<string, T>();
   bounded.forEach((song) => {
-    const id = String(song.id || "");
-    if (id && !unique.has(id)) unique.set(id, song);
+    const key = recordingKey(song);
+    if (key && !unique.has(key)) unique.set(key, song);
   });
 
   const ranked = Array.from(unique.values())
     .filter(isPlayable)
     .filter((song) => !existingIds.has(String(song.id)))
+    .filter((song) => !existingRecordings.has(recordingKey(song)))
     .filter((song) => !recentIds.has(String(song.id)))
     .filter((song) => input.matureVisible || !isMature(song))
     .map((candidate) => {
@@ -309,18 +432,28 @@ export function rankContinuationCandidates<T extends ContinuationSong>(
       const favorite = input.favorites.has(String(candidate.id));
       const plays = Math.min(5, input.playCounts.get(String(candidate.id)) || 0);
       const skipped = input.skippedIds.has(String(candidate.id));
+      const haystack = `${text(candidate.title)} ${candidateArtist}`;
+      const queryHit = searchTokens.length
+        ? searchTokens.filter((token) => haystack.includes(token)).length /
+          searchTokens.length
+        : 0;
       const listener = Math.min(1, (favorite ? 0.65 : 0) + plays * 0.07 + (candidateGenre === currentGenre ? 0.2 : 0));
       const emotion = emotionalScore(currentProfile, candidateProfile, input.intent);
       const tagContinuity = overlap(currentProfile.tags, candidateProfile.tags);
       const context = Math.min(
         1,
-        (contextArtist && candidateArtist === contextArtist ? 0.45 : 0) +
+        (contextArtist && artistLooseMatch(candidateArtist, contextArtist) ? 0.45 : 0) +
           (contextGenre && candidateGenre === contextGenre ? 0.35 : 0) +
           (contextMood && candidateMood.includes(contextMood) ? 0.2 : 0) +
-          (!contextArtist && candidateArtist === currentArtist ? 0.2 : 0)
+          (!contextArtist && candidateArtist === currentArtist ? 0.2 : 0) +
+          queryHit * 0.4
       );
-      const repetition = candidateArtist === currentArtist ? 0.35 : 1;
-      const discovery = listener < 0.2 && context < 0.2;
+      const sameArtist =
+        candidateArtist === currentArtist ||
+        (contextArtist && artistLooseMatch(candidateArtist, contextArtist));
+      // Search/artist continuation should deepen the seed, not penalize same-artist.
+      const repetition = sameArtist ? (seedArtistPreferred ? 1.1 : 0.35) : 1;
+      const discovery = listener < 0.2 && context < 0.2 && queryHit < 0.3;
       const score =
         listener * TRANSITION_SCORE_WEIGHTS.listener +
         emotion * TRANSITION_SCORE_WEIGHTS.emotion +

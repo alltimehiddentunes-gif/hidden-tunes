@@ -23,6 +23,27 @@ import {
   hydrateHiddenTunesCatalogCache,
   type HiddenTunesNormalizedSong,
 } from "./hiddenTunesApi";
+import { consumeCatalogViewSeed } from "./catalogViewSeed";
+import {
+  appendRoomDiscoveryTracks,
+  getRoomDiscoverySession,
+  peekRoomInitialTracks,
+  resetRoomDiscoverySession,
+  upsertRoomDiscoverySession,
+} from "./roomDiscoverySession";
+import { filterRelevantRoomTracks } from "./roomRelevance";
+import {
+  alignMoodRoomDiscoverySession,
+  discoverMoodRoomPage,
+  resetMoodRoomDiscoverySession,
+  setMoodCatalogPageFetcher,
+} from "./moodRoomDiscovery";
+import {
+  discoverGenreAnchoredMoodPage,
+  resetGenreAnchoredSession,
+  setGenreAnchoredPageFetcher,
+  songMatchesGenreAnchor,
+} from "./genreAnchoredMoodDiscovery";
 import {
   logApiRefresh,
   logCacheResult,
@@ -30,9 +51,51 @@ import {
 } from "../utils/performanceLogs";
 import { isAppActiveForWork } from "../utils/performanceMode";
 
+setMoodCatalogPageFetcher(async ({ page, limit }) => {
+  const result = await getHiddenTunesSongsPage({
+    page,
+    limit,
+    allowCatalogPagination: true,
+  });
+  return {
+    songs: result.songs,
+    hasMore: Boolean(result.hasMore),
+  };
+});
+
+setGenreAnchoredPageFetcher(async ({ page, limit, genre }) => {
+  const genreFilter = String(genre || "").trim();
+  const result = await getHiddenTunesSongsPage({
+    page,
+    limit,
+    // HARD: levels 0–3 query Country/Jazz/etc. directly — not global catalog.
+    ...(genreFilter ? { genre: genreFilter } : {}),
+    allowCatalogPagination: true,
+  });
+  // If genre API returns nothing, fall back to global page but discovery still
+  // hard-filters by songMatchesGenreAnchor — never paint off-genre.
+  if (genreFilter && !result.songs.length && page === 1) {
+    const fallback = await getHiddenTunesSongsPage({
+      page: 1,
+      limit,
+      allowCatalogPagination: true,
+    });
+    return {
+      songs: fallback.songs,
+      hasMore: Boolean(fallback.hasMore),
+    };
+  }
+  return {
+    songs: result.songs,
+    hasMore: Boolean(result.hasMore),
+  };
+});
+
 const GENRE_PAGE_LIMIT = 36;
 const GENRE_FALLBACK_SCAN_LIMIT = 60;
+/** Soft bound for instant/open-path genre scans. */
 const HYDRATED_SNAPSHOT_SCAN_MAX = 150;
+const MOOD_SNAPSHOT_SCAN_MAX = 500;
 
 type CatalogViewCacheEntry = {
   songs: HiddenTunesNormalizedSong[];
@@ -47,6 +110,8 @@ export type CatalogViewLoadOptions = {
   id?: string;
   title?: string;
   query?: string;
+  /** Hard genre lock when mood was chosen inside a genre session. */
+  genreAnchor?: string;
   page?: number;
   limit?: number;
   forceRefresh?: boolean;
@@ -69,6 +134,9 @@ export type CatalogViewResult = {
     | "content_available"
     | "cache_api_and_resolver_empty"
     | "awaiting_load";
+  /** Temporary physical diagnostic for genre-anchored mood rooms. */
+  genreAnchor?: string;
+  broadeningLevel?: number;
 };
 
 const viewCache = new Map<string, CatalogViewCacheEntry>();
@@ -187,13 +255,72 @@ function writeUnifiedViewCache(
   });
 }
 
+/** Drop stale/wrong room candidates before Explore → Room open. */
+export function invalidateCatalogViewForTarget(options: CatalogViewLoadOptions) {
+  const target = buildCatalogViewTarget(options);
+  viewCache.delete(target.cacheKey);
+  for (const key of Array.from(inflightLoads.keys())) {
+    if (key.startsWith(`${target.cacheKey}:`)) inflightLoads.delete(key);
+  }
+  resetRoomDiscoverySession({
+    type: target.type,
+    id: target.id,
+    title: target.title,
+    query: target.query,
+  });
+  if (target.type === "mood") {
+    resetMoodRoomDiscoverySession(target.title, target.id);
+    const genreAnchor = String(options.genreAnchor || "").trim();
+    if (genreAnchor) {
+      resetGenreAnchoredSession({
+        genre: genreAnchor,
+        mood: target.title,
+        id: target.id,
+      });
+    }
+  }
+  return target;
+}
+
+function relevantOrEmpty(
+  songs: HiddenTunesNormalizedSong[],
+  target: CatalogTarget,
+  limit: number,
+  genreAnchor?: string
+) {
+  return filterRelevantRoomTracks(songs, {
+    type: target.type,
+    id: target.id,
+    title: target.title,
+    query: target.query,
+    limit,
+    genreAnchor: genreAnchor || undefined,
+  });
+}
+
 export function buildCatalogViewTarget(options: CatalogViewLoadOptions) {
-  return buildCatalogTarget({
+  const genreAnchor = String(options.genreAnchor || "").trim();
+  const base = buildCatalogTarget({
     type: options.type || "genre",
     id: options.id,
     title: options.title,
     query: options.query,
   });
+  if (!genreAnchor || base.type !== "mood") return base;
+  // Isolate Country|Reflective cache from global Reflective.
+  return {
+    ...base,
+    id: String(options.id || `${genreAnchor}|${base.title}`).trim(),
+    cacheKey: `mood:${normalizeCachePart(genreAnchor)}|${normalizeCachePart(base.title)}`,
+    query: base.query,
+  };
+}
+
+function normalizeCachePart(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-");
 }
 
 export async function ensureCatalogViewPersistenceHydrated() {
@@ -205,41 +332,130 @@ export function getInstantCatalogView(
 ): CatalogViewResult | null {
   const target = buildCatalogViewTarget(options);
   const limit = Math.min(Math.max(Number(options.limit) || GENRE_PAGE_LIMIT, 1), 100);
+  const genreAnchor = String(options.genreAnchor || "").trim();
+
+  const seeded = consumeCatalogViewSeed({
+    type: target.type,
+    id: target.id,
+    title: target.title,
+    query: target.query,
+    genreAnchor: genreAnchor || undefined,
+  });
+  if (seeded?.length) {
+    const relevant = relevantOrEmpty(seeded, target, limit, genreAnchor);
+    if (relevant.length) {
+      writeUnifiedViewCache(
+        target,
+        relevant,
+        seeded.length > relevant.length || relevant.length >= limit,
+        false,
+        "memory"
+      );
+      return {
+        target,
+        songs: relevant,
+        hasMore: true,
+        page: 1,
+        showedCached: true,
+        cacheHit: true,
+        persistedHit: false,
+        viewFreshness: "fresh",
+        fallbackUsed: false,
+        sourceSongCount: seeded.length,
+        matchedFromCache: relevant.length,
+        refreshResultCount: relevant.length,
+        emptyStateReason: "content_available",
+        genreAnchor: genreAnchor || undefined,
+      };
+    }
+  }
+
+  const sessionTracks = peekRoomInitialTracks({
+    type: target.type,
+    id: target.id,
+    title: target.title,
+    query: target.query,
+  });
+  if (sessionTracks.length) {
+    const relevant = relevantOrEmpty(sessionTracks, target, limit, genreAnchor);
+    if (relevant.length) {
+      writeUnifiedViewCache(target, relevant, true, false, "memory");
+      return {
+        target,
+        songs: relevant,
+        hasMore: true,
+        page: 1,
+        showedCached: true,
+        cacheHit: true,
+        persistedHit: false,
+        viewFreshness: "fresh",
+        fallbackUsed: false,
+        sourceSongCount: sessionTracks.length,
+        matchedFromCache: relevant.length,
+        refreshResultCount: relevant.length,
+        emptyStateReason: "content_available",
+      };
+    }
+    // Stale unrelated session (e.g. old African pad) — drop it.
+    resetRoomDiscoverySession({
+      type: target.type,
+      id: target.id,
+      title: target.title,
+      query: target.query,
+    });
+  }
+
   const cached = readUnifiedViewCache(target.cacheKey);
 
   if (cached?.entry.songs.length) {
-    const result = buildResultFromCache(
-      target,
-      cached.entry,
-      cached.freshness,
-      cached.persistedHit
-    );
-    const songs = result.songs.slice(0, limit);
-    return { ...result, songs, hasMore: result.hasMore || result.songs.length > songs.length };
+    const relevant = relevantOrEmpty(cached.entry.songs, target, limit, genreAnchor);
+    if (!relevant.length) {
+      viewCache.delete(target.cacheKey);
+    } else {
+      if (target.type === "mood") {
+        alignMoodRoomDiscoverySession(
+          target.title,
+          target.id,
+          relevant,
+          cached.entry.hasMore
+        );
+      }
+      const result = buildResultFromCache(
+        target,
+        { ...cached.entry, songs: relevant },
+        cached.freshness,
+        cached.persistedHit
+      );
+      return {
+        ...result,
+        songs: relevant,
+        hasMore: cached.entry.hasMore || cached.entry.songs.length > relevant.length,
+        genreAnchor: genreAnchor || undefined,
+      };
+    }
   }
 
   const snapshot = getHiddenTunesCatalogSnapshot();
   if (!snapshot.length) return null;
 
-  // Bound the scan so a previously bloated in-memory cache cannot stall room open.
+  const scanCap =
+    target.type === "mood" ? MOOD_SNAPSHOT_SCAN_MAX : HYDRATED_SNAPSHOT_SCAN_MAX;
   const scanSource =
-    snapshot.length > HYDRATED_SNAPSHOT_SCAN_MAX
-      ? snapshot.slice(0, HYDRATED_SNAPSHOT_SCAN_MAX)
-      : snapshot;
+    snapshot.length > scanCap ? snapshot.slice(0, scanCap) : snapshot;
   const matched = matchSongsForCatalogTarget(scanSource, target);
-  if (!matched.length) return null;
-  const songs = matched.slice(0, limit);
+  const relevant = relevantOrEmpty(matched, target, limit, genreAnchor);
+  if (!relevant.length) return null;
 
   logCatalogViewDiagnostics("catalog_snapshot_hit", {
     viewKey: target.cacheKey,
-    matchedCount: songs.length,
+    matchedCount: relevant.length,
   });
 
   return {
     target,
-    songs,
+    songs: relevant,
     hasMore:
-      matched.length > songs.length || snapshot.length > scanSource.length,
+      matched.length > relevant.length || snapshot.length > scanSource.length,
     page: 1,
     showedCached: true,
     cacheHit: true,
@@ -247,7 +463,7 @@ export function getInstantCatalogView(
     viewFreshness: "catalog_snapshot",
     fallbackUsed: false,
     sourceSongCount: scanSource.length,
-    matchedFromCache: songs.length,
+    matchedFromCache: relevant.length,
     refreshResultCount: 0,
     emptyStateReason: "content_available",
   };
@@ -271,7 +487,8 @@ export async function loadCatalogView(
   const page = Math.max(Number(options.page) || 1, 1);
   const limit = Math.min(Math.max(Number(options.limit) || GENRE_PAGE_LIMIT, 1), 100);
   const target = buildCatalogViewTarget(options);
-  const inflightKey = `${target.cacheKey}:${page}:${options.forceRefresh ? "1" : "0"}`;
+  const genreAnchorKey = String(options.genreAnchor || "").trim().toLowerCase();
+  const inflightKey = `${target.cacheKey}:${page}:${options.forceRefresh ? "1" : "0"}:${genreAnchorKey}`;
 
   if (!options.forceRefresh) {
     const inflight = inflightLoads.get(inflightKey);
@@ -288,14 +505,91 @@ export async function loadCatalogView(
     let viewFreshness: CatalogViewResult["viewFreshness"] = "none";
 
     if (page === 1 && !options.forceRefresh) {
+      // Shared room session — only if tracks are still relevant to THIS room.
+      const sessionTracks = peekRoomInitialTracks({
+        type: target.type,
+        id: target.id,
+        title: target.title,
+        query: target.query,
+      });
+      if (sessionTracks.length) {
+        const relevant = relevantOrEmpty(sessionTracks, target, limit, genreAnchorKey || undefined);
+        if (relevant.length) {
+          const session = getRoomDiscoverySession({
+            type: target.type,
+            id: target.id,
+            title: target.title,
+            query: target.query,
+          });
+          if (target.type === "mood") {
+            alignMoodRoomDiscoverySession(
+              target.title,
+              target.id,
+              relevant,
+              session?.hasMore !== false
+            );
+          }
+          writeUnifiedViewCache(
+            target,
+            relevant,
+            session?.hasMore !== false,
+            false,
+            "memory"
+          );
+          return {
+            target,
+            songs: relevant,
+            hasMore: session?.hasMore !== false,
+            page: 1,
+            showedCached: true,
+            cacheHit: true,
+            persistedHit: false,
+            viewFreshness: "fresh",
+            fallbackUsed: false,
+            sourceSongCount: sessionTracks.length,
+            matchedFromCache: relevant.length,
+            refreshResultCount: relevant.length,
+            emptyStateReason: "content_available",
+            genreAnchor: genreAnchorKey || undefined,
+          };
+        }
+        resetRoomDiscoverySession({
+          type: target.type,
+          id: target.id,
+          title: target.title,
+          query: target.query,
+        });
+        viewCache.delete(target.cacheKey);
+      }
+
       const cached = readUnifiedViewCache(target.cacheKey);
       if (cached?.entry.songs.length) {
-        return buildResultFromCache(
+        const relevant = relevantOrEmpty(
+          cached.entry.songs,
           target,
-          cached.entry,
-          cached.freshness,
-          cached.persistedHit
+          limit,
+          genreAnchorKey || undefined
         );
+        if (relevant.length) {
+          if (target.type === "mood") {
+            alignMoodRoomDiscoverySession(
+              target.title,
+              target.id,
+              relevant,
+              cached.entry.hasMore
+            );
+          }
+          return {
+            ...buildResultFromCache(
+              target,
+              { ...cached.entry, songs: relevant },
+              cached.freshness,
+              cached.persistedHit
+            ),
+            genreAnchor: genreAnchorKey || undefined,
+          };
+        }
+        viewCache.delete(target.cacheKey);
       }
 
       logCacheResult("catalog_view", false, {
@@ -304,12 +598,324 @@ export async function loadCatalogView(
       });
     }
 
+    // Mood Rooms: paginated discovery over eligible catalog (bounded windows).
+    // Never fetchAll / retain full catalog in memory.
+    if (target.type === "mood") {
+      const genreAnchor = String(options.genreAnchor || "").trim();
+
+      // Genre-anchored mood: Country + Reflective stays inside Country until exhausted.
+      if (genreAnchor) {
+        if (page === 1 && options.forceRefresh) {
+          resetGenreAnchoredSession({
+            genre: genreAnchor,
+            mood: target.title,
+            id: target.id,
+          });
+        }
+
+        const anchored = await discoverGenreAnchoredMoodPage({
+          genre: genreAnchor,
+          mood: target.title,
+          id: target.id,
+          limit,
+          reset: page === 1 && Boolean(options.forceRefresh),
+        });
+
+        const resultGenres = Array.from(
+          new Set(
+            anchored.songs
+              .map((song) => String(song.genre || "").trim())
+              .filter(Boolean)
+          )
+        );
+
+        if (typeof __DEV__ !== "undefined" && __DEV__) {
+          console.log("[HTGenreAnchoredMood]", {
+            genreAnchor,
+            mood: target.title,
+            page,
+            count: anchored.songs.length,
+            level: anchored.broadeningLevel,
+            hasMore: anchored.hasMore,
+            windowsScanned: anchored.windowsScanned,
+            RESULT_GENRES: resultGenres,
+          });
+        }
+
+        // Absolute safety: never return off-genre at levels 0–3.
+        const safeSongs =
+          anchored.broadeningLevel <= 3
+            ? anchored.songs.filter((song) =>
+                songMatchesGenreAnchor(song, genreAnchor)
+              )
+            : anchored.songs;
+
+        if (page === 1 && safeSongs.length) {
+          upsertRoomDiscoverySession({
+            type: target.type,
+            id: target.id,
+            title: target.title,
+            query: target.query,
+            initialTracks: safeSongs as any,
+            hasMore: anchored.hasMore,
+            replaceTracks: true,
+          });
+          writeUnifiedViewCache(
+            target,
+            safeSongs as any,
+            anchored.hasMore,
+            anchored.broadeningLevel > 0,
+            "memory"
+          );
+        } else if (page > 1 && safeSongs.length) {
+          appendRoomDiscoveryTracks(
+            {
+              type: target.type,
+              id: target.id,
+              title: target.title,
+              query: target.query,
+            },
+            safeSongs as any,
+            {
+              hasMore: anchored.hasMore,
+              discoveryLevel: anchored.broadeningLevel,
+              continuationCursor: anchored.cursor.catalogPage,
+            }
+          );
+        }
+
+        logApiRefresh("catalog_view", refreshStart, {
+          cacheKey: target.cacheKey,
+          page,
+          count: safeSongs.length,
+          fallbackUsed: anchored.broadeningLevel >= 4,
+          persistedHit: false,
+          freshness: "fresh",
+          source: "genre_anchored_mood_discovery",
+        });
+
+        return {
+          target,
+          songs: safeSongs as any,
+          hasMore: anchored.hasMore,
+          page,
+          showedCached: false,
+          cacheHit: false,
+          persistedHit: false,
+          viewFreshness: "fresh",
+          fallbackUsed: anchored.broadeningLevel >= 4,
+          sourceSongCount: anchored.sourceSongCount,
+          matchedFromCache: 0,
+          refreshResultCount: safeSongs.length,
+          emptyStateReason: safeSongs.length
+            ? "content_available"
+            : "cache_api_and_resolver_empty",
+          genreAnchor,
+          broadeningLevel: anchored.broadeningLevel,
+        };
+      }
+
+      const existingSession = getRoomDiscoverySession({
+        type: target.type,
+        id: target.id,
+        title: target.title,
+        query: target.query,
+      });
+
+      // Page 1 with Explore/session tracks: return only still-relevant rows.
+      if (page === 1 && !options.forceRefresh && existingSession?.tracks.length) {
+        const relevant = relevantOrEmpty(
+          existingSession.tracks,
+          target,
+          limit,
+          genreAnchor || undefined
+        );
+        if (relevant.length) {
+          alignMoodRoomDiscoverySession(
+            target.title,
+            target.id,
+            relevant,
+            existingSession.hasMore
+          );
+          writeUnifiedViewCache(
+            target,
+            relevant,
+            existingSession.hasMore,
+            false,
+            "memory"
+          );
+          return {
+            target,
+            songs: relevant,
+            hasMore: existingSession.hasMore,
+            page: 1,
+            showedCached: true,
+            cacheHit: true,
+            persistedHit: false,
+            viewFreshness: "fresh",
+            fallbackUsed: false,
+            sourceSongCount: existingSession.tracks.length,
+            matchedFromCache: relevant.length,
+            refreshResultCount: relevant.length,
+            emptyStateReason: "content_available",
+          };
+        }
+        resetRoomDiscoverySession({
+          type: target.type,
+          id: target.id,
+          title: target.title,
+          query: target.query,
+        });
+      }
+
+      if (page === 1) {
+        resetMoodRoomDiscoverySession(target.title, target.id);
+      } else {
+        const liveSession = getRoomDiscoverySession({
+          type: target.type,
+          id: target.id,
+          title: target.title,
+          query: target.query,
+        });
+        if (liveSession?.tracks.length) {
+          const relevantLive = relevantOrEmpty(
+            liveSession.tracks,
+            target,
+            limit,
+            genreAnchor || undefined
+          );
+          if (relevantLive.length) {
+            alignMoodRoomDiscoverySession(
+              target.title,
+              target.id,
+              relevantLive,
+              liveSession.hasMore
+            );
+          }
+        }
+      }
+
+      const moodPage = await discoverMoodRoomPage({
+        moodLabel: target.title,
+        id: target.id,
+        limit,
+        reset: page === 1,
+      });
+
+      if (typeof __DEV__ !== "undefined" && __DEV__) {
+        console.log("[HTMoodRoomDiscovery]", {
+          title: target.title,
+          page,
+          normalizedConcepts: moodPage.concepts,
+          candidatesAfterMatch: moodPage.songs.length,
+          hasMore: moodPage.hasMore,
+          broadenLevel: moodPage.broadenLevel,
+          windowsScanned: moodPage.windowsScanned,
+          sourceSongCount: moodPage.sourceSongCount,
+          discoveryCalled: true,
+        });
+      }
+
+      if (page === 1 && moodPage.songs.length) {
+        upsertRoomDiscoverySession({
+          type: target.type,
+          id: target.id,
+          title: target.title,
+          query: target.query,
+          initialTracks: moodPage.songs,
+          hasMore: moodPage.hasMore,
+          replaceTracks: Boolean(options.forceRefresh),
+        });
+        writeUnifiedViewCache(
+          target,
+          moodPage.songs,
+          moodPage.hasMore,
+          moodPage.broadenLevel > 0,
+          "memory"
+        );
+      } else if (page > 1 && moodPage.songs.length) {
+        appendRoomDiscoveryTracks(
+          {
+            type: target.type,
+            id: target.id,
+            title: target.title,
+            query: target.query,
+          },
+          moodPage.songs,
+          {
+            hasMore: moodPage.hasMore,
+            discoveryLevel: moodPage.broadenLevel,
+            continuationCursor: moodPage.cursor.catalogPage,
+          }
+        );
+      }
+
+      // Never re-serve stale unrelated handoff tracks.
+      if (page === 1 && !moodPage.songs.length) {
+        const relevantFallback = existingSession?.tracks.length
+          ? relevantOrEmpty(
+              existingSession.tracks,
+              target,
+              limit,
+              genreAnchor || undefined
+            )
+          : [];
+        if (relevantFallback.length) {
+          return {
+            target,
+            songs: relevantFallback,
+            hasMore: true,
+            page: 1,
+            showedCached: true,
+            cacheHit: true,
+            persistedHit: false,
+            viewFreshness: "fresh",
+            fallbackUsed: false,
+            sourceSongCount: existingSession?.tracks.length || 0,
+            matchedFromCache: relevantFallback.length,
+            refreshResultCount: 0,
+            emptyStateReason: "content_available",
+          };
+        }
+      }
+
+      logApiRefresh("catalog_view", refreshStart, {
+        cacheKey: target.cacheKey,
+        page,
+        count: moodPage.songs.length,
+        fallbackUsed: moodPage.broadenLevel > 0,
+        persistedHit: false,
+        freshness: "fresh",
+        source: "mood_paginated_discovery",
+      });
+
+      return {
+        target,
+        songs: moodPage.songs,
+        hasMore: moodPage.hasMore,
+        page,
+        showedCached: false,
+        cacheHit: false,
+        persistedHit: false,
+        viewFreshness: "fresh",
+        fallbackUsed: moodPage.broadenLevel > 0,
+        sourceSongCount: moodPage.sourceSongCount,
+        matchedFromCache: 0,
+        refreshResultCount: moodPage.songs.length,
+        emptyStateReason: moodPage.songs.length
+          ? "content_available"
+          : "cache_api_and_resolver_empty",
+      };
+    }
+
     const hydrated = await hydrateHiddenTunesCatalogCache();
-    const canScanHydratedSnapshot =
-      hydrated.length > 0 && hydrated.length <= HYDRATED_SNAPSHOT_SCAN_MAX;
+    const scanCap = HYDRATED_SNAPSHOT_SCAN_MAX;
+    const scanSource =
+      hydrated.length > scanCap ? hydrated.slice(0, scanCap) : hydrated;
+    const canScanHydratedSnapshot = scanSource.length > 0;
     const snapshotMatches =
       page === 1 && canScanHydratedSnapshot
-        ? matchSongsForCatalogTarget(hydrated, target)
+        ? matchSongsForCatalogTarget(scanSource, target)
         : [];
 
     if (page === 1 && !options.forceRefresh && snapshotMatches.length) {
@@ -317,7 +923,7 @@ export async function loadCatalogView(
       writeUnifiedViewCache(
         target,
         pageSongs,
-        snapshotMatches.length > limit,
+        snapshotMatches.length > limit || hydrated.length > scanSource.length,
         false,
         "catalog_snapshot"
       );
@@ -335,22 +941,23 @@ export async function loadCatalogView(
       return {
         target,
         songs: pageSongs,
-        hasMore: snapshotMatches.length > limit,
+        hasMore:
+          snapshotMatches.length > limit || hydrated.length > scanSource.length,
         page,
         showedCached: true,
         cacheHit: true,
         persistedHit: false,
         viewFreshness: "catalog_snapshot",
         fallbackUsed: false,
-        sourceSongCount: hydrated.length,
+        sourceSongCount: scanSource.length,
         matchedFromCache: pageSongs.length,
         refreshResultCount: pageSongs.length,
         emptyStateReason: "content_available",
       };
     }
 
-    if (page > 1 && target.type === "genre" && canScanHydratedSnapshot) {
-      const allMatches = matchSongsForCatalogTarget(hydrated, target);
+    if (page > 1 && canScanHydratedSnapshot) {
+      const allMatches = matchSongsForCatalogTarget(scanSource, target);
       const start = (page - 1) * limit;
       const pageSongs = allMatches.slice(start, start + limit);
 
@@ -358,14 +965,14 @@ export async function loadCatalogView(
         return {
           target,
           songs: pageSongs,
-          hasMore: start + limit < allMatches.length,
+          hasMore: start + limit < allMatches.length || hydrated.length > scanSource.length,
           page,
           showedCached: true,
           cacheHit: true,
           persistedHit: false,
           viewFreshness: "catalog_snapshot",
           fallbackUsed: false,
-          sourceSongCount: hydrated.length,
+          sourceSongCount: scanSource.length,
           matchedFromCache: pageSongs.length,
           refreshResultCount: pageSongs.length,
           emptyStateReason: "content_available",
@@ -375,7 +982,7 @@ export async function loadCatalogView(
 
     const cachedMatches =
       page === 1 && canScanHydratedSnapshot
-        ? matchSongsForCatalogTarget(hydrated, target)
+        ? matchSongsForCatalogTarget(scanSource, target)
         : [];
 
     if (!showedCached && cachedMatches.length) {
@@ -398,19 +1005,6 @@ export async function loadCatalogView(
     sourceSongCount = genrePage.songs.length;
     let apiMatches = matchSongsForCatalogTarget(genrePage.songs, target);
     let scopedPage = genrePage;
-
-    if (target.type === "mood" && !apiMatches.length) {
-      // The songs endpoint has no dedicated mood filter. Search remains a bounded
-      // page request so Emotional Worlds never expands into a catalog walk.
-      const moodSearchPage = await getHiddenTunesSongsPage({
-        page,
-        limit,
-        query: target.query || target.title,
-      });
-      sourceSongCount += moodSearchPage.songs.length;
-      apiMatches = matchSongsForCatalogTarget(moodSearchPage.songs, target);
-      scopedPage = moodSearchPage;
-    }
 
     if (page === 1 && !apiMatches.length && !cachedMatches.length) {
       const fallbackPage = await getHiddenTunesSongsPage({

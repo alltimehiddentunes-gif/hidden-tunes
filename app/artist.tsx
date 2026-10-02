@@ -35,6 +35,10 @@ import {
   resolveArtistFromList,
 } from "../utils/artistIdentity";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
+import {
+  guessGenreFromText,
+  guessMoodFromText,
+} from "../services/musicNormalizer";
 
 type AlbumPreview = {
   id: string;
@@ -178,11 +182,16 @@ export default function ArtistScreen() {
   }
 
   function openRadio() {
+    const genreGuess = guessGenreFromText(artist);
+    const moodGuess = guessMoodFromText(artist);
     router.push({
       pathname: "/radio",
       params: {
         title: `${artist} Radio`,
-        query: `${artist} songs`,
+        artist,
+        query: artist,
+        ...(genreGuess !== "Mixed" ? { genre: genreGuess } : {}),
+        ...(moodGuess !== "Vibe" ? { mood: moodGuess } : {}),
       },
     });
   }
