@@ -10,6 +10,7 @@
 import type { HiddenTunesNormalizedSong } from "./hiddenTunesApi";
 import { normalizeDiscoveryConcepts } from "./radioCatalogDiscovery";
 import { MOOD_ROOM_DISCOVERY } from "./moodRoomDiscovery";
+import { bumpMoodDiscoveryPerf } from "./moodDiscoveryIndex";
 
 export type RoomDiscoveryType = "mood" | "genre" | string;
 
@@ -31,8 +32,10 @@ export type RoomDiscoverySession = {
 };
 
 const sessions = new Map<string, RoomDiscoverySession>();
+const hotRoomOrder: string[] = [];
 const MAX_TRACK_OBJECTS = MOOD_ROOM_DISCOVERY.uiHoldCap;
 const MAX_SEEN_IDS = MOOD_ROOM_DISCOVERY.seenIdCap;
+const MAX_HOT_ROOMS = MOOD_ROOM_DISCOVERY.hotRoomLru;
 
 function recordingId(song: { id?: unknown }) {
   return String(song?.id || "").trim();
@@ -50,6 +53,21 @@ export function roomDiscoverySessionKey(input: {
     .toLowerCase();
   const id = String(input.id || title).trim().toLowerCase() || title;
   return `${type}:${id}|${title}`;
+}
+
+function touchHotRoom(key: string) {
+  const idx = hotRoomOrder.indexOf(key);
+  if (idx >= 0) hotRoomOrder.splice(idx, 1);
+  hotRoomOrder.unshift(key);
+  while (hotRoomOrder.length > MAX_HOT_ROOMS) {
+    const evict = hotRoomOrder.pop();
+    if (!evict || evict === key) continue;
+    const session = sessions.get(evict);
+    if (!session) continue;
+    // Evict heavy candidates; keep lightweight IDs/cursor for rare return.
+    session.tracks = session.tracks.slice(0, 4);
+    bumpMoodDiscoveryPerf("discoveryStateNotifications");
+  }
 }
 
 function trimSeenIds(seen: Set<string>) {
@@ -107,6 +125,7 @@ export function upsertRoomDiscoverySession(input: {
       existing.generation += 1;
       trimSeenIds(existing.seenTrackIds);
     }
+    touchHotRoom(key);
     return existing;
   }
 
@@ -128,6 +147,7 @@ export function upsertRoomDiscoverySession(input: {
   // Explore found some tracks → room may still have more in catalog.
   if (incoming.length) session.hasMore = true;
   sessions.set(key, session);
+  touchHotRoom(key);
   return session;
 }
 
@@ -137,7 +157,10 @@ export function getRoomDiscoverySession(input: {
   title?: string;
   query?: string;
 }): RoomDiscoverySession | null {
-  return sessions.get(roomDiscoverySessionKey(input)) || null;
+  const key = roomDiscoverySessionKey(input);
+  const session = sessions.get(key) || null;
+  if (session) touchHotRoom(key);
+  return session;
 }
 
 /** Non-destructive peek of initial tracks for immediate Room Detail paint. */
@@ -221,7 +244,10 @@ export function resetRoomDiscoverySession(input: {
   title?: string;
   query?: string;
 }) {
-  sessions.delete(roomDiscoverySessionKey(input));
+  const key = roomDiscoverySessionKey(input);
+  sessions.delete(key);
+  const idx = hotRoomOrder.indexOf(key);
+  if (idx >= 0) hotRoomOrder.splice(idx, 1);
 }
 
 export const ROOM_DISCOVERY_LIMITS = {

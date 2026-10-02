@@ -17,6 +17,7 @@ import {
   scoreSongWithMoodGraph,
   splitMoodRequestConcepts,
 } from "./historicalMoodGraph";
+import { bumpMoodDiscoveryPerf, coalesceDiscoveryRequest } from "./moodDiscoveryIndex";
 
 export type MoodDiscoverySong = RadioDiscoverySong & {
   streamUrl?: unknown;
@@ -37,16 +38,21 @@ export type MoodCatalogPageFetcher = (input: {
 export const MOOD_ROOM_DISCOVERY = {
   /** Catalog page size fetched per discovery window (bounded). */
   windowSize: 60,
-  /** Songs returned to UI/queue per request. */
-  resultPageSize: 24,
+  /**
+   * Songs returned to UI/queue per request.
+   * Viewport + scroll headroom only — more pages prefetch async.
+   */
+  resultPageSize: 12,
   /** Max catalog windows scored per request — keeps ranking off the UI path. */
   maxWindowsPerRequest: 3,
   /** Start Radio / auto-next upcoming window. */
   playbackBuffer: 12,
   /** Max full track objects held in Room Detail React state. */
-  uiHoldCap: 72,
+  uiHoldCap: 48,
   /** Lightweight dedupe ID retention (no heavy song objects). */
   seenIdCap: 2000,
+  /** Recent room sessions retained for instant re-open. */
+  hotRoomLru: 6,
 } as const;
 
 export type MoodBroadenLevel = 0 | 1 | 2 | 3 | 4 | 5;
@@ -294,6 +300,38 @@ export async function discoverMoodRoomPage(input: {
     Math.max(Number(input.limit) || MOOD_ROOM_DISCOVERY.resultPageSize, 1),
     100
   );
+  // Custom fetchers (tests) skip coalesce — isolation + deterministic paging.
+  if (input.fetchPage) {
+    return runMoodRoomDiscoveryPage(input, moodLabel, limit);
+  }
+  const session = ensureSession(moodLabel, input.id, Boolean(input.reset));
+  const coalesceKey = [
+    "mood",
+    String(input.id || moodLabel).trim().toLowerCase(),
+    moodLabel.toLowerCase(),
+    `l${limit}`,
+    `p${session.cursor.catalogPage}`,
+    `b${session.cursor.broadenLevel}`,
+    input.reset ? "reset" : "cont",
+  ].join("|");
+  return coalesceDiscoveryRequest(coalesceKey, () =>
+    runMoodRoomDiscoveryPage(input, moodLabel, limit)
+  );
+}
+
+async function runMoodRoomDiscoveryPage(
+  input: {
+    moodLabel: string;
+    id?: string;
+    limit?: number;
+    reset?: boolean;
+    fetchPage?: MoodCatalogPageFetcher;
+  },
+  moodLabel: string,
+  limit: number
+): Promise<MoodDiscoveryPageResult> {
+  const started = Date.now();
+  bumpMoodDiscoveryPerf("discoveryRequests");
   const session = ensureSession(moodLabel, input.id, Boolean(input.reset));
   const concepts = session.concepts;
   const fetchPage = input.fetchPage || defaultPageFetcher;
@@ -330,6 +368,7 @@ export async function discoverMoodRoomPage(input: {
     });
     windowsScanned += 1;
     sourceSongCount += page.songs.length;
+    bumpMoodDiscoveryPerf("candidateRecordsScanned", page.songs.length);
     hasMoreCatalog = Boolean(page.hasMore && page.songs.length > 0);
 
     // Teach the mood graph from every bounded window (historical intelligence).
@@ -375,6 +414,9 @@ export async function discoverMoodRoomPage(input: {
   const hasMore =
     !session.cursor.catalogExhaustedAtLevel &&
     (hasMoreCatalog || broadenLevel < 5 || songs.length >= limit);
+
+  bumpMoodDiscoveryPerf("rankingDurationMs", Date.now() - started);
+  bumpMoodDiscoveryPerf("paginationDurationMs", Date.now() - started);
 
   return {
     songs,

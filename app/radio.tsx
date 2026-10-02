@@ -36,6 +36,7 @@ import {
   extractRadioSeedArtist,
   traceRadioCatalogDiscovery,
 } from "../services/radioCatalogDiscovery";
+import { bumpMoodDiscoveryPerf } from "../services/moodDiscoveryIndex";
 
 import {
   guessGenreFromText,
@@ -258,8 +259,9 @@ export default function RadioScreen() {
           mood: radioMood,
           artistId,
         },
-        80
+        24
       );
+      bumpMoodDiscoveryPerf("radioDiscoveryRuns");
       if (__DEV__ && traced.trace.zeroStage) {
         console.log("[HTRadioDiscovery]", traced.trace);
       }
@@ -283,7 +285,7 @@ export default function RadioScreen() {
           const page = await getHiddenTunesSongsPage({
             artistId,
             page: 1,
-            limit: 50,
+            limit: 24,
           });
           if (!isCurrentRequest()) return;
           if (Array.isArray(page?.songs) && page.songs.length) {
@@ -304,7 +306,7 @@ export default function RadioScreen() {
           const page = await getHiddenTunesSongsPage({
             genre: radioGenre,
             page: 1,
-            limit: 50,
+            limit: 24,
           });
           if (!isCurrentRequest()) return;
           if (Array.isArray(page?.songs) && page.songs.length) {

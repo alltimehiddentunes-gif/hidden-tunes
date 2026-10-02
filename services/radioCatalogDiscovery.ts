@@ -475,12 +475,42 @@ type CatalogDiscoveryIndex = {
 };
 
 let catalogIndexCache: CatalogDiscoveryIndex | null = null;
+/** Durable per-track index entries — rebuild only when fingerprint changes. */
+const durableSongIndex = new Map<string, { fingerprint: string; index: CatalogSongIndex }>();
+const DURABLE_SONG_INDEX_CAP = 6000;
 
 function catalogSignature(catalog: RadioDiscoverySong[]): string {
   if (!catalog.length) return "0";
   return `${catalog.length}:${String(catalog[0]?.id || "")}:${String(
     catalog[catalog.length - 1]?.id || ""
   )}`;
+}
+
+function songIndexFingerprint(song: RadioDiscoverySong): string {
+  const tags = Array.isArray(song.tags)
+    ? song.tags.map((tag) => String(tag || "")).join(",")
+    : String(song.tags || "");
+  return [
+    String(song.genre || ""),
+    String(song.mood || ""),
+    String(song.moodGenre || ""),
+    String(song.emotion || ""),
+    String(song.album || ""),
+    String(song.album_title || ""),
+    String(song.artist || song.artist_name || ""),
+    tags,
+  ].join("|");
+}
+
+function trimDurableSongIndex() {
+  if (durableSongIndex.size <= DURABLE_SONG_INDEX_CAP) return;
+  const overflow = durableSongIndex.size - DURABLE_SONG_INDEX_CAP;
+  let dropped = 0;
+  for (const key of durableSongIndex.keys()) {
+    durableSongIndex.delete(key);
+    dropped += 1;
+    if (dropped >= overflow) break;
+  }
 }
 
 function indexSong(song: RadioDiscoverySong): CatalogSongIndex {
@@ -557,8 +587,17 @@ function getCatalogDiscoveryIndex(catalog: RadioDiscoverySong[]): CatalogDiscove
   const bySongId = new Map<string, CatalogSongIndex>();
   catalog.forEach((song, index) => {
     const id = String(song.id || `idx:${index}`);
-    bySongId.set(id, indexSong(song));
+    const fingerprint = songIndexFingerprint(song);
+    const durable = durableSongIndex.get(id);
+    if (durable && durable.fingerprint === fingerprint) {
+      bySongId.set(id, durable.index);
+      return;
+    }
+    const indexed = indexSong(song);
+    durableSongIndex.set(id, { fingerprint, index: indexed });
+    bySongId.set(id, indexed);
   });
+  trimDurableSongIndex();
 
   catalogIndexCache = { signature, bySongId };
   return catalogIndexCache;
@@ -764,15 +803,21 @@ export function selectRadioCatalogCandidates<T extends RadioDiscoverySong>(
   const rest: T[] = [];
   const seen = new Set<string>();
 
-  catalog.forEach((song, songIndex) => {
-    if (!isPlayable(song)) return;
+  for (let songIndex = 0; songIndex < catalog.length; songIndex += 1) {
+    // Artist Radio: stop once the upcoming window is filled with same-artist tracks.
+    if (artistSeed && sameArtist.length >= limit) break;
+
+    const song = catalog[songIndex];
+    if (!isPlayable(song)) continue;
     const key = recordingKey(song);
-    if (!key || seen.has(key)) return;
+    if (!key || seen.has(key)) continue;
     seen.add(key);
 
     const id = String(song.id || `idx:${songIndex}`);
     const songIndexData = index.bySongId.get(id);
-    const songArtist = songIndexData?.artistNorm || normalizeArtistDiscoveryName(song.artist || song.artist_name);
+    const songArtist =
+      songIndexData?.artistNorm ||
+      normalizeArtistDiscoveryName(song.artist || song.artist_name);
 
     if (artistSeed && artistMatch(songArtist, artistSeed)) {
       sameArtist.push({
@@ -780,7 +825,7 @@ export function selectRadioCatalogCandidates<T extends RadioDiscoverySong>(
         score: 100,
         signals: [`artist:${artistSeed}`],
       });
-      return;
+      continue;
     }
 
     const scored = scoreSongAgainstConcepts(song, allConcepts, {
@@ -793,10 +838,17 @@ export function selectRadioCatalogCandidates<T extends RadioDiscoverySong>(
         score: scored.score,
         signals: scored.signals,
       });
-      return;
+      continue;
     }
     rest.push(song);
-  });
+    // Unscoped Hidden Radio: stop residual dump once we have a diversified sample pool.
+    if (!artistSeed && !allConcepts.length && rest.length >= limit * 3) break;
+  }
+
+  if (sameArtist.length >= limit) {
+    sameArtist.sort((a, b) => b.score - a.score);
+    return sameArtist.slice(0, limit).map((entry) => entry.song);
+  }
 
   sameArtist.sort((a, b) => b.score - a.score);
   conceptHits.sort((a, b) => b.score - a.score);
