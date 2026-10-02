@@ -13,6 +13,7 @@ import { AppState, AppStateStatus, InteractionManager, Platform } from "react-na
 
 import { BackendYouTubeTrack } from "../services/youtubeBackend";
 import { markMetroProviderDuration, markMetroRender } from "../utils/metroRenderProbe";
+import { isIos217JsProgressPublicationSuppressed } from "../utils/ios217PlaybackDiagnostic";
 
 import {
   buildPersonalRadioQueue,
@@ -8547,11 +8548,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       // In the internal native no-periodic-observer experiment, polling would
       // replace the removed native tick and invalidate the isolation test.
-      if (
-        Platform.OS === "ios" &&
-        process.env.EXPO_PUBLIC_METRO_HARNESS === "1" &&
-        (["audio_only", "no_periodic"].includes((globalThis as typeof globalThis & { __htNativeDiagnosticMode?: string }).__htNativeDiagnosticMode || "") || (globalThis as typeof globalThis & { __htNativeDiagnosticMode?: string }).__htNativeDiagnosticMode?.startsWith("no_periodic_"))
-      ) return;
+      if (Platform.OS === "ios" && process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
+        const mode =
+          (globalThis as typeof globalThis & { __htNativeDiagnosticMode?: string })
+            .__htNativeDiagnosticMode || "";
+        const suppressesNativePeriodic =
+          mode === "audio_only" ||
+          mode === "audio_core_only" ||
+          mode === "no_periodic" ||
+          mode === "no_periodic_no_print" ||
+          mode === "no_periodic_no_bridge";
+        if (suppressesNativePeriodic) return;
+      }
 
       // Native progress events already drive UI on Android and iOS. Polling
       // duplicates bridge traffic and React setState — keep only as a slow
@@ -9372,6 +9380,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const unsubscribe = subscribeHiddenAudioProgress((progress) => {
       (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("jsProgressCallback");
       lastNativeProgressEventAtRef.current = Date.now();
+      // 217 diagnostic A/B only: keep native progress/audio; skip React position fanout.
+      if (isIos217JsProgressPublicationSuppressed()) {
+        return;
+      }
       applyHiddenAudioProgressToUi(progress, source);
       (globalThis as typeof globalThis & { __htCountPlayback?: (kind: string) => void }).__htCountPlayback?.("jsProgressApplied");
     });

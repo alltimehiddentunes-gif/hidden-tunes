@@ -38,7 +38,7 @@ import { COLORS, GRADIENTS, LUXURY_GLOW } from "../constants/theme";
 import { logMiniPlayerControl, logPlaybackUxSync } from "../utils/playbackDiagnostics";
 import { markMetroRender } from "../utils/metroRenderProbe";
 import { createTapGuard } from "../utils/tapGuard";
-import { isAppActiveForWork, subscribeAppActive, useAppActiveState } from "../utils/performanceMode";
+import { isAppActiveForWork, subscribeAppActive, useAppActiveState, isFastScrolling, subscribeFastScrolling } from "../utils/performanceMode";
 import { logPerformanceDuplicateListenerRemoved, logPerformanceOffscreenWorkPaused } from "../utils/performanceLogs";
 import {
   usePlayerActions,
@@ -59,13 +59,13 @@ import HTImage from "./HTImage";
 import FavoriteButton from "./FavoriteButton";
 import { buildSongFavoriteItem } from "../services/favorites/favoriteItemBuilders";
 import { FALLBACK_ARTWORK } from "../utils/artwork";
-import { isFastScrolling } from "../utils/performanceMode";
 import {
   getUserFacingArtist,
   getUserFacingRadioSubtitle,
 } from "../services/ui/displayMetadata";
 import { resolveMiniPlayerDestination } from "../utils/miniPlayerNavigation";
 import { createMiniPlayerNavigationLock } from "../utils/miniPlayerNavigationLock";
+import { countIos217Fabric } from "../utils/ios217FabricWorkload";
 
 type YouTubeMini = {
   id: string;
@@ -195,20 +195,51 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
   isPlaying: boolean;
   trackKey: string;
 }) {
+  countIos217Fabric("miniArtworkRenders");
   const appActive = useAppActiveState();
+  const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
   const glowOpacity = useSharedValue(0.18);
   const glowScale = useSharedValue(1);
+  const lastSourceRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!appActive) {
+    countIos217Fabric("miniArtworkMounts");
+    return () => {
+      countIos217Fabric("miniArtworkUnmounts");
+    };
+  }, []);
+
+  useEffect(() => subscribeFastScrolling(setFastScrolling), []);
+
+  useEffect(() => {
+    const nextSource = cover == null ? "" : String(cover);
+    if (lastSourceRef.current === null) {
+      lastSourceRef.current = nextSource;
+      return;
+    }
+    if (lastSourceRef.current !== nextSource) {
+      lastSourceRef.current = nextSource;
+      countIos217Fabric("miniArtworkSourceChanges");
+      countIos217Fabric("artworkSourceChanges");
+    }
+  }, [cover]);
+
+  useEffect(() => {
+    const allowPulse = appActive && !fastScrolling;
+    if (!allowPulse) {
       cancelAnimation(glowOpacity);
       cancelAnimation(glowScale);
       glowOpacity.value = withTiming(LUXURY_GLOW.opacityMin + 0.06, { duration: 220 });
       glowScale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
-      logPerformanceOffscreenWorkPaused("mini_player_artwork_glow", { reason: "app_inactive" });
+      countIos217Fabric("animationStops");
+      if (!appActive) {
+        logPerformanceOffscreenWorkPaused("mini_player_artwork_glow", { reason: "app_inactive" });
+      }
       return;
     }
 
+    countIos217Fabric("miniAnimations");
+    countIos217Fabric("animationStarts");
     const peakOpacity = isPlaying || isYoutubeMode ? LUXURY_GLOW.opacityMax + 0.08 : LUXURY_GLOW.opacityMax;
     const floorOpacity = LUXURY_GLOW.opacityMin + 0.06;
 
@@ -244,8 +275,9 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
     return () => {
       cancelAnimation(glowOpacity);
       cancelAnimation(glowScale);
+      countIos217Fabric("animationStops");
     };
-  }, [appActive, glowOpacity, glowScale, isPlaying, isYoutubeMode]);
+  }, [appActive, fastScrolling, glowOpacity, glowScale, isPlaying, isYoutubeMode]);
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
@@ -253,7 +285,12 @@ const MiniPlayerArtwork = memo(function MiniPlayerArtwork({
   }));
 
   return (
-    <View style={styles.coverWrap}>
+    <View
+      style={styles.coverWrap}
+      onLayout={() => {
+        countIos217Fabric("miniLayouts");
+      }}
+    >
       <Animated.View style={[styles.coverGlowOuter, glowStyle]} pointerEvents="none">
         <LinearGradient
           colors={["rgba(168,85,247,0.28)", "rgba(236,72,153,0.18)", "rgba(34,211,238,0.1)"]}
@@ -303,6 +340,8 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
   isLiveRadioMode: boolean;
 }) {
   markMetroRender("miniProgress");
+  countIos217Fabric("miniProgressRenders");
+  // HIGH-FREQUENCY: only this child subscribes to position/duration.
   const { position, duration } = usePlayerProgress();
   const trackWidth = useSharedValue(0);
   const progressValue = useSharedValue(0);
@@ -330,6 +369,7 @@ const MiniPlayerProgress = memo(function MiniPlayerProgress({
 
   const onTrackLayout = useCallback(
     (event: LayoutChangeEvent) => {
+      countIos217Fabric("miniLayouts");
       trackWidth.value = event.nativeEvent.layout.width;
     },
     [trackWidth]
@@ -371,6 +411,50 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
   queueLabel,
   badgeIconName,
   isYoutubeMode,
+}: {
+  title: string;
+  artist: string;
+  queueLabel: string;
+  badgeIconName: string;
+  isYoutubeMode: boolean;
+}) {
+  // STABLE: title/artist/badge — updates only when track metadata changes.
+  const badgeStyle = useMemo(
+    () => [styles.badge, isYoutubeMode && styles.youtubeBadge],
+    [isYoutubeMode]
+  );
+
+  return (
+    <>
+      <View style={styles.badgeRow}>
+        <View style={badgeStyle}>
+          <Ionicons name={badgeIconName as any} size={11} color="#fff" />
+          <Text style={styles.badgeText}>{queueLabel}</Text>
+        </View>
+      </View>
+
+      <Text numberOfLines={1} style={styles.title}>
+        {title}
+      </Text>
+
+      <Text numberOfLines={1} style={styles.artist}>
+        {artist}
+      </Text>
+    </>
+  );
+});
+
+/**
+ * Metadata column shell is geometrically stable.
+ * Progress is a sibling so high-frequency position ticks never invalidate
+ * title/artist React subscriptions. Track-change enter animation matches prior look.
+ */
+const MiniPlayerInfoColumn = memo(function MiniPlayerInfoColumn({
+  title,
+  artist,
+  queueLabel,
+  badgeIconName,
+  isYoutubeMode,
   isLiveRadioMode,
 }: {
   title: string;
@@ -396,30 +480,35 @@ const MiniPlayerMetadata = memo(function MiniPlayerMetadata({
     transform: [{ translateY: translateY.value }],
   }));
 
-  const badgeStyle = useMemo(
-    () => [styles.badge, isYoutubeMode && styles.youtubeBadge],
-    [isYoutubeMode]
-  );
-
   return (
     <Animated.View style={[styles.info, textStyle]}>
-      <View style={styles.badgeRow}>
-        <View style={badgeStyle}>
-          <Ionicons name={badgeIconName as any} size={11} color="#fff" />
-          <Text style={styles.badgeText}>{queueLabel}</Text>
-        </View>
-      </View>
-
-      <Text numberOfLines={1} style={styles.title}>
-        {title}
-      </Text>
-
-      <Text numberOfLines={1} style={styles.artist}>
-        {artist}
-      </Text>
-
+      <MiniPlayerMetadata
+        title={title}
+        artist={artist}
+        queueLabel={queueLabel}
+        badgeIconName={badgeIconName}
+        isYoutubeMode={isYoutubeMode}
+      />
       <MiniPlayerProgress isYoutubeMode={isYoutubeMode} isLiveRadioMode={isLiveRadioMode} />
     </Animated.View>
+  );
+});
+
+/** Play/pause icon — updates only when playing/loading icon name changes. */
+const MiniPlayerPlayPauseIcon = memo(function MiniPlayerPlayPauseIcon({
+  mainIconName,
+  isYoutubeMode,
+}: {
+  mainIconName: string;
+  isYoutubeMode: boolean;
+}) {
+  countIos217Fabric("miniPlayPauseRenders");
+  return (
+    <Ionicons
+      name={mainIconName as any}
+      size={isYoutubeMode ? 22 : 23}
+      color={isYoutubeMode ? "#fff" : "#000"}
+    />
   );
 });
 
@@ -448,6 +537,13 @@ function MiniPlayer() {
   const appActiveRef = useRef(isAppActiveForWork());
   const lastYouTubeJsonRef = useRef<string | null>(null);
   const sessionYoutubeHydratedRef = useRef(false);
+
+  useEffect(() => {
+    countIos217Fabric("miniPlayerMounts");
+    return () => {
+      countIos217Fabric("miniPlayerUnmounts");
+    };
+  }, []);
 
   const loadYouTubeMini = useCallback(async () => {
     try {
@@ -844,7 +940,7 @@ function MiniPlayer() {
                 onPressOut={onShellPressOut}
                 style={styles.metadataTapArea}
               >
-                <MiniPlayerMetadata
+                <MiniPlayerInfoColumn
                   title={title}
                   artist={artist}
                   queueLabel={queueLabel}
@@ -892,10 +988,9 @@ function MiniPlayer() {
                 onPress={handleMainButton}
                 style={playButtonStyle}
               >
-                <Ionicons
-                  name={mainIconName as any}
-                  size={isYoutubeMode ? 22 : 23}
-                  color={isYoutubeMode ? "#fff" : "#000"}
+                <MiniPlayerPlayPauseIcon
+                  mainIconName={mainIconName}
+                  isYoutubeMode={isYoutubeMode}
                 />
               </MiniControlButton>
             </View>

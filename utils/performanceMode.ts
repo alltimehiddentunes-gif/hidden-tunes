@@ -116,6 +116,14 @@ export function useAppActiveState() {
   return active;
 }
 
+export function useFastScrolling() {
+  const [fast, setFast] = useState(isFastScrolling());
+
+  useEffect(() => subscribeFastScrolling(setFast), []);
+
+  return fast;
+}
+
 export function shouldRunNonEssentialWork() {
   return appIsActive && !isFastScrolling();
 }

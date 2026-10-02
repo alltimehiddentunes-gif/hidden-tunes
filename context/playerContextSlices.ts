@@ -14,8 +14,10 @@ import {
 import { trackPlaybackSubscriberRender } from "../utils/playbackRenderDiagnostics";
 import {
   getNowPlayingSnapshot,
+  getTrackPlaybackStatusSnapshot,
   setNowPlayingSnapshot,
   subscribeNowPlaying,
+  subscribeTrackPlaybackStatus,
 } from "../utils/nowPlayingStore";
 import { markMetroRender } from "../utils/metroRenderProbe";
 
@@ -227,21 +229,18 @@ export function usePlayerNowPlaying() {
 
 export function useTrackPlaybackStatus(trackId: string) {
   const normalizedTrackId = String(trackId || "");
-  const snapshot = useSyncExternalStore(
-    subscribeNowPlaying,
-    getNowPlayingSnapshot,
-    getNowPlayingSnapshot
+  const status = useSyncExternalStore(
+    (onStoreChange) =>
+      subscribeTrackPlaybackStatus(normalizedTrackId, onStoreChange),
+    () => getTrackPlaybackStatusSnapshot(normalizedTrackId),
+    () => getTrackPlaybackStatusSnapshot(normalizedTrackId)
   );
-  markMetroRender(normalizedTrackId && snapshot.currentSongId === normalizedTrackId ? "trackStatusActive" : "trackStatusInactive");
-
-  return useMemo(() => {
-    const isActive = snapshot.currentSongId === normalizedTrackId;
-
-    return {
-      isActive,
-      isPlaying: isActive && snapshot.isPlaying,
-    };
-  }, [normalizedTrackId, snapshot.currentSongId, snapshot.isPlaying]);
+  markMetroRender(
+    normalizedTrackId && status.isActive
+      ? "trackStatusActive"
+      : "trackStatusInactive"
+  );
+  return status;
 }
 
 export function usePlayer(): PlayerContextType {

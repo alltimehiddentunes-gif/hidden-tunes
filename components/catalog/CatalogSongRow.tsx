@@ -1,6 +1,6 @@
 import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
 import { iosOperationalSongRef } from "../../services/iosOperationalPolicy";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +14,7 @@ import {
 } from "../../services/ui/displayMetadata";
 import { buildSongFavoriteItem } from "../../services/favorites/favoriteItemBuilders";
 import { COLORS } from "../../constants/theme";
+import { countIos217Fabric } from "../../utils/ios217FabricWorkload";
 
 type CatalogSongRowProps = {
   song: {
@@ -29,23 +30,30 @@ type CatalogSongRowProps = {
   active: boolean;
   isPlaying: boolean;
   onPress: (song: any) => void;
+  /** When parent already gated visibility, skip duplicate policy subscription. */
+  iosVisibilityChecked?: boolean;
 };
 
-function CatalogSongRow({
+function CatalogSongRowBody({
   song,
   image,
   active,
   isPlaying,
   onPress,
-}: CatalogSongRowProps) {
+}: Omit<CatalogSongRowProps, "iosVisibilityChecked">) {
   (globalThis as typeof globalThis & { __htCountIos217?: (kind: "songRowRenders") => void })
     .__htCountIos217?.("songRowRenders");
-  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(song));
+  useEffect(() => {
+    countIos217Fabric("rowMounts");
+    return () => {
+      countIos217Fabric("rowUnmounts");
+    };
+  }, []);
   const handlePress = useCallback(() => {
     onPress(song);
   }, [onPress, song]);
 
-  return iosVisible ? ((
+  return (
     <View style={[styles.shell, active && styles.shellActive]}>
       <MediaCard
         title={song.title}
@@ -77,7 +85,23 @@ function CatalogSongRow({
         )}
       </View>
     </View>
-  )) : null;
+  );
+}
+
+function CatalogSongRowWithPolicyGate(props: Omit<CatalogSongRowProps, "iosVisibilityChecked">) {
+  const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(props.song));
+  if (!iosVisible) return null;
+  return <CatalogSongRowBody {...props} />;
+}
+
+function CatalogSongRow({
+  iosVisibilityChecked = false,
+  ...props
+}: CatalogSongRowProps) {
+  if (iosVisibilityChecked) {
+    return <CatalogSongRowBody {...props} />;
+  }
+  return <CatalogSongRowWithPolicyGate {...props} />;
 }
 
 export default memo(CatalogSongRow, (previous, next) => {
@@ -86,7 +110,8 @@ export default memo(CatalogSongRow, (previous, next) => {
     previous.image === next.image &&
     previous.active === next.active &&
     previous.isPlaying === next.isPlaying &&
-    previous.onPress === next.onPress
+    previous.onPress === next.onPress &&
+    previous.iosVisibilityChecked === next.iosVisibilityChecked
   );
 });
 

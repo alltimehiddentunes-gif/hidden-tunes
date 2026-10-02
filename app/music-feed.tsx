@@ -12,6 +12,7 @@ import {
   Pressable,
   TouchableOpacity,
   View,
+  PixelRatio,
 } from "react-native";
 
 import { router, useFocusEffect } from "expo-router";
@@ -79,6 +80,9 @@ import {
   useAppActiveState,
 } from "@/utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "@/utils/performanceLogs";
+import { recordIos217HomeRenderReasons, useIos217HomeRemoveClippedSubviews } from "@/utils/ios217HomeFabricAb";
+import { countIos217Fabric } from "@/utils/ios217FabricWorkload";
+import { setHomeMotionPaused } from "@/utils/homeMotionStore";
 import { navigateToRoute } from "@/utils/primaryNavigation";
 import { openVideoItemWithAlert } from "@/services/videos/openVideoItem";
 import PremiumEmptyState from "@/components/PremiumEmptyState";
@@ -387,6 +391,8 @@ const CreatorRailCard = memo(function CreatorRailCard({
           style={styles.creatorArt}
           contentFit="cover"
           contentPosition="center"
+          maxDecodeWidth={Math.ceil(140 * PixelRatio.get())}
+          maxDecodeHeight={Math.ceil(140 * PixelRatio.get())}
         />
       </View>
       <Text numberOfLines={2} ellipsizeMode="tail" style={styles.creatorName}>
@@ -423,6 +429,8 @@ const AlbumRailCard = memo(function AlbumRailCard({
           style={styles.albumArt}
           contentFit="cover"
           contentPosition="center"
+          maxDecodeWidth={Math.ceil(140 * PixelRatio.get())}
+          maxDecodeHeight={Math.ceil(140 * PixelRatio.get())}
         />
       </View>
       <Text numberOfLines={2} ellipsizeMode="tail" style={styles.albumTitle}>
@@ -515,6 +523,7 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
   onPress,
   animationsPaused,
   focused,
+  removeClippedSubviews = false,
 }: {
   cards: HeroCard[];
   heroCardWidth: number;
@@ -527,9 +536,17 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
   onPress: (card: HeroCard) => void;
   animationsPaused: boolean;
   focused: boolean;
+  removeClippedSubviews?: boolean;
 }) {
   const [heroIndex, setHeroIndex] = useState(0);
   const heroListRef = useRef<FlatList<HeroCard> | null>(null);
+
+  useEffect(() => {
+    countIos217Fabric("carouselMounts");
+    return () => {
+      countIos217Fabric("carouselUnmounts");
+    };
+  }, []);
 
   useEffect(() => {
     if (!HOME_HERO_AUTO_SLIDE_ENABLED || cards.length <= 1) return;
@@ -610,7 +627,6 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
         heroCardWidth={heroCardWidth}
         heroCardHeight={heroCardHeight}
         totalCards={cards.length}
-        activeSlideIndex={heroIndex}
         heroActionLabels={heroActionLabels}
         onPress={handleHeroPress}
         HeroPressable={HeroPressable}
@@ -626,7 +642,6 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
       heroActionLabels,
       heroCardHeight,
       heroCardWidth,
-      heroIndex,
     ]
   );
 
@@ -647,6 +662,7 @@ const HomeHeroCarousel = memo(function HomeHeroCarousel({
         onMomentumScrollEnd={handleHeroMomentumEnd}
         onScrollToIndexFailed={() => {}}
         contentContainerStyle={styles.heroList}
+        removeClippedSubviews={removeClippedSubviews}
       />
 
       {cards.length > 1 ? (
@@ -908,8 +924,10 @@ export default function MusicFeedScreen() {
   );
   const genreSpotlightSignalHashRef = useRef("");
   const [homeLogoFailed, setHomeLogoFailed] = useState(false);
-  const [homeAnimationsPaused, setHomeAnimationsPaused] = useState(false);
   const [homeFocused, setHomeFocused] = useState(true);
+  // Continuous home motion is disabled; never write scroll animation React state
+  // (that alone re-rendered the entire Home tree on every fling).
+  const homeMotionPaused = !homeFocused || !HOME_CONTINUOUS_MOTION_ENABLED;
   const mountedRef = useRef(true);
   const focusedRef = useRef(true);
   const loadGenerationRef = useRef(0);
@@ -943,8 +961,6 @@ export default function MusicFeedScreen() {
   // Never block the Home shell behind a full-screen loader. Header, search,
   // tabs, and cached/skeleton content must paint immediately.
   const showInlineCatalogLoading = loading && songs.length === 0;
-  const homeMotionPaused =
-    homeAnimationsPaused || !homeFocused || !HOME_CONTINUOUS_MOTION_ENABLED;
 
   if (!homeShellLoggedRef.current) {
     homeShellLoggedRef.current = true;
@@ -1272,10 +1288,80 @@ export default function MusicFeedScreen() {
     [personalizedHomeSongs, visibleCatalogCount]
   );
   const canLoadMore = visibleCatalogCount < songs.length;
-  const catalogListPerf = useMemo(
-    () => getListPerformanceSettings(visibleCatalogSongs.length),
-    [visibleCatalogSongs.length]
-  );
+  const homeRemoveClippedSubviews = useIos217HomeRemoveClippedSubviews();
+  const catalogListPerf = useMemo(() => {
+    const base = getListPerformanceSettings(visibleCatalogSongs.length);
+    return { ...base, removeClippedSubviews: homeRemoveClippedSubviews };
+  }, [visibleCatalogSongs.length, homeRemoveClippedSubviews]);
+
+  const listIdentityRef = useRef<{
+    data: typeof visibleCatalogSongs | null;
+    renderItem: unknown;
+    keyExtractor: unknown;
+  }>({ data: null, renderItem: null, keyExtractor: null });
+
+  const homeRenderProbeRef = useRef<{
+    policyGeneration: number;
+    policyStatus: string;
+    currentSongId: string;
+    recentHeadSig: string;
+    queueSig: string;
+    recentSig: string;
+    catalogSig: string;
+    deferred: boolean;
+    focused: boolean;
+    visibleCount: number;
+    genreHash: string;
+    preferencesSig: string;
+    loading: boolean;
+    refreshing: boolean;
+  } | null>(null);
+  {
+    const reasons: string[] = [];
+    const currentSongId = String(playerFeed.currentSongMeta?.id || "");
+    const recentHeadSig = (playerFeed.recentHead || [])
+      .map((item) => `${item.id}:${item.title}`)
+      .join("|");
+    const queueSig = playerFeed.activeQueueSignature || "";
+    const recentSig = playerFeed.recentArtistSignature || "";
+    const catalogSig = `${catalog?.songs?.length || 0}:${iosPolicy.generation}:${iosPolicy.status}`;
+    const preferencesSig = `${homePreferences.genres?.join(",") || ""}|${homePreferences.moods?.join(",") || ""}`;
+    const genreHash = genreSpotlightSignalHashRef.current;
+    const prev = homeRenderProbeRef.current;
+    if (prev) {
+      if (prev.policyGeneration !== iosPolicy.generation) reasons.push("policy.generation");
+      if (prev.policyStatus !== iosPolicy.status) reasons.push("policy.status");
+      if (prev.currentSongId !== currentSongId) reasons.push("playerFeed.currentSong");
+      if (prev.recentHeadSig !== recentHeadSig) reasons.push("playerFeed.recentHead");
+      if (prev.queueSig !== queueSig) reasons.push("playerFeed.queue");
+      if (prev.recentSig !== recentSig) reasons.push("playerFeed.recentlyPlayed");
+      if (prev.catalogSig !== catalogSig) reasons.push("local.catalog");
+      if (prev.deferred !== showDeferredHomeSections) reasons.push("local.deferredSections");
+      if (prev.focused !== homeFocused) reasons.push("local.homeFocused");
+      if (prev.visibleCount !== visibleCatalogCount) reasons.push("local.visibleCatalogCount");
+      if (prev.genreHash !== genreHash) reasons.push("local.genreSpotlight");
+      if (prev.preferencesSig !== preferencesSig) reasons.push("local.preferences");
+      if (prev.loading !== loading) reasons.push("local.loading");
+      if (prev.refreshing !== refreshing) reasons.push("local.refreshing");
+    }
+    recordIos217HomeRenderReasons(reasons);
+    homeRenderProbeRef.current = {
+      policyGeneration: iosPolicy.generation,
+      policyStatus: iosPolicy.status,
+      currentSongId,
+      recentHeadSig,
+      queueSig,
+      recentSig,
+      catalogSig,
+      deferred: showDeferredHomeSections,
+      focused: homeFocused,
+      visibleCount: visibleCatalogCount,
+      genreHash,
+      preferencesSig,
+      loading,
+      refreshing,
+    };
+  }
 
   const becauseYouListened = useMemo(() => {
     if (!showDeferredHomeSections) return [];
@@ -1317,7 +1403,8 @@ export default function MusicFeedScreen() {
       homeScrollSettleTimerRef.current = null;
     }
     homeVerticalScrollingRef.current = true;
-    setHomeAnimationsPaused(true);
+    // Store-only gate — no React state (avoids full Home remount/render on fling).
+    if (HOME_CONTINUOUS_MOTION_ENABLED) setHomeMotionPaused(true);
     markFastScrolling(true);
   }, []);
 
@@ -1328,7 +1415,7 @@ export default function MusicFeedScreen() {
     }
     homeScrollSettleTimerRef.current = setTimeout(() => {
       homeVerticalScrollingRef.current = false;
-      setHomeAnimationsPaused(false);
+      if (HOME_CONTINUOUS_MOTION_ENABLED) setHomeMotionPaused(false);
       homeScrollSettleTimerRef.current = null;
     }, HOME_SCROLL_SETTLE_MS);
   }, []);
@@ -1493,10 +1580,11 @@ export default function MusicFeedScreen() {
     [playCatalogSong, playerFeed.currentSongMeta?.id]
   );
 
-  const keyExtractor = useCallback(
-    (item: HiddenTunesSong, index: number) => String(item.id || index),
-    []
-  );
+  const keyExtractor = useCallback((item: HiddenTunesSong) => {
+    const id = String(item.id || "").trim();
+    if (id) return id;
+    return `orphan:${String(item.title || "").trim()}:${String(item.artist || "").trim()}`;
+  }, []);
 
   const renderSongItem = useCallback(
     ({ item }: { item: HiddenTunesSong; index: number }) => (
@@ -1507,6 +1595,24 @@ export default function MusicFeedScreen() {
     ),
     [playCatalogSong]
   );
+
+  {
+    const prev = listIdentityRef.current;
+    if (prev.data && prev.data !== visibleCatalogSongs) {
+      countIos217Fabric("listDataIdentityChanges");
+    }
+    if (prev.renderItem && prev.renderItem !== renderSongItem) {
+      countIos217Fabric("renderItemIdentityChanges");
+    }
+    if (prev.keyExtractor && prev.keyExtractor !== keyExtractor) {
+      countIos217Fabric("keyExtractorIdentityChanges");
+    }
+    listIdentityRef.current = {
+      data: visibleCatalogSongs,
+      renderItem: renderSongItem,
+      keyExtractor,
+    };
+  }
 
   const renderMoodRoomGridItem = useCallback(
     ({ item: room }: { item: CatalogGroup }) => (
@@ -1523,6 +1629,8 @@ export default function MusicFeedScreen() {
               fallback={moodRoomFallbackArtwork(room.id)}
               style={styles.roomImageFill}
               contentFit="cover"
+              maxDecodeWidth={Math.ceil(180 * PixelRatio.get())}
+              maxDecodeHeight={Math.ceil(180 * PixelRatio.get())}
             />
           </View>
           <LinearGradient
@@ -1623,6 +1731,8 @@ export default function MusicFeedScreen() {
               fallback={moodRoomFallbackArtwork(room.id)}
               style={styles.roomImageFill}
               contentFit="cover"
+              maxDecodeWidth={Math.ceil(180 * PixelRatio.get())}
+              maxDecodeHeight={Math.ceil(180 * PixelRatio.get())}
             />
           </View>
           <LinearGradient
@@ -1756,6 +1866,7 @@ export default function MusicFeedScreen() {
                     onPress={handleHeroPress}
                     animationsPaused={homeMotionPaused}
                     focused={homeFocused}
+                    removeClippedSubviews={homeRemoveClippedSubviews}
                   />
                 ) : showInlineCatalogLoading ? (
                   <View style={styles.sectionSkeletonBlock}>
@@ -1901,7 +2012,12 @@ export default function MusicFeedScreen() {
                       <View style={styles.cinematicSection}>
                         <Text style={styles.sectionEyebrow}>{homeUi.sections.next}</Text>
                         <Text style={styles.sectionTitle}>{homeUi.sections.smartMusicQueue}</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.featuredRow}>
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.featuredRow}
+                          removeClippedSubviews={homeRemoveClippedSubviews}
+                        >
                           {smartQueueSongs.map((item, index) => (
                             <HomeFeaturedCard
                               key={`smart-${item.id}`}
@@ -1998,6 +2114,7 @@ export default function MusicFeedScreen() {
                           nestedScrollEnabled
                           style={styles.genreSpotlightRail}
                           contentContainerStyle={styles.genreSpotlightRailContent}
+                          removeClippedSubviews={homeRemoveClippedSubviews}
                         >
                           {visibleGenres.map((genre, index) => (
                             <View

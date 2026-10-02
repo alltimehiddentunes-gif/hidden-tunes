@@ -117,21 +117,69 @@ export async function assertIosOperationalSongAllowed(song: Parameters<typeof io
   await assertIosOperationalContentAllowed(ref, await iosOperationalMatureAccess(ref));
 }
 
+/** Single authoritative 15s force-refresh scheduler for all iOS policy owners. */
+let policySchedulerRetainers = 0;
+let policySchedulerTimer: ReturnType<typeof setInterval> | null = null;
+let policySchedulerAppState: { remove: () => void } | null = null;
+const policySchedulerTicks = new Set<() => void>();
+
+export function retainIosOperationalPolicyScheduler(onTick?: () => void) {
+  if (!IOS_OPERATIONAL_PLATFORM) return () => {};
+  if (onTick) policySchedulerTicks.add(onTick);
+  policySchedulerRetainers += 1;
+  if (policySchedulerRetainers === 1) {
+    const pulse = () => {
+      void refreshIosOperationalPolicy(true).finally(() => {
+        policySchedulerTicks.forEach((tick) => {
+          try {
+            tick();
+          } catch {
+            /* Owner handles denial. */
+          }
+        });
+      });
+    };
+    policySchedulerTimer = setInterval(pulse, 15000);
+    policySchedulerAppState = AppState.addEventListener("change", (next) => {
+      if (next === "active") pulse();
+    });
+    void refreshIosOperationalPolicy();
+  }
+  return () => {
+    if (onTick) policySchedulerTicks.delete(onTick);
+    policySchedulerRetainers = Math.max(0, policySchedulerRetainers - 1);
+    if (policySchedulerRetainers > 0) return;
+    if (policySchedulerTimer) clearInterval(policySchedulerTimer);
+    policySchedulerTimer = null;
+    policySchedulerAppState?.remove();
+    policySchedulerAppState = null;
+    policySchedulerTicks.clear();
+  };
+}
+
 /** Existing owners subscribe without remounting or changing queue membership. */
 export function monitorIosOperationalPlayback(check: () => void | Promise<void>) {
   if (!IOS_OPERATIONAL_PLATFORM) return () => {};
   let alive = true;
   let inFlight = false;
-  const run = async () => {
+  const runCheck = () => {
     if (!alive || inFlight) return;
     inFlight = true;
-    try { await refreshIosOperationalPolicy(true); if (alive) await check(); } catch { /* Owner check handles denial. */ }
-    finally { inFlight = false; }
+    Promise.resolve()
+      .then(() => check())
+      .catch(() => {
+        /* Owner check handles denial. */
+      })
+      .finally(() => {
+        inFlight = false;
+      });
   };
-  const timer = setInterval(() => { void run(); }, 15000);
-  const state = AppState.addEventListener("change", (next) => { if (next === "active") void run(); });
-  void run();
-  return () => { alive = false; clearInterval(timer); state.remove(); };
+  const releaseScheduler = retainIosOperationalPolicyScheduler(runCheck);
+  void runCheck();
+  return () => {
+    alive = false;
+    releaseScheduler();
+  };
 }
 
 export function iosOperationalRouteSection(route: string): IosOperationalSection | null {

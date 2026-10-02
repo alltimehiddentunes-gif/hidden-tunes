@@ -9,6 +9,25 @@ const appScriptsPath = path
   .replace(/[/\\]/g, "[/\\\\]");
 
 config.maxWorkers = 1;
+
+// The iOS dev client requests a release bundle with lazy=true. Native Hermes
+// has no web location for the extra chunks, so play stops inside the
+// mature-access import before audio starts. Serve one self-contained bundle
+// in normal 217 mode. The diagnostic harness below stays off unless requested.
+config.server = {
+  ...config.server,
+  enhanceMiddleware: (middleware) => (req, res, next) => {
+    if (
+      req.url?.startsWith("/index.bundle?") &&
+      /[?&]platform=ios(?:&|$)/.test(req.url) &&
+      /[?&]dev=false(?:&|$)/.test(req.url)
+    ) {
+      req.url = req.url.replace(/([?&])lazy=true(?=&|$)/, "$1lazy=false");
+    }
+    return middleware(req, res, next);
+  },
+};
+
 if (process.env.EXPO_PUBLIC_METRO_HARNESS === "1") {
   const fs = require("fs");
   const log = path.join(__dirname, ".expo", "metro-harness.jsonl");

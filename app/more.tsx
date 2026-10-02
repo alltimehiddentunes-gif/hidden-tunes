@@ -13,7 +13,7 @@ import { FlatList,
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 import Animated, {
   Easing,
   cancelAnimation,
@@ -47,14 +47,31 @@ import {
 import { useLocalization } from "../localization";
 import type { TranslationKey } from "../localization";
 import * as Clipboard from "expo-clipboard";
-import { readIos217NativePerf, resetIos217NativePerf } from "../utils/ios217NativePerf";
+import {
+  cycleIos217DiagnosticIsolationMode,
+  describeIos217DiagnosticIsolationMode,
+  getIos217DiagnosticIsolationMode,
+  getIos217PlaybackEventMinimumModeEnabled,
+  readIos217NativePerf,
+  resetIos217NativePerf,
+  setIos217DiagnosticIsolationMode,
+  type Ios217DiagnosticIsolationMode,
+} from "../utils/ios217NativePerf";
 import {
   IOS217_DIAGNOSTIC_ENABLED,
   getIos217PlaybackSampleStatus,
+  isIos217JsProgressPublicationSuppressed,
   resetIos217PlaybackSample,
+  setIos217JsProgressPublicationSuppressed,
+  startIos217FabricCompareSample,
   startIos217PlaybackSample,
+  startIos217PlayingAbSample,
   stopIos217PlaybackSample,
 } from "../utils/ios217PlaybackDiagnostic";
+import {
+  cycleIos217HomeClippingMode,
+  describeIos217HomeClippingMode,
+} from "../utils/ios217HomeFabricAb";
 
 /**
  * Sports Preview entry in More → Discovery.
@@ -118,17 +135,20 @@ const HUB_TRANSLATION_KEYS: Record<
 };
 
 const MoreHeroGlow = memo(function MoreHeroGlow() {
+  const focused = useIsFocused();
   const appActive = useAppActiveState();
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
   useEffect(() => {
-    if (!appActive) {
+    if (!appActive || !focused) {
       cancelAnimation(opacity);
       cancelAnimation(scale);
       opacity.value = withTiming(LUXURY_GLOW.opacityMin, { duration: 220 });
       scale.value = withTiming(LUXURY_GLOW.scaleMin, { duration: 220 });
-      logPerformanceOffscreenWorkPaused("more_hero_glow", { reason: "app_inactive" });
+      if (!appActive) {
+        logPerformanceOffscreenWorkPaused("more_hero_glow", { reason: "app_inactive" });
+      }
       return;
     }
 
@@ -165,7 +185,7 @@ const MoreHeroGlow = memo(function MoreHeroGlow() {
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [appActive, opacity, scale]);
+  }, [appActive, focused, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -243,6 +263,9 @@ function MoreHero({
 function Ios217DiagnosticEntry() {
   const [open, setOpen] = useState(false);
   const [report, setReport] = useState("");
+  const [progressSuppress, setProgressSuppress] = useState(false);
+  const [isolationMode, setIsolationMode] = useState("quiet_diagnostics");
+  const [homeClipping, setHomeClipping] = useState(describeIos217HomeClippingMode());
   if (!IOS217_DIAGNOSTIC_ENABLED) return null;
   const status = getIos217PlaybackSampleStatus();
   const start = () => {
@@ -253,13 +276,30 @@ function Ios217DiagnosticEntry() {
     setReport("");
     setOpen(false);
   };
+  const startFabricCompare = () => {
+    if (!startIos217FabricCompareSample()) {
+      Alert.alert("Pause first", "Pause the same song, confirm homeClipping=ON, then arm Fabric compare.");
+      return;
+    }
+    setHomeClipping(describeIos217HomeClippingMode());
+    setReport("");
+    setOpen(false);
+  };
+  const startAbPlaying = () => {
+    if (!startIos217PlayingAbSample()) {
+      Alert.alert("A/B arm failed", "Could not arm the playing sample.");
+      return;
+    }
+    setReport("");
+    setOpen(false);
+  };
   const stop = async () => {
     const jsReport = stopIos217PlaybackSample();
-    try { setReport(`${jsReport}\n${await readIos217NativePerf()}`); }
-    catch (error) { setReport(`${jsReport}\nnativeRecorderError=${String(error)}`); }
+    try { setReport(`${jsReport}\nprogressSuppress=${isIos217JsProgressPublicationSuppressed()}\n${await readIos217NativePerf()}`); }
+    catch (error) { setReport(`${jsReport}\nprogressSuppress=${isIos217JsProgressPublicationSuppressed()}\nnativeRecorderError=${String(error)}`); }
   };
   const recover = async () => {
-    try { setReport(await readIos217NativePerf()); }
+    try { setReport(`progressSuppress=${isIos217JsProgressPublicationSuppressed()}\n${await readIos217NativePerf()}`); }
     catch (error) { setReport(`nativeRecorderError=${String(error)}`); }
   };
   const reset = async () => {
@@ -267,6 +307,27 @@ function Ios217DiagnosticEntry() {
     try { await resetIos217NativePerf(); }
     catch (error) { Alert.alert("Recorder unavailable", String(error)); }
     setReport("");
+  };
+  const toggleProgressSuppress = () => {
+    const next = !isIos217JsProgressPublicationSuppressed();
+    setIos217JsProgressPublicationSuppressed(next);
+    setProgressSuppress(next);
+  };
+  const cycleIsolationMode = async () => {
+    const next = cycleIos217DiagnosticIsolationMode(getIos217DiagnosticIsolationMode());
+    try {
+      const applied = await setIos217DiagnosticIsolationMode(next as Ios217DiagnosticIsolationMode);
+      setIsolationMode(applied);
+      Alert.alert(applied, describeIos217DiagnosticIsolationMode(applied));
+    } catch (error) {
+      Alert.alert("Isolation mode unavailable", String(error));
+    }
+  };
+  const cycleHomeClipping = () => {
+    cycleIos217HomeClippingMode();
+    const label = describeIos217HomeClippingMode();
+    setHomeClipping(label);
+    Alert.alert("Home clipping", label);
   };
   const copy = async () => {
     const text = report || getIos217PlaybackSampleStatus().report;
@@ -279,16 +340,27 @@ function Ios217DiagnosticEntry() {
       accessibilityRole="button"
       accessibilityLabel="217 pause play diagnostic"
       style={styles.diagnosticEntry}
-      onPress={() => { setReport(getIos217PlaybackSampleStatus().report); setOpen(true); }}
+      onPress={() => {
+        setProgressSuppress(isIos217JsProgressPublicationSuppressed());
+        setIsolationMode(getIos217DiagnosticIsolationMode());
+        setHomeClipping(describeIos217HomeClippingMode());
+        setReport(getIos217PlaybackSampleStatus().report);
+        setOpen(true);
+      }}
     >
       <Text style={styles.diagnosticText}>217 pause/play diagnostic</Text>
     </TouchableOpacity>
     <Modal visible={open} animationType="none" onRequestClose={() => setOpen(false)}>
       <ScrollView contentContainerStyle={styles.diagnosticModal}>
-        <Text style={styles.diagnosticTitle}>217 pause/play sample</Text>
-        <Text style={styles.diagnosticText}>Reset counters, pause one song, tap Start, then Home. The same song and page should alternate PAUSE 30s → PLAY 30s → PAUSE 30s → PLAY 30s. If the UI freezes, force-close and reopen; Recover incident reads the native snapshot. No live diagnostic screen is shown during sampling.</Text>
-        <Text style={styles.diagnosticText}>Current: {status.phase}</Text>
-        <TouchableOpacity style={styles.diagnosticAction} onPress={start}><Text style={styles.diagnosticText}>Start sample (paused)</Text></TouchableOpacity>
+        <Text style={styles.diagnosticTitle}>217 Fabric efficiency pass</Text>
+        <Text style={styles.diagnosticText}>Coherent OTA pass ready. Baseline homeClipping=ON. Family1 scroll-state removed. AppShell chrome isolated. Policy scheduler deduped. No more isolation modes.</Text>
+        <Text style={styles.diagnosticText}>ONE physical: Reset → confirm clipping ON → Arm Fabric compare OR Start sample → Home → PAUSED 30s aggressive scroll → Play → PLAYING 30s identical → Pause → Stop. Target PLAYING≈PAUSED.</Text>
+        <Text style={styles.diagnosticText}>Home clipping={homeClipping}. Isolation={isolationMode}. Phase={status.phase}</Text>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={cycleHomeClipping}><Text style={styles.diagnosticText}>Cycle Home clipping (keep ON for this soak; now: {homeClipping})</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void cycleIsolationMode(); }}><Text style={styles.diagnosticText}>Cycle isolation mode (leave quiet_diagnostics; now: {isolationMode})</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={startFabricCompare}><Text style={styles.diagnosticText}>Arm Fabric PAUSED→PLAYING compare</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={start}><Text style={styles.diagnosticText}>Start 4-interval sample (paused)</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.diagnosticAction} onPress={startAbPlaying}><Text style={styles.diagnosticText}>Arm A/B playing only (not for Fabric delta)</Text></TouchableOpacity>
         <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void stop(); }}><Text style={styles.diagnosticText}>Stop sample</Text></TouchableOpacity>
         <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void recover(); }}><Text style={styles.diagnosticText}>Recover incident</Text></TouchableOpacity>
         <TouchableOpacity style={styles.diagnosticAction} onPress={() => { void copy(); }}><Text style={styles.diagnosticText}>Copy results</Text></TouchableOpacity>

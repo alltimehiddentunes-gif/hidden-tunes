@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Text, View } from "react-native";
+import { PixelRatio, Text, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -26,7 +26,8 @@ type HomeHeroCardProps = {
   heroCardWidth: number;
   heroCardHeight: number;
   totalCards: number;
-  activeSlideIndex: number;
+  /** Kept for API compatibility; card chrome no longer re-renders on slide index. */
+  activeSlideIndex?: number;
   heroActionLabels: {
     nowPlayingActive: string;
     openPlayer: string;
@@ -68,7 +69,6 @@ export const HomeHeroCard = memo(function HomeHeroCard({
   heroCardWidth,
   heroCardHeight,
   totalCards,
-  activeSlideIndex,
   heroActionLabels,
   onPress,
   HeroPressable,
@@ -76,13 +76,14 @@ export const HomeHeroCard = memo(function HomeHeroCard({
   styles,
 }: HomeHeroCardProps) {
   const { isActive, isPlaying } = useTrackPlaybackStatus(String(item.song?.id || ""));
+  const decodePx = Math.ceil(Math.max(heroCardWidth, heroCardHeight) * PixelRatio.get());
 
   return (
     <View style={[styles.heroSlide, { width: heroCardWidth }]}>
       <LinearGradient colors={GRADIENTS.neon} style={styles.heroBorder}>
         <HeroPressable
           height={heroCardHeight}
-          isActive={isActive || index === activeSlideIndex}
+          isActive={isActive}
           onPress={() => onPress(item)}
         >
           <View style={styles.heroInner}>
@@ -93,7 +94,8 @@ export const HomeHeroCard = memo(function HomeHeroCard({
                 style={styles.heroArtworkImage}
                 contentFit="cover"
                 contentPosition="center"
-                prefetch
+                maxDecodeWidth={decodePx}
+                maxDecodeHeight={decodePx}
               />
               <LinearGradient
                 pointerEvents="none"

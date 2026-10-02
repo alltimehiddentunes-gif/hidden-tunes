@@ -1,5 +1,6 @@
 import { memo, useMemo } from "react";
 import {
+  PixelRatio,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -36,6 +37,7 @@ const GenreSpotlightCard = memo(function GenreSpotlightCard({
 }: GenreSpotlightCardProps) {
   const { width } = useWindowDimensions();
   const cardWidth = Math.min(168, Math.max(148, Math.round(width * 0.42)));
+  const decodePx = Math.ceil(cardWidth * PixelRatio.get());
 
   const source = useMemo(
     () =>
@@ -63,6 +65,8 @@ const GenreSpotlightCard = memo(function GenreSpotlightCard({
           fallback={FALLBACK_ARTWORK_ASSET}
           style={styles.art}
           contentFit="cover"
+          maxDecodeWidth={decodePx}
+          maxDecodeHeight={decodePx}
         />
         <LinearGradient
           pointerEvents="none"

@@ -1,8 +1,9 @@
 import { useIosOperationalItemVisibility } from "../../hooks/useIosOperationalPolicy";
 import { iosOperationalSongRef } from "../../services/iosOperationalPolicy";
-import { memo, useCallback, useEffect } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import {
   Dimensions,
+  PixelRatio,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -28,7 +29,11 @@ import {
   SHADOWS,
   TYPOGRAPHY,
 } from "../../constants/theme";
-import { useAppActiveState } from "../../utils/performanceMode";
+import {
+  isFastScrolling,
+  subscribeFastScrolling,
+  useAppActiveState,
+} from "../../utils/performanceMode";
 import { logPerformanceOffscreenWorkPaused } from "../../utils/performanceLogs";
 import { useTrackPlaybackStatus } from "../../context/playerContextSlices";
 import type { HiddenTunesNormalizedSong } from "../../services/hiddenTunesApi";
@@ -59,6 +64,7 @@ export const HomeCatalogSongRow = memo(function HomeCatalogSongRow({
         active={isActive}
         isPlaying={isPlaying}
         onPress={onPress}
+        iosVisibilityChecked
       />
     </View>
   )) : null;
@@ -70,11 +76,15 @@ const FeaturedCardGlow = memo(function FeaturedCardGlow({
   active: boolean;
 }) {
   const appActive = useAppActiveState();
+  const [fastScrolling, setFastScrolling] = useState(isFastScrolling());
   const opacity = useSharedValue<number>(LUXURY_GLOW.opacityMin);
   const scale = useSharedValue<number>(LUXURY_GLOW.scaleMin);
 
+  useEffect(() => subscribeFastScrolling(setFastScrolling), []);
+
   useEffect(() => {
-    if (!appActive || !active) {
+    const allowPulse = appActive && active && !fastScrolling;
+    if (!allowPulse) {
       cancelAnimation(opacity);
       cancelAnimation(scale);
       opacity.value = withTiming(
@@ -124,7 +134,7 @@ const FeaturedCardGlow = memo(function FeaturedCardGlow({
       cancelAnimation(opacity);
       cancelAnimation(scale);
     };
-  }, [active, appActive, opacity, scale]);
+  }, [active, appActive, fastScrolling, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -145,6 +155,11 @@ type HomeFeaturedCardProps = {
   fillWidth?: boolean;
 };
 
+const { width } = Dimensions.get("window");
+const FEATURED_CARD_WIDTH = Math.min(width * 0.84, 340);
+const FEATURED_ART_DECODE_PX = Math.ceil(190 * PixelRatio.get());
+const FEATURED_ART_GRID_DECODE_PX = Math.ceil(148 * PixelRatio.get());
+
 export const HomeFeaturedCard = memo(function HomeFeaturedCard({
   item,
   index,
@@ -153,6 +168,7 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
 }: HomeFeaturedCardProps) {
   const iosVisible = useIosOperationalItemVisibility(iosOperationalSongRef(item));
   const { isActive, isPlaying } = useTrackPlaybackStatus(String(item.id));
+  const decodePx = fillWidth ? FEATURED_ART_GRID_DECODE_PX : FEATURED_ART_DECODE_PX;
 
   const handlePress = useCallback(() => {
     onPress(item);
@@ -176,7 +192,13 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
           fillWidth && styles.featuredArtFrameGrid,
         ]}
       >
-        <HTImage source={item} style={styles.featuredCover} contentFit="cover" />
+        <HTImage
+          source={item}
+          style={styles.featuredCover}
+          contentFit="cover"
+          maxDecodeWidth={decodePx}
+          maxDecodeHeight={decodePx}
+        />
 
         <View style={styles.featuredRank}>
           <Text style={styles.featuredRankText}>
@@ -209,9 +231,6 @@ export const HomeFeaturedCard = memo(function HomeFeaturedCard({
     </TouchableOpacity>
   )) : null;
 });
-
-const { width } = Dimensions.get("window");
-const FEATURED_CARD_WIDTH = Math.min(width * 0.84, 340);
 
 const styles = StyleSheet.create({
   mediaShell: {

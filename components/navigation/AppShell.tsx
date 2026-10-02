@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { usePathname } from "expo-router";
+import { usePathname, useRootNavigationState } from "expo-router";
 import {
   memo,
   ReactNode,
@@ -30,13 +30,22 @@ import {
   type AppNavigationItem,
 } from "./navigationConfig";
 import { createKeyedTapGuard } from "../../utils/tapGuard";
-import { getActivePlaybackOwner } from "../../services/playback/PlaybackHandoffCoordinator";
+import {
+  getActivePlaybackOwnerSnapshot,
+  subscribeActivePlaybackOwner,
+  type PlaybackOwnerId,
+} from "../../services/playback/PlaybackHandoffCoordinator";
 import {
   getNowPlayingSongIdSnapshot,
   subscribeNowPlaying,
 } from "../../utils/nowPlayingStore";
 import { navigatePrimaryDestination } from "../../utils/primaryNavigation";
 import { markMetroRender } from "../../utils/metroRenderProbe";
+import { recordIos217AppShellRenderReasons } from "../../utils/ios217HomeFabricAb";
+import {
+  countIos217Fabric,
+  sampleIos217OffscreenMountedScreens,
+} from "../../utils/ios217FabricWorkload";
 import { useLocalization } from "../../localization";
 import { getNavigationLabelKey } from "../../localization/navigationLabels";
 import {
@@ -63,6 +72,30 @@ const MINI_PLAYER_ROUTES = [
   "/motivation",
 ] as const;
 
+/** TV / video / sports own the surface — music MiniPlayer must stay hidden. */
+function isForeignPlaybackOwner(owner: PlaybackOwnerId | null): boolean {
+  return owner === "tv" || owner === "video" || owner === "sports";
+}
+
+/**
+ * Product MiniPlayer gate.
+ * Require a loaded songId on a mini route.
+ * Allow null owner (claim race) and shared-audio; only exclude foreign owners.
+ * Ownership MUST be read via useSyncExternalStore — a one-shot getActivePlaybackOwner()
+ * left MiniPlayer permanently absent when owner flipped after the songId notification.
+ */
+function shouldShowMiniPlayer(
+  pathname: string,
+  songId: string,
+  owner: PlaybackOwnerId | null
+): boolean {
+  return (
+    isMiniPlayerRoute(pathname) &&
+    Boolean(songId) &&
+    !isForeignPlaybackOwner(owner)
+  );
+}
+
 function isActiveRoute(pathname: string, item: AppNavigationItem) {
   return item.matches.some((route) => {
     if (pathname === route) return true;
@@ -73,7 +106,14 @@ function isActiveRoute(pathname: string, item: AppNavigationItem) {
 function getBackgroundVariant(pathname: string): PremiumBackgroundVariant {
   if (pathname === "/music-feed") return "home";
   if (pathname.startsWith("/worlds")) return "explore";
-  if (pathname.startsWith("/player") || pathname.startsWith("/queue") || pathname.startsWith("/lyrics") || pathname.startsWith("/radio")) return "player";
+  if (
+    pathname.startsWith("/player") ||
+    pathname.startsWith("/queue") ||
+    pathname.startsWith("/lyrics") ||
+    pathname.startsWith("/radio")
+  ) {
+    return "player";
+  }
   if (
     pathname.startsWith("/library") ||
     pathname.startsWith("/favorites") ||
@@ -106,9 +146,12 @@ const BottomTabButton = memo(function BottomTabButton({
   item: AppNavigationItem & { label: string; active: boolean };
   onNavigate: (item: AppNavigationItem & { label: string; active: boolean }) => void;
 }) {
-  const handlePressIn = useCallback((event: { timeStamp?: number }) => {
-    markTabTouchDown(item.route, event.timeStamp);
-  }, [item.route]);
+  const handlePressIn = useCallback(
+    (event: { timeStamp?: number }) => {
+      markTabTouchDown(item.route, event.timeStamp);
+    },
+    [item.route]
+  );
 
   const handlePress = useCallback(() => {
     onNavigate(item);
@@ -133,44 +176,74 @@ const BottomTabButton = memo(function BottomTabButton({
           color={item.active ? COLORS.primaryGlow : COLORS.textMuted}
         />
       </View>
-      <Text
-        numberOfLines={1}
-        style={[styles.navText, item.active && styles.navTextActive]}
-      >
+      <Text numberOfLines={1} style={[styles.navText, item.active && styles.navTextActive]}>
         {item.label}
       </Text>
     </Pressable>
   );
 });
 
-export default function AppShell({
-  children,
-  style,
-}: {
-  children: ReactNode;
-  style?: StyleProp<ViewStyle>;
-}) {
+/**
+ * Chrome owns its own subscriptions. Memoized with zero props so a parent Home
+ * re-render does not remount/rebuild background, blur nav, or MiniPlayer host.
+ */
+const AppShellChrome = memo(function AppShellChrome() {
   markMetroRender("appShell");
   const pathname = usePathname();
   const { t } = useLocalization();
   const insets = useSafeAreaInsets();
   const navTapGuardRef = useRef(createKeyedTapGuard(360));
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+
   const currentSongId = useSyncExternalStore(
     subscribeNowPlaying,
     getNowPlayingSongIdSnapshot,
     getNowPlayingSongIdSnapshot
   );
-  const bottomOffset = Math.max(insets.bottom, 8);
-  const showMiniPlayer =
-    isMiniPlayerRoute(pathname) &&
-    Boolean(currentSongId) &&
-    // TV/video/sports own audible media — MiniPlayer must not imply audio owns it.
-    getActivePlaybackOwner() === "shared-audio";
-  const shellContentPaddingBottom = getMobileShellContentPaddingBottom(
-    insets.bottom,
-    showMiniPlayer
+  const activePlaybackOwner = useSyncExternalStore(
+    subscribeActivePlaybackOwner,
+    getActivePlaybackOwnerSnapshot,
+    getActivePlaybackOwnerSnapshot
   );
+
+  const bottomOffset = Math.max(insets.bottom, 8);
+  const showMiniPlayer = shouldShowMiniPlayer(
+    pathname,
+    currentSongId,
+    activePlaybackOwner
+  );
+
   const backgroundVariant = getBackgroundVariant(pathname);
+  const rootNavState = useRootNavigationState();
+  const navigationRouteCount = Array.isArray(rootNavState?.routes)
+    ? rootNavState.routes.length
+    : 0;
+
+  const semanticRef = useRef<{
+    pathname: string;
+    backgroundVariant: PremiumBackgroundVariant;
+  } | null>(null);
+  {
+    countIos217Fabric("pathnameNotifications");
+    countIos217Fabric("backgroundVariantNotifications");
+    const reasons: string[] = [];
+    const prev = semanticRef.current;
+    if (prev) {
+      if (prev.pathname !== pathname) {
+        reasons.push("pathname");
+        countIos217Fabric("pathnameActualChanges");
+      }
+      if (prev.backgroundVariant !== backgroundVariant) {
+        reasons.push("backgroundVariant");
+        countIos217Fabric("backgroundVariantActualChanges");
+      }
+    } else {
+      // First mount — not a churn event.
+    }
+    recordIos217AppShellRenderReasons(reasons);
+    semanticRef.current = { pathname, backgroundVariant };
+  }
 
   const items = useMemo(
     () =>
@@ -189,35 +262,28 @@ export default function AppShell({
       if (!navTapGuardRef.current(item.route)) return;
       markTabNavigationDispatch(item.route);
       navigatePrimaryDestination(item.route, {
-        from: pathname,
+        from: pathnameRef.current,
         source: "AppShell.bottomNav",
       });
     },
-    [pathname]
+    []
   );
 
   useEffect(() => {
     if (pathname === "/music-feed") {
       (globalThis as typeof globalThis & { __htStartIos217OnHome?: () => void })
         .__htStartIos217OnHome?.();
+      sampleIos217OffscreenMountedScreens(Math.max(0, navigationRouteCount - 1));
     }
     const frame = requestAnimationFrame(() => {
       markDestinationFirstFrame(pathname);
     });
     return () => cancelAnimationFrame(frame);
-  }, [pathname]);
+  }, [navigationRouteCount, pathname]);
 
   return (
-    <View style={[styles.shell, Platform.OS === "web" ? styles.webShell : null, style]}>
+    <>
       <PremiumBackground variant={backgroundVariant} />
-      <View
-        style={[
-          styles.content,
-          { paddingBottom: shellContentPaddingBottom },
-        ]}
-      >
-        {children}
-      </View>
 
       {showMiniPlayer ? (
         <View pointerEvents="box-none" style={styles.miniPlayerLayer}>
@@ -225,10 +291,7 @@ export default function AppShell({
         </View>
       ) : null}
 
-      <View
-        pointerEvents="box-none"
-        style={[styles.navWrap, { paddingBottom: bottomOffset }]}
-      >
+      <View pointerEvents="box-none" style={[styles.navWrap, { paddingBottom: bottomOffset }]}>
         <BlurView intensity={30} tint="dark" style={styles.navBlur}>
           <View style={styles.navBar}>
             {items.map((item) => (
@@ -236,6 +299,64 @@ export default function AppShell({
             ))}
           </View>
         </BlurView>
+      </View>
+    </>
+  );
+});
+
+export default function AppShell({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const pathname = usePathname();
+  const insets = useSafeAreaInsets();
+  const currentSongId = useSyncExternalStore(
+    subscribeNowPlaying,
+    getNowPlayingSongIdSnapshot,
+    getNowPlayingSongIdSnapshot
+  );
+  const activePlaybackOwner = useSyncExternalStore(
+    subscribeActivePlaybackOwner,
+    getActivePlaybackOwnerSnapshot,
+    getActivePlaybackOwnerSnapshot
+  );
+  const showMiniPlayer = shouldShowMiniPlayer(
+    pathname,
+    currentSongId,
+    activePlaybackOwner
+  );
+
+  // Sticky bottom inset: once MiniPlayer space is reserved for this route+song,
+  // keep the same padding while the song remains loaded. Progress ticks never
+  // change this value — only songId / route / foreign-owner transitions do.
+  // That prevents Home FlatList from relayouting on playhead updates.
+  const reservedMiniSpaceRef = useRef(false);
+  const previousPaddingFlagRef = useRef(false);
+  if (!isMiniPlayerRoute(pathname) || isForeignPlaybackOwner(activePlaybackOwner)) {
+    reservedMiniSpaceRef.current = false;
+  } else if (showMiniPlayer) {
+    reservedMiniSpaceRef.current = true;
+  } else if (!currentSongId) {
+    reservedMiniSpaceRef.current = false;
+  }
+  const reserveMiniSpace = reservedMiniSpaceRef.current || showMiniPlayer;
+  if (previousPaddingFlagRef.current !== reserveMiniSpace) {
+    previousPaddingFlagRef.current = reserveMiniSpace;
+    countIos217Fabric("miniShellPaddingChanges");
+  }
+  const shellContentPaddingBottom = getMobileShellContentPaddingBottom(
+    insets.bottom,
+    reserveMiniSpace
+  );
+
+  return (
+    <View style={[styles.shell, Platform.OS === "web" ? styles.webShell : null, style]}>
+      <AppShellChrome />
+      <View style={[styles.content, { paddingBottom: shellContentPaddingBottom }]}>
+        {children}
       </View>
     </View>
   );

@@ -60,10 +60,12 @@ function finalize(metrics: MutableMetrics): PlaybackSampleMetrics {
 }
 
 export class Ios217PlaybackDiagnosticCore {
+  private expectedSequence: PlaybackSampleMode[] = EXPECTED;
   private phases: Phase[] = [];
   private active = false;
   private lastTickAt = 0;
   private invalidSequence = false;
+  private singlePhaseLocked = false;
   constructor(private readonly now: () => number = () => globalThis.performance.now()) {}
 
   start(mode: PlaybackSampleMode): boolean {
@@ -72,6 +74,27 @@ export class Ios217PlaybackDiagnosticCore {
     this.phases = [{ mode, startedAt: at, endedAt: null, metrics: blank() }];
     this.lastTickAt = at;
     this.invalidSequence = false;
+    this.singlePhaseLocked = false;
+    this.expectedSequence = EXPECTED;
+    this.active = true;
+    return true;
+  }
+
+  /** PAUSED → PLAYING only. sequence_complete after both phases (Fabric compare). */
+  startPausedPlayingCompare(): boolean {
+    if (!this.start("paused")) return false;
+    this.expectedSequence = ["paused", "playing"];
+    return true;
+  }
+
+  /** One-phase A/B sample (e.g. playing-only progress isolation). No PAUSE/PLAY sequence. */
+  startSinglePhase(mode: PlaybackSampleMode): boolean {
+    const at = this.now();
+    this.phases = [{ mode, startedAt: at, endedAt: null, metrics: blank() }];
+    this.lastTickAt = at;
+    this.invalidSequence = false;
+    this.singlePhaseLocked = true;
+    this.expectedSequence = [mode];
     this.active = true;
     return true;
   }
@@ -82,21 +105,27 @@ export class Ios217PlaybackDiagnosticCore {
     this.phases = [];
     this.lastTickAt = 0;
     this.invalidSequence = false;
+    this.singlePhaseLocked = false;
+    this.expectedSequence = EXPECTED;
   }
   phaseLabel() {
     if (!this.phases.length) return "not started";
     const last = this.phases[this.phases.length - 1];
-    return this.active ? `${this.phases.length}/4 ${last.mode}` : "stopped";
+    if (!this.active) return "stopped";
+    if (this.singlePhaseLocked) return `A/B ${last.mode}`;
+    const total = this.expectedSequence.length;
+    return `${this.phases.length}/${total} ${last.mode}`;
   }
 
   observeMode(mode: PlaybackSampleMode) {
     if (!this.active) return;
+    if (this.singlePhaseLocked) return;
     const current = this.phases[this.phases.length - 1];
     if (mode === current.mode) return;
     const at = this.now();
     current.endedAt = at;
     current.metrics.durationMs = Math.max(0, Math.round(at - current.startedAt));
-    const next = EXPECTED[this.phases.length];
+    const next = this.expectedSequence[this.phases.length];
     if (!next) { this.active = false; return; }
     if (mode !== next) this.invalidSequence = true;
     this.phases.push({ mode, startedAt: at, endedAt: null, metrics: blank() });
@@ -174,7 +203,7 @@ export class Ios217PlaybackDiagnosticCore {
       return finalize(total);
     };
     return {
-      complete: this.phases.length === 4 && !this.invalidSequence,
+      complete: this.phases.length === this.expectedSequence.length && !this.invalidSequence,
       paused: aggregate("paused"),
       playing: aggregate("playing"),
       phases: this.phases.map((phase) => ({
