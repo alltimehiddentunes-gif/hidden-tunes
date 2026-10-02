@@ -10,6 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:distribution-gate": "node scripts/test-distribution-release-gate.mjs",
+    "test:distribution": "npm run test:distribution-gate && npx tsx scripts/test-distribution-validation.ts && npx tsx scripts/test-distribution-coverage.ts && npx tsx scripts/test-distribution-store.ts && npx tsx scripts/test-distribution-routes.ts && npx tsx scripts/test-microsoft-store.ts && npx tsx scripts/test-microsoft-store-client.ts && npx tsx scripts/test-microsoft-store-routes.ts && npx tsx scripts/test-apple-app-store.ts && npx tsx scripts/test-apple-app-store-client.ts && node scripts/test-distribution-collector.mjs && node scripts/test-distribution-protected-auth.mjs && node scripts/test-distribution-cloudflare.mjs",
     "test:music-taxonomy": "tsx scripts/test-music-taxonomy.ts",
     "test:emotional-worlds": "tsx scripts/test-emotional-world-intelligence.ts",
     "reset-admin-auth": "node scripts/reset-admin-auth.mjs",

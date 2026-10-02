@@ -25,6 +25,12 @@ type AdminShellProps = {
 
 const NAV_ITEMS = [
   {
+    href: "/admin/distribution",
+    label: "Distribution",
+    description: "Distribution + Usage",
+    roles: "ownership",
+  },
+  {
     href: "/admin/upload",
     label: "Upload",
     description: "Bulk upload studio",

@@ -1,0 +1,14 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync,writeFileSync,mkdirSync } from "node:fs";
+import { resolve,join } from "node:path";
+import { DistributionDashboard } from "../app/admin/distribution/DistributionDashboard";
+const out=resolve(process.argv[2]||"");
+if(!process.argv[2])throw new Error("Provide an isolated preview output directory");
+mkdirSync(out,{recursive:true});
+const css=readFileSync(new URL("../app/admin/distribution/distribution.css",import.meta.url),"utf8");
+const body=renderToStaticMarkup(createElement(DistributionDashboard,{data:null,period:"today"}));
+const html='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hidden Tunes Distribution — layout preview</title><style>*{box-sizing:border-box}body{margin:0;background:#080f1c;color:#edf3ff;font-family:Arial,sans-serif;padding:24px}h1{font-size:26px;margin:0 0 8px}p{margin:0}button,a{font:inherit}button{cursor:pointer}a{color:#acd5ff}header{margin-bottom:24px}'+css+'</style></head><body><header><p>Hidden Tunes Admin · isolated layout preview</p><h1>Distribution + Usage</h1><p>Preview only. No production events or authentication bypass.</p></header>'+body+'</body></html>';
+writeFileSync(join(out,"dashboard.html"),html);
+writeFileSync(join(out,"index.html"),'<!doctype html><html><head><meta charset="utf-8"><title>Distribution responsive verification</title><style>body{background:#050a13;color:white;font:15px Arial;margin:16px}button{margin:0 10px 12px 0;padding:8px}iframe{border:1px solid #52647c;height:88vh;display:block;margin:auto;max-width:100%}</style></head><body><button onclick="document.querySelector(\'iframe\').style.width=\'1440px\'">Desktop</button><button onclick="document.querySelector(\'iframe\').style.width=\'768px\'">Tablet</button><button onclick="document.querySelector(\'iframe\').style.width=\'390px\'">Mobile</button><button onclick="document.querySelector(\'iframe\').style.width=\'320px\'">320 px</button><iframe title="Distribution dashboard preview" src="/dashboard.html" style="width:1440px"></iframe></body></html>');
+console.log("Preview rendered",out);
