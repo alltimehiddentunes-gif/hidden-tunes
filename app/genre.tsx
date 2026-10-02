@@ -48,6 +48,7 @@ import { compactRoomDiscoverySessionForOffscreen } from "../services/roomDiscove
 import {
   consumePendingGenreMoodAnchor,
 } from "../services/genreAnchorHandoff";
+import { bumpMoodDiscoveryPerf } from "../services/moodDiscoveryIndex";
 import { useLocalization } from "@/localization";
 import { RELATED_SONGS_LABEL } from "@/utils/entityResolution";
 
@@ -246,55 +247,48 @@ export default function GenreScreen() {
         nextPageRef.current = 2;
       }
 
-      // Background: fill first relevant batch OR continue mood pages without blocking UI.
+      // Background: prepare ONE next page only when first paint is thin.
+      // Never loop multi-page discovery on the open path.
       if (
         isMood &&
         !refresh &&
         result.hasMore &&
+        firstPage.length > 0 &&
+        firstPage.length < Math.min(12, MAX_HELD_TRACKS) &&
         focusedRef.current &&
         generation === loadGenerationRef.current &&
-        shouldRunNonEssentialWork()
+        shouldRunNonEssentialWork() &&
+        !isFastScrolling()
       ) {
-        const startPage = firstPage.length > 0 ? 2 : 2;
         void (async () => {
-          let page = startPage;
-          let guard = 0;
-          while (
-            focusedRef.current &&
-            generation === loadGenerationRef.current &&
-            guard < 8
-          ) {
-            guard += 1;
-            if (isFastScrolling()) {
-              pendingLoadMoreRef.current = true;
+          if (isFastScrolling()) {
+            pendingLoadMoreRef.current = true;
+            bumpMoodDiscoveryPerf("paginationDuringFling");
+            return;
+          }
+          try {
+            const more = await loadCatalogView({
+              ...catalogOptions,
+              page: 2,
+            });
+            if (!focusedRef.current || generation !== loadGenerationRef.current) {
+              bumpMoodDiscoveryPerf("staleRequestsDropped");
               return;
             }
-            try {
-              const more = await loadCatalogView({ ...catalogOptions, page });
-              if (!focusedRef.current || generation !== loadGenerationRef.current) return;
-              if (more.songs.length) {
-                setTracks((previous) => {
-                  const seen = new Set(previous.map((song) => String(song.id)));
-                  const appended = more.songs.filter(
-                    (song) => !seen.has(String(song.id))
-                  ) as HiddenTunesSong[];
-                  if (!appended.length && previous.length) return previous;
-                  const merged = [...previous, ...appended].slice(0, MAX_HELD_TRACKS);
-                  setHasMore(more.hasMore && merged.length < MAX_HELD_TRACKS);
-                  nextPageRef.current = page + 1;
-                  return merged.length ? merged : previous;
-                });
-                // Stop auto-fill once we have a useful first batch; scroll continues.
-                if (firstPage.length > 0 || more.songs.length > 0) return;
-              }
-              if (!more.hasMore) {
-                setHasMore(false);
-                return;
-              }
-              page += 1;
-            } catch {
-              return;
-            }
+            if (!more.songs.length) return;
+            setTracks((previous) => {
+              const seen = new Set(previous.map((song) => String(song.id)));
+              const appended = more.songs.filter(
+                (song) => !seen.has(String(song.id))
+              ) as HiddenTunesSong[];
+              if (!appended.length && previous.length) return previous;
+              const merged = [...previous, ...appended].slice(0, MAX_HELD_TRACKS);
+              setHasMore(more.hasMore && merged.length < MAX_HELD_TRACKS);
+              nextPageRef.current = 3;
+              return merged.length ? merged : previous;
+            });
+          } catch {
+            return;
           }
         })();
       }
@@ -349,6 +343,7 @@ export default function GenreScreen() {
     // Scroll priority: never start discovery ranking mid-fling.
     if (isFastScrolling() || !shouldRunNonEssentialWork()) {
       pendingLoadMoreRef.current = true;
+      bumpMoodDiscoveryPerf("paginationDuringFling");
       return;
     }
 

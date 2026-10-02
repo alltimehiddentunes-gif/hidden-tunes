@@ -21,6 +21,7 @@ import {
   splitMoodRequestConcepts,
 } from "./historicalMoodGraph";
 import { MOOD_ROOM_DISCOVERY } from "./moodRoomDiscovery";
+import { bumpMoodDiscoveryPerf, coalesceDiscoveryRequest } from "./moodDiscoveryIndex";
 
 export type GenreAnchoredSong = RadioDiscoverySong & {
   streamUrl?: unknown;
@@ -73,8 +74,8 @@ type PageFetcher = (input: {
 const sessions = new Map<string, GenreAnchoredSession>();
 let defaultFetcher: PageFetcher | null = null;
 
-/** Genre-anchored may page deeper than global mood — pool must stay genre-dense. */
-const GENRE_ANCHORED_MAX_WINDOWS = 12;
+/** Genre-anchored may page a bit deeper than global mood — still bounded. */
+const GENRE_ANCHORED_MAX_WINDOWS = MOOD_ROOM_DISCOVERY.maxWindowsPerRequest + 2;
 
 /** Close-genre map — conservative, catalog-defensible neighbors only. */
 const CLOSE_GENRES: Record<string, string[]> = {
@@ -355,6 +356,45 @@ export async function discoverGenreAnchoredMoodPage(input: {
     Math.max(Number(input.limit) || MOOD_ROOM_DISCOVERY.resultPageSize, 1),
     100
   );
+  if (input.fetchPage) {
+    return runGenreAnchoredMoodPage(input, genre, mood, limit);
+  }
+  const session = createGenreAnchoredSession({
+    genre,
+    mood,
+    id: input.id,
+    reset: Boolean(input.reset),
+  });
+  const coalesceKey = [
+    "genre-anchored",
+    String(input.id || `${genre}|${mood}`).trim().toLowerCase(),
+    genre.toLowerCase(),
+    mood.toLowerCase(),
+    `l${limit}`,
+    `p${session.cursor.catalogPage}`,
+    `b${session.broadeningLevel}`,
+    input.reset ? "reset" : "cont",
+  ].join("|");
+  return coalesceDiscoveryRequest(coalesceKey, () =>
+    runGenreAnchoredMoodPage(input, genre, mood, limit)
+  );
+}
+
+async function runGenreAnchoredMoodPage(
+  input: {
+    genre: string;
+    mood: string;
+    id?: string;
+    limit?: number;
+    reset?: boolean;
+    fetchPage?: PageFetcher;
+  },
+  genre: string,
+  mood: string,
+  limit: number
+): Promise<GenreAnchoredPageResult> {
+  const started = Date.now();
+  bumpMoodDiscoveryPerf("discoveryRequests");
   const session = createGenreAnchoredSession({
     genre,
     mood,
@@ -409,6 +449,7 @@ export async function discoverGenreAnchoredMoodPage(input: {
       return song;
     });
     sourceSongCount += pageSongs.length;
+    bumpMoodDiscoveryPerf("candidateRecordsScanned", pageSongs.length);
     hasMoreCatalog = Boolean(page.hasMore && pageSongs.length > 0);
     ingestMoodCatalogWindow(pageSongs);
 
@@ -536,6 +577,8 @@ export async function discoverGenreAnchoredMoodPage(input: {
     hasMoreCatalog ||
     (catalogFullyScannedAtLevel && session.broadeningLevel <= 6 && session.broadeningLevel > levelReported) ||
     (!session.cursor.catalogExhaustedAtLevel && levelReported < 6);
+
+  bumpMoodDiscoveryPerf("rankingDurationMs", Date.now() - started);
 
   return {
     songs,

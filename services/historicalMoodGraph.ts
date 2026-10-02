@@ -12,6 +12,10 @@ import {
   scoreSongAgainstConcepts,
   type RadioDiscoverySong,
 } from "./radioCatalogDiscovery";
+import {
+  bumpMoodDiscoveryPerf,
+  indexMoodTrackIfChanged,
+} from "./moodDiscoveryIndex";
 
 export type MoodConceptStats = {
   concept: string;
@@ -69,15 +73,6 @@ function ensureConcept(concept: string): MoodConceptStats {
   return row;
 }
 
-function songPlayable(song: RadioDiscoverySong) {
-  return Boolean(
-    (song as { streamUrl?: unknown }).streamUrl ||
-      (song as { url?: unknown }).url ||
-      (song as { audioUrl?: unknown }).audioUrl ||
-      song.isOnline !== false
-  );
-}
-
 function extractRawMoodValues(song: RadioDiscoverySong): string[] {
   const values: string[] = [];
   const push = (value: unknown) => {
@@ -104,20 +99,22 @@ function extractRawMoodValues(song: RadioDiscoverySong): string[] {
 /** Ingest a bounded catalog window into the mood association graph. */
 export function ingestMoodCatalogWindow(songs: RadioDiscoverySong[]) {
   if (!Array.isArray(songs) || !songs.length) return;
+  let changed = 0;
   songs.forEach((song) => {
-    ingestedSongCount += 1;
     const id = text(song.id);
     if (!id) return;
-    const playable = songPlayable(song);
+    // Skip unchanged tracks — normalize once per fingerprint.
+    const indexed = indexMoodTrackIfChanged(song);
+    if (!indexed) return;
+    changed += 1;
+    ingestedSongCount += 1;
+    const playable = indexed.playable;
     const genre = text(song.genre).toLowerCase();
-    const artist = text(song.artist || song.artist_name);
+    const artist = indexed.artist;
     const album = text(song.album || song.album_title);
     const rawValues = extractRawMoodValues(song);
-    const songConcepts = Array.from(
-      new Set(rawValues.flatMap((raw) => normalizeDiscoveryConcepts(raw)))
-    );
-    // Also learn from genre tokens as weak context only when mood-like.
-    const genreConcepts = normalizeDiscoveryConcepts(song.genre);
+    const songConcepts = indexed.moods;
+    const genreConcepts = indexed.genres;
 
     songConcepts.forEach((concept) => {
       const row = ensureConcept(concept);
@@ -142,7 +139,10 @@ export function ingestMoodCatalogWindow(songs: RadioDiscoverySong[]) {
       });
     }
   });
-  graphGeneration += 1;
+  if (changed > 0) {
+    graphGeneration += 1;
+    bumpMoodDiscoveryPerf("historicalGraphRebuilds");
+  }
 }
 
 export function getMoodGraphGeneration() {

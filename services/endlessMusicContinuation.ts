@@ -353,6 +353,8 @@ export function buildLocalContinuationPool<T extends ContinuationSong>(
 
     if (artist && artistLooseMatch(songArtist, artist)) {
       sameArtist.push(song);
+      // Enough same-artist candidates for a refill window — stop scanning.
+      if (sameArtist.length >= cap) break;
       continue;
     }
     if (tokens.length && tokens.some((token) => haystack.includes(token))) {
@@ -372,6 +374,14 @@ export function buildLocalContinuationPool<T extends ContinuationSong>(
       continue;
     }
     rest.push(song);
+
+    // Soft stop: once intent tiers already exceed 2× cap, skip residual dump scan.
+    if (
+      sameArtist.length + queryHits.length + sameGenreMood.length + related.length >=
+      cap * 2
+    ) {
+      break;
+    }
   }
 
   const intent = [...sameArtist, ...queryHits, ...sameGenreMood, ...related];

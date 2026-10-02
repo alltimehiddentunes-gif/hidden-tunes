@@ -96,6 +96,7 @@ import {
   markGenreAnchoredSkipped,
   songMatchesGenreAnchor,
 } from "../services/genreAnchoredMoodDiscovery";
+import { bumpMoodDiscoveryPerf } from "../services/moodDiscoveryIndex";
 import {
   requestMusicRecommendations,
   type MusicRecommendationRequest,
@@ -6728,13 +6729,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (freshRelated.length) rankingSource = "server";
       }
       if (!freshRelated.length) {
-        const memorySongs = (memory as AppSong[]).map(normalizeSong);
-        const catalogSongs = catalogSnapshot.map((song) =>
-          normalizeSong(song as unknown as AppSong)
-        );
-        const combinedSources = [...memorySongs, ...catalogSongs].filter(
-          (song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song))
-        );
+        // Ultra-light: do NOT normalize the full catalog on refill.
+        // Pool builder early-exits; normalize only the ranked window.
+        const memorySongs = memory as AppSong[];
+        const catalogSongs = catalogSnapshot as unknown as AppSong[];
+        const combinedSources = [...memorySongs, ...catalogSongs];
         const intentPool = buildLocalContinuationPool(combinedSources, {
           current,
           context,
@@ -6756,7 +6755,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           matureVisible: shouldIncludeMatureInApi(),
           intent: "continue",
         });
-        freshRelated = ranked.map((entry) => entry.song);
+        freshRelated = ranked
+          .map((entry) => normalizeSong(entry.song))
+          .filter((song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
       }
       if (!freshRelated.length || !isCurrentRefill()) {
         logLockscreenPlaybackDiagnostic("smart_queue_fallback_used", {
@@ -6785,6 +6786,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         "smart_queue"
       );
       await syncActiveQueue(updatedQueue, retainedIndex, "smart", nextContext);
+      bumpMoodDiscoveryPerf("smartQueueRefills");
+      bumpMoodDiscoveryPerf("refillDurationMs", Date.now() - startedAt);
       logLockscreenPlaybackDiagnostic("smart_continuation_used", {
         added: additions.length,
         nextSongId: updatedQueue[retainedIndex + 1]?.id,
