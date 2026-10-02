@@ -21,7 +21,10 @@ import PremiumEmptyState from "../components/PremiumEmptyState";
 import { COLORS, GRADIENTS } from "../constants/theme";
 import {
   getListPerformanceSettings,
+  isFastScrolling,
   markFastScrolling,
+  shouldRunNonEssentialWork,
+  subscribeFastScrolling,
 } from "../utils/performanceMode";
 import { usePlayerActions } from "../context/PlayerContext";
 import { resolveEntityArtwork } from "../utils/artwork";
@@ -37,11 +40,24 @@ import {
   getInstantCatalogView,
   loadCatalogView,
 } from "../services/unifiedCatalog";
+import {
+  MOOD_ROOM_DISCOVERY,
+  takeMoodPlaybackBuffer,
+} from "../services/moodRoomDiscovery";
+import { compactRoomDiscoverySessionForOffscreen } from "../services/roomDiscoverySession";
+import {
+  consumePendingGenreMoodAnchor,
+} from "../services/genreAnchorHandoff";
 import { useLocalization } from "@/localization";
 import { RELATED_SONGS_LABEL } from "@/utils/entityResolution";
 
 function clean(value: string) {
   return String(value || "").trim().toLowerCase();
+}
+
+function paramString(value: unknown) {
+  if (Array.isArray(value)) return String(value[0] || "").trim();
+  return String(value ?? "").trim();
 }
 
 function getSongDurationSeconds(song: HiddenTunesSong) {
@@ -65,11 +81,26 @@ export default function GenreScreen() {
   const { playSong } = usePlayerActions();
   const { t } = useLocalization();
 
-  const title = String(params.title || params.query || "Genre");
+  const title = paramString(params.title) || paramString(params.query) || "Genre";
   const displayTitle =
-    String(params.title || params.query || "").trim() ||
+    paramString(params.title) ||
+    paramString(params.query) ||
     t("music.genre.fallbackGenre");
-  const isMood = String(params.type || "genre") === "mood";
+  const isMood = paramString(params.type || "genre") === "mood";
+  const paramGenreAnchor = paramString(params.genreAnchor);
+  const [genreAnchor, setGenreAnchor] = useState(paramGenreAnchor);
+
+  useEffect(() => {
+    if (paramGenreAnchor) {
+      setGenreAnchor(paramGenreAnchor);
+      return;
+    }
+    if (!isMood) return;
+    const handed = consumePendingGenreMoodAnchor(displayTitle);
+    if (handed) setGenreAnchor(handed);
+  }, [paramGenreAnchor, isMood, displayTitle]);
+
+  const anchoredLabel = genreAnchor && isMood ? `${genreAnchor} · ${displayTitle}` : displayTitle;
 
   const musicUi = useMemo(
     () => ({
@@ -141,8 +172,12 @@ export default function GenreScreen() {
     }),
     [t]
   );
-  const CATALOG_PAGE_LIMIT = 30;
-  const MAX_HELD_TRACKS = 150;
+  const CATALOG_PAGE_LIMIT = isMood
+    ? MOOD_ROOM_DISCOVERY.resultPageSize
+    : 30;
+  const MAX_HELD_TRACKS = isMood
+    ? MOOD_ROOM_DISCOVERY.uiHoldCap
+    : 150;
   const [tracks, setTracks] = useState<HiddenTunesSong[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -151,16 +186,19 @@ export default function GenreScreen() {
   const nextPageRef = useRef(2);
   const focusedRef = useRef(false);
   const loadGenerationRef = useRef(0);
+  const pendingLoadMoreRef = useRef(false);
+  const loadingMoreRef = useRef(false);
 
   const catalogOptions = useMemo(
     () => ({
-      type: String(params.type || "genre") as "genre" | "mood",
-      id: String(params.id || ""),
+      type: (paramString(params.type) || "genre") as "genre" | "mood",
+      id: paramString(params.id),
       title,
-      query: String(params.query || title),
+      query: paramString(params.query) || title,
+      genreAnchor: genreAnchor || undefined,
       limit: CATALOG_PAGE_LIMIT,
     }),
-    [params.id, params.query, params.type, title]
+    [genreAnchor, params.id, params.query, params.type, title]
   );
 
   useEffect(() => {
@@ -181,7 +219,7 @@ export default function GenreScreen() {
       setHasMore(cached.hasMore && cachedTracks.length < MAX_HELD_TRACKS);
       nextPageRef.current = 2;
       setLoading(false);
-    } else {
+    } else if (!refresh) {
       setLoading(true);
     }
 
@@ -194,9 +232,72 @@ export default function GenreScreen() {
       if (!focusedRef.current || generation !== loadGenerationRef.current) return;
 
       const firstPage = result.songs.slice(0, MAX_HELD_TRACKS) as HiddenTunesSong[];
-      setTracks(firstPage);
-      setHasMore(result.hasMore && firstPage.length < MAX_HELD_TRACKS);
-      nextPageRef.current = 2;
+      // Never replace Explore handoff tracks with an empty rediscovery result.
+      if (firstPage.length > 0) {
+        setTracks(firstPage);
+        setHasMore(result.hasMore && firstPage.length < MAX_HELD_TRACKS);
+        nextPageRef.current = 2;
+      } else if (cached?.songs.length) {
+        setHasMore(Boolean(result.hasMore));
+      } else {
+        setTracks([]);
+        // Keep discovering when page 1 is empty but catalog still has pages.
+        setHasMore(Boolean(result.hasMore));
+        nextPageRef.current = 2;
+      }
+
+      // Background: fill first relevant batch OR continue mood pages without blocking UI.
+      if (
+        isMood &&
+        !refresh &&
+        result.hasMore &&
+        focusedRef.current &&
+        generation === loadGenerationRef.current &&
+        shouldRunNonEssentialWork()
+      ) {
+        const startPage = firstPage.length > 0 ? 2 : 2;
+        void (async () => {
+          let page = startPage;
+          let guard = 0;
+          while (
+            focusedRef.current &&
+            generation === loadGenerationRef.current &&
+            guard < 8
+          ) {
+            guard += 1;
+            if (isFastScrolling()) {
+              pendingLoadMoreRef.current = true;
+              return;
+            }
+            try {
+              const more = await loadCatalogView({ ...catalogOptions, page });
+              if (!focusedRef.current || generation !== loadGenerationRef.current) return;
+              if (more.songs.length) {
+                setTracks((previous) => {
+                  const seen = new Set(previous.map((song) => String(song.id)));
+                  const appended = more.songs.filter(
+                    (song) => !seen.has(String(song.id))
+                  ) as HiddenTunesSong[];
+                  if (!appended.length && previous.length) return previous;
+                  const merged = [...previous, ...appended].slice(0, MAX_HELD_TRACKS);
+                  setHasMore(more.hasMore && merged.length < MAX_HELD_TRACKS);
+                  nextPageRef.current = page + 1;
+                  return merged.length ? merged : previous;
+                });
+                // Stop auto-fill once we have a useful first batch; scroll continues.
+                if (firstPage.length > 0 || more.songs.length > 0) return;
+              }
+              if (!more.hasMore) {
+                setHasMore(false);
+                return;
+              }
+              page += 1;
+            } catch {
+              return;
+            }
+          }
+        })();
+      }
     } catch (error) {
       if (!focusedRef.current || generation !== loadGenerationRef.current) return;
       console.log("Genre catalog load error:", error);
@@ -210,18 +311,21 @@ export default function GenreScreen() {
         setRefreshing(false);
       }
     }
-  }, [catalogOptions]);
+  }, [MAX_HELD_TRACKS, catalogOptions, isMood]);
 
   useFocusEffect(
     useCallback(() => {
       focusedRef.current = true;
       return () => {
         focusedRef.current = false;
-        // Ignore in-flight first-page and pagination responses after blur.
+        // Offscreen: cancel in-flight discovery; keep lightweight session IDs only.
         loadGenerationRef.current += 1;
+        pendingLoadMoreRef.current = false;
+        loadingMoreRef.current = false;
         setLoadingMore(false);
+        compactRoomDiscoverySessionForOffscreen(catalogOptions);
       };
-    }, [])
+    }, [catalogOptions])
   );
 
   useEffect(() => {
@@ -234,12 +338,24 @@ export default function GenreScreen() {
   }
 
   const loadMore = useCallback(async () => {
-    if (!focusedRef.current || !hasMore || loadingMore || loading || tracks.length >= MAX_HELD_TRACKS) {
+    if (!focusedRef.current || !hasMore || loadingMoreRef.current || loading) {
+      return;
+    }
+    if (tracks.length >= MAX_HELD_TRACKS) {
+      setHasMore(false);
+      return;
+    }
+
+    // Scroll priority: never start discovery ranking mid-fling.
+    if (isFastScrolling() || !shouldRunNonEssentialWork()) {
+      pendingLoadMoreRef.current = true;
       return;
     }
 
     const generation = loadGenerationRef.current;
     const page = nextPageRef.current;
+    pendingLoadMoreRef.current = false;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
       const result = await loadCatalogView({ ...catalogOptions, page });
@@ -255,16 +371,26 @@ export default function GenreScreen() {
       });
       nextPageRef.current = page + 1;
     } catch (error) {
+      // Soft fail: existing rows + audio stay fully responsive.
       if (focusedRef.current && generation === loadGenerationRef.current) {
         console.log("Genre catalog pagination error:", error);
       }
     } finally {
+      loadingMoreRef.current = false;
       if (focusedRef.current && generation === loadGenerationRef.current) {
         setLoadingMore(false);
       }
     }
-  }, [catalogOptions, hasMore, loading, loadingMore, tracks.length]);
+  }, [MAX_HELD_TRACKS, catalogOptions, hasMore, loading, tracks.length]);
 
+  // Flush deferred pagination after fling settles — never during scroll.
+  useEffect(() => {
+    return subscribeFastScrolling((fast) => {
+      if (fast || !pendingLoadMoreRef.current || !focusedRef.current) return;
+      pendingLoadMoreRef.current = false;
+      void loadMore();
+    });
+  }, [loadMore]);
   const listPerformance = useMemo(
     () => getListPerformanceSettings(tracks.length),
     [tracks.length]
@@ -327,22 +453,36 @@ export default function GenreScreen() {
   const featuredSongs = useMemo(() => tracks.slice(0, 6), [tracks]);
 
   function handlePlaySong(song: HiddenTunesSong, queueIndex: number) {
-    void playSong(song, tracks, queueIndex, {
-      source: String(params.type || "genre") === "mood" ? "mood" : "genre",
-      label: title,
-      genre: String(params.type || "genre") === "mood" ? song.genre : title,
-      mood: String(params.type || "genre") === "mood" ? title : song.mood,
+    const moodMode = String(params.type || "genre") === "mood";
+    const queue = moodMode
+      ? takeMoodPlaybackBuffer(tracks, MOOD_ROOM_DISCOVERY.playbackBuffer)
+      : tracks;
+    const safeIndex = Math.max(
+      0,
+      queue.findIndex((entry) => String(entry.id) === String(song.id))
+    );
+    void playSong(song, queue, safeIndex >= 0 ? safeIndex : 0, {
+      source: moodMode ? "mood" : "genre",
+      label: genreAnchor && moodMode ? `${genreAnchor} · ${title}` : title,
+      genre: moodMode ? genreAnchor || song.genre : title,
+      mood: moodMode ? title : song.mood,
+      searchQuery: moodMode ? title : undefined,
     });
   }
 
   function startRadioSession() {
     const first = tracks[0];
     if (!first) return;
-    void playSong(first, tracks, 0, {
-      source: String(params.type || "genre") === "mood" ? "mood" : "genre",
-      label: title,
-      genre: String(params.type || "genre") === "mood" ? first.genre : title,
-      mood: String(params.type || "genre") === "mood" ? title : first.mood,
+    const moodMode = String(params.type || "genre") === "mood";
+    const queue = moodMode
+      ? takeMoodPlaybackBuffer(tracks, MOOD_ROOM_DISCOVERY.playbackBuffer)
+      : tracks;
+    void playSong(first, queue, 0, {
+      source: moodMode ? "mood" : "genre",
+      label: genreAnchor && moodMode ? `${genreAnchor} · ${title}` : title,
+      genre: moodMode ? genreAnchor || first.genre : title,
+      mood: moodMode ? title : first.mood,
+      searchQuery: moodMode ? title : undefined,
     });
   }
 
@@ -370,7 +510,7 @@ export default function GenreScreen() {
 
         <View style={styles.headerText}>
           <Text style={styles.kicker}>{isMood ? musicUi.room : musicUi.station}</Text>
-          <Text style={styles.title} numberOfLines={1}>{displayTitle}</Text>
+          <Text style={styles.title} numberOfLines={1}>{anchoredLabel}</Text>
           <Text style={styles.subtitle} numberOfLines={1}>{musicUi.songsTaggedInCatalog}</Text>
         </View>
 
@@ -391,7 +531,7 @@ export default function GenreScreen() {
           onScrollEndDrag={() => markFastScrolling(false)}
           onMomentumScrollEnd={() => markFastScrolling(false)}
           data={tracks}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
+          keyExtractor={(item) => String(item.id)}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           initialNumToRender={listPerformance.initialNumToRender}
@@ -419,11 +559,27 @@ export default function GenreScreen() {
                 </View>
                 <Text style={styles.heroTitle} numberOfLines={2}>{displayTitle}</Text>
                 <Text style={styles.heroSubtitle} numberOfLines={2}>
-                  {musicUi.heroMeta(tracks.length, artists.length, albums.length)}
+                  {isMood
+                    ? hasMore
+                      ? `${musicUi.formatTracks(tracks.length)}+ · discovering more`
+                      : musicUi.heroMeta(
+                          tracks.length,
+                          artists.length,
+                          albums.length
+                        )
+                    : musicUi.heroMeta(
+                        tracks.length,
+                        artists.length,
+                        albums.length
+                      )}
                 </Text>
                 <View style={styles.tagRow}>
                   <Text style={styles.tagPill}>{isMood ? musicUi.moodRoomTag : musicUi.radioStation}</Text>
-                  <Text style={styles.tagPill}>{musicUi.formatTracks(tracks.length)}</Text>
+                  <Text style={styles.tagPill}>
+                    {isMood && hasMore
+                      ? `${musicUi.formatTracks(tracks.length)}+`
+                      : musicUi.formatTracks(tracks.length)}
+                  </Text>
                 </View>
                 <TouchableOpacity
                   activeOpacity={0.86}
@@ -494,7 +650,9 @@ export default function GenreScreen() {
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>{musicUi.sectionTitle(recoveryLabel)}</Text>
                 <Text style={styles.sectionSub}>
-                  {musicUi.sectionSubtitle(recoveryLabel, tracks.length)}
+                  {isMood && hasMore
+                    ? `${musicUi.formatTracks(tracks.length)}+ · discovering more`
+                    : musicUi.sectionSubtitle(recoveryLabel, tracks.length)}
                 </Text>
               </View>
             </>

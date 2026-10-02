@@ -12,6 +12,10 @@ import {
   normalizeGenreName,
 } from "./genreNormalization";
 import { songMatchesMoodLabel } from "./moodRooms";
+import {
+  selectMoodCatalogCandidates,
+  splitDiscoveryConcepts,
+} from "../services/radioCatalogDiscovery";
 
 export type CatalogResolverType =
   | "genre"
@@ -297,12 +301,13 @@ export function buildCatalogTarget(input: {
   const title = canonical?.title || rawTitle || "Catalog";
   const query = String(input.query || canonical?.query || title).trim();
   const id = String(input.id || canonical?.id || normalizeCatalogKey(title)).trim();
-  // Mood rooms must match on the room title/id — not free-text search queries
-  // like "heartbreak emotional music", which are discovery hints only.
+  // Mood rooms must match on the room title/id — expand free-form concepts.
+  const moodConceptLabels =
+    type === "mood" ? splitDiscoveryConcepts(title || rawTitle) : [];
   const labels = Array.from(
     new Set(
       (type === "mood"
-        ? [title, rawTitle, id]
+        ? [title, rawTitle, id, ...moodConceptLabels]
         : [
             title,
             query,
@@ -357,16 +362,28 @@ export function matchSongsForCatalogTarget<T extends CatalogSongLike>(
   }
 
   if (target.type === "mood") {
-    filterSongsByCatalogLabel(songs, target.title, "mood").forEach((song) => {
+    // Multi-concept mood rooms (e.g. "Afro, Party, Chill") match ANY concept, ranked by strength.
+    const selected = selectMoodCatalogCandidates(songs, target.title, songs.length || 1);
+    selected.songs.forEach((song) => {
       const key = String((song as { id?: unknown }).id || "")
         .toLowerCase()
         .trim();
-
       if (!key || seen.has(key)) return;
-
       seen.add(key);
       matches.push(song);
     });
+
+    // Preserve prior single-label path for premium rooms when concept scan is empty.
+    if (!matches.length) {
+      filterSongsByCatalogLabel(songs, target.title, "mood").forEach((song) => {
+        const key = String((song as { id?: unknown }).id || "")
+          .toLowerCase()
+          .trim();
+        if (!key || seen.has(key)) return;
+        seen.add(key);
+        matches.push(song);
+      });
+    }
 
     return matches;
   }

@@ -2,10 +2,16 @@ import assert from "node:assert/strict";
 
 import {
   ENDLESS_MUSIC_LIMITS,
+  buildLocalContinuationPool,
   createContinuationSession,
+  formatSmartQueueLabel,
   rankContinuationCandidates,
   shouldRefillContinuationQueue,
 } from "../services/endlessMusicContinuation";
+import {
+  extractRadioSeedArtist,
+  selectRadioCatalogCandidates,
+} from "../services/radioCatalogDiscovery";
 
 const song = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
@@ -16,6 +22,21 @@ const song = (id: string, extra: Record<string, unknown> = {}) => ({
   isOnline: true,
   ...extra,
 });
+
+function recordingKey(entry: { id?: string; title?: string; artist?: string }) {
+  const title = String(entry.title || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  const artist = String(entry.artist || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  if (title && artist) return `meta:${title}:${artist}`;
+  return `id:${String(entry.id || "").toLowerCase()}`;
+}
 
 const baseInput = {
   current: song("current", {
@@ -150,6 +171,166 @@ const baseInput = {
   );
   const ranked = rankContinuationCandidates([...repeatedArtist, ...alternatives], baseInput);
   assert.ok(ranked.filter((entry) => entry.song.artist === "Same Artist").length <= 2);
+}
+
+{
+  // Shepherd / Elevation Worshippers: intent pool must beat random catalog prefix.
+  const seed = song("shepherd-seed", {
+    title: "The lord is my shepherd",
+    artist: "Elevation Worshippers",
+    genre: "Gospel",
+    mood: "Spiritual",
+  });
+  const unrelatedPrefix = Array.from({ length: 180 }, (_, index) =>
+    song(`pop-prefix-${index}`, {
+      title: `Pop Hit ${index}`,
+      artist: `Pop Star ${index}`,
+      genre: "Pop",
+      streamUrl: `https://example.com/pop-${index}.mp3`,
+    })
+  );
+  const related = [
+    song("elev-1", {
+      title: "Shepherd of Love",
+      artist: "Elevation Worshippers",
+      genre: "Gospel",
+      mood: "Spiritual",
+    }),
+    song("elev-2", {
+      title: "Praise Forever",
+      artist: "Elevation Worshippers",
+      genre: "Gospel",
+    }),
+    song("gospel-1", {
+      title: "Holy Ground",
+      artist: "Gospel Choir",
+      genre: "Gospel",
+      mood: "Spiritual",
+    }),
+    song("unrelated-deep", {
+      title: "Club Banger",
+      artist: "DJ Night",
+      genre: "Dance",
+    }),
+  ];
+  const catalog = [...unrelatedPrefix, ...related];
+  const pool = buildLocalContinuationPool(catalog, {
+    current: seed,
+    context: {
+      source: "search",
+      searchQuery: "shepherd",
+      artistName: "Elevation Worshippers",
+      genre: "Gospel",
+      mood: "Spiritual",
+      label: "Search: shepherd",
+    },
+  });
+  assert.ok(
+    pool.every((entry) => entry.artist !== "Pop Star 0"),
+    "intent pool must not start with random catalog prefix"
+  );
+  assert.ok(
+    pool.filter((entry) => String(entry.artist).includes("Elevation")).length >= 2,
+    "same-artist tracks must be in the intent pool"
+  );
+  const ranked = rankContinuationCandidates(pool, {
+    ...baseInput,
+    current: seed,
+    context: {
+      source: "search",
+      searchQuery: "shepherd",
+      artistName: "Elevation Worshippers",
+      genre: "Gospel",
+      mood: "Spiritual",
+      label: "Search: shepherd",
+    },
+    existingQueue: [seed],
+  });
+  assert.ok(ranked.length > 0, "smart queue must produce candidates");
+  assert.ok(
+    ranked.every((entry) => {
+      const artist = String(entry.song.artist || "").toLowerCase();
+      const genre = String(entry.song.genre || "").toLowerCase();
+      const title = String(entry.song.title || "").toLowerCase();
+      return (
+        artist.includes("elevation") ||
+        genre.includes("gospel") ||
+        title.includes("shepherd")
+      );
+    }),
+    "ranked smart queue must stay relevant to seed"
+  );
+  assert.equal(
+    formatSmartQueueLabel({
+      source: "search",
+      label: "Search: shepherd",
+      searchQuery: "shepherd",
+    }),
+    "Smart Queue · Search: shepherd"
+  );
+}
+
+{
+  const a = song("id-a", { title: "Same Recording", artist: "Dup Artist" });
+  const b = song("id-b", { title: "Same Recording", artist: "Dup Artist" });
+  assert.equal(recordingKey(a), recordingKey(b));
+  const ranked = rankContinuationCandidates([a, b], {
+    ...baseInput,
+    current: song("seed-dup", { title: "Seed", artist: "Dup Artist", genre: "R&B" }),
+    context: { source: "artist", artistName: "Dup Artist" },
+    existingQueue: [song("seed-dup")],
+  });
+  assert.equal(ranked.length, 1, "recording-level dedupe must collapse alternate ids");
+}
+
+{
+  assert.equal(
+    extractRadioSeedArtist({
+      title: "Elevation Worshippers Radio",
+      query: "Elevation Worshippers songs",
+    }),
+    "Elevation Worshippers"
+  );
+  const catalog = [
+    song("elev-radio-1", {
+      title: "The Lord Is My Shepherd",
+      artist: "Elevation Worshippers",
+      genre: "Gospel",
+      mood: "Spiritual",
+    }),
+    song("gospel-radio-1", {
+      title: "Amazing Grace",
+      artist: "Faith Band",
+      genre: "Gospel",
+      mood: "Spiritual",
+    }),
+    song("pop-radio-1", {
+      title: "Neon Lights",
+      artist: "City Pop",
+      genre: "Pop",
+    }),
+  ];
+  const artistRadio = selectRadioCatalogCandidates(catalog, {
+    title: "Elevation Worshippers Radio",
+    query: "Elevation Worshippers songs",
+    genre: "Gospel",
+    mood: "Spiritual",
+  });
+  assert.ok(artistRadio.length > 0, "Artist Radio must not false-zero when catalog has matches");
+  assert.ok(
+    artistRadio.some((entry) => String(entry.artist).includes("Elevation")),
+    "Artist Radio must prefer seed artist tracks"
+  );
+
+  const hiddenRadio = selectRadioCatalogCandidates(
+    [
+      song("h1", { artist: "A", genre: "Pop" }),
+      song("h2", { artist: "B", genre: "Jazz" }),
+      song("h3", { artist: "C", genre: "Gospel" }),
+    ],
+    { title: "Hidden Tunes Radio" }
+  );
+  assert.ok(hiddenRadio.length > 0, "Hidden Radio must use local diversified catalog");
 }
 
 console.log("PASS endless emotional continuation");

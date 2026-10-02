@@ -829,7 +829,26 @@ export default function PlayerScreen() {
       fireLightHaptic();
 
       if (type === "mood") {
-        openMoodCatalog(trimmed);
+        // Genre session → mood tap: hard-lock genre, refine with mood.
+        // Prefer explicit queue genre context; never rely on track metadata alone
+        // when the user is already inside a genre station.
+        const fromGenreSession =
+          activeQueueContext?.source === "genre"
+            ? String(activeQueueContext.genre || activeQueueContext.label || "").trim()
+            : "";
+        const fromMoodAlreadyAnchored =
+          activeQueueContext?.source === "mood"
+            ? String(activeQueueContext.genre || "").trim()
+            : "";
+        const fromArtistGenre =
+          activeQueueContext?.source === "artist"
+            ? String(activeQueueContext.genre || "").trim()
+            : "";
+        const genreAnchor =
+          fromGenreSession || fromMoodAlreadyAnchored || fromArtistGenre;
+        openMoodCatalog(trimmed, undefined, {
+          genreAnchor: genreAnchor || undefined,
+        });
         return;
       }
 
@@ -852,7 +871,7 @@ export default function PlayerScreen() {
         },
       } as any);
     },
-    [artist]
+    [activeQueueContext, artist]
   );
 
   if (!currentSong) {

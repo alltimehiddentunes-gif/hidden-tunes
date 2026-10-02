@@ -25,9 +25,17 @@ import {
 } from "../services/youtubeBackend";
 
 import {
+  getHiddenTunesCatalogSnapshot,
+  getHiddenTunesSongsPage,
+  hydrateHiddenTunesCatalogCache,
   searchHiddenTunesSongs,
   type HiddenTunesNormalizedSong,
 } from "../services/hiddenTunesApi";
+import { getHydratedCatalogSnapshot } from "../state/catalogFetchLayer";
+import {
+  extractRadioSeedArtist,
+  traceRadioCatalogDiscovery,
+} from "../services/radioCatalogDiscovery";
 
 import {
   guessGenreFromText,
@@ -47,6 +55,29 @@ function cleanQuery(value: string) {
     .replace(/\s+songs$/i, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function recordingDedupeKey(song: {
+  id?: unknown;
+  title?: unknown;
+  artist?: unknown;
+  streamUrl?: unknown;
+  url?: unknown;
+}) {
+  const title = String(song?.title || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  const artist = String(song?.artist || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  if (title && artist) return `meta:${title}:${artist}`;
+  return String(song.id || song.streamUrl || song.url || "")
+    .trim()
+    .toLowerCase();
 }
 
 function getArtwork(song: any) {
@@ -84,7 +115,7 @@ function dedupeSongs(songs: HiddenTunesNormalizedSong[]) {
   const seen = new Set<string>();
 
   return songs.filter((song) => {
-    const key = String(song.id || song.streamUrl || song.url).toLowerCase();
+    const key = recordingDedupeKey(song);
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return Boolean(song.streamUrl || song.url);
@@ -165,6 +196,7 @@ export default function RadioScreen() {
 
   const title = String(params.title || "Hidden Tunes Radio");
   const artist = String(params.artist || "");
+  const artistId = String(params.artistId || "");
   const genre = String(params.genre || "");
   const mood = String(params.mood || "");
 
@@ -196,51 +228,141 @@ export default function RadioScreen() {
       setLoading(true);
       setStatusText("Finding tracks for you...");
 
-      const searchQueries = Array.from(
-        new Set(
-          [
-            query,
-            title,
-            artist,
-            genre,
-            mood,
-            radioGenre,
-            radioMood,
-            query.replace(/&/g, "and"),
-          ]
-            .map((item) => cleanQuery(String(item || "")))
-            .filter(Boolean)
-        )
+      const seedArtist = extractRadioSeedArtist({
+        artist,
+        title,
+        query,
+      });
+
+      // Ensure hydrated catalog is available before local discovery.
+      let localCatalog =
+        getHydratedCatalogSnapshot().length > 0
+          ? getHydratedCatalogSnapshot()
+          : getHiddenTunesCatalogSnapshot();
+      if (localCatalog.length < 20) {
+        try {
+          localCatalog = await hydrateHiddenTunesCatalogCache();
+        } catch {
+          // Keep whatever snapshot we have.
+        }
+      }
+      if (!isCurrentRequest()) return;
+
+      const traced = traceRadioCatalogDiscovery(
+        localCatalog as HiddenTunesNormalizedSong[],
+        {
+          artist: seedArtist,
+          title,
+          query,
+          genre: radioGenre,
+          mood: radioMood,
+          artistId,
+        },
+        80
       );
+      if (__DEV__ && traced.trace.zeroStage) {
+        console.log("[HTRadioDiscovery]", traced.trace);
+      }
+      const localMatches = traced.songs.map(safeSong);
+
+      if (!isCurrentRequest()) return;
+
+      if (localMatches.length > 0) {
+        const uniqueLocal = dedupeSongs(localMatches);
+        setCloudTracks(uniqueLocal);
+        setYoutubeTracks([]);
+        setStatusText(`${uniqueLocal.length} tracks ready`);
+        return;
+      }
 
       let combinedCloudSongs: HiddenTunesNormalizedSong[] = [];
 
-      for (const searchTerm of searchQueries) {
-        const results = await searchHiddenTunesSongs(searchTerm);
-        if (!isCurrentRequest()) return;
+      // 2) API by artistId
+      if (artistId) {
+        try {
+          const page = await getHiddenTunesSongsPage({
+            artistId,
+            page: 1,
+            limit: 50,
+          });
+          if (!isCurrentRequest()) return;
+          if (Array.isArray(page?.songs) && page.songs.length) {
+            combinedCloudSongs = page.songs.map(safeSong);
+          }
+        } catch {
+          // soft-fail to next tier
+        }
+      }
 
-        if (Array.isArray(results)) {
-          combinedCloudSongs = [...combinedCloudSongs, ...results.map(safeSong)];
+      // 3) API by genre (Gospel etc.)
+      if (
+        !combinedCloudSongs.length &&
+        radioGenre &&
+        radioGenre !== "Mixed"
+      ) {
+        try {
+          const page = await getHiddenTunesSongsPage({
+            genre: radioGenre,
+            page: 1,
+            limit: 50,
+          });
+          if (!isCurrentRequest()) return;
+          if (Array.isArray(page?.songs) && page.songs.length) {
+            combinedCloudSongs = page.songs.map(safeSong);
+          }
+        } catch {
+          // soft-fail to next tier
+        }
+      }
+
+      // 4) q= search terms (existing path, last network music tier)
+      if (!combinedCloudSongs.length) {
+        const searchQueries = Array.from(
+          new Set(
+            [
+              seedArtist,
+              query,
+              title,
+              artist,
+              genre,
+              mood,
+              radioGenre,
+              radioMood,
+              query.replace(/&/g, "and"),
+            ]
+              .map((item) => cleanQuery(String(item || "")))
+              .filter(Boolean)
+          )
+        );
+
+        for (const searchTerm of searchQueries) {
+          const results = await searchHiddenTunesSongs(searchTerm);
+          if (!isCurrentRequest()) return;
+
+          if (Array.isArray(results) && results.length) {
+            combinedCloudSongs = [...combinedCloudSongs, ...results.map(safeSong)];
+          }
         }
       }
 
       const uniqueCloudSongs = dedupeSongs(combinedCloudSongs);
       if (!isCurrentRequest()) return;
 
-      setCloudTracks(uniqueCloudSongs);
-
       if (uniqueCloudSongs.length > 0) {
+        setCloudTracks(uniqueCloudSongs);
         setYoutubeTracks([]);
         setStatusText(`${uniqueCloudSongs.length} tracks ready`);
         return;
       }
 
+      // 5) YouTube soft expansion
       setStatusText("Expanding your station...");
 
       const youtubeQueries = [
-        `${query} music`,
+        `${seedArtist || query} music`,
+        seedArtist ? `${seedArtist} songs` : "",
         artist ? `${artist} songs` : "",
-        genre ? `${genre} music` : "",
+        radioGenre && radioGenre !== "Mixed" ? `${radioGenre} music` : "",
       ].filter(Boolean);
 
       const responses = await Promise.all(
@@ -252,6 +374,7 @@ export default function RadioScreen() {
       const merged = responses.flat().filter(Boolean);
       const uniqueYouTube = dedupeYouTubeTracks(merged);
 
+      setCloudTracks([]);
       setYoutubeTracks(uniqueYouTube);
       setStatusText(
         uniqueYouTube.length > 0
@@ -266,7 +389,7 @@ export default function RadioScreen() {
     } finally {
       if (isCurrentRequest()) setLoading(false);
     }
-  }, [artist, genre, mood, query, radioGenre, radioMood, title]);
+  }, [artist, artistId, genre, mood, query, radioGenre, radioMood, title]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -284,13 +407,16 @@ export default function RadioScreen() {
       const tapStartedAt = startPerformanceTimer();
       const queue = dedupeSongs(cloudTracks.map(safeSong));
       const normalized = safeSong(song);
+      const seedArtist = extractRadioSeedArtist({ artist, title, query });
 
       void playSong(normalized as any, queue as any, index, {
         source: "radio",
-        label: "Radio",
-        artistName: normalized.artist,
-        genre: normalized.genre,
-        mood: normalized.mood,
+        label: title || "Radio",
+        artistName: seedArtist || normalized.artist,
+        artistId: artistId || undefined,
+        genre: radioGenre || normalized.genre,
+        mood: radioMood || normalized.mood,
+        searchQuery: seedArtist || query || undefined,
       })
         .finally(() => {
           logTapToPlay("radio", tapStartedAt, { id: normalized.id });
@@ -303,7 +429,7 @@ export default function RadioScreen() {
         router.push("/music-feed" as any);
       });
     } catch {}
-  }, [cloudTracks, playSong]);
+  }, [artist, artistId, cloudTracks, playSong, query, radioGenre, radioMood, title]);
 
   const openYouTubeTrack = useCallback((track: BackendYouTubeTrack, index: number) => {
     const videoId = getTrackVideoId(track);

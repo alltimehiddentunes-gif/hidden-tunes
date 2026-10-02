@@ -61,6 +61,9 @@ import {
   type HiddenTunesSong,
 } from "@/services/hiddenTunes";
 import { getHiddenTunesSongsPage } from "@/services/hiddenTunesApi";
+import { setCatalogViewSeed } from "@/services/catalogViewSeed";
+import { invalidateCatalogViewForTarget } from "@/services/unifiedCatalog";
+import { rankSongsForRoomRelevance } from "@/services/roomRelevance";
 import {
   type HiddenTunesAlbum,
   type HiddenTunesArtist,
@@ -1511,6 +1514,15 @@ export default function MusicFeedScreen() {
   const openGenre = useCallback(
     (genre: HiddenTunesGenreCatalogItem | HiddenTunesGenre | CatalogGroup) => {
       void recordGenreSpotlightOpen(genre.title);
+      const roomType = "type" in genre ? genre.type : "genre";
+      const nav = {
+        type: roomType as "mood" | "genre",
+        id: genre.id,
+        title: genre.title,
+        query: genre.title,
+      };
+      invalidateCatalogViewForTarget(nav);
+
       if (
         "type" in genre &&
         genre.type === "mood" &&
@@ -1524,14 +1536,23 @@ export default function MusicFeedScreen() {
           void recordMoodRoomGenreEngagement(moodGenres);
         }
       }
+      if (Array.isArray((genre as any).songs) && (genre as any).songs.length) {
+        const relevant = rankSongsForRoomRelevance((genre as any).songs, {
+          title: genre.title,
+          id: genre.id,
+          type: roomType,
+          limit: 24,
+        }).map((hit) => hit.song);
+        if (relevant.length) {
+          setCatalogViewSeed({
+            ...nav,
+            songs: relevant as any,
+          });
+        }
+      }
       router.push({
         pathname: "/genre",
-        params: {
-          title: genre.title,
-          query: genre.title,
-          id: genre.id,
-          type: "type" in genre ? genre.type : "genre",
-        },
+        params: nav,
       } as any);
     },
     []

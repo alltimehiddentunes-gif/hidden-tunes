@@ -80,11 +80,22 @@ import { normalizeRadioStation } from "../services/radio/radioNormalizer";
 import {
   ENDLESS_MUSIC_LIMITS,
   createContinuationSession,
+  buildLocalContinuationPool,
+  formatSmartQueueLabel,
   rankContinuationCandidates,
   shouldRefillContinuationQueue,
   type ContinuationSession,
   type ContinuationUserIntent,
 } from "../services/endlessMusicContinuation";
+import {
+  discoverMoodRoomPage,
+  markMoodRoomSongsSeen,
+} from "../services/moodRoomDiscovery";
+import {
+  discoverGenreAnchoredMoodPage,
+  markGenreAnchoredSkipped,
+  songMatchesGenreAnchor,
+} from "../services/genreAnchoredMoodDiscovery";
 import {
   requestMusicRecommendations,
   type MusicRecommendationRequest,
@@ -6583,6 +6594,82 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         .slice(0, ENDLESS_MUSIC_LIMITS.recentWindow)
         .map((song) => String(song.id));
       const existingQueueIds = new Set(smartQueue.map((song) => String(song.id)));
+      let freshRelated: AppSong[] = [];
+      let rankingSource: "server" | "local_fallback" | "mood_paginated" = "local_fallback";
+      let candidateCount = 0;
+
+      const moodSeed = String(
+        context.source === "mood"
+          ? context.searchQuery || context.mood || context.label || ""
+          : ""
+      ).trim();
+      const genreAnchor = String(
+        context.source === "mood" ? context.genre || "" : ""
+      ).trim();
+      if (moodSeed && options?.networkAllowed !== false) {
+        try {
+          if (genreAnchor) {
+            markGenreAnchoredSkipped(
+              { genre: genreAnchor, mood: moodSeed, id: `${genreAnchor}|${moodSeed}` },
+              smartQueue.map((song) => String(song.id || ""))
+            );
+            const anchored = await discoverGenreAnchoredMoodPage({
+              genre: genreAnchor,
+              mood: moodSeed,
+              id: `${genreAnchor}|${moodSeed}`,
+              limit: ENDLESS_MUSIC_LIMITS.refillBatch,
+            });
+            if (!isCurrentRefill()) return false;
+            const anchoredCandidates = anchored.songs
+              .map((song) => normalizeSong(song as unknown as AppSong))
+              .filter(
+                (song) =>
+                  !existingQueueIds.has(String(song.id)) &&
+                  !isYouTubeSong(song) &&
+                  Boolean(getPlayableUri(song)) &&
+                  (anchored.broadeningLevel > 3 ||
+                    songMatchesGenreAnchor(
+                      song as any,
+                      genreAnchor
+                    ))
+              );
+            if (anchoredCandidates.length) {
+              freshRelated = anchoredCandidates.slice(
+                0,
+                ENDLESS_MUSIC_LIMITS.refillBatch
+              );
+              rankingSource = "mood_paginated";
+              candidateCount = anchoredCandidates.length;
+            }
+          } else {
+            markMoodRoomSongsSeen(moodSeed, moodSeed, smartQueue as any);
+            const moodPage = await discoverMoodRoomPage({
+              moodLabel: moodSeed,
+              id: moodSeed,
+              limit: ENDLESS_MUSIC_LIMITS.refillBatch,
+            });
+            if (!isCurrentRefill()) return false;
+            const moodCandidates = moodPage.songs
+              .map((song) => normalizeSong(song as unknown as AppSong))
+              .filter(
+                (song) =>
+                  !existingQueueIds.has(String(song.id)) &&
+                  !isYouTubeSong(song) &&
+                  Boolean(getPlayableUri(song))
+              );
+            if (moodCandidates.length) {
+              freshRelated = moodCandidates.slice(0, ENDLESS_MUSIC_LIMITS.refillBatch);
+              rankingSource = "mood_paginated";
+              candidateCount = moodCandidates.length;
+            }
+          }
+        } catch (error) {
+          if (typeof __DEV__ !== "undefined" && __DEV__) {
+            console.log("[HTMoodRoomDiscovery] auto-next refill failed", error);
+          }
+        }
+      }
+
       const recommendationRequest: MusicRecommendationRequest = {
         seedSongId: String(current.id),
         journeyIntent: "CONTINUE",
@@ -6595,15 +6682,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           .map((song) => String(song.id)),
         listener: { favorites: [...favoriteIds] },
       };
-      const serverResult = options?.networkAllowed === false
-        ? null
-        : await requestMusicRecommendations(recommendationRequest);
+      const serverResult =
+        freshRelated.length || options?.networkAllowed === false
+          ? null
+          : await requestMusicRecommendations(recommendationRequest);
       if (!isCurrentRefill()) return false;
 
-      let freshRelated: AppSong[] = [];
-      let rankingSource: "server" | "local_fallback" = "local_fallback";
-      let candidateCount = 0;
       if (
+        !freshRelated.length &&
         serverResult &&
         isCurrentMusicRecommendationResult(serverResult, {
           seedSongId: String(current.id),
@@ -6642,18 +6728,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (freshRelated.length) rankingSource = "server";
       }
       if (!freshRelated.length) {
-        const catalogSongs = catalogSnapshot
-          .slice(0, ENDLESS_MUSIC_LIMITS.candidateCap)
-          .map((song) => normalizeSong(song as unknown as AppSong));
-        const combinedLibrary = [...(memory as AppSong[]), ...catalogSongs]
-          .slice(0, ENDLESS_MUSIC_LIMITS.candidateCap)
-          .map(normalizeSong)
-          .filter((song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song)));
+        const memorySongs = (memory as AppSong[]).map(normalizeSong);
+        const catalogSongs = catalogSnapshot.map((song) =>
+          normalizeSong(song as unknown as AppSong)
+        );
+        const combinedSources = [...memorySongs, ...catalogSongs].filter(
+          (song) => !isYouTubeSong(song) && Boolean(getPlayableUri(song))
+        );
+        const intentPool = buildLocalContinuationPool(combinedSources, {
+          current,
+          context,
+          excludeIds: existingQueueIds,
+          cap: ENDLESS_MUSIC_LIMITS.candidateCap,
+        });
         const playCounts = new Map(
           recentlyPlayedRef.current.map((song) => [String(song.id), song.playCount || 1])
         );
-        candidateCount = combinedLibrary.length;
-        const ranked = rankContinuationCandidates(combinedLibrary, {
+        candidateCount = intentPool.length;
+        const ranked = rankContinuationCandidates(intentPool, {
           current,
           context,
           existingQueue: smartQueue,
@@ -6684,7 +6776,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         {
           ...context,
           source: context.source === "unknown" ? "smart_queue" : context.source,
-          label: context.label || "Smart continuation",
+          label: formatSmartQueueLabel({
+            ...context,
+            label: context.label,
+          }),
+          queueType: context.queueType || "smart_queue",
         },
         "smart_queue"
       );

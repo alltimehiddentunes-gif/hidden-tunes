@@ -19,6 +19,9 @@ import { router } from "expo-router";
 import MoodRoomCard from "../../components/explore/MoodRoomCard";
 import HTImage from "../../components/HTImage";
 import AppShell from "../../components/navigation/AppShell";
+import { setCatalogViewSeed } from "../../services/catalogViewSeed";
+import { rankSongsForRoomRelevance } from "../../services/roomRelevance";
+import { invalidateCatalogViewForTarget } from "../../services/unifiedCatalog";
 import { COLORS, GRADIENTS } from "../../constants/theme";
 import {
   usePlayerActions,
@@ -168,7 +171,7 @@ const ROOM_DEFINITIONS = [
     title: "Country Station",
     subtitle: "Story-led songs and open-road warmth",
     icon: "trail-sign" as const,
-    terms: ["country", "folk", "acoustic", "guitar", "road", "home"],
+    terms: ["country", "americana", "bluegrass", "nashville", "folk"],
     type: "station" as const,
   },
   {
@@ -222,13 +225,6 @@ function getArtwork(song?: HiddenTunesSong | null) {
   return song?.cover || song?.artwork || song?.thumbnail || "";
 }
 
-function songSearchText(song: HiddenTunesSong) {
-  return [song.title, song.artist, song.album, song.genre, song.mood, song.lyrics]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
-
 function uniqSongs(songs: HiddenTunesSong[]) {
   const seen = new Set<string>();
   return songs.filter((song) => {
@@ -245,18 +241,20 @@ function findSongIndex(songs: HiddenTunesSong[], song: { id?: string }) {
 }
 
 function buildDiscoveryRoom(definition: (typeof ROOM_DEFINITIONS)[number], songs: HiddenTunesSong[]) {
-  const matches = songs.filter((song) => {
-    const text = songSearchText(song);
-    return definition.terms.some((term) => text.includes(term.toLowerCase()));
+  // Relevance-first: never pad with catalog prefix / unrelated playable tracks.
+  const ranked = rankSongsForRoomRelevance(songs, {
+    title: definition.title,
+    id: definition.id,
+    terms: definition.terms,
+    limit: 24,
   });
-  const roomSongs = uniqSongs(matches).slice(0, 24);
-  const fallback = songs.find((song) => getArtwork(song)) || songs[0];
-  const first = roomSongs.find((song) => getArtwork(song)) || roomSongs[0] || fallback;
+  const roomSongs = ranked.map((hit) => hit.song);
+  const firstWithArt = roomSongs.find((song) => getArtwork(song)) || roomSongs[0] || null;
 
   return {
     ...definition,
-    songs: roomSongs.length ? roomSongs : uniqSongs(songs).slice(0, 12),
-    artwork: getArtwork(first),
+    songs: roomSongs,
+    artwork: getArtwork(firstWithArt),
   } satisfies DiscoveryRoom;
 }
 
@@ -475,7 +473,9 @@ export default function WorldsIndexScreen() {
         id: `room-${room.id}`,
         label: room.eyebrow,
         title: room.title,
-        subtitle: `${room.songs.length} track${room.songs.length === 1 ? "" : "s"} ready`,
+        subtitle: room.songs.length
+          ? `${room.songs.length} track${room.songs.length === 1 ? "" : "s"} ready`
+          : "Tap to discover matching tracks",
         artwork: room.artwork || artworkSong,
         icon: room.icon,
         room,
@@ -573,46 +573,121 @@ export default function WorldsIndexScreen() {
 
   const playRoom = useCallback(
     (room: DiscoveryRoom) => {
-      const first = room.songs[0] || songs[0];
+      // Never fall back to unrelated catalog prefix tracks.
+      const first = room.songs[0];
       if (!first) return;
       playQueue(first, room.songs, room.title, room.type === "genre" ? "genre" : "mood");
     },
-    [playQueue, songs]
+    [playQueue]
   );
 
-  const openRoom = useCallback((room: DiscoveryRoom) => {
-    router.push({
-      pathname: "/genre",
-      params: {
+  const resolveRoomNav = useCallback((room: DiscoveryRoom) => {
+    // Country Station is a genre station — open as Country, not a vague mood dump.
+    if (room.id === "country-station") {
+      return {
+        type: "genre" as const,
+        id: room.id,
+        title: "Country",
+        query: "Country",
+      };
+    }
+    if (room.type === "genre") {
+      return {
+        type: "genre" as const,
         id: room.id,
         title: room.title,
         query: room.title,
-        type: room.type === "genre" ? "genre" : "mood",
-      },
-    } as any);
+      };
+    }
+    return {
+      type: "mood" as const,
+      id: room.id,
+      title: room.title,
+      query: room.title,
+    };
   }, []);
 
-  const openMoodRoom = useCallback((room: ExploreMoodRoom) => {
+  const openRoom = useCallback((room: DiscoveryRoom) => {
+    const nav = resolveRoomNav(room);
+    // Always drop stale wrong candidates from prior pad-to-12 sessions.
+    invalidateCatalogViewForTarget(nav);
+
+    const relevant = Array.isArray(room.songs)
+      ? rankSongsForRoomRelevance(room.songs as any, {
+          title: nav.title,
+          id: nav.id,
+          query: nav.query,
+          terms: room.terms,
+          limit: 24,
+        }).map((hit) => hit.song)
+      : [];
+
+    if (relevant.length) {
+      setCatalogViewSeed({
+        type: nav.type,
+        id: nav.id,
+        title: nav.title,
+        query: nav.query,
+        songs: relevant as any,
+      });
+    }
+
     router.push({
       pathname: "/genre",
-      params: {
-        id: room.id,
-        title: room.title,
-        query: room.title,
-        type: "mood",
-      },
+      params: nav,
+    } as any);
+  }, [resolveRoomNav]);
+
+  const openMoodRoom = useCallback((room: ExploreMoodRoom) => {
+    const nav = {
+      type: "mood" as const,
+      id: room.id,
+      title: room.title,
+      query: room.title,
+    };
+    invalidateCatalogViewForTarget(nav);
+
+    // Preserve Explore's historically matched songs — multi-mood ANY-match filter.
+    const seedSongs = Array.isArray(room.songs) ? (room.songs as any[]) : [];
+    if (seedSongs.length) {
+      setCatalogViewSeed({
+        ...nav,
+        songs: seedSongs,
+      });
+    }
+    router.push({
+      pathname: "/genre",
+      params: nav,
     } as any);
   }, []);
 
   const openGenre = useCallback((genre: HiddenTunesGenreCatalogItem) => {
+    const nav = {
+      type: "genre" as const,
+      id: genre.id,
+      title: genre.title,
+      query: genre.title,
+    };
+    invalidateCatalogViewForTarget(nav);
+
+    const relevant = Array.isArray(genre.songs)
+      ? rankSongsForRoomRelevance(genre.songs as any, {
+          title: genre.title,
+          id: genre.id,
+          type: "genre",
+          limit: 24,
+        }).map((hit) => hit.song)
+      : [];
+
+    if (relevant.length) {
+      setCatalogViewSeed({
+        ...nav,
+        songs: relevant as any,
+      });
+    }
     router.push({
       pathname: "/genre",
-      params: {
-        title: genre.title,
-        query: genre.title,
-        id: genre.id,
-        type: "genre",
-      },
+      params: nav,
     } as any);
   }, []);
 
