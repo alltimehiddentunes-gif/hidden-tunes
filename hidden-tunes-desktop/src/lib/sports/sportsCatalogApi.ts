@@ -631,16 +631,17 @@ export async function hydrateSportsPlaybackSession(
  */
 export async function searchSportsFixtures(
   q: string,
-  options?: { limit?: number; signal?: AbortSignal },
+  options?: { page?: number; limit?: number; signal?: AbortSignal },
 ): Promise<SportsSearchFixtureResult> {
   const query = String(q || '').trim()
   const limit = clampLimit(options?.limit ?? 12)
+  const page = clampPage(options?.page)
 
   if (query.length < 2) {
     return { success: true, enabled: true, query, fixtures: [], hasMore: false }
   }
 
-  const params = buildQuery({ q: query, page: 1, limit })
+  const params = buildQuery({ q: query, page, limit })
 
   try {
     const { payload, status } = await sportsRequest(`/api/sports/search?${params.toString()}`, {

@@ -44,12 +44,10 @@ export function useDiscoverLectureSearch(debouncedQuery: string) {
     const requestId = ++requestRef.current
     const controller = new AbortController()
 
-    void (async () => {
-      await Promise.resolve()
-      if (requestId !== requestRef.current) return
-      setLoading(true)
-      setError(null)
+    setLoading(true)
+    setError(null)
 
+    void (async () => {
       try {
         const response = await searchLectures(
           trimmed,

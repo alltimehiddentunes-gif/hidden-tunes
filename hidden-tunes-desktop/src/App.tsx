@@ -3309,11 +3309,8 @@ function MusicPage({
 }
 
 const SEARCH_SONG_PREVIEW_LIMIT = 5
-const SEARCH_SONG_EXPANDED_LIMIT = 24
 const SEARCH_ARTIST_PREVIEW_LIMIT = 4
-const SEARCH_ARTIST_EXPANDED_LIMIT = 16
 const SEARCH_ALBUM_PREVIEW_LIMIT = 4
-const SEARCH_ALBUM_EXPANDED_LIMIT = 16
 
 function formatSongDurationLabel(
   song: { durationSeconds: number | null } | null | undefined,
@@ -3485,7 +3482,20 @@ function DiscoverPage({
   const [remotePage, setRemotePage] = useState(1)
   const [remoteHasMore, setRemoteHasMore] = useState(false)
   const [remoteLoadingMore, setRemoteLoadingMore] = useState(false)
+  const [remoteLoadMoreError, setRemoteLoadMoreError] = useState<string | null>(null)
+  const [remoteArtistsPage, setRemoteArtistsPage] = useState(1)
+  const [remoteArtistsHasMore, setRemoteArtistsHasMore] = useState(false)
+  const [remoteArtistsLoadingMore, setRemoteArtistsLoadingMore] = useState(false)
+  const [remoteArtistsLoadMoreError, setRemoteArtistsLoadMoreError] = useState<string | null>(null)
+  const [remoteArtistsTotal, setRemoteArtistsTotal] = useState<number | null>(null)
+  const [remoteAlbumsPage, setRemoteAlbumsPage] = useState(1)
+  const [remoteAlbumsHasMore, setRemoteAlbumsHasMore] = useState(false)
+  const [remoteAlbumsLoadingMore, setRemoteAlbumsLoadingMore] = useState(false)
+  const [remoteAlbumsLoadMoreError, setRemoteAlbumsLoadMoreError] = useState<string | null>(null)
+  const [remoteAlbumsTotal, setRemoteAlbumsTotal] = useState<number | null>(null)
   const remoteSearchGen = useRef(0)
+  const remoteQueryRef = useRef(trimmedQuery)
+  remoteQueryRef.current = trimmedQuery
   const hasRemoteQuery = Boolean(trimmedQuery) || Boolean(genreDefinition)
   const [prevHasRemoteQuery, setPrevHasRemoteQuery] = useState(hasRemoteQuery)
 
@@ -3497,6 +3507,13 @@ function DiscoverPage({
       setRemoteAlbums([])
       setRemoteSearchLoading(false)
       setRemoteSearchError(null)
+      setRemoteLoadMoreError(null)
+      setRemoteArtistsHasMore(false)
+      setRemoteAlbumsHasMore(false)
+      setRemoteArtistsTotal(null)
+      setRemoteAlbumsTotal(null)
+      setRemoteArtistsLoadMoreError(null)
+      setRemoteAlbumsLoadMoreError(null)
     }
   }
 
@@ -3505,17 +3522,28 @@ function DiscoverPage({
 
     const controller = new AbortController()
     const gen = ++remoteSearchGen.current
+    const activeQuery = trimmedQuery
+    const activeGenreId = genreId
+
+    // Synchronous search acknowledgement — never leave stale results looking active.
+    setRemoteSearchLoading(true)
+    setRemoteSearchError(null)
+    setRemoteLoadMoreError(null)
+    setRemoteArtistsLoadMoreError(null)
+    setRemoteAlbumsLoadMoreError(null)
+    setRemoteSongs([])
+    setRemoteArtists([])
+    setRemoteAlbums([])
+    setRemoteHasMore(false)
+    setRemoteArtistsHasMore(false)
+    setRemoteAlbumsHasMore(false)
+    setRemoteArtistsTotal(null)
+    setRemoteAlbumsTotal(null)
+    setRemotePage(1)
+    setRemoteArtistsPage(1)
+    setRemoteAlbumsPage(1)
 
     void (async () => {
-      await Promise.resolve()
-      if (gen !== remoteSearchGen.current) return
-      setRemoteSearchLoading(true)
-      setRemoteSearchError(null)
-      setRemoteSongs([])
-      setRemoteArtists([])
-      setRemoteAlbums([])
-      setRemoteHasMore(false)
-
       try {
         const [result, artistResult, albumResult] = genreDefinition
           ? [await loadFilteredGenrePage(genreDefinition, 1, controller.signal), null, null]
@@ -3525,13 +3553,23 @@ function DiscoverPage({
               searchMusicAlbumsPage({ query: trimmedQuery, page: 1, limit: MUSIC_CATALOG_PAGE_SIZE, signal: controller.signal }),
             ])
         if (gen !== remoteSearchGen.current) return
-        startTransition(() => {
-          setRemoteSongs(result.items)
-          setRemoteArtists(artistResult?.items ?? [])
-          setRemoteAlbums(albumResult?.items ?? [])
-          setRemotePage('page' in result ? result.page : 1)
-          setRemoteHasMore(result.hasMore)
-        })
+        if (!genreDefinition && activeQuery !== remoteQueryRef.current) return
+        if (genreDefinition && activeGenreId !== genreId) return
+        setRemoteSongs(result.items)
+        setRemoteArtists(artistResult?.items ?? [])
+        setRemoteAlbums(albumResult?.items ?? [])
+        setRemotePage('page' in result ? result.page : 1)
+        setRemoteHasMore(result.hasMore)
+        setRemoteArtistsPage(artistResult?.page ?? 1)
+        setRemoteArtistsHasMore(Boolean(artistResult?.hasMore))
+        setRemoteArtistsTotal(
+          typeof artistResult?.total === 'number' ? artistResult.total : null,
+        )
+        setRemoteAlbumsPage(albumResult?.page ?? 1)
+        setRemoteAlbumsHasMore(Boolean(albumResult?.hasMore))
+        setRemoteAlbumsTotal(
+          typeof albumResult?.total === 'number' ? albumResult.total : null,
+        )
       } catch (err) {
         if (gen !== remoteSearchGen.current) return
         if (err instanceof DOMException && err.name === 'AbortError') return
@@ -3543,6 +3581,8 @@ function DiscoverPage({
         setRemoteArtists([])
         setRemoteAlbums([])
         setRemoteHasMore(false)
+        setRemoteArtistsHasMore(false)
+        setRemoteAlbumsHasMore(false)
       } finally {
         if (gen === remoteSearchGen.current) setRemoteSearchLoading(false)
       }
@@ -3558,8 +3598,10 @@ function DiscoverPage({
     if (!genreDefinition && !trimmedQuery) return
     const controller = new AbortController()
     const gen = remoteSearchGen.current
+    const activeQuery = trimmedQuery
     const nextPage = remotePage + 1
     setRemoteLoadingMore(true)
+    setRemoteLoadMoreError(null)
     void (async () => {
       try {
         const result = await (genreDefinition
@@ -3571,6 +3613,7 @@ function DiscoverPage({
               signal: controller.signal,
             }))
         if (gen !== remoteSearchGen.current) return
+        if (!genreDefinition && activeQuery !== remoteQueryRef.current) return
         setRemoteSongs((previous) => {
           const seen = new Set(previous.map((song) => song.id))
           return [...previous, ...result.items.filter((song) => !seen.has(song.id))]
@@ -3581,12 +3624,94 @@ function DiscoverPage({
         if (gen !== remoteSearchGen.current) return
         if (error instanceof DOMException && error.name === 'AbortError') return
         if (error instanceof CatalogRequestError && error.kind === 'abort') return
-        setRemoteSearchError(error instanceof Error ? error.message : 'Could not load more songs.')
+        setRemoteLoadMoreError(error instanceof Error ? error.message : 'Could not load more songs.')
       } finally {
         if (gen === remoteSearchGen.current) setRemoteLoadingMore(false)
       }
     })()
   }, [genreDefinition, remoteHasMore, remoteLoadingMore, remotePage, trimmedQuery])
+
+  const loadMoreRemoteArtists = useCallback(() => {
+    if (remoteArtistsLoadingMore || !remoteArtistsHasMore || !trimmedQuery || genreDefinition) return
+    const gen = remoteSearchGen.current
+    const activeQuery = trimmedQuery
+    const nextPage = remoteArtistsPage + 1
+    setRemoteArtistsLoadingMore(true)
+    setRemoteArtistsLoadMoreError(null)
+    void (async () => {
+      try {
+        const result = await searchMusicArtistsPage({
+          query: activeQuery,
+          page: nextPage,
+          limit: MUSIC_CATALOG_PAGE_SIZE,
+        })
+        if (gen !== remoteSearchGen.current || activeQuery !== remoteQueryRef.current) return
+        setRemoteArtists((previous) => {
+          const seen = new Set(previous.map((artist) => artist.id))
+          return [...previous, ...result.items.filter((artist) => !seen.has(artist.id))]
+        })
+        setRemoteArtistsPage(result.page)
+        setRemoteArtistsHasMore(result.hasMore)
+        if (typeof result.total === 'number') setRemoteArtistsTotal(result.total)
+      } catch (error) {
+        if (gen !== remoteSearchGen.current) return
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        if (error instanceof CatalogRequestError && error.kind === 'abort') return
+        setRemoteArtistsLoadMoreError(
+          error instanceof Error ? error.message : 'Could not load more artists.',
+        )
+      } finally {
+        if (gen === remoteSearchGen.current) setRemoteArtistsLoadingMore(false)
+      }
+    })()
+  }, [
+    genreDefinition,
+    remoteArtistsHasMore,
+    remoteArtistsLoadingMore,
+    remoteArtistsPage,
+    trimmedQuery,
+  ])
+
+  const loadMoreRemoteAlbums = useCallback(() => {
+    if (remoteAlbumsLoadingMore || !remoteAlbumsHasMore || !trimmedQuery || genreDefinition) return
+    const gen = remoteSearchGen.current
+    const activeQuery = trimmedQuery
+    const nextPage = remoteAlbumsPage + 1
+    setRemoteAlbumsLoadingMore(true)
+    setRemoteAlbumsLoadMoreError(null)
+    void (async () => {
+      try {
+        const result = await searchMusicAlbumsPage({
+          query: activeQuery,
+          page: nextPage,
+          limit: MUSIC_CATALOG_PAGE_SIZE,
+        })
+        if (gen !== remoteSearchGen.current || activeQuery !== remoteQueryRef.current) return
+        setRemoteAlbums((previous) => {
+          const seen = new Set(previous.map((album) => album.id))
+          return [...previous, ...result.items.filter((album) => !seen.has(album.id))]
+        })
+        setRemoteAlbumsPage(result.page)
+        setRemoteAlbumsHasMore(result.hasMore)
+        if (typeof result.total === 'number') setRemoteAlbumsTotal(result.total)
+      } catch (error) {
+        if (gen !== remoteSearchGen.current) return
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        if (error instanceof CatalogRequestError && error.kind === 'abort') return
+        setRemoteAlbumsLoadMoreError(
+          error instanceof Error ? error.message : 'Could not load more albums.',
+        )
+      } finally {
+        if (gen === remoteSearchGen.current) setRemoteAlbumsLoadingMore(false)
+      }
+    })()
+  }, [
+    genreDefinition,
+    remoteAlbumsHasMore,
+    remoteAlbumsLoadingMore,
+    remoteAlbumsPage,
+    trimmedQuery,
+  ])
 
   const localSearchResult = useMemo(
     () =>
@@ -3714,16 +3839,15 @@ function DiscoverPage({
     [genreDefinition, trimmedQuery, visibleSongs],
   )
   const topResult = qualifiesForTopMatch(rankedTopSong) ? rankedTopSong?.item ?? null : null
-  const songLimit = genreDefinition
-    ? Math.max(visibleSongs.length, SEARCH_SONG_EXPANDED_LIMIT)
-    : searchTab === 'songs'
-      ? SEARCH_SONG_EXPANDED_LIMIT
-      : SEARCH_SONG_PREVIEW_LIMIT
+  // All tab stays a shallow preview; expanded tabs expose every loaded item.
+  const songLimit = searchTab === 'all' && !genreDefinition
+    ? SEARCH_SONG_PREVIEW_LIMIT
+    : visibleSongs.length
   const artistLimit = searchTab === 'artists'
-    ? SEARCH_ARTIST_EXPANDED_LIMIT
+    ? matchedArtists.length
     : SEARCH_ARTIST_PREVIEW_LIMIT
   const albumLimit = searchTab === 'albums'
-    ? SEARCH_ALBUM_EXPANDED_LIMIT
+    ? matchedAlbums.length
     : SEARCH_ALBUM_PREVIEW_LIMIT
 
   const songRows = useMemo(
@@ -3739,11 +3863,66 @@ function DiscoverPage({
     [albumLimit, matchedAlbums],
   )
 
+  const songsSeeAllLabel = (() => {
+    if (searchTab !== 'all' || genreDefinition) return null
+    if (visibleSongs.length > SEARCH_SONG_PREVIEW_LIMIT || remoteHasMore) {
+      return remoteHasMore
+        ? `See more ${t('music.common.songs').toLowerCase()}`
+        : `See all ${visibleSongs.length} ${t('music.common.songs').toLowerCase()}`
+    }
+    return null
+  })()
+  const artistsSeeAllLabel = (() => {
+    if (searchTab !== 'all') return null
+    if (
+      matchedArtists.length > SEARCH_ARTIST_PREVIEW_LIMIT
+      || remoteArtistsHasMore
+      || (typeof remoteArtistsTotal === 'number' && remoteArtistsTotal > SEARCH_ARTIST_PREVIEW_LIMIT)
+    ) {
+      if (typeof remoteArtistsTotal === 'number' && remoteArtistsTotal > SEARCH_ARTIST_PREVIEW_LIMIT) {
+        return `See all ${remoteArtistsTotal} ${t('library.artists').toLowerCase()}`
+      }
+      return remoteArtistsHasMore
+        ? `See more ${t('library.artists').toLowerCase()}`
+        : `See all ${matchedArtists.length} ${t('library.artists').toLowerCase()}`
+    }
+    return null
+  })()
+  const albumsSeeAllLabel = (() => {
+    if (searchTab !== 'all') return null
+    if (
+      matchedAlbums.length > SEARCH_ALBUM_PREVIEW_LIMIT
+      || remoteAlbumsHasMore
+      || (typeof remoteAlbumsTotal === 'number' && remoteAlbumsTotal > SEARCH_ALBUM_PREVIEW_LIMIT)
+    ) {
+      if (typeof remoteAlbumsTotal === 'number' && remoteAlbumsTotal > SEARCH_ALBUM_PREVIEW_LIMIT) {
+        return `See all ${remoteAlbumsTotal} ${t('library.albums').toLowerCase()}`
+      }
+      return remoteAlbumsHasMore
+        ? `See more ${t('library.albums').toLowerCase()}`
+        : `See all ${matchedAlbums.length} ${t('library.albums').toLowerCase()}`
+    }
+    return null
+  })()
+
+  const artistsHeading = typeof remoteArtistsTotal === 'number' && remoteArtistsTotal > 0
+    ? `${t('library.artists')} · ${remoteArtistsTotal}`
+    : t('library.artists')
+  const albumsHeading = typeof remoteAlbumsTotal === 'number' && remoteAlbumsTotal > 0
+    ? `${t('library.albums')} · ${remoteAlbumsTotal}`
+    : t('library.albums')
+
   const searchTabs = [
     { id: 'all', label: `All (${visibleSongs.length + matchedArtists.length + matchedAlbums.length})` },
-    { id: 'songs', label: `${t('music.common.songs')} (${visibleSongs.length})` },
-    { id: 'artists', label: `${t('library.artists')} (${matchedArtists.length})` },
-    { id: 'albums', label: `${t('library.albums')} (${matchedAlbums.length})` },
+    { id: 'songs', label: `${t('music.common.songs')} (${visibleSongs.length}${remoteHasMore ? '+' : ''})` },
+    {
+      id: 'artists',
+      label: `${t('library.artists')} (${typeof remoteArtistsTotal === 'number' ? remoteArtistsTotal : matchedArtists.length}${remoteArtistsHasMore && remoteArtistsTotal == null ? '+' : ''})`,
+    },
+    {
+      id: 'albums',
+      label: `${t('library.albums')} (${typeof remoteAlbumsTotal === 'number' ? remoteAlbumsTotal : matchedAlbums.length}${remoteAlbumsHasMore && remoteAlbumsTotal == null ? '+' : ''})`,
+    },
   ] as const
 
   const showMainResults = searchTab === 'all' || searchTab === 'songs'
@@ -3770,10 +3949,14 @@ function DiscoverPage({
   const retryRemoteSearch = useCallback(() => {
     remoteSearchGen.current += 1
     setRemoteSearchError(null)
-    // Trigger effect by bumping via forced state refresh of the same query deps.
+    setRemoteLoadMoreError(null)
     setRemoteSearchLoading(true)
+    setRemoteSongs([])
+    setRemoteArtists([])
+    setRemoteAlbums([])
     const controller = new AbortController()
     const gen = remoteSearchGen.current
+    const activeQuery = trimmedQuery
     void (async () => {
       try {
         const [result, artistResult, albumResult] = genreDefinition
@@ -3784,13 +3967,18 @@ function DiscoverPage({
               searchMusicAlbumsPage({ query: trimmedQuery, page: 1, limit: MUSIC_CATALOG_PAGE_SIZE, signal: controller.signal }),
             ])
         if (gen !== remoteSearchGen.current) return
-        startTransition(() => {
-          setRemoteSongs(result.items)
-          setRemoteArtists(artistResult?.items ?? [])
-          setRemoteAlbums(albumResult?.items ?? [])
-          setRemotePage('page' in result ? result.page : 1)
-          setRemoteHasMore(result.hasMore)
-        })
+        if (!genreDefinition && activeQuery !== remoteQueryRef.current) return
+        setRemoteSongs(result.items)
+        setRemoteArtists(artistResult?.items ?? [])
+        setRemoteAlbums(albumResult?.items ?? [])
+        setRemotePage('page' in result ? result.page : 1)
+        setRemoteHasMore(result.hasMore)
+        setRemoteArtistsPage(artistResult?.page ?? 1)
+        setRemoteArtistsHasMore(Boolean(artistResult?.hasMore))
+        setRemoteArtistsTotal(typeof artistResult?.total === 'number' ? artistResult.total : null)
+        setRemoteAlbumsPage(albumResult?.page ?? 1)
+        setRemoteAlbumsHasMore(Boolean(albumResult?.hasMore))
+        setRemoteAlbumsTotal(typeof albumResult?.total === 'number' ? albumResult.total : null)
       } catch (err) {
         if (gen !== remoteSearchGen.current) return
         if (err instanceof DOMException && err.name === 'AbortError') return
@@ -3857,6 +4045,12 @@ function DiscoverPage({
             </button>
           ))}
         </div>
+
+        {hasEvaluatedQuery && (remoteSearchLoading || globalSearch.isFamilyLoading || lectureSearchLoading || isSearchPending) ? (
+          <p className="ht-global-search-status" role="status" aria-live="polite" data-search-ack="true">
+            Searching for &ldquo;{genreDefinition ? genreDefinition.label : trimmedQuery}&rdquo;
+          </p>
+        ) : null}
 
         {showCatalogSkeleton || remoteSearchLoading || isSearchPending ? (
           <CatalogSkeleton count={8} variant="card" />
@@ -3934,13 +4128,13 @@ function DiscoverPage({
               <section className="psd-search-songs-panel" aria-labelledby="search-songs-heading">
                 <header className="psd-search-section-header">
                   <h2 id="search-songs-heading">{t('music.common.songs')}</h2>
-                  {searchTab === 'all' && visibleSongs.length > SEARCH_SONG_PREVIEW_LIMIT ? (
+                  {songsSeeAllLabel ? (
                     <button
                       type="button"
                       className="psd-search-view-all"
                       onClick={() => setSearchTab('songs')}
                     >
-                      View all
+                      {songsSeeAllLabel}
                     </button>
                   ) : null}
                 </header>
@@ -3982,7 +4176,7 @@ function DiscoverPage({
                     )
                   })}
                 </div>
-                {(genreDefinition || trimmedQuery) && remoteHasMore ? (
+                {(searchTab === 'songs' || Boolean(genreDefinition)) && (genreDefinition || trimmedQuery) && remoteHasMore ? (
                   <button
                     type="button"
                     className="catalog-show-more"
@@ -3997,6 +4191,14 @@ function DiscoverPage({
                         : 'Load more songs'}
                   </button>
                 ) : null}
+                {remoteLoadMoreError && (searchTab === 'songs' || Boolean(genreDefinition)) ? (
+                  <div className="psd-search-error" role="status">
+                    <p>{remoteLoadMoreError}</p>
+                    <button type="button" className="btn-secondary btn-sm" onClick={loadMoreRemoteSongs}>
+                      {t('common.retry')}
+                    </button>
+                  </div>
+                ) : null}
               </section>
             ) : null}
 
@@ -4005,14 +4207,14 @@ function DiscoverPage({
                 {showArtistPanel && artistRows.length > 0 ? (
                   <section className="psd-search-side-panel" aria-labelledby="search-artists-heading">
                     <header className="psd-search-section-header">
-                      <h2 id="search-artists-heading">{t('library.artists')}</h2>
-                      {searchTab === 'all' && matchedArtists.length > SEARCH_ARTIST_PREVIEW_LIMIT ? (
+                      <h2 id="search-artists-heading">{artistsHeading}</h2>
+                      {artistsSeeAllLabel ? (
                         <button
                           type="button"
                           className="psd-search-view-all"
                           onClick={() => setSearchTab('artists')}
                         >
-                          View all
+                          {artistsSeeAllLabel}
                         </button>
                       ) : null}
                     </header>
@@ -4041,20 +4243,39 @@ function DiscoverPage({
                         </button>
                       ))}
                     </div>
+                    {searchTab === 'artists' && remoteArtistsHasMore ? (
+                      <button
+                        type="button"
+                        className="catalog-show-more"
+                        disabled={remoteArtistsLoadingMore}
+                        onClick={loadMoreRemoteArtists}
+                        data-search-load-more="artists"
+                      >
+                        {remoteArtistsLoadingMore ? 'Loading more…' : 'Load more artists'}
+                      </button>
+                    ) : null}
+                    {searchTab === 'artists' && remoteArtistsLoadMoreError ? (
+                      <div className="psd-search-error" role="status">
+                        <p>{remoteArtistsLoadMoreError}</p>
+                        <button type="button" className="btn-secondary btn-sm" onClick={loadMoreRemoteArtists}>
+                          {t('common.retry')}
+                        </button>
+                      </div>
+                    ) : null}
                   </section>
                 ) : null}
 
                 {showAlbumPanel && albumRows.length > 0 ? (
                   <section className="psd-search-side-panel" aria-labelledby="search-albums-heading">
                     <header className="psd-search-section-header">
-                      <h2 id="search-albums-heading">{t('library.albums')}</h2>
-                      {searchTab === 'all' && matchedAlbums.length > SEARCH_ALBUM_PREVIEW_LIMIT ? (
+                      <h2 id="search-albums-heading">{albumsHeading}</h2>
+                      {albumsSeeAllLabel ? (
                         <button
                           type="button"
                           className="psd-search-view-all"
                           onClick={() => setSearchTab('albums')}
                         >
-                          View all
+                          {albumsSeeAllLabel}
                         </button>
                       ) : null}
                     </header>
@@ -4082,6 +4303,25 @@ function DiscoverPage({
                         </button>
                       ))}
                     </div>
+                    {searchTab === 'albums' && remoteAlbumsHasMore ? (
+                      <button
+                        type="button"
+                        className="catalog-show-more"
+                        disabled={remoteAlbumsLoadingMore}
+                        onClick={loadMoreRemoteAlbums}
+                        data-search-load-more="albums"
+                      >
+                        {remoteAlbumsLoadingMore ? 'Loading more…' : 'Load more albums'}
+                      </button>
+                    ) : null}
+                    {searchTab === 'albums' && remoteAlbumsLoadMoreError ? (
+                      <div className="psd-search-error" role="status">
+                        <p>{remoteAlbumsLoadMoreError}</p>
+                        <button type="button" className="btn-secondary btn-sm" onClick={loadMoreRemoteAlbums}>
+                          {t('common.retry')}
+                        </button>
+                      </div>
+                    ) : null}
                   </section>
                 ) : null}
               </div>
@@ -4164,6 +4404,7 @@ function DiscoverPage({
 
             {searchTab === 'all' && hasEvaluatedQuery ? (
               <GlobalSearchSections
+                key={trimmedQuery || genreId || 'idle'}
                 search={globalSearch}
                 ArtworkImage={ArtworkImage}
                 onNavigateNav={(navKey) => {
@@ -9042,9 +9283,8 @@ function AppShell() {
   )
   const setDiscoverQueryFromSearch = useCallback(
     (value: string) => {
-      startTransition(() => {
-        setDiscoverQuery(value)
-      })
+      // Urgent commit — search acknowledgement must not wait on startTransition.
+      setDiscoverQuery(value)
     },
     [setDiscoverQuery],
   )
