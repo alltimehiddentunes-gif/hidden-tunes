@@ -2,7 +2,6 @@
   createContext,
   lazy,
   memo,
-  startTransition,
   useCallback,
   useContext,
   useEffect,
